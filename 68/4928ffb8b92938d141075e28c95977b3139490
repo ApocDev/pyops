@@ -1,0 +1,27 @@
+app/src/server/conversations.ts
+  s_b2614eafae7f31::t_f92f48a1c29054 1-38
+docs/ai-assistant.md
+  s_b2614eafae7f31::t_f92f48a1c29054 11-20
+app/src/db/conversations.ts
+  s_b2614eafae7f31::t_f92f48a1c29054 1-129
+app/src/routes/assistant.tsx
+  s_b2614eafae7f31::t_f92f48a1c29054 2,4,11-17,22,27-140,148-160,164-183,192
+app/src/db/schema.ts
+  s_b2614eafae7f31::t_f92f48a1c29054 402-426
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "684928ffb8b92938d141075e28c95977b3139490",
+  "prompts": {},
+  "sessions": {
+    "s_b2614eafae7f31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "83262dbe-26d4-43b5-9efd-df427a7d6a95",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
