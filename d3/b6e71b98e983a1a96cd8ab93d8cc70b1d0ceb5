@@ -1,0 +1,29 @@
+app/src/lib/cybersyn-modal.tsx
+  s_bc146af484a04d::t_ec18b48c05310f 1-240
+app/src/server/cybersyn.ts
+  s_bc146af484a04d::t_ec18b48c05310f 1-242
+app/src/server/cybersyn.test.ts
+  s_bc146af484a04d::t_ec18b48c05310f 1-125
+app/src/server/factorio.ts
+  s_bc146af484a04d::t_ec18b48c05310f 4,1140-1203
+app/src/db/queries.ts
+  s_bc146af484a04d::t_ec18b48c05310f 1236-1248
+app/src/routes/block.$id.tsx
+  s_bc146af484a04d::t_ec18b48c05310f 18,264,578-584,1429-1440
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "d3b6e71b98e983a1a96cd8ab93d8cc70b1d0ceb5",
+  "prompts": {},
+  "sessions": {
+    "s_bc146af484a04d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "897371da-6501-47a0-b9cf-025e2f49d64e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
