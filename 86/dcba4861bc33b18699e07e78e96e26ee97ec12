@@ -1,0 +1,37 @@
+docs/ai-assistant.md
+  s_b2614eafae7f31::t_e50868a24b103d 43-51
+.gitignore
+  s_b2614eafae7f31::t_e50868a24b103d 39-43
+app/src/db/projects-fs.ts
+  s_b2614eafae7f31::t_e50868a24b103d 1-141
+docs/architecture.md
+  s_b2614eafae7f31::t_e50868a24b103d 50-51,68-74
+app/src/db/index.ts
+  s_b2614eafae7f31::t_e50868a24b103d 4,8-10,17
+app/src/server/projects.ts
+  s_b2614eafae7f31::t_e50868a24b103d 2-7,10,12-20,32-55,57,59-61,81-83,85,89-91,94-95,97-101
+app/src/server/app-config.ts
+  s_b2614eafae7f31::t_e50868a24b103d 20
+app/src/db/import-factorio.ts
+  s_b2614eafae7f31::t_e50868a24b103d 143
+AGENTS.md
+  s_b2614eafae7f31::t_e50868a24b103d 23-27
+README.md
+  s_b2614eafae7f31::t_e50868a24b103d 119-120,122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "86dcba4861bc33b18699e07e78e96e26ee97ec12",
+  "prompts": {},
+  "sessions": {
+    "s_b2614eafae7f31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "83262dbe-26d4-43b5-9efd-df427a7d6a95",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
