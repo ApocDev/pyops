@@ -1,0 +1,19 @@
+docs/bridge.md
+  s_63762a4323844b::t_180093475e2102 12-20,64-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "d4405973a4fe73b343e5ec9017211e7690e98b06",
+  "prompts": {},
+  "sessions": {
+    "s_63762a4323844b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b83b8428-85cc-42ca-bd0e-6590cef951e7",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
