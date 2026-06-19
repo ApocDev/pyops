@@ -1,0 +1,19 @@
+mod/summary.lua
+  s_b2614eafae7f31::t_b5f9208745a930 222-244,499-503,505
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "a05319881424427cd79622aed34dbb2c212799d7",
+  "prompts": {},
+  "sessions": {
+    "s_b2614eafae7f31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "83262dbe-26d4-43b5-9efd-df427a7d6a95",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
