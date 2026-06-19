@@ -1,0 +1,19 @@
+AGENTS.md
+  s_b2614eafae7f31::t_d96b5355c3eac6 153-155,159-166
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "972b3a65d40cf154edf423917252cd879336f136",
+  "prompts": {},
+  "sessions": {
+    "s_b2614eafae7f31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "83262dbe-26d4-43b5-9efd-df427a7d6a95",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
