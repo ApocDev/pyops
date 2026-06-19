@@ -1,0 +1,19 @@
+mod/summary.lua
+  s_b2614eafae7f31::t_d67577f1f17b6a 56-65,173-186,192-194,197-200,208,215,224,230,236-264,276-277,351-353,377-390,438-442,444-469,471,476,478-481,492,495
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "fef1f753cf25992f56d6d70f09ef130a6f16a96e",
+  "prompts": {},
+  "sessions": {
+    "s_b2614eafae7f31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "83262dbe-26d4-43b5-9efd-df427a7d6a95",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
