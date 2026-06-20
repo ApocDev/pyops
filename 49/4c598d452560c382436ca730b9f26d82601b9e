@@ -1,0 +1,27 @@
+app/public/logo.svg
+  s_c8c2d1aa458755::t_c746a3a51db985 1,3-12
+app/src/routes/index.tsx
+  s_c8c2d1aa458755::t_c746a3a51db985 25-28
+app/public/favicon.svg
+  s_c8c2d1aa458755::t_c746a3a51db985 1-10
+app/src/styles.css
+  s_c8c2d1aa458755::t_c746a3a51db985 26,47,62,82
+app/src/components/app-nav.tsx
+  s_c8c2d1aa458755::t_c746a3a51db985 34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "494c598d452560c382436ca730b9f26d82601b9e",
+  "prompts": {},
+  "sessions": {
+    "s_c8c2d1aa458755": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ee30e-58a5-7ca3-9b9d-6af3f86f3802",
+        "model": "gpt-5.5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
