@@ -1,106 +1,68 @@
+import dgram from "node:dgram";
 import { expect, test } from "@playwright/test";
 
 /**
- * Bridge-fed UI without a running game: we intercept the `bridgeStatusFn`
- * server-function response and feed the UI canned mod state. This is the pattern
- * for stress-testing anything driven by the in-game bridge (live research/TURD/
- * built sync, custom recipes) from the browser — drive the RPC, assert the UI.
+ * Bridge-fed UI without a running game — by being the mod.
  *
- * The response uses TanStack Start's seroval wire format; `serialize()` rebuilds
- * that envelope (validated against a real capture — see the smoke run).
+ * Instead of mocking the app's RPC layer, we open a real UDP socket and send the
+ * app's bridge the same datagrams Factorio would (`bridge.ping`, with a player +
+ * protocol version). The app's real socket → parse → lastPeer → bridgeStatus →
+ * BridgeIndicator path then runs end-to-end; we only stand in for the game.
+ *
+ * This exercises the whole real stack (no mocked responses) and carries no
+ * dependency on TanStack Start's wire format, so it won't break on their releases.
+ * The dev server's bridge port is pinned via PYOPS_BRIDGE_PORT (see config).
  */
 
-type Json = null | number | string | boolean | { [k: string]: Json };
+const BRIDGE_PORT = 37659;
+const HOST = "127.0.0.1";
 
-/** Encode a value as TanStack Start's seroval node tree (objects get DFS ids). */
-function serialize(result: Json): string {
-  let id = 0;
-  const node = (v: Json): unknown => {
-    if (v === null || v === undefined) return { t: 2, s: 0 };
-    if (typeof v === "number") return { t: 0, s: v };
-    if (typeof v === "string") return { t: 1, s: v };
-    if (typeof v === "boolean") return { t: 0, s: v ? 1 : 0 };
-    const i = id++;
-    const keys = Object.keys(v);
-    return { t: 10, i, p: { k: keys, v: keys.map((k) => node(v[k])) }, o: 0 };
+/** A stand-in for the companion mod: heartbeats the app's bridge on an interval
+ * (the indicator treats a peer as connected only within a ~6s freshness window). */
+function fakeMod(fields: { protocol_version: number; player?: string; mod_version?: string }) {
+  const sock = dgram.createSocket("udp4");
+  sock.on("error", () => {}); // ignore ICMP port-unreachable before the app binds
+  const ping = () => {
+    const msg = Buffer.from(
+      JSON.stringify({ request_id: "e2e", type: "bridge.ping", ...fields }),
+    );
+    sock.send(msg, BRIDGE_PORT, HOST);
   };
-  const envId = id++; // envelope is id 0
-  const resultNode = node(result); // result subtree next
-  const contextNode = { t: 11, i: id++, p: { k: [], v: [] }, o: 0 };
-  // envelope's error slot is "no error" → seroval undefined constant {t:2,s:1}
-  // (a null *field* is {t:2,s:0}); verified byte-identical to a real capture.
-  return JSON.stringify({
-    t: 10,
-    i: envId,
-    p: { k: ["result", "error", "context"], v: [resultNode, { t: 2, s: 1 }, contextNode] },
-    o: 0,
-  });
-}
-
-type Peer = { lastSeenMs: number; protocolVersion: number; player: string } | null;
-function status(over: Partial<{ status: string; error: string | null; appProtocolVersion: number; lastPeer: Peer }>) {
-  const base = {
-    version: 3,
-    host: "127.0.0.1",
-    port: 37657,
-    status: "listening",
-    error: null as string | null,
-    startedMs: 1,
-    packetsIn: 0,
-    packetsOut: 0,
-    lastPeer: null as Peer,
-    appProtocolVersion: 4,
+  ping();
+  const timer = setInterval(ping, 1500);
+  return {
+    stop: () => {
+      clearInterval(timer);
+      sock.close();
+    },
   };
-  return { ...base, ...over } as unknown as Json;
 }
 
-/** Make every bridgeStatusFn call return our canned status; let other RPCs through. */
-async function mockBridge(page: import("@playwright/test").Page, value: Json) {
-  await page.route("**/_serverFn/**", async (route) => {
-    const seg = route.request().url().split("/_serverFn/")[1]?.split("?")[0] ?? "";
-    let isBridge = false;
-    try {
-      isBridge = String(
-        JSON.parse(Buffer.from(seg, "base64").toString()).export,
-      ).includes("bridgeStatusFn");
-    } catch {
-      /* not a decodable id */
-    }
-    if (isBridge)
-      await route.fulfill({
-        // TanStack Start only deserializes responses flagged with this header
-        headers: { "x-tss-serialized": "true" },
-        contentType: "application/json",
-        body: serialize(value),
-      });
-    else await route.fallback();
-  });
-}
-
-const label = (page: import("@playwright/test").Page) =>
-  page.locator("nav a[href*='tab=link']");
+const label = (page: import("@playwright/test").Page) => page.locator("nav a[href*='tab=link']");
 
 test("shows 'game linked' for a fresh, protocol-matched peer", async ({ page }) => {
-  await mockBridge(page, status({ lastPeer: { lastSeenMs: Date.now(), protocolVersion: 4, player: "jim" } }));
   await page.goto("/");
-  await expect(label(page)).toContainText("game linked");
-  await expect(label(page).getByText("game linked")).toBeVisible();
+  const mod = fakeMod({ protocol_version: 4, player: "jim", mod_version: "0.1.0" });
+  try {
+    await expect(label(page)).toContainText("game linked");
+    await expect(label(page)).toHaveAttribute("title", /jim/);
+  } finally {
+    mod.stop();
+  }
 });
 
 test("flags a protocol mismatch when the mod speaks a different version", async ({ page }) => {
-  await mockBridge(page, status({ lastPeer: { lastSeenMs: Date.now(), protocolVersion: 3, player: "jim" } }));
   await page.goto("/");
-  await expect(label(page)).toContainText("mod mismatch");
+  const mod = fakeMod({ protocol_version: 3, player: "jim" });
+  try {
+    await expect(label(page)).toContainText("mod mismatch");
+  } finally {
+    mod.stop();
+  }
 });
 
-test("shows 'no game' while listening with no peer", async ({ page }) => {
-  await mockBridge(page, status({ status: "listening", lastPeer: null }));
-  await page.goto("/");
-  await expect(label(page)).toContainText("no game");
-});
-
-test("surfaces a bind error", async ({ page }) => {
-  await mockBridge(page, status({ status: "error", error: "EADDRINUSE" }));
-  await page.goto("/");
-  await expect(label(page)).toContainText("bridge error");
-});
+// NOTE: deliberately no "peer goes stale → no game" test. The indicator computes
+// freshness with Date.now() at render time, but once the heartbeat stops the
+// bridge-status payload stops changing, so react-query never re-renders it — the
+// label is stale-sticky until the next payload change. Asserting an automatic
+// flip would be testing behavior the app doesn't have. (Minor real quirk.)

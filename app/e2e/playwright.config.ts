@@ -32,5 +32,8 @@ export default defineConfig({
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
+    // pin the UDP bridge to a known, non-default port so the fake-mod peer in
+    // bridge.e2e.ts can reach it without clashing with a real mod/app on 37657
+    env: { PYOPS_BRIDGE_PORT: "37659" },
   },
 });

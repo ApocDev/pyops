@@ -30,12 +30,18 @@ install while the server runs can corrupt things.
 
 - **`smoke.e2e.ts`** — every top-level route loads with no page error; the nav
   renders; `/browse` shows recipes by localized display name.
-- **`bridge.e2e.ts`** — mocks the `bridgeStatusFn` server-function response to feed
-  the UI canned in-game/bridge state (linked, protocol mismatch, no-game, stale
-  peer, bind error) with **no running game**. This is the pattern for stress-
-  testing anything driven by the bridge (live research/TURD/built sync, custom
-  recipes): intercept the RPC, assert the UI. The mock rebuilds TanStack Start's
-  seroval wire format and sets the `x-tss-serialized` header the client requires.
+- **`bridge.e2e.ts`** — stands up a real `node:dgram` socket and **is the mod**:
+  it sends the app's UDP bridge the same `bridge.ping` datagrams Factorio would,
+  so the app's real socket → parse → `lastPeer` → `bridgeStatus` → UI path runs
+  end-to-end (linked, protocol mismatch) with **no running game** and **no mocked
+  responses**. Because nothing fabricates the RPC payload, it carries no
+  dependency on TanStack Start's wire format. This is the pattern for the whole
+  bridge surface: drive it with real datagrams, assert the UI. It also generalizes
+  to the app→mod direction — bind the fake-mod socket and assert the app *sent* the
+  expected datagram on a UI action, or reply with canned mod data to drive
+  request/response flows (inspect, build positions, assistant tool calls). State
+  pushes (`state.research`/`state.built`) mutate the active project DB, so run
+  those against a throwaway project rather than your live one.
 
 ## CI
 
