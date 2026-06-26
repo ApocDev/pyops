@@ -1,0 +1,310 @@
+app/drizzle.config.ts
+  s_6f734d2cc94a8c::t_fcb1df278181ab 1-13
+mod/combinator.lua
+  s_6f734d2cc94a8c::t_afb75eff327297 1-723
+scripts/reload-factorio-game
+  s_9ee44830e6fbca::t_5ea17605e87dc6 1-354
+app/src/integrations/tanstack-query/devtools.tsx
+  s_6f734d2cc94a8c::t_4277268b08038d 1-6
+app/src/db/tasks.ts
+  s_6f734d2cc94a8c::t_9ac5c71642a2e1 1-779
+app/src/server/companion-mod-fns.ts
+  s_6f734d2cc94a8c::t_0e9844376f80bf 1-22
+app/src/server/tasks.ts
+  s_6f734d2cc94a8c::t_bf1de9002b7a96 1-228
+mod/tasks.lua
+  s_6f734d2cc94a8c::t_9eecf46ac2d4a0 1-465
+app/src/server/bridge/protocol.ts
+  s_6f734d2cc94a8c::t_0b0ed7cfd03d95 1-63
+app/src/server/companion-mod.ts
+  s_6f734d2cc94a8c::t_3707982e562926 1-154
+app/src/router.tsx
+  s_6f734d2cc94a8c::t_2105c1db963e2d 1-27
+app/src/components/companion-mod-card.tsx
+  s_6f734d2cc94a8c::t_d46aea1051836c 1-156
+app/public/favicon.svg
+  s_c8c2d1aa458755::t_5f06c0765facd8 1-11
+app/src/routes/block.tsx
+  s_6f734d2cc94a8c::t_da670d31d0666f 1-484
+app/src/db/conversations.ts
+  s_6f734d2cc94a8c::t_2895c89298e03f 1-234
+app/src/db-collections/index.ts
+  s_6f734d2cc94a8c::t_12b4d6ed94b87d 1-17
+app/src/routes/mcp.ts
+  s_6f734d2cc94a8c::t_c832303257aa63 1-54
+app/src/lib/recipe-card.tsx
+  s_6f734d2cc94a8c::t_a45d5b3258c537 1-439
+app/src/components/ui/badge.tsx
+  s_6f734d2cc94a8c::t_f134b9442271af 1-36
+app/src/db/projects-fs.ts
+  s_6f734d2cc94a8c::t_71a303259266ad 1-141
+app/src/server/bridge/fns.ts
+  s_6f734d2cc94a8c::t_0cf5176737083f 1-37
+app/src/components/ui/select.tsx
+  s_6f734d2cc94a8c::t_e0b0f3ae16b924 1-185
+app/src/solver/block.ts
+  s_6f734d2cc94a8c::t_76deda951fc280 1-258
+app/src/components/ui/input.tsx
+  s_6f734d2cc94a8c::t_ed9e7f1f005e6a 1-19
+CLAUDE.md
+  s_63762a4323844b::t_4ba4ded5b780d2 1
+app/public/manifest.json
+  s_99c0583110f5af::t_d5e322d7efedf8 1-31
+app/src/styles.css
+  s_f7e625039781bd::t_20b9a545a96ff7 1-156
+app/package.json
+  s_f7e625039781bd::t_52d483f28ea869 1-105
+app/vite.config.ts
+  s_6f734d2cc94a8c::t_8d926775dde347 1-86
+app/src/components/bridge-indicator.tsx
+  s_6f734d2cc94a8c::t_a1c2923cfe556a 1-71
+app/src/server/bridge/handlers/turd.ts
+  s_6f734d2cc94a8c::t_3e93320cade9dc 1-33
+app/src/db/schema.ts
+  s_6f734d2cc94a8c::t_326b05d438c1f6 1-516
+app/src/db/index.ts
+  s_6f734d2cc94a8c::t_47553307768d1c 1-49
+app/src/routes/turd.tsx
+  s_6f734d2cc94a8c::t_8f9ab5bc8e11b4 1-194
+scripts/atlas-preview.html
+  s_99c0583110f5af::t_9a9921e0edbc90 1-104
+app/src/routes/whatif.tsx
+  s_6f734d2cc94a8c::t_359a6c9198b553 1-269
+app/src/server/bridge/inspect.ts
+  s_6f734d2cc94a8c::t_c21e148fa9dd15 1-56
+app/src/server/effects.ts
+  s_6f734d2cc94a8c::t_ee5a1205d7494a 1-82
+app/src/server/bridge/server.ts
+  s_6f734d2cc94a8c::t_c6a42af8be6976 1-167
+app/src/db/synthesize.ts
+  s_6f734d2cc94a8c::t_3fc817a5664662 1-395
+docs/bridge.md
+  s_f7e625039781bd::t_7685fba53bfe35 1-98
+app/src/lib/model-capabilities.ts
+  s_6f734d2cc94a8c::t_4e5bcb04005e99 1-41
+app/.gitignore
+  s_99c0583110f5af::t_f2429bed512cf7 1-23
+app/src/components/ui/card.tsx
+  s_6f734d2cc94a8c::t_3bc4078f53d72f 1-45
+mod/locale/en/pyops.cfg
+  s_99c0583110f5af::t_9c32cacd4d445d 1-31
+app/src/server/bridge/handlers/built.ts
+  s_6f734d2cc94a8c::t_05e958d7297da2 1-35
+scripts/serve-atlas.mjs
+  s_99c0583110f5af::t_7a579ff0a6a758 1-46
+app/src/server/projects.ts
+  s_6f734d2cc94a8c::t_d179c09967ae95 1-103
+app/src/components/app-nav.tsx
+  s_6f734d2cc94a8c::t_a0799cdd2a7367 1-69
+app/src/lib/modules-modal.tsx
+  s_6f734d2cc94a8c::t_4bb984270f0cba 1-617
+app/src/routeTree.gen.ts
+  s_6f734d2cc94a8c::t_f1b5d3fdd8d428 1-351
+app/src/server/factory-solve.ts
+  s_6f734d2cc94a8c::t_4bcd3934f18684 1-207
+docs/README.md
+  s_63762a4323844b::t_a773797c8a4923 1-18
+app/src/routes/block.$id.tsx
+  s_6f734d2cc94a8c::t_1393c02367c543 1-1941
+docs/architecture.md
+  s_f7e625039781bd::t_5b7837834486c4 1-76
+app/src/solver/block.test.ts
+  s_6f734d2cc94a8c::t_144d3efcbf474f 1-215
+app/src/server/agent-tools.ts
+  s_6f734d2cc94a8c::t_4781354afd6ee7 1-1094
+app/src/server/openrouter-models.ts
+  s_6f734d2cc94a8c::t_ac26f68280d80d 1-133
+.gitignore
+  s_b2614eafae7f31::t_7b7dd25fd71133 1-47
+docs/ai-assistant.md
+  s_f7e625039781bd::t_2afda1783d5e79 1-211
+mod/summary.lua
+  s_6f734d2cc94a8c::t_1eb05e67d539c5 1-611
+app/components.json
+  s_99c0583110f5af::t_6f35c79f13d3e3 1-25
+app/pnpm-workspace.yaml
+  s_f7e625039781bd::t_285e9d8811cf90 1-10
+app/src/solver/linalg.ts
+  s_6f734d2cc94a8c::t_5fd7c091640756 1-71
+app/src/server/bridge/handlers/research.ts
+  s_6f734d2cc94a8c::t_fc82858512b812 1-22
+scripts/package-lock.json
+  s_99c0583110f5af::t_c73fa26d41e5de 1-608
+app/src/server/effects.test.ts
+  s_6f734d2cc94a8c::t_cbd70e80767fc1 1-105
+app/src/lib/utils.ts
+  s_6f734d2cc94a8c::t_ff5d944cfc2db9 1-6
+app/src/routes/factory.tsx
+  s_6f734d2cc94a8c::t_1d8da93573e474 1-725
+app/src/routes/tasks.tsx
+  s_6f734d2cc94a8c::t_46d8d64bb6d470 1-1091
+app/src/server/module-fill.ts
+  s_6f734d2cc94a8c::t_86ca3a65d010c3 1-85
+app/src/routes/api.chat.ts
+  s_6f734d2cc94a8c::t_cb8b247ca4df5f 1-136
+app/src/routes/index.tsx
+  s_6f734d2cc94a8c::t_e7d1e686db1ef3 1-72
+app/src/server/conversation-compaction.ts
+  s_6f734d2cc94a8c::t_7955b4b87b08a8 1-210
+app/src/server/assistant-run-store.ts
+  s_6f734d2cc94a8c::t_bd4d9aa895ee2a 1-132
+app/src/routes/block.index.tsx
+  s_6f734d2cc94a8c::t_d36941d0faf248 1-9
+app/src/lib/chat-store.ts
+  s_6f734d2cc94a8c::t_3fc1346ae8ca6b 1-187
+app/src/components/bridge-card.tsx
+  s_6f734d2cc94a8c::t_41ab35ab18c367 1-127
+app/src/components/horizon-menu.tsx
+  s_6f734d2cc94a8c::t_68f61674f4c06a 1-53
+mod/settings.lua
+  s_6f734d2cc94a8c::t_510fbb4f0b8c95 1-25
+app/src/utils/mcp-handler.ts
+  s_6f734d2cc94a8c::t_4ccdba7852fcaf 1-65
+AGENTS.md
+  s_6f734d2cc94a8c::t_978132826f2d00 1-173
+app/public/logo.svg
+  s_c8c2d1aa458755::t_ba17e76c2a04f4 1-13
+app/src/integrations/tanstack-query/root-provider.tsx
+  s_6f734d2cc94a8c::t_b978320989d7a6 1-10
+app/src/components/ui/button.tsx
+  s_6f734d2cc94a8c::t_631292bbe50a34 1-65
+app/src/server/app-config.ts
+  s_6f734d2cc94a8c::t_d86373eabbd067 1-69
+scripts/build-icon-atlas.mjs
+  s_99c0583110f5af::t_78382fee3aef61 1-134
+app/src/components/help-drawer.tsx
+  s_6f734d2cc94a8c::t_bfc5a74c59e93b 1-52
+app/src/routes/settings.tsx
+  s_6f734d2cc94a8c::t_71f3f04ebd123d 1-603
+app/src/server/agent.ts
+  s_6f734d2cc94a8c::t_88a297e81bd7bc 1-138
+app/src/server/factorio.ts
+  s_6f734d2cc94a8c::t_67f99c0c933d2a 1-1609
+app/src/routes/browse.tsx
+  s_6f734d2cc94a8c::t_10191e2464188b 1-297
+app/pnpm-lock.yaml
+  s_f7e625039781bd::t_21d8edbb12f489 1-10826
+app/README.md
+  s_6f734d2cc94a8c::t_5b1942c285f23b 1-26
+app/src/components/ui/slider.tsx
+  s_6f734d2cc94a8c::t_1bcdab1823563e 1-52
+app/src/server/conversations.ts
+  s_6f734d2cc94a8c::t_1561a466eee2e7 1-205
+app/src/components/horizon-picker.tsx
+  s_6f734d2cc94a8c::t_a3979e8f232f2f 1-347
+scripts/package.json
+  s_99c0583110f5af::t_fa00794d8c0d95 1-9
+app/src/routes/coherence.tsx
+  s_6f734d2cc94a8c::t_6fc3ce48d87d98 1-662
+app/src/server/cost-analysis.ts
+  s_6f734d2cc94a8c::t_fa414782829e17 1-209
+docs/solver.md
+  s_f7e625039781bd::t_50bda6cd5f694b 1-45
+app/src/db/queries.ts
+  s_6f734d2cc94a8c::t_efd19f1b59a1b4 1-2161
+app/src/db/import-factorio.ts
+  s_6f734d2cc94a8c::t_8d9bcfee293751 1-440
+LICENSE
+  s_6f734d2cc94a8c::t_b48c423ac0b8a2 4-674
+  s_6f734d2cc94a8c::t_27be1b296f55ae 1-3
+app/src/server/dump.ts
+  s_6f734d2cc94a8c::t_97e96e8ec56b13 1-384
+app/src/components/ui/textarea.tsx
+  s_6f734d2cc94a8c::t_51b1ba134110f6 1-18
+app/src/server/bridge/handlers.ts
+  s_6f734d2cc94a8c::t_2fa7e22c630be9 1-57
+app/src/lib/icons.test.tsx
+  s_6f734d2cc94a8c::t_3a758c3b0c1b1a 1-56
+docs/data-pipeline.md
+  s_f7e625039781bd::t_2ab41953b05773 1-57
+mod/control.lua
+  s_6f734d2cc94a8c::t_9016f70c9c67db 1-968
+app/src/server/bridge/handlers/stats.ts
+  s_6f734d2cc94a8c::t_caea24e6c4b763 1-37
+app/src/components/project-switcher.tsx
+  s_6f734d2cc94a8c::t_7005715e9b063f 1-103
+app/src/components/ui/switch.tsx
+  s_6f734d2cc94a8c::t_12d2a27b0b288f 1-33
+app/src/routes/__root.tsx
+  s_6f734d2cc94a8c::t_06cbd36371196c 1-76
+app/src/server/additives.ts
+  s_6f734d2cc94a8c::t_0b79005d96d5b5 1-41
+app/src/lib/icons.tsx
+  s_6f734d2cc94a8c::t_634dad32a1048f 1-236
+mod/gui-styles.lua
+  s_6f734d2cc94a8c::t_e393ee1eab746d 1-195
+README.md
+  s_6f734d2cc94a8c::t_04dc5fe19b1d8a 1-193
+app/src/routes/assistant.tsx
+  s_6f734d2cc94a8c::t_5f1870d51f8d94 1-1622
+mod/data.lua
+  s_6f734d2cc94a8c::t_b3e33d47c88f6a 1-108
+app/src/server/bridge/handlers/tasks.ts
+  s_6f734d2cc94a8c::t_8ff293a13ee6f2 1-95
+app/src/components/ui/label.tsx
+  s_6f734d2cc94a8c::t_2d0d38bcacbfcc 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f4035b24c3c86e8511ebda9ab4593e2452ea2868",
+  "prompts": {},
+  "sessions": {
+    "s_63762a4323844b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b83b8428-85cc-42ca-bd0e-6590cef951e7",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_6f734d2cc94a8c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1279db6f-939f-4de3-84a7-804b7dc12f5c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_99c0583110f5af": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5f8e9ecf-fd72-4294-bf05-f46887aaea76",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9ee44830e6fbca": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "78643a4a-4c10-42c1-8204-3651b19e77d6",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_b2614eafae7f31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "83262dbe-26d4-43b5-9efd-df427a7d6a95",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_c8c2d1aa458755": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ee30e-58a5-7ca3-9b9d-6af3f86f3802",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f7e625039781bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "632f9038-5f95-40d1-8911-e40085444234",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
