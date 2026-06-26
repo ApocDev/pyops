@@ -1,0 +1,19 @@
+LICENSE
+  s_6f734d2cc94a8c::t_eedb5d557f5dc2 1-674
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.1",
+  "base_commit_sha": "ba6d2a36ff96a5184075bdb943f23a27b38f1c01",
+  "prompts": {},
+  "sessions": {
+    "s_6f734d2cc94a8c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1279db6f-939f-4de3-84a7-804b7dc12f5c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
