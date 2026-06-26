@@ -720,4 +720,14 @@ function Combinator.on_gui_click(player, element)
   return false
 end
 
+-- Pure, game-free table/string helpers exposed for the factorio-test suite
+-- (mod/tests/combinator-test.lua). Not used by the runtime; harmless to expose.
+Combinator._internal = {
+  group_add = group_add,
+  sorted_groups = sorted_groups,
+  measured_totals = measured_totals,
+  totals_caption = totals_caption,
+  network_signal = network_signal,
+}
+
 return Combinator

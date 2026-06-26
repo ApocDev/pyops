@@ -74,8 +74,14 @@ bridge + live-state sync), `summary.lua` (production-block view), `combinator.lu
 (request-combinator planner), `data.lua`/`settings.lua` (prototypes/settings).
 
 - **After editing anything in `mod/`, ask the user to reload Factorio** (don't run
-  the reload script yourself). The mod is verified hands-on in-game; there is no
-  test harness for it.
+  the reload script yourself). The mod is verified hands-on in-game.
+- Pure, game-free helpers have an automated suite under `mod/tests/`, run inside
+  Factorio via [`factorio-test`](https://github.com/GlassBricks/FactorioTest)
+  (busted-style). It's wired through a `control.lua` hook that's inert unless the
+  `factorio-test` mod is present, and gated CI lives in
+  `.github/workflows/mod-test.yml` (manual — needs a Factorio binary). See
+  `mod/tests/README.md`. Game-API logic (entities/blueprints/GUI) is still
+  hands-on.
 - Never assume Py mechanics or Factorio 2.0 API behavior — read the data dump or
   the relevant Lua and cite the exact value/line.
 

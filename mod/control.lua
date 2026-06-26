@@ -966,3 +966,11 @@ script.on_event(defines.events.on_udp_packet_received, function(event)
 
   handle_bridge_response(player, response)
 end)
+
+-- Test harness: when the `factorio-test` mod is present (CI / on-demand), hand it
+-- our suite to run in-game. Inert in normal play — `factorio-test` is never a
+-- runtime dependency, so this branch is dead unless you explicitly add it.
+-- See mod/tests/README.md.
+if script.active_mods["factorio-test"] then
+  require("__factorio-test__/init")({ "tests/combinator-test" }, {})
+end

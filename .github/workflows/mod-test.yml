@@ -1,0 +1,33 @@
+# In-game mod tests (factorio-test).
+#
+# Manual-only (workflow_dispatch): unlike the app `check` job, this needs a real
+# Factorio binary + the `factorio-test` mod, which the default GitHub runner
+# doesn't have. Wire it to a self-hosted runner that has Factorio installed (set
+# FACTORIO_BIN / FACTORIO_DATA), or finish the headless-download step below, then
+# remove this comment. The suite is mod/tests/combinator-test.lua; see
+# mod/tests/README.md.
+name: Mod tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  factorio-test:
+    # change to a self-hosted label once a Factorio-equipped runner exists
+    runs-on: ubuntu-latest
+    if: ${{ false }} # guard: flip to true (and configure a runner) to enable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install -g factorio-test-cli
+      # Provide a Factorio binary + data dir (headless download, or a self-hosted
+      # install). The CLI launches it, loads pyops + factorio-test, runs the suite,
+      # and exits non-zero on any failure.
+      - name: Run suite
+        run: |
+          factorio-test run \
+            --factorio-path "${FACTORIO_BIN:?set FACTORIO_BIN}" \
+            --data-directory "${FACTORIO_DATA:?set FACTORIO_DATA}" \
+            --mod-path "$GITHUB_WORKSPACE/mod"
