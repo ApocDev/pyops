@@ -1,7 +1,9 @@
 # PyOps
 
+<img src="app/public/logo.svg" alt="PyOps logo" width="100">
+
 A web-based factory planner and in-game ops assistant for **Factorio**, built for
-the **Pyanodons (Py)** overhaul. Think [YAFC](https://github.com/Yafc-CE/yafc-ce),
+the **Pyanodons (Py)** overhaul — like [YAFC](https://github.com/Yafc-CE/yafc-ce),
 but in the browser, simpler, with deep in-game integration and an AI-assisted
 planner that actually understands Py's tangled recipe graph.
 
@@ -38,6 +40,32 @@ planner that actually understands Py's tangled recipe graph.
 
 PyOps runs locally on your own machine, alongside your Factorio install — it reads
 the recipe data straight from the game and (optionally) talks to a running session.
+
+---
+
+## Screenshots
+
+The **Factory** view rolls every block's imports/exports into one ledger — deficits,
+surpluses, and a machine count compared against what you've actually placed in-game.
+
+![Factory ledger — whole-factory balance with deficits, surpluses, and built-vs-required machines](docs/images/factory.png)
+
+The **block editor** — pick a target, choose recipes / machines / modules, and the
+solver runs the rates and building counts for the whole chain (cyclic recipes, fluid
+temperatures, byproducts, fractional machines).
+
+![Block editor — the Basic substrate bio-chain, solved with byproducts](docs/images/block-editor.png)
+
+The **AI assistant** drafts a whole block from a goal: it resolves the chain, cuts
+shared high-fan-out inputs into their own sub-blocks, and flags byproducts, spoilage,
+and TURD upgrades.
+
+![AI assistant drafting a py science 1 production block](docs/images/assistant.png)
+
+**Browse** — a searchable catalogue of every item, fluid, and recipe in your exact mod
+set, with produced-by / used-in (here: Iron plate — 14 producers, 160 consumers).
+
+![Browse — Iron plate with its producers and consumers](docs/images/browse.png)
 
 ---
 
