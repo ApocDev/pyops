@@ -1,0 +1,25 @@
+app/src/server/bridge/server.test.ts
+  s_07f9706eef6df5::t_d91d2e4140c013 1-138
+app/e2e/bridge-requests.e2e.ts
+  s_07f9706eef6df5::t_e064f331217146 1-63
+app/src/server/bridge/handlers/handlers.test.ts
+  s_07f9706eef6df5::t_1ac4832dc26f4f 2-3,6-8,10-12,16-22,25-30,32-34,36-40,43,45-49,52-54,56,61-63,71,75,78,82-135,139-217,220-222
+app/src/server/bridge/inspect.test.ts
+  s_07f9706eef6df5::t_4b914d5f265eb4 1-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "3e159ffdd0ac0abeb4ff0fec4fbb2702781167ea",
+  "prompts": {},
+  "sessions": {
+    "s_07f9706eef6df5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "713d7a23-e7ba-4c11-94c7-942b3db38d1c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
