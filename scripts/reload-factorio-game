@@ -1,0 +1,354 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/reload-factorio-game [--dry-run|--focus-only]
+
+Focus Factorio, then perform:
+  Escape -> click Save -> click Save game (confirm) -> click Exit -> click Continue
+
+Positions are normalized x,y (0..1) on Factorio's monitor.
+
+Environment overrides:
+  FACTORIO_WINDOW_MATCH       Window title/class substring. Default: factorio
+                              The default matches Factorio's window class/name exactly.
+  FACTORIO_OUTPUT             KDE output name. Default: active KWin output
+  SAVE_MENU_POS               'Save' button in the pause menu. Default: 0.498,0.535
+  SAVE_CONFIRM_POS            'Save game' confirm button (save screen). Default: 0.786,0.748
+  EXIT_POS                    'Exit'/quit-to-menu button. Default: 0.453,0.624
+  CONTINUE_POS                'Continue' button on the main menu. Default: 0.501,0.358
+  BEFORE_ACTION_DELAY         Seconds after focusing Factorio. Default: 0.8
+  AFTER_ESCAPE_DELAY          Seconds after Escape. Default: 0.6
+  AFTER_SAVE_MENU_DELAY       Seconds after Save click (save screen opens). Default: 0.6
+  AFTER_SAVE_CONFIRM_DELAY    Seconds after Save game confirm (writing save). Default: 2.0
+  AFTER_EXIT_DELAY            Seconds after Exit click (main menu loads). Default: 1.5
+
+Example tuning:
+  SAVE_MENU_POS=0.5,0.53 EXIT_POS=0.45,0.62 CONTINUE_POS=0.5,0.36 \
+    scripts/reload-factorio-game
+EOF
+}
+
+dry_run=0
+focus_only=0
+case "${1:-}" in
+  --dry-run) dry_run=1 ;;
+  --focus-only) focus_only=1 ;;
+  -h|--help) usage; exit 0 ;;
+  "") ;;
+  *) usage >&2; exit 2 ;;
+esac
+
+require() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "missing required command: $1" >&2
+    exit 1
+  fi
+}
+
+require qdbus6
+require kscreen-doctor
+require jq
+require ydotool
+
+window_match="${FACTORIO_WINDOW_MATCH:-factorio}"
+output_name="${FACTORIO_OUTPUT:-$(qdbus6 org.kde.KWin /KWin org.kde.KWin.activeOutputName)}"
+
+save_menu_pos="${SAVE_MENU_POS:-0.498,0.535}"
+save_confirm_pos="${SAVE_CONFIRM_POS:-0.786,0.748}"
+exit_pos="${EXIT_POS:-0.453,0.624}"
+continue_pos="${CONTINUE_POS:-0.501,0.358}"
+
+before_action_delay="${BEFORE_ACTION_DELAY:-0.8}"
+after_escape_delay="${AFTER_ESCAPE_DELAY:-0.6}"
+after_save_menu_delay="${AFTER_SAVE_MENU_DELAY:-0.6}"
+after_save_confirm_delay="${AFTER_SAVE_CONFIRM_DELAY:-2.0}"
+after_exit_delay="${AFTER_EXIT_DELAY:-1.5}"
+
+if (( ! dry_run )); then
+  if ! systemctl --user is-active --quiet ydotool.service; then
+    if systemctl --user list-unit-files ydotool.service >/dev/null 2>&1; then
+      systemctl --user start ydotool.service
+      sleep 0.3
+    fi
+  fi
+
+  if ! ydotool key 0 >/dev/null 2>&1; then
+    cat >&2 <<'EOF'
+ydotoold is not reachable. Start it with:
+  systemctl --user start ydotool.service
+
+To enable it after login:
+  systemctl --user enable --now ydotool.service
+EOF
+    exit 1
+  fi
+fi
+
+json_escape() {
+  jq -Rn --arg value "$1" '$value'
+}
+
+# Report the currently active window via a KWin script (non-interactive).
+# The script prints "<resourceClass>|<resourceName>|<caption>" (lowercased) to
+# the KWin log, which we read back from the journal using a unique nonce.
+#
+# We intentionally avoid org.kde.KWin.queryWindowInfo here: that DBus method
+# pops an interactive crosshair window-picker and blocks until the user clicks,
+# which is unusable from an automated script.
+active_window_descriptor() {
+  local nonce script plugin line
+  nonce="pyops-active-$$-${RANDOM}-${RANDOM}"
+  script="$(mktemp --suffix=.js)"
+  plugin="pyops-reload-factorio-active"
+  trap 'rm -f "$script"; qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.unloadScript pyops-reload-factorio-active >/dev/null 2>&1 || true' RETURN
+
+  cat >"$script" <<EOF
+const w = (typeof workspace.activeWindow !== "undefined")
+  ? workspace.activeWindow
+  : workspace.activeClient;
+const cls = w ? String(w.resourceClass || "").toLowerCase() : "";
+const nm = w ? String(w.resourceName || "").toLowerCase() : "";
+const cap = w ? String(w.caption || "").toLowerCase() : "";
+print("$nonce " + cls + "|" + nm + "|" + cap);
+EOF
+
+  qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.unloadScript "$plugin" >/dev/null 2>&1 || true
+  qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.loadScript "$script" "$plugin" >/dev/null
+  qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.start >/dev/null
+  sleep 0.2
+
+  line="$(journalctl _COMM=kwin_wayland -n 100 -o cat --since "10 seconds ago" 2>/dev/null | grep -F "$nonce" | tail -n 1 || true)"
+  printf '%s\n' "${line#"$nonce" }"
+}
+
+active_window_matches_factorio() {
+  local descriptor
+  descriptor="$(active_window_descriptor || true)"
+  [[ -n "$descriptor" ]] || return 1
+
+  jq -Rn \
+    --arg desc "$descriptor" \
+    --arg needle "$window_match" '
+      ($desc | split("|")) as $parts
+      | ($parts[0] // "") as $cls
+      | ($parts[1] // "") as $nm
+      | ($parts[2] // "") as $cap
+      | ($needle | ascii_downcase) as $needle
+      | if $needle == "factorio" then
+          ($cls == "factorio") or ($nm == "factorio") or ($cap | startswith("factorio "))
+        else
+          (($cls + " " + $nm + " " + $cap) | contains($needle))
+        end
+    ' |
+    grep -qx true
+}
+
+focus_factorio() {
+  local script plugin
+  script="$(mktemp --suffix=.js)"
+  plugin="pyops-reload-factorio-focus"
+  trap 'rm -f "$script"; qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.unloadScript pyops-reload-factorio-focus >/dev/null 2>&1 || true' RETURN
+
+  cat >"$script" <<EOF
+const needle = $(json_escape "$window_match").toLowerCase();
+const defaultNeedle = needle === "factorio";
+const windows = typeof workspace.windowList === "function"
+  ? workspace.windowList()
+  : workspace.clientList();
+
+for (const win of windows) {
+  const caption = String(win.caption || "").toLowerCase();
+  const resourceClass = String(win.resourceClass || "").toLowerCase();
+  const resourceName = String(win.resourceName || "").toLowerCase();
+  const desktopFileName = String(win.desktopFileName || "").toLowerCase();
+  const windowRole = String(win.windowRole || "").toLowerCase();
+  const text = [caption, resourceClass, resourceName, windowRole, desktopFileName].join(" ");
+  const matches = defaultNeedle
+    ? resourceClass === "factorio"
+      || resourceName === "factorio"
+      || desktopFileName === "factorio"
+      || caption.startsWith("factorio ")
+    : text.includes(needle);
+
+  if (!win.deleted && matches) {
+    if (typeof workspace.activateWindow === "function") {
+      workspace.activateWindow(win);
+    } else {
+      workspace.activeWindow = win;
+    }
+    break;
+  }
+}
+EOF
+
+  qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.unloadScript "$plugin" >/dev/null 2>&1 || true
+  qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.loadScript "$script" "$plugin" >/dev/null
+  qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.start >/dev/null
+}
+
+resolve_output_geometry() {
+  read -r output_x output_y output_w output_h < <(
+    kscreen-doctor -j |
+      jq -r --arg name "$output_name" '
+        .outputs[]
+        | select(.name == $name and .enabled == true)
+        | "\(.pos.x) \(.pos.y) \((.size.width / .scale) | floor) \((.size.height / .scale) | floor)"
+      ' |
+      head -n 1
+  ) || true
+
+  if [[ -z "${output_x:-}" ]]; then
+    echo "could not find enabled KDE output: $output_name" >&2
+    exit 1
+  fi
+}
+
+point_to_xy() {
+  local point="$1"
+  local px="${point%,*}"
+  local py="${point#*,}"
+
+  awk \
+    -v ox="$output_x" \
+    -v oy="$output_y" \
+    -v ow="$output_w" \
+    -v oh="$output_h" \
+    -v px="$px" \
+    -v py="$py" \
+    'BEGIN { printf "%d %d\n", ox + (ow * px), oy + (oh * py) }'
+}
+
+# Read KWin's real pointer position ("x,y" in compositor/logical coordinates)
+# via a one-shot KWin script printed to the journal. This is our feedback
+# signal for positioning the cursor.
+read_cursor() {
+  local nonce script plugin line
+  nonce="pyops-cursor-$$-${RANDOM}-${RANDOM}"
+  script="$(mktemp --suffix=.js)"
+  plugin="pyops-reload-factorio-cursor"
+  trap 'rm -f "$script"; qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.unloadScript pyops-reload-factorio-cursor >/dev/null 2>&1 || true' RETURN
+
+  printf 'print("%s " + workspace.cursorPos.x + "," + workspace.cursorPos.y);\n' "$nonce" >"$script"
+
+  qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.unloadScript "$plugin" >/dev/null 2>&1 || true
+  qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.loadScript "$script" "$plugin" >/dev/null
+  qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.start >/dev/null
+  sleep 0.08
+
+  line="$(journalctl _COMM=kwin_wayland -n 100 -o cat --since "10 seconds ago" 2>/dev/null | grep -F "$nonce" | tail -n 1 || true)"
+  printf '%s\n' "${line#"$nonce" }"
+}
+
+# Position the pointer at logical x,y.
+#
+# ydotool's absolute mode is non-functional on this Wayland setup (every input
+# maps to the same point; see ydotool issue #250), and relative moves are
+# distorted ~2x by libinput pointer acceleration. So: slam to the top-left
+# corner for a deterministic origin (huge negative deltas clamp at 0,0), then
+# close the loop — nudge by a damped fraction of the remaining delta and
+# re-read KWin's real cursor position until we land on target. The feedback
+# loop cancels the acceleration without changing any system setting.
+move_to() {
+  local tx="$1" ty="$2"
+  local i cx cy dx dy sx sy
+
+  ydotool mousemove -x -20000 -y -20000 >/dev/null 2>&1
+  sleep 0.05
+
+  for ((i = 0; i < 40; i++)); do
+    IFS=, read -r cx cy < <(read_cursor)
+    [[ -n "${cx:-}" && -n "${cy:-}" ]] || return 1
+    dx=$((tx - cx))
+    dy=$((ty - cy))
+    if (( dx <= 3 && dx >= -3 && dy <= 3 && dy >= -3 )); then
+      return 0
+    fi
+    sx=$((dx * 5 / 10))
+    sy=$((dy * 5 / 10))
+    (( sx == 0 && dx > 0 )) && sx=1
+    (( sx == 0 && dx < 0 )) && sx=-1
+    (( sy == 0 && dy > 0 )) && sy=1
+    (( sy == 0 && dy < 0 )) && sy=-1
+    ydotool mousemove -x "$sx" -y "$sy" >/dev/null 2>&1
+    sleep 0.03
+  done
+
+  return 1
+}
+
+click_point() {
+  local name="$1"
+  local point="$2"
+  local x y
+  read -r x y < <(point_to_xy "$point")
+
+  if (( dry_run )); then
+    printf 'click %-11s %s -> %s,%s on %s (%sx%s at %s,%s)\n' \
+      "$name" "$point" "$x" "$y" "$output_name" "$output_w" "$output_h" "$output_x" "$output_y"
+    return
+  fi
+
+  if ! move_to "$x" "$y"; then
+    echo "could not position cursor at $x,$y for '$name' click; aborting" >&2
+    exit 1
+  fi
+  sleep 0.1
+  ydotool click 0xC0 >/dev/null
+}
+
+press_key() {
+  local name="$1"
+  local code="$2"
+
+  if (( dry_run )); then
+    printf 'key   %s (%s)\n' "$name" "$code"
+    return
+  fi
+
+  ydotool key "${code}:1" "${code}:0" >/dev/null
+}
+
+if (( dry_run )); then
+  resolve_output_geometry
+  echo "output: $output_name ${output_w}x${output_h}+${output_x}+${output_y}"
+  echo "window match: $window_match"
+else
+  focus_factorio
+  sleep "$before_action_delay"
+  if ! active_window_matches_factorio; then
+    cat >&2 <<EOF
+Factorio did not become the active KDE window; aborting before sending input.
+
+Try focusing Factorio manually or setting a stricter match:
+  FACTORIO_WINDOW_MATCH=factorio scripts/reload-factorio-game
+EOF
+    exit 1
+  fi
+  # Factorio is now focused, so its monitor is the active output. Resolve the
+  # output geometry now (unless explicitly overridden) so clicks land on the
+  # correct monitor in multi-display setups.
+  if [[ -z "${FACTORIO_OUTPUT:-}" ]]; then
+    output_name="$(qdbus6 org.kde.KWin /KWin org.kde.KWin.activeOutputName)"
+  fi
+  resolve_output_geometry
+  if (( focus_only )); then
+    echo "Factorio is active on output: $output_name"
+    exit 0
+  fi
+fi
+
+press_key Escape 1
+sleep "$after_escape_delay"
+
+click_point Save "$save_menu_pos"
+sleep "$after_save_menu_delay"
+
+click_point Save-game "$save_confirm_pos"
+sleep "$after_save_confirm_delay"
+
+click_point Exit "$exit_pos"
+sleep "$after_exit_delay"
+
+click_point Continue "$continue_pos"

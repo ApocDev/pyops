@@ -1,0 +1,10 @@
+allowBuilds:
+  better-sqlite3: true
+  sharp: false # uses prebuilt @img/sharp-* binaries — no build script needed
+# Single-package settings file (not a monorepo). pnpm 10 reads build-script
+# allowlists here instead of package.json's "pnpm" field. Without this,
+# better-sqlite3's native binary is never built and drizzle/the importer fail.
+onlyBuiltDependencies:
+  - better-sqlite3
+  - esbuild
+  - lightningcss

@@ -1,0 +1,9 @@
+{
+  "name": "pyops-scripts",
+  "private": true,
+  "description": "One-off testing/debug scripts (not part of the app build).",
+  "type": "module",
+  "dependencies": {
+    "sharp": "^0.34.2"
+  }
+}

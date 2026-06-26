@@ -1,0 +1,56 @@
+// @vitest-environment jsdom
+import { render, waitFor } from "@testing-library/react";
+import { expect, test, vi } from "vite-plus/test";
+import { Icon, IconProvider } from "./icons";
+
+const { manifest } = vi.hoisted(() => ({
+  manifest: {
+    cell: 64,
+    atlasSize: 4096,
+    sheets: ["atlas-0.png"],
+    icons: {
+      "item/iron-plate": { s: 0, x: 3072, y: 3008 },
+      "module/speed-module": { s: 0, x: 10, y: 20 }, // item-kind in a non-"item" folder
+    },
+  },
+}));
+
+vi.mock("../server/factorio", () => ({
+  iconManifestFn: () => Promise.resolve(manifest),
+  spoilablesFn: () => Promise.resolve({}),
+}));
+
+test("draws an item icon as a slice scaled off the size token", async () => {
+  const { container } = render(
+    <IconProvider>
+      <Icon kind="item" name="iron-plate" size="sm" />
+    </IconProvider>,
+  );
+  await waitFor(() => {
+    const span = container.querySelector("span[title='iron-plate']") as HTMLElement;
+    expect(span).toBeTruthy();
+    expect(span.style.width).toBe("var(--icon-sm)");
+    expect(span.style.backgroundImage).toContain("/icons/atlas-0.png");
+    // positions/size are cell-multiples of the token: -(3072,3008)/64, 4096/64
+    expect(span.getAttribute("style")).toContain(
+      "calc(var(--icon-sm) * -48) calc(var(--icon-sm) * -47)",
+    );
+    expect(span.getAttribute("style")).toContain(
+      "calc(var(--icon-sm) * 64) calc(var(--icon-sm) * 64)",
+    );
+  });
+});
+
+test("item-kind falls back to non-item folders (module/)", async () => {
+  const { container } = render(
+    <IconProvider>
+      <Icon kind="item" name="speed-module" size="md" />
+    </IconProvider>,
+  );
+  await waitFor(() => {
+    const span = container.querySelector("span[title='speed-module']") as HTMLElement;
+    expect(span.getAttribute("style")).toContain(
+      "calc(var(--icon-md) * -0.15625) calc(var(--icon-md) * -0.3125)",
+    );
+  });
+});

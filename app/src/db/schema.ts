@@ -1,0 +1,516 @@
+import { sqliteTable, integer, text, real, index, primaryKey } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+
+const bool = (name?: string) => integer(name as string, { mode: "boolean" });
+
+/* ── Factorio reference data (pass 1: real prototypes) ─────────────────────────
+ * Loaded from `data-raw-dump.json` by src/db/import-factorio.ts.
+ * Quality is intentionally not modelled (Py has none). Fluid temperatures ARE:
+ * ingredients carry a min/max range, products an exact temperature.
+ * Synthetic recipes (mining/boiling/burning/spoiling) + temp variants = pass 2.
+ */
+
+export const items = sqliteTable(
+  "items",
+  {
+    name: text().primaryKey(),
+    display: text(), // localized name ("Iron plate")
+    subgroup: text(),
+    order: text(),
+    stackSize: integer("stack_size"),
+    fuelValueJ: real("fuel_value_j"),
+    fuelCategory: text("fuel_category"),
+    // normalization sources for pass-2 synthetic recipes
+    spoilResult: text("spoil_result"),
+    spoilTicks: integer("spoil_ticks"),
+    burntResult: text("burnt_result"),
+    plantResult: text("plant_result"),
+  },
+  (t) => [index("items_subgroup_idx").on(t.subgroup)],
+);
+
+export const fluids = sqliteTable("fluids", {
+  name: text().primaryKey(),
+  display: text(),
+  order: text(),
+  defaultTemperature: real("default_temperature"),
+  maxTemperature: real("max_temperature"),
+  fuelValueJ: real("fuel_value_j"),
+  heatCapacityJ: real("heat_capacity_j"),
+});
+
+export const recipes = sqliteTable(
+  "recipes",
+  {
+    name: text().primaryKey(),
+    display: text(),
+    // real | mining | pumping | boiling | burning | generating | launch | planting | research | spoiling
+    kind: text().notNull().default("real"),
+    category: text(),
+    energyRequired: real("energy_required"), // craft time (s) at speed 1
+    enabled: bool("enabled").notNull().default(true),
+    hidden: bool("hidden").notNull().default(false),
+    allowProductivity: bool("allow_productivity").notNull().default(false),
+    allowedModuleCategories: text("allowed_module_categories", { mode: "json" }).$type<
+      string[] | null
+    >(),
+    mainProduct: text("main_product"),
+    subgroup: text(),
+    order: text(),
+    sourceEntity: text("source_entity"), // for synthetic recipes (pass 2)
+  },
+  (t) => [index("recipes_category_idx").on(t.category), index("recipes_kind_idx").on(t.kind)],
+);
+
+export const recipeIngredients = sqliteTable(
+  "recipe_ingredients",
+  {
+    recipe: text().notNull(),
+    idx: integer().notNull(),
+    kind: text().notNull(), // item | fluid
+    name: text().notNull(),
+    amount: real().notNull(),
+    minTemp: real("min_temp"), // fluid temperature range (required min)
+    maxTemp: real("max_temp"), // fluid temperature range (allowed max)
+  },
+  (t) => [
+    primaryKey({ columns: [t.recipe, t.idx] }),
+    index("ing_recipe_idx").on(t.recipe),
+    index("ing_name_idx").on(t.name),
+  ],
+);
+
+export const recipeProducts = sqliteTable(
+  "recipe_products",
+  {
+    recipe: text().notNull(),
+    idx: integer().notNull(),
+    kind: text().notNull(),
+    name: text().notNull(),
+    amount: real(), // null when amount_min/max used
+    amountMin: real("amount_min"),
+    amountMax: real("amount_max"),
+    probability: real().notNull().default(1),
+    temperature: real(), // exact produced temperature (fluids)
+    ignoredByProductivity: bool("ignored_by_productivity").notNull().default(false),
+  },
+  (t) => [
+    primaryKey({ columns: [t.recipe, t.idx] }),
+    index("prod_recipe_idx").on(t.recipe),
+    index("prod_name_idx").on(t.name),
+  ],
+);
+
+export const recipeCategories = sqliteTable("recipe_categories", {
+  name: text().primaryKey(),
+});
+
+export const craftingMachines = sqliteTable("crafting_machines", {
+  name: text().primaryKey(),
+  display: text(),
+  kind: text().notNull(), // assembling-machine | furnace | rocket-silo
+  craftingSpeed: real("crafting_speed").notNull(),
+  moduleSlots: integer("module_slots").notNull().default(0),
+  energyUsageW: real("energy_usage_w"),
+  energySource: text("energy_source"), // electric | burner | ...
+  // module eligibility (empty/null = no restriction): which effect kinds the
+  // machine accepts, and which module categories fit its slots (Py creature
+  // buildings only take their own creature modules)
+  allowedEffects: text("allowed_effects", { mode: "json" }).$type<string[] | null>(),
+  allowedModuleCategories: text("allowed_module_categories", { mode: "json" }).$type<
+    string[] | null
+  >(),
+});
+
+export const machineCategories = sqliteTable(
+  "machine_categories",
+  {
+    machine: text().notNull(),
+    category: text().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.machine, t.category] }),
+    index("mc_category_idx").on(t.category),
+  ],
+);
+
+export const machineFuelCategories = sqliteTable(
+  "machine_fuel_categories",
+  {
+    machine: text().notNull(),
+    fuelCategory: text("fuel_category").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.machine, t.fuelCategory] })],
+);
+
+export const miningDrills = sqliteTable("mining_drills", {
+  name: text().primaryKey(),
+  miningSpeed: real("mining_speed").notNull(),
+  moduleSlots: integer("module_slots").notNull().default(0),
+  energyUsageW: real("energy_usage_w"),
+  energySource: text("energy_source"),
+});
+
+export const drillResourceCategories = sqliteTable(
+  "drill_resource_categories",
+  {
+    drill: text().notNull(),
+    resourceCategory: text("resource_category").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.drill, t.resourceCategory] })],
+);
+
+export const modules = sqliteTable("modules", {
+  name: text().primaryKey(),
+  display: text(),
+  category: text(),
+  hidden: bool("hidden").notNull().default(false), // TURD modules are hidden (game-inserted)
+  tier: integer(),
+  effSpeed: real("eff_speed").notNull().default(0),
+  effProductivity: real("eff_productivity").notNull().default(0),
+  effConsumption: real("eff_consumption").notNull().default(0),
+  effPollution: real("eff_pollution").notNull().default(0),
+});
+
+export const moduleLimitations = sqliteTable(
+  "module_limitations",
+  {
+    module: text().notNull(),
+    recipe: text().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.module, t.recipe] })],
+);
+
+/* Py beacon system: the vanilla beacon entity is hidden; the real choices are
+ * (diet-)beacon-AM{1..5}-FM{1..5} variants, each with its own distribution
+ * effectivity + power draw and 2 module slots. `profile` is the per-count
+ * effectivity falloff (vanilla 1/sqrt(n)); Py enforces one beacon per machine. */
+export const beacons = sqliteTable("beacons", {
+  name: text().primaryKey(),
+  display: text(),
+  distributionEffectivity: real("distribution_effectivity"),
+  moduleSlots: integer("module_slots").notNull().default(0),
+  energyUsageW: real("energy_usage_w"),
+  hidden: bool("hidden").notNull().default(false),
+  allowedEffects: text("allowed_effects", { mode: "json" }).$type<string[] | null>(),
+  allowedModuleCategories: text("allowed_module_categories", { mode: "json" }).$type<
+    string[] | null
+  >(),
+  profile: text({ mode: "json" }).$type<number[] | null>(),
+});
+
+export const technologies = sqliteTable("technologies", {
+  name: text().primaryKey(),
+  display: text(),
+  order: text(),
+  unitCount: real("unit_count"), // research cost multiplier (unit.count)
+  enabled: bool("enabled").notNull().default(true),
+  // Pyanodon TURD: master techs are flagged is_turd; their selectable sub-techs
+  // (from the dump-time yafc integration) are normal techs whose prerequisites
+  // are [master, turd-select-<name>]
+  isTurd: bool("is_turd").notNull().default(false),
+});
+
+export const techPrerequisites = sqliteTable(
+  "tech_prerequisites",
+  {
+    technology: text().notNull(),
+    prerequisite: text().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.technology, t.prerequisite] }),
+    index("tp_prereq_idx").on(t.prerequisite),
+  ],
+);
+
+export const techUnlocks = sqliteTable(
+  "tech_unlocks",
+  {
+    technology: text().notNull(),
+    recipe: text().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.technology, t.recipe] }), index("tu_recipe_idx").on(t.recipe)],
+);
+
+/** Science packs required to research a technology (from unit.ingredients). */
+export const techIngredients = sqliteTable(
+  "tech_ingredients",
+  {
+    technology: text().notNull(),
+    name: text().notNull(),
+    amount: real().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.technology, t.name] }), index("ti_tech_idx").on(t.technology)],
+);
+
+export const meta = sqliteTable("meta", {
+  key: text().primaryKey(),
+  value: text(),
+});
+
+/** YAFC-style cost analysis (LP shadow prices): one row per good/recipe.
+ * Goods get an intrinsic cost; recipes get their execution cost (ingredients +
+ * logistics). Recipe names can collide with item names (e.g. iron-plate), so
+ * the key is (scope, name). Recomputed after every data import. */
+export const costAnalysis = sqliteTable(
+  "cost_analysis",
+  {
+    scope: text().notNull(), // good | recipe
+    name: text().notNull(),
+    kind: text().notNull(), // item | fluid | recipe
+    cost: real().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.scope, t.name] })],
+);
+
+/* ── App data (scaffold demo — to be replaced by plans/tasks tables) ──────────── */
+export const todos = sqliteTable("todos", {
+  id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+  title: text().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+});
+
+/* ── User blocks ──────────────────────────────────────────────────────────────
+ * A block = its INPUT (the recipes + per-recipe building/fuel/disposition choices,
+ * stored as a JSON config doc) plus a CACHE of its solved I/O in block_flows, so
+ * the factory overview aggregates across blocks without re-solving any of them.
+ * The solver only runs when a block is opened/edited (save persists input + flows).
+ */
+/** One beacon configuration on a recipe row: which beacon variant, the modules
+ * inside it, and how many of that beacon affect each machine. */
+export type BeaconConfig = { beacon: string; modules: string[]; count: number };
+
+export type BlockData = {
+  target: string;
+  rate: number;
+  extraGoals?: string[]; // additional co-product goals (unpinned, also primary)
+  recipes: string[];
+  dispositions?: Record<string, string>;
+  machines?: Record<string, string>; // recipe → chosen machine
+  fuels?: Record<string, string>; // recipe → chosen fuel
+  modules?: Record<string, string[]>; // recipe → modules in the machine's slots
+  beacons?: Record<string, BeaconConfig[]>; // recipe → beacons affecting each machine
+};
+
+export const blocks = sqliteTable("blocks", {
+  id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text().notNull(),
+  iconKind: text("icon_kind"), // item | fluid | recipe — defaults to first product
+  iconName: text("icon_name"),
+  data: text({ mode: "json" }).$type<BlockData>().notNull(),
+  electricityW: real("electricity_w"),
+  dataFingerprint: text("data_fingerprint"), // reference-data version the cache was solved against
+  sortOrder: integer("sort_order"),
+  groupId: integer("group_id"),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+});
+
+/** Folders for organising blocks in the sidebar (parent_id reserved for nesting). */
+export const blockGroups = sqliteTable("block_groups", {
+  id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text().notNull(),
+  parentId: integer("parent_id"),
+  sortOrder: integer("sort_order"),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+});
+
+/** TURD recipe replacements (exported by the pyops-dump helper as mod-data):
+ * selecting `subTech` swaps `oldRecipe` for `newRecipe` in-game, so the old
+ * one should be demoted in pickers once the choice is made. */
+export const turdReplacements = sqliteTable(
+  "turd_replacements",
+  {
+    subTech: text("sub_tech").notNull(),
+    oldRecipe: text("old_recipe").notNull(),
+    newRecipe: text("new_recipe").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.subTech, t.oldRecipe] }), index("tr_old_idx").on(t.oldRecipe)],
+);
+
+/** The player's TURD choice per master tech (one sub-tech each, or none). */
+export const turdSelections = sqliteTable("turd_selections", {
+  masterTech: text("master_tech").primaryKey(),
+  subTech: text("sub_tech").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+});
+
+/** Saved module+beacon loadouts, applied to a recipe row in one click. */
+export const modulePresets = sqliteTable("module_presets", {
+  id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text().notNull(),
+  modules: text({ mode: "json" }).$type<string[]>().notNull(),
+  beacons: text({ mode: "json" }).$type<BeaconConfig[]>().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+});
+
+/** Cached solved I/O per block — the factory index aggregates this. */
+export const blockFlows = sqliteTable(
+  "block_flows",
+  {
+    blockId: integer("block_id").notNull(),
+    item: text().notNull(),
+    kind: text().notNull(), // item | fluid
+    role: text().notNull(), // primary | byproduct | import
+    rate: real().notNull(),
+  },
+  (t) => [index("bf_item_role_idx").on(t.item, t.role), index("bf_block_idx").on(t.blockId)],
+);
+
+/** Cached machine requirement per block — how many of each machine the block's
+ * solve needs (fractional), per RECIPE that machine runs. Recipe-keyed so the
+ * factory can ask "how many furnaces do I need smelting iron" rather than just
+ * "how many furnaces". Mirrors block_flows; compared against built_machines. */
+export const blockMachines = sqliteTable(
+  "block_machines",
+  {
+    blockId: integer("block_id").notNull(),
+    machine: text().notNull(),
+    recipe: text().notNull(), // the recipe this machine count is for
+    count: real().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.blockId, t.machine, t.recipe] }),
+    index("bm_machine_idx").on(t.machine),
+  ],
+);
+
+/** How many of each machine the player has actually built, keyed by the recipe
+ * it's set to craft (empty string = no/unknown recipe: idle furnaces, mining
+ * drills, labs). Pushed from the game over the bridge (state.built). Authoritative
+ * full snapshot — replace, not merge. */
+export const builtMachines = sqliteTable(
+  "built_machines",
+  {
+    name: text().notNull(),
+    recipe: text().notNull(),
+    count: integer().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.name, t.recipe] })],
+);
+
+/** Live per-second production/consumption rates from the game's flow statistics,
+ * pushed over the bridge (state.stats). Force-wide (summed across surfaces) — the
+ * factory ledger compares these actuals against its planned rates. Authoritative
+ * full snapshot — replace, not merge. */
+export const productionStats = sqliteTable("production_stats", {
+  name: text().primaryKey(),
+  kind: text().notNull(), // item | fluid
+  produced: real().notNull(), // items/s actually made (last-minute average)
+  consumed: real().notNull(), // items/s actually used
+});
+
+/* ── Assistant conversations (persisted chats) ──────────────────────────
+ * Per-project: a chat history you can leave and resume. `parts` is the
+ * JSON-serialized AI-SDK UIMessage parts; `seq` orders messages within a chat.
+ * Provisioned on existing project dbs by an idempotent ensure (see
+ * db/conversations.ts) so they don't need a manual push. */
+export const conversations = sqliteTable("conversations", {
+  id: text().primaryKey(), // client-generated uuid
+  title: text(),
+  model: text(), // optional per-conversation model override
+  reasoningEffort: text("reasoning_effort"), // optional OpenRouter reasoning effort
+  // Real token usage from the most recent completed turn, straight from
+  // OpenRouter. Anchors compaction + the context gauge to actual counts instead
+  // of a chars/4 estimate. `last_model_id` is the concrete model that served it
+  // (a `~…-latest` alias resolves to e.g. anthropic/claude-sonnet-4.6).
+  lastInputTokens: integer("last_input_tokens"),
+  lastOutputTokens: integer("last_output_tokens"),
+  lastTotalTokens: integer("last_total_tokens"),
+  lastModelId: text("last_model_id"),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+});
+
+export const conversationMessages = sqliteTable(
+  "conversation_messages",
+  {
+    id: text().primaryKey(), // the UIMessage id
+    conversationId: text("conversation_id").notNull(),
+    role: text().notNull(), // user | assistant | system
+    parts: text().notNull(), // JSON-stringified AI-SDK UIMessage parts
+    seq: integer().notNull(), // order within the conversation
+  },
+  (t) => [index("cm_conv_idx").on(t.conversationId)],
+);
+
+/* ── Tasks & notes ──────────────────────────────────────────────────────
+ * Per-project planning aids, distinct from this repo's GitHub issue tracker (which
+ * is for dev work).
+ *
+ * A `task` is a "thing to do": a title + markdown description, its own checklist
+ * of `task_steps`, and optionally child tasks (self-FK via parent_id) for bigger
+ * breakdowns — a "milestone" is simply a parent task. Children render as an
+ * indented checklist on their parent and are themselves full tasks you can open.
+ *
+ * `notes` are a separate, deliberately-dumb scratch surface (quick calcs,
+ * reminders) — title + free-form body, no hierarchy.
+ *
+ * Entity links (a task → recipe/item/fluid/research/block/…) and assistant tools
+ * come in a later pass. Provisioned on existing project dbs by an idempotent
+ * ensure (db/tasks.ts) so they don't need a manual push. */
+export const tasks = sqliteTable(
+  "tasks",
+  {
+    id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    parentId: integer("parent_id"), // self-FK: this task is a child (subtask) of another
+    title: text(),
+    body: text(), // markdown description of what to do
+    // workflow state: open | in_progress | done | closed (closed = don't care). The
+    // legacy `done` bool is kept in lockstep (done === status==='done') for compat.
+    status: text().notNull().default("open"),
+    done: bool("done").notNull().default(false),
+    // advisory LLM-assigned priority (low|medium|high|critical, null = unranked) —
+    // computed/recomputable state, never user-owned truth.
+    priority: text(),
+    priorityReason: text("priority_reason"),
+    priorityAt: integer("priority_at", { mode: "timestamp" }),
+    sortOrder: integer("sort_order"),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  },
+  (t) => [index("task_parent_idx").on(t.parentId)],
+);
+
+/** Lightweight checklist steps within a task — its own to-do items, distinct from
+ * child tasks (which are full tasks shown indented). */
+export const taskSteps = sqliteTable(
+  "task_steps",
+  {
+    id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    taskId: integer("task_id").notNull(),
+    text: text().notNull(),
+    done: bool("done").notNull().default(false),
+    sortOrder: integer("sort_order"),
+  },
+  (t) => [index("task_steps_task_idx").on(t.taskId)],
+);
+
+/** Free-form scratch notes — a separate surface from tasks (no steps, no tree). */
+export const notes = sqliteTable("notes", {
+  id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+  title: text(),
+  body: text(), // markdown-ish scratch content
+  sortOrder: integer("sort_order"),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+});
+
+/** Entity links on a task: a polymorphic reference to a domain object, rendered
+ * as an icon+display chip. `ref_kind` selects how `ref_name` resolves — an
+ * internal name for item/fluid/recipe/technology, or the block id (as text) for
+ * a block. (plan / in-world-entity / assistant-conversation refs come later.) */
+export const taskLinks = sqliteTable(
+  "task_links",
+  {
+    id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    taskId: integer("task_id").notNull(),
+    refKind: text("ref_kind").notNull(), // item | fluid | recipe | technology | block
+    refName: text("ref_name").notNull(), // internal name, or block id as text
+    sortOrder: integer("sort_order"),
+  },
+  (t) => [
+    index("task_links_task_idx").on(t.taskId),
+    index("task_links_ref_idx").on(t.refKind, t.refName),
+  ],
+);

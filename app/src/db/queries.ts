@@ -1,0 +1,2161 @@
+/**
+ * Query layer over the imported Factorio reference data.
+ * Server-side, synchronous (better-sqlite3). The recipe browser and the block
+ * solver read the world through these functions.
+ *
+ * Note: "unlocked for my force" is runtime/mod state (not in the static dump) —
+ * here we expose `enabled` (start-enabled) + tech-unlock data; the live overlay
+ * comes later via the mod bridge.
+ */
+import { and, eq, inArray, isNotNull, sql, type AnyColumn } from "drizzle-orm";
+import { db } from "./index.ts";
+import {
+  recipes,
+  recipeIngredients,
+  recipeProducts,
+  items,
+  fluids,
+  craftingMachines,
+  machineCategories,
+  machineFuelCategories,
+  techUnlocks,
+  technologies,
+  techIngredients,
+  techPrerequisites,
+  turdSelections,
+  turdReplacements,
+  modules,
+  beacons,
+  modulePresets,
+  blocks,
+  blockFlows,
+  blockMachines,
+  builtMachines,
+  productionStats,
+  blockGroups,
+  meta,
+  costAnalysis,
+  type BlockData,
+  type BeaconConfig,
+} from "./schema.ts";
+
+const recipeSummary = {
+  name: recipes.name,
+  display: recipes.display,
+  kind: recipes.kind,
+  category: recipes.category,
+  subgroup: recipes.subgroup,
+  energyRequired: recipes.energyRequired,
+  enabled: recipes.enabled,
+  hidden: recipes.hidden,
+  allowProductivity: recipes.allowProductivity,
+};
+
+/** A recipe with its ordered ingredients + products — for display and the solver. */
+/** Localized name of an item or fluid (for recipe components). */
+function compDisplay(kind: string, name: string): string | null {
+  const row =
+    kind === "fluid"
+      ? db.select({ d: fluids.display }).from(fluids).where(eq(fluids.name, name)).get()
+      : db.select({ d: items.display }).from(items).where(eq(items.name, name)).get();
+  return row?.d ?? null;
+}
+
+export function getRecipe(name: string) {
+  const recipe = db.select().from(recipes).where(eq(recipes.name, name)).get();
+  if (!recipe) return null;
+  const ingredients = db
+    .select()
+    .from(recipeIngredients)
+    .where(eq(recipeIngredients.recipe, name))
+    .orderBy(recipeIngredients.idx)
+    .all()
+    .map((c) => ({ ...c, display: compDisplay(c.kind, c.name) }));
+  const products = db
+    .select()
+    .from(recipeProducts)
+    .where(eq(recipeProducts.recipe, name))
+    .orderBy(recipeProducts.idx)
+    .all()
+    .map((c) => ({ ...c, display: compDisplay(c.kind, c.name) }));
+  return { ...recipe, ingredients, products };
+}
+
+/** Recipes that OUTPUT the given item/fluid (the candidate recipes for making X). */
+export function recipesProducing(name: string) {
+  return db
+    .selectDistinct(recipeSummary)
+    .from(recipeProducts)
+    .innerJoin(recipes, eq(recipes.name, recipeProducts.recipe))
+    .where(eq(recipeProducts.name, name))
+    .all();
+}
+
+/** Recipes that CONSUME the given item/fluid (downstream uses). */
+export function recipesConsuming(name: string) {
+  return db
+    .selectDistinct(recipeSummary)
+    .from(recipeIngredients)
+    .innerJoin(recipes, eq(recipes.name, recipeIngredients.recipe))
+    .where(eq(recipeIngredients.name, name))
+    .all();
+}
+
+/** Crafting machines that can run a recipe, matched by its category — with the
+ * power + fuel-category info the block view needs to size buildings and fuel. */
+export function machinesForRecipe(recipeName: string) {
+  const r = db
+    .select({ category: recipes.category })
+    .from(recipes)
+    .where(eq(recipes.name, recipeName))
+    .get();
+  if (!r?.category) return [];
+  const machines = db
+    .select({
+      name: craftingMachines.name,
+      display: craftingMachines.display,
+      kind: craftingMachines.kind,
+      craftingSpeed: craftingMachines.craftingSpeed,
+      moduleSlots: craftingMachines.moduleSlots,
+      energyUsageW: craftingMachines.energyUsageW,
+      energySource: craftingMachines.energySource,
+      allowedEffects: craftingMachines.allowedEffects,
+      allowedModuleCategories: craftingMachines.allowedModuleCategories,
+    })
+    .from(machineCategories)
+    .innerJoin(craftingMachines, eq(craftingMachines.name, machineCategories.machine))
+    .where(eq(machineCategories.category, r.category))
+    .all();
+  return machines.map((m) => ({
+    ...m,
+    fuelCategories: db
+      .select({ c: machineFuelCategories.fuelCategory })
+      .from(machineFuelCategories)
+      .where(eq(machineFuelCategories.machine, m.name))
+      .all()
+      .map((x) => x.c),
+  }));
+}
+
+/** Solid + fluid fuels valid for a set of fuel categories (for the fuel picker).
+ * Fluid fuels (no category in Factorio) are offered when `includeFluids` is set —
+ * machines with a fluid energy source burn any fluid that has a fuel value. */
+export function fuelsForCategories(categories: string[], includeFluids = false) {
+  const solid = categories.length
+    ? db
+        .select({
+          name: items.name,
+          display: items.display,
+          fuelValueJ: items.fuelValueJ,
+          kind: sql<string>`'item'`,
+          burntResult: items.burntResult,
+        })
+        .from(items)
+        .where(and(isNotNull(items.fuelValueJ), inArray(items.fuelCategory, categories)))
+        .orderBy(items.fuelValueJ)
+        .all()
+        .filter((f) => !isExcluded(f.name)) // EE / user-excluded fuels
+    : [];
+  const fluid = includeFluids
+    ? db
+        .select({
+          name: fluids.name,
+          display: fluids.display,
+          fuelValueJ: fluids.fuelValueJ,
+          kind: sql<string>`'fluid'`,
+          burntResult: sql<string | null>`NULL`,
+        })
+        .from(fluids)
+        .where(isNotNull(fluids.fuelValueJ))
+        .orderBy(fluids.fuelValueJ)
+        .all()
+    : [];
+  return [...solid, ...fluid];
+}
+
+/** All burnable fuels (solid items + fluid fuels), cheapest-energy first, for the
+ * default-fuel setting picker. Excludes EE / user-excluded items. */
+export function fuelList() {
+  const solid = db
+    .select({
+      name: items.name,
+      display: items.display,
+      fuelValueJ: items.fuelValueJ,
+      kind: sql<string>`'item'`,
+    })
+    .from(items)
+    .where(isNotNull(items.fuelValueJ))
+    .orderBy(items.fuelValueJ)
+    .all()
+    .filter((f) => !isExcluded(f.name));
+  const fluid = db
+    .select({
+      name: fluids.name,
+      display: fluids.display,
+      fuelValueJ: fluids.fuelValueJ,
+      kind: sql<string>`'fluid'`,
+    })
+    .from(fluids)
+    .where(isNotNull(fluids.fuelValueJ))
+    .orderBy(fluids.fuelValueJ)
+    .all();
+  return [...solid, ...fluid].map((f) => ({
+    name: f.name,
+    display: f.display,
+    mj: f.fuelValueJ ? +(f.fuelValueJ / 1e6).toFixed(2) : null,
+    kind: f.kind,
+  }));
+}
+
+/** Which of the given machines are buildable under the current research horizon —
+ * a machine is available if any recipe that crafts its item is reached (enabled,
+ * or its unlock tech researched / its science packs produced). In FUTURE mode the
+ * caller doesn't restrict; this answers the NOW question. Reuses computeAvail so
+ * machine eligibility matches recipe eligibility exactly. */
+export function availableMachines(machineNames: string[]): Set<string> {
+  const h = getResearchHorizon();
+  const selections = getTurdSelections();
+  const out = new Set<string>();
+  for (const name of new Set(machineNames)) {
+    const crafts = recipesProducing(name); // recipes that build the machine item
+    const ok = crafts.some(
+      (r) => computeAvail(r.enabled, recipeLockState(r.name), h, selections).availableNow,
+    );
+    if (ok) out.add(name);
+  }
+  return out;
+}
+
+/** Which of the given module items are UNLOCKED in the current horizon — a module
+ * is available if some recipe producing it is reached. In NOW mode this is the
+ * strict buildableNow (no unmade TURD pick); in target/future, availableNow.
+ * Drives the agent's module auto-fill so it only places modules you can actually
+ * have. See [[turd-planning-model]] for the buildableNow vs availableNow split. */
+export function availableModuleItems(names: string[]): Set<string> {
+  if (!names.length) return new Set();
+  const h = getResearchHorizon();
+  // FUTURE mode plans against the whole tech tree — anything producible is fair
+  // game (availableNow would wrongly exclude not-yet-researched tiers).
+  if (h.mode === "future") return obtainableGoods(names);
+  const selections = getTurdSelections();
+  const now = h.mode === "now";
+  const out = new Set<string>();
+  for (const name of new Set(names)) {
+    const ok = recipesProducing(name).some((r) => {
+      const a = computeAvail(r.enabled, recipeLockState(r.name), h, selections);
+      return now ? a.buildableNow : a.availableNow;
+    });
+    if (ok) out.add(name);
+  }
+  return out;
+}
+
+/** Machines that can run a recipe, enriched with availability for the building
+ * picker: whether the machine is buildable at game start, which techs unlock it
+ * (its tier signal — e.g. smelters-mk04), and whether it's available right now. */
+export function machineOptionsForRecipe(recipeName: string) {
+  const machines = machinesForRecipe(recipeName);
+  const available = availableMachines(machines.map((m) => m.name));
+  return machines.map((m) => {
+    const crafts = recipesProducing(m.name); // recipes that build the machine item
+    const startEnabled = crafts.some((r) => r.enabled);
+    const unlockedBy = dedupeBy(
+      crafts
+        .flatMap((r) => recipeUnlocks(r.name))
+        .map((u) => ({ tech: u.tech, display: u.display })),
+      (u) => u.tech,
+    );
+    return { ...m, startEnabled, unlockedBy, availableNow: available.has(m.name) };
+  });
+}
+function dedupeBy<T>(arr: T[], key: (x: T) => string): T[] {
+  const seen = new Set<string>();
+  return arr.filter((x) => {
+    const k = key(x);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+/* ── Modules & beacons ──────────────────────────────────────────────────────── */
+
+export type ModuleRow = typeof modules.$inferSelect;
+
+export function getModules(names: string[]): Map<string, ModuleRow> {
+  if (!names.length) return new Map();
+  return new Map(
+    db
+      .select()
+      .from(modules)
+      .where(inArray(modules.name, Array.from(new Set(names))))
+      .all()
+      .map((m) => [m.name, m]),
+  );
+}
+
+export type BeaconRow = typeof beacons.$inferSelect;
+
+export function getBeacons(names: string[]): Map<string, BeaconRow> {
+  if (!names.length) return new Map();
+  return new Map(
+    db
+      .select()
+      .from(beacons)
+      .where(inArray(beacons.name, Array.from(new Set(names))))
+      .all()
+      .map((b) => [b.name, b]),
+  );
+}
+
+/** Module eligibility, two independent gates. The *category* gate is per host
+ * slots: a Py creature building only takes its creature modules, a beacon has
+ * its own category list. The *effect* gate is about who receives the effect —
+ * every beneficial effect the module provides must be allowed by the receiver
+ * (negative side effects never block insertion). Null lists = no restriction. */
+function categoryAllowed(m: ModuleRow, cats: string[] | null | undefined): boolean {
+  return !cats?.length || cats.includes(m.category ?? "");
+}
+function effectsAllowed(m: ModuleRow, fx: string[] | null | undefined): boolean {
+  if (!fx?.length) return true;
+  if (m.effSpeed > 0 && !fx.includes("speed")) return false;
+  if (m.effProductivity > 0 && !fx.includes("productivity")) return false;
+  if (m.effConsumption < 0 && !fx.includes("consumption")) return false;
+  return true;
+}
+
+/** Everything the module/beacon picker needs for one recipe row: the chosen
+ * machine's slots, modules that fit those slots, the placeable beacon variants,
+ * and the modules that fit each beacon (machine + beacon restrictions both apply
+ * since the beacon transmits its effects into the machine). */
+export function modulePickerData(recipeName: string, machineName: string) {
+  const r = db
+    .select({
+      allowProductivity: recipes.allowProductivity,
+      allowedModuleCategories: recipes.allowedModuleCategories,
+    })
+    .from(recipes)
+    .where(eq(recipes.name, recipeName))
+    .get();
+  const m = db.select().from(craftingMachines).where(eq(craftingMachines.name, machineName)).get();
+  if (!r || !m) return null;
+
+  // hidden modules are TURD internals — game-inserted, never hand-placed
+  const allModules = db
+    .select()
+    .from(modules)
+    .where(eq(modules.hidden, false))
+    .orderBy(modules.category, modules.tier, modules.name)
+    .all();
+  const prodOk = (mod: ModuleRow) => mod.effProductivity <= 0 || r.allowProductivity;
+  const machineModules = allModules.filter(
+    (mod) =>
+      categoryAllowed(mod, m.allowedModuleCategories) &&
+      categoryAllowed(mod, r.allowedModuleCategories) &&
+      effectsAllowed(mod, m.allowedEffects) &&
+      prodOk(mod),
+  );
+
+  const beaconRows = db
+    .select()
+    .from(beacons)
+    .where(eq(beacons.hidden, false))
+    .orderBy(beacons.name)
+    .all();
+  const beaconList = beaconRows.map((b) => ({
+    name: b.name,
+    display: b.display,
+    distributionEffectivity: b.distributionEffectivity,
+    moduleSlots: b.moduleSlots,
+    energyUsageW: b.energyUsageW,
+    profile: b.profile,
+    // fits the beacon's slots, and its transmitted effects are usable by machine+recipe
+    modules: allModules
+      .filter(
+        (mod) =>
+          categoryAllowed(mod, b.allowedModuleCategories) &&
+          effectsAllowed(mod, b.allowedEffects) &&
+          effectsAllowed(mod, m.allowedEffects) &&
+          prodOk(mod),
+      )
+      .map((mod) => mod.name),
+  }));
+
+  // flat index of every module referenced by any beacon (for display/effects lookup)
+  const beaconModuleNames = new Set(beaconList.flatMap((b) => b.modules));
+  const beaconModules = allModules.filter((mod) => beaconModuleNames.has(mod.name));
+
+  return {
+    machine: { name: m.name, display: m.display, moduleSlots: m.moduleSlots },
+    allowProductivity: r.allowProductivity,
+    modules: machineModules,
+    beacons: beaconList,
+    beaconModules,
+  };
+}
+
+/* ── TURD (Pyanodon tech upgrades) ──────────────────────────────────────────
+ * Master techs are flagged is_turd. The dump-time yafc integration turns each
+ * selectable sub-upgrade into a technology whose prerequisites are
+ * [master, turd-select-<name>]; its unlock effects are the recipes (incl. the
+ * hidden TURD module recipes) that choice grants. */
+
+/** Sub-techs of a master: techs requiring BOTH the master and their own
+ * turd-select gate. */
+function turdSubTechs(masterName: string): string[] {
+  return db
+    .select({ technology: techPrerequisites.technology })
+    .from(techPrerequisites)
+    .where(eq(techPrerequisites.prerequisite, masterName))
+    .all()
+    .map((r) => r.technology)
+    .filter(
+      (t) =>
+        db
+          .select({ n: sql<number>`count(*)` })
+          .from(techPrerequisites)
+          .where(
+            and(
+              eq(techPrerequisites.technology, t),
+              eq(techPrerequisites.prerequisite, `turd-select-${t}`),
+            ),
+          )
+          .get()!.n > 0,
+    );
+}
+
+/** Every TURD upgrade with its selectable sub-techs, the modules/recipes each
+ * grants, and the current selection. */
+export function listTurdUpgrades() {
+  const masters = db
+    .select()
+    .from(technologies)
+    .where(eq(technologies.isTurd, true))
+    .orderBy(technologies.name)
+    .all();
+  const selections = new Map(
+    db
+      .select()
+      .from(turdSelections)
+      .all()
+      .map((s) => [s.masterTech, s.subTech]),
+  );
+  return masters
+    .map((m) => {
+      const subs = turdSubTechs(m.name).map((sub) => {
+        const tech = db.select().from(technologies).where(eq(technologies.name, sub)).get();
+        const unlocks = db
+          .select({ recipe: techUnlocks.recipe })
+          .from(techUnlocks)
+          .where(eq(techUnlocks.technology, sub))
+          .all()
+          .map((u) => u.recipe);
+        const mods = turdModulesOf(sub);
+        return {
+          name: sub,
+          display: tech?.display ?? sub,
+          unlocks: unlocks.filter((r) => !mods.some((mod) => mod.name === r)),
+          modules: mods.map((mod) => ({
+            name: mod.name,
+            effSpeed: mod.effSpeed,
+            effProductivity: mod.effProductivity,
+            effConsumption: mod.effConsumption,
+          })),
+        };
+      });
+      return {
+        name: m.name,
+        display: m.display ?? m.name,
+        science: db
+          .select({ name: techIngredients.name, amount: techIngredients.amount })
+          .from(techIngredients)
+          .where(eq(techIngredients.technology, m.name))
+          .all()
+          .map((s) => ({ ...s, display: compDisplay("item", s.name) ?? s.name })),
+        subTechs: subs,
+        selected: selections.get(m.name) ?? null,
+      };
+    })
+    .filter((m) => m.subTechs.length > 0); // respec helpers are turd-flagged but offer no choices
+}
+
+/** The hidden modules a sub-tech's choice inserts (named <sub>-module[-mk0N]). */
+function turdModulesOf(subTech: string) {
+  return db
+    .select()
+    .from(modules)
+    .where(
+      sql`${modules.name} = ${subTech + "-module"} OR ${modules.name} LIKE ${subTech + "-module-mk0%"}`,
+    )
+    .all();
+}
+
+/** The master upgrade a TURD sub-tech belongs to (its non-gate prerequisite). */
+function turdMasterOf(subTech: string): { name: string; display: string | null } | null {
+  const pre = db
+    .select({ prerequisite: techPrerequisites.prerequisite })
+    .from(techPrerequisites)
+    .where(eq(techPrerequisites.technology, subTech))
+    .all()
+    .map((r) => r.prerequisite)
+    .find((p) => !p.startsWith("turd-select-"));
+  if (!pre) return null;
+  const t = db.select().from(technologies).where(eq(technologies.name, pre)).get();
+  return { name: pre, display: t?.display ?? pre };
+}
+
+/** Which of these recipes are REPLACED by a currently-selected TURD choice —
+ * in-game the old recipe disappears once the path is picked. */
+export function turdSuperseded(recipeNames: string[]) {
+  if (!recipeNames.length) return new Map<string, never>();
+  const selected = new Set(getTurdSelections().values());
+  if (!selected.size) return new Map<string, never>();
+  const rows = db
+    .select()
+    .from(turdReplacements)
+    .where(inArray(turdReplacements.oldRecipe, Array.from(new Set(recipeNames))))
+    .all()
+    .filter((r) => selected.has(r.subTech));
+  return new Map(
+    rows.map((r) => {
+      const sub = db.select().from(technologies).where(eq(technologies.name, r.subTech)).get();
+      const master = turdMasterOf(r.subTech);
+      const newR = db.select().from(recipes).where(eq(recipes.name, r.newRecipe)).get();
+      return [
+        r.oldRecipe,
+        {
+          subTech: r.subTech,
+          subDisplay: sub?.display ?? r.subTech,
+          masterDisplay: master?.display ?? null,
+          newRecipe: r.newRecipe,
+          newDisplay: newR?.display ?? r.newRecipe,
+        },
+      ];
+    }),
+  );
+}
+
+/** TURD upgrades RELEVANT to a plan (a sub-choice would replace one of the plan's
+ * recipes) that are available to pick RIGHT NOW (master researched) but NOT yet
+ * picked. Drives the agent's end-of-plan "TURD opportunities" advice — surfaced,
+ * never applied. Picked masters are locked (skipped); masters that still need
+ * research are omitted (not available now). See [[turd-planning-model]]. */
+export function turdOpportunities(planRecipes: string[]) {
+  const planSet = new Set(planRecipes);
+  if (!planSet.size) return [];
+  const h = getResearchHorizon();
+  const selections = getTurdSelections();
+  const recDisplay = (n: string) => getRecipe(n)?.display ?? n;
+  // subs whose OLD recipe the plan uses → group under their (unpicked) master
+  const byMaster = new Map<string, { display: string | null; replaced: Set<string> }>();
+  for (const r of db
+    .select()
+    .from(turdReplacements)
+    .where(inArray(turdReplacements.oldRecipe, [...planSet]))
+    .all()) {
+    const master = turdMasterOf(r.subTech);
+    if (!master || selections.has(master.name)) continue; // picked = locked in stone
+    const e = byMaster.get(master.name) ?? { display: master.display, replaced: new Set<string>() };
+    e.replaced.add(r.oldRecipe);
+    byMaster.set(master.name, e);
+  }
+  const out = [];
+  for (const [masterName, info] of byMaster) {
+    const subs = turdSubTechs(masterName);
+    // pickable-now gate: probe one branch recipe — reached AND turd 'pickable'
+    // (master undecided) means it's a free choice the user could make right now.
+    const probe = db
+      .select({ n: turdReplacements.newRecipe })
+      .from(turdReplacements)
+      .where(inArray(turdReplacements.subTech, subs))
+      .all()
+      .map((r) => r.n)[0];
+    if (!probe) continue;
+    const avail = computeAvail(
+      getRecipe(probe)?.enabled ?? false,
+      recipeLockState(probe),
+      h,
+      selections,
+    );
+    if (!avail.availableNow || avail.turd?.state !== "pickable") continue; // not pickable now
+    const options = subs.map((sub) => {
+      const tech = db.select().from(technologies).where(eq(technologies.name, sub)).get();
+      const reps = db
+        .select()
+        .from(turdReplacements)
+        .where(eq(turdReplacements.subTech, sub))
+        .all();
+      return {
+        sub,
+        display: tech?.display ?? sub,
+        replaces: reps.slice(0, 6).map((rp) => ({
+          recipe: recDisplay(rp.oldRecipe),
+          with: recDisplay(rp.newRecipe),
+        })),
+        moreReplacements: reps.length > 6 ? reps.length - 6 : undefined,
+        modules: turdModulesOf(sub).map((m) => ({
+          name: m.name,
+          speed: m.effSpeed,
+          productivity: m.effProductivity,
+          consumption: m.effConsumption,
+        })),
+      };
+    });
+    out.push({
+      master: masterName,
+      masterDisplay: info.display,
+      wouldReplace: [...info.replaced].map(recDisplay),
+      options,
+    });
+  }
+  return out;
+}
+
+export function getTurdSelections(): Map<string, string> {
+  return new Map(
+    db
+      .select()
+      .from(turdSelections)
+      .all()
+      .map((s) => [s.masterTech, s.subTech]),
+  );
+}
+
+export function setTurdSelection(masterTech: string, subTech: string | null) {
+  if (subTech == null) {
+    db.delete(turdSelections).where(eq(turdSelections.masterTech, masterTech)).run();
+  } else {
+    db.insert(turdSelections)
+      .values({ masterTech, subTech })
+      .onConflictDoUpdate({
+        target: turdSelections.masterTech,
+        set: { subTech, updatedAt: new Date() },
+      })
+      .run();
+  }
+}
+
+/** Replace ALL TURD selections with a pushed set (from the game bridge). Only
+ * (master, sub) pairs that exist in our model are applied; unknown ones are
+ * reported (a name mismatch between runtime and the dumped data). To avoid wiping
+ * good data on a total mismatch, a non-empty push that matches NOTHING is treated
+ * as a mismatch and left alone. Reports whether anything actually changed so the
+ * caller can skip a needless re-solve. */
+export function setTurdSelectionsBulk(selections: Record<string, string>): {
+  applied: number;
+  changed: boolean;
+  mismatch: boolean;
+  unknown: { master: string; sub: string }[];
+} {
+  const valid: { master: string; sub: string }[] = [];
+  const unknown: { master: string; sub: string }[] = [];
+  for (const [master, sub] of Object.entries(selections)) {
+    const isMaster =
+      db
+        .select({ n: sql<number>`count(*)` })
+        .from(technologies)
+        .where(and(eq(technologies.name, master), eq(technologies.isTurd, true)))
+        .get()!.n > 0;
+    if (isMaster && turdSubTechs(master).includes(sub)) valid.push({ master, sub });
+    else unknown.push({ master, sub });
+  }
+  const mismatch = Object.keys(selections).length > 0 && valid.length === 0;
+
+  const before = getTurdSelections();
+  const after = new Map(valid.map((v) => [v.master, v.sub]));
+  const changed =
+    !mismatch && (before.size !== after.size || [...after].some(([m, s]) => before.get(m) !== s));
+
+  if (!mismatch && changed) {
+    db.transaction((tx) => {
+      tx.delete(turdSelections).run();
+      for (const { master, sub } of valid)
+        tx.insert(turdSelections).values({ masterTech: master, subTech: sub }).run();
+    });
+  }
+  return { applied: valid.length, changed, mismatch, unknown };
+}
+
+/** All hidden TURD modules granted by the CURRENT selections — what computeBlock
+ * applies to matching machines (category + mk-tier match). */
+export function activeTurdModules(): ModuleRow[] {
+  const selected = [...getTurdSelections().values()];
+  return selected.flatMap((sub) => turdModulesOf(sub));
+}
+
+/* Module/beacon presets (saved loadouts). */
+export function listModulePresets() {
+  return db.select().from(modulePresets).orderBy(modulePresets.name).all();
+}
+export function saveModulePreset(name: string, moduleList: string[], beaconList: BeaconConfig[]) {
+  return db
+    .insert(modulePresets)
+    .values({ name, modules: moduleList, beacons: beaconList })
+    .returning({ id: modulePresets.id })
+    .get().id;
+}
+export function deleteModulePreset(id: number) {
+  db.delete(modulePresets).where(eq(modulePresets.id, id)).run();
+}
+
+/* ── User blocks (persistence) ──────────────────────────────────────────────── */
+
+export function listBlocks() {
+  return db
+    .select({
+      id: blocks.id,
+      name: blocks.name,
+      iconKind: blocks.iconKind,
+      iconName: blocks.iconName,
+      electricityW: blocks.electricityW,
+      groupId: blocks.groupId,
+      updatedAt: blocks.updatedAt,
+    })
+    .from(blocks)
+    .orderBy(blocks.sortOrder, blocks.name)
+    .all();
+}
+
+/* Folders (block groups). */
+export function listGroups() {
+  return db.select().from(blockGroups).orderBy(blockGroups.sortOrder, blockGroups.name).all();
+}
+export function createGroup(name: string) {
+  return db.insert(blockGroups).values({ name }).returning({ id: blockGroups.id }).get().id;
+}
+export function renameGroup(id: number, name: string) {
+  db.update(blockGroups).set({ name }).where(eq(blockGroups.id, id)).run();
+}
+export function deleteGroup(id: number) {
+  db.update(blocks).set({ groupId: null }).where(eq(blocks.groupId, id)).run(); // orphan its blocks
+  db.delete(blockGroups).where(eq(blockGroups.id, id)).run();
+}
+export function setBlockGroup(blockId: number, groupId: number | null) {
+  db.update(blocks).set({ groupId }).where(eq(blocks.id, blockId)).run();
+}
+/** Persist a manual block order: write sort_order = position for each id (pass a
+ * group's blocks in the desired order). listBlocks reads sort_order first. */
+export function setBlockOrder(ids: number[]) {
+  db.transaction((tx) => {
+    ids.forEach((id, i) => tx.update(blocks).set({ sortOrder: i }).where(eq(blocks.id, id)).run());
+  });
+}
+/** Persist a manual folder order (block_groups.sort_order = position). */
+export function setGroupOrder(ids: number[]) {
+  db.transaction((tx) => {
+    ids.forEach((id, i) =>
+      tx.update(blockGroups).set({ sortOrder: i }).where(eq(blockGroups.id, id)).run(),
+    );
+  });
+}
+
+export function getBlock(id: number) {
+  return db.select().from(blocks).where(eq(blocks.id, id)).get() ?? null;
+}
+
+/** Cached solved I/O for one block (the last-saved flows). */
+export function getBlockFlows(id: number) {
+  return db
+    .select({
+      item: blockFlows.item,
+      kind: blockFlows.kind,
+      role: blockFlows.role,
+      rate: blockFlows.rate,
+    })
+    .from(blockFlows)
+    .where(eq(blockFlows.blockId, id))
+    .all();
+}
+
+/** Whether a recipe still exists in the current reference data (for staleness). */
+export function recipeExists(name: string): boolean {
+  return (
+    db
+      .select({ n: sql<number>`count(*)` })
+      .from(recipes)
+      .where(eq(recipes.name, name))
+      .get()!.n > 0
+  );
+}
+
+export function deleteBlock(id: number) {
+  db.delete(blockFlows).where(eq(blockFlows.blockId, id)).run();
+  db.delete(blockMachines).where(eq(blockMachines.blockId, id)).run();
+  db.delete(blocks).where(eq(blocks.id, id)).run();
+}
+
+export type BlockFlow = { item: string; kind: string; role: string; rate: number };
+export type BlockMachine = { machine: string; recipe: string; count: number };
+/** Insert or update a block + replace its cached I/O flows (one transaction). */
+export function saveBlockRow(
+  input: {
+    id?: number | null;
+    name: string;
+    iconKind: string | null;
+    iconName: string | null;
+    data: BlockData;
+    electricityW: number;
+    dataFingerprint: string | null;
+  },
+  flows: BlockFlow[],
+  machines: BlockMachine[] = [],
+): number {
+  return db.transaction((tx) => {
+    let id = input.id ?? undefined;
+    const values = {
+      name: input.name,
+      iconKind: input.iconKind,
+      iconName: input.iconName,
+      data: input.data,
+      electricityW: input.electricityW,
+      dataFingerprint: input.dataFingerprint,
+    };
+    if (id != null) {
+      tx.update(blocks)
+        .set({ ...values, updatedAt: new Date() })
+        .where(eq(blocks.id, id))
+        .run();
+    } else {
+      id = tx.insert(blocks).values(values).returning({ id: blocks.id }).get().id;
+    }
+    tx.delete(blockFlows).where(eq(blockFlows.blockId, id)).run();
+    if (flows.length)
+      tx.insert(blockFlows)
+        .values(flows.map((f) => ({ blockId: id!, ...f })))
+        .run();
+    tx.delete(blockMachines).where(eq(blockMachines.blockId, id)).run();
+    if (machines.length)
+      tx.insert(blockMachines)
+        .values(machines.map((m) => ({ blockId: id!, ...m })))
+        .run();
+    return id;
+  });
+}
+
+/** Every block with its current target rate and cached boundary flows — the input
+ * to the factory-level what-if solve (each block becomes a fixed-ratio super-recipe). */
+export function blocksWithFlows() {
+  return db
+    .select()
+    .from(blocks)
+    .orderBy(blocks.sortOrder, blocks.name)
+    .all()
+    .map((b) => ({
+      id: b.id,
+      name: b.name,
+      rate: (b.data as BlockData).rate,
+      flows: db
+        .select({
+          item: blockFlows.item,
+          kind: blockFlows.kind,
+          role: blockFlows.role,
+          rate: blockFlows.rate,
+        })
+        .from(blockFlows)
+        .where(eq(blockFlows.blockId, b.id))
+        .all(),
+    }));
+}
+
+/** Aggregate net production across all blocks — the factory over/under view. */
+/** Existing blocks with what each produces (primary), has spare (byproducts),
+ * and imports — the factory context the planner consults to reuse blocks. */
+export function factoryBlocks() {
+  const bs = db
+    .select({ id: blocks.id, name: blocks.name })
+    .from(blocks)
+    .orderBy(blocks.sortOrder, blocks.name)
+    .all();
+  return bs.map((b) => {
+    const flows = db
+      .select({
+        item: blockFlows.item,
+        kind: blockFlows.kind,
+        role: blockFlows.role,
+        rate: blockFlows.rate,
+      })
+      .from(blockFlows)
+      .where(eq(blockFlows.blockId, b.id))
+      .all();
+    const pick = (role: string) =>
+      flows
+        .filter((f) => f.role === role)
+        .map((f) => ({ item: f.item, kind: f.kind, rate: f.rate }));
+    return {
+      id: b.id,
+      name: b.name,
+      makes: pick("primary"),
+      byproducts: pick("byproduct"),
+      imports: pick("import"),
+    };
+  });
+}
+
+/** Spoilage: what a good rots into and how fast. A fast-spoiling good can't be
+ * imported from a distant block — it must be built local. null = doesn't spoil. */
+export function goodSpoilage(name: string): { into: string; seconds: number } | null {
+  const it = db
+    .select({ s: items.spoilResult, t: items.spoilTicks })
+    .from(items)
+    .where(eq(items.name, name))
+    .get();
+  if (it?.s) return { into: it.s, seconds: Math.round((it.t ?? 0) / 60) };
+  return null;
+}
+
+/** Spoil-time cutoff (seconds): a good that rots faster than this can't realistically
+ * be imported across the factory — build it local. User setting; default 5 min. */
+export function spoilImportCutoff(): number {
+  const v = db
+    .select({ v: meta.value })
+    .from(meta)
+    .where(eq(meta.key, "spoil_import_cutoff_sec"))
+    .get()?.v;
+  return v ? Number(v) : 300;
+}
+
+/** Existing blocks that IMPORT a good — potential sinks to route a byproduct to. */
+export function blockImporters(good: string): { blockId: number; blockName: string }[] {
+  return db
+    .select({ blockId: blockFlows.blockId, name: blocks.name })
+    .from(blockFlows)
+    .innerJoin(blocks, eq(blocks.id, blockFlows.blockId))
+    .where(and(eq(blockFlows.item, good), eq(blockFlows.role, "import")))
+    .all()
+    .map((r) => ({ blockId: r.blockId, blockName: r.name }));
+}
+
+/** Drill-down for one good in the factory view: which blocks produce it (primary
+ * or byproduct) and which consume it (import), each with its per-second rate.
+ * Drives "click a resource → see who makes/uses it + make a new block for it". */
+export function blocksForGood(good: string) {
+  const rows = db
+    .select({
+      blockId: blockFlows.blockId,
+      name: blocks.name,
+      iconKind: blocks.iconKind,
+      iconName: blocks.iconName,
+      role: blockFlows.role,
+      rate: blockFlows.rate,
+    })
+    .from(blockFlows)
+    .innerJoin(blocks, eq(blocks.id, blockFlows.blockId))
+    .where(eq(blockFlows.item, good))
+    .all();
+  const shape = (r: (typeof rows)[number]) => ({
+    blockId: r.blockId,
+    blockName: r.name,
+    iconKind: r.iconKind,
+    iconName: r.iconName,
+    role: r.role,
+    rate: r.rate,
+  });
+  return {
+    good,
+    display: getItem(good)?.display ?? getFluid(good)?.display ?? null,
+    producers: rows.filter((r) => r.role === "primary" || r.role === "byproduct").map(shape),
+    consumers: rows.filter((r) => r.role === "import").map(shape),
+  };
+}
+
+/** Factory coherence: the block-to-block wiring. Every good that crosses a block
+ * boundary, grouped into (a) LINKS — produced by some block AND imported by
+ * another (an internal seam, with the per-good production vs consumption balance),
+ * (b) UNSOURCED — imported but no block produces it (a raw to supply, or a block
+ * you still need to build), and (c) SURPLUS — produced but no block consumes it
+ * (a final output, or waste to route). Drives the wiring view. */
+export function factoryCoherence() {
+  const rows = db
+    .select({
+      blockId: blockFlows.blockId,
+      blockName: blocks.name,
+      item: blockFlows.item,
+      kind: blockFlows.kind,
+      role: blockFlows.role,
+      rate: blockFlows.rate,
+    })
+    .from(blockFlows)
+    .innerJoin(blocks, eq(blocks.id, blockFlows.blockId))
+    .all();
+
+  type End = { blockId: number; blockName: string; rate: number; role: string };
+  const goods = new Map<string, { kind: string; producers: End[]; consumers: End[] }>();
+  for (const r of rows) {
+    const g = goods.get(r.item) ?? { kind: r.kind, producers: [], consumers: [] };
+    const end = { blockId: r.blockId, blockName: r.blockName, rate: r.rate, role: r.role };
+    if (r.role === "import") g.consumers.push(end);
+    else g.producers.push(end); // primary | byproduct
+    goods.set(r.item, g);
+  }
+
+  const sum = (xs: End[]) => xs.reduce((s, x) => s + x.rate, 0);
+  const links = [];
+  const unsourced = [];
+  const surplus = [];
+  for (const [good, g] of goods) {
+    const produced = +sum(g.producers).toFixed(3);
+    const consumed = +sum(g.consumers).toFixed(3);
+    const base = {
+      good,
+      display: getItem(good)?.display ?? getFluid(good)?.display ?? null,
+      kind: g.kind,
+      producers: g.producers.sort((a, b) => b.rate - a.rate),
+      consumers: g.consumers.sort((a, b) => b.rate - a.rate),
+      produced,
+      consumed,
+      net: +(produced - consumed).toFixed(3),
+    };
+    if (g.producers.length && g.consumers.length) links.push(base);
+    else if (g.consumers.length)
+      unsourced.push({ ...base, craftable: recipesProducing(good).length > 0 });
+    else surplus.push(base);
+  }
+  links.sort((a, b) => a.net - b.net); // worst shortfalls first
+  unsourced.sort((a, b) => b.consumed - a.consumed);
+  surplus.sort((a, b) => b.produced - a.produced);
+  return { links, unsourced, surplus };
+}
+
+/** Fuel options for a recipe's burner machines, each with its ash (burntResult)
+ * and energy. null when the recipe runs on electric machines (no fuel choice). */
+export function fuelOptionsForRecipe(recipeName: string) {
+  const burners = machinesForRecipe(recipeName).filter((m) => m.fuelCategories.length > 0);
+  if (!burners.length) return null;
+  const cats = Array.from(new Set(burners.flatMap((m) => m.fuelCategories)));
+  const fuels = fuelsForCategories(cats, false).map((f) => ({
+    fuel: f.name,
+    ash: f.burntResult ?? null, // ash-producing if non-null
+    mj: f.fuelValueJ ? +(f.fuelValueJ / 1e6).toFixed(2) : null,
+  }));
+  return { categories: cats, fuels };
+}
+
+/** good -> existing blocks that already output it (primary or byproduct) — the
+ * reuse/seam signal: if a block already makes a good, import it from there. */
+export function goodSuppliers(): Map<
+  string,
+  { blockId: number; blockName: string; role: string }[]
+> {
+  const rows = db
+    .select({
+      item: blockFlows.item,
+      role: blockFlows.role,
+      blockId: blockFlows.blockId,
+      name: blocks.name,
+    })
+    .from(blockFlows)
+    .innerJoin(blocks, eq(blocks.id, blockFlows.blockId))
+    .where(inArray(blockFlows.role, ["primary", "byproduct"]))
+    .all();
+  const m = new Map<string, { blockId: number; blockName: string; role: string }[]>();
+  for (const r of rows) {
+    const arr = m.get(r.item) ?? [];
+    arr.push({ blockId: r.blockId, blockName: r.name, role: r.role });
+    m.set(r.item, arr);
+  }
+  return m;
+}
+
+export function factoryTotals() {
+  return db
+    .select({
+      item: blockFlows.item,
+      kind: blockFlows.kind,
+      role: blockFlows.role,
+      rate: sql<number>`sum(${blockFlows.rate})`,
+    })
+    .from(blockFlows)
+    .innerJoin(blocks, eq(blocks.id, blockFlows.blockId)) // ignore orphans from deleted blocks
+    .groupBy(blockFlows.item, blockFlows.role)
+    .all()
+    .map((r) => ({ ...r, display: compDisplay(r.kind, r.item) }));
+}
+
+/* ── Built machines (live count from the game) vs. what blocks require ────────── */
+
+/** Replace the stored built-machine counts with a fresh snapshot from the game.
+ * Authoritative — drops anything not in the snapshot. Reports whether it changed
+ * (so the caller can skip needless re-renders) and how many entries landed. */
+export function setBuiltMachines(entries: { machine: string; recipe: string; count: number }[]): {
+  applied: number;
+  total: number;
+  changed: boolean;
+} {
+  // merge any duplicate (machine, recipe) pairs and drop empties
+  const merged = new Map<string, { name: string; recipe: string; count: number }>();
+  for (const e of entries) {
+    const count = Math.max(0, Math.round(e.count));
+    if (count <= 0) continue;
+    const recipe = e.recipe ?? "";
+    const key = `${e.machine} ${recipe}`;
+    const cur = merged.get(key);
+    if (cur) cur.count += count;
+    else merged.set(key, { name: e.machine, recipe, count });
+  }
+  const rows = [...merged.values()];
+  const before = builtKeyMap();
+  const after = new Map(rows.map((r) => [`${r.name} ${r.recipe}`, r.count]));
+  const changed = before.size !== after.size || [...after].some(([k, c]) => before.get(k) !== c);
+  if (changed) {
+    db.transaction((tx) => {
+      tx.delete(builtMachines).run();
+      if (rows.length) tx.insert(builtMachines).values(rows).run();
+    });
+  }
+  return { applied: rows.length, total: rows.reduce((s, r) => s + r.count, 0), changed };
+}
+
+/** Built rows keyed `name recipe` (space-joined; prototype names are kebab-case,
+ * so no collision) → count (for change detection). */
+function builtKeyMap(): Map<string, number> {
+  return new Map(
+    db
+      .select()
+      .from(builtMachines)
+      .all()
+      .map((m) => [`${m.name} ${m.recipe}`, m.count]),
+  );
+}
+
+function recipeDisplayName(name: string): string {
+  if (name === "") return "";
+  return (
+    db.select({ d: recipes.display }).from(recipes).where(eq(recipes.name, name)).get()?.d ?? name
+  );
+}
+
+/** Per-machine required (across blocks) vs. built (from the game), broken down by
+ * the RECIPE each machine runs. When the game reports a recipe for a machine's
+ * built units (assemblers, active furnaces) we compare per recipe — so furnaces
+ * smelting the wrong thing count as short. When it doesn't (mining drills, labs,
+ * idle furnaces → empty recipe), we fall back to a machine-level total. `short`
+ * is the whole machines you still need to place. Sorted worst-deficit first. */
+export function machineSufficiency() {
+  const reqRows = db
+    .select({
+      machine: blockMachines.machine,
+      recipe: blockMachines.recipe,
+      required: sql<number>`sum(${blockMachines.count})`,
+    })
+    .from(blockMachines)
+    .innerJoin(blocks, eq(blocks.id, blockMachines.blockId)) // ignore orphans
+    .groupBy(blockMachines.machine, blockMachines.recipe)
+    .all();
+  const builtRows = db.select().from(builtMachines).all();
+
+  const names = new Set<string>([
+    ...reqRows.map((r) => r.machine),
+    ...builtRows.map((b) => b.name),
+  ]);
+  return [...names]
+    .map((machine) => {
+      const req = reqRows.filter((r) => r.machine === machine);
+      const built = builtRows.filter((b) => b.name === machine);
+      const requiredTotal = req.reduce((s, r) => s + r.required, 0);
+      const builtTotal = built.reduce((s, b) => s + b.count, 0);
+      // recipe-aware only when the game gave us a recipe for some built unit
+      const recipeAware = built.some((b) => b.recipe !== "");
+      const unassignedBuilt = built.filter((b) => b.recipe === "").reduce((s, b) => s + b.count, 0);
+
+      let recipeRows: {
+        recipe: string;
+        display: string;
+        required: number;
+        built: number | null;
+        short: number;
+      }[];
+      let short: number;
+      if (recipeAware) {
+        const keys = new Set<string>([
+          ...req.map((r) => r.recipe),
+          ...built.filter((b) => b.recipe !== "").map((b) => b.recipe),
+        ]);
+        keys.delete(""); // the empty-recipe required bucket folds into machine total below
+        recipeRows = [...keys]
+          .map((recipe) => {
+            const required = req.find((r) => r.recipe === recipe)?.required ?? 0;
+            const have = built.find((b) => b.recipe === recipe)?.count ?? 0;
+            return {
+              recipe,
+              display: recipeDisplayName(recipe),
+              required,
+              built: have,
+              short: Math.max(0, Math.ceil(required - have - 1e-6)),
+            };
+          })
+          .sort((a, b) => b.short - a.short || b.required - a.required);
+        short = recipeRows.reduce((s, r) => s + r.short, 0);
+      } else {
+        recipeRows = req
+          .map((r) => ({
+            recipe: r.recipe,
+            display: recipeDisplayName(r.recipe),
+            required: r.required,
+            built: null,
+            short: 0,
+          }))
+          .sort((a, b) => b.required - a.required);
+        short = Math.max(0, Math.ceil(requiredTotal - builtTotal - 1e-6));
+      }
+
+      return {
+        machine,
+        display:
+          db
+            .select({ d: craftingMachines.display })
+            .from(craftingMachines)
+            .where(eq(craftingMachines.name, machine))
+            .get()?.d ?? machine,
+        requiredTotal,
+        builtTotal,
+        recipeAware,
+        unassignedBuilt,
+        short,
+        recipes: recipeRows,
+      };
+    })
+    .filter((m) => m.requiredTotal > 1e-6 || m.builtTotal > 0)
+    .sort((a, b) => b.short - a.short || b.requiredTotal - a.requiredTotal);
+}
+
+/* ── Live production statistics (actual rates from the game) ──────────────────── */
+
+/** Replace the stored production stats with a fresh per-second snapshot from the
+ * game. Returns how many entries landed (stats change every push, so we always
+ * rewrite). */
+export function setProductionStats(
+  entries: { name: string; kind: string; produced: number; consumed: number }[],
+): { applied: number } {
+  const clean = entries
+    .filter((e) => typeof e.name === "string" && (e.produced > 1e-6 || e.consumed > 1e-6))
+    .map((e) => ({
+      name: e.name,
+      kind: e.kind === "fluid" ? "fluid" : "item",
+      produced: e.produced,
+      consumed: e.consumed,
+    }));
+  db.transaction((tx) => {
+    tx.delete(productionStats).run();
+    if (clean.length) tx.insert(productionStats).values(clean).run();
+  });
+  return { applied: clean.length };
+}
+
+/** Actual production/consumption rates keyed by good name. */
+export function getProductionStats() {
+  return db.select().from(productionStats).all();
+}
+
+/** The factory ledger (planned per-item produced/consumed/net) joined with the
+ * live actual production/consumption from the game. Items appear if they're
+ * planned (in any block flow) or actually flowing in-game. `actualProduced` is
+ * null when no live stats exist for the good. */
+export function factoryProductionComparison() {
+  const planned = factoryTotals(); // {item, kind, role, rate, display}
+  const actual = new Map(getProductionStats().map((s) => [s.name, s]));
+
+  const byItem = new Map<
+    string,
+    { kind: string; display: string | null; plannedProduced: number; plannedConsumed: number }
+  >();
+  for (const f of planned) {
+    const e = byItem.get(f.item) ?? {
+      kind: f.kind,
+      display: f.display,
+      plannedProduced: 0,
+      plannedConsumed: 0,
+    };
+    if (f.role === "import") e.plannedConsumed += f.rate;
+    else e.plannedProduced += f.rate;
+    byItem.set(f.item, e);
+  }
+  // include goods the game makes that no block plans yet
+  for (const [name, s] of actual)
+    if (!byItem.has(name))
+      byItem.set(name, {
+        kind: s.kind,
+        display: compDisplay(s.kind, name),
+        plannedProduced: 0,
+        plannedConsumed: 0,
+      });
+
+  return [...byItem.entries()].map(([item, e]) => {
+    const a = actual.get(item);
+    return {
+      item,
+      kind: e.kind,
+      display: e.display,
+      plannedProduced: e.plannedProduced,
+      plannedConsumed: e.plannedConsumed,
+      actualProduced: a ? a.produced : null,
+      actualConsumed: a ? a.consumed : null,
+    };
+  });
+}
+
+/** Technologies that unlock a recipe. */
+export function techsUnlocking(recipeName: string): string[] {
+  return db
+    .select({ technology: techUnlocks.technology })
+    .from(techUnlocks)
+    .where(eq(techUnlocks.recipe, recipeName))
+    .all()
+    .map((r) => r.technology);
+}
+
+/** Unlocking technologies for a recipe, each with its science-pack cost (the tier signal). */
+export function recipeUnlocks(recipeName: string) {
+  return db
+    .select({ name: techUnlocks.technology })
+    .from(techUnlocks)
+    .where(eq(techUnlocks.recipe, recipeName))
+    .all()
+    .map((t) => ({
+      tech: t.name,
+      display:
+        db
+          .select({ d: technologies.display })
+          .from(technologies)
+          .where(eq(technologies.name, t.name))
+          .get()?.d ?? null,
+      science: db
+        .select({ name: techIngredients.name, amount: techIngredients.amount })
+        .from(techIngredients)
+        .where(eq(techIngredients.technology, t.name))
+        .all()
+        .map((s) => ({ ...s, display: compDisplay("item", s.name) ?? s.name })),
+    }));
+}
+
+export function getItem(name: string) {
+  return db.select().from(items).where(eq(items.name, name)).get() ?? null;
+}
+
+export function getFluid(name: string) {
+  return db.select().from(fluids).where(eq(fluids.name, name)).get() ?? null;
+}
+
+/** All spoilable items → name→spoil-time-in-ticks (60 ticks/sec). Drives the
+ * stopwatch overlay the icon layer paints on any spoilable item, everywhere. */
+export function spoilables(): Record<string, number> {
+  const rows = db
+    .select({ name: items.name, ticks: items.spoilTicks })
+    .from(items)
+    .where(isNotNull(items.spoilTicks))
+    .all();
+  const out: Record<string, number> = {};
+  for (const r of rows) if (r.ticks != null) out[r.name] = r.ticks;
+  return out;
+}
+
+/** Classify a bare name into item / fluid / recipe (+ display) so prose refs can
+ * render with the right icon and hover. Item-first: names shared by an item and a
+ * recipe (e.g. iron-plate) resolve to the item. Returns null for unknown names. */
+export function classifyRef(
+  name: string,
+): { kind: "item" | "fluid" | "recipe"; display: string } | null {
+  const it = db.select({ d: items.display }).from(items).where(eq(items.name, name)).get();
+  if (it) return { kind: "item", display: it.d ?? name };
+  const fl = db.select({ d: fluids.display }).from(fluids).where(eq(fluids.name, name)).get();
+  if (fl) return { kind: "fluid", display: fl.d ?? name };
+  const r = db.select({ d: recipes.display }).from(recipes).where(eq(recipes.name, name)).get();
+  if (r) return { kind: "recipe", display: r.d ?? name };
+  return null;
+}
+
+/* ── Exclusions: glob patterns over name / subgroup / category ──────────────── */
+
+// Always-on: Editor-Extensions creative content (uncraftable — map-editor only).
+// Matches ee- names AND ee-* subgroups AND the ee-testing-tool recipe category.
+const DEFAULT_EXCLUDE_GLOBS = ["ee-*", "ee-testing-tool"];
+
+function globToRegex(glob: string): RegExp {
+  const esc = glob
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*/g, ".*")
+    .replace(/\?/g, ".");
+  return new RegExp(`^${esc}$`, "i");
+}
+
+/** User exclusion globs (meta key "excluded": {globs:[]}). Patterns use * and ?,
+ * matched against a good's name/subgroup or a recipe's name/category — so
+ * "py-alienlife-*" (a mod family via subgroup), "ee-*", or an exact name all work. */
+export function getExclusions(): { globs: string[] } {
+  try {
+    const raw = db.select({ v: meta.value }).from(meta).where(eq(meta.key, "excluded")).get()?.v;
+    const j = raw ? (JSON.parse(raw) as { globs?: string[] }) : {};
+    return { globs: j.globs ?? [] };
+  } catch {
+    return { globs: [] };
+  }
+}
+export function setExclusions(x: { globs?: string[] }) {
+  metaSet("excluded", JSON.stringify({ globs: x.globs ?? [] }));
+  clearExclusionCache();
+}
+
+let _exclCache: RegExp[] | null = null;
+function exclusionGlobs(): RegExp[] {
+  _exclCache ??= [...DEFAULT_EXCLUDE_GLOBS, ...getExclusions().globs].map(globToRegex);
+  return _exclCache;
+}
+/** Call after setExclusions so live queries recompile. */
+export function clearExclusionCache() {
+  _exclCache = null;
+}
+/** True if any exclusion glob matches any of the given fields (name/subgroup/category). */
+function isExcluded(...fields: (string | null | undefined)[]): boolean {
+  const globs = exclusionGlobs();
+  return fields.some((f) => f != null && globs.some((g) => g.test(f)));
+}
+
+/* ── Research / TURD availability horizon (plan for now vs future) ───────────── */
+
+export type ResearchHorizon = {
+  // now = current science; future = anything; target = up to a target good's tech tier
+  mode: "now" | "future" | "target";
+  packs: Set<string>; // science packs you have / produce (or, for target, up to its tier)
+  researched: Set<string>; // explicitly-completed techs (mod-fed later; mock for now)
+  target: string | null; // the target good (mode = target)
+  targetTech: string | null; // the tech that unlocks the target (mode = target)
+};
+
+/** Every tech in a tech's prerequisite closure — the tech itself plus all ancestors. */
+function techPrereqClosure(root: string): Set<string> {
+  const seen = new Set<string>();
+  const stack = [root];
+  while (stack.length) {
+    const t = stack.pop()!;
+    if (seen.has(t)) continue;
+    seen.add(t);
+    for (const r of db
+      .select({ p: techPrerequisites.prerequisite })
+      .from(techPrerequisites)
+      .where(eq(techPrerequisites.technology, t))
+      .all()) {
+      if (!seen.has(r.p)) stack.push(r.p);
+    }
+  }
+  return seen;
+}
+
+/** Union of the science packs every tech in the set costs. */
+function packsForTechs(techs: Set<string>): Set<string> {
+  if (!techs.size) return new Set();
+  return new Set(
+    db
+      .select({ n: techIngredients.name })
+      .from(techIngredients)
+      .where(inArray(techIngredients.technology, [...techs]))
+      .all()
+      .map((r) => r.n),
+  );
+}
+
+/** The technology that first lets you make a good: among the techs unlocking a
+ * recipe that produces it, the lowest-tier one (fewest distinct science packs in
+ * its prerequisite closure, ties broken by name). null if it's start-craftable or
+ * nothing unlocks it. */
+export function unlockTechForGood(good: string): { tech: string; display: string | null } | null {
+  const recipeNames = recipesProducing(good).map((r) => r.name);
+  if (!recipeNames.length) return null;
+  const techNames = db
+    .selectDistinct({ t: techUnlocks.technology })
+    .from(techUnlocks)
+    .where(inArray(techUnlocks.recipe, recipeNames))
+    .all()
+    .map((r) => r.t);
+  if (!techNames.length) return null;
+  const best = techNames
+    .map((t) => ({ t, tier: packsForTechs(techPrereqClosure(t)).size }))
+    .sort((a, b) => a.tier - b.tier || (a.t < b.t ? -1 : 1))[0].t;
+  const disp = db
+    .select({ d: technologies.display })
+    .from(technologies)
+    .where(eq(technologies.name, best))
+    .get();
+  return { tech: best, display: disp?.d ?? best };
+}
+
+let _horizonCache: ResearchHorizon | null = null;
+export function getResearchHorizon(): ResearchHorizon {
+  if (_horizonCache) return _horizonCache;
+  const m = metaAll();
+  const parse = (k: string): string[] => {
+    try {
+      return JSON.parse(m[k] ?? "[]") as string[];
+    } catch {
+      return [];
+    }
+  };
+  const mode =
+    m.research_mode === "now" ? "now" : m.research_mode === "target" ? "target" : "future";
+  if (mode === "target") {
+    // up to (and including) the target's tech tier: allow anything unlocked by the
+    // target's unlocking tech and its prerequisites, nothing beyond.
+    const target = m.horizon_target || null;
+    const u = target ? unlockTechForGood(target) : null;
+    const packs = u ? packsForTechs(techPrereqClosure(u.tech)) : new Set<string>();
+    _horizonCache = { mode, packs, researched: new Set(), target, targetTech: u?.tech ?? null };
+    return _horizonCache;
+  }
+  _horizonCache = {
+    mode,
+    packs: new Set(parse("available_science_packs")),
+    researched: new Set(parse("researched_techs")),
+    target: null,
+    targetTech: null,
+  };
+  return _horizonCache;
+}
+export function setResearchHorizon(x: {
+  mode?: "now" | "future" | "target";
+  packs?: string[];
+  researched?: string[];
+  target?: string | null;
+}) {
+  if (x.mode) metaSet("research_mode", x.mode);
+  if (x.packs) metaSet("available_science_packs", JSON.stringify(x.packs));
+  if (x.researched) metaSet("researched_techs", JSON.stringify(x.researched));
+  if (x.target !== undefined) metaSet("horizon_target", x.target ?? "");
+  _horizonCache = null;
+}
+/** Search technologies by name/display (for the researched-tech picker) —
+ * excludes the internal turd-select-* prerequisite techs. */
+export function searchTechs(query: string, limit = 30): { name: string; display: string | null }[] {
+  const pat = `%${query}%`;
+  return db
+    .select({ name: technologies.name, display: technologies.display })
+    .from(technologies)
+    .where(
+      sql`(${technologies.name} LIKE ${pat} OR ${technologies.display} LIKE ${pat}) AND ${technologies.name} NOT LIKE 'turd-select-%'`,
+    )
+    .orderBy(technologies.order, technologies.name)
+    .limit(limit)
+    .all();
+}
+
+/** Full detail for a technology (hover card): science cost, what it unlocks, and
+ * its direct prerequisites — all with display names. */
+export function techDetail(tech: string) {
+  const t = db
+    .select({
+      name: technologies.name,
+      display: technologies.display,
+      unitCount: technologies.unitCount,
+    })
+    .from(technologies)
+    .where(eq(technologies.name, tech))
+    .get();
+  if (!t) return null;
+  const science = db
+    .select({ name: techIngredients.name, amount: techIngredients.amount })
+    .from(techIngredients)
+    .where(eq(techIngredients.technology, tech))
+    .all();
+  const packDisp = science.length
+    ? new Map(
+        db
+          .select({ name: items.name, display: items.display })
+          .from(items)
+          .where(
+            inArray(
+              items.name,
+              science.map((s) => s.name),
+            ),
+          )
+          .all()
+          .map((r) => [r.name, r.display] as const),
+      )
+    : new Map<string, string | null>();
+  const recipeNames = db
+    .select({ recipe: techUnlocks.recipe })
+    .from(techUnlocks)
+    .where(eq(techUnlocks.technology, tech))
+    .all()
+    .map((r) => r.recipe);
+  const unlocks = recipeNames.length
+    ? db
+        .select({ name: recipes.name, display: recipes.display })
+        .from(recipes)
+        .where(inArray(recipes.name, recipeNames))
+        .all()
+    : [];
+  const prereqNames = db
+    .select({ p: techPrerequisites.prerequisite })
+    .from(techPrerequisites)
+    .where(eq(techPrerequisites.technology, tech))
+    .all()
+    .map((r) => r.p);
+  const prereqs = prereqNames.length
+    ? db
+        .select({ name: technologies.name, display: technologies.display })
+        .from(technologies)
+        .where(inArray(technologies.name, prereqNames))
+        .all()
+    : [];
+  return {
+    name: t.name,
+    display: t.display ?? t.name,
+    unitCount: t.unitCount,
+    science: science.map((s) => ({ ...s, display: packDisp.get(s.name) ?? s.name })),
+    unlocks,
+    prereqs,
+  };
+}
+
+/** Display names for a set of tech internal names (for showing researched chips). */
+export function techDisplays(names: string[]): Map<string, string> {
+  if (!names.length) return new Map();
+  return new Map(
+    db
+      .select({ name: technologies.name, display: technologies.display })
+      .from(technologies)
+      .where(inArray(technologies.name, Array.from(new Set(names))))
+      .all()
+      .map((r) => [r.name, r.display ?? r.name]),
+  );
+}
+
+/** Science pack TYPES that appear in any tech, in UNLOCK-TIMELINE order — sorted by
+ * the tier at which each pack becomes craftable (how many distinct science packs its
+ * own unlocking tech transitively requires), ties broken by name. This is the static
+ * progression list, not an alphabetical one. */
+export function allSciencePacks(): string[] {
+  const packs = db
+    .selectDistinct({ name: techIngredients.name })
+    .from(techIngredients)
+    .all()
+    .map((r) => r.name);
+  const tier = new Map(
+    packs.map((p) => {
+      const u = unlockTechForGood(p);
+      return [p, u ? packsForTechs(techPrereqClosure(u.tech)).size : 0] as const;
+    }),
+  );
+  return packs.sort((a, b) => tier.get(a)! - tier.get(b)! || a.localeCompare(b));
+}
+
+/** A tech is "reached" if explicitly researched, or all its science packs are
+ * within your available set (you produce them, so you'll research it in time). */
+function techReachedByScience(
+  tech: string,
+  science: { name: string }[],
+  h: ResearchHorizon,
+): boolean {
+  if (h.researched.has(tech)) return true;
+  return science.every((s) => h.packs.has(s.name));
+}
+
+/** TURD choice state for a sub-tech given current selections:
+ *  active = this choice selected; pickable = master undecided (free to choose);
+ *  blocked = a DIFFERENT choice on this master is selected (needs respec). */
+function turdStateFor(
+  subTech: string,
+  master: string | null,
+  selections: Map<string, string>,
+): "active" | "pickable" | "blocked" {
+  if (!master) return selections.has(subTech) ? "active" : "pickable";
+  const sel = selections.get(master);
+  if (sel === subTech) return "active";
+  if (sel) return "blocked";
+  return "pickable";
+}
+
+export type RecipeAvail = {
+  research: "enabled" | "available" | "needs-research";
+  needs: string[]; // gating science packs (when needs-research)
+  turd: {
+    master: string | null;
+    masterDisplay: string | null;
+    choice: string | null;
+    state: "active" | "pickable" | "blocked";
+  } | null;
+  availableNow: boolean; // reached research AND turd not blocked (pickable counts)
+  buildableNow: boolean; // reached research AND turd ACTIVE — i.e. no unmade pick
+};
+function computeAvail(
+  enabled: boolean,
+  unlocks: ReturnType<typeof recipeLockState>,
+  h: ResearchHorizon,
+  selections: Map<string, string>,
+): RecipeAvail {
+  const turdU = unlocks.find((u) => u.isTurdSub);
+  const turd = turdU
+    ? {
+        master: turdU.master,
+        masterDisplay: turdU.masterDisplay,
+        choice: turdU.display,
+        state: turdStateFor(turdU.tech, turdU.master, selections),
+      }
+    : null;
+  let research: RecipeAvail["research"];
+  let needs: string[] = [];
+  if (enabled) research = "enabled";
+  else if (unlocks.some((u) => techReachedByScience(u.tech, u.science, h))) research = "available";
+  else {
+    research = "needs-research";
+    needs = [
+      ...new Set(
+        unlocks.flatMap((u) => u.science.map((s) => s.name)).filter((p) => !h.packs.has(p)),
+      ),
+    ];
+  }
+  const reached = research !== "needs-research";
+  // availableNow: a 'pickable' (researched-but-undecided) master counts — picking
+  // is still ahead. buildableNow is the stricter NOW-planning gate: only an ACTIVE
+  // choice (or a non-TURD recipe) is truly buildable without an unmade commitment.
+  const availableNow = reached && (!turd || turd.state !== "blocked");
+  const buildableNow = reached && (!turd || turd.state === "active");
+  return { research, needs, turd, availableNow, buildableNow };
+}
+
+/* ── Browser (items / fluids / recipes with full context) ───────────────────── */
+
+/** Search items AND fluids by internal or display name. */
+export function searchAll(query: string, limit = 50) {
+  // hyphen/underscore-insensitive name match ("copper plate" -> copper-plate) + display
+  const q = query.trim().toLowerCase();
+  const nq = q.replace(/[-_\s]+/g, " ");
+  const namePat = `%${nq}%`;
+  const dispPat = `%${q}%`;
+  const nameMatch = (col: AnyColumn, disp: AnyColumn) =>
+    sql`replace(replace(lower(${col}), '-', ' '), '_', ' ') LIKE ${namePat} OR lower(${disp}) LIKE ${dispPat}`;
+  const itemRows = db
+    .select({
+      name: items.name,
+      display: items.display,
+      kind: sql<string>`'item'`,
+      subgroup: items.subgroup,
+    })
+    .from(items)
+    .where(nameMatch(items.name, items.display))
+    .limit(limit + 30)
+    .all()
+    .filter((r) => !isExcluded(r.name, r.subgroup))
+    .map((r) => ({ name: r.name, display: r.display, kind: r.kind }));
+  const fluidRows = db
+    .select({ name: fluids.name, display: fluids.display, kind: sql<string>`'fluid'` })
+    .from(fluids)
+    .where(nameMatch(fluids.name, fluids.display))
+    .limit(limit)
+    .all()
+    .filter((r) => !isExcluded(r.name));
+  // exact/prefix matches first, then alphabetical (q defined above)
+  const rank = (r: { name: string; display: string | null }) => {
+    const n = r.name.toLowerCase();
+    const d = (r.display ?? "").toLowerCase();
+    if (n === q || d === q) return 0;
+    if (n.startsWith(q) || d.startsWith(q)) return 1;
+    return 2;
+  };
+  return [...itemRows, ...fluidRows]
+    .sort((a, b) => rank(a) - rank(b) || (a.display ?? a.name).localeCompare(b.display ?? b.name))
+    .slice(0, limit);
+}
+
+/** Compact unlock/lock state for recipe lists: how a recipe becomes available
+ * and whether the current TURD selections already grant it. */
+export function recipeLockState(name: string) {
+  const selections = new Set(getTurdSelections().values());
+  const unlocks = db
+    .select({ tech: techUnlocks.technology })
+    .from(techUnlocks)
+    .where(eq(techUnlocks.recipe, name))
+    .all()
+    .map(({ tech }) => {
+      const t = db.select().from(technologies).where(eq(technologies.name, tech)).get();
+      const isTurdSub =
+        db
+          .select({ n: sql<number>`count(*)` })
+          .from(techPrerequisites)
+          .where(
+            and(
+              eq(techPrerequisites.technology, tech),
+              eq(techPrerequisites.prerequisite, `turd-select-${tech}`),
+            ),
+          )
+          .get()!.n > 0;
+      const science = db
+        .select({ name: techIngredients.name, amount: techIngredients.amount })
+        .from(techIngredients)
+        .where(eq(techIngredients.technology, tech))
+        .all();
+      const master = isTurdSub ? turdMasterOf(tech) : null;
+      return {
+        tech,
+        display: t?.display ?? tech,
+        science,
+        isTurdSub,
+        master: master?.name ?? null,
+        masterDisplay: master?.display ?? null,
+        turdSelected: isTurdSub && selections.has(tech),
+      };
+    });
+  return unlocks;
+}
+
+/* ── TURD-set consistency (one choice per master; plans must not conflict) ───── */
+
+export type TurdReq = {
+  master: string;
+  masterDisplay: string;
+  sub: string;
+  choice: string;
+  recipe: string;
+};
+/** The TURD choices a recipe set REQUIRES — only for recipes that are turd-GATED
+ * (their sole unlock is a single turd sub-tech; recipes also reachable by plain
+ * research, or by any of several turd choices, impose no strict requirement). */
+export function turdRequirements(recipeNames: string[]): TurdReq[] {
+  const reqs: TurdReq[] = [];
+  for (const name of Array.from(new Set(recipeNames))) {
+    const unlocks = recipeLockState(name);
+    const turdU = unlocks.filter((u) => u.isTurdSub);
+    const plainU = unlocks.filter((u) => !u.isTurdSub);
+    if (turdU.length !== 1 || plainU.length) continue; // not strictly turd-gated
+    const u = turdU[0];
+    if (u.master)
+      reqs.push({
+        master: u.master,
+        masterDisplay: u.masterDisplay ?? u.master,
+        sub: u.tech,
+        choice: u.display ?? u.tech,
+        recipe: name,
+      });
+  }
+  return reqs;
+}
+
+export type TurdConsistency = {
+  ok: boolean;
+  conflicts: {
+    master: string;
+    masterDisplay: string;
+    choices: { sub: string; choice: string; recipes: string[] }[];
+  }[];
+  selections: {
+    master: string;
+    masterDisplay: string;
+    requiredSub: string;
+    requiredChoice: string;
+    current: string | null;
+    action: "already-selected" | "pick" | "switch";
+  }[];
+};
+/** Check a recipe set for TURD consistency: conflicts (two recipes need DIFFERENT
+ * choices of the same master — infeasible) + the selections the plan implies vs
+ * the user's current TURD selections (already-selected / pick / switch). */
+export function checkTurdConsistency(recipeNames: string[]): TurdConsistency {
+  const reqs = turdRequirements(recipeNames);
+  const selections = getTurdSelections();
+  const byMaster = new Map<string, TurdReq[]>();
+  for (const r of reqs) {
+    const a = byMaster.get(r.master) ?? [];
+    a.push(r);
+    byMaster.set(r.master, a);
+  }
+  const conflicts: TurdConsistency["conflicts"] = [];
+  const selActions: TurdConsistency["selections"] = [];
+  for (const [master, rs] of byMaster) {
+    const subs = Array.from(new Set(rs.map((r) => r.sub)));
+    const masterDisplay = rs[0].masterDisplay;
+    if (subs.length > 1) {
+      conflicts.push({
+        master,
+        masterDisplay,
+        choices: subs.map((sub) => ({
+          sub,
+          choice: rs.find((r) => r.sub === sub)!.choice,
+          recipes: rs.filter((r) => r.sub === sub).map((r) => r.recipe),
+        })),
+      });
+    } else {
+      const current = selections.get(master) ?? null;
+      selActions.push({
+        master,
+        masterDisplay,
+        requiredSub: subs[0],
+        requiredChoice: rs[0].choice,
+        current,
+        action: current === subs[0] ? "already-selected" : current ? "switch" : "pick",
+      });
+    }
+  }
+  return { ok: conflicts.length === 0, conflicts, selections: selActions };
+}
+
+/** Every recipe used across all existing blocks (for factory-wide checks). */
+export function allBlockRecipes(): string[] {
+  return [
+    ...new Set(
+      db
+        .select({ data: blocks.data })
+        .from(blocks)
+        .all()
+        .flatMap((r) => r.data.recipes ?? []),
+    ),
+  ];
+}
+
+const BARREL_CATEGORIES = new Set(["py-barreling", "py-unbarreling", "barreling", "barrelling"]);
+
+/** Recipe-picker candidates (producing/consuming X) with lock + TURD state,
+ * sorted: available first (cheapest first within a tier, per cost analysis),
+ * tech-locked next, unselected-TURD after, barrel fill/empty dead last —
+ * useful at times, rarely what you actually want. */
+export function recipeCandidates(name: string, mode: "produce" | "consume") {
+  const base = (mode === "produce" ? recipesProducing(name) : recipesConsuming(name)).filter(
+    (r) => !isExcluded(r.name, r.category, r.subgroup),
+  );
+  const costs = recipeCosts(base.map((r) => r.name));
+  const supersededMap = turdSuperseded(base.map((r) => r.name));
+  const horizon = getResearchHorizon();
+  const selections = getTurdSelections();
+  const rows = base.map((r) => {
+    const unlocks = recipeLockState(r.name);
+    const turd = unlocks.find((u) => u.isTurdSub);
+    const avail = computeAvail(r.enabled, unlocks, horizon, selections);
+    const available = r.enabled || (turd ? turd.turdSelected : unlocks.length > 0); // tech-locked counts as obtainable
+    // available-now (start-enabled or its unlock tech is researched/reached) ranks
+    // above tech-locked-but-not-yet-researched
+    let rank = r.enabled ? 0 : turd ? (turd.turdSelected ? 1 : 3) : avail.availableNow ? 1 : 2;
+    const superseded = supersededMap.get(r.name) ?? null;
+    if (superseded) rank = Math.max(rank, 6); // the selected TURD removed it in-game
+    if (BARREL_CATEGORIES.has(r.category ?? "")) rank += 10;
+    // io summary so lookalike recipes (Py loves reusing names) tell apart at a glance
+    const full = getRecipe(r.name);
+    const comp = (c: {
+      kind: string;
+      name: string;
+      display: string | null;
+      amount?: number | null;
+    }) => ({
+      kind: c.kind,
+      name: c.name,
+      display: c.display,
+      amount: c.amount ?? 0,
+    });
+    return {
+      ...r,
+      unlocks,
+      turd: turd ?? null,
+      available,
+      avail,
+      rank,
+      cost: costs.get(r.name) ?? null,
+      superseded,
+      ingredients: (full?.ingredients ?? []).map(comp),
+      products: (full?.products ?? []).map((c) =>
+        comp({
+          ...c,
+          amount:
+            c.amount ??
+            (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0),
+        }),
+      ),
+    };
+  });
+  return rows.sort(
+    (a, b) =>
+      a.rank - b.rank ||
+      (a.cost ?? Infinity) - (b.cost ?? Infinity) ||
+      (a.display ?? a.name).localeCompare(b.display ?? b.name),
+  );
+}
+
+/** A recipe with everything the browser shows on one row: io, machines,
+ * unlock state (start-enabled / tech / TURD choice + whether it's active). */
+function recipeCard(name: string) {
+  const r = getRecipe(name);
+  if (!r) return null;
+  const machines = machinesForRecipe(name).map((m) => ({
+    name: m.name,
+    display: m.display,
+    craftingSpeed: m.craftingSpeed,
+  }));
+  const unlocks = recipeLockState(name);
+  return {
+    name: r.name,
+    display: r.display,
+    category: r.category,
+    energyRequired: r.energyRequired,
+    enabled: r.enabled,
+    hidden: r.hidden,
+    ingredients: r.ingredients.map((c) => ({
+      kind: c.kind,
+      name: c.name,
+      display: c.display,
+      amount: c.amount,
+    })),
+    products: r.products.map((c) => ({
+      kind: c.kind,
+      name: c.name,
+      display: c.display,
+      amount:
+        c.amount ??
+        (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0),
+      probability: c.probability,
+    })),
+    machines,
+    unlocks,
+  };
+}
+export type RecipeCardData = NonNullable<ReturnType<typeof recipeCard>>;
+
+/** Everything the browser's detail pane needs for one item/fluid. */
+export function browseDetail(name: string) {
+  const item = getItem(name);
+  const fluid = getFluid(name);
+  if (!item && !fluid) return null;
+  const cards = (rs: { name: string }[]) =>
+    rs.map((r) => recipeCard(r.name)).filter((c): c is RecipeCardData => !!c);
+  return {
+    name,
+    kind: fluid ? "fluid" : "item",
+    display: item?.display ?? fluid?.display ?? name,
+    item,
+    fluid,
+    producedBy: cards(recipesProducing(name)),
+    consumedBy: cards(recipesConsuming(name)),
+  };
+}
+
+/** Name search over items (for the recipe/item browser). */
+export function searchItems(query: string, limit = 50) {
+  // Match against the internal name (with hyphens/underscores treated as spaces,
+  // so "copper plate" finds "copper-plate") AND the display name, case-insensitive.
+  const q = query.trim().toLowerCase();
+  const nq = q.replace(/[-_\s]+/g, " ");
+  const namePat = `%${nq}%`;
+  const dispPat = `%${q}%`;
+  return db
+    .select({
+      name: items.name,
+      display: items.display,
+      subgroup: items.subgroup,
+      stackSize: items.stackSize,
+    })
+    .from(items)
+    .where(
+      sql`replace(replace(lower(${items.name}), '-', ' '), '_', ' ') LIKE ${namePat} OR lower(${items.display}) LIKE ${dispPat}`,
+    )
+    .limit(limit + 30)
+    .all()
+    .filter((r) => !isExcluded(r.name, r.subgroup)) // uncraftable EE / user-excluded
+    .slice(0, limit);
+}
+
+/** All meta key/values (import provenance, data fingerprint, sync time). */
+export function metaAll(): Record<string, string | null> {
+  return Object.fromEntries(
+    db
+      .select()
+      .from(meta)
+      .all()
+      .map((r) => [r.key, r.value]),
+  );
+}
+
+export function metaSet(key: string, value: string) {
+  db.insert(meta)
+    .values({ key, value })
+    .onConflictDoUpdate({ target: meta.key, set: { value } })
+    .run();
+}
+
+/* ── Cost analysis lookups (LP shadow prices; see server/cost-analysis.ts) ──── */
+
+export function goodCosts(names: string[]): Map<string, number> {
+  if (!names.length) return new Map();
+  return new Map(
+    db
+      .select({ name: costAnalysis.name, cost: costAnalysis.cost })
+      .from(costAnalysis)
+      .where(
+        and(eq(costAnalysis.scope, "good"), inArray(costAnalysis.name, Array.from(new Set(names)))),
+      )
+      .all()
+      .map((r) => [r.name, r.cost]),
+  );
+}
+
+export function recipeCosts(names: string[]): Map<string, number> {
+  if (!names.length) return new Map();
+  return new Map(
+    db
+      .select({ name: costAnalysis.name, cost: costAnalysis.cost })
+      .from(costAnalysis)
+      .where(
+        and(
+          eq(costAnalysis.scope, "recipe"),
+          inArray(costAnalysis.name, Array.from(new Set(names))),
+        ),
+      )
+      .all()
+      .map((r) => [r.name, r.cost]),
+  );
+}
+
+/** Goods some reachable recipe produces (enabled, tech-unlockable, or
+ * synthetic) — auto-fill must not pick creative/editor-only modules. */
+export function obtainableGoods(names: string[]): Set<string> {
+  if (!names.length) return new Set();
+  const rows = db
+    .selectDistinct({ name: recipeProducts.name })
+    .from(recipeProducts)
+    .innerJoin(recipes, eq(recipes.name, recipeProducts.recipe))
+    .leftJoin(techUnlocks, eq(techUnlocks.recipe, recipes.name))
+    .where(
+      and(
+        inArray(recipeProducts.name, Array.from(new Set(names))),
+        eq(recipes.hidden, false),
+        sql`(${recipes.enabled} = 1 OR ${recipes.kind} != 'real' OR ${techUnlocks.recipe} IS NOT NULL)`,
+      ),
+    )
+    .all();
+  return new Set(rows.map((r) => r.name));
+}
+
+/** Cheap producer/consumer fan-out counts for a good (non-hidden recipes only).
+ * Powers the additive classifier: ubiquitous commodities are imported, narrow
+ * intermediates are built. See server/additives.ts for the policy. */
+export function goodGraphCounts(name: string): { producers: number; consumers: number } {
+  const producers = db
+    .select({ n: sql<number>`count(distinct ${recipeProducts.recipe})` })
+    .from(recipeProducts)
+    .innerJoin(recipes, and(eq(recipes.name, recipeProducts.recipe), eq(recipes.hidden, false)))
+    .where(eq(recipeProducts.name, name))
+    .get()!.n;
+  const consumers = db
+    .select({ n: sql<number>`count(distinct ${recipeIngredients.recipe})` })
+    .from(recipeIngredients)
+    .innerJoin(recipes, and(eq(recipes.name, recipeIngredients.recipe), eq(recipes.hidden, false)))
+    .where(eq(recipeIngredients.name, name))
+    .get()!.n;
+  return { producers, consumers };
+}
+
+export function costAnalysisCount(): number {
+  return db
+    .select({ n: sql<number>`count(*)` })
+    .from(costAnalysis)
+    .get()!.n;
+}
+
+/** Row counts — useful for a health check / "is the db loaded" probe. */
+export function stats() {
+  const count = (t: Parameters<ReturnType<typeof db.select>["from"]>[0]) =>
+    (
+      db
+        .select({ n: sql<number>`count(*)` })
+        .from(t)
+        .get() as { n: number }
+    ).n;
+  return {
+    recipes: count(recipes),
+    items: count(items),
+    fluids: count(fluids),
+    craftingMachines: count(craftingMachines),
+  };
+}

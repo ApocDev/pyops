@@ -1,0 +1,76 @@
+# Architecture
+
+PyOps is **one app** plus a **game mod**. There is no separate backend service —
+the [TanStack Start](https://tanstack.com/start) app *is* the backend: React UI in
+the browser, and server functions + Nitro routes running server-side in the same
+process. SQLite, the solver, the UDP bridge, the data pipeline, and the AI all
+live as server-side modules.
+
+```
+┌──────────────────────────── app/ (TanStack Start) ────────────────────────────┐
+│                                                                                │
+│   React UI (routes/, components/, lib/)                                        │
+│        │  server functions (createServerFn) + Nitro API routes                 │
+│        ▼                                                                        │
+│   server/  ── factorio data · solver · cost LP · AI agent · bridge             │
+│   solver/  ── pure-TS linear-system block solver                               │
+│   db/      ── Drizzle ORM over better-sqlite3 (per-project .db files)          │
+│                                                                                │
+└──────────────▲────────────────────────────────────────────────▲───────────────┘
+               │ localhost UDP (bridge)                           │ reads
+               │                                                  │
+   ┌───────────┴───────────┐                          ┌───────────┴───────────┐
+   │  mod/ (Factorio 2.0)  │                          │  Factorio data dumps   │
+   │  in-game panel +      │   factorio --dump-data   │  data-raw-dump.json,   │
+   │  live-state sync      │ ───────────────────────▶ │  locale, icon sprites  │
+   └───────────────────────┘                          └────────────────────────┘
+```
+
+The pieces, in their own docs:
+
+- **[Data pipeline](data-pipeline.md)** — Factorio dump → SQLite + icon atlas.
+- **[Block solver](solver.md)** — turning a block of chosen recipes into run-rates
+  and machine counts, plus the factory-level what-if.
+- **[Factorio bridge](bridge.md)** — the UDP link to the companion mod.
+- **[AI assistant](ai-assistant.md)** — the planning agent and MCP surface.
+
+## Repository layout
+
+```
+pyops/
+├── app/              TanStack Start app — UI + backend (the whole product)
+│   ├── src/
+│   │   ├── routes/        file-based routes: UI pages + API routes
+│   │   ├── components/    shared React UI (shadcn/Radix + Tailwind v4)
+│   │   ├── lib/           icons, recipe cards, modals
+│   │   ├── server/        server-only modules (data, solver glue, bridge, AI)
+│   │   ├── solver/        pure-TS linear-system block solver + tests
+│   │   └── db/            Drizzle schema, import, synthesize, queries
+│   ├── icon-data/         generated icon atlas (gitignored)
+│   ├── projects/          per-project .db files, each self-named (gitignored)
+│   └── app-config.json    app-level config: active project + AI key/model (gitignored)
+├── mod/              Factorio 2.0 companion mod (Lua, no build step)
+│   ├── control.lua        panel + UDP bridge + live-state sync
+│   ├── summary.lua        Helmod-style production-block view
+│   ├── combinator.lua     in-game request-combinator planner
+│   └── data.lua, settings.lua
+├── scripts/          one-off dev/test scripts (icon-atlas builder, atlas server)
+└── docs/             this documentation
+```
+
+The app uses **[Vite+](https://viteplus.dev/)** (the `vp` CLI) as its toolchain —
+Vite, Rolldown, Vitest, Oxlint, Oxfmt under one wrapper — not the bare
+`pnpm dev`/`pnpm build` scripts. See [`AGENTS.md`](../AGENTS.md) for the command
+reference.
+
+## Per-project databases
+
+Each "project" (usually a different mod list) is its own SQLite file under
+`projects/`. The files are the source of truth — there's no registry: each db
+self-describes its name/createdAt in its own `meta`, and the active project id
+lives in `app-config.json`. The `db` export (`app/src/db/index.ts`) is a proxy
+that always points at the active connection, so the query layer never changes when
+you switch. Creating a project provisions a fresh schema (`drizzle-kit push`); you
+then run a [data sync](data-pipeline.md) to
+fill it. The relevant code lives in `app/src/server/projects.ts` and
+`app/src/db/index.ts`.

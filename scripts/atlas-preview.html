@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>PyOps icon atlas preview</title>
+    <style>
+      body {
+        margin: 0;
+        font:
+          13px system-ui,
+          sans-serif;
+        background: #1b1b1b;
+        color: #ddd;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        background: #111;
+        padding: 8px 12px;
+        border-bottom: 1px solid #333;
+        z-index: 1;
+      }
+      #grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px;
+        padding: 8px;
+      }
+      .icon {
+        width: 40px;
+        height: 40px;
+        background-repeat: no-repeat;
+      }
+      input {
+        background: #222;
+        color: #ddd;
+        border: 1px solid #444;
+        padding: 4px 8px;
+        border-radius: 4px;
+        width: 280px;
+      }
+      code {
+        color: #6cf;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>PyOps icon atlas</strong> — <span id="stat">loading…</span> &nbsp;
+      <input id="q" placeholder="filter: iron, recipe/, fluid/water …" oninput="render()" />
+    </header>
+    <div id="grid"></div>
+    <script>
+      let M, entries;
+      const DISP = 40;
+      async function boot() {
+        const t = performance.now();
+        M = await (await fetch("/manifest.json")).json();
+        entries = Object.entries(M.icons);
+        document.getElementById("stat").innerHTML =
+          entries.length +
+          " icons · <code>" +
+          M.counts.unique +
+          "</code> unique images · " +
+          M.sheets.length +
+          " sheets · cell " +
+          M.cell +
+          "px · manifest in " +
+          ((performance.now() - t) | 0) +
+          "ms";
+        render();
+      }
+      function render() {
+        const q = document.getElementById("q").value.toLowerCase();
+        const f = DISP / M.cell,
+          bg = M.atlasSize * f;
+        const list = q ? entries.filter(([k]) => k.toLowerCase().includes(q)) : entries;
+        const t = performance.now();
+        let html = "";
+        for (const [k, e] of list) {
+          html +=
+            '<div class="icon" title="' +
+            k +
+            '" style="background-image:url(' +
+            M.sheets[e.s] +
+            ");background-position:" +
+            -e.x * f +
+            "px " +
+            -e.y * f +
+            "px;background-size:" +
+            bg +
+            "px " +
+            bg +
+            'px"></div>';
+        }
+        document.getElementById("grid").innerHTML = html;
+        console.log(
+          "rendered " + list.length + " icons in " + ((performance.now() - t) | 0) + "ms",
+        );
+      }
+      boot();
+    </script>
+  </body>
+</html>

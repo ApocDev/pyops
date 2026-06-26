@@ -1,0 +1,47 @@
+# Factorio/package output
+*.zip
+*.tmp
+
+# Local bridge config and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+config.local.*
+secrets.*
+
+# Common build/cache output
+dist/
+build/
+target/
+node_modules/
+__pycache__/
+.pytest_cache/
+
+# Editor/OS noise
+.DS_Store
+*.swp
+
+# Planning/design scratch
+docs/superpowers/
+
+# Scratch atlas output (one-off test)
+scripts/atlas-out/
+
+# dev server logs
+*.log
+
+# local sqlite db (generated from the Factorio dump)
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+# per-project db files + app/registry state (all local, generated)
+projects/
+app-config.json
+projects.json
+projects.json.bak
+
+# generated icon atlas (regenerate: node scripts/build-icon-atlas.mjs ~/.factorio/script-output app/public/icons)
+app/icon-data/
+.playwright-mcp/
