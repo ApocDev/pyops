@@ -1,0 +1,19 @@
+app/src/routes/coherence.tsx
+  s_f7e625039781bd::t_49f0c8c333f05b 10,62-65,72,92-141,154-160,165-186,275,277,280,282-303,305-324,328-329,333-338,341-345,347-355
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.1",
+  "base_commit_sha": "e9bd941ca3fae357493b2a9ed7f9178d6d048ddc",
+  "prompts": {},
+  "sessions": {
+    "s_f7e625039781bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "632f9038-5f95-40d1-8911-e40085444234",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
