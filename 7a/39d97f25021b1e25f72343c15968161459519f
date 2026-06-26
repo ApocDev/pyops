@@ -1,0 +1,19 @@
+app/src/routes/__root.tsx
+  s_6f734d2cc94a8c::t_669d7ea4e703b2 63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "7a39d97f25021b1e25f72343c15968161459519f",
+  "prompts": {},
+  "sessions": {
+    "s_6f734d2cc94a8c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1279db6f-939f-4de3-84a7-804b7dc12f5c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
