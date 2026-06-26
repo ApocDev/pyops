@@ -23,4 +23,4 @@ jobs:
           cache: true
       - run: vp install
       - run: vp check
-      - run: vp test
+      - run: vp test run # single run (not watch); the protocol guard also checks mod/control.lua
