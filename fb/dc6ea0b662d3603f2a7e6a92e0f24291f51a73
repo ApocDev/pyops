@@ -1,0 +1,33 @@
+app/src/lib/recipe-card.test.tsx
+  s_606b86c6fb03c8::t_95ff147a3c1175 1-102
+app/src/components/bridge-indicator.test.tsx
+  s_07f9706eef6df5::t_6fab56879805c1 1-110
+app/src/components/project-switcher.test.tsx
+  s_07f9706eef6df5::t_dc1925414a44de 1-75
+app/src/components/ui/ui.test.tsx
+  s_07f9706eef6df5::t_f79c3f5fcfa19e 1-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "fbdc6ea0b662d3603f2a7e6a92e0f24291f51a73",
+  "prompts": {},
+  "sessions": {
+    "s_07f9706eef6df5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "713d7a23-e7ba-4c11-94c7-942b3db38d1c",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_606b86c6fb03c8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bf63b166-ee3b-4728-99a5-0b3dc249d84f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
