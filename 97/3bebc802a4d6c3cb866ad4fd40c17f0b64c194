@@ -1,0 +1,43 @@
+app/e2e/bridge.e2e.ts
+  s_606b86c6fb03c8::t_39e7ee3d7397da 1-106
+app/e2e/smoke.e2e.ts
+  s_606b86c6fb03c8::t_722681b6951d4a 1-48
+app/e2e/.gitignore
+  s_07f9706eef6df5::t_e1cc93e25e5024 1-5
+app/e2e/README.md
+  s_07f9706eef6df5::t_63536d426000f7 1-44
+app/e2e/package.json
+  s_07f9706eef6df5::t_3c17c5d8ed7920 1-15
+app/e2e/playwright.config.ts
+  s_07f9706eef6df5::t_3650169d0d5e9e 1-36
+app/e2e/tsconfig.json
+  s_07f9706eef6df5::t_116488bf895991 1-13
+app/tsconfig.json
+  s_07f9706eef6df5::t_8b35dd45e1ad01 3
+app/vite.config.ts
+  s_07f9706eef6df5::t_352e75a6e428e8 62-63,65,68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "973bebc802a4d6c3cb866ad4fd40c17f0b64c194",
+  "prompts": {},
+  "sessions": {
+    "s_07f9706eef6df5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "713d7a23-e7ba-4c11-94c7-942b3db38d1c",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_606b86c6fb03c8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bf63b166-ee3b-4728-99a5-0b3dc249d84f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
