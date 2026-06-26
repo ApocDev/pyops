@@ -1,0 +1,21 @@
+AGENTS.md
+  s_6f734d2cc94a8c::t_e7c9251a28a603 127,151,153,155-160,171-173
+app/src/db/schema.ts
+  s_6f734d2cc94a8c::t_30c0a5250d856b 438-439
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "4cfbddea0951d1d090dfbf3194c4f5839250bb68",
+  "prompts": {},
+  "sessions": {
+    "s_6f734d2cc94a8c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1279db6f-939f-4de3-84a7-804b7dc12f5c",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
