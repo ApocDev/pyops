@@ -42,12 +42,16 @@ a concrete previous state to diff against, not just a hash.
 the game's *current* mod set against that persisted baseline, by name **and**
 version, and categorizes the change (added / removed / enabled / disabled /
 version-changed). `needsRedump` is true only when the *enabled* mods or their
-versions changed (disabled-mod churn doesn't affect the data). A global
-`DriftBanner` surfaces the "your data no longer matches the game" prompt and links
-to the integrated re-sync; it re-checks on app start, on project switch (a full
-reload), on bridge reconnect (Factorio likely restarted), and every couple of hours.
-Settings → Game data spells out exactly what changed. Reading the mod set is cheap
-(two small file reads), so checking often costs little.
+versions changed (disabled-mod churn doesn't affect the data). When drift is
+detected a **guided modal** (`DriftModal`, opened via the shared `drift-store`)
+pops with the categorized changes and an ignore/re-sync choice, then walks the dump
+as a step-by-step progress flow (`lib/sync-steps.ts` maps each `SyncPhase` to a
+labelled step) ending in a summary that links to the Factory block change-report. It
+re-checks on app start, on project switch (a full reload), on bridge reconnect
+(Factorio likely restarted), and every couple of hours; an ignored drift leaves a
+small "data stale" chip in the nav to re-open the modal, and Settings → Game data
+shows the same detail. Reading the mod set is cheap (two small file reads), so
+checking often costs little.
 
 Saved blocks additionally carry a **per-block reference fingerprint**
 (`blockReferenceFingerprint`, `app/src/db/queries.ts`): a hash over the *current*

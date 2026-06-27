@@ -432,13 +432,21 @@ export type SyncPhase =
 
 export type SyncState = {
   phase: SyncPhase;
+  failedAt: SyncPhase | null; // which step was running when it errored (for the stepper)
   startedAt: number | null;
   finishedAt: number | null;
   log: string[];
   error: string | null;
 };
 
-const state: SyncState = { phase: "idle", startedAt: null, finishedAt: null, log: [], error: null };
+const state: SyncState = {
+  phase: "idle",
+  failedAt: null,
+  startedAt: null,
+  finishedAt: null,
+  log: [],
+  error: null,
+};
 
 export function syncState(): SyncState {
   return state;
@@ -492,6 +500,7 @@ export function startDataSync(opts: { icons?: boolean } = {}): SyncState {
   const icons = opts.icons ?? false;
   if (state.phase !== "idle" && state.phase !== "done" && state.phase !== "error") return state;
   state.phase = "helper-mod";
+  state.failedAt = null;
   state.startedAt = Date.now();
   state.finishedAt = null;
   state.log = [];
@@ -561,6 +570,7 @@ export function startDataSync(opts: { icons?: boolean } = {}): SyncState {
       step("done", `sync complete (fingerprint ${fp})`);
       state.finishedAt = Date.now();
     } catch (e) {
+      state.failedAt = state.phase; // the step that was running when it broke
       state.phase = "error";
       state.error = e instanceof Error ? e.message : String(e);
       state.log.push(`ERROR: ${state.error}`);

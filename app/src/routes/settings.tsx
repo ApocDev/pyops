@@ -1,6 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   aiConfigFn,
   dataStatusFn,
@@ -12,12 +12,12 @@ import {
   setAiConfigFn,
   setExclusionsFn,
   setPlannerSettingsFn,
-  startDataSyncFn,
-  syncStateFn,
 } from "../server/factorio";
 import { BridgeCard } from "../components/bridge-card";
 import { HorizonPicker } from "../components/horizon-picker";
 import { CompanionModCard } from "../components/companion-mod-card";
+import { DriftChanges } from "../components/drift-changes";
+import { driftModal } from "../lib/drift-store";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { Input } from "#/components/ui/input.tsx";
@@ -88,41 +88,13 @@ function SettingsPage() {
   );
 }
 
-const RUNNING = new Set([
-  "helper-mod",
-  "dump-data",
-  "dump-locale",
-  "dump-icons",
-  "import",
-  "atlas",
-  "costs",
-  "migrations",
-]);
-
-/** Game-data sync: dump → import → atlas, all server-side. */
+/** Game-data sync: the state lives here (reference-data summary, drift, mods); the
+ * sync action + its guided progress run in the global DriftModal (opened here, on
+ * drift detection, or from the nav), so the dump isn't buried in a log at the
+ * bottom of the page. */
 function GameDataTab() {
-  const qc = useQueryClient();
-  const [icons, setIcons] = useState(false);
-
   const status = useQuery({ queryKey: ["dataStatus"], queryFn: () => dataStatusFn() });
   const drift = useQuery({ queryKey: ["modDrift"], queryFn: () => modDriftFn() });
-  const sync = useQuery({
-    queryKey: ["syncState"],
-    queryFn: () => syncStateFn(),
-    refetchInterval: (q) => (RUNNING.has(q.state.data?.phase ?? "") ? 1500 : false),
-  });
-  const start = useMutation({
-    mutationFn: () => startDataSyncFn({ data: { icons } }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["syncState"] }),
-  });
-
-  const s = sync.data;
-  const running = RUNNING.has(s?.phase ?? "");
-  // when a run finishes, refresh the status card (and everything data-derived)
-  const phase = s?.phase;
-  useEffect(() => {
-    if (phase === "done") void qc.invalidateQueries();
-  }, [phase, qc]);
 
   return (
     <div className="columns-1 gap-4 xl:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
@@ -138,7 +110,7 @@ function GameDataTab() {
             </Badge>
           )}
         </CardHeader>
-        <div className="space-y-1 px-3 pb-3">
+        <div className="space-y-2 px-3 pb-3">
           {status.data && (
             <>
               <div>
@@ -157,90 +129,23 @@ function GameDataTab() {
               </div>
             </>
           )}
+          <button
+            onClick={() => driftModal.open()}
+            className="mt-1 rounded bg-primary px-3 py-1.5 font-semibold text-primary-foreground hover:bg-primary/80"
+          >
+            {drift.data?.needsRedump ? "Review & re-sync…" : "Sync game data…"}
+          </button>
+          <p className="text-xs text-muted-foreground">
+            Runs <span className="text-foreground">factorio --dump-data</span> with the pyops-dump
+            helper, imports into sqlite, applies mod renames, and records the mod list — guided
+            step-by-step in the dialog.
+          </p>
         </div>
       </Card>
 
       <ModDriftCard data={drift.data} />
 
       <ModsCard mods={status.data?.mods ?? []} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Sync</CardTitle>
-        </CardHeader>
-        <div className="space-y-3 px-3 pb-3">
-          <p className="text-xs text-muted-foreground">
-            Runs{" "}
-            <span className="text-foreground">factorio --dump-data / --dump-prototype-locale</span>{" "}
-            with the pyops-dump helper enabled (TURD integration), imports into sqlite, and stamps
-            the mod-list fingerprint. The helper is always disabled again afterwards.
-          </p>
-          <label className="flex items-center gap-2 text-xs">
-            <input type="checkbox" checked={icons} onChange={(e) => setIcons(e.target.checked)} />
-            also re-dump icon sprites + rebuild the atlas
-            <span className="text-muted-foreground">
-              (loads the FULL game — Steam may ask for launch confirmation)
-            </span>
-          </label>
-          <button
-            onClick={() => start.mutate()}
-            disabled={running}
-            className="rounded bg-primary px-3 py-1.5 font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-50"
-          >
-            {running ? "syncing…" : "Sync game data"}
-          </button>
-        </div>
-      </Card>
-
-      {s != null && s.phase !== "idle" && (
-        <Card>
-          <CardHeader className="justify-between">
-            <CardTitle>Last run</CardTitle>
-            <span
-              className={
-                s.phase === "done"
-                  ? "text-emerald-400"
-                  : s.phase === "error"
-                    ? "text-destructive"
-                    : "text-amber-300"
-              }
-            >
-              {s.phase}
-            </span>
-          </CardHeader>
-          <div className="px-3 pb-3">
-            <pre className="max-h-64 overflow-auto text-xs whitespace-pre-wrap text-muted-foreground">
-              {s.log.join("\n")}
-            </pre>
-            {s.error && <div className="mt-2 text-xs text-destructive">{s.error}</div>}
-            {s.phase === "done" && (
-              <div className="mt-2 text-xs text-emerald-300">
-                ✓ Reference data updated.{" "}
-                <Link to="/factory" className="underline hover:text-emerald-200">
-                  Review which saved blocks changed or broke →
-                </Link>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-/** One labelled group of changed mods in the drift card. */
-function DriftRow({ label, tone, names }: { label: string; tone: string; names: string[] }) {
-  if (names.length === 0) return null;
-  return (
-    <div className="flex flex-wrap items-baseline gap-1.5">
-      <span className={`shrink-0 font-semibold ${tone}`}>
-        {label} ({names.length})
-      </span>
-      {names.map((n) => (
-        <span key={n} className="rounded bg-muted px-1.5 py-0.5 font-mono">
-          {n}
-        </span>
-      ))}
     </div>
   );
 }
@@ -288,25 +193,9 @@ function ModDriftCard({ data }: { data: Awaited<ReturnType<typeof modDriftFn>> |
       <div className="space-y-2 px-3 pb-3 text-xs">
         <p className="text-muted-foreground">
           The game&apos;s mods changed since your last sync, so the reference data no longer
-          matches. Re-sync below to update it.
+          matches. Re-sync to update it.
         </p>
-        <DriftRow
-          label="added"
-          tone="text-emerald-300"
-          names={(d?.added ?? []).map((m) => `${m.name} ${m.version ?? ""}`.trim())}
-        />
-        <DriftRow
-          label="removed"
-          tone="text-destructive"
-          names={(d?.removed ?? []).map((m) => m.name)}
-        />
-        <DriftRow label="enabled" tone="text-emerald-300" names={d?.enabled ?? []} />
-        <DriftRow label="disabled" tone="text-amber-300" names={d?.disabled ?? []} />
-        <DriftRow
-          label="updated"
-          tone="text-sky-300"
-          names={(d?.versionChanged ?? []).map((v) => `${v.name} ${v.from ?? "—"}→${v.to ?? "—"}`)}
-        />
+        <DriftChanges drift={d} />
       </div>
     </Card>
   );

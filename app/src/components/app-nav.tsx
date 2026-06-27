@@ -1,9 +1,30 @@
 import { useSyncExternalStore } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { ProjectSwitcher } from "./project-switcher";
 import { BridgeIndicator } from "./bridge-indicator";
 import { HorizonMenu } from "./horizon-menu";
 import { activeRunCount, subscribeRuns } from "../lib/chat-store";
+import { modDriftFn } from "../server/factorio";
+import { driftModal } from "../lib/drift-store";
+
+/** Persistent re-entry point for the data-sync modal: a small amber chip in the
+ * nav whenever the game's mods have drifted from the project's reference data
+ * (so dismissing the popup doesn't strand it). Hidden when data is in sync. */
+function DataDriftIndicator() {
+  const drift = useQuery({ queryKey: ["modDrift"], queryFn: () => modDriftFn() });
+  if (!drift.data?.needsRedump) return null;
+  return (
+    <button
+      onClick={() => driftModal.open()}
+      title="The game's mods changed since your last data sync — click to review and re-sync."
+      className="flex items-center gap-1.5 px-3 text-sm text-amber-300 hover:bg-muted/50"
+    >
+      <span className="inline-block size-2 rounded-full bg-amber-400" />
+      <span className="hidden sm:inline">data stale</span>
+    </button>
+  );
+}
 
 /** Shows how many assistant runs are generating right now (from anywhere in the
  * app, since runs continue across navigation). Links back to the assistant. */
@@ -56,6 +77,7 @@ export function AppNav() {
         ✓ Tasks
       </Link>
       <span className="ml-auto flex items-stretch">
+        <DataDriftIndicator />
         <RunIndicator />
         <HorizonMenu />
         <BridgeIndicator />
