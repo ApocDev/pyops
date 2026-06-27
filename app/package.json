@@ -46,7 +46,7 @@
     "drizzle-orm": "^0.45.1",
     "highs": "^1.14.2",
     "lucide-react": "^0.577.0",
-    "nitro": "npm:nitro-nightly@latest",
+    "nitro": "npm:nitro-nightly@3.0.1-20260623-055145-de9708f5",
     "radix-ui": "^1.5.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

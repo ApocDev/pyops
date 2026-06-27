@@ -90,7 +90,7 @@ importers:
         specifier: ^0.577.0
         version: 0.577.0(react@19.2.7)
       nitro:
-        specifier: npm:nitro-nightly@latest
+        specifier: npm:nitro-nightly@3.0.1-20260623-055145-de9708f5
         version: nitro-nightly@3.0.1-20260623-055145-de9708f5(@voidzero-dev/vite-plus-core@0.2.1(@types/node@22.19.21)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(typescript@6.0.3))(better-sqlite3@12.10.0)(chokidar@5.0.0)(dotenv@17.4.2)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.10.0))(jiti@2.7.0)(lru-cache@11.5.1)
       radix-ui:
         specifier: ^1.5.0
