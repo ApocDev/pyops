@@ -96,6 +96,7 @@ const RUNNING = new Set([
   "import",
   "atlas",
   "costs",
+  "migrations",
 ]);
 
 /** Game-data sync: dump → import → atlas, all server-side. */

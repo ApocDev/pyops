@@ -44,6 +44,7 @@
     "clsx": "^2.1.1",
     "drizzle-kit": "^0.31.9",
     "drizzle-orm": "^0.45.1",
+    "fflate": "^0.8.3",
     "highs": "^1.14.2",
     "lucide-react": "^0.577.0",
     "nitro": "npm:nitro-nightly@3.0.1-20260623-055145-de9708f5",

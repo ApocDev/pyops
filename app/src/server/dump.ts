@@ -20,7 +20,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 const FACTORIO_BIN =
   process.env.FACTORIO_BIN ??
@@ -328,6 +328,93 @@ export function redumpNeeded(baseline: ModEntry[], current: ModEntry[]): boolean
   return sig(baseline) !== sig(current);
 }
 
+/** Apply newly-present mod migrations (#26) to saved blocks as part of the dump.
+ * The FIRST run records the current migration files as a baseline and applies
+ * nothing — existing blocks already reference current names — so this is safe to
+ * land without rewriting anyone's blocks. After that, only files not seen before
+ * (a mod update's new rename file) are applied, in filename order so chained
+ * renames compose. Renamed blocks keep their cached I/O (the normal recompute
+ * refreshes it); whatever genuinely vanished falls through to the broken-block
+ * handling (#1). Defensive: a read failure is logged, never thrown. */
+async function applyModMigrations(): Promise<{
+  firstRun: boolean;
+  newFiles: number;
+  blocksChanged: number;
+  renames: number;
+}> {
+  const { readModMigrations, applyRenames } = await import("./migrations.ts");
+  const mods = await readMods();
+  const files = await readModMigrations(MODS_DIR, mods);
+  const allKeys = files.map((f) => f.key);
+
+  const { db } = await import("../db/index.ts");
+  const { meta } = await import("../db/schema.ts");
+  const writeApplied = (keys: string[]) =>
+    db
+      .insert(meta)
+      .values({ key: "migrations_applied", value: JSON.stringify(keys) })
+      .onConflictDoUpdate({ target: meta.key, set: { value: sql`excluded.value` } })
+      .run();
+
+  const row = db.select().from(meta).where(eq(meta.key, "migrations_applied")).get();
+  if (!row?.value) {
+    writeApplied(allKeys); // baseline only — nothing applied on first run
+    return { firstRun: true, newFiles: 0, blocksChanged: 0, renames: 0 };
+  }
+  let applied: Set<string>;
+  try {
+    applied = new Set(JSON.parse(row.value) as string[]);
+  } catch {
+    applied = new Set();
+  }
+  const newFiles = files
+    .filter((f) => !applied.has(f.key))
+    .sort((a, b) => a.file.localeCompare(b.file));
+
+  let blocksChanged = 0;
+  let renames = 0;
+  if (newFiles.length) {
+    const q = await import("../db/queries.ts");
+    for (const b of q.listBlocks()) {
+      const rowB = q.getBlock(b.id);
+      if (!rowB) continue;
+      let shape = {
+        data: rowB.data as import("../db/schema.ts").BlockData,
+        iconKind: rowB.iconKind,
+        iconName: rowB.iconName,
+      };
+      let changed = false;
+      for (const f of newFiles) {
+        const res = applyRenames(shape, f.renames);
+        if (res.changed) {
+          changed = true;
+          renames += res.applied.length;
+        }
+        shape = res.block;
+      }
+      if (changed) {
+        // rename the input doc + icon, preserve the cached flows/power (null flows)
+        q.saveBlockRow(
+          {
+            id: b.id,
+            name: rowB.name,
+            iconKind: shape.iconKind,
+            iconName: shape.iconName,
+            data: shape.data,
+            electricityW: null,
+            dataFingerprint: rowB.dataFingerprint,
+          },
+          null,
+          null,
+        );
+        blocksChanged++;
+      }
+    }
+  }
+  writeApplied([...new Set([...applied, ...allKeys])]);
+  return { firstRun: false, newFiles: newFiles.length, blocksChanged, renames };
+}
+
 /* ── pipeline ────────────────────────────────────────────────────────────────── */
 
 export type SyncPhase =
@@ -339,6 +426,7 @@ export type SyncPhase =
   | "import"
   | "atlas"
   | "costs"
+  | "migrations"
   | "done"
   | "error";
 
@@ -445,6 +533,16 @@ export function startDataSync(opts: { icons?: boolean } = {}): SyncState {
       const { computeCostAnalysis } = await import("./cost-analysis.ts");
       const costs = await computeCostAnalysis(currentDatabaseFile());
       state.log.push(`priced ${costs.goods} goods / ${costs.recipes} recipes in ${costs.ms}ms`);
+
+      // Auto-apply any newly-present mod prototype renames to saved blocks, so a
+      // pure rename follows through instead of leaving blocks broken (#26).
+      step("migrations", "applying mod prototype renames");
+      const mig = await applyModMigrations();
+      state.log.push(
+        mig.firstRun
+          ? "migrations: baseline recorded (no renames applied on first sync)"
+          : `migrations: ${mig.newFiles} new file(s) → ${mig.blocksChanged} block(s) renamed (${mig.renames} substitutions)`,
+      );
 
       const fp = await modListFingerprint();
       const mods = await readMods();
