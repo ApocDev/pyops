@@ -1,0 +1,29 @@
+app/package.json
+  s_5ada7f1a78c53d::t_49826c624414a8 47
+app/pnpm-lock.yaml
+  s_5ada7f1a78c53d::t_ad49065d1d2a52 40,86-88,140,2543-2544,2556-2557,2561-2562,2567-2568,2574-2575,2617-2618,3874-3876,7541,7543,7554,7556,7565,7567,7581,7586,7588,7632,7634,8800-8801
+app/src/server/migrations.test.ts
+  s_5ada7f1a78c53d::t_9516529415b51f 1-119
+app/src/server/migrations.ts
+  s_5ada7f1a78c53d::t_b1fafec383703e 1-224
+app/src/routes/settings.tsx
+  s_5ada7f1a78c53d::t_6f64d72194cc2b 99
+app/src/server/dump.ts
+  s_5ada7f1a78c53d::t_2866a3d6be5f7f 23,331-417,429,537-546
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "7673aa8e29bc0e4227b41089ba054e0d37327086",
+  "prompts": {},
+  "sessions": {
+    "s_5ada7f1a78c53d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7f8dc847-bb35-44cf-9b07-a89abe1b3b1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
