@@ -27,6 +27,7 @@ const FACTORIO_BIN =
   join(homedir(), ".local/share/Steam/steamapps/common/Factorio/bin/x64/factorio");
 const FACTORIO_DATA = process.env.FACTORIO_DATA_DIR ?? join(homedir(), ".factorio");
 const MODS_DIR = join(FACTORIO_DATA, "mods");
+const LOCK_FILE = join(FACTORIO_DATA, ".lock");
 const SCRIPT_OUTPUT = join(FACTORIO_DATA, "script-output");
 const APP_DIR = process.cwd();
 const ATLAS_SCRIPT = resolve(APP_DIR, "../scripts/build-icon-atlas.mjs");
@@ -221,6 +222,42 @@ type ModList = { mods: { name: string; enabled: boolean; version?: string }[] };
 
 async function readModList(): Promise<ModList> {
   return JSON.parse(await readFile(join(MODS_DIR, "mod-list.json"), "utf8")) as ModList;
+}
+
+/** Shown when a dump can't run because the game already holds its instance lock. */
+export const GAME_RUNNING_MSG =
+  "Factorio is already running. Close the game first, then sync again — PyOps launches its own headless copy to read the data, and the engine won't allow two instances at once.";
+
+/** Best-effort: is Factorio already running? The engine holds a BSD `flock` on
+ * `~/.factorio/.lock`, so we try a non-blocking flock on the same file via the
+ * `flock(1)` util. `true` = locked (running), `false` = we acquired it (not
+ * running), `null` = can't tell (no flock util / no lock file / non-Linux) — in
+ * which case callers fall back to attempting the dump and mapping the lock error. */
+export function factorioRunning(): Promise<boolean | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (v: boolean | null) => {
+      if (!settled) {
+        settled = true;
+        resolve(v);
+      }
+    };
+    try {
+      const child = spawn("flock", ["-n", LOCK_FILE, "-c", "true"], { stdio: "ignore" });
+      child.on("error", () => done(null)); // flock util not present (e.g. macOS/Windows)
+      child.on("close", (code) => done(code === 0 ? false : code === 1 ? true : null));
+    } catch {
+      done(null);
+    }
+  });
+}
+
+/** Map a raw dump failure to a friendly message for the known "game is running"
+ * lock error; otherwise pass the original through. */
+function friendlyDumpError(raw: string): string {
+  return /exclusive lock|another instance|temporarily unavailable/i.test(raw)
+    ? GAME_RUNNING_MSG
+    : raw;
 }
 
 async function setHelperEnabled(enabled: boolean) {
@@ -508,6 +545,16 @@ export function startDataSync(opts: { icons?: boolean } = {}): SyncState {
 
   void (async () => {
     try {
+      // Pre-flight: bail before touching mod-list.json if the game is already
+      // running (the dump launches its own headless instance and would just fail
+      // on the engine's exclusive lock).
+      if ((await factorioRunning()) === true) {
+        state.phase = "error";
+        state.error = GAME_RUNNING_MSG;
+        state.log.push(`ERROR: ${GAME_RUNNING_MSG}`);
+        state.finishedAt = Date.now();
+        return;
+      }
       step("helper-mod", "writing pyops-dump helper mod + enabling it");
       await writeHelperMod();
       await setHelperEnabled(true);
@@ -572,8 +619,9 @@ export function startDataSync(opts: { icons?: boolean } = {}): SyncState {
     } catch (e) {
       state.failedAt = state.phase; // the step that was running when it broke
       state.phase = "error";
-      state.error = e instanceof Error ? e.message : String(e);
-      state.log.push(`ERROR: ${state.error}`);
+      const raw = e instanceof Error ? e.message : String(e);
+      state.error = friendlyDumpError(raw); // surface "game is running" plainly
+      state.log.push(`ERROR: ${raw}`); // keep the raw error in the log for debugging
       state.finishedAt = Date.now();
     }
   })();

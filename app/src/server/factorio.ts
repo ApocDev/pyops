@@ -1353,6 +1353,13 @@ export const syncStateFn = createServerFn({ method: "GET" }).handler(async () =>
   (await dumpLib()).syncState(),
 );
 
+/** Whether Factorio is already running (holds its instance lock) — so the UI can
+ * warn before a dump and avoid launching into a guaranteed lock failure. `running`
+ * is null when we can't tell (then the dump is attempted and the error is mapped). */
+export const factorioRunningFn = createServerFn({ method: "GET" }).handler(async () => ({
+  running: await (await dumpLib()).factorioRunning(),
+}));
+
 /** Kick off the dump → import (→ atlas) pipeline. Icons are opt-in: that
  * stage loads the full game and Steam may prompt for launch confirmation. */
 export const startDataSyncFn = createServerFn({ method: "POST" })
