@@ -1,0 +1,21 @@
+app/src/server/dump.ts
+  s_5ada7f1a78c53d::t_d811e27d94f0c8 30,227-262,548-557,622-624
+app/src/server/factorio.ts
+  s_5ada7f1a78c53d::t_16ba9ac8119fff 1356-1362
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "6ae07172ed8ec689402452b0a2330a3ba91af502",
+  "prompts": {},
+  "sessions": {
+    "s_5ada7f1a78c53d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7f8dc847-bb35-44cf-9b07-a89abe1b3b1d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
