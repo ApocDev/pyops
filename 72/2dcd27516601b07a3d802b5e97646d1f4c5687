@@ -1,0 +1,21 @@
+app/package.json
+  s_07f9706eef6df5::t_8c57d4c333867c 49
+app/pnpm-lock.yaml
+  s_07f9706eef6df5::t_baed67f8561baf 93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "722dcd27516601b07a3d802b5e97646d1f4c5687",
+  "prompts": {},
+  "sessions": {
+    "s_07f9706eef6df5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "713d7a23-e7ba-4c11-94c7-942b3db38d1c",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
