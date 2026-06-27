@@ -270,6 +270,14 @@ function Shell() {
           <Icon kind={(b.iconKind ?? "item") as IconKind} name={b.iconName} size="sm" noTitle />
         )}
         <span className="truncate text-sm">{b.name}</span>
+        {b.broken && (
+          <span
+            className="shrink-0 text-destructive"
+            title="references a recipe/good that no longer exists — open to see what's missing"
+          >
+            ⚠
+          </span>
+        )}
       </button>
       <button
         className="px-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
@@ -451,6 +459,11 @@ function Shell() {
                   />
                 )}
                 <span className="max-w-[10rem] truncate">{b?.name ?? `#${id}`}</span>
+                {b?.broken && (
+                  <span className="text-destructive" title="references missing prototypes">
+                    ⚠
+                  </span>
+                )}
                 <span
                   role="button"
                   tabIndex={-1}

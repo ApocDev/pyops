@@ -792,6 +792,43 @@ function Block({ blockId }: { blockId: number }) {
         </HelpButton>
       </div>
 
+      {/* Broken-block banner: a referenced recipe/good no longer exists in the
+          current data, so the block is NOT solved (showing wrong numbers would be
+          worse). The block + its last-good cache are preserved untouched. */}
+      {res?.broken && (
+        <div className="mb-4 rounded border border-destructive/40 bg-destructive/10 p-3 text-sm">
+          <div className="font-semibold text-destructive">
+            ⚠ This block references prototypes that no longer exist in the current data — it
+            won&apos;t be solved.
+          </div>
+          <p className="mt-1 text-muted-foreground">
+            The block is preserved exactly as saved (its last solved numbers are kept). Re-enable
+            the mod or re-import the data dump to restore it — pure renames are applied
+            automatically on import.
+          </p>
+          {res.missing.recipes.length > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-muted-foreground">missing recipe:</span>
+              {res.missing.recipes.map((n) => (
+                <code key={n} className="rounded bg-destructive/15 px-1.5 py-0.5 text-destructive">
+                  {n}
+                </code>
+              ))}
+            </div>
+          )}
+          {res.missing.goods.length > 0 && (
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span className="text-muted-foreground">missing good:</span>
+              {res.missing.goods.map((n) => (
+                <code key={n} className="rounded bg-destructive/15 px-1.5 py-0.5 text-destructive">
+                  {n}
+                </code>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Goal + block summary */}
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
@@ -809,6 +846,7 @@ function Block({ blockId }: { blockId: number }) {
                 const isPrimary = g === target;
                 const out = isPrimary ? null : res?.extraOutputs?.find((f) => f.name === g);
                 const kind = kindOf(g);
+                const goalMissing = res?.missing?.goods.includes(g) ?? false;
                 return (
                   <div
                     key={g}
@@ -817,9 +855,17 @@ function Block({ blockId }: { blockId: number }) {
                       setGoalMenu({ x: e.clientX, y: e.clientY, name: g });
                     }}
                     className={`group relative flex min-w-16 flex-col items-center gap-0.5 rounded px-2 py-1 ${
-                      isPrimary ? "bg-blue-500/10 ring-1 ring-blue-400/30" : "bg-emerald-500/5"
+                      goalMissing
+                        ? "bg-destructive/10 ring-1 ring-destructive/40"
+                        : isPrimary
+                          ? "bg-blue-500/10 ring-1 ring-blue-400/30"
+                          : "bg-emerald-500/5"
                     }`}
-                    title={`${res?.display?.[g] ?? g}${isPrimary ? " — primary goal (sizing)" : " — co-product goal"} · right-click for options`}
+                    title={
+                      goalMissing
+                        ? `${g} — no longer exists in the current data`
+                        : `${res?.display?.[g] ?? g}${isPrimary ? " — primary goal (sizing)" : " — co-product goal"} · right-click for options`
+                    }
                   >
                     {/* remove (co-products) / make-primary (on hover) */}
                     {!isPrimary && (
@@ -846,7 +892,9 @@ function Block({ blockId }: { blockId: number }) {
                     >
                       <Icon kind={kind} name={g} size="lg" title={res?.display?.[g] ?? g} />
                     </button>
-                    {isPrimary ? (
+                    {goalMissing ? (
+                      <span className="text-xs font-semibold text-destructive">⚠ gone</span>
+                    ) : isPrimary ? (
                       <span className="text-sm">
                         <EditableRate
                           value={rate}
@@ -1184,6 +1232,41 @@ function Block({ blockId }: { blockId: number }) {
         {recipes.map((name) => {
           const row = res?.rows?.find((r) => r.recipe === name);
           const neg = (row?.rate ?? 0) < -1e-6; // running backward — can't physically happen
+          // a recipe that no longer exists in the data: show it as a labelled
+          // placeholder row (preserved, not silently dropped) rather than solving.
+          const missingRecipe = res?.missing?.recipes.includes(name) ?? false;
+          if (missingRecipe) {
+            return (
+              <div
+                key={name}
+                className={`${GRID} border-t border-border bg-destructive/10`}
+                style={COLS}
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <Icon kind="recipe" name={name} size="md" noTitle />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-mono" title={name}>
+                      {name}
+                    </span>
+                    <span className="text-xs font-semibold text-destructive">
+                      ⚠ no longer exists
+                    </span>
+                  </span>
+                  <button
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => drop(name)}
+                    title="remove this missing recipe from the block"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="col-span-3 text-sm text-muted-foreground">
+                  this recipe isn&apos;t in the current data — re-enable its mod or re-import to
+                  restore it, or remove it
+                </div>
+              </div>
+            );
+          }
           return (
             <div
               key={name}

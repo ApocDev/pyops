@@ -267,9 +267,21 @@ export type SolveInput = {
  * boundary flows). Shared by the live solve and block saving so both use one path. */
 export async function computeBlock(data: SolveInput) {
   const q = await lib();
-  const fetched = data.recipes
-    .map((name) => q.getRecipe(name))
-    .filter((r): r is NonNullable<ReturnType<typeof q.getRecipe>> => !!r);
+
+  // Drift guard: if the block references a recipe or goal good that no longer
+  // exists in the current reference data (a mod was updated/disabled/removed),
+  // DO NOT solve. Silently dropping the missing recipe would re-solve the block
+  // to different rates and flows with no warning. Mark it `broken` and solve an
+  // EMPTY recipe set instead — a harmless underdetermined result — so callers
+  // preserve the last-good cache and the UI shows exactly what's missing.
+  const missing = q.blockMissingRefs(data);
+  const broken = missing.recipes.length > 0 || missing.goods.length > 0;
+
+  const fetched = broken
+    ? ([] as NonNullable<ReturnType<typeof q.getRecipe>>[])
+    : data.recipes
+        .map((name) => q.getRecipe(name))
+        .filter((r): r is NonNullable<ReturnType<typeof q.getRecipe>> => !!r);
 
   // Machine choice + module/beacon effects per recipe, BEFORE the solve —
   // productivity scales the recipe's products, which changes the balance.
@@ -799,7 +811,33 @@ export async function computeBlock(data: SolveInput) {
     fuelItems,
     burntItems,
     tempWarnings,
+    broken,
+    missing,
   };
+}
+
+/** Persist a block's input doc + refresh its cached flows/machines/power. When the
+ * solve is `broken` (a referenced recipe/good vanished) the last-good cache is KEPT
+ * (null = leave untouched) so the factory aggregates stay correct and re-enabling
+ * the mod restores the block; the input + per-block reference fingerprint are still
+ * written. Shared by every save path so they all degrade the same way. */
+async function persistBlock(
+  q: Awaited<ReturnType<typeof lib>>,
+  meta: { id?: number | null; name: string; iconKind: string | null; iconName: string | null },
+  data: SolveInput,
+  r: Awaited<ReturnType<typeof computeBlock>>,
+): Promise<number> {
+  const targetKind = q.getFluid(data.target) ? "fluid" : "item";
+  return q.saveBlockRow(
+    {
+      ...meta,
+      data,
+      electricityW: r.broken ? null : r.power.totalW,
+      dataFingerprint: q.blockReferenceFingerprint(data),
+    },
+    r.broken ? null : [...boundaryFlows(data.target, targetKind, data.rate, r)],
+    r.broken ? null : machineReqs(r.rows),
+  );
 }
 
 /** Solve a block live (for the editor). */
@@ -909,22 +947,18 @@ export const saveBlockFn = createServerFn({ method: "POST" })
     const q = await lib();
     const r = await computeBlock(data.data);
     const targetKind = q.getFluid(data.data.target) ? "fluid" : "item";
-    const flows = [...boundaryFlows(data.data.target, targetKind, data.data.rate, r)];
     const name =
       data.name?.trim() || r.display[data.data.target] || data.data.target || "New block";
-    const id = q.saveBlockRow(
+    const id = await persistBlock(
+      q,
       {
         id: data.id,
         name,
         iconKind: data.iconKind ?? targetKind,
         iconName: data.iconName ?? data.data.target,
-        data: data.data,
-        electricityW: r.power.totalW,
-        // which reference-data version this block was solved against
-        dataFingerprint: q.metaAll().data_fingerprint ?? null,
       },
-      flows,
-      machineReqs(r.rows),
+      data.data,
+      r,
     );
     return { id, name };
   });
@@ -1009,8 +1043,8 @@ export const productionComparisonFn = createServerFn({ method: "GET" }).handler(
  * identity (id/name/icon/data). Use after a solver change makes caches stale. */
 export const recomputeAllBlocksFn = createServerFn({ method: "POST" }).handler(async () => {
   const q = await lib();
-  const fingerprint = q.metaAll().data_fingerprint ?? null;
   let ok = 0;
+  let broken = 0;
   const failed: { id: number; name: string; error: string }[] = [];
   for (const b of q.listBlocks()) {
     const row = q.getBlock(b.id);
@@ -1018,27 +1052,21 @@ export const recomputeAllBlocksFn = createServerFn({ method: "POST" }).handler(a
     try {
       const data = row.data as SolveInput;
       const r = await computeBlock(data);
-      const targetKind = q.getFluid(data.target) ? "fluid" : "item";
-      const flows = boundaryFlows(data.target, targetKind, data.rate, r);
-      q.saveBlockRow(
-        {
-          id: row.id,
-          name: row.name,
-          iconKind: row.iconKind,
-          iconName: row.iconName,
-          data,
-          electricityW: r.power.totalW,
-          dataFingerprint: fingerprint,
-        },
-        flows,
-        machineReqs(r.rows),
+      // broken blocks keep their last-good cache (persistBlock passes null flows);
+      // count them separately so the caller can report what still needs attention
+      if (r.broken) broken++;
+      await persistBlock(
+        q,
+        { id: row.id, name: row.name, iconKind: row.iconKind, iconName: row.iconName },
+        data,
+        r,
       );
       ok++;
     } catch (e) {
       failed.push({ id: b.id, name: b.name, error: e instanceof Error ? e.message : String(e) });
     }
   }
-  return { ok, failed };
+  return { ok, broken, failed };
 });
 
 /** Drill-down: blocks producing/consuming one good (for the factory resource view). */
@@ -1138,20 +1166,12 @@ export const setBlockRateFn = createServerFn({ method: "POST" })
     if (!row) return { ok: false };
     const input = { ...(row.data as SolveInput), rate: data.rate };
     const r = await computeBlock(input);
-    const targetKind = q.getFluid(input.target) ? "fluid" : "item";
-    const flows = [...boundaryFlows(input.target, targetKind, input.rate, r)];
-    q.saveBlockRow(
-      {
-        id: row.id,
-        name: row.name,
-        iconKind: row.iconKind,
-        iconName: row.iconName,
-        data: input,
-        electricityW: r.power.totalW,
-        dataFingerprint: q.metaAll().data_fingerprint ?? null,
-      },
-      flows,
-      machineReqs(r.rows),
+    if (r.broken) return { ok: false, broken: true };
+    await persistBlock(
+      q,
+      { id: row.id, name: row.name, iconKind: row.iconKind, iconName: row.iconName },
+      input,
+      r,
     );
     return { ok: true };
   });
@@ -1395,20 +1415,14 @@ export async function resolveAllBlocks() {
   for (const b of all) {
     const row = q.getBlock(b.id);
     if (!row) continue;
-    const r = await computeBlock(row.data as SolveInput);
-    const targetKind = q.getFluid(row.data.target) ? "fluid" : "item";
-    q.saveBlockRow(
-      {
-        id: b.id,
-        name: row.name,
-        iconKind: row.iconKind,
-        iconName: row.iconName,
-        data: row.data,
-        electricityW: r.power.totalW,
-        dataFingerprint: q.metaAll().data_fingerprint ?? null,
-      },
-      [...boundaryFlows(row.data.target, targetKind, row.data.rate, r)],
-      machineReqs(r.rows),
+    const data = row.data as SolveInput;
+    const r = await computeBlock(data);
+    // broken blocks keep their last-good cache (persistBlock passes null flows)
+    await persistBlock(
+      q,
+      { id: b.id, name: row.name, iconKind: row.iconKind, iconName: row.iconName },
+      data,
+      r,
     );
   }
   return all.length;
@@ -1421,7 +1435,6 @@ export async function resolveAllBlocks() {
  * solve errors) and changed blocks (their fresh I/O differs from the cache). */
 export const blockChangeReportFn = createServerFn({ method: "GET" }).handler(async () => {
   const q = await lib();
-  const currentFp = q.metaAll().data_fingerprint ?? null;
   const EPS = 1e-4;
 
   // a stable per-good key + label for diffing the boundary flows
@@ -1431,6 +1444,7 @@ export const blockChangeReportFn = createServerFn({ method: "GET" }).handler(asy
     status: "ok" | "changed" | "broken";
     stale: boolean;
     missingRecipes: string[];
+    missingGoods: string[];
     changes: {
       item: string;
       display: string | null;
@@ -1446,16 +1460,19 @@ export const blockChangeReportFn = createServerFn({ method: "GET" }).handler(asy
     const row = q.getBlock(b.id);
     if (!row) continue;
     const data = row.data as SolveInput;
-    const stale = currentFp != null && row.dataFingerprint !== currentFp;
+    // staleness is now per-block: the block's own referenced prototypes changed
+    // (in-place mod update or a vanished recipe), not just the global mod set.
+    const stale = row.dataFingerprint !== q.blockReferenceFingerprint(data);
 
-    const missing = (data.recipes ?? []).filter((rn) => !q.recipeExists(rn));
-    if (missing.length > 0) {
+    const missing = q.blockMissingRefs(data);
+    if (missing.recipes.length > 0 || missing.goods.length > 0) {
       reports.push({
         id: b.id,
         name: row.name,
         status: "broken",
         stale,
-        missingRecipes: missing,
+        missingRecipes: missing.recipes,
+        missingGoods: missing.goods,
         changes: [],
       });
       continue;
@@ -1473,6 +1490,7 @@ export const blockChangeReportFn = createServerFn({ method: "GET" }).handler(asy
         status: "broken",
         stale,
         missingRecipes: [],
+        missingGoods: [],
         changes: [],
         error: e instanceof Error ? e.message : String(e),
       });
@@ -1516,6 +1534,7 @@ export const blockChangeReportFn = createServerFn({ method: "GET" }).handler(asy
       status: changes.length > 0 ? "changed" : "ok",
       stale,
       missingRecipes: [],
+      missingGoods: [],
       changes: changes.sort((a, c) => (a.display ?? a.item).localeCompare(c.display ?? c.item)),
     });
   }

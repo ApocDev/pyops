@@ -7,6 +7,7 @@
  * here we expose `enabled` (start-enabled) + tech-unlock data; the live overlay
  * comes later via the mod bridge.
  */
+import { createHash } from "node:crypto";
 import { and, eq, inArray, isNotNull, sql, type AnyColumn } from "drizzle-orm";
 import { db } from "./index.ts";
 import {
@@ -701,7 +702,7 @@ export function deleteModulePreset(id: number) {
 /* ── User blocks (persistence) ──────────────────────────────────────────────── */
 
 export function listBlocks() {
-  return db
+  const rows = db
     .select({
       id: blocks.id,
       name: blocks.name,
@@ -710,10 +711,40 @@ export function listBlocks() {
       electricityW: blocks.electricityW,
       groupId: blocks.groupId,
       updatedAt: blocks.updatedAt,
+      data: blocks.data,
     })
     .from(blocks)
     .orderBy(blocks.sortOrder, blocks.name)
     .all();
+  // Flag blocks that reference a now-missing recipe/good (one bulk lookup of the
+  // existing names, then a pure check per block) so the sidebar can warn without
+  // opening each one. Keeps `data` server-side — only the boolean is exposed.
+  const recipeNames = new Set(
+    db
+      .select({ n: recipes.name })
+      .from(recipes)
+      .all()
+      .map((r) => r.n),
+  );
+  const goodNames = new Set([
+    ...db
+      .select({ n: items.name })
+      .from(items)
+      .all()
+      .map((r) => r.n),
+    ...db
+      .select({ n: fluids.name })
+      .from(fluids)
+      .all()
+      .map((r) => r.n),
+  ]);
+  return rows.map(({ data, ...b }) => {
+    const d = data as BlockData;
+    const broken =
+      (d.recipes ?? []).some((r) => !recipeNames.has(r)) ||
+      [d.target, ...(d.extraGoals ?? [])].some((g) => g && !goodNames.has(g));
+    return { ...b, broken };
+  });
 }
 
 /* Folders (block groups). */
@@ -778,6 +809,85 @@ export function recipeExists(name: string): boolean {
   );
 }
 
+/** Whether a good (item OR fluid) still exists — for goal staleness. */
+export function goodExists(name: string): boolean {
+  if (db.select({ n: items.name }).from(items).where(eq(items.name, name)).get()) return true;
+  return !!db.select({ n: fluids.name }).from(fluids).where(eq(fluids.name, name)).get();
+}
+
+/** A block's references that no longer exist in the current reference data: the
+ * recipes it runs and the goal goods (target + co-products) it produces. A block
+ * with any of these is "broken" — it must not be re-solved (the missing recipe
+ * would be silently dropped and the block would re-solve to wrong rates). */
+export function blockMissingRefs(data: BlockData): { recipes: string[]; goods: string[] } {
+  return {
+    recipes: [...new Set(data.recipes ?? [])].filter((r) => !recipeExists(r)),
+    goods: [data.target, ...(data.extraGoals ?? [])]
+      .filter((g): g is string => !!g)
+      .filter((g, i, a) => a.indexOf(g) === i && !goodExists(g)),
+  };
+}
+
+/** Compact content signature of one recipe AS IT EXISTS NOW — its kind/category/
+ * timing/productivity flag plus its ingredient and product rows. Changes whenever
+ * a mod update alters the recipe in place (not just when it's added/removed). */
+function recipeSignature(name: string): string {
+  const r = db
+    .select({
+      kind: recipes.kind,
+      category: recipes.category,
+      energyRequired: recipes.energyRequired,
+      enabled: recipes.enabled,
+      allowProductivity: recipes.allowProductivity,
+    })
+    .from(recipes)
+    .where(eq(recipes.name, name))
+    .get();
+  if (!r) return "!"; // gone — a distinct, stable marker
+  const ings = db
+    .select({
+      kind: recipeIngredients.kind,
+      name: recipeIngredients.name,
+      amount: recipeIngredients.amount,
+      minTemp: recipeIngredients.minTemp,
+      maxTemp: recipeIngredients.maxTemp,
+    })
+    .from(recipeIngredients)
+    .where(eq(recipeIngredients.recipe, name))
+    .orderBy(recipeIngredients.idx)
+    .all();
+  const prods = db
+    .select({
+      kind: recipeProducts.kind,
+      name: recipeProducts.name,
+      amount: recipeProducts.amount,
+      amountMin: recipeProducts.amountMin,
+      amountMax: recipeProducts.amountMax,
+      probability: recipeProducts.probability,
+      temperature: recipeProducts.temperature,
+      ignoredByProductivity: recipeProducts.ignoredByProductivity,
+    })
+    .from(recipeProducts)
+    .where(eq(recipeProducts.recipe, name))
+    .orderBy(recipeProducts.idx)
+    .all();
+  return JSON.stringify([r, ings, prods]);
+}
+
+/** Per-block fingerprint over the CURRENT definitions of the prototypes a block
+ * references (its recipes + goal goods), not the global enabled-mod-name hash. So
+ * an in-place mod update or a vanished recipe registers as staleness for exactly
+ * the blocks that touch it, instead of being invisible. Stored on the block at
+ * save time; a mismatch on a later check means the block's own inputs changed. */
+export function blockReferenceFingerprint(data: BlockData): string {
+  const parts: string[] = [];
+  for (const name of [...new Set(data.recipes ?? [])].sort())
+    parts.push(`R ${name} ${recipeSignature(name)}`);
+  for (const g of [data.target, ...(data.extraGoals ?? [])].filter(Boolean).sort())
+    parts.push(`G ${g} ${goodExists(g!) ? "1" : "0"}`);
+  return createHash("sha256").update(parts.join("\n")).digest("hex").slice(0, 16);
+}
+
 export function deleteBlock(id: number) {
   db.delete(blockFlows).where(eq(blockFlows.blockId, id)).run();
   db.delete(blockMachines).where(eq(blockMachines.blockId, id)).run();
@@ -786,7 +896,13 @@ export function deleteBlock(id: number) {
 
 export type BlockFlow = { item: string; kind: string; role: string; rate: number };
 export type BlockMachine = { machine: string; recipe: string; count: number };
-/** Insert or update a block + replace its cached I/O flows (one transaction). */
+/** Insert or update a block + replace its cached I/O flows (one transaction).
+ *
+ * Passing `null` for `flows`/`machines`/`electricityW` PRESERVES the existing
+ * cached values rather than overwriting them — used when a block is broken (a
+ * referenced recipe/good vanished): its input doc + fingerprint are persisted,
+ * but the last-good solved I/O is kept so the factory aggregates don't go wrong
+ * and re-enabling the mod restores the block unchanged. */
 export function saveBlockRow(
   input: {
     id?: number | null;
@@ -794,11 +910,11 @@ export function saveBlockRow(
     iconKind: string | null;
     iconName: string | null;
     data: BlockData;
-    electricityW: number;
+    electricityW: number | null;
     dataFingerprint: string | null;
   },
-  flows: BlockFlow[],
-  machines: BlockMachine[] = [],
+  flows: BlockFlow[] | null,
+  machines: BlockMachine[] | null = [],
 ): number {
   return db.transaction((tx) => {
     let id = input.id ?? undefined;
@@ -807,7 +923,8 @@ export function saveBlockRow(
       iconKind: input.iconKind,
       iconName: input.iconName,
       data: input.data,
-      electricityW: input.electricityW,
+      // null = keep the current electricity figure (broken block, cache preserved)
+      ...(input.electricityW != null ? { electricityW: input.electricityW } : {}),
       dataFingerprint: input.dataFingerprint,
     };
     if (id != null) {
@@ -818,16 +935,20 @@ export function saveBlockRow(
     } else {
       id = tx.insert(blocks).values(values).returning({ id: blocks.id }).get().id;
     }
-    tx.delete(blockFlows).where(eq(blockFlows.blockId, id)).run();
-    if (flows.length)
-      tx.insert(blockFlows)
-        .values(flows.map((f) => ({ blockId: id!, ...f })))
-        .run();
-    tx.delete(blockMachines).where(eq(blockMachines.blockId, id)).run();
-    if (machines.length)
-      tx.insert(blockMachines)
-        .values(machines.map((m) => ({ blockId: id!, ...m })))
-        .run();
+    if (flows != null) {
+      tx.delete(blockFlows).where(eq(blockFlows.blockId, id)).run();
+      if (flows.length)
+        tx.insert(blockFlows)
+          .values(flows.map((f) => ({ blockId: id!, ...f })))
+          .run();
+    }
+    if (machines != null) {
+      tx.delete(blockMachines).where(eq(blockMachines.blockId, id)).run();
+      if (machines.length)
+        tx.insert(blockMachines)
+          .values(machines.map((m) => ({ blockId: id!, ...m })))
+          .run();
+    }
     return id;
   });
 }

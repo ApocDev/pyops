@@ -85,6 +85,7 @@ function FactoryPage() {
       ]);
       setRecomputed(
         `Recomputed ${res.ok} block${res.ok === 1 ? "" : "s"}` +
+          (res.broken ? ` · ${res.broken} broken (kept as-is)` : "") +
           (res.failed.length ? ` · ${res.failed.length} failed` : ""),
       );
     } finally {
@@ -347,6 +348,7 @@ type ChangeReportData = {
     status: "ok" | "changed" | "broken";
     stale: boolean;
     missingRecipes: string[];
+    missingGoods: string[];
     changes: {
       item: string;
       display: string | null;
@@ -404,6 +406,11 @@ function ChangeReport({ data }: { data: ChangeReportData }) {
             {r.missingRecipes.length > 0 && (
               <div className="mt-0.5 text-destructive">
                 missing recipe: {r.missingRecipes.join(", ")}
+              </div>
+            )}
+            {r.missingGoods.length > 0 && (
+              <div className="mt-0.5 text-destructive">
+                missing good: {r.missingGoods.join(", ")}
               </div>
             )}
             {r.error && <div className="mt-0.5 text-destructive">solve error: {r.error}</div>}

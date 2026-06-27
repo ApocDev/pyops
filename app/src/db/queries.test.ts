@@ -1,7 +1,11 @@
+import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
-import { switchDatabase } from "./index.ts";
+import { db, switchDatabase } from "./index.ts";
 import {
+  blockMissingRefs,
+  blockReferenceFingerprint,
   getResearchHorizon,
+  goodExists,
   goodGraphCounts,
   machineSufficiency,
   setBuiltMachines,
@@ -27,6 +31,8 @@ beforeEach(async () => {
       ('make-gear',0,'item','plate',2),
       ('make-circuit',0,'item','plate',1),
       ('hidden-sink',0,'item','plate',1);
+
+    INSERT INTO items (name, display) VALUES ('plate','Plate'),('gear','Gear');
 
     INSERT INTO crafting_machines (name, kind, crafting_speed) VALUES ('furnace','furnace',1);
     INSERT INTO blocks (id, name, data) VALUES (1,'smelting','{}');
@@ -87,5 +93,53 @@ describe("research horizon round-trip", () => {
     const h = getResearchHorizon();
     expect(h.mode).toBe("now");
     expect([...h.researched].sort()).toEqual(["automation", "logistics"]);
+  });
+});
+
+describe("drift detection: missing refs + reference fingerprint", () => {
+  it("goodExists covers items (and rejects unknowns)", () => {
+    expect(goodExists("plate")).toBe(true);
+    expect(goodExists("vanished-good")).toBe(false);
+  });
+
+  it("blockMissingRefs is empty when every recipe and goal good exists", () => {
+    const missing = blockMissingRefs({
+      target: "plate",
+      rate: 1,
+      recipes: ["smelt-plate", "make-gear"],
+    });
+    expect(missing).toEqual({ recipes: [], goods: [] });
+  });
+
+  it("flags recipes and goal goods that no longer exist (deduped)", () => {
+    const missing = blockMissingRefs({
+      target: "ghost-good",
+      rate: 1,
+      extraGoals: ["plate", "ghost-good"], // duplicate of target; plate still exists
+      recipes: ["smelt-plate", "gone-recipe", "gone-recipe"],
+    });
+    expect(missing.recipes).toEqual(["gone-recipe"]);
+    expect(missing.goods).toEqual(["ghost-good"]);
+  });
+
+  it("fingerprint is stable for the same data but changes when a recipe changes", () => {
+    const data = { target: "plate", rate: 1, recipes: ["smelt-plate", "make-gear"] };
+    const fp1 = blockReferenceFingerprint(data);
+    // recipe order in the doc must not matter (it's normalized)
+    expect(blockReferenceFingerprint({ ...data, recipes: ["make-gear", "smelt-plate"] })).toBe(fp1);
+
+    // an in-place change to a referenced recipe's products must shift the fingerprint
+    db.run(sql`UPDATE recipe_products SET amount = 2 WHERE recipe = 'smelt-plate'`);
+    expect(blockReferenceFingerprint(data)).not.toBe(fp1);
+  });
+
+  it("fingerprint differs when a referenced recipe goes missing", () => {
+    const present = blockReferenceFingerprint({
+      target: "plate",
+      rate: 1,
+      recipes: ["smelt-plate"],
+    });
+    const gone = blockReferenceFingerprint({ target: "plate", rate: 1, recipes: ["gone-recipe"] });
+    expect(gone).not.toBe(present);
   });
 });
