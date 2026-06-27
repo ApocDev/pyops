@@ -92,7 +92,9 @@ vp dev            # start PyOps at http://localhost:3000
 
 Then open PyOps, go to **⚙ Settings › Game data**, and run a sync. PyOps launches
 your Factorio install headlessly, reads its recipe data, and loads it into a local
-database. The first sync takes ~1–2 minutes (longer if you include icons).
+database. The first sync takes ~1–2 minutes (longer if you include icons). The same
+tab records and lists the mods (with versions) your data was dumped from, so you can
+see exactly what your saved plans were built against.
 
 If your Factorio isn't installed at the default Steam location, point PyOps at it
 with the `FACTORIO_BIN` / `FACTORIO_DATA_DIR` settings below.

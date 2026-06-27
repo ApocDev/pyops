@@ -27,7 +27,13 @@ orchestrated end-to-end from **Settings › Game data** in the UI
    cost (`app/src/server/cost-analysis.ts`, a port of YAFC's `CostAnalysis.cs`).
 
 The enabled mod set is fingerprinted (a hash of mod names) and stamped into the DB,
-so the planner knows which version of the game its data reflects.
+so the planner knows which version of the game its data reflects. The full mod list
+is persisted alongside it (`mod_list` in `meta`): each mod's name, **version**, and
+enabled state (`readMods`, `app/src/server/dump.ts` — `mod-list.json` carries only
+name + enabled, so versions are recovered from the `name_x.y.z.zip` entries in the
+mods directory). This records the provenance of the reference data — shown on the
+Settings → Game data tab — and gives drift detection (#27) and rename capture (#26)
+a concrete previous state to diff against, not just a hash.
 
 Saved blocks additionally carry a **per-block reference fingerprint**
 (`blockReferenceFingerprint`, `app/src/db/queries.ts`): a hash over the *current*
