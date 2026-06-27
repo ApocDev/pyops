@@ -29,6 +29,20 @@ orchestrated end-to-end from **Settings › Game data** in the UI
 The enabled mod set is fingerprinted (a hash of mod names) and stamped into the DB,
 so the planner knows which version of the game its data reflects.
 
+Saved blocks additionally carry a **per-block reference fingerprint**
+(`blockReferenceFingerprint`, `app/src/db/queries.ts`): a hash over the *current*
+definitions of just the recipes and goal goods that block references. Unlike the
+global mod-name hash, it changes when a referenced recipe is altered in place (an
+in-place mod update) or disappears, so staleness registers for exactly the blocks
+that are affected. When a block references a recipe or goal good that no longer
+exists, `computeBlock` refuses to solve it — solving the surviving subset would
+silently produce wrong rates — and instead returns `broken` with the missing
+references. The block's input doc and its last-good cached I/O are preserved
+untouched (so re-enabling the mod or re-importing restores it), the block view and
+sidebar flag it, and `recomputeAllBlocks` skips overwriting its cache. (Pure renames
+are intended to be auto-applied during the dump — planned in #26 — so this broken
+fallback is reserved for references that genuinely changed meaning or disappeared.)
+
 ## Why a helper mod
 
 `pypostprocessing` already ships a YAFC/planner integration, but it triggers only
