@@ -154,6 +154,8 @@ function GameDataTab() {
         </div>
       </Card>
 
+      <ModsCard mods={status.data?.mods ?? []} />
+
       <Card>
         <CardHeader>
           <CardTitle>Sync</CardTitle>
@@ -207,6 +209,80 @@ function GameDataTab() {
         </Card>
       )}
     </div>
+  );
+}
+
+/** Provenance: the mods (name + version + enabled) this project's reference data
+ * was dumped from, so you can see exactly what your saved plans were built against.
+ * Recorded on each sync (`readMods` → meta.mod_list). Filterable — Py is huge. */
+function ModsCard({
+  mods,
+}: {
+  mods: { name: string; enabled: boolean; version: string | null }[];
+}) {
+  const [filter, setFilter] = useState("");
+  if (mods.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Mods</CardTitle>
+        </CardHeader>
+        <div className="px-3 pb-3 text-xs text-muted-foreground">
+          No mod list recorded yet — run a sync to capture the mods (and versions) your reference
+          data was built from.
+        </div>
+      </Card>
+    );
+  }
+  const enabled = mods.filter((m) => m.enabled).length;
+  const q = filter.trim().toLowerCase();
+  const shown = q ? mods.filter((m) => m.name.toLowerCase().includes(q)) : mods;
+  return (
+    <Card>
+      <CardHeader className="justify-between">
+        <CardTitle>
+          Mods{" "}
+          <span className="font-normal text-muted-foreground">
+            ({enabled} on / {mods.length})
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <div className="space-y-2 px-3 pb-3">
+        <p className="text-xs text-muted-foreground">
+          What this project&apos;s reference data was dumped from — its provenance. Recorded on each
+          sync.
+        </p>
+        <Input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="filter mods…"
+          className="w-full"
+        />
+        <div className="max-h-80 overflow-auto rounded border border-border">
+          {shown.map((m) => (
+            <div
+              key={m.name}
+              className={`flex items-center gap-2 border-b border-border/50 px-2 py-1 text-xs last:border-0 ${
+                m.enabled ? "" : "opacity-50"
+              }`}
+            >
+              <span className="min-w-0 flex-1 truncate" title={m.name}>
+                {m.name}
+              </span>
+              <span className="shrink-0 tabular-nums text-muted-foreground">
+                {m.version ?? "—"}
+              </span>
+              {!m.enabled && (
+                <span className="shrink-0 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                  off
+                </span>
+              )}
+            </div>
+          ))}
+          {shown.length === 0 && <div className="px-2 py-2 text-muted-foreground">no matches</div>}
+        </div>
+      </div>
+    </Card>
   );
 }
 

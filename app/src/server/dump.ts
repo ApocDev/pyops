@@ -17,7 +17,7 @@
  */
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { sql } from "drizzle-orm";
@@ -242,6 +242,42 @@ export async function modListFingerprint(): Promise<string> {
   return createHash("sha256").update(names.join("\n")).digest("hex").slice(0, 16);
 }
 
+export type ModEntry = { name: string; enabled: boolean; version: string | null };
+
+/** Map mod name → version from raw mods-directory entries (`name_x.y.z` and
+ * `name_x.y.z.zip`, packed or unpacked). Mod names may contain underscores, so the
+ * version is the trailing `_x.y.z`; the greedy prefix keeps the rest as the name
+ * (e.g. `auto_manual_mode_0.0.11.zip` → `auto_manual_mode` @ `0.0.11`). */
+export function modVersionsFromEntries(entries: string[]): Map<string, string> {
+  const versions = new Map<string, string>();
+  for (const entry of entries) {
+    const m = /^(.+)_(\d+\.\d+\.\d+)(?:\.zip)?$/.exec(entry);
+    if (m) versions.set(m[1], m[2]);
+  }
+  return versions;
+}
+
+/** The full mod set the reference data was dumped from: each mod's name, enabled
+ * state, and version. `mod-list.json` carries only name + enabled, so versions are
+ * recovered from the mods directory (`name_x.y.z(.zip)` entries). Base-game mods
+ * that live in the Factorio install rather than the mods dir get a null version.
+ * The pyops-dump helper is excluded — it's our dump-time tool, not real data.
+ * Persisted per project so drift detection (#27) and rename capture (#26) have a
+ * concrete previous state to diff against, not just a hash. */
+export async function readMods(): Promise<ModEntry[]> {
+  const ml = await readModList();
+  let versions = new Map<string, string>();
+  try {
+    versions = modVersionsFromEntries(await readdir(MODS_DIR));
+  } catch {
+    /* mods dir missing — versions stay null */
+  }
+  return ml.mods
+    .filter((m) => m.name !== "pyops-dump")
+    .map((m) => ({ name: m.name, enabled: m.enabled, version: versions.get(m.name) ?? null }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /* ── pipeline ────────────────────────────────────────────────────────────────── */
 
 export type SyncPhase =
@@ -361,15 +397,19 @@ export function startDataSync(opts: { icons?: boolean } = {}): SyncState {
       state.log.push(`priced ${costs.goods} goods / ${costs.recipes} recipes in ${costs.ms}ms`);
 
       const fp = await modListFingerprint();
+      const mods = await readMods();
       const { db } = await import("../db/index.ts");
       const { meta } = await import("../db/schema.ts");
       db.insert(meta)
         .values([
           { key: "data_fingerprint", value: fp },
+          // full provenance: name + version + enabled for every mod (see readMods)
+          { key: "mod_list", value: JSON.stringify(mods) },
           { key: "synced_at", value: new Date().toISOString() },
         ])
         .onConflictDoUpdate({ target: meta.key, set: { value: sql`excluded.value` } })
         .run();
+      state.log.push(`recorded ${mods.length} mods`);
       step("done", `sync complete (fingerprint ${fp})`);
       state.finishedAt = Date.now();
     } catch (e) {

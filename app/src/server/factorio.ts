@@ -1371,9 +1371,21 @@ export const dataStatusFn = createServerFn({ method: "GET" }).handler(async () =
   } catch {
     /* factorio dir missing */
   }
+  // The mod set (name + version + enabled) this project's data was dumped from —
+  // the provenance of the reference data, shown so you can see exactly what your
+  // saved plans were built against.
+  let mods: { name: string; enabled: boolean; version: string | null }[] = [];
+  if (metaMap.mod_list) {
+    try {
+      mods = JSON.parse(metaMap.mod_list);
+    } catch {
+      mods = [];
+    }
+  }
   return {
     stats: q.stats(),
     meta: metaMap,
+    mods,
     currentFingerprint,
     stale:
       currentFingerprint != null &&
