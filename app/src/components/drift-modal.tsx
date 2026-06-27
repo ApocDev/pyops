@@ -325,7 +325,11 @@ function PromptBody({
           ? "The game's mods changed since your last sync, so your saved plans were built against an older mod set. Re-sync to pull the current data — pure renames are applied automatically, and anything that genuinely changed is flagged on your blocks."
           : "Re-dump the game's prototype data from the current mods and import it. Pure renames are applied to your saved blocks automatically."}
       </p>
-      {hasDrift && <DriftChanges drift={drift} />}
+      {hasDrift && (
+        <div className="max-h-48 overflow-y-auto rounded border border-border bg-muted/20 p-2">
+          <DriftChanges drift={drift} />
+        </div>
+      )}
       <label className="flex cursor-pointer items-start gap-2.5 rounded border border-border bg-muted/30 p-2.5 text-sm hover:bg-muted/50">
         <input
           type="checkbox"

@@ -195,7 +195,9 @@ function ModDriftCard({ data }: { data: Awaited<ReturnType<typeof modDriftFn>> |
           The game&apos;s mods changed since your last sync, so the reference data no longer
           matches. Re-sync to update it.
         </p>
-        <DriftChanges drift={d} />
+        <div className="max-h-56 overflow-y-auto rounded border border-border bg-muted/20 p-2">
+          <DriftChanges drift={d} />
+        </div>
       </div>
     </Card>
   );
