@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { modDriftFn, startDataSyncFn, syncStateFn } from "../server/factorio";
+import { factorioRunningFn, modDriftFn, startDataSyncFn, syncStateFn } from "../server/factorio";
 import { bridgeStatusFn } from "../server/bridge/fns";
 import { driftModal, useDriftModalOpen } from "../lib/drift-store";
 import { type StepStatus, stepStatuses, stepsForRun } from "../lib/sync-steps";
@@ -62,6 +63,14 @@ export function DriftModal() {
     queryFn: () => bridgeStatusFn(),
     refetchInterval: 2000,
   });
+  // Proactively check whether the game is running while the prompt is open, so we
+  // can warn and block the sync (it would just fail on the engine's instance lock).
+  const gameRunning = useQuery({
+    queryKey: ["factorioRunning"],
+    queryFn: () => factorioRunningFn(),
+    enabled: isOpen,
+    refetchInterval: 3000,
+  });
 
   const start = useMutation({
     mutationFn: () => startDataSyncFn({ data: { icons } }),
@@ -105,6 +114,8 @@ export function DriftModal() {
 
   if (!isOpen) return null;
 
+  const hasDrift = !!drift.data?.needsRedump;
+  const gameUp = gameRunning.data?.running === true; // can't sync while the game runs
   const running = RUNNING.has(phase);
   const view: "prompt" | "running" | "done" | "error" = running
     ? "running"
@@ -119,8 +130,18 @@ export function DriftModal() {
     driftModal.close();
   };
   const close = () => driftModal.close();
-  // In the prompt, backdrop/✕ means "ignore" (remember it); mid/after a sync it just hides.
-  const onClose = view === "prompt" ? dismiss : close;
+  // In the prompt with real drift, backdrop/✕ means "ignore" (remember it);
+  // otherwise (manual sync, or mid/after a run) it just closes.
+  const onClose = view === "prompt" && hasDrift ? dismiss : close;
+
+  // The prompt title/actions depend on whether we're reacting to drift or the user
+  // opened it to sync proactively — "out of date" vs a plain "Sync game data".
+  const title =
+    view === "prompt"
+      ? hasDrift
+        ? { icon: "⚠", tone: "text-amber-300", text: "Reference data is out of date" }
+        : { icon: "↻", tone: "text-sky-300", text: "Sync game data" }
+      : TITLES[view];
 
   const steps = stepsForRun(icons);
   const statuses = stepStatuses(steps, phase, sync.data?.failedAt ?? null);
@@ -128,15 +149,16 @@ export function DriftModal() {
 
   return (
     <Overlay onClose={onClose}>
-      <Header view={view} onClose={onClose} />
+      <Header title={title} onClose={onClose} />
 
       <div className="max-h-[60vh] overflow-auto px-4 py-3">
         {view === "prompt" && (
           <PromptBody
-            hasDrift={!!drift.data?.needsRedump}
+            hasDrift={hasDrift}
             drift={drift.data?.drift ?? null}
             icons={icons}
             setIcons={setIcons}
+            gameUp={gameUp}
           />
         )}
         {(view === "running" || view === "error") && <Stepper steps={steps} statuses={statuses} />}
@@ -161,15 +183,16 @@ export function DriftModal() {
       <Footer>
         {view === "prompt" && (
           <>
-            <button onClick={dismiss} className={btnGhost}>
-              Ignore for now
+            <button onClick={hasDrift ? dismiss : close} className={btnGhost}>
+              {hasDrift ? "Ignore for now" : "Cancel"}
             </button>
             <button
               onClick={() => start.mutate()}
-              disabled={start.isPending}
+              disabled={start.isPending || gameUp}
+              title={gameUp ? "close Factorio first" : undefined}
               className={btnPrimary}
             >
-              {start.isPending ? "starting…" : "Re-sync now"}
+              {start.isPending ? "starting…" : hasDrift ? "Re-sync now" : "Sync now"}
             </button>
           </>
         )}
@@ -242,19 +265,18 @@ function Overlay({ onClose, children }: { onClose: () => void; children: ReactNo
   );
 }
 
-const TITLES: Record<string, { icon: string; tone: string; text: string }> = {
-  prompt: { icon: "⚠", tone: "text-amber-300", text: "Reference data is out of date" },
+type TitleSpec = { icon: string; tone: string; text: string };
+const TITLES: Record<"running" | "done" | "error", TitleSpec> = {
   running: { icon: "⟳", tone: "text-sky-300", text: "Re-syncing reference data" },
   done: { icon: "✓", tone: "text-emerald-300", text: "Reference data updated" },
   error: { icon: "✕", tone: "text-destructive", text: "Sync failed" },
 };
 
-function Header({ view, onClose }: { view: string; onClose: () => void }) {
-  const t = TITLES[view];
+function Header({ title, onClose }: { title: TitleSpec; onClose: () => void }) {
   return (
     <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-      <span className={`text-base ${t.tone}`}>{t.icon}</span>
-      <h2 className="text-sm font-semibold text-foreground">{t.text}</h2>
+      <span className={`text-base ${title.tone}`}>{title.icon}</span>
+      <h2 className="text-sm font-semibold text-foreground">{title.text}</h2>
       <button
         onClick={onClose}
         className="ml-auto text-muted-foreground hover:text-foreground"
@@ -279,24 +301,45 @@ function PromptBody({
   drift,
   icons,
   setIcons,
+  gameUp,
 }: {
   hasDrift: boolean;
   drift: Parameters<typeof DriftChanges>[0]["drift"];
   icons: boolean;
   setIcons: (v: boolean) => void;
+  gameUp: boolean;
 }) {
   return (
     <div className="space-y-3">
+      {gameUp && (
+        <div className="flex items-start gap-2 rounded border border-amber-500/40 bg-amber-500/10 p-2.5 text-sm text-amber-200">
+          <span>⚠</span>
+          <span>
+            Factorio is running. Close the game first — PyOps launches its own headless copy to read
+            the data, and the engine won&apos;t allow two instances at once.
+          </span>
+        </div>
+      )}
       <p className="text-sm text-muted-foreground">
         {hasDrift
           ? "The game's mods changed since your last sync, so your saved plans were built against an older mod set. Re-sync to pull the current data — pure renames are applied automatically, and anything that genuinely changed is flagged on your blocks."
           : "Re-dump the game's prototype data from the current mods and import it. Pure renames are applied to your saved blocks automatically."}
       </p>
       {hasDrift && <DriftChanges drift={drift} />}
-      <label className="flex items-center gap-2 text-xs text-muted-foreground">
-        <input type="checkbox" checked={icons} onChange={(e) => setIcons(e.target.checked)} />
-        also re-dump icon sprites + rebuild the atlas
-        <span className="text-muted-foreground/70">(loads the full game — slower)</span>
+      <label className="flex cursor-pointer items-start gap-2.5 rounded border border-border bg-muted/30 p-2.5 text-sm hover:bg-muted/50">
+        <input
+          type="checkbox"
+          checked={icons}
+          onChange={(e) => setIcons(e.target.checked)}
+          className="mt-0.5"
+        />
+        <span>
+          <span className="text-foreground">Also re-dump icon sprites</span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            Rebuilds the icon atlas — loads the full game, so it&apos;s much slower. Only needed
+            when a mod&apos;s visuals changed.
+          </span>
+        </span>
       </label>
     </div>
   );
@@ -304,9 +347,7 @@ function PromptBody({
 
 function StepGlyph({ status }: { status: StepStatus }) {
   if (status === "active")
-    return (
-      <span className="mt-0.5 size-4 shrink-0 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
-    );
+    return <Loader2 className="mt-px size-5 shrink-0 animate-spin text-sky-400" />;
   const map: Record<StepStatus, { ch: string; cls: string }> = {
     done: { ch: "✓", cls: "border-emerald-500/50 bg-emerald-500/15 text-emerald-300" },
     error: { ch: "✕", cls: "border-destructive/50 bg-destructive/15 text-destructive" },
@@ -316,7 +357,7 @@ function StepGlyph({ status }: { status: StepStatus }) {
   const { ch, cls } = map[status];
   return (
     <span
-      className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border text-[10px] ${cls}`}
+      className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border text-[11px] ${cls}`}
     >
       {ch}
     </span>
@@ -331,24 +372,32 @@ function Stepper({
   statuses: StepStatus[];
 }) {
   return (
-    <ol className="space-y-2">
+    <ol className="space-y-1">
       {steps.map((s, i) => {
         const st = statuses[i];
-        const labelCls =
-          st === "active"
-            ? "font-semibold text-foreground"
-            : st === "done"
-              ? "text-emerald-300"
-              : st === "error"
-                ? "font-semibold text-destructive"
-                : "text-muted-foreground";
+        const active = st === "active";
+        const labelCls = active
+          ? "font-semibold text-sky-200"
+          : st === "done"
+            ? "text-emerald-300"
+            : st === "error"
+              ? "font-semibold text-destructive"
+              : "text-muted-foreground";
         return (
-          <li key={s.phase} className="flex items-start gap-3">
+          <li
+            key={s.phase}
+            className={`flex items-start gap-3 rounded-md px-2 py-1.5 ${
+              active ? "bg-sky-500/10 ring-1 ring-sky-400/30" : ""
+            }`}
+          >
             <StepGlyph status={st} />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className={`text-sm ${labelCls}`}>{s.label}</div>
-              <div className="text-xs text-muted-foreground">{s.detail}</div>
+              <div className={`text-xs ${active ? "text-sky-300/70" : "text-muted-foreground"}`}>
+                {s.detail}
+              </div>
             </div>
+            {active && <span className="mt-0.5 shrink-0 text-xs text-sky-300">running…</span>}
           </li>
         );
       })}
