@@ -1,0 +1,33 @@
+app/src/lib/sync-steps.ts
+  s_5ada7f1a78c53d::t_453fd23b17bd88 1-55
+app/src/components/app-nav.tsx
+  s_5ada7f1a78c53d::t_4668148db0ea82 3,8-27,80
+app/src/components/drift-changes.tsx
+  s_5ada7f1a78c53d::t_a4a03d8f184753 1-40
+app/src/lib/drift-store.ts
+  s_5ada7f1a78c53d::t_c521b5566db9d7 1-33
+app/src/lib/sync-steps.test.ts
+  s_5ada7f1a78c53d::t_06b29dec0b53c2 1-43
+app/src/routes/__root.tsx
+  s_5ada7f1a78c53d::t_6838db1bbd321b 8,61
+app/src/routes/settings.tsx
+  s_5ada7f1a78c53d::t_f8810337b15a1b 1,3,19-20,91-94,113,133-134,136,138-142,146,148,196,198
+app/src/server/dump.ts
+  s_5ada7f1a78c53d::t_5a2ec8e88f5487 435,442-449,503,573
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "1dc564f7796223ebbff354f022a1f643e9219f71",
+  "prompts": {},
+  "sessions": {
+    "s_5ada7f1a78c53d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7f8dc847-bb35-44cf-9b07-a89abe1b3b1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
