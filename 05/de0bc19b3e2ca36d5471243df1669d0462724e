@@ -1,0 +1,29 @@
+app/src/server/dump.test.ts
+  s_5ada7f1a78c53d::t_1b046de6eb389a 2-8,32-109
+app/src/components/drift-banner.tsx
+  s_5ada7f1a78c53d::t_c7bbe7d42ec670 1-86
+app/src/routes/__root.tsx
+  s_5ada7f1a78c53d::t_8406a2136704f7 8,59
+app/src/routes/settings.tsx
+  s_5ada7f1a78c53d::t_b900cd75c99fc1 1,9,107,131-136,162-163,215-222,230-313
+app/src/server/dump.ts
+  s_5ada7f1a78c53d::t_0af30c9578ac44 281-330
+app/src/server/factorio.ts
+  s_5ada7f1a78c53d::t_4cfa34cd735063 1397-1429
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "05de0bc19b3e2ca36d5471243df1669d0462724e",
+  "prompts": {},
+  "sessions": {
+    "s_5ada7f1a78c53d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7f8dc847-bb35-44cf-9b07-a89abe1b3b1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
