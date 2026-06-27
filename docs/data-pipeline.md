@@ -25,6 +25,9 @@ orchestrated end-to-end from **Settings › Game data** in the UI
    manifest, served `immutable`.
 6. **Compute cost analysis** — a YAFC-style LP that assigns each good an intrinsic
    cost (`app/src/server/cost-analysis.ts`, a port of YAFC's `CostAnalysis.cs`).
+7. **Apply mod migrations** — read each enabled mod's `migrations/*.json` and
+   auto-apply any newly-present prototype renames to saved blocks
+   (`app/src/server/migrations.ts`; see drift resilience below).
 
 The enabled mod set is fingerprinted (a hash of mod names) and stamped into the DB,
 so the planner knows which version of the game its data reflects. The full mod list
@@ -32,7 +35,7 @@ is persisted alongside it (`mod_list` in `meta`): each mod's name, **version**, 
 enabled state (`readMods`, `app/src/server/dump.ts` — `mod-list.json` carries only
 name + enabled, so versions are recovered from the `name_x.y.z.zip` entries in the
 mods directory). This records the provenance of the reference data — shown on the
-Settings → Game data tab — and gives drift detection and rename capture (#26)
+Settings → Game data tab — and gives drift detection and rename capture
 a concrete previous state to diff against, not just a hash.
 
 **Drift detection** (`modDriftFn`, `diffMods`/`redumpNeeded` in `dump.ts`) compares
@@ -56,9 +59,22 @@ exists, `computeBlock` refuses to solve it — solving the surviving subset woul
 silently produce wrong rates — and instead returns `broken` with the missing
 references. The block's input doc and its last-good cached I/O are preserved
 untouched (so re-enabling the mod or re-importing restores it), the block view and
-sidebar flag it, and `recomputeAllBlocks` skips overwriting its cache. (Pure renames
-are intended to be auto-applied during the dump — planned in #26 — so this broken
-fallback is reserved for references that genuinely changed meaning or disappeared.)
+sidebar flag it, and `recomputeAllBlocks` skips overwriting its cache.
+
+**Pure renames are auto-applied during the dump** (`migrations.ts`), so this broken
+fallback is reserved for references that genuinely changed meaning or disappeared.
+Mods ship declarative `migrations/*.json` files (`{ "recipe": [["old","new"], …],
+"item"/"fluid"/"entity": … }`) inside their zips; a mod's own Lua runtime can't read
+other mods' migration files, but the backend reads them straight from the zips (via
+`fflate`) or unpacked folders. Each dump records which migration files it has seen
+(`migrations_applied` in `meta`, keyed by `mod/file`); a file newly present since the
+last dump is a new rename, applied across every saved block's references — `target`,
+`extraGoals`, `recipes`, the recipe-keyed `machines`/`fuels`/`modules`/`beacons` and
+their member names, disposition keys, and `iconName`. The **first** run after this
+ships only records the baseline and applies nothing (existing blocks already
+reference current names), so renames fire only on a genuine future mod update. The
+`.lua` migration files are procedural save-state scripts, not renames, and are
+skipped.
 
 ## Why a helper mod
 
