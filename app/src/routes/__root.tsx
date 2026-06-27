@@ -5,6 +5,7 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 
 import { AppNav } from "../components/app-nav";
+import { DriftBanner } from "../components/drift-banner";
 import appCss from "../styles.css?url";
 
 import type { QueryClient } from "@tanstack/react-query";
@@ -55,6 +56,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <div className="flex h-screen flex-col">
           <AppNav />
+          <DriftBanner />
           <div className="min-h-0 flex-1 overflow-auto">{children}</div>
         </div>
         <TanStackDevtools

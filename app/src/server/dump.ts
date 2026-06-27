@@ -278,6 +278,56 @@ export async function readMods(): Promise<ModEntry[]> {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export type ModDrift = {
+  added: ModEntry[]; // present now, absent from the baseline
+  removed: ModEntry[]; // in the baseline, gone now
+  enabled: string[]; // present in both, toggled off → on
+  disabled: string[]; // present in both, toggled on → off
+  versionChanged: { name: string; from: string | null; to: string | null }[];
+};
+
+/** Compare a persisted baseline mod set against the current one. `added`/`removed`
+ * are by name; `enabled`/`disabled` are mods present in both whose enabled flag
+ * flipped; `versionChanged` are mods present in both whose version differs. Pure —
+ * the server supplies the two lists (baseline from meta, current from readMods). */
+export function diffMods(baseline: ModEntry[], current: ModEntry[]): ModDrift {
+  const base = new Map(baseline.map((m) => [m.name, m]));
+  const cur = new Map(current.map((m) => [m.name, m]));
+  const enabled: string[] = [];
+  const disabled: string[] = [];
+  const versionChanged: ModDrift["versionChanged"] = [];
+  for (const [name, b] of base) {
+    const c = cur.get(name);
+    if (!c) continue;
+    if (b.enabled !== c.enabled) (c.enabled ? enabled : disabled).push(name);
+    if ((b.version ?? null) !== (c.version ?? null))
+      versionChanged.push({ name, from: b.version, to: c.version });
+  }
+  const byName = (a: ModEntry, b: ModEntry) => a.name.localeCompare(b.name);
+  return {
+    added: current.filter((m) => !base.has(m.name)).sort(byName),
+    removed: baseline.filter((m) => !cur.has(m.name)).sort(byName),
+    enabled: enabled.sort(),
+    disabled: disabled.sort(),
+    versionChanged: versionChanged.sort((a, b) => a.name.localeCompare(b.name)),
+  };
+}
+
+/** Whether the change set actually requires a re-dump. The reference data only
+ * reflects the ENABLED mods and their versions, so disabled-mod churn is noise:
+ * true exactly when the {enabled mod name → version} map differs. Drives the
+ * "your data no longer matches the game" prompt, while `diffMods` drives display. */
+export function redumpNeeded(baseline: ModEntry[], current: ModEntry[]): boolean {
+  const sig = (mods: ModEntry[]) =>
+    JSON.stringify(
+      mods
+        .filter((m) => m.enabled)
+        .map((m) => [m.name, m.version ?? null] as const)
+        .sort((a, b) => a[0].localeCompare(b[0])),
+    );
+  return sig(baseline) !== sig(current);
+}
+
 /* ── pipeline ────────────────────────────────────────────────────────────────── */
 
 export type SyncPhase =

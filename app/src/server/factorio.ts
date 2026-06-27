@@ -1394,6 +1394,39 @@ export const dataStatusFn = createServerFn({ method: "GET" }).handler(async () =
   };
 });
 
+/** Mod-drift check: compare the game's CURRENT mod set (live from the mods dir)
+ * against the baseline this project's data was dumped from (#28, `meta.mod_list`),
+ * by name AND version. Returns the categorized drift plus `needsRedump` — the
+ * signal that the reference data no longer matches the game and a re-dump is due.
+ * Cheap (two small file reads), so it's safe to poll on app start, on project
+ * switch (a full reload re-runs it), on bridge reconnect, and periodically. */
+export const modDriftFn = createServerFn({ method: "GET" }).handler(async () => {
+  const q = await lib();
+  const d = await dumpLib();
+  const metaMap = q.metaAll();
+  let baseline: import("./dump.ts").ModEntry[] | null = null;
+  if (metaMap.mod_list) {
+    try {
+      baseline = JSON.parse(metaMap.mod_list);
+    } catch {
+      baseline = null;
+    }
+  }
+  let current: import("./dump.ts").ModEntry[] | null = null;
+  try {
+    current = await d.readMods();
+  } catch {
+    current = null; // factorio dir missing — can't compare, don't nag
+  }
+  if (!baseline || !current)
+    return { haveBaseline: !!baseline, drift: null, needsRedump: false } as const;
+  return {
+    haveBaseline: true,
+    drift: d.diffMods(baseline, current),
+    needsRedump: d.redumpNeeded(baseline, current),
+  };
+});
+
 /* ── TURD (Pyanodon tech upgrades) ──────────────────────────────────────────── */
 
 export const listTurdUpgradesFn = createServerFn({ method: "GET" }).handler(async () =>

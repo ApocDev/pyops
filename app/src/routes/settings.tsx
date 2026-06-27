@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import {
@@ -6,6 +6,7 @@ import {
   dataStatusFn,
   exclusionsFn,
   fuelListFn,
+  modDriftFn,
   plannerSettingsFn,
   recomputeCostsFn,
   setAiConfigFn,
@@ -103,6 +104,7 @@ function GameDataTab() {
   const [icons, setIcons] = useState(false);
 
   const status = useQuery({ queryKey: ["dataStatus"], queryFn: () => dataStatusFn() });
+  const drift = useQuery({ queryKey: ["modDrift"], queryFn: () => modDriftFn() });
   const sync = useQuery({
     queryKey: ["syncState"],
     queryFn: () => syncStateFn(),
@@ -126,9 +128,12 @@ function GameDataTab() {
       <Card>
         <CardHeader className="justify-between">
           <CardTitle>Reference data</CardTitle>
-          {status.data?.stale && (
-            <Badge variant="destructive" title="the enabled mod set changed since the last sync">
-              stale — mod list changed
+          {drift.data?.needsRedump && (
+            <Badge
+              variant="destructive"
+              title="the game's enabled mods or their versions changed since the last sync"
+            >
+              stale — mods changed
             </Badge>
           )}
         </CardHeader>
@@ -153,6 +158,8 @@ function GameDataTab() {
           )}
         </div>
       </Card>
+
+      <ModDriftCard data={drift.data} />
 
       <ModsCard mods={status.data?.mods ?? []} />
 
@@ -205,10 +212,102 @@ function GameDataTab() {
               {s.log.join("\n")}
             </pre>
             {s.error && <div className="mt-2 text-xs text-destructive">{s.error}</div>}
+            {s.phase === "done" && (
+              <div className="mt-2 text-xs text-emerald-300">
+                ✓ Reference data updated.{" "}
+                <Link to="/factory" className="underline hover:text-emerald-200">
+                  Review which saved blocks changed or broke →
+                </Link>
+              </div>
+            )}
           </div>
         </Card>
       )}
     </div>
+  );
+}
+
+/** One labelled group of changed mods in the drift card. */
+function DriftRow({ label, tone, names }: { label: string; tone: string; names: string[] }) {
+  if (names.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-baseline gap-1.5">
+      <span className={`shrink-0 font-semibold ${tone}`}>
+        {label} ({names.length})
+      </span>
+      {names.map((n) => (
+        <span key={n} className="rounded bg-muted px-1.5 py-0.5 font-mono">
+          {n}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Mod drift: the game's CURRENT mod set vs the baseline this project's data was
+ * dumped from (#28), by name and version. Spells out exactly what changed and
+ * whether a re-dump is due, so the re-sync below isn't a black box. */
+function ModDriftCard({ data }: { data: Awaited<ReturnType<typeof modDriftFn>> | undefined }) {
+  if (!data) return null;
+  if (!data.haveBaseline) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Mod drift</CardTitle>
+        </CardHeader>
+        <div className="px-3 pb-3 text-xs text-muted-foreground">
+          No mod baseline recorded yet — run a sync below so PyOps can tell when the game&apos;s
+          mods drift from your reference data.
+        </div>
+      </Card>
+    );
+  }
+  const d = data.drift;
+  if (!data.needsRedump) {
+    return (
+      <Card>
+        <CardHeader className="justify-between">
+          <CardTitle>Mod drift</CardTitle>
+          <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-300">
+            ✓ matches the game
+          </span>
+        </CardHeader>
+        <div className="px-3 pb-3 text-xs text-muted-foreground">
+          The enabled mods and their versions match what your data was dumped from.
+        </div>
+      </Card>
+    );
+  }
+  return (
+    <Card>
+      <CardHeader className="justify-between">
+        <CardTitle>Mod drift</CardTitle>
+        <Badge variant="destructive">re-dump needed</Badge>
+      </CardHeader>
+      <div className="space-y-2 px-3 pb-3 text-xs">
+        <p className="text-muted-foreground">
+          The game&apos;s mods changed since your last sync, so the reference data no longer
+          matches. Re-sync below to update it.
+        </p>
+        <DriftRow
+          label="added"
+          tone="text-emerald-300"
+          names={(d?.added ?? []).map((m) => `${m.name} ${m.version ?? ""}`.trim())}
+        />
+        <DriftRow
+          label="removed"
+          tone="text-destructive"
+          names={(d?.removed ?? []).map((m) => m.name)}
+        />
+        <DriftRow label="enabled" tone="text-emerald-300" names={d?.enabled ?? []} />
+        <DriftRow label="disabled" tone="text-amber-300" names={d?.disabled ?? []} />
+        <DriftRow
+          label="updated"
+          tone="text-sky-300"
+          names={(d?.versionChanged ?? []).map((v) => `${v.name} ${v.from ?? "—"}→${v.to ?? "—"}`)}
+        />
+      </div>
+    </Card>
   );
 }
 
