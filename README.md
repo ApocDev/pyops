@@ -18,6 +18,12 @@ planner that actually understands Py's tangled recipe graph.
 - **Balance the whole factory.** Every block's boundary flows (imports/exports)
   roll up into a factory-wide ledger so you can see deficits, surpluses, and how a
   change in one block ripples through the rest ("what-if").
+- **Size your logistics.** A toggle (the **Logistics** header control) shows, per
+  row, how many **belts** carry each item and how many **inserters or loaders**
+  feed one building at the planned rate — sized against your current research
+  (belt/inserter stacking follows the Horizon), with the belt/inserter tier and a
+  stacking override picked globally. A quick feasibility check for whether a build
+  is even possible with inserters or wants loaders.
 - **Browse the data.** A searchable catalogue of every item, fluid, and recipe in
   your exact mod set — used-in / produced-by, ingredients, products, machines.
 - **Track TURD choices.** Py's "There's Usually a Recipe Difference" tech upgrades

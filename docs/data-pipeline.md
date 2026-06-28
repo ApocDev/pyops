@@ -106,3 +106,15 @@ deliberate choices:
   the model as goods (1 unit = 1 MJ) so a reactor recipe gets sized to a block's
   heat draw, but they're filtered out of normal import/byproduct lists and surfaced
   separately as power/heat in watts.
+- **Logistics prototypes** — `belts`, `loaders`, and `inserters` tables capture the
+  bits needed to size belt/inserter counts per block row (the **Logistics** display,
+  issue #21): belt/loader `speed`, and per-inserter `rotation_speed` /
+  `extension_speed` / pickup+drop vectors / `bulk` / `max_belt_stack_size`. Stacking
+  research lives in `tech_stack_bonuses` (one row per tech per effect:
+  `belt-stack-size-bonus`, `inserter-stack-size-bonus`, `bulk-inserter-capacity-bonus`),
+  summed over the in-effect tech set (`queries.stackBonuses`, following the research
+  horizon) to derive the current belt placed-stack and inserter hand stack. The
+  throughput math is a pure module (`app/src/lib/logistics.ts`) — belts are
+  `speed × 480 × stack`; inserters use the swing model ported from the in-game
+  `inserter-throughput-lib` (inventory→inventory case). The per-row arithmetic runs
+  client-side so changing belt/inserter tier is instant (no re-solve).
