@@ -118,3 +118,10 @@ deliberate choices:
   `speed × 480 × stack`; inserters use the swing model ported from the in-game
   `inserter-throughput-lib` (inventory→inventory case). The per-row arithmetic runs
   client-side so changing belt/inserter tier is instant (no re-solve).
+- **Rocket logistics** (issue #22) — `items.weight` (rocket-lift weight) feeds an
+  optional launches/min readout: `floor(rocket_lift_weight / weight)` per rocket,
+  then `rate × 60 / capacity`. `rocket_lift_weight` and `default_item_weight` come
+  from `utility-constants.default` (stashed in `meta` at import). Only ~15% of items
+  set an explicit `weight`; the rest are runtime-derived from recipes, which Py's
+  cyclic graph makes impractical to recompute, so unset items fall back to
+  `default_item_weight` (flagged in the tooltip as an estimate).

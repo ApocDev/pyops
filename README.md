@@ -23,7 +23,8 @@ planner that actually understands Py's tangled recipe graph.
   feed one building at the planned rate — sized against your current research
   (belt/inserter stacking follows the Horizon), with the belt/inserter tier and a
   stacking override picked globally. A quick feasibility check for whether a build
-  is even possible with inserters or wants loaders.
+  is even possible with inserters or wants loaders. An optional toggle adds rocket
+  **launches/min** per good (`floor(rocket_lift_weight / item weight)` per rocket).
 - **Browse the data.** A searchable catalogue of every item, fluid, and recipe in
   your exact mod set — used-in / produced-by, ingredients, products, machines.
 - **Track TURD choices.** Py's "There's Usually a Recipe Difference" tech upgrades
