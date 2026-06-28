@@ -199,6 +199,59 @@ export const beacons = sqliteTable("beacons", {
   profile: text({ mode: "json" }).$type<number[] | null>(),
 });
 
+/* ── Logistics prototypes (belts, loaders, inserters) ─────────────────────────
+ * For the per-block logistics display (#21): how many belts carry an item in/out
+ * of a row, and how many inserters/loaders feed each building at the planned rate.
+ * Belt/loader throughput = speed × 480 × placed-stack. Inserter throughput uses
+ * the swing model ported from inserter-throughput-lib (see server/logistics.ts);
+ * the raw kinematics live here, the math lives in that module. */
+export const belts = sqliteTable("belts", {
+  name: text().primaryKey(),
+  display: text(),
+  order: text(),
+  speed: real().notNull(), // tiles/tick (prototype `speed`); full-belt items/s = speed × 480
+});
+
+/** Loaders move a full belt's worth of items with no inserter swing — modelled as
+ * a super-fast "inserter" in the UI, but throughput is belt-speed based (= belts). */
+export const loaders = sqliteTable("loaders", {
+  name: text().primaryKey(),
+  display: text(),
+  order: text(),
+  speed: real().notNull(), // tiles/tick; same throughput basis as a belt of that speed
+});
+
+export const inserters = sqliteTable("inserters", {
+  name: text().primaryKey(),
+  display: text(),
+  order: text(),
+  rotationSpeed: real("rotation_speed").notNull(), // RealOrientation per tick
+  extensionSpeed: real("extension_speed").notNull(), // tiles per tick
+  // pickup/drop hand positions relative to the inserter (vectors); the swing model
+  // needs their lengths + the orientation between them.
+  pickupX: real("pickup_x").notNull(),
+  pickupY: real("pickup_y").notNull(),
+  dropX: real("drop_x").notNull(),
+  dropY: real("drop_y").notNull(),
+  bulk: bool("bulk").notNull().default(false), // bulk inserter → bulk-inserter-capacity bonus applies
+  baseStackBonus: integer("base_stack_bonus").notNull().default(0), // prototype inserter_stack_size_bonus
+  maxBeltStackSize: integer("max_belt_stack_size").notNull().default(1), // per-inserter belt-stacking cap
+});
+
+/** Tech effects that raise belt/inserter stack sizes — `belt-stack-size-bonus`,
+ * `inserter-stack-size-bonus`, `bulk-inserter-capacity-bonus`. Summed over the
+ * in-effect tech set (per the research horizon) to derive the current placed-stack
+ * for belts and the hand stack size for inserters. */
+export const techStackBonuses = sqliteTable(
+  "tech_stack_bonuses",
+  {
+    technology: text().notNull(),
+    effect: text().notNull(), // belt | inserter | bulk-inserter
+    modifier: real().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.technology, t.effect] })],
+);
+
 export const technologies = sqliteTable("technologies", {
   name: text().primaryKey(),
   display: text(),

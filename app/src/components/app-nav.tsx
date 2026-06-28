@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ProjectSwitcher } from "./project-switcher";
 import { BridgeIndicator } from "./bridge-indicator";
 import { HorizonMenu } from "./horizon-menu";
+import { LogisticsMenu } from "./logistics-menu";
 import { activeRunCount, subscribeRuns } from "../lib/chat-store";
 import { modDriftFn } from "../server/factorio";
 import { driftModal } from "../lib/drift-store";
@@ -80,6 +81,7 @@ export function AppNav() {
         <DataDriftIndicator />
         <RunIndicator />
         <HorizonMenu />
+        <LogisticsMenu />
         <BridgeIndicator />
         <ProjectSwitcher />
         <Link to="/settings" className={item} activeProps={{ className: `${item} ${active}` }}>

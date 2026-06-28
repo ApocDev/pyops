@@ -27,6 +27,10 @@ import {
   turdReplacements,
   modules,
   beacons,
+  belts,
+  loaders,
+  inserters,
+  techStackBonuses,
   modulePresets,
   blocks,
   blockFlows,
@@ -39,6 +43,7 @@ import {
   type BlockData,
   type BeaconConfig,
 } from "./schema.ts";
+import type { BeltProto, InserterProto, LoaderProto, StackBonuses } from "../lib/logistics.ts";
 
 const recipeSummary = {
   name: recipes.name,
@@ -1528,6 +1533,107 @@ export function clearExclusionCache() {
 function isExcluded(...fields: (string | null | undefined)[]): boolean {
   const globs = exclusionGlobs();
   return fields.some((f) => f != null && globs.some((g) => g.test(f)));
+}
+
+/* ── Logistics (belts / loaders / inserters) for the throughput display (#21) ─── */
+
+/** Belt, loader and inserter prototypes for the logistics picker, ordered by
+ * throughput. EE/excluded entities are filtered out. */
+export function logisticsOptions(): {
+  belts: BeltProto[];
+  loaders: LoaderProto[];
+  inserters: InserterProto[];
+} {
+  const beltRows = db
+    .select({ name: belts.name, display: belts.display, speed: belts.speed })
+    .from(belts)
+    .all()
+    .filter((b) => !isExcluded(b.name))
+    .sort((a, b) => a.speed - b.speed);
+  const loaderRows = db
+    .select({ name: loaders.name, display: loaders.display, speed: loaders.speed })
+    .from(loaders)
+    .all()
+    .filter((l) => !isExcluded(l.name))
+    .sort((a, b) => a.speed - b.speed);
+  const allInserters = db
+    .select()
+    .from(inserters)
+    .all()
+    .filter((i) => !isExcluded(i.name))
+    .map((i) => ({
+      name: i.name,
+      display: i.display,
+      rotationSpeed: i.rotationSpeed,
+      extensionSpeed: i.extensionSpeed,
+      pickupX: i.pickupX,
+      pickupY: i.pickupY,
+      dropX: i.dropX,
+      dropY: i.dropY,
+      bulk: i.bulk,
+      baseStackBonus: i.baseStackBonus,
+      maxBeltStackSize: i.maxBeltStackSize,
+    }));
+  // Py's Crane mod ships per-upgrade-tier entities (crane-mk3, crane-mk3u1…u8) that
+  // are throughput-identical, so collapse to one option per (display + kinematics)
+  // signature, preferring the canonical entity (no trailing "uN" upgrade suffix).
+  const sig = (i: (typeof allInserters)[number]) =>
+    [
+      i.display ?? i.name,
+      i.rotationSpeed,
+      i.extensionSpeed,
+      i.pickupX,
+      i.pickupY,
+      i.dropX,
+      i.dropY,
+      Number(i.bulk),
+      i.baseStackBonus,
+      i.maxBeltStackSize,
+    ].join("|");
+  const isUpgradeVariant = (name: string) => /u\d+$/.test(name);
+  const bySig = new Map<string, (typeof allInserters)[number]>();
+  for (const i of allInserters) {
+    const cur = bySig.get(sig(i));
+    // keep a canonical (non-upgrade) name over an upgrade variant; else the shorter.
+    if (
+      !cur ||
+      (isUpgradeVariant(cur.name) && !isUpgradeVariant(i.name)) ||
+      (isUpgradeVariant(cur.name) === isUpgradeVariant(i.name) && i.name.length < cur.name.length)
+    ) {
+      bySig.set(sig(i), i);
+    }
+  }
+  const inserterRows = [...bySig.values()].sort(
+    // hand stack first (bulk capacity), then swing speed — a stable, sensible order
+    (a, b) =>
+      Number(a.bulk) - Number(b.bulk) ||
+      a.rotationSpeed - b.rotationSpeed ||
+      (a.display ?? a.name).localeCompare(b.display ?? b.name),
+  );
+  return { belts: beltRows, loaders: loaderRows, inserters: inserterRows };
+}
+
+/** Current belt / inserter / bulk-inserter stack-size bonuses, summed over the
+ * tech in effect under the research horizon: everything in FUTURE mode, live
+ * research + the pack gate in NOW, the tier's pack gate for a target — the same
+ * reachability the solver uses for recipe availability. */
+export function stackBonuses(): StackBonuses {
+  const h = getResearchHorizon();
+  const out: StackBonuses = { belt: 0, inserter: 0, bulkInserter: 0 };
+  for (const r of db.select().from(techStackBonuses).all()) {
+    if (h.mode !== "future") {
+      const science = db
+        .select({ name: techIngredients.name })
+        .from(techIngredients)
+        .where(eq(techIngredients.technology, r.technology))
+        .all();
+      if (!techReachedByScience(r.technology, science, h)) continue;
+    }
+    if (r.effect === "belt") out.belt += r.modifier;
+    else if (r.effect === "inserter") out.inserter += r.modifier;
+    else if (r.effect === "bulk-inserter") out.bulkInserter += r.modifier;
+  }
+  return out;
 }
 
 /* ── Research / TURD availability horizon (plan for now vs future) ───────────── */

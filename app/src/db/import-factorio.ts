@@ -102,6 +102,10 @@ const TABLES = [
   "modules",
   "module_limitations",
   "beacons",
+  "belts",
+  "loaders",
+  "inserters",
+  "tech_stack_bonuses",
   "technologies",
   "tech_unlocks",
   "tech_ingredients",
@@ -123,6 +127,9 @@ const COUNT_TABLES = [
   "modules",
   "module_limitations",
   "beacons",
+  "belts",
+  "loaders",
+  "inserters",
   "technologies",
   "tech_unlocks",
 ];
@@ -216,6 +223,18 @@ export function importFactorioDump(
     techUnlock: db.prepare(`INSERT OR IGNORE INTO tech_unlocks (technology,recipe) VALUES (?,?)`),
     techIng: db.prepare(
       `INSERT OR IGNORE INTO tech_ingredients (technology,name,amount) VALUES (?,?,?)`,
+    ),
+    belt: db.prepare(
+      `INSERT OR IGNORE INTO belts (name,display,"order",speed) VALUES (@name,@display,@order,@speed)`,
+    ),
+    loader: db.prepare(
+      `INSERT OR IGNORE INTO loaders (name,display,"order",speed) VALUES (@name,@display,@order,@speed)`,
+    ),
+    inserter: db.prepare(
+      `INSERT OR IGNORE INTO inserters (name,display,"order",rotation_speed,extension_speed,pickup_x,pickup_y,drop_x,drop_y,bulk,base_stack_bonus,max_belt_stack_size) VALUES (@name,@display,@order,@rotation_speed,@extension_speed,@pickup_x,@pickup_y,@drop_x,@drop_y,@bulk,@base_stack_bonus,@max_belt_stack_size)`,
+    ),
+    techStack: db.prepare(
+      `INSERT OR REPLACE INTO tech_stack_bonuses (technology,effect,modifier) VALUES (?,?,?)`,
     ),
     meta: db.prepare(`INSERT OR REPLACE INTO meta (key,value) VALUES (?,?)`),
     turdRepl: db.prepare(
@@ -385,7 +404,58 @@ export function importFactorioDump(
       });
     }
 
+    // logistics prototypes (belts, loaders, inserters) — skip hidden ones (Py hides
+    // the vanilla loaders in favour of the AAI ones; EE/test entities are hidden too).
+    const isHidden = (e: any) => e?.hidden === true || arr<string>(e?.flags).includes("hidden");
+    const entityDisplay = (name: string) =>
+      localeByKind.entity?.names?.[name] ?? productDisplay[name] ?? null;
+    const vecX = (p: any, d: number) => (Array.isArray(p) ? (p[0] ?? d) : (p?.x ?? d));
+    const vecY = (p: any, d: number) => (Array.isArray(p) ? (p[1] ?? d) : (p?.y ?? d));
+
+    for (const [name, b] of Object.entries(raw["transport-belt"] ?? {})) {
+      if (isHidden(b)) continue;
+      ins.belt.run({
+        name,
+        display: entityDisplay(name),
+        order: b.order ?? null,
+        speed: b.speed ?? 0,
+      });
+    }
+    for (const kind of ["loader", "loader-1x1", "loader-1x2"]) {
+      for (const [name, l] of Object.entries(raw[kind] ?? {})) {
+        if (isHidden(l)) continue;
+        ins.loader.run({
+          name,
+          display: entityDisplay(name),
+          order: l.order ?? null,
+          speed: l.speed ?? 0,
+        });
+      }
+    }
+    for (const [name, it] of Object.entries(raw.inserter ?? {})) {
+      if (isHidden(it)) continue;
+      ins.inserter.run({
+        name,
+        display: entityDisplay(name),
+        order: it.order ?? null,
+        rotation_speed: it.rotation_speed ?? 0,
+        extension_speed: it.extension_speed ?? 0,
+        pickup_x: vecX(it.pickup_position, 0),
+        pickup_y: vecY(it.pickup_position, -1),
+        drop_x: vecX(it.insert_position, 0),
+        drop_y: vecY(it.insert_position, 1),
+        bulk: it.bulk ? 1 : 0,
+        base_stack_bonus: it.inserter_stack_size_bonus ?? 0,
+        max_belt_stack_size: it.max_belt_stack_size ?? 1,
+      });
+    }
+
     // technologies (+ prerequisites + recipe unlocks)
+    const STACK_EFFECT: Record<string, string> = {
+      "belt-stack-size-bonus": "belt",
+      "inserter-stack-size-bonus": "inserter",
+      "bulk-inserter-capacity-bonus": "bulk-inserter",
+    };
     for (const [name, t] of Object.entries(raw.technology ?? {})) {
       ins.tech.run({
         name,
@@ -396,9 +466,14 @@ export function importFactorioDump(
         is_turd: t.is_turd ? 1 : 0,
       });
       for (const pre of arr<string>(t.prerequisites)) ins.techPrereq.run(name, pre);
+      const stackAcc: Record<string, number> = {};
       for (const eff of arr<any>(t.effects)) {
         if (eff?.type === "unlock-recipe" && eff.recipe) ins.techUnlock.run(name, eff.recipe);
+        const key = STACK_EFFECT[eff?.type];
+        if (key && typeof eff.modifier === "number")
+          stackAcc[key] = (stackAcc[key] ?? 0) + eff.modifier;
       }
+      for (const [key, mod] of Object.entries(stackAcc)) ins.techStack.run(name, key, mod);
       for (const ing of arr<any>(t.unit?.ingredients)) {
         const sn = Array.isArray(ing) ? ing[0] : ing.name;
         const sa = Array.isArray(ing) ? ing[1] : ing.amount;

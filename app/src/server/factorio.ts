@@ -1234,6 +1234,58 @@ export const setPlannerSettingsFn = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Logistics throughput context for the block view (#21): the user's belt/mover
+ * picks + stacking prefs, the current research-derived stack bonuses, and the
+ * prototype options. The per-row belt/inserter math runs client-side from this so
+ * changing a tier is instant (no re-solve). */
+export const logisticsContextFn = createServerFn({ method: "GET" }).handler(async () => {
+  const q = await lib();
+  const m = q.metaAll();
+  const options = q.logisticsOptions();
+  const defaultBelt = options.belts[0]?.name ?? "";
+  const defaultMover = options.inserters[0]?.name ?? "";
+  const moverKind = m.logistics_mover_kind === "loader" ? "loader" : "inserter";
+  const ov = m.logistics_stack_override;
+  return {
+    prefs: {
+      enabled: m.logistics_enabled === "1",
+      belt: m.logistics_belt || defaultBelt,
+      mover: m.logistics_mover || defaultMover,
+      moverKind: moverKind as "inserter" | "loader",
+      stacking: m.logistics_stacking !== "0", // default on
+      overrideStack: ov != null && ov !== "" ? Number(ov) : null,
+    },
+    bonuses: q.stackBonuses(),
+    options,
+  };
+});
+
+export const setLogisticsPrefsFn = createServerFn({ method: "POST" })
+  .validator(
+    (d: {
+      enabled?: boolean;
+      belt?: string;
+      mover?: string;
+      moverKind?: "inserter" | "loader";
+      stacking?: boolean;
+      overrideStack?: number | null;
+    }) => d,
+  )
+  .handler(async ({ data }) => {
+    const q = await lib();
+    if (data.enabled != null) q.metaSet("logistics_enabled", data.enabled ? "1" : "0");
+    if (data.belt != null) q.metaSet("logistics_belt", data.belt);
+    if (data.mover != null) q.metaSet("logistics_mover", data.mover);
+    if (data.moverKind != null) q.metaSet("logistics_mover_kind", data.moverKind);
+    if (data.stacking != null) q.metaSet("logistics_stacking", data.stacking ? "1" : "0");
+    if (data.overrideStack !== undefined)
+      q.metaSet(
+        "logistics_stack_override",
+        data.overrideStack == null ? "" : String(Math.max(1, Math.round(data.overrideStack))),
+      );
+    return { ok: true };
+  });
+
 /** Burnable fuels (solid + fluid) for the default-fuel picker — name, display, MJ. */
 export const fuelListFn = createServerFn({ method: "GET" }).handler(async () =>
   (await lib()).fuelList(),

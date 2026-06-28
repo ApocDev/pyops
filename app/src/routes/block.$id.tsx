@@ -7,6 +7,7 @@ import {
   bridgeShowBlockFn,
   goodInfoFn,
   loadBlockFn,
+  logisticsContextFn,
   machineOptionsFn,
   recipeCandidatesFn,
   saveBlockFn,
@@ -14,6 +15,7 @@ import {
   solveBlockFn,
 } from "../server/factorio";
 import type { BeaconConfig } from "../server/factorio";
+import { type ResolvedLogistics, resolveLogistics, rowLogistics } from "../lib/logistics";
 import { bridgeLocateFn } from "../server/bridge/fns";
 import { tasksForBlockFn } from "../server/tasks.ts";
 import type { Disposition } from "../solver/block";
@@ -279,6 +281,63 @@ function ItemChip({
         >
           {dispTag[disp].label}
         </button>
+      )}
+    </span>
+  );
+}
+
+const fmtCount = (n: number) =>
+  !Number.isFinite(n)
+    ? "∞"
+    : n === 0
+      ? "0"
+      : n < 0.01
+        ? "<0.01"
+        : n >= 10
+          ? n.toFixed(0)
+          : n >= 1
+            ? n.toFixed(1)
+            : n.toFixed(2);
+
+/** Compact per-item logistics readout under a chip: belts to carry the row's whole
+ * flow of this item, and devices (inserters/loaders) to move it in/out of ONE
+ * building. Devices are omitted on building-less rows. */
+function LogiTag({
+  resolved,
+  rate,
+  machineCount,
+}: {
+  resolved: ResolvedLogistics;
+  rate: number;
+  machineCount: number;
+}) {
+  if (!(rate > 1e-9)) return null;
+  const r = rowLogistics(resolved, rate, machineCount);
+  if (!r) return null;
+  const hasBldg = machineCount > 1e-9;
+  const beltName = resolved.belt?.name;
+  const beltDisp = resolved.belt?.display ?? beltName;
+  const moverName =
+    resolved.moverKind === "loader" ? resolved.loader?.name : resolved.inserter?.name;
+  const moverDisp =
+    (resolved.moverKind === "loader" ? resolved.loader?.display : resolved.inserter?.display) ??
+    moverName;
+  const title =
+    `≈${fmtCount(r.belts)} × ${beltDisp}` +
+    (hasBldg ? ` · ≈${fmtCount(r.devices)} × ${moverDisp} per building` : "");
+  return (
+    <span className="flex items-center gap-2.5 pl-1 text-xs text-muted-foreground" title={title}>
+      {beltName && (
+        <span className="inline-flex items-center gap-1.5">
+          <Icon kind="entity" name={beltName} size="sm" noTitle />
+          <span className="tabular-nums">{fmtCount(r.belts)}</span>
+        </span>
+      )}
+      {hasBldg && moverName && (
+        <span className="inline-flex items-center gap-1.5">
+          <Icon kind="entity" name={moverName} size="sm" noTitle />
+          <span className="tabular-nums">{fmtCount(r.devices)}</span>
+        </span>
       )}
     </span>
   );
@@ -624,6 +683,14 @@ function Block({ blockId }: { blockId: number }) {
     queryFn: () => machineOptionsFn({ data: pickMachineFor! }),
     enabled: !!pickMachineFor,
   });
+  // Per-row belts & inserters readout (#21). Fetched once; the math runs client-side
+  // (resolveLogistics) so changing belt/inserter tier from the header is instant.
+  const logistics = useQuery({
+    queryKey: ["logisticsContext"],
+    queryFn: () => logisticsContextFn(),
+    refetchInterval: 5000,
+  });
+  const logiResolved = logistics.data?.prefs.enabled ? resolveLogistics(logistics.data) : null;
 
   const add = (name: string) => {
     markEdited();
@@ -691,7 +758,7 @@ function Block({ blockId }: { blockId: number }) {
   const makeFor = (name: string) => setPickFor({ name, mode: "produce" });
   const useFor = (name: string) => setPickFor({ name, mode: "consume" });
 
-  const GRID = "grid items-center gap-4 px-3 py-2.5";
+  const GRID = "grid items-center gap-4 px-3 py-3.5";
   const COLS = {
     gridTemplateColumns: "minmax(170px,1.1fr) minmax(240px,1.2fr) 1.4fr 1.4fr",
   } as const;
@@ -917,6 +984,13 @@ function Block({ blockId }: { blockId: number }) {
                         )}
                       </span>
                     )}
+                    {logiResolved && kind === "item" && !goalMissing && (
+                      <LogiTag
+                        resolved={logiResolved}
+                        rate={Math.abs(isPrimary ? rate : (out?.rate ?? 0))}
+                        machineCount={0}
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -1085,73 +1159,78 @@ function Block({ blockId }: { blockId: number }) {
                   <div className="flex flex-wrap gap-x-3 gap-y-2">
                     {res?.imports.length ? (
                       res.imports.map((f) => (
-                        <span key={f.name} className="group inline-flex items-center gap-1.5">
-                          <ItemChip
-                            name={f.name}
-                            kind={f.kind}
-                            display={res.display?.[f.name]}
-                            rate={f.rate}
-                            link="import"
-                            craftable={producible.has(f.name)}
-                            disp={disp[f.name]}
-                            onClick={() => makeFor(f.name)}
-                            onCycleDisp={() => cycleDispFor(f.name)}
-                            onClearDisp={() => setDispFor(f.name, "auto")}
-                            onContext={(e) =>
-                              setCtxMenu({
-                                x: e.clientX,
-                                y: e.clientY,
-                                name: f.name,
-                                kind: f.kind,
-                                link: "import",
-                              })
-                            }
-                          />
-                          {/* lock this input to drive the block's size (Goal goes read-only) */}
-                          {lockedInput === f.name ? (
-                            <input
-                              type="number"
-                              value={lockedRate}
-                              step="0.01"
-                              min="0"
-                              autoFocus
-                              onChange={(e) => setLockedRate(Number(e.target.value) || 0)}
-                              title="locked rate — the block is sized to consume this much of this input"
-                              className="w-16 rounded border border-sky-400/60 bg-muted px-1 py-0.5 text-sm"
-                            />
-                          ) : null}
-                          <button
-                            onClick={() => {
-                              if (lockedInput === f.name) setLockedInput(null);
-                              else {
-                                setLockedInput(f.name);
-                                setLockedRate(+f.rate.toFixed(4));
+                        <span key={f.name} className="group flex flex-col items-start gap-1.5">
+                          <span className="inline-flex items-center gap-1.5">
+                            <ItemChip
+                              name={f.name}
+                              kind={f.kind}
+                              display={res.display?.[f.name]}
+                              rate={f.rate}
+                              link="import"
+                              craftable={producible.has(f.name)}
+                              disp={disp[f.name]}
+                              onClick={() => makeFor(f.name)}
+                              onCycleDisp={() => cycleDispFor(f.name)}
+                              onClearDisp={() => setDispFor(f.name, "auto")}
+                              onContext={(e) =>
+                                setCtxMenu({
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                  name: f.name,
+                                  kind: f.kind,
+                                  link: "import",
+                                })
                               }
-                            }}
-                            title={
-                              lockedInput === f.name
-                                ? "unlock — the Goal rate is editable again"
-                                : "lock this input: size the whole block by its rate (Goal becomes read-only)"
-                            }
-                            className={`rounded px-0.5 text-sm ${
-                              lockedInput === f.name
-                                ? "text-sky-300"
-                                : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground"
-                            }`}
-                          >
-                            {lockedInput === f.name ? "🔒" : "🔓"}
-                          </button>
-                          {fuelSet.has(f.name) && (
-                            <span title="this import is (partly) burned as fuel">🔥</span>
-                          )}
-                          {freed.has(f.name) && !disp[f.name] && (
+                            />
+                            {/* lock this input to drive the block's size (Goal goes read-only) */}
+                            {lockedInput === f.name ? (
+                              <input
+                                type="number"
+                                value={lockedRate}
+                                step="0.01"
+                                min="0"
+                                autoFocus
+                                onChange={(e) => setLockedRate(Number(e.target.value) || 0)}
+                                title="locked rate — the block is sized to consume this much of this input"
+                                className="w-16 rounded border border-sky-400/60 bg-muted px-1 py-0.5 text-sm"
+                              />
+                            ) : null}
                             <button
-                              title="recycle loop won't self-close — auto-sourced here. Click to pin it as an import (resolves the relaxed solve)."
-                              onClick={() => setDispFor(f.name, "import")}
-                              className="rounded bg-amber-500/25 px-1.5 py-0.5 text-sm text-amber-200 hover:brightness-110"
+                              onClick={() => {
+                                if (lockedInput === f.name) setLockedInput(null);
+                                else {
+                                  setLockedInput(f.name);
+                                  setLockedRate(+f.rate.toFixed(4));
+                                }
+                              }}
+                              title={
+                                lockedInput === f.name
+                                  ? "unlock — the Goal rate is editable again"
+                                  : "lock this input: size the whole block by its rate (Goal becomes read-only)"
+                              }
+                              className={`rounded px-0.5 text-sm ${
+                                lockedInput === f.name
+                                  ? "text-sky-300"
+                                  : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground"
+                              }`}
                             >
-                              loop · pin import
+                              {lockedInput === f.name ? "🔒" : "🔓"}
                             </button>
+                            {fuelSet.has(f.name) && (
+                              <span title="this import is (partly) burned as fuel">🔥</span>
+                            )}
+                            {freed.has(f.name) && !disp[f.name] && (
+                              <button
+                                title="recycle loop won't self-close — auto-sourced here. Click to pin it as an import (resolves the relaxed solve)."
+                                onClick={() => setDispFor(f.name, "import")}
+                                className="rounded bg-amber-500/25 px-1.5 py-0.5 text-sm text-amber-200 hover:brightness-110"
+                              >
+                                loop · pin import
+                              </button>
+                            )}
+                          </span>
+                          {logiResolved && f.kind === "item" && (
+                            <LogiTag resolved={logiResolved} rate={f.rate} machineCount={0} />
                           )}
                         </span>
                       ))
@@ -1167,38 +1246,43 @@ function Block({ blockId }: { blockId: number }) {
                   <div className="flex flex-wrap gap-x-3 gap-y-2">
                     {res?.exports.length ? (
                       res.exports.map((f) => (
-                        <span key={f.name} className="inline-flex items-center gap-1.5">
-                          <ItemChip
-                            name={f.name}
-                            kind={f.kind}
-                            display={res.display?.[f.name]}
-                            rate={f.rate}
-                            link="export"
-                            disp={disp[f.name]}
-                            onClick={() => useFor(f.name)}
-                            onCycleDisp={() => cycleDispFor(f.name)}
-                            onClearDisp={() => setDispFor(f.name, "auto")}
-                            onContext={(e) =>
-                              setCtxMenu({
-                                x: e.clientX,
-                                y: e.clientY,
-                                name: f.name,
-                                kind: f.kind,
-                                link: "export",
-                              })
-                            }
-                          />
-                          {fuelSet.has(f.name) && (
-                            <span title="surplus after burning some as fuel">🔥</span>
-                          )}
-                          {freed.has(f.name) && !disp[f.name] && (
-                            <button
-                              title="recycle loop won't self-close — auto-sunk here. Click to pin it as an export (resolves the relaxed solve)."
-                              onClick={() => setDispFor(f.name, "export")}
-                              className="rounded bg-amber-500/25 px-1.5 py-0.5 text-sm text-amber-200 hover:brightness-110"
-                            >
-                              loop · pin export
-                            </button>
+                        <span key={f.name} className="flex flex-col items-start gap-1.5">
+                          <span className="inline-flex items-center gap-1.5">
+                            <ItemChip
+                              name={f.name}
+                              kind={f.kind}
+                              display={res.display?.[f.name]}
+                              rate={f.rate}
+                              link="export"
+                              disp={disp[f.name]}
+                              onClick={() => useFor(f.name)}
+                              onCycleDisp={() => cycleDispFor(f.name)}
+                              onClearDisp={() => setDispFor(f.name, "auto")}
+                              onContext={(e) =>
+                                setCtxMenu({
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                  name: f.name,
+                                  kind: f.kind,
+                                  link: "export",
+                                })
+                              }
+                            />
+                            {fuelSet.has(f.name) && (
+                              <span title="surplus after burning some as fuel">🔥</span>
+                            )}
+                            {freed.has(f.name) && !disp[f.name] && (
+                              <button
+                                title="recycle loop won't self-close — auto-sunk here. Click to pin it as an export (resolves the relaxed solve)."
+                                onClick={() => setDispFor(f.name, "export")}
+                                className="rounded bg-amber-500/25 px-1.5 py-0.5 text-sm text-amber-200 hover:brightness-110"
+                              >
+                                loop · pin export
+                              </button>
+                            )}
+                          </span>
+                          {logiResolved && f.kind === "item" && (
+                            <LogiTag resolved={logiResolved} rate={f.rate} machineCount={0} />
                           )}
                         </span>
                       ))
@@ -1380,37 +1464,53 @@ function Block({ blockId }: { blockId: number }) {
                   <span className="text-muted-foreground">—</span>
                 )}
               </div>
-              <div className="flex flex-wrap gap-x-3 gap-y-2">
+              <div className="flex flex-wrap gap-x-4 gap-y-3">
                 {row?.ingredients.map((c) => (
-                  <ItemChip
-                    key={c.name}
-                    name={c.name}
-                    kind={c.kind}
-                    display={c.display}
-                    rate={c.rate}
-                    link={linkOf(c.name)}
-                    craftable={producible.has(c.name)}
-                    disp={disp[c.name]}
-                    onClick={() => makeFor(c.name)}
-                    onCycleDisp={() => cycleDispFor(c.name)}
-                    onClearDisp={() => setDispFor(c.name, "auto")}
-                  />
+                  <div key={c.name} className="flex flex-col items-start gap-1.5">
+                    <ItemChip
+                      name={c.name}
+                      kind={c.kind}
+                      display={c.display}
+                      rate={c.rate}
+                      link={linkOf(c.name)}
+                      craftable={producible.has(c.name)}
+                      disp={disp[c.name]}
+                      onClick={() => makeFor(c.name)}
+                      onCycleDisp={() => cycleDispFor(c.name)}
+                      onClearDisp={() => setDispFor(c.name, "auto")}
+                    />
+                    {logiResolved && c.kind === "item" && (
+                      <LogiTag
+                        resolved={logiResolved}
+                        rate={c.rate}
+                        machineCount={row.machine?.count ?? 0}
+                      />
+                    )}
+                  </div>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-x-3 gap-y-2">
+              <div className="flex flex-wrap gap-x-4 gap-y-3">
                 {row?.products.map((c) => (
-                  <ItemChip
-                    key={c.name}
-                    name={c.name}
-                    kind={c.kind}
-                    display={c.display}
-                    rate={c.rate}
-                    link={linkOf(c.name)}
-                    disp={disp[c.name]}
-                    onClick={() => useFor(c.name)}
-                    onCycleDisp={() => cycleDispFor(c.name)}
-                    onClearDisp={() => setDispFor(c.name, "auto")}
-                  />
+                  <div key={c.name} className="flex flex-col items-start gap-1.5">
+                    <ItemChip
+                      name={c.name}
+                      kind={c.kind}
+                      display={c.display}
+                      rate={c.rate}
+                      link={linkOf(c.name)}
+                      disp={disp[c.name]}
+                      onClick={() => useFor(c.name)}
+                      onCycleDisp={() => cycleDispFor(c.name)}
+                      onClearDisp={() => setDispFor(c.name, "auto")}
+                    />
+                    {logiResolved && c.kind === "item" && (
+                      <LogiTag
+                        resolved={logiResolved}
+                        rate={c.rate}
+                        machineCount={row.machine?.count ?? 0}
+                      />
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
