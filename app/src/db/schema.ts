@@ -18,6 +18,7 @@ export const items = sqliteTable(
     subgroup: text(),
     order: text(),
     stackSize: integer("stack_size"),
+    weight: real("weight"), // rocket-lift weight (null = not set in data → default_item_weight)
     fuelValueJ: real("fuel_value_j"),
     fuelCategory: text("fuel_category"),
     // normalization sources for pass-2 synthetic recipes

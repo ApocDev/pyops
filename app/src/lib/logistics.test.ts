@@ -8,8 +8,10 @@ import {
   inserterSwingTicks,
   inserterThroughput,
   insertersForRate,
+  launchesForRate,
   loadersForRate,
   placedBeltStack,
+  rocketCapacity,
 } from "./logistics";
 
 // Reference prototypes straight from Py's data-raw-dump.json.
@@ -97,5 +99,18 @@ describe("insertersForRate", () => {
   it("counts inserters to feed a building at a rate", () => {
     // base inserter at hand stack 1 = 1.2/s; feeding 6/s needs 5 inserters.
     expect(insertersForRate(6, base, 1)).toBeCloseTo(5, 4);
+  });
+});
+
+describe("rocket launches", () => {
+  const LIFT = 1_000_000;
+  it("capacity is floor(lift / weight), min 1", () => {
+    expect(rocketCapacity(2000, LIFT)).toBe(500); // iron ore
+    expect(rocketCapacity(200_000, LIFT)).toBe(5); // satellite
+    expect(rocketCapacity(3_000_000, LIFT)).toBe(1); // over-heavy → one per rocket
+  });
+  it("launches/min = rate*60 / capacity", () => {
+    // 50 ore/s → 3000/min, 500 per rocket → 6 launches/min
+    expect(launchesForRate(50, 2000, LIFT)).toBeCloseTo(6, 4);
   });
 });

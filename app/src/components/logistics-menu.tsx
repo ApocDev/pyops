@@ -191,6 +191,16 @@ export function LogisticsPicker() {
               title={`Override the placed belt-stack size (1–${MAX_BELT_STACK}); blank = follow research`}
             />
           </label>
+          <label
+            className="flex items-center gap-2 text-sm"
+            title="Also show rocket launches/min to move each good (floor(1,000,000 / item weight) per rocket)"
+          >
+            <Switch
+              checked={d.prefs.showRockets}
+              onCheckedChange={(v) => save.mutate({ showRockets: v })}
+            />
+            <span className="text-foreground">Rocket launches</span>
+          </label>
         </div>
 
         <div className="rounded border border-border bg-muted/30 p-2 text-xs text-muted-foreground">

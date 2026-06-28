@@ -1,11 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActiveEditorRefContext } from "./block";
 import {
   blocksForGoodFn,
   bridgeShowBlockFn,
   goodInfoFn,
+  itemWeightsFn,
   loadBlockFn,
   logisticsContextFn,
   machineOptionsFn,
@@ -15,13 +16,18 @@ import {
   solveBlockFn,
 } from "../server/factorio";
 import type { BeaconConfig } from "../server/factorio";
-import { type ResolvedLogistics, resolveLogistics, rowLogistics } from "../lib/logistics";
+import {
+  type ResolvedLogistics,
+  launchesForRate,
+  resolveLogistics,
+  rowLogistics,
+} from "../lib/logistics";
 import { bridgeLocateFn } from "../server/bridge/fns";
 import { tasksForBlockFn } from "../server/tasks.ts";
 import type { Disposition } from "../solver/block";
 import { Icon, IconProvider } from "../lib/icons";
 import { ModulesChip, ModulesModal } from "../lib/modules-modal";
-import { Copy, Gamepad2 } from "lucide-react";
+import { Copy, Gamepad2, Rocket } from "lucide-react";
 import { ItemHover, RecipeHover, TechLine } from "../lib/recipe-card";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card.tsx";
@@ -300,16 +306,19 @@ const fmtCount = (n: number) =>
             : n.toFixed(2);
 
 /** Compact per-item logistics readout under a chip: belts to carry the row's whole
- * flow of this item, and devices (inserters/loaders) to move it in/out of ONE
- * building. Devices are omitted on building-less rows. */
+ * flow of this item, devices (inserters/loaders) to move it in/out of ONE building,
+ * and — when rockets are on — rocket launches/min. Devices are omitted on
+ * building-less rows; `launch` is omitted unless the rocket toggle is on. */
 function LogiTag({
   resolved,
   rate,
   machineCount,
+  launch,
 }: {
   resolved: ResolvedLogistics;
   rate: number;
   machineCount: number;
+  launch?: { perMin: number; defaulted: boolean } | null;
 }) {
   if (!(rate > 1e-9)) return null;
   const r = rowLogistics(resolved, rate, machineCount);
@@ -324,7 +333,10 @@ function LogiTag({
     moverName;
   const title =
     `≈${fmtCount(r.belts)} × ${beltDisp}` +
-    (hasBldg ? ` · ≈${fmtCount(r.devices)} × ${moverDisp} per building` : "");
+    (hasBldg ? ` · ≈${fmtCount(r.devices)} × ${moverDisp} per building` : "") +
+    (launch
+      ? ` · ≈${fmtCount(launch.perMin)} rocket launches/min${launch.defaulted ? " (default item weight — not set in data)" : ""}`
+      : "");
   return (
     <span className="flex items-center gap-2.5 pl-1 text-xs text-muted-foreground" title={title}>
       {beltName && (
@@ -337,6 +349,14 @@ function LogiTag({
         <span className="inline-flex items-center gap-1.5">
           <Icon kind="entity" name={moverName} size="sm" noTitle />
           <span className="tabular-nums">{fmtCount(r.devices)}</span>
+        </span>
+      )}
+      {launch && (
+        <span
+          className={`inline-flex items-center gap-1.5 ${launch.defaulted ? "opacity-60" : ""}`}
+        >
+          <Rocket className="size-3.5" />
+          <span className="tabular-nums">{fmtCount(launch.perMin)}/m</span>
         </span>
       )}
     </span>
@@ -745,6 +765,38 @@ function Block({ blockId }: { blockId: number }) {
     kindMap.set(f.name, f.kind);
   const kindOf = (name: string) =>
     (kindMap.get(name) ?? goalInfo.data?.[name]?.kind ?? "item") as "item" | "fluid";
+
+  // Rocket launches/min (#22) — opt-in, niche. Fetch weights for every item shown,
+  // then `launchInfo` turns a flow rate into launches/min (default weight if unset).
+  const rocketOn = !!logiResolved && !!logistics.data?.prefs.showRockets;
+  const itemNames = useMemo(() => {
+    const s = new Set<string>();
+    const addItem = (name: string, kind: string) => kind === "item" && s.add(name);
+    for (const row of res?.rows ?? []) {
+      for (const c of row.ingredients) addItem(c.name, c.kind);
+      for (const c of row.products) addItem(c.name, c.kind);
+    }
+    for (const f of [...(res?.imports ?? []), ...(res?.exports ?? [])]) addItem(f.name, f.kind);
+    for (const g of goalNames) if (kindOf(g) === "item") s.add(g);
+    return [...s].sort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [res, goalNames.join(",")]);
+  const weightsQ = useQuery({
+    queryKey: ["itemWeights", itemNames],
+    queryFn: () => itemWeightsFn({ data: itemNames }),
+    enabled: rocketOn && itemNames.length > 0,
+    staleTime: 60_000,
+  });
+  const launchInfo = (name: string, rate: number) => {
+    if (!rocketOn || !logistics.data) return null;
+    const raw = weightsQ.data?.[name];
+    const weight = raw ?? logistics.data.defaultItemWeight;
+    return {
+      perMin: launchesForRate(rate, weight, logistics.data.rocketLiftWeight),
+      defaulted: raw == null,
+    };
+  };
+
   const producible = new Set(res?.producible ?? []); // imports a recipe could make in-block
   const fuelSet = new Set(res?.fuelItems ?? []); // items consumed as fuel (folded into the balance)
   const linkOf = (name: string): Link =>
@@ -989,6 +1041,7 @@ function Block({ blockId }: { blockId: number }) {
                         resolved={logiResolved}
                         rate={Math.abs(isPrimary ? rate : (out?.rate ?? 0))}
                         machineCount={0}
+                        launch={launchInfo(g, Math.abs(isPrimary ? rate : (out?.rate ?? 0)))}
                       />
                     )}
                   </div>
@@ -1230,7 +1283,12 @@ function Block({ blockId }: { blockId: number }) {
                             )}
                           </span>
                           {logiResolved && f.kind === "item" && (
-                            <LogiTag resolved={logiResolved} rate={f.rate} machineCount={0} />
+                            <LogiTag
+                              resolved={logiResolved}
+                              rate={f.rate}
+                              machineCount={0}
+                              launch={launchInfo(f.name, f.rate)}
+                            />
                           )}
                         </span>
                       ))
@@ -1282,7 +1340,12 @@ function Block({ blockId }: { blockId: number }) {
                             )}
                           </span>
                           {logiResolved && f.kind === "item" && (
-                            <LogiTag resolved={logiResolved} rate={f.rate} machineCount={0} />
+                            <LogiTag
+                              resolved={logiResolved}
+                              rate={f.rate}
+                              machineCount={0}
+                              launch={launchInfo(f.name, f.rate)}
+                            />
                           )}
                         </span>
                       ))
@@ -1484,6 +1547,7 @@ function Block({ blockId }: { blockId: number }) {
                         resolved={logiResolved}
                         rate={c.rate}
                         machineCount={row.machine?.count ?? 0}
+                        launch={launchInfo(c.name, c.rate)}
                       />
                     )}
                   </div>
@@ -1508,6 +1572,7 @@ function Block({ blockId }: { blockId: number }) {
                         resolved={logiResolved}
                         rate={c.rate}
                         machineCount={row.machine?.count ?? 0}
+                        launch={launchInfo(c.name, c.rate)}
                       />
                     )}
                   </div>

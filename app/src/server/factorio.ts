@@ -1254,11 +1254,19 @@ export const logisticsContextFn = createServerFn({ method: "GET" }).handler(asyn
       moverKind: moverKind as "inserter" | "loader",
       stacking: m.logistics_stacking !== "0", // default on
       overrideStack: ov != null && ov !== "" ? Number(ov) : null,
+      showRockets: m.logistics_rockets === "1", // niche — off by default
     },
     bonuses: q.stackBonuses(),
     options,
+    rocketLiftWeight: Number(m.rocket_lift_weight ?? 1_000_000),
+    defaultItemWeight: Number(m.default_item_weight ?? 100),
   };
 });
+
+/** Rocket-lift weights for the given items (null = unset → default applies). */
+export const itemWeightsFn = createServerFn({ method: "GET" })
+  .validator((names: string[]) => names)
+  .handler(async ({ data }) => (await lib()).itemWeights(data));
 
 export const setLogisticsPrefsFn = createServerFn({ method: "POST" })
   .validator(
@@ -1269,6 +1277,7 @@ export const setLogisticsPrefsFn = createServerFn({ method: "POST" })
       moverKind?: "inserter" | "loader";
       stacking?: boolean;
       overrideStack?: number | null;
+      showRockets?: boolean;
     }) => d,
   )
   .handler(async ({ data }) => {
@@ -1278,6 +1287,7 @@ export const setLogisticsPrefsFn = createServerFn({ method: "POST" })
     if (data.mover != null) q.metaSet("logistics_mover", data.mover);
     if (data.moverKind != null) q.metaSet("logistics_mover_kind", data.moverKind);
     if (data.stacking != null) q.metaSet("logistics_stacking", data.stacking ? "1" : "0");
+    if (data.showRockets != null) q.metaSet("logistics_rockets", data.showRockets ? "1" : "0");
     if (data.overrideStack !== undefined)
       q.metaSet(
         "logistics_stack_override",

@@ -1613,6 +1613,21 @@ export function logisticsOptions(): {
   return { belts: beltRows, loaders: loaderRows, inserters: inserterRows };
 }
 
+/** Rocket-lift weight per item (for launches/min), keyed by name. `null` = the item
+ * has no weight set in the data (the caller substitutes `default_item_weight`). */
+export function itemWeights(names: string[]): Record<string, number | null> {
+  const uniq = [...new Set(names)];
+  const out: Record<string, number | null> = {};
+  if (!uniq.length) return out;
+  for (const r of db
+    .select({ name: items.name, weight: items.weight })
+    .from(items)
+    .where(inArray(items.name, uniq))
+    .all())
+    out[r.name] = r.weight ?? null;
+  return out;
+}
+
 /** Current belt / inserter / bulk-inserter stack-size bonuses, summed over the
  * tech in effect under the research horizon: everything in FUTURE mode, live
  * research + the pack gate in NOW, the tier's pack gate for a target — the same

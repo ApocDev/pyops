@@ -186,7 +186,7 @@ export function importFactorioDump(
       `INSERT INTO recipe_products (recipe,idx,kind,name,amount,amount_min,amount_max,probability,temperature,ignored_by_productivity) VALUES (@recipe,@idx,@kind,@name,@amount,@amount_min,@amount_max,@probability,@temperature,@ignored_by_productivity)`,
     ),
     item: db.prepare(
-      `INSERT OR IGNORE INTO items (name,display,subgroup,"order",stack_size,fuel_value_j,fuel_category,spoil_result,spoil_ticks,burnt_result,plant_result) VALUES (@name,@display,@subgroup,@order,@stack_size,@fuel_value_j,@fuel_category,@spoil_result,@spoil_ticks,@burnt_result,@plant_result)`,
+      `INSERT OR IGNORE INTO items (name,display,subgroup,"order",stack_size,weight,fuel_value_j,fuel_category,spoil_result,spoil_ticks,burnt_result,plant_result) VALUES (@name,@display,@subgroup,@order,@stack_size,@weight,@fuel_value_j,@fuel_category,@spoil_result,@spoil_ticks,@burnt_result,@plant_result)`,
     ),
     fluid: db.prepare(
       `INSERT INTO fluids (name,display,"order",default_temperature,max_temperature,fuel_value_j,heat_capacity_j) VALUES (@name,@display,@order,@default_temperature,@max_temperature,@fuel_value_j,@heat_capacity_j)`,
@@ -312,6 +312,7 @@ export function importFactorioDump(
           subgroup: it.subgroup ?? null,
           order: it.order ?? null,
           stack_size: it.stack_size ?? null,
+          weight: typeof it.weight === "number" ? it.weight : null,
           fuel_value_j: parseSI(it.fuel_value),
           fuel_category: it.fuel_category ?? null,
           spoil_result: it.spoil_result ?? null,
@@ -488,6 +489,10 @@ export function importFactorioDump(
 
     ins.meta.run("factorio_version", String(raw.recipe ? "" : "") || "unknown");
     ins.meta.run("imported_from", DUMP);
+    // rocket-logistics constants (utility-constants.default) for the launches/min display
+    const uc = raw["utility-constants"]?.default ?? {};
+    ins.meta.run("rocket_lift_weight", String(uc.rocket_lift_weight ?? 1_000_000));
+    ins.meta.run("default_item_weight", String(uc.default_item_weight ?? 100));
   });
 
   const t0 = Date.now();

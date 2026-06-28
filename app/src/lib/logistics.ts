@@ -104,6 +104,17 @@ export function insertersForRate(rate: number, p: InserterProto, handStack: numb
   return per > 0 ? rate / per : Infinity;
 }
 
+/** How many of an item fit in one rocket: floor(lift weight / item weight), min 1
+ * (an over-heavy item still ships one-per-rocket rather than reading as infinite). */
+export function rocketCapacity(weight: number, liftWeight: number): number {
+  return Math.max(1, Math.floor(liftWeight / Math.max(1, weight)));
+}
+
+/** Rocket launches per minute to move `rate` items/s of an item. */
+export function launchesForRate(rate: number, weight: number, liftWeight: number): number {
+  return (rate * 60) / rocketCapacity(weight, liftWeight);
+}
+
 /* ── Context resolution (server prefs → per-row numbers) ──────────────────────
  * The block view fetches a LogisticsContext once and computes counts client-side
  * so changing a belt/inserter tier is instant. resolveLogistics() picks the
@@ -117,6 +128,7 @@ export type LogisticsPrefs = {
   moverKind: "inserter" | "loader";
   stacking: boolean; // apply researched stack bonuses
   overrideStack: number | null; // manual belt placed-stack override (null = auto)
+  showRockets: boolean; // also show rocket launches/min (niche; off by default)
 };
 
 export type LogisticsOptions = {
@@ -129,6 +141,8 @@ export type LogisticsContext = {
   prefs: LogisticsPrefs;
   bonuses: StackBonuses;
   options: LogisticsOptions;
+  rocketLiftWeight: number; // utility-constants.default.rocket_lift_weight
+  defaultItemWeight: number; // weight assumed when an item has none set in the data
 };
 
 const ZERO_BONUSES: StackBonuses = { belt: 0, inserter: 0, bulkInserter: 0 };
