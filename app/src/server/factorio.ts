@@ -1248,13 +1248,17 @@ export const logisticsContextFn = createServerFn({ method: "GET" }).handler(asyn
   const ov = m.logistics_stack_override;
   return {
     prefs: {
-      enabled: m.logistics_enabled === "1",
+      // per-metric toggles, all off by default (the readout stays out of the way
+      // until you opt in); belts/inserters migrate from the old single `enabled`.
+      showBelts: m.logistics_show_belts != null ? m.logistics_show_belts === "1" : false,
+      showInserters:
+        m.logistics_show_inserters != null ? m.logistics_show_inserters === "1" : false,
+      showRockets: m.logistics_rockets === "1",
       belt: m.logistics_belt || defaultBelt,
       mover: m.logistics_mover || defaultMover,
       moverKind: moverKind as "inserter" | "loader",
       stacking: m.logistics_stacking !== "0", // default on
       overrideStack: ov != null && ov !== "" ? Number(ov) : null,
-      showRockets: m.logistics_rockets === "1", // niche — off by default
     },
     bonuses: q.stackBonuses(),
     options,
@@ -1271,23 +1275,26 @@ export const itemWeightsFn = createServerFn({ method: "GET" })
 export const setLogisticsPrefsFn = createServerFn({ method: "POST" })
   .validator(
     (d: {
-      enabled?: boolean;
+      showBelts?: boolean;
+      showInserters?: boolean;
+      showRockets?: boolean;
       belt?: string;
       mover?: string;
       moverKind?: "inserter" | "loader";
       stacking?: boolean;
       overrideStack?: number | null;
-      showRockets?: boolean;
     }) => d,
   )
   .handler(async ({ data }) => {
     const q = await lib();
-    if (data.enabled != null) q.metaSet("logistics_enabled", data.enabled ? "1" : "0");
+    if (data.showBelts != null) q.metaSet("logistics_show_belts", data.showBelts ? "1" : "0");
+    if (data.showInserters != null)
+      q.metaSet("logistics_show_inserters", data.showInserters ? "1" : "0");
+    if (data.showRockets != null) q.metaSet("logistics_rockets", data.showRockets ? "1" : "0");
     if (data.belt != null) q.metaSet("logistics_belt", data.belt);
     if (data.mover != null) q.metaSet("logistics_mover", data.mover);
     if (data.moverKind != null) q.metaSet("logistics_mover_kind", data.moverKind);
     if (data.stacking != null) q.metaSet("logistics_stacking", data.stacking ? "1" : "0");
-    if (data.showRockets != null) q.metaSet("logistics_rockets", data.showRockets ? "1" : "0");
     if (data.overrideStack !== undefined)
       q.metaSet(
         "logistics_stack_override",

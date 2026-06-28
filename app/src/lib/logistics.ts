@@ -122,13 +122,15 @@ export function launchesForRate(rate: number, weight: number, liftWeight: number
  * rate into belt + device counts. */
 
 export type LogisticsPrefs = {
-  enabled: boolean;
+  // independent per-metric toggles; the readout is "on" if any is true
+  showBelts: boolean;
+  showInserters: boolean;
+  showRockets: boolean; // niche — off by default
   belt: string; // selected belt name
   mover: string; // selected inserter OR loader name
   moverKind: "inserter" | "loader";
   stacking: boolean; // apply researched stack bonuses
   overrideStack: number | null; // manual belt placed-stack override (null = auto)
-  showRockets: boolean; // also show rocket launches/min (niche; off by default)
 };
 
 export type LogisticsOptions = {

@@ -31,13 +31,14 @@ export function LogisticsMenu() {
     ? (d.options.belts.find((b) => b.name === d.prefs.belt)?.name ?? d.prefs.belt)
     : null;
   const moverName = d?.prefs.mover ?? null;
+  const enabled = d ? d.prefs.showBelts || d.prefs.showInserters || d.prefs.showRockets : false;
 
   return (
     <>
       <button
         onClick={() => setOpen(true)}
         className={item}
-        title="Logistics — belts & inserters needed per row"
+        title="Logistics — belts, inserters & rockets needed per row"
       >
         <IconProvider>
           <span className="flex items-center gap-1.5">
@@ -45,8 +46,8 @@ export function LogisticsMenu() {
             {beltName && <Icon kind="entity" name={beltName} size="sm" noTitle />}
           </span>
         </IconProvider>
-        <span className={d?.prefs.enabled ? "text-foreground" : ""}>
-          Logistics{d && !d.prefs.enabled ? ": off" : ""}
+        <span className={enabled ? "text-foreground" : ""}>
+          Logistics{d && !enabled ? ": off" : ""}
         </span>
       </button>
       {open && (
@@ -110,10 +111,37 @@ export function LogisticsPicker() {
           current research. A quick feasibility check (when inserters get silly, reach for loaders).
         </p>
 
-        <label className="flex items-center gap-2 text-sm">
-          <Switch checked={d.prefs.enabled} onCheckedChange={(v) => save.mutate({ enabled: v })} />
-          <span className="text-foreground">Show belts &amp; inserters on block rows</span>
-        </label>
+        <div>
+          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            Show on block rows
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+            <label className="flex items-center gap-2">
+              <Switch
+                checked={d.prefs.showBelts}
+                onCheckedChange={(v) => save.mutate({ showBelts: v })}
+              />
+              <span className="text-foreground">Belts</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <Switch
+                checked={d.prefs.showInserters}
+                onCheckedChange={(v) => save.mutate({ showInserters: v })}
+              />
+              <span className="text-foreground">Inserters / loaders</span>
+            </label>
+            <label
+              className="flex items-center gap-2"
+              title="Rocket launches/min to move each good (floor(1,000,000 / item weight) per rocket)"
+            >
+              <Switch
+                checked={d.prefs.showRockets}
+                onCheckedChange={(v) => save.mutate({ showRockets: v })}
+              />
+              <span className="text-foreground">Rockets</span>
+            </label>
+          </div>
+        </div>
 
         <div>
           <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Belt</div>
@@ -190,16 +218,6 @@ export function LogisticsPicker() {
               className="h-7 w-16"
               title={`Override the placed belt-stack size (1–${MAX_BELT_STACK}); blank = follow research`}
             />
-          </label>
-          <label
-            className="flex items-center gap-2 text-sm"
-            title="Also show rocket launches/min to move each good (floor(1,000,000 / item weight) per rocket)"
-          >
-            <Switch
-              checked={d.prefs.showRockets}
-              onCheckedChange={(v) => save.mutate({ showRockets: v })}
-            />
-            <span className="text-foreground">Rocket launches</span>
           </label>
         </div>
 

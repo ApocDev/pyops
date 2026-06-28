@@ -313,17 +313,24 @@ function LogiTag({
   resolved,
   rate,
   machineCount,
+  showBelts,
+  showInserters,
   launch,
 }: {
   resolved: ResolvedLogistics;
   rate: number;
   machineCount: number;
+  showBelts: boolean;
+  showInserters: boolean;
   launch?: { perMin: number; defaulted: boolean } | null;
 }) {
   if (!(rate > 1e-9)) return null;
   const r = rowLogistics(resolved, rate, machineCount);
   if (!r) return null;
-  const hasBldg = machineCount > 1e-9;
+  const beltOn = showBelts;
+  const insOn = showInserters && machineCount > 1e-9; // per-building → rows only
+  const rocketOn = !!launch;
+  if (!beltOn && !insOn && !rocketOn) return null;
   const beltName = resolved.belt?.name;
   const beltDisp = resolved.belt?.display ?? beltName;
   const moverName =
@@ -331,27 +338,29 @@ function LogiTag({
   const moverDisp =
     (resolved.moverKind === "loader" ? resolved.loader?.display : resolved.inserter?.display) ??
     moverName;
-  const title =
-    `≈${fmtCount(r.belts)} × ${beltDisp}` +
-    (hasBldg ? ` · ≈${fmtCount(r.devices)} × ${moverDisp} per building` : "") +
-    (launch
-      ? ` · ≈${fmtCount(launch.perMin)} rocket launches/min${launch.defaulted ? " (default item weight — not set in data)" : ""}`
-      : "");
+  const title = [
+    beltOn && `≈${fmtCount(r.belts)} × ${beltDisp}`,
+    insOn && `≈${fmtCount(r.devices)} × ${moverDisp} per building`,
+    rocketOn &&
+      `≈${fmtCount(launch.perMin)} rocket launches/min${launch.defaulted ? " (default item weight — not set in data)" : ""}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <span className="flex items-center gap-2.5 pl-1 text-xs text-muted-foreground" title={title}>
-      {beltName && (
+      {beltOn && beltName && (
         <span className="inline-flex items-center gap-1.5">
           <Icon kind="entity" name={beltName} size="sm" noTitle />
           <span className="tabular-nums">{fmtCount(r.belts)}</span>
         </span>
       )}
-      {hasBldg && moverName && (
+      {insOn && moverName && (
         <span className="inline-flex items-center gap-1.5">
           <Icon kind="entity" name={moverName} size="sm" noTitle />
           <span className="tabular-nums">{fmtCount(r.devices)}</span>
         </span>
       )}
-      {launch && (
+      {rocketOn && (
         <span
           className={`inline-flex items-center gap-1.5 ${launch.defaulted ? "opacity-60" : ""}`}
         >
@@ -710,7 +719,12 @@ function Block({ blockId }: { blockId: number }) {
     queryFn: () => logisticsContextFn(),
     refetchInterval: 5000,
   });
-  const logiResolved = logistics.data?.prefs.enabled ? resolveLogistics(logistics.data) : null;
+  const logiPrefs = logistics.data?.prefs;
+  const logiAny =
+    !!logiPrefs && (logiPrefs.showBelts || logiPrefs.showInserters || logiPrefs.showRockets);
+  const logiResolved = logiAny && logistics.data ? resolveLogistics(logistics.data) : null;
+  const showBelts = !!logiPrefs?.showBelts;
+  const showInserters = !!logiPrefs?.showInserters;
 
   const add = (name: string) => {
     markEdited();
@@ -1041,6 +1055,8 @@ function Block({ blockId }: { blockId: number }) {
                         resolved={logiResolved}
                         rate={Math.abs(isPrimary ? rate : (out?.rate ?? 0))}
                         machineCount={0}
+                        showBelts={showBelts}
+                        showInserters={showInserters}
                         launch={launchInfo(g, Math.abs(isPrimary ? rate : (out?.rate ?? 0)))}
                       />
                     )}
@@ -1287,6 +1303,8 @@ function Block({ blockId }: { blockId: number }) {
                               resolved={logiResolved}
                               rate={f.rate}
                               machineCount={0}
+                              showBelts={showBelts}
+                              showInserters={showInserters}
                               launch={launchInfo(f.name, f.rate)}
                             />
                           )}
@@ -1344,6 +1362,8 @@ function Block({ blockId }: { blockId: number }) {
                               resolved={logiResolved}
                               rate={f.rate}
                               machineCount={0}
+                              showBelts={showBelts}
+                              showInserters={showInserters}
                               launch={launchInfo(f.name, f.rate)}
                             />
                           )}
@@ -1547,6 +1567,8 @@ function Block({ blockId }: { blockId: number }) {
                         resolved={logiResolved}
                         rate={c.rate}
                         machineCount={row.machine?.count ?? 0}
+                        showBelts={showBelts}
+                        showInserters={showInserters}
                         launch={launchInfo(c.name, c.rate)}
                       />
                     )}
@@ -1572,6 +1594,8 @@ function Block({ blockId }: { blockId: number }) {
                         resolved={logiResolved}
                         rate={c.rate}
                         machineCount={row.machine?.count ?? 0}
+                        showBelts={showBelts}
+                        showInserters={showInserters}
                         launch={launchInfo(c.name, c.rate)}
                       />
                     )}
