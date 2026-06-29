@@ -65,10 +65,15 @@ for (const vp of VIEWPORTS) {
         // Guard: no page should scroll sideways at tablet/phone widths. Item names get
         // truncated, not pushed off-screen. (Desktop widths are exempt — wide data
         // dashboards there can legitimately exceed a small window.)
+        //
+        // The app scrolls inside the content container (the div after <nav>), not the
+        // window — so measure THAT, or content overflow hides from documentElement.
         if (vp.width <= 834) {
-          const overflow = await page.evaluate(
-            () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-          );
+          const overflow = await page.evaluate(() => {
+            const content = document.querySelector("nav")?.nextElementSibling;
+            const el = content ?? document.documentElement;
+            return el.scrollWidth - el.clientWidth;
+          });
           expect(overflow, `${route} @ ${vp.name} overflows horizontally by ${overflow}px`).toBeLessThanOrEqual(1);
         }
       });
