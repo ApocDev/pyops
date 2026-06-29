@@ -1,20 +1,12 @@
 import { useSyncExternalStore } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowLeftRight,
-  Blocks,
-  Factory,
-  FlaskConical,
-  ListChecks,
-  Search,
-  Settings,
-  Sparkles,
-} from "lucide-react";
 import { ProjectSwitcher } from "./project-switcher";
 import { BridgeIndicator } from "./bridge-indicator";
 import { HorizonMenu } from "./horizon-menu";
 import { LogisticsMenu } from "./logistics-menu";
+import { NavMobile } from "./nav-mobile";
+import { NAV_LINKS, SETTINGS_LINK } from "./nav-links";
 import { activeRunCount, subscribeRuns } from "../lib/chat-store";
 import { modDriftFn } from "../server/factorio";
 import { driftModal } from "../lib/drift-store";
@@ -58,7 +50,9 @@ const item =
   "flex items-center gap-1.5 px-3 h-full text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50";
 const active = "!text-foreground border-b-2 border-primary bg-muted/30";
 
-/** Global top bar — the one fixed piece of chrome on every page. */
+/** Global top bar — the one fixed piece of chrome on every page. The full inline
+ * bar shows from `xl` up (desktop/Steam Deck); below that it collapses to a
+ * hamburger drawer (NavMobile) so it never forces the page wider than the screen. */
 export function AppNav() {
   return (
     <nav className="flex h-10 shrink-0 items-stretch border-b border-border bg-card font-mono">
@@ -66,38 +60,33 @@ export function AppNav() {
         <img src="/logo.svg" alt="" className="size-6" />
         <span>PyOps</span>
       </Link>
-      <Link to="/block" className={item} activeProps={{ className: `${item} ${active}` }}>
-        <Blocks className="size-4" /> Blocks
-      </Link>
-      <Link to="/factory" className={item} activeProps={{ className: `${item} ${active}` }}>
-        <Factory className="size-4" /> Factory
-      </Link>
-      <Link to="/coherence" className={item} activeProps={{ className: `${item} ${active}` }}>
-        <ArrowLeftRight className="size-4" /> Coherence
-      </Link>
-      <Link to="/browse" className={item} activeProps={{ className: `${item} ${active}` }}>
-        <Search className="size-4" /> Browse
-      </Link>
-      <Link to="/turd" className={item} activeProps={{ className: `${item} ${active}` }}>
-        <FlaskConical className="size-4" /> TURD
-      </Link>
-      <Link to="/assistant" className={item} activeProps={{ className: `${item} ${active}` }}>
-        <Sparkles className="size-4" /> Assistant
-      </Link>
-      <Link to="/tasks" className={item} activeProps={{ className: `${item} ${active}` }}>
-        <ListChecks className="size-4" /> Tasks
-      </Link>
-      <span className="ml-auto flex items-stretch">
-        <DataDriftIndicator />
-        <RunIndicator />
-        <HorizonMenu />
-        <LogisticsMenu />
-        <BridgeIndicator />
-        <ProjectSwitcher />
-        <Link to="/settings" className={item} activeProps={{ className: `${item} ${active}` }}>
-          <Settings className="size-4" /> Settings
-        </Link>
-      </span>
+
+      {/* Desktop (xl+): the full inline bar. */}
+      <div className="hidden flex-1 items-stretch xl:flex">
+        {NAV_LINKS.map(({ to, label, icon: Icon }) => (
+          <Link key={to} to={to} className={item} activeProps={{ className: `${item} ${active}` }}>
+            <Icon className="size-4" /> {label}
+          </Link>
+        ))}
+        <span className="ml-auto flex items-stretch">
+          <DataDriftIndicator />
+          <RunIndicator />
+          <HorizonMenu />
+          <LogisticsMenu />
+          <BridgeIndicator />
+          <ProjectSwitcher />
+          <Link
+            to={SETTINGS_LINK.to}
+            className={item}
+            activeProps={{ className: `${item} ${active}` }}
+          >
+            <SETTINGS_LINK.icon className="size-4" /> {SETTINGS_LINK.label}
+          </Link>
+        </span>
+      </div>
+
+      {/* Below xl: hamburger + drawer. */}
+      <NavMobile />
     </nav>
   );
 }
