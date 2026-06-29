@@ -63,6 +63,18 @@ Vite, Rolldown, Vitest, Oxlint, Oxfmt under one wrapper — not the bare
 `pnpm dev`/`pnpm build` scripts. See [`AGENTS.md`](../AGENTS.md) for the command
 reference.
 
+**Responsive UI.** The desktop layout degrades to tablet/phone/Steam Deck rather
+than assuming a wide screen. The global nav collapses to a hamburger drawer below
+the width where its full bar fits (~1400px, so the 1280px Deck uses the drawer);
+the fixed left rails (block, browse, assistant, tasks) collapse below `md` via a
+shared `SidebarShell` built on a `Sheet` drawer primitive (radix Dialog); and the
+dense data tables (factory, whatif) stack into labelled cards on phones via a
+shared `StatCell` instead of squeezing fixed columns. Reorder handles use dnd-kit
+(pointer + keyboard sensors) so they work by touch. A Playwright harness,
+[`app/e2e/responsive.e2e.ts`](../app/e2e/responsive.e2e.ts), screenshots every
+route across a desktop/tablet/phone matrix and asserts no route scrolls sideways
+at tablet/phone widths.
+
 ## Per-project databases
 
 Each "project" (usually a different mod list) is its own SQLite file under

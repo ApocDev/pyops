@@ -48,6 +48,10 @@ planner that actually understands Py's tangled recipe graph.
   playing (with your location and selected entity as anchors), and can plan a
   Cybersyn request combinator for a station in-game. The assistant can also read
   the live factory through the bridge to ground its planning.
+- **Use it on any screen.** The UI is responsive: the full desktop layout on a
+  monitor, and on tablets, phones, and the Steam Deck the global nav and the
+  block/browse/assistant/tasks sidebars collapse into drawers, dense tables reflow
+  into readable cards, and reorder handles work by touch.
 
 PyOps runs locally on your own machine, alongside your Factorio install — it reads
 the recipe data straight from the game and (optionally) talks to a running session.
