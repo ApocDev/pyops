@@ -191,7 +191,10 @@ vp test           # run the Vitest suite
 
 The end state of any change should be a clean `vp check`. The Factorio mod
 ([`mod/`](mod/)) is pure Lua with no build step — edit in place and reload the game
-to test. See [`AGENTS.md`](AGENTS.md) for the full toolchain commands and
+to test. For developer/agent visual checks, the MCP toolset includes
+`gameScreenshot` and, once the currently loaded mod has the dev command,
+`gameReloadMods` to invoke Factorio's mod reload over the bridge instead of using
+desktop click automation. See [`AGENTS.md`](AGENTS.md) for the full toolchain commands and
 conventions (commit style, the database commands, and the project layout).
 
 ---

@@ -1056,9 +1056,27 @@ export const gameScreenshot = tool({
   },
 });
 
+export const gameReloadMods = tool({
+  description:
+    "Developer-only live loop helper: ask the connected PyOps companion mod to call Factorio's game.reload_mods() after acknowledging this request. Use after editing mod/control Lua or GUI code, then wait for the bridge to reconnect/resync before taking screenshots. Requires the bridge to already be connected; if the currently loaded mod predates this command, reload Factorio manually once.",
+  inputSchema: z.object({
+    confirm: z
+      .literal("reload_mods")
+      .describe("Safety confirmation. Must be exactly 'reload_mods'."),
+  }),
+  execute: async ({ confirm }) => {
+    try {
+      const r = await (await bridge()).requestFromMod("cmd.dev.reload_mods", { confirm }, 8000);
+      return { ok: true, ...(r as object) };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : "reload error" };
+    }
+  },
+});
+
 /** The full tool set for the planning agent: read-only data tools, block/plan
  * draft proposals (propose-then-apply), the tasks surface, read-only live
- * game-world inspection, and a debug Lua-eval — all via the bridge. */
+ * game-world inspection, and developer loop helpers — all via the bridge. */
 export const agentTools = {
   searchGoods,
   factoryBlocks,
@@ -1091,4 +1109,6 @@ export const agentTools = {
   gameEval,
   // Capture the game (GUI included) to a PNG path — for live in-game UI design.
   gameScreenshot,
+  // Reload the loaded mods without desktop/window automation.
+  gameReloadMods,
 };

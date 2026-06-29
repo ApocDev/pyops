@@ -16,7 +16,7 @@ local BUTTON_NAME = "pyops_button"
 local SHORTCUT_NAME = "pyops-toggle-panel"
 -- Bridge wire contract. Keep in lockstep with PROTOCOL_VERSION in the app's
 -- src/server/bridge/protocol.ts — each side warns if the other reports a different one.
-local PROTOCOL_VERSION = 4
+local PROTOCOL_VERSION = 5
 
 local function get_player(event)
   if not event.player_index then
@@ -579,6 +579,22 @@ local function eval_lua(player, payload)
   return { ok = true, result = repr }
 end
 
+local function schedule_reload_mods(player, request_id, payload)
+  payload = payload or {}
+  if payload.confirm ~= "reload_mods" then
+    send_reply(player, request_id, {
+      ok = false,
+      error = "missing confirm='reload_mods'"
+    })
+    return
+  end
+
+  storage.pyops_dev_reload_mods_at = game.tick + 1
+  send_reply(player, request_id, {
+    ok = true,
+    scheduled_tick = storage.pyops_dev_reload_mods_at
+  })
+end
 
 local function handle_bridge_response(player, response)
   if not response or not response.type then
@@ -625,6 +641,8 @@ local function handle_bridge_response(player, response)
     send_reply(player, response.request_id, production(player, response.payload))
   elseif response.type == "cmd.eval" then
     send_reply(player, response.request_id, eval_lua(player, response.payload))
+  elseif response.type == "cmd.dev.reload_mods" then
+    schedule_reload_mods(player, response.request_id, response.payload)
   elseif response.type == "error" then
     local message = response.payload and response.payload.message or "unknown"
     set_status(player, {"pyops.status-error", message})
@@ -899,6 +917,14 @@ script.on_event(defines.events.on_research_finished, function(event)
     if player.force == force and is_bridge_enabled(player) then
       send_research(player)
     end
+  end
+end)
+
+script.on_event(defines.events.on_tick, function()
+  local at = storage.pyops_dev_reload_mods_at
+  if at and game.tick >= at then
+    storage.pyops_dev_reload_mods_at = nil
+    game.reload_mods()
   end
 end)
 

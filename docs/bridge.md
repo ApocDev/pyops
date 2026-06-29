@@ -49,6 +49,13 @@ on any page. The same tab hosts the companion-mod installer (see below).
   awaiting caller (with a timeout). These back the assistant's read-only
   game-world tools — no whole-map dumps. (This reuses the same app→peer push as
   `request.sync`; the mod must be polling — i.e. the bridge enabled.)
+- **Developer visual loop:** MCP clients get `gameScreenshot` for GUI-inclusive
+  screenshots and `gameReloadMods` for a safe mod reload. `gameReloadMods` sends
+  `cmd.dev.reload_mods`; the mod acknowledges, schedules `game.reload_mods()` for
+  the next tick, then the app waits for the normal bridge heartbeat/resync before
+  further inspection. This replaces desktop click automation for normal
+  `control.lua` / GUI iteration. If the currently loaded mod predates the command,
+  reload Factorio manually once.
 
 ## Transport requirements
 
@@ -83,7 +90,11 @@ shapes change. Each side reports its version and warns when the other disagrees.
   enabled, port, debug logging).
 
 It's verified hands-on in-game; there's no automated test harness for the Lua side.
-After editing anything under `mod/`, reload it in-game.
+After editing anything under `mod/`, reload it in-game. Once a save is already
+running a mod version with the developer command above, the MCP `gameReloadMods`
+tool can do that reload without window automation. Prototype/data-stage edits and
+cases where the mod fails before the bridge starts still need a normal game
+restart or manual reload.
 
 ### Installing it
 

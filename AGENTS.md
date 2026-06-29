@@ -73,8 +73,11 @@ Pure Lua, edited in place — no build step. Key files: `control.lua` (panel +
 bridge + live-state sync), `summary.lua` (production-block view), `combinator.lua`
 (request-combinator planner), `data.lua`/`settings.lua` (prototypes/settings).
 
-- **After editing anything in `mod/`, ask the user to reload Factorio** (don't run
-  the reload script yourself). The mod is verified hands-on in-game.
+- **After editing anything in `mod/`, reload the mod before verifying it.** If the
+  running save already has the PyOps developer bridge command loaded, use the MCP
+  `gameReloadMods` tool; otherwise ask the user to reload Factorio once. Don't run
+  the old desktop click reload script yourself. The mod is verified hands-on
+  in-game or through bridge screenshots.
 - Pure, game-free helpers have an automated suite under `mod/tests/`, run inside
   Factorio via [`factorio-test`](https://github.com/GlassBricks/FactorioTest)
   (busted-style). It's wired through a `control.lua` hook that's inert unless the
