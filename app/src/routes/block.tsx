@@ -18,6 +18,7 @@ import {
 import { AlertTriangle, ChevronDown, ChevronRight, FolderPlus, Plus, X } from "lucide-react";
 import { Icon, IconProvider } from "../lib/icons";
 import { Input } from "#/components/ui/input.tsx";
+import { SidebarShell } from "#/components/sidebar-shell.tsx";
 
 export const Route = createFileRoute("/block")({
   component: () => (
@@ -429,140 +430,142 @@ function Shell() {
   };
 
   return (
-    <div className="flex h-full bg-background font-mono text-foreground">
-      {/* Sidebar — the full block inventory */}
-      <aside className="flex w-64 shrink-0 flex-col border-r border-border">
-        <div className="flex items-center gap-2 border-b border-border px-2 py-2">
-          <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Blocks ({blocks.data?.length ?? 0})
-          </span>
-          <button
-            onClick={newFolder}
-            title="new folder"
-            className="ml-auto flex items-center rounded border border-border px-1.5 py-1 hover:bg-muted"
-          >
-            <FolderPlus className="size-4" />
-          </button>
-          <button
-            onClick={newBlock}
-            title="new block"
-            className="flex items-center rounded bg-primary px-1.5 py-1 text-primary-foreground hover:bg-primary/80"
-          >
-            <Plus className="size-4" />
-          </button>
-        </div>
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="search blocks…"
-          className="m-2 w-auto"
-        />
-        <div className="flex-1 overflow-auto px-1 pb-2">
-          {(blocks.data?.length ?? 0) === 0 ? (
-            <div className="flex items-center gap-1 px-2 py-2 text-xs text-muted-foreground">
-              no blocks yet — <Plus className="inline size-3" /> to add one
-            </div>
-          ) : (
-            <>
-              {childrenOf(null).map((g) => renderFolder(g, 0))}
-              {renderUngrouped()}
-              {filtered.length === 0 && (
-                <div className="px-2 py-2 text-xs text-muted-foreground">no matches</div>
-              )}
-            </>
-          )}
-        </div>
-      </aside>
-
+    <SidebarShell
+      className="bg-background font-mono text-foreground"
+      width="w-64"
+      label="Blocks"
+      sidebar={
+        <>
+          <div className="flex items-center gap-2 border-b border-border px-2 py-2">
+            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Blocks ({blocks.data?.length ?? 0})
+            </span>
+            <button
+              onClick={newFolder}
+              title="new folder"
+              className="ml-auto flex items-center rounded border border-border px-1.5 py-1 hover:bg-muted"
+            >
+              <FolderPlus className="size-4" />
+            </button>
+            <button
+              onClick={newBlock}
+              title="new block"
+              className="flex items-center rounded bg-primary px-1.5 py-1 text-primary-foreground hover:bg-primary/80"
+            >
+              <Plus className="size-4" />
+            </button>
+          </div>
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="search blocks…"
+            className="m-2 w-auto"
+          />
+          <div className="flex-1 overflow-auto px-1 pb-2">
+            {(blocks.data?.length ?? 0) === 0 ? (
+              <div className="flex items-center gap-1 px-2 py-2 text-xs text-muted-foreground">
+                no blocks yet — <Plus className="inline size-3" /> to add one
+              </div>
+            ) : (
+              <>
+                {childrenOf(null).map((g) => renderFolder(g, 0))}
+                {renderUngrouped()}
+                {filtered.length === 0 && (
+                  <div className="px-2 py-2 text-xs text-muted-foreground">no matches</div>
+                )}
+              </>
+            )}
+          </div>
+        </>
+      }
+    >
       {/* Main — open-block tabs + the active editor */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div
-          className="flex items-stretch gap-px overflow-x-auto border-b border-border bg-card"
-          // middle-click the empty strip = new block (browser-style)
-          onAuxClick={(e) => {
-            if (e.button === 1 && e.target === e.currentTarget) void newBlock();
-          }}
-          onMouseDown={(e) => {
-            if (e.button === 1 && e.target === e.currentTarget) e.preventDefault();
-          }}
-        >
-          {openTabs.map((id) => {
-            const b = byId.get(id);
-            const active = activeId === id;
-            return (
-              <button
-                key={id}
-                draggable
-                onClick={() => open(id)}
-                // middle-click a tab = close it; suppress the autoscroll cursor
-                onAuxClick={(e) => {
-                  if (e.button === 1) closeTab(id, e);
-                }}
-                onMouseDown={(e) => {
-                  if (e.button === 1) e.preventDefault();
-                }}
-                onDragStart={() => {
-                  tabDragId.current = id;
-                }}
-                onDragOver={(e) => {
-                  if (tabDragId.current == null) return;
-                  e.preventDefault();
-                  if (tabDragOver !== id) setTabDragOver(id);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (tabDragId.current != null) moveTab(tabDragId.current, id);
-                  tabDragId.current = null;
-                  setTabDragOver(null);
-                }}
-                onDragEnd={() => {
-                  tabDragId.current = null;
-                  setTabDragOver(null);
-                }}
-                className={`flex shrink-0 items-center gap-1.5 border-t-2 px-3 py-1.5 text-sm ${active ? "border-primary bg-background text-foreground" : "border-transparent text-muted-foreground hover:bg-muted"} ${tabDragOver === id ? "bg-primary/15" : ""}`}
-              >
-                {b?.iconName && (
-                  <Icon
-                    kind={(b.iconKind ?? "item") as IconKind}
-                    name={b.iconName}
-                    size="sm"
-                    noTitle
-                  />
-                )}
-                <span className="max-w-[10rem] truncate">{b?.name ?? `#${id}`}</span>
-                {b?.broken && (
-                  <span className="text-destructive" title="references missing prototypes">
-                    <AlertTriangle className="size-3.5" />
-                  </span>
-                )}
-                <span
-                  role="button"
-                  tabIndex={-1}
-                  onClick={(e) => closeTab(id, e)}
-                  className="flex items-center rounded px-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  <X className="size-3.5" />
+      <div
+        className="flex items-stretch gap-px overflow-x-auto border-b border-border bg-card"
+        // middle-click the empty strip = new block (browser-style)
+        onAuxClick={(e) => {
+          if (e.button === 1 && e.target === e.currentTarget) void newBlock();
+        }}
+        onMouseDown={(e) => {
+          if (e.button === 1 && e.target === e.currentTarget) e.preventDefault();
+        }}
+      >
+        {openTabs.map((id) => {
+          const b = byId.get(id);
+          const active = activeId === id;
+          return (
+            <button
+              key={id}
+              draggable
+              onClick={() => open(id)}
+              // middle-click a tab = close it; suppress the autoscroll cursor
+              onAuxClick={(e) => {
+                if (e.button === 1) closeTab(id, e);
+              }}
+              onMouseDown={(e) => {
+                if (e.button === 1) e.preventDefault();
+              }}
+              onDragStart={() => {
+                tabDragId.current = id;
+              }}
+              onDragOver={(e) => {
+                if (tabDragId.current == null) return;
+                e.preventDefault();
+                if (tabDragOver !== id) setTabDragOver(id);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (tabDragId.current != null) moveTab(tabDragId.current, id);
+                tabDragId.current = null;
+                setTabDragOver(null);
+              }}
+              onDragEnd={() => {
+                tabDragId.current = null;
+                setTabDragOver(null);
+              }}
+              className={`flex shrink-0 items-center gap-1.5 border-t-2 px-3 py-1.5 text-sm ${active ? "border-primary bg-background text-foreground" : "border-transparent text-muted-foreground hover:bg-muted"} ${tabDragOver === id ? "bg-primary/15" : ""}`}
+            >
+              {b?.iconName && (
+                <Icon
+                  kind={(b.iconKind ?? "item") as IconKind}
+                  name={b.iconName}
+                  size="sm"
+                  noTitle
+                />
+              )}
+              <span className="max-w-[10rem] truncate">{b?.name ?? `#${id}`}</span>
+              {b?.broken && (
+                <span className="text-destructive" title="references missing prototypes">
+                  <AlertTriangle className="size-3.5" />
                 </span>
-              </button>
-            );
-          })}
-          <button
-            onClick={() => void newBlock()}
-            title="new block (or middle-click the empty tab strip)"
-            className="flex shrink-0 items-center px-3 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <Plus className="size-4" />
-          </button>
-          {openTabs.length === 0 && (
-            <div className="px-3 py-1.5 text-sm text-muted-foreground">no open blocks</div>
-          )}
-        </div>
-        <div className="min-h-0 flex-1 overflow-auto">
-          <ActiveEditorRefContext.Provider value={activeEditorRef}>
-            <Outlet />
-          </ActiveEditorRefContext.Provider>
-        </div>
+              )}
+              <span
+                role="button"
+                tabIndex={-1}
+                onClick={(e) => closeTab(id, e)}
+                className="flex items-center rounded px-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </span>
+            </button>
+          );
+        })}
+        <button
+          onClick={() => void newBlock()}
+          title="new block (or middle-click the empty tab strip)"
+          className="flex shrink-0 items-center px-3 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <Plus className="size-4" />
+        </button>
+        {openTabs.length === 0 && (
+          <div className="px-3 py-1.5 text-sm text-muted-foreground">no open blocks</div>
+        )}
       </div>
-    </div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        <ActiveEditorRefContext.Provider value={activeEditorRef}>
+          <Outlet />
+        </ActiveEditorRefContext.Provider>
+      </div>
+    </SidebarShell>
   );
 }
