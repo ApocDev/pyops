@@ -118,6 +118,24 @@ see exactly what your saved plans were built against.
 If your Factorio isn't installed at the default Steam location, point PyOps at it
 with the `FACTORIO_BIN` / `FACTORIO_DATA_DIR` settings below.
 
+### Reaching the dev server remotely (optional)
+
+To open PyOps from your phone or another machine, expose the running dev server
+through a tunnel with [`scripts/tunnel-dev`](scripts/tunnel-dev):
+
+```bash
+scripts/tunnel-dev               # auto-pick cloudflared / ngrok / tailscale
+scripts/tunnel-dev tailscale     # force a provider
+scripts/tunnel-dev down          # tear tunnels back down
+```
+
+It exposes `:3000` (override with `--port` / `$PYOPS_DEV_PORT`); run `vp dev`
+first. See `scripts/tunnel-dev --help` for custom hostnames (a cloudflared named
+tunnel via `--name`, an ngrok reserved domain via `--domain`; tailscale Funnel
+always serves on the node's own MagicDNS name). The dev server already allows the
+providers' domains; for your own custom domain add it to `PYOPS_ALLOWED_HOSTS`
+(comma-separated, or `true` to allow any host).
+
 ### Using the in-game features
 
 The companion mod ([`mod/`](mod/)) links the planner to a running game over

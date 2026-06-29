@@ -13,6 +13,28 @@ import { extname, join } from "node:path";
 
 const isVpLint = process.env.VP_COMMAND === "lint";
 
+// Dev: let the dev server be reached through a tunnel (see scripts/tunnel-dev).
+// Vite rejects requests whose Host header isn't localhost ("Blocked request. This
+// host is not allowed."), so permit the tunnel providers' domains. Add your own
+// host(s) via PYOPS_ALLOWED_HOSTS (comma-separated); set it to "true"/"all" to
+// allow any host.
+const extraHosts = (process.env.PYOPS_ALLOWED_HOSTS ?? "")
+  .split(",")
+  .map((h) => h.trim())
+  .filter(Boolean);
+const allowedHosts: true | string[] =
+  extraHosts.includes("true") || extraHosts.includes("all")
+    ? true
+    : [
+        ".ts.net", // tailscale funnel
+        ".trycloudflare.com", // cloudflared quick tunnel
+        ".ngrok-free.app", // ngrok free static domain
+        ".ngrok.app",
+        ".ngrok.io",
+        ".ngrok.dev",
+        ...extraHosts, // custom (e.g. your own cloudflared domain)
+      ];
+
 // Dev-only: serve /icons/* from app/icon-data (out of public/). vite-plus's
 // nitro-nightly dev static handler corrupts public/ files over 64KB (the atlas
 // sheets + manifest restart mid-stream), so we serve them ourselves. Registered
@@ -71,6 +93,11 @@ const config = defineConfig({
     options: { typeAware: true, typeCheck: true },
   },
   resolve: { tsconfigPaths: true },
+  // host: true binds all interfaces so a tunnel can reach the server. Without it
+  // Vite binds only `localhost`, which on some systems resolves to IPv6 `::1`
+  // while tunnels (e.g. tailscale funnel) dial IPv4 `127.0.0.1` → 502. The
+  // allowedHosts list above still gates which Host headers are served.
+  server: { host: true, allowedHosts },
   plugins: isVpLint
     ? []
     : [
