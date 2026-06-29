@@ -1,0 +1,67 @@
+app/src/lib/recipe-card.tsx
+  s_543ac521e64ab4::t_d186f9ae9c112e 4,300-307
+app/src/routes/block.$id.tsx
+  s_543ac521e64ab4::t_577d87fe8d436b 35-53,302,903-912,933-935,964-966,1015-1017,1092,1094,1100,1102,1112-1114,1146,1156-1158,1188,1242,1245-1247,1256-1257,1263,1266,1272-1274,1299-1300,1355,1361-1365,1368-1370,1429-1431,1555-1556,1564,1616,1618,1629-1630,1640,1663,1671,1716,1811,1882,1891,1901,1923,2012-2013,2029-2030,2033,2043,2046,2081,2107-2108,2112-2118,2122-2125,2142,2147-2148,2150-2151,2158-2159,2225,2269,2316,2333-2341,2350,2416-2420,2432
+app/src/routes/coherence.tsx
+  s_543ac521e64ab4::t_7b2810163e0fd6 3,108-110,275,283-287,492,579-585,590-596,663
+app/src/routes/settings.tsx
+  s_543ac521e64ab4::t_075973719c6ad6 4,177-178,404-406,449-450,486-487
+app/src/routes/turd.tsx
+  s_543ac521e64ab4::t_97c04d6336ce9b 3,94,97-98,120-122,187
+app/src/components/app-nav.tsx
+  s_543ac521e64ab4::t_6e06e169e89350 4-13,70,73,76,79,82,85,88,98
+app/src/components/bridge-card.tsx
+  s_543ac521e64ab4::t_b26f2a7975a1b1 3,90-96,110,112-113
+app/src/components/drift-modal.tsx
+  s_543ac521e64ab4::t_1bb7a4295f4a2e 2,142-143,268,270-272,276,279,286,317,356-360,362,365,367,422-424
+app/src/components/horizon-menu.tsx
+  s_543ac521e64ab4::t_d858a1557fd247 3,28,45
+app/src/components/horizon-picker.tsx
+  s_543ac521e64ab4::t_581ae68ccb596d 3,92-93
+app/src/components/logistics-menu.tsx
+  s_543ac521e64ab4::t_95640ae0744be4 12,69
+app/src/components/project-switcher.tsx
+  s_2dc48357e94b05::t_c0b79a3625b383 2,66-67,80,89
+app/src/lib/icons.tsx
+  s_543ac521e64ab4::t_0e62edd4591097 2,178-181,184-185,187-190,193
+app/src/lib/modules-modal.tsx
+  s_543ac521e64ab4::t_4500c587318302 3,58,99,385,405,408,425,428,454,551,553,558,560,571
+app/src/routes/assistant.tsx
+  s_543ac521e64ab4::t_ad10f667265fe0 5,8,10-11,13,16,128,130,157,159,164,166,770,1014-1021,1174,1178,1192,1195-1197,1241-1246,1251-1253,1257-1260,1274,1283-1289,1295-1302,1345-1350,1353,1356-1357,1431,1433-1441,1627,1629,1631-1637,1657-1666
+app/src/routes/block.index.tsx
+  s_543ac521e64ab4::t_466a2bb6dc03cb 2,6-7
+app/src/routes/block.tsx
+  s_543ac521e64ab4::t_8ab288e2c5555e 18,311,320,370-371,384,421-422,442,444,449,451,462-463,535,542,544,552,554
+app/src/routes/browse.tsx
+  s_543ac521e64ab4::t_424e8ab50d1d87 4,105-106,130,133-143,234-242,250-255,260-264,296-298,300
+app/src/routes/factory.tsx
+  s_543ac521e64ab4::t_1916e7df76510c 3,191-192,211-213,271-275,278-282,376-378,502-504,537,556,672,675,682,719,721-722
+app/src/routes/index.tsx
+  s_543ac521e64ab4::t_658cc77a2e8837 3,36-38,45-47,54-56,63-65,74-79
+app/src/routes/whatif.tsx
+  s_543ac521e64ab4::t_4bf6b69d420aaf 4,144-146,190-192
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "fb50e9a89ae877c94d1ce3437de07aaf5701d1fb",
+  "prompts": {},
+  "sessions": {
+    "s_2dc48357e94b05": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "24495eb8-a941-4dcf-8025-b7ae80f24879",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_543ac521e64ab4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "575f700c-8118-4672-b54c-f5bf96f1116b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
