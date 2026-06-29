@@ -145,10 +145,10 @@ function TurdPage() {
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         {list.map((u) => (
           <Card key={u.name} className="p-3">
-            <div className="mb-2 flex items-center gap-2">
+            <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
               <Icon kind="technology" name={u.name} size="md" title={u.display} />
               <span className="font-semibold">{u.display}</span>
-              <span className="ml-auto flex items-center gap-1">
+              <span className="ml-auto flex flex-wrap items-center justify-end gap-1">
                 {u.science.map((s) => (
                   <Icon key={s.name} kind="item" name={s.name} size="sm" title={s.display} />
                 ))}
