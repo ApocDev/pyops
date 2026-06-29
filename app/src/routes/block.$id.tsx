@@ -1,6 +1,23 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { ActiveEditorRefContext } from "./block";
 import {
   blocksForGoodFn,
@@ -58,6 +75,38 @@ import { HelpButton } from "#/components/help-drawer.tsx";
 import { Input } from "#/components/ui/input.tsx";
 
 export const Route = createFileRoute("/block/$id")({ component: BlockRoute });
+
+/** One sortable recipe row. Provides the drag handle props to its child via render
+ * prop so only the grip starts a drag; the outer wrapper carries the sort transform. */
+type RowHandle = Pick<
+  ReturnType<typeof useSortable>,
+  "setActivatorNodeRef" | "listeners" | "attributes" | "isDragging"
+>;
+function SortableRow({ id, children }: { id: string; children: (handle: RowHandle) => ReactNode }) {
+  const {
+    setNodeRef,
+    setActivatorNodeRef,
+    listeners,
+    attributes,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        position: isDragging ? "relative" : undefined,
+        zIndex: isDragging ? 20 : undefined,
+      }}
+      className={isDragging ? "opacity-90" : undefined}
+    >
+      {children({ setActivatorNodeRef, listeners, attributes, isDragging })}
+    </div>
+  );
+}
 
 // Remount the editor per id (key) so each block is a fresh instance: load on
 // mount, auto-save on edit, flush on unmount — no cross-block state to untangle.
@@ -451,21 +500,21 @@ function Block({ blockId }: { blockId: number }) {
   const [lockedInput, setLockedInput] = useState<string | null>(null); // import pinned to size the block
   const [lockedRate, setLockedRate] = useState(0); // the rate that import is pinned to
   const [recipes, setRecipes] = useState<string[]>([]);
-  const dragRecipe = useRef<string | null>(null); // recipe row being dragged to reorder
-  // recipe row hovered as a drop target, and whether we'd drop after it (bottom half)
-  const [dropRecipe, setDropRecipe] = useState<{ name: string; after: boolean } | null>(null);
-  // Reorder a recipe row. Display/authoring only — the solver is order-independent,
-  // so this just changes how the rows are listed (and persists `recipes`).
-  const reorderRecipe = (from: string, target: string, after: boolean) => {
-    if (from === target) return;
+  // Drag-reorder of recipe rows via dnd-kit. PointerSensor covers mouse + touch; the
+  // small activation distance keeps a tap/click on the grip from registering as a drag.
+  const recipeSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  // Reorder is display/authoring only — the solver is order-independent, so this just
+  // changes how the rows are listed (and persists `recipes`).
+  const onRecipeDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
     markEdited();
     setRecipes((rs) => {
-      const without = rs.filter((r) => r !== from);
-      let at = without.indexOf(target);
-      if (at < 0) at = without.length;
-      else if (after) at += 1;
-      without.splice(at, 0, from);
-      return without;
+      const from = rs.indexOf(String(active.id));
+      const to = rs.indexOf(String(over.id));
+      return from < 0 || to < 0 ? rs : arrayMove(rs, from, to);
     });
   };
   const [disp, setDisp] = useState<Record<string, Disposition>>({});
@@ -1533,255 +1582,241 @@ function Block({ blockId }: { blockId: number }) {
             none — pick a recipe for the goal above
           </div>
         )}
-        {recipes.map((name) => {
-          const row = res?.rows?.find((r) => r.recipe === name);
-          const neg = (row?.rate ?? 0) < -1e-6; // running backward — can't physically happen
-          // a recipe that no longer exists in the data: show it as a labelled
-          // placeholder row (preserved, not silently dropped) rather than solving.
-          const missingRecipe = res?.missing?.recipes.includes(name) ?? false;
-          if (missingRecipe) {
-            return (
-              <div
-                key={name}
-                className={`${GRID} border-t border-border bg-destructive/10`}
-                style={COLS}
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  <Icon kind="recipe" name={name} size="md" noTitle />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-mono" title={name}>
-                      {name}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs font-semibold text-destructive">
-                      <AlertTriangle className="size-3" /> no longer exists
-                    </span>
-                  </span>
-                  <button
-                    className="text-muted-foreground hover:text-destructive"
-                    onClick={() => drop(name)}
-                    title="remove this missing recipe from the block"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </div>
-                <div className="col-span-3 text-sm text-muted-foreground">
-                  this recipe isn&apos;t in the current data — re-enable its mod or re-import to
-                  restore it, or remove it
-                </div>
-              </div>
-            );
-          }
-          return (
-            <div
-              key={name}
-              onDragOver={(e) => {
-                if (dragRecipe.current == null || dragRecipe.current === name) return;
-                e.preventDefault();
-                const rect = e.currentTarget.getBoundingClientRect();
-                const after = e.clientY > rect.top + rect.height / 2;
-                if (dropRecipe?.name !== name || dropRecipe.after !== after)
-                  setDropRecipe({ name, after });
-              }}
-              onDrop={(e) => {
-                if (dragRecipe.current == null) return;
-                e.preventDefault();
-                reorderRecipe(
-                  dragRecipe.current,
-                  name,
-                  dropRecipe?.name === name ? dropRecipe.after : false,
+        <DndContext
+          sensors={recipeSensors}
+          collisionDetection={closestCenter}
+          onDragEnd={onRecipeDragEnd}
+        >
+          <SortableContext items={recipes} strategy={verticalListSortingStrategy}>
+            {recipes.map((name) => {
+              const row = res?.rows?.find((r) => r.recipe === name);
+              const neg = (row?.rate ?? 0) < -1e-6; // running backward — can't physically happen
+              // a recipe that no longer exists in the data: show it as a labelled
+              // placeholder row (preserved, not silently dropped) rather than solving.
+              const missingRecipe = res?.missing?.recipes.includes(name) ?? false;
+              if (missingRecipe) {
+                return (
+                  <SortableRow key={name} id={name}>
+                    {() => (
+                      <div
+                        className={`${GRID} border-t border-border bg-destructive/10`}
+                        style={COLS}
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Icon kind="recipe" name={name} size="md" noTitle />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-mono" title={name}>
+                              {name}
+                            </span>
+                            <span className="flex items-center gap-1 text-xs font-semibold text-destructive">
+                              <AlertTriangle className="size-3" /> no longer exists
+                            </span>
+                          </span>
+                          <button
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={() => drop(name)}
+                            title="remove this missing recipe from the block"
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                        </div>
+                        <div className="col-span-3 text-sm text-muted-foreground">
+                          this recipe isn&apos;t in the current data — re-enable its mod or
+                          re-import to restore it, or remove it
+                        </div>
+                      </div>
+                    )}
+                  </SortableRow>
                 );
-                dragRecipe.current = null;
-                setDropRecipe(null);
-              }}
-              className={`${GRID} relative border-t border-border ${neg ? "bg-destructive/10" : ""}`}
-              style={COLS}
-            >
-              {dropRecipe?.name === name && (
-                <div
-                  className={`pointer-events-none absolute inset-x-2 z-10 h-0.5 rounded-full bg-primary ${dropRecipe.after ? "-bottom-px" : "-top-px"}`}
-                />
-              )}
-              <RecipeHover name={name} className="flex min-w-0 items-center gap-2">
-                <span
-                  draggable
-                  onDragStart={(e) => {
-                    dragRecipe.current = name;
-                    e.stopPropagation();
-                  }}
-                  onDragEnd={() => {
-                    dragRecipe.current = null;
-                    setDropRecipe(null);
-                  }}
-                  title="drag to reorder this recipe"
-                  className="flex shrink-0 cursor-grab items-center text-muted-foreground select-none hover:text-foreground active:cursor-grabbing"
-                >
-                  <GripVertical className="size-4" />
-                </span>
-                <Icon kind="recipe" name={name} size="md" noTitle />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate" title={res?.display?.[name] ?? name}>
-                    {res?.display?.[name] ?? name}
-                  </span>
-                  {row && (
-                    <span
-                      className={`text-xs ${neg ? "font-semibold text-destructive" : "text-muted-foreground"}`}
+              }
+              return (
+                <SortableRow key={name} id={name}>
+                  {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
+                    <div
+                      className={`${GRID} relative border-t border-border ${neg ? "bg-destructive/10" : ""} ${isDragging ? "bg-card shadow-lg" : ""}`}
+                      style={COLS}
                     >
-                      {neg && <AlertTriangle className="mr-0.5 inline size-3 align-text-bottom" />}
-                      {neg && "backward "}
-                      {num(row.rate)}/s
-                    </span>
-                  )}
-                </span>
-                <button
-                  className="text-muted-foreground hover:text-destructive"
-                  onClick={() => drop(name)}
-                  title="remove"
-                >
-                  <X className="size-3.5" />
-                </button>
-              </RecipeHover>
-              <div className="flex flex-wrap items-center gap-2">
-                {row?.machine ? (
-                  <>
-                    {/* building: icon + count; hover = name/speed, click = picker */}
-                    <button
-                      onClick={() => setPickMachineFor(name)}
-                      title={`${row.machine.display ?? row.machine.name} · ${num(row.machine.craftingSpeed ?? 1)}× speed · click to change building`}
-                      className={cellChip}
-                    >
-                      <Icon kind="item" name={row.machine.name} size="md" noTitle />
-                      <span className="font-semibold text-foreground">
-                        {num(row.machine.count)}
-                      </span>
-                    </button>
-                    {/* electricity, when the machine draws power */}
-                    {row.machine.energySource === "electric" && (
-                      <span
-                        title="electric power draw"
-                        className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-1 text-sm text-sky-300"
-                      >
-                        <Zap className="size-3.5" /> {fmtW(row.machine.powerW)}
-                      </span>
-                    )}
-                    {row.machine.energySource === "heat" && (
-                      <span
-                        title="heat-powered — fed by an upstream reactor"
-                        className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-1 text-sm"
-                      >
-                        <Flame className="size-3.5" /> heat
-                      </span>
-                    )}
-                    {/* fuel: icon + rate; click = fuel picker */}
-                    {row.fuel && (
-                      <button
-                        onClick={() => setPickFuelFor(name)}
-                        title={`${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s · click to change fuel`}
-                        className={`${cellChip} text-amber-300`}
-                      >
-                        <Icon
-                          kind={row.fuel.kind as "item" | "fluid"}
-                          name={row.fuel.name}
-                          size="md"
-                          noTitle
-                        />
-                        <span className="font-semibold">{num(row.fuel.perSec)}</span>
-                      </button>
-                    )}
-                    {/* burnt result (ash, depleted cell): produced 1:1 from burning */}
-                    {row.fuel?.burnt && (
-                      <span
-                        title={`${row.fuel.burnt.display ?? row.fuel.burnt.name} — produced by burning`}
-                        className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-1 text-sm text-muted-foreground"
-                      >
-                        →<Icon kind="item" name={row.fuel.burnt.name} size="md" noTitle />
-                        <span>{num(row.fuel.burnt.perSec)}</span>
-                      </span>
-                    )}
-                    {/* modules + beacons: configured loadout (or ghost ⊞), click to edit */}
-                    <ModulesChip
-                      modules={row.modules}
-                      beacons={row.beacons}
-                      slots={row.machine.moduleSlots ?? 0}
-                      effects={row.effects}
-                      auto={row.autoModules}
-                      onClick={() => setPickModulesFor(name)}
-                    />
-                    {/* TURD: hidden modules the selected upgrades insert (no slot cost) */}
-                    {row.turdModules.length > 0 && (
-                      <Link
-                        to="/turd"
-                        title={`TURD: ${row.turdModules.map((m) => m.display ?? m.name).join(", ")} — applied by your selected upgrades`}
-                        className="flex items-center gap-1 rounded bg-fuchsia-500/15 px-1.5 py-1 text-sm text-fuchsia-300 ring-1 ring-fuchsia-400/40 hover:brightness-110"
-                      >
-                        <FlaskConical className="size-3.5" />
-                        {row.turdModules.map((m) => (
-                          <Icon key={m.name} kind="item" name={m.name} size="sm" noTitle />
+                      <RecipeHover name={name} className="flex min-w-0 items-center gap-2">
+                        <span
+                          ref={setActivatorNodeRef}
+                          {...attributes}
+                          {...listeners}
+                          title="drag to reorder this recipe"
+                          className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground select-none hover:text-foreground active:cursor-grabbing"
+                        >
+                          <GripVertical className="size-4" />
+                        </span>
+                        <Icon kind="recipe" name={name} size="md" noTitle />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate" title={res?.display?.[name] ?? name}>
+                            {res?.display?.[name] ?? name}
+                          </span>
+                          {row && (
+                            <span
+                              className={`text-xs ${neg ? "font-semibold text-destructive" : "text-muted-foreground"}`}
+                            >
+                              {neg && (
+                                <AlertTriangle className="mr-0.5 inline size-3 align-text-bottom" />
+                              )}
+                              {neg && "backward "}
+                              {num(row.rate)}/s
+                            </span>
+                          )}
+                        </span>
+                        <button
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => drop(name)}
+                          title="remove"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </RecipeHover>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {row?.machine ? (
+                          <>
+                            {/* building: icon + count; hover = name/speed, click = picker */}
+                            <button
+                              onClick={() => setPickMachineFor(name)}
+                              title={`${row.machine.display ?? row.machine.name} · ${num(row.machine.craftingSpeed ?? 1)}× speed · click to change building`}
+                              className={cellChip}
+                            >
+                              <Icon kind="item" name={row.machine.name} size="md" noTitle />
+                              <span className="font-semibold text-foreground">
+                                {num(row.machine.count)}
+                              </span>
+                            </button>
+                            {/* electricity, when the machine draws power */}
+                            {row.machine.energySource === "electric" && (
+                              <span
+                                title="electric power draw"
+                                className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-1 text-sm text-sky-300"
+                              >
+                                <Zap className="size-3.5" /> {fmtW(row.machine.powerW)}
+                              </span>
+                            )}
+                            {row.machine.energySource === "heat" && (
+                              <span
+                                title="heat-powered — fed by an upstream reactor"
+                                className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-1 text-sm"
+                              >
+                                <Flame className="size-3.5" /> heat
+                              </span>
+                            )}
+                            {/* fuel: icon + rate; click = fuel picker */}
+                            {row.fuel && (
+                              <button
+                                onClick={() => setPickFuelFor(name)}
+                                title={`${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s · click to change fuel`}
+                                className={`${cellChip} text-amber-300`}
+                              >
+                                <Icon
+                                  kind={row.fuel.kind as "item" | "fluid"}
+                                  name={row.fuel.name}
+                                  size="md"
+                                  noTitle
+                                />
+                                <span className="font-semibold">{num(row.fuel.perSec)}</span>
+                              </button>
+                            )}
+                            {/* burnt result (ash, depleted cell): produced 1:1 from burning */}
+                            {row.fuel?.burnt && (
+                              <span
+                                title={`${row.fuel.burnt.display ?? row.fuel.burnt.name} — produced by burning`}
+                                className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-1 text-sm text-muted-foreground"
+                              >
+                                →<Icon kind="item" name={row.fuel.burnt.name} size="md" noTitle />
+                                <span>{num(row.fuel.burnt.perSec)}</span>
+                              </span>
+                            )}
+                            {/* modules + beacons: configured loadout (or ghost ⊞), click to edit */}
+                            <ModulesChip
+                              modules={row.modules}
+                              beacons={row.beacons}
+                              slots={row.machine.moduleSlots ?? 0}
+                              effects={row.effects}
+                              auto={row.autoModules}
+                              onClick={() => setPickModulesFor(name)}
+                            />
+                            {/* TURD: hidden modules the selected upgrades insert (no slot cost) */}
+                            {row.turdModules.length > 0 && (
+                              <Link
+                                to="/turd"
+                                title={`TURD: ${row.turdModules.map((m) => m.display ?? m.name).join(", ")} — applied by your selected upgrades`}
+                                className="flex items-center gap-1 rounded bg-fuchsia-500/15 px-1.5 py-1 text-sm text-fuchsia-300 ring-1 ring-fuchsia-400/40 hover:brightness-110"
+                              >
+                                <FlaskConical className="size-3.5" />
+                                {row.turdModules.map((m) => (
+                                  <Icon key={m.name} kind="item" name={m.name} size="sm" noTitle />
+                                ))}
+                              </Link>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-3">
+                        {row?.ingredients.map((c) => (
+                          <div key={c.name} className="flex flex-col items-start gap-1.5">
+                            <ItemChip
+                              name={c.name}
+                              kind={c.kind}
+                              display={c.display}
+                              rate={c.rate}
+                              link={linkOf(c.name)}
+                              craftable={producible.has(c.name)}
+                              disp={disp[c.name]}
+                              onClick={() => makeFor(c.name)}
+                              onCycleDisp={() => cycleDispFor(c.name)}
+                              onClearDisp={() => setDispFor(c.name, "auto")}
+                            />
+                            {logiResolved && c.kind === "item" && (
+                              <LogiTag
+                                resolved={logiResolved}
+                                rate={c.rate}
+                                machineCount={row.machine?.count ?? 0}
+                                showBelts={showBelts}
+                                showInserters={showInserters}
+                                launch={launchInfo(c.name, c.rate)}
+                              />
+                            )}
+                          </div>
                         ))}
-                      </Link>
-                    )}
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-3">
-                {row?.ingredients.map((c) => (
-                  <div key={c.name} className="flex flex-col items-start gap-1.5">
-                    <ItemChip
-                      name={c.name}
-                      kind={c.kind}
-                      display={c.display}
-                      rate={c.rate}
-                      link={linkOf(c.name)}
-                      craftable={producible.has(c.name)}
-                      disp={disp[c.name]}
-                      onClick={() => makeFor(c.name)}
-                      onCycleDisp={() => cycleDispFor(c.name)}
-                      onClearDisp={() => setDispFor(c.name, "auto")}
-                    />
-                    {logiResolved && c.kind === "item" && (
-                      <LogiTag
-                        resolved={logiResolved}
-                        rate={c.rate}
-                        machineCount={row.machine?.count ?? 0}
-                        showBelts={showBelts}
-                        showInserters={showInserters}
-                        launch={launchInfo(c.name, c.rate)}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-3">
-                {row?.products.map((c) => (
-                  <div key={c.name} className="flex flex-col items-start gap-1.5">
-                    <ItemChip
-                      name={c.name}
-                      kind={c.kind}
-                      display={c.display}
-                      rate={c.rate}
-                      link={linkOf(c.name)}
-                      disp={disp[c.name]}
-                      onClick={() => useFor(c.name)}
-                      onCycleDisp={() => cycleDispFor(c.name)}
-                      onClearDisp={() => setDispFor(c.name, "auto")}
-                    />
-                    {logiResolved && c.kind === "item" && (
-                      <LogiTag
-                        resolved={logiResolved}
-                        rate={c.rate}
-                        machineCount={row.machine?.count ?? 0}
-                        showBelts={showBelts}
-                        showInserters={showInserters}
-                        launch={launchInfo(c.name, c.rate)}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-3">
+                        {row?.products.map((c) => (
+                          <div key={c.name} className="flex flex-col items-start gap-1.5">
+                            <ItemChip
+                              name={c.name}
+                              kind={c.kind}
+                              display={c.display}
+                              rate={c.rate}
+                              link={linkOf(c.name)}
+                              disp={disp[c.name]}
+                              onClick={() => useFor(c.name)}
+                              onCycleDisp={() => cycleDispFor(c.name)}
+                              onClearDisp={() => setDispFor(c.name, "auto")}
+                            />
+                            {logiResolved && c.kind === "item" && (
+                              <LogiTag
+                                resolved={logiResolved}
+                                rate={c.rate}
+                                machineCount={row.machine?.count ?? 0}
+                                showBelts={showBelts}
+                                showInserters={showInserters}
+                                launch={launchInfo(c.name, c.rate)}
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </SortableRow>
+              );
+            })}
+          </SortableContext>
+        </DndContext>
       </Card>
 
       {/* Goal-item picker — choose what product a goal is (add a new one, or change
