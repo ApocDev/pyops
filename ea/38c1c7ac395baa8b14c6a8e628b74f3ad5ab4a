@@ -1,0 +1,19 @@
+app/src/routes/factory.tsx
+  s_3b17615400e28d::t_8fb15071a2d099 4,136-146,150,152-161,163-185,199
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "ea38c1c7ac395baa8b14c6a8e628b74f3ad5ab4a",
+  "prompts": {},
+  "sessions": {
+    "s_3b17615400e28d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c80425d4-1cc5-4b06-8e5e-d9f4eb0b0b9a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
