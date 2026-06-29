@@ -8,6 +8,7 @@ import { RecipeHover } from "../lib/recipe-card";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { SidebarShell } from "#/components/sidebar-shell.tsx";
 
 /** The item/fluid browser. `sel` lives in the URL so every view is linkable
  * and back/forward walks your browse history. */
@@ -50,70 +51,75 @@ function Browse() {
   const open = (name: string) => void navigate({ search: { sel: name } });
 
   return (
-    <div className="flex h-full font-mono text-sm text-foreground">
-      {/* Search rail */}
-      <aside className="flex w-72 shrink-0 flex-col border-r border-border">
-        <div className="border-b border-border p-2">
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Browse
-            </span>
-            <HelpButton title="What is Browse?">
-              <p>
-                Search every <span className="text-foreground">item and fluid</span> in the loaded
-                Pyanodons data. Pick one to see its recipes — what makes it, what it&apos;s used in
-                — plus its properties (stack size, fuel value, spoilage, temperatures, and so on).
-              </p>
-              <p>
-                Use it to explore Py&apos;s tangled recipe graph, and to find the{" "}
-                <span className="text-foreground">internal names</span> that blocks and the
-                assistant refer to (e.g. <span className="text-foreground">iron-pulp-07</span>).
-              </p>
-            </HelpButton>
+    <SidebarShell
+      className="font-mono text-sm text-foreground"
+      width="w-72"
+      label="Browse"
+      sidebar={
+        <>
+          <div className="border-b border-border p-2">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                Browse
+              </span>
+              <HelpButton title="What is Browse?">
+                <p>
+                  Search every <span className="text-foreground">item and fluid</span> in the loaded
+                  Pyanodons data. Pick one to see its recipes — what makes it, what it&apos;s used
+                  in — plus its properties (stack size, fuel value, spoilage, temperatures, and so
+                  on).
+                </p>
+                <p>
+                  Use it to explore Py&apos;s tangled recipe graph, and to find the{" "}
+                  <span className="text-foreground">internal names</span> that blocks and the
+                  assistant refer to (e.g. <span className="text-foreground">iron-pulp-07</span>).
+                </p>
+              </HelpButton>
+            </div>
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="search items & fluids…"
+              autoFocus
+            />
+            {stats.data && (
+              <div className="mt-1.5 text-xs text-muted-foreground">
+                {stats.data.recipes.toLocaleString()} recipes · {stats.data.items.toLocaleString()}{" "}
+                items · {stats.data.fluids} fluids
+              </div>
+            )}
           </div>
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="search items & fluids…"
-            autoFocus
-          />
-          {stats.data && (
-            <div className="mt-1.5 text-xs text-muted-foreground">
-              {stats.data.recipes.toLocaleString()} recipes · {stats.data.items.toLocaleString()}{" "}
-              items · {stats.data.fluids} fluids
-            </div>
-          )}
-        </div>
-        <div className="flex-1 overflow-auto p-1">
-          {query.trim().length === 0 && (
-            <div className="px-2 py-2 text-xs text-muted-foreground">
-              type to search — results are clickable, as is every icon in the detail pane
-            </div>
-          )}
-          {results.data?.map((r) => (
-            <button
-              key={`${r.kind}/${r.name}`}
-              onClick={() => open(r.name)}
-              className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left hover:bg-muted ${
-                sel === r.name ? "bg-accent" : ""
-              }`}
-              title={r.display ?? r.name}
-            >
-              <Icon kind={r.kind as Kind} name={r.name} size="sm" noTitle />
-              <span className="min-w-0 flex-1 truncate">{r.display ?? r.name}</span>
-              {r.kind === "fluid" && (
-                <span className="text-sky-300" title="fluid">
-                  <Droplet className="size-3.5" />
-                </span>
-              )}
-            </button>
-          ))}
-          {query && results.data?.length === 0 && (
-            <div className="px-2 py-2 text-xs text-muted-foreground">no matches</div>
-          )}
-        </div>
-      </aside>
-
+          <div className="flex-1 overflow-auto p-1">
+            {query.trim().length === 0 && (
+              <div className="px-2 py-2 text-xs text-muted-foreground">
+                type to search — results are clickable, as is every icon in the detail pane
+              </div>
+            )}
+            {results.data?.map((r) => (
+              <button
+                key={`${r.kind}/${r.name}`}
+                onClick={() => open(r.name)}
+                className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left hover:bg-muted ${
+                  sel === r.name ? "bg-accent" : ""
+                }`}
+                title={r.display ?? r.name}
+              >
+                <Icon kind={r.kind as Kind} name={r.name} size="sm" noTitle />
+                <span className="min-w-0 flex-1 truncate">{r.display ?? r.name}</span>
+                {r.kind === "fluid" && (
+                  <span className="text-sky-300" title="fluid">
+                    <Droplet className="size-3.5" />
+                  </span>
+                )}
+              </button>
+            ))}
+            {query && results.data?.length === 0 && (
+              <div className="px-2 py-2 text-xs text-muted-foreground">no matches</div>
+            )}
+          </div>
+        </>
+      }
+    >
       {/* Detail pane */}
       <div className="min-w-0 flex-1 overflow-auto p-4">
         {!sel && (
@@ -163,7 +169,7 @@ function Browse() {
           </>
         )}
       </div>
-    </div>
+    </SidebarShell>
   );
 }
 

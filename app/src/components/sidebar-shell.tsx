@@ -30,10 +30,11 @@ export function SidebarShell({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const { pathname } = useLocation();
+  const location = useLocation();
 
-  // Selecting an item navigates; close the drawer whenever that happens.
-  useEffect(() => setOpen(false), [pathname]);
+  // Selecting an item navigates; close the drawer whenever that happens. Keyed on
+  // the full href so it also fires for search-param selections (e.g. browse's ?sel).
+  useEffect(() => setOpen(false), [location.href]);
 
   return (
     <div className={cn("flex h-full", className)}>
