@@ -20,6 +20,7 @@ export function SidebarShell({
   width = "w-64",
   label = "Menu",
   className,
+  sidebarClassName,
 }: {
   sidebar: ReactNode;
   children: ReactNode;
@@ -28,6 +29,8 @@ export function SidebarShell({
   /** Text on the mobile toggle button. */
   label?: string;
   className?: string;
+  /** Extra classes for the desktop rail (e.g. a "bg-card" the route's aside had). */
+  sidebarClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const location = useLocation();
@@ -39,7 +42,13 @@ export function SidebarShell({
   return (
     <div className={cn("flex h-full", className)}>
       {/* md+: inline rail */}
-      <aside className={cn("hidden shrink-0 flex-col border-r border-border md:flex", width)}>
+      <aside
+        className={cn(
+          "hidden shrink-0 flex-col border-r border-border md:flex",
+          width,
+          sidebarClassName,
+        )}
+      >
         {sidebar}
       </aside>
 

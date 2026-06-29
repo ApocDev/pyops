@@ -25,6 +25,7 @@ import { Popover } from "radix-ui";
 import remarkGfm from "remark-gfm";
 
 import { Icon, IconProvider } from "#/lib/icons";
+import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { ItemHover, RecipeHover } from "#/lib/recipe-card";
 import { classifyRefFn, saveBlockFn, setAiConfigFn, setBlockRateFn } from "#/server/factorio";
 import {
@@ -117,61 +118,67 @@ function AssistantShell() {
   };
 
   return (
-    <div className="flex h-full">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
-        <div className="flex items-center justify-between px-3 py-2">
-          <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Chats
-          </span>
-          <button
-            onClick={newChat}
-            className="flex items-center gap-1 rounded bg-primary px-2 py-0.5 text-sm font-bold text-primary-foreground hover:bg-primary/80"
-          >
-            <Plus className="size-3.5" /> New
-          </button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
-          {(list.data ?? []).map((conv) => (
-            <div
-              key={conv.id}
-              className={`group flex items-center gap-1 rounded px-2 py-1.5 text-sm hover:bg-muted ${
-                conv.id === selected ? "bg-accent" : ""
-              }`}
+    <SidebarShell
+      width="w-60"
+      label="Chats"
+      sidebarClassName="bg-card"
+      sidebar={
+        <>
+          <div className="flex items-center justify-between px-3 py-2">
+            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Chats
+            </span>
+            <button
+              onClick={newChat}
+              className="flex items-center gap-1 rounded bg-primary px-2 py-0.5 text-sm font-bold text-primary-foreground hover:bg-primary/80"
             >
-              <span
-                className={`size-2 shrink-0 rounded-full ${
-                  running.has(conv.id) ? "animate-pulse bg-primary" : "bg-transparent"
+              <Plus className="size-3.5" /> New
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
+            {(list.data ?? []).map((conv) => (
+              <div
+                key={conv.id}
+                className={`group flex items-center gap-1 rounded px-2 py-1.5 text-sm hover:bg-muted ${
+                  conv.id === selected ? "bg-accent" : ""
                 }`}
-                title={running.has(conv.id) ? "running…" : undefined}
-              />
-              <button
-                onClick={() => openChat(conv.id)}
-                className="min-w-0 flex-1 truncate text-left"
-                title={conv.title ?? "Untitled"}
               >
-                {conv.title ?? "Untitled"}
-              </button>
-              <button
-                onClick={() => void rename(conv.id, conv.title)}
-                title="rename"
-                className="hidden px-1 text-muted-foreground group-hover:inline-flex hover:text-foreground"
-              >
-                <Pencil className="size-3.5" />
-              </button>
-              <button
-                onClick={() => void remove(conv.id)}
-                title="delete"
-                className="hidden px-1 text-muted-foreground group-hover:inline-flex hover:text-destructive"
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-          ))}
-          {(list.data?.length ?? 0) === 0 && (
-            <div className="px-2 py-2 text-xs text-muted-foreground">no saved chats yet</div>
-          )}
-        </div>
-      </aside>
+                <span
+                  className={`size-2 shrink-0 rounded-full ${
+                    running.has(conv.id) ? "animate-pulse bg-primary" : "bg-transparent"
+                  }`}
+                  title={running.has(conv.id) ? "running…" : undefined}
+                />
+                <button
+                  onClick={() => openChat(conv.id)}
+                  className="min-w-0 flex-1 truncate text-left"
+                  title={conv.title ?? "Untitled"}
+                >
+                  {conv.title ?? "Untitled"}
+                </button>
+                <button
+                  onClick={() => void rename(conv.id, conv.title)}
+                  title="rename"
+                  className="hidden px-1 text-muted-foreground group-hover:inline-flex hover:text-foreground"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+                <button
+                  onClick={() => void remove(conv.id)}
+                  title="delete"
+                  className="hidden px-1 text-muted-foreground group-hover:inline-flex hover:text-destructive"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            ))}
+            {(list.data?.length ?? 0) === 0 && (
+              <div className="px-2 py-2 text-xs text-muted-foreground">no saved chats yet</div>
+            )}
+          </div>
+        </>
+      }
+    >
       <div className="relative flex min-w-0 flex-1">
         {openIds.map((id) => (
           <ChatPane key={id} id={id} active={id === selected} />
@@ -182,7 +189,7 @@ function AssistantShell() {
           </div>
         )}
       </div>
-    </div>
+    </SidebarShell>
   );
 }
 
