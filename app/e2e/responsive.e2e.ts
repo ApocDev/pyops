@@ -62,6 +62,15 @@ for (const vp of VIEWPORTS) {
         await expect(page.locator("nav").getByRole("link", { name: "PyOps" })).toBeVisible();
         await page.waitForTimeout(800); // let layout/data settle
         await page.screenshot({ path: path.join(dir, `${slug(route)}.png`), fullPage: true });
+        // Guard: no page should scroll sideways at tablet/phone widths. Item names get
+        // truncated, not pushed off-screen. (Desktop widths are exempt — wide data
+        // dashboards there can legitimately exceed a small window.)
+        if (vp.width <= 834) {
+          const overflow = await page.evaluate(
+            () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          );
+          expect(overflow, `${route} @ ${vp.name} overflows horizontally by ${overflow}px`).toBeLessThanOrEqual(1);
+        }
       });
     }
   });
