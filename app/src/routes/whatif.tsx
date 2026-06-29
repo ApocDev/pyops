@@ -6,6 +6,7 @@ import { factoryWhatIfFn } from "../server/factorio";
 import { Icon, IconProvider } from "../lib/icons";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
+import { StatCell } from "#/components/stat-cell.tsx";
 
 export const Route = createFileRoute("/whatif")({
   component: () => (
@@ -134,7 +135,7 @@ function WhatIf() {
             <CardTitle className="normal-case">Block changes ({changed.length})</CardTitle>
             <span className="text-xs text-muted-foreground">scale each block to rebalance</span>
           </CardHeader>
-          <div className="flex px-3 pb-1 text-xs text-muted-foreground">
+          <div className="hidden px-3 pb-1 text-xs text-muted-foreground md:flex">
             <span className="flex-1">block</span>
             <span className="w-20 text-right">current/s</span>
             <span className="w-20 text-right">required/s</span>
@@ -151,18 +152,24 @@ function WhatIf() {
                 key={b.id}
                 to="/block/$id"
                 params={{ id: String(b.id) }}
-                className="flex items-center border-t border-border px-3 py-1.5 text-sm hover:bg-muted"
+                className="flex flex-col gap-1 border-t border-border px-3 py-2 text-sm hover:bg-muted md:flex-row md:items-center md:py-1.5"
               >
                 <span className="min-w-0 flex-1 truncate text-primary underline">{b.name}</span>
-                <span className="w-20 text-right text-muted-foreground">{num(b.currentRate)}</span>
-                <span
-                  className={`w-20 text-right font-semibold ${
-                    b.delta > 0 ? "text-amber-300" : "text-sky-300"
-                  }`}
-                >
-                  {num(b.requiredRate)}
+                <span className="grid grid-cols-3 gap-x-3 md:flex">
+                  <StatCell label="current/s" w="md:w-20" className="text-muted-foreground">
+                    {num(b.currentRate)}
+                  </StatCell>
+                  <StatCell
+                    label="required/s"
+                    w="md:w-20"
+                    className={`font-semibold ${b.delta > 0 ? "text-amber-300" : "text-sky-300"}`}
+                  >
+                    {num(b.requiredRate)}
+                  </StatCell>
+                  <StatCell label="×scale" w="md:w-16" className="text-muted-foreground">
+                    ×{b.scale}
+                  </StatCell>
                 </span>
-                <span className="w-16 text-right text-muted-foreground">×{b.scale}</span>
               </Link>
             ))
           )}
