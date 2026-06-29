@@ -433,6 +433,23 @@ function Block({ blockId }: { blockId: number }) {
   const [lockedInput, setLockedInput] = useState<string | null>(null); // import pinned to size the block
   const [lockedRate, setLockedRate] = useState(0); // the rate that import is pinned to
   const [recipes, setRecipes] = useState<string[]>([]);
+  const dragRecipe = useRef<string | null>(null); // recipe row being dragged to reorder
+  // recipe row hovered as a drop target, and whether we'd drop after it (bottom half)
+  const [dropRecipe, setDropRecipe] = useState<{ name: string; after: boolean } | null>(null);
+  // Reorder a recipe row. Display/authoring only — the solver is order-independent,
+  // so this just changes how the rows are listed (and persists `recipes`).
+  const reorderRecipe = (from: string, target: string, after: boolean) => {
+    if (from === target) return;
+    markEdited();
+    setRecipes((rs) => {
+      const without = rs.filter((r) => r !== from);
+      let at = without.indexOf(target);
+      if (at < 0) at = without.length;
+      else if (after) at += 1;
+      without.splice(at, 0, from);
+      return without;
+    });
+  };
   const [disp, setDisp] = useState<Record<string, Disposition>>({});
   const [machineSel, setMachineSel] = useState<Record<string, string>>({}); // recipe → machine
   const [fuelSel, setFuelSel] = useState<Record<string, string>>({}); // recipe → fuel
@@ -1461,10 +1478,49 @@ function Block({ blockId }: { blockId: number }) {
           return (
             <div
               key={name}
-              className={`${GRID} border-t border-border ${neg ? "bg-destructive/10" : ""}`}
+              onDragOver={(e) => {
+                if (dragRecipe.current == null || dragRecipe.current === name) return;
+                e.preventDefault();
+                const rect = e.currentTarget.getBoundingClientRect();
+                const after = e.clientY > rect.top + rect.height / 2;
+                if (dropRecipe?.name !== name || dropRecipe.after !== after)
+                  setDropRecipe({ name, after });
+              }}
+              onDrop={(e) => {
+                if (dragRecipe.current == null) return;
+                e.preventDefault();
+                reorderRecipe(
+                  dragRecipe.current,
+                  name,
+                  dropRecipe?.name === name ? dropRecipe.after : false,
+                );
+                dragRecipe.current = null;
+                setDropRecipe(null);
+              }}
+              className={`${GRID} relative border-t border-border ${neg ? "bg-destructive/10" : ""}`}
               style={COLS}
             >
+              {dropRecipe?.name === name && (
+                <div
+                  className={`pointer-events-none absolute inset-x-2 z-10 h-0.5 rounded-full bg-primary ${dropRecipe.after ? "-bottom-px" : "-top-px"}`}
+                />
+              )}
               <RecipeHover name={name} className="flex min-w-0 items-center gap-2">
+                <span
+                  draggable
+                  onDragStart={(e) => {
+                    dragRecipe.current = name;
+                    e.stopPropagation();
+                  }}
+                  onDragEnd={() => {
+                    dragRecipe.current = null;
+                    setDropRecipe(null);
+                  }}
+                  title="drag to reorder this recipe"
+                  className="shrink-0 cursor-grab px-0.5 text-muted-foreground select-none hover:text-foreground active:cursor-grabbing"
+                >
+                  ⠿
+                </span>
                 <Icon kind="recipe" name={name} size="md" noTitle />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate" title={res?.display?.[name] ?? name}>
