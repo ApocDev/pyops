@@ -14,8 +14,11 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: scripts/tunnel-dev [provider] [--port N] [--name TUNNEL] [--domain HOST]
+Usage: scripts/tunnel-dev [up|down] [provider] [--port N] [--name TUNNEL] [--domain HOST]
 
+  up             Start a tunnel (default if no command given).
+  down           Stop tunnels: resets tailscale funnel/serve config and kills any
+                 stray cloudflared/ngrok processes. Pass a provider to scope it.
   provider       One of: cloudflared | ngrok | tailscale (auto-detected if omitted)
   --port N       Local port to expose. Default: 3000 (or $PYOPS_DEV_PORT)
   --name TUNNEL  cloudflared only: run a pre-created NAMED tunnel (custom hostname)
@@ -29,6 +32,8 @@ Examples:
   scripts/tunnel-dev cloudflared --name pyops # custom pyops.yourdomain.com (named tunnel)
   scripts/tunnel-dev ngrok --domain pyops.ngrok-free.app
   scripts/tunnel-dev tailscale --port 3000
+  scripts/tunnel-dev down                     # stop everything
+  scripts/tunnel-dev down tailscale           # just reset tailscale funnel
 
 Custom hostnames:
   - cloudflared: a custom URL needs a NAMED tunnel tied to a domain on Cloudflare:
@@ -50,10 +55,16 @@ Notes:
 EOF
 }
 
+CMD="up"
 PROVIDER=""
 PORT="${PYOPS_DEV_PORT:-3000}"
 NAME=""
 DOMAIN=""
+
+# Optional leading command: up (default) | down.
+case "${1:-}" in
+  up|down) CMD="$1"; shift ;;
+esac
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -68,6 +79,24 @@ while [ $# -gt 0 ]; do
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
+
+# `down`: tear down tunnels and exit. Targets all providers unless one is named.
+if [ "$CMD" = "down" ]; then
+  rc=0
+  if { [ -z "$PROVIDER" ] || [ "$PROVIDER" = "tailscale" ]; } && command -v tailscale >/dev/null 2>&1; then
+    echo "Resetting tailscale funnel/serve config…"
+    tailscale funnel --https=443 off >/dev/null 2>&1 || true
+    tailscale serve reset >/dev/null 2>&1 || true
+  fi
+  if { [ -z "$PROVIDER" ] || [ "$PROVIDER" = "cloudflared" ]; } && command -v pkill >/dev/null 2>&1; then
+    if pkill -f '^cloudflared .*tunnel' 2>/dev/null; then echo "Stopped cloudflared tunnel(s)."; fi
+  fi
+  if { [ -z "$PROVIDER" ] || [ "$PROVIDER" = "ngrok" ]; } && command -v pkill >/dev/null 2>&1; then
+    if pkill -f '^ngrok http' 2>/dev/null; then echo "Stopped ngrok tunnel(s)."; fi
+  fi
+  echo "Done."
+  exit "$rc"
+fi
 
 # Strip any scheme from --domain (ngrok wants a bare host).
 DOMAIN="${DOMAIN#http://}"
