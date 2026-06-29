@@ -334,10 +334,15 @@ export const todos = sqliteTable("todos", {
  * inside it, and how many of that beacon affect each machine. */
 export type BeaconConfig = { beacon: string; modules: string[]; count: number };
 
+/** One output goal of a block: a good the block is sized to produce at `rate`
+ * (a solver target). A good you don't target is a byproduct, not a goal. */
+export type Goal = { name: string; rate: number };
+
 export type BlockData = {
-  target: string;
-  rate: number;
-  extraGoals?: string[]; // additional co-product goals (unpinned, also primary)
+  // Output goals, each a solver target. goals[0] names the block/icon and anchors the
+  // rate-scaling tools. See lib/goals.ts for the migration from the legacy
+  // { target, rate, extraGoals } shape.
+  goals: Goal[];
   recipes: string[];
   dispositions?: Record<string, string>;
   machines?: Record<string, string>; // recipe → chosen machine

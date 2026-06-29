@@ -21,6 +21,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { strFromU8, unzipSync } from "fflate";
 import type { BlockData } from "../db/schema.ts";
+import { normalizeBlockData } from "../lib/goals.ts";
 import type { ModEntry } from "./dump.ts";
 
 /** Rename maps for the prototype types a saved block can reference. `item` and
@@ -95,11 +96,10 @@ export function applyRenames(
   ): Record<string, V> | undefined =>
     obj && Object.fromEntries(Object.entries(obj).map(([k, v]) => [keyFn(k), valFn(v)]));
 
-  const d = block.data;
+  const d = normalizeBlockData(block.data);
   const next: BlockData = {
     ...d,
-    target: d.target ? good(d.target) : d.target,
-    extraGoals: d.extraGoals?.map(good),
+    goals: d.goals.map((g) => ({ ...g, name: good(g.name) })),
     recipes: d.recipes.map(recipe),
     dispositions: mapKeys(d.dispositions, good),
     machines: mapKeys(d.machines, recipe, entity),

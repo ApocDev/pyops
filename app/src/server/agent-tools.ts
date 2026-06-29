@@ -15,6 +15,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { classifyAdditive } from "./additives.ts";
+import { normalizeBlockData, primaryGoal, primaryRate } from "../lib/goals.ts";
 
 const lib = () => import("../db/queries.ts");
 const tasksLib = () => import("../db/tasks.ts");
@@ -542,12 +543,12 @@ async function buildBlockDraft({
     // First solve module-less to get per-recipe machines + base building counts,
     // then auto-fill modules ("best available": prod where allowed, else
     // speed→floor→efficiency) and re-solve so counts/power/imports reflect them.
-    const provisional = await computeBlock({ target, rate, recipes });
+    const goals = [{ name: target, rate }];
+    const provisional = await computeBlock({ goals, recipes });
     moduleFill = await chooseModuleFill(provisional.rows);
     const solved = Object.keys(moduleFill.modules).length
       ? await computeBlock({
-          target,
-          rate,
+          goals,
           recipes,
           modules: moduleFill.modules,
           machines: moduleFill.machines,
@@ -643,9 +644,10 @@ async function buildBlockUpdate({ blockId, rate, notes }: z.infer<typeof reviseB
   if (!row) {
     return { ok: false, kind: "update" as const, updateBlockId: blockId, missing: true };
   }
-  const data = row.data as { target: string; rate: number; recipes: string[] };
+  const data = normalizeBlockData(row.data);
+  const primary = primaryGoal(data);
   const draft = await buildBlockDraft({
-    target: data.target,
+    target: primary?.name ?? "",
     rate,
     recipes: data.recipes,
     notes,
@@ -655,7 +657,7 @@ async function buildBlockUpdate({ blockId, rate, notes }: z.infer<typeof reviseB
     kind: "update" as const,
     updateBlockId: blockId,
     blockName: row.name,
-    oldRate: data.rate,
+    oldRate: primaryRate(data),
   };
 }
 

@@ -2,6 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { cycleItems, solveBlock, type Disposition, type RecipeDef } from "../solver/block";
 import { computeEffects, type BeaconConfig } from "./effects";
 import { resolveLogistics, rowLogistics } from "../lib/logistics";
+import {
+  goalNames,
+  normalizeBlockData,
+  primaryGoal,
+  primaryRate,
+  withPrimaryRate,
+} from "../lib/goals";
+import type { Goal } from "../db/schema.ts";
 
 /**
  * Server functions exposing the query layer to the client.
@@ -204,26 +212,35 @@ function targetBoundaryFlow(item: string, kind: string, rate: number) {
     : { item, kind, role: "import", rate: -rate };
 }
 
-/** The full cached boundary-flow list for a solved block: the main target, the
- * extra co-product goals (also primary), the surplus byproducts, and the imports.
- * Centralized so every save path emits the same shape. */
+/** The full cached boundary-flow list for a solved block: the goals (each a primary
+ * output sized to its rate), the surplus byproducts, and the imports. Centralized so
+ * every save path emits the same shape. The solver excludes goals from its own
+ * exports, so they never double-count here. */
 function boundaryFlows(
-  target: string,
-  targetKind: string,
-  rate: number,
+  goals: { name: string; kind: string; rate: number }[],
   r: {
-    extraOutputs: { name: string; kind: string; rate: number }[];
     exports: { name: string; kind: string; rate: number }[];
     imports: { name: string; kind: string; rate: number }[];
   },
 ) {
   return [
-    // a block with no goal chosen yet has no target flow to record
-    ...(target ? [targetBoundaryFlow(target, targetKind, rate)] : []),
-    ...r.extraOutputs.map((f) => ({ item: f.name, kind: f.kind, role: "primary", rate: f.rate })),
+    ...goals.map((g) => targetBoundaryFlow(g.name, g.kind, g.rate)),
     ...r.exports.map((f) => ({ item: f.name, kind: f.kind, role: "byproduct", rate: f.rate })),
     ...r.imports.map((f) => ({ item: f.name, kind: f.kind, role: "import", rate: f.rate })),
   ];
+}
+
+/** Resolve a block's goals to `{ name, kind, rate }` for the boundary cache (the
+ * good's kind is needed so the flow icons correctly). */
+function goalFlows(
+  data: SolveInput,
+  q: Awaited<ReturnType<typeof lib>>,
+): { name: string; kind: string; rate: number }[] {
+  return data.goals.map((g) => ({
+    name: g.name,
+    kind: q.getFluid(g.name) ? "fluid" : "item",
+    rate: g.rate,
+  }));
 }
 
 /** Machine requirement to cache for a solved block: how many of each machine the
@@ -246,12 +263,10 @@ function machineReqs(rows: { recipe: string; machine?: { name: string; count: nu
 export type { BeaconConfig } from "./effects";
 
 export type SolveInput = {
-  target: string;
-  rate: number;
-  // Additional co-product goals (unpinned): goods the block also wants as primary
-  // output (e.g. carbolic alongside coke), relabeled from surplus → primary. Sizing
-  // still comes from the main target / a locked input; these come out at their ratio.
-  extraGoals?: string[];
+  // Output goals, primary first (see lib/goals.ts). A pinned goal (numeric rate)
+  // becomes a solver target; an unpinned goal (null rate) is a co-product relabeled
+  // from a surplus export. goals[0] anchors naming/icon and the rate-scaling tools.
+  goals: Goal[];
   recipes: string[];
   dispositions?: Record<string, Disposition>;
   machines?: Record<string, string>; // recipe → chosen machine (else fastest)
@@ -262,8 +277,10 @@ export type SolveInput = {
 
 /** Core block computation (solve → machines/fuel/power, fuel/ash folded into the
  * boundary flows). Shared by the live solve and block saving so both use one path. */
-export async function computeBlock(data: SolveInput) {
+export async function computeBlock(rawData: SolveInput) {
   const q = await lib();
+  // Tolerate the legacy { target, rate, extraGoals } shape from older saved docs.
+  const data = normalizeBlockData(rawData) as SolveInput;
 
   // Drift guard: if the block references a recipe or goal good that no longer
   // exists in the current reference data (a mod was updated/disabled/removed),
@@ -519,7 +536,7 @@ export async function computeBlock(data: SolveInput) {
     };
   });
   const result = solveBlock({
-    targets: [{ name: data.target, rate: data.rate }],
+    targets: data.goals,
     recipes: defs,
     dispositions: data.dispositions,
   });
@@ -722,10 +739,9 @@ export async function computeBlock(data: SolveInput) {
     .filter(([, v]) => v.net > EPS)
     .map(([name, v]) => ({ name, kind: v.kind, rate: v.net }))
     .sort(byNameAsc);
-  // Extra co-product goals are relabeled from surplus exports → primary outputs.
-  const extraGoalSet = new Set(data.extraGoals ?? []);
-  const extraOutputs = allExports.filter((f) => extraGoalSet.has(f.name));
-  const exports = allExports.filter((f) => !extraGoalSet.has(f.name));
+  // Goals are solver targets (excluded from the solver's exports), so every surplus
+  // here is a genuine byproduct. A good you don't target is never a "primary output".
+  const exports = allExports;
   const fuelItems = [...fuelTotals.keys()]; // for the 🔥 tag in the UI
   const burntItems = [...burntTotals.keys()]; // ash / depleted cells from burning
 
@@ -790,11 +806,9 @@ export async function computeBlock(data: SolveInput) {
   for (const r of fetched) if (r.display) display[r.name] = r.display;
   const itemDisp = (name: string) => q.getItem(name)?.display ?? q.getFluid(name)?.display ?? null;
   for (const name of [
-    data.target,
-    ...(data.extraGoals ?? []),
+    ...goalNames(data),
     ...imports.map((f) => f.name),
     ...exports.map((f) => f.name),
-    ...extraOutputs.map((f) => f.name),
     ...stuckItems,
   ]) {
     const d = itemDisp(name);
@@ -804,7 +818,6 @@ export async function computeBlock(data: SolveInput) {
     ...result,
     imports,
     exports,
-    extraOutputs,
     rows,
     display,
     producible,
@@ -826,10 +839,10 @@ export async function computeBlock(data: SolveInput) {
 async function persistBlock(
   q: Awaited<ReturnType<typeof lib>>,
   meta: { id?: number | null; name: string; iconKind: string | null; iconName: string | null },
-  data: SolveInput,
+  rawData: SolveInput,
   r: Awaited<ReturnType<typeof computeBlock>>,
 ): Promise<number> {
-  const targetKind = q.getFluid(data.target) ? "fluid" : "item";
+  const data = normalizeBlockData(rawData) as SolveInput; // persist the new goals shape
   return q.saveBlockRow(
     {
       ...meta,
@@ -837,7 +850,7 @@ async function persistBlock(
       electricityW: r.broken ? null : r.power.totalW,
       dataFingerprint: q.blockReferenceFingerprint(data),
     },
-    r.broken ? null : [...boundaryFlows(data.target, targetKind, data.rate, r)],
+    r.broken ? null : [...boundaryFlows(goalFlows(data, q), r)],
     r.broken ? null : machineReqs(r.rows),
   );
 }
@@ -859,9 +872,8 @@ export async function showBlockInGame(id: number) {
   const q = await lib();
   const row = q.getBlock(id);
   if (!row) return { sent: false as const, name: null };
-  const input = row.data as SolveInput;
+  const input = normalizeBlockData(row.data as SolveInput) as SolveInput;
   const r = await computeBlock(input);
-  const targetKind = q.getFluid(input.target) ? "fluid" : "item";
 
   // Energy pseudo-goods are shown as the power/heat lines, not as I/O rows
   // (they aren't real prototypes, so an in-game icon tag wouldn't resolve).
@@ -949,11 +961,7 @@ export async function showBlockInGame(id: number) {
     ...good(f, 0), // belts only — boundary flows aren't tied to one building
     display: r.display[f.name],
   });
-  const outputs = [
-    ...(input.rate > 0 ? [{ name: input.target, kind: targetKind, rate: input.rate }] : []),
-    ...r.extraOutputs,
-    ...r.exports,
-  ]
+  const outputs = [...goalFlows(input, q).filter((g) => g.rate > 0), ...r.exports]
     .filter((f) => !PSEUDO.has(f.name))
     .map(boundary);
   const inputs = r.imports.filter((f) => !PSEUDO.has(f.name)).map(boundary);
@@ -1004,16 +1012,16 @@ export const saveBlockFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const q = await lib();
     const r = await computeBlock(data.data);
-    const targetKind = q.getFluid(data.data.target) ? "fluid" : "item";
-    const name =
-      data.name?.trim() || r.display[data.data.target] || data.data.target || "New block";
+    const primary = primaryGoal(normalizeBlockData(data.data))?.name ?? "";
+    const targetKind = q.getFluid(primary) ? "fluid" : "item";
+    const name = data.name?.trim() || r.display[primary] || primary || "New block";
     const id = await persistBlock(
       q,
       {
         id: data.id,
         name,
         iconKind: data.iconKind ?? targetKind,
-        iconName: data.iconName ?? data.data.target,
+        iconName: data.iconName ?? primary,
       },
       data.data,
       r,
@@ -1045,8 +1053,8 @@ export const deleteBlockIfEmptyFn = createServerFn({ method: "POST" })
     const q = await lib();
     const row = q.getBlock(data);
     if (!row) return { deleted: false };
-    const d = row.data as SolveInput;
-    const empty = !d.target && (d.recipes?.length ?? 0) === 0 && (d.extraGoals?.length ?? 0) === 0;
+    const d = normalizeBlockData(row.data as SolveInput);
+    const empty = goalNames(d).length === 0 && (d.recipes?.length ?? 0) === 0;
     if (empty) q.deleteBlock(data);
     return { deleted: empty };
   });
@@ -1146,9 +1154,9 @@ export const scalePlanFn = createServerFn({ method: "GET" })
     const q = await lib();
     const row = q.getBlock(data.blockId);
     if (!row) return null;
-    const input = row.data as SolveInput;
+    const input = normalizeBlockData(row.data as SolveInput) as SolveInput;
     const cur = await computeBlock(input);
-    const next = await computeBlock({ ...input, rate: data.newRate });
+    const next = await computeBlock(withPrimaryRate(input, data.newRate));
     const curRow = new Map(cur.rows.map((r) => [r.recipe, r]));
     const rows = next.rows.map((nr) => {
       const cr = curRow.get(nr.recipe);
@@ -1198,7 +1206,12 @@ export const scalePlanFn = createServerFn({ method: "GET" })
       }));
     };
     return {
-      block: { id: row.id, name: row.name, good: input.target, currentRate: input.rate },
+      block: {
+        id: row.id,
+        name: row.name,
+        good: primaryGoal(input)?.name ?? "",
+        currentRate: primaryRate(input),
+      },
       newRate: data.newRate,
       status: next.status,
       message: next.message ?? null,
@@ -1222,7 +1235,10 @@ export const setBlockRateFn = createServerFn({ method: "POST" })
     const q = await lib();
     const row = q.getBlock(data.blockId);
     if (!row) return { ok: false };
-    const input = { ...(row.data as SolveInput), rate: data.rate };
+    const input = withPrimaryRate(
+      normalizeBlockData(row.data as SolveInput),
+      data.rate,
+    ) as SolveInput;
     const r = await computeBlock(input);
     if (r.broken) return { ok: false, broken: true };
     await persistBlock(
@@ -1687,7 +1703,7 @@ export const blockChangeReportFn = createServerFn({ method: "GET" }).handler(asy
   for (const b of q.listBlocks()) {
     const row = q.getBlock(b.id);
     if (!row) continue;
-    const data = row.data as SolveInput;
+    const data = normalizeBlockData(row.data as SolveInput) as SolveInput;
     // staleness is now per-block: the block's own referenced prototypes changed
     // (in-place mod update or a vanished recipe), not just the global mod set.
     const stale = row.dataFingerprint !== q.blockReferenceFingerprint(data);
@@ -1709,8 +1725,7 @@ export const blockChangeReportFn = createServerFn({ method: "GET" }).handler(asy
     let fresh: { item: string; kind: string; role: string; rate: number }[];
     try {
       const r = await computeBlock(data);
-      const targetKind = q.getFluid(data.target) ? "fluid" : "item";
-      fresh = boundaryFlows(data.target, targetKind, data.rate, r);
+      fresh = boundaryFlows(goalFlows(data, q), r);
     } catch (e) {
       reports.push({
         id: b.id,

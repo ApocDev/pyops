@@ -50,6 +50,7 @@ import type {
   LogisticsContext,
   StackBonuses,
 } from "../lib/logistics.ts";
+import { goalNames, normalizeBlockData, primaryRate } from "../lib/goals.ts";
 
 const recipeSummary = {
   name: recipes.name,
@@ -728,10 +729,10 @@ export function listBlocks() {
       .map((r) => r.n),
   ]);
   return rows.map(({ data, ...b }) => {
-    const d = data as BlockData;
+    const d = normalizeBlockData(data as BlockData);
     const broken =
       (d.recipes ?? []).some((r) => !recipeNames.has(r)) ||
-      [d.target, ...(d.extraGoals ?? [])].some((g) => g && !goodNames.has(g));
+      goalNames(d).some((g) => !goodNames.has(g));
     return { ...b, broken };
   });
 }
@@ -770,7 +771,10 @@ export function setGroupOrder(ids: number[]) {
 }
 
 export function getBlock(id: number) {
-  return db.select().from(blocks).where(eq(blocks.id, id)).get() ?? null;
+  const row = db.select().from(blocks).where(eq(blocks.id, id)).get() ?? null;
+  // Migrate the legacy { target, rate, extraGoals } shape on read so every consumer
+  // (editor hydrate, re-solve, scale tools) sees the current goals[] model.
+  return row ? { ...row, data: normalizeBlockData(row.data) } : null;
 }
 
 /** Cached solved I/O for one block (the last-saved flows). */
@@ -811,9 +815,7 @@ export function goodExists(name: string): boolean {
 export function blockMissingRefs(data: BlockData): { recipes: string[]; goods: string[] } {
   return {
     recipes: [...new Set(data.recipes ?? [])].filter((r) => !recipeExists(r)),
-    goods: [data.target, ...(data.extraGoals ?? [])]
-      .filter((g): g is string => !!g)
-      .filter((g, i, a) => a.indexOf(g) === i && !goodExists(g)),
+    goods: goalNames(normalizeBlockData(data)).filter((g) => !goodExists(g)),
   };
 }
 
@@ -872,8 +874,8 @@ export function blockReferenceFingerprint(data: BlockData): string {
   const parts: string[] = [];
   for (const name of [...new Set(data.recipes ?? [])].sort())
     parts.push(`R ${name} ${recipeSignature(name)}`);
-  for (const g of [data.target, ...(data.extraGoals ?? [])].filter(Boolean).sort())
-    parts.push(`G ${g} ${goodExists(g!) ? "1" : "0"}`);
+  for (const g of goalNames(normalizeBlockData(data)).sort())
+    parts.push(`G ${g} ${goodExists(g) ? "1" : "0"}`);
   return createHash("sha256").update(parts.join("\n")).digest("hex").slice(0, 16);
 }
 
@@ -953,7 +955,7 @@ export function blocksWithFlows() {
     .map((b) => ({
       id: b.id,
       name: b.name,
-      rate: (b.data as BlockData).rate,
+      rate: primaryRate(normalizeBlockData(b.data)),
       flows: db
         .select({
           item: blockFlows.item,

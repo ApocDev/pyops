@@ -28,6 +28,8 @@ import {
 import { bridgeLocateFn } from "../server/bridge/fns";
 import { tasksForBlockFn } from "../server/tasks.ts";
 import type { Disposition } from "../solver/block";
+import type { Goal } from "../db/schema";
+import { normalizeBlockData } from "../lib/goals";
 import { Icon, IconProvider } from "../lib/icons";
 import { ModulesChip, ModulesModal } from "../lib/modules-modal";
 import { Copy, Gamepad2, Rocket } from "lucide-react";
@@ -400,12 +402,14 @@ function CtxBtn({
 function Block({ blockId }: { blockId: number }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [target, setTarget] = useState("");
-  const [rate, setRate] = useState(1);
-  const [extraGoals, setExtraGoals] = useState<string[]>([]); // extra co-product goals (primary)
+  // Output goals, primary first. goals[0] anchors naming/icon/sizing. A goal with a
+  // numeric rate is pinned (a solver target); rate null is an unpinned co-product.
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const target = goals[0]?.name ?? ""; // the primary goal's good (sizing anchor)
+  const rate = goals[0]?.rate ?? 1; // the primary goal's pinned rate
   // goal-item picker dialog: null = closed, {} = adding a new goal, {replace} = changing that goal's item
   const [goalPicker, setGoalPicker] = useState<null | { replace?: string }>(null);
-  // right-click menu on a goal cell (change item / make primary / remove)
+  // right-click menu on a goal cell (change item / move to front / remove)
   const [goalMenu, setGoalMenu] = useState<{ x: number; y: number; name: string } | null>(null);
   // right-click context menu on a good chip (explicit actions instead of cycling)
   const [ctxMenu, setCtxMenu] = useState<{
@@ -472,9 +476,7 @@ function Block({ blockId }: { blockId: number }) {
     if (hydrated.current || !loaded.data) return;
     hydrated.current = true;
     const d = loaded.data.data;
-    setTarget(d.target ?? "");
-    setRate(d.rate ?? 1);
-    setExtraGoals(d.extraGoals ?? []);
+    setGoals(normalizeBlockData(d).goals);
     setRecipes(d.recipes ?? []);
     setDisp((d.dispositions ?? {}) as Record<string, Disposition>);
     setMachineSel(d.machines ?? {});
@@ -486,11 +488,7 @@ function Block({ blockId }: { blockId: number }) {
 
   const copySetup = () => {
     void navigator.clipboard?.writeText(
-      JSON.stringify(
-        { target, rate, recipes, disp, machineSel, fuelSel, moduleSel, beaconSel },
-        null,
-        2,
-      ),
+      JSON.stringify({ goals, recipes, disp, machineSel, fuelSel, moduleSel, beaconSel }, null, 2),
     );
   };
   // Push this block to the game as an in-game build sheet (buildings clickable for
@@ -534,48 +532,40 @@ function Block({ blockId }: { blockId: number }) {
     const i = DISP_CYCLE.indexOf(disp[name] ?? "auto");
     setDispFor(name, DISP_CYCLE[(i + 1) % DISP_CYCLE.length]);
   };
-  // Goals: the primary target (sizing anchor + rate) plus unpinned co-products.
-  // The first goal picked becomes the primary; the rest are co-products.
+  // Goals: an ordered list, primary first (goals[0] = the sizing anchor). A new
+  // block's first goal is pinned to 1/s; further goals start unpinned (co-products)
+  // and can be pinned to their own target rate.
   const addGoal = (name: string) => {
     markEdited();
-    if (!target) setTarget(name);
-    else if (name !== target && !extraGoals.includes(name)) setExtraGoals((gs) => [...gs, name]);
+    setGoals((gs) => (gs.some((g) => g.name === name) ? gs : [...gs, { name, rate: 1 }]));
   };
   const removeGoal = (name: string) => {
     markEdited();
-    if (name === target) {
-      // primary removed: promote the first co-product (if any) to keep the invariant
-      const [next, ...rest] = extraGoals;
-      setTarget(next ?? "");
-      setExtraGoals(rest);
-    } else {
-      setExtraGoals((gs) => gs.filter((x) => x !== name));
-    }
+    setGoals((gs) => gs.filter((g) => g.name !== name));
+  };
+  const setGoalRate = (name: string, r: number) => {
+    markEdited();
+    setGoals((gs) => gs.map((g) => (g.name === name ? { ...g, rate: r } : g)));
   };
   // Spin up a fresh block that produces `name` (e.g. to supply an import), sized
   // to the rate this block needs, and open it. Recipes are left for the user to
   // pick — same starting point as "New block", but pre-seeded with the goal.
   const createSupplier = async (name: string, rate: number) => {
     const res2 = await saveBlockFn({
-      data: { data: { target: name, rate: rate > 0 ? +rate.toFixed(4) : 1, recipes: [] } },
+      data: { data: { goals: [{ name, rate: rate > 0 ? +rate.toFixed(4) : 1 }], recipes: [] } },
     });
     void qc.invalidateQueries({ queryKey: ["blocks"] });
     void navigate({ to: "/block/$id", params: { id: String(res2.id) } });
   };
-  // Swap a goal's item in place (keeps primary vs co-product role).
+  // Swap a goal's item in place (keeps its position + rate); drop it if the new item
+  // is already a goal.
   const changeGoalItem = (from: string, to: string) => {
     markEdited();
     if (to === from) return;
-    if (from === target) {
-      setExtraGoals((gs) => gs.filter((x) => x !== to)); // avoid a dup if `to` was a co-product
-      setTarget(to);
-    } else {
-      setExtraGoals((gs) =>
-        gs
-          .map((x) => (x === from ? to : x))
-          .filter((x, i, a) => x !== target && a.indexOf(x) === i),
-      );
-    }
+    setGoals((gs) => {
+      const exists = gs.some((g) => g.name === to);
+      return gs.flatMap((g) => (g.name === from ? (exists ? [] : [{ ...g, name: to }]) : [g]));
+    });
   };
   // The goal-picker dialog routes to add / change depending on how it was opened.
   const pickGoalItem = (name: string) => {
@@ -584,11 +574,13 @@ function Block({ blockId }: { blockId: number }) {
     setSearch("");
     setGoalPicker(null);
   };
-  // Promote a co-product to the primary (sizing) goal; the old primary becomes one.
+  // Move a goal to the front, so it names the block + anchors the rate-scaling tools.
   const makePrimary = (name: string) => {
     markEdited();
-    setExtraGoals((gs) => [target, ...gs.filter((x) => x !== name)]);
-    setTarget(name);
+    setGoals((gs) => {
+      const g = gs.find((x) => x.name === name);
+      return g ? [g, ...gs.filter((x) => x.name !== name)] : gs;
+    });
   };
 
   const hasDisp = Object.keys(disp).length > 0;
@@ -598,10 +590,8 @@ function Block({ blockId }: { blockId: number }) {
   const modulesUsed = moduleSel;
   const beaconsUsed = Object.fromEntries(Object.entries(beaconSel).filter(([, v]) => v.length));
   const solveInput = {
-    target,
-    rate,
+    goals,
     recipes,
-    ...(extraGoals.length ? { extraGoals } : {}),
     ...(hasDisp ? { dispositions: disp } : {}),
     ...(Object.keys(machineSel).length ? { machines: machineSel } : {}),
     ...(Object.keys(fuelSel).length ? { fuels: fuelSel } : {}),
@@ -616,7 +606,7 @@ function Block({ blockId }: { blockId: number }) {
   // kind + display for the goal cells, so a fluid goal (e.g. crude-oil) icons
   // correctly even before any recipe makes it appear in the solve's flows, and so
   // the block can auto-name itself from its primary goal pre-solve.
-  const goalNames = target ? [target, ...extraGoals] : [];
+  const goalNames = goals.map((g) => g.name);
   const goalInfo = useQuery({
     queryKey: ["goalInfo", goalNames],
     queryFn: () => goodInfoFn({ data: goalNames }),
@@ -644,20 +634,9 @@ function Block({ blockId }: { blockId: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, goalInfo.data, nameCustom, blockName]);
   const solve = useQuery({
-    queryKey: [
-      "solve",
-      target,
-      rate,
-      extraGoals,
-      recipes,
-      disp,
-      machineSel,
-      fuelSel,
-      moduleSel,
-      beaconSel,
-    ],
+    queryKey: ["solve", goals, recipes, disp, machineSel, fuelSel, moduleSel, beaconSel],
     queryFn: () => solveBlockFn({ data: solveInput }),
-    enabled: !!target,
+    enabled: goals.length > 0,
     // keep the last result while a re-solve is in flight — otherwise every edit
     // briefly unmounts everything derived from `res` (incl. open modals)
     placeholderData: keepPreviousData,
@@ -693,7 +672,7 @@ function Block({ blockId }: { blockId: number }) {
     if (!hydrated.current || !dirty.current) return;
     const t = setTimeout(persist, 700);
     return () => clearTimeout(t);
-  }, [target, rate, recipes, disp, machineSel, fuelSel, moduleSel, beaconSel, blockName]);
+  }, [goals, recipes, disp, machineSel, fuelSel, moduleSel, beaconSel, blockName]);
   useEffect(
     () => () => {
       if (hydrated.current && dirty.current) void persist();
@@ -705,7 +684,7 @@ function Block({ blockId }: { blockId: number }) {
   // untouched "New block" without racing the unmount auto-save above. Cleared on
   // unmount so a stale reading can't outlive the editor.
   const activeEditorRef = useContext(ActiveEditorRefContext);
-  const isEmpty = !target && recipes.length === 0 && extraGoals.length === 0;
+  const isEmpty = goals.length === 0 && recipes.length === 0;
   useEffect(() => {
     if (activeEditorRef) activeEditorRef.current = { id: blockId, empty: isEmpty };
   });
@@ -788,7 +767,12 @@ function Block({ blockId }: { blockId: number }) {
     }
     if (imp.rate > 0 && rate > 0 && Math.abs(imp.rate - lockedRate) > 1e-3) {
       markEdited();
-      setRate((r) => +((lockedRate * r) / imp.rate).toFixed(4));
+      // back-solve the first goal's rate so the locked import lands at lockedRate
+      setGoals((gs) =>
+        gs.map((g, i) =>
+          i === 0 ? { ...g, rate: +((lockedRate * g.rate) / imp.rate).toFixed(4) } : g,
+        ),
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [res, lockedInput, lockedRate]);
@@ -812,8 +796,7 @@ function Block({ blockId }: { blockId: number }) {
     for (const p of r.products) kindMap.set(p.name, p.kind);
     for (const c of r.ingredients) kindMap.set(c.name, c.kind);
   }
-  for (const f of [...(res?.imports ?? []), ...(res?.exports ?? []), ...(res?.extraOutputs ?? [])])
-    kindMap.set(f.name, f.kind);
+  for (const f of [...(res?.imports ?? []), ...(res?.exports ?? [])]) kindMap.set(f.name, f.kind);
   const kindOf = (name: string) =>
     (kindMap.get(name) ?? goalInfo.data?.[name]?.kind ?? "item") as "item" | "fluid";
 
@@ -922,17 +905,34 @@ function Block({ blockId }: { blockId: number }) {
         <HelpButton title="What is a block?">
           <p>
             A block is <span className="text-foreground">one production unit you design</span>: pick
-            the recipes to make a goal good, and the solver works out how many of each building you
-            need (fractional counts and all).
+            the recipes to make one or more goal goods, and the solver works out how many of each
+            building you need (fractional counts and all).
           </p>
+          <div>
+            <div className="font-semibold text-foreground">Goals</div>
+            <p className="mt-1">
+              A block can target several products at once — each goal has a{" "}
+              <span className="text-foreground">target rate</span> and the block is sized so that
+              good comes out at exactly that rate. Click a goal&apos;s rate to edit it. So a single
+              &quot;logistics&quot; block can make belts @10/s, undergrounds @4/s and splitters @2/s
+              side by side. The first goal <span className="text-blue-300">names the block</span>{" "}
+              and anchors the scale tools; <span className="text-foreground">★</span> moves a goal
+              to the front. A good you don&apos;t target isn&apos;t a goal — it falls out as a
+              byproduct (export).
+            </p>
+            <p className="mt-1">
+              If your goals can&apos;t all be met at once (e.g. two goods locked to a fixed ratio by
+              one recipe), the block is <span className="text-destructive">infeasible</span> and
+              says so — add a recipe to make more of the short good, or change a rate.
+            </p>
+          </div>
           <p>
-            <span className="text-foreground">How it solves.</span> You pin a goal output and its
-            rate. Every good in the block is then one of:{" "}
-            <span className="text-foreground">balanced</span> (made and used inside the block),{" "}
-            <span className="text-foreground">imported</span> (brought in from outside or another
-            block), or <span className="text-foreground">exported</span> (surplus that leaves). The
-            solver sets each recipe&apos;s run-rate to satisfy that — it&apos;s a linear system, and
-            it handles Py&apos;s cyclic recipe chains.
+            <span className="text-foreground">How it solves.</span> Given the goals, every other
+            good in the block is one of: <span className="text-foreground">balanced</span> (made and
+            used inside the block), <span className="text-foreground">imported</span> (brought in
+            from outside or another block), or <span className="text-foreground">exported</span>{" "}
+            (surplus that leaves). The solver sets each recipe&apos;s run-rate to satisfy that —
+            it&apos;s a linear system, and it handles Py&apos;s cyclic recipe chains.
           </p>
           <p>
             <span className="text-foreground">You drive it, not an optimizer.</span> You choose the
@@ -1006,15 +1006,16 @@ function Block({ blockId }: { blockId: number }) {
             <CardTitle>Goal</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {/* Goals as compact stacked cells (icon over amount) so many fit — e.g. a
-                flora block with lots of co-products. Click a goal's icon to add a recipe
-                that makes it (like the Imports chips). The primary goal carries the rate
-                (the sizing anchor, read-only when an input is locked); co-products are
-                unpinned and show their solved rate. */}
+            {/* Goals as compact stacked cells (icon over rate) so many fit — a block can
+                target several products at once (e.g. belts, undergrounds, splitters). Each
+                goal has a target rate (a solver target); click the rate to edit it. Click a
+                goal's icon to add a recipe that makes it. goals[0] names the block + anchors
+                the rate-scaling tools; ★ moves a goal to the front. A good you don't target
+                shows up as a byproduct, not here. */}
             <div className="flex flex-wrap gap-2">
-              {(target ? [target, ...extraGoals] : []).map((g) => {
-                const isPrimary = g === target;
-                const out = isPrimary ? null : res?.extraOutputs?.find((f) => f.name === g);
+              {goals.map((goal, i) => {
+                const g = goal.name;
+                const isFirst = i === 0;
                 const kind = kindOf(g);
                 const goalMissing = res?.missing?.goods.includes(g) ?? false;
                 return (
@@ -1027,74 +1028,60 @@ function Block({ blockId }: { blockId: number }) {
                     className={`group relative flex min-w-16 flex-col items-center gap-0.5 rounded px-2 py-1 ${
                       goalMissing
                         ? "bg-destructive/10 ring-1 ring-destructive/40"
-                        : isPrimary
+                        : isFirst
                           ? "bg-blue-500/10 ring-1 ring-blue-400/30"
-                          : "bg-emerald-500/5"
+                          : "bg-sky-500/5 ring-1 ring-sky-400/20"
                     }`}
                     title={
                       goalMissing
                         ? `${g} — no longer exists in the current data`
-                        : `${res?.display?.[g] ?? g}${isPrimary ? " — primary goal (sizing)" : " — co-product goal"} · right-click for options`
+                        : `${res?.display?.[g] ?? g}${isFirst ? " — names the block" : ""} · right-click for options`
                     }
                   >
-                    {/* remove (co-products) / make-primary (on hover) */}
-                    {!isPrimary && (
-                      <div className="absolute -top-1 right-0 flex gap-0.5 opacity-0 group-hover:opacity-100">
+                    {/* move-to-front (not on the first goal) · remove — on hover */}
+                    <div className="absolute -top-2 -right-1.5 flex gap-1 opacity-0 group-hover:opacity-100">
+                      {!isFirst && (
                         <button
                           onClick={() => makePrimary(g)}
-                          title="make this the primary (sizing) goal"
-                          className="rounded bg-background px-0.5 text-[10px] text-blue-300 hover:text-blue-200"
+                          title="move to front — name the block after this goal"
+                          className="flex size-5 items-center justify-center rounded bg-background text-sm text-blue-300 shadow ring-1 ring-border hover:text-blue-200"
                         >
                           ★
                         </button>
-                        <button
-                          onClick={() => removeGoal(g)}
-                          title="remove this goal"
-                          className="rounded bg-background px-0.5 text-[10px] text-muted-foreground hover:text-destructive"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
+                      )}
+                      <button
+                        onClick={() => removeGoal(g)}
+                        title="remove this goal"
+                        className="flex size-5 items-center justify-center rounded bg-background text-sm text-muted-foreground shadow ring-1 ring-border hover:text-destructive"
+                      >
+                        ✕
+                      </button>
+                    </div>
                     <button
-                      onClick={() => (isPrimary && rate < 0 ? useFor(g) : makeFor(g))}
+                      onClick={() => (isFirst && goal.rate < 0 ? useFor(g) : makeFor(g))}
                       title="click to add a recipe that makes this goal (right-click to change the item)"
                     >
                       <Icon kind={kind} name={g} size="lg" title={res?.display?.[g] ?? g} />
                     </button>
                     {goalMissing ? (
                       <span className="text-xs font-semibold text-destructive">⚠ gone</span>
-                    ) : isPrimary ? (
+                    ) : (
                       <span className="text-sm">
                         <EditableRate
-                          value={rate}
-                          readOnly={!!lockedInput}
-                          onChange={(v) => {
-                            markEdited();
-                            setRate(v);
-                          }}
+                          value={goal.rate}
+                          readOnly={isFirst && !!lockedInput}
+                          onChange={(v) => setGoalRate(g, v)}
                         />
-                      </span>
-                    ) : (
-                      <span className="text-sm text-emerald-200 tabular-nums">
-                        {out ? (
-                          <>
-                            {fmtRate(out.rate)}
-                            <span className="text-muted-foreground">/s</span>
-                          </>
-                        ) : (
-                          "—"
-                        )}
                       </span>
                     )}
                     {logiResolved && kind === "item" && !goalMissing && (
                       <LogiTag
                         resolved={logiResolved}
-                        rate={Math.abs(isPrimary ? rate : (out?.rate ?? 0))}
+                        rate={Math.abs(goal.rate)}
                         machineCount={0}
                         showBelts={showBelts}
                         showInserters={showInserters}
-                        launch={launchInfo(g, Math.abs(isPrimary ? rate : (out?.rate ?? 0)))}
+                        launch={launchInfo(g, Math.abs(goal.rate))}
                       />
                     )}
                   </div>
@@ -1748,7 +1735,7 @@ function Block({ blockId }: { blockId: number }) {
                   setGoalMenu(null);
                 }}
               >
-                ★ Make primary (sizing) goal
+                ★ Move to front (names the block)
               </CtxBtn>
             )}
             <div className="my-1 border-t border-border" />

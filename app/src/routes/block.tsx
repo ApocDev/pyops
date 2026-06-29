@@ -182,7 +182,7 @@ function Shell() {
   const open = (id: number) => void navigate({ to: "/block/$id", params: { id: String(id) } });
   const newBlock = async () => {
     const res = await saveBlockFn({
-      data: { name: "New block", data: { target: "", rate: 1, recipes: [] } },
+      data: { name: "New block", data: { goals: [], recipes: [] } },
     });
     void qc.invalidateQueries({ queryKey: ["blocks"] });
     open(res.id);

@@ -1282,8 +1282,7 @@ function BlockDraft({ draft }: { draft: Draft }) {
         data: {
           name: `${draft.targetDisplay ?? draft.target} (drafted)`,
           data: {
-            target: draft.target,
-            rate: draft.rate,
+            goals: [{ name: draft.target, rate: draft.rate }],
             recipes: draft.recipes,
             ...(draft.modules && Object.keys(draft.modules).length
               ? { modules: draft.modules }
@@ -1424,7 +1423,7 @@ function PlanDraft({ plan }: { plan: PlanDraftData }) {
         const res = await saveBlockFn({
           data: {
             name: draft.name ?? `${draft.targetDisplay ?? draft.target} (drafted)`,
-            data: { target: draft.target, rate: draft.rate, recipes: draft.recipes },
+            data: { goals: [{ name: draft.target, rate: draft.rate }], recipes: draft.recipes },
           },
         });
         made.push(res);

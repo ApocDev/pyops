@@ -6,11 +6,17 @@ Code: `app/src/solver/` (`block.ts`, `linalg.ts`), with effect aggregation in
 
 ## The block solver
 
-A block is a declared output target + a set of chosen recipes + per-item
-dispositions. The solver builds a **sparse linear system** and solves for recipe
-run-rates (executions/sec):
+A block is a set of declared output **goals** + a set of chosen recipes + per-item
+dispositions. Each goal has a **target rate** and becomes a solver equation — the
+block is sized so that good comes out at exactly that rate; `goals[0]` names the
+block/icon and anchors the rate-scaling tools. A good you don't target isn't a goal —
+it falls out as a byproduct (export) or import. If the goals can't be jointly
+satisfied (e.g. two goods locked to a fixed ratio by one recipe) the block is
+**infeasible** and says so. See `app/src/lib/goals.ts` for the model and the
+migration from the legacy single-`target` shape. The solver builds a **sparse linear
+system** and solves for recipe run-rates (executions/sec):
 
-- Pinned goals and `balance` items become equations (net production = target / 0).
+- Goals and `balance` items become equations (net production = target / 0).
 - `import` / `export` items carry no equation — their net is a free boundary flow.
 - Default disposition: a good produced **and** consumed in-block balances to zero;
   produced-only becomes an export, consumed-only an import.

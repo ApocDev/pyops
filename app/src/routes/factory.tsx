@@ -601,7 +601,7 @@ function ResourceDrawer({
   const createBlock = async () => {
     setCreating(true);
     const res = await saveBlockFn({
-      data: { name: label, data: { target: item, rate: seedRate, recipes: [] } },
+      data: { name: label, data: { goals: [{ name: item, rate: seedRate }], recipes: [] } },
     });
     void qc.invalidateQueries({ queryKey: ["blocks"] });
     void navigate({ to: "/block/$id", params: { id: String(res.id) } });

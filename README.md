@@ -11,9 +11,9 @@ planner that actually understands Py's tangled recipe graph.
 
 ## What it does
 
-- **Design production blocks.** Pick a target output, choose the recipes and
-  machines, set modules/beacons, and PyOps solves the run-rates and building
-  counts for the whole chain — including Py's cyclic recipe loops, fluid
+- **Design production blocks.** Pick one or more output goals (each with its own
+  target rate), choose the recipes and machines, set modules/beacons, and PyOps
+  solves the run-rates and building counts for the whole chain — including Py's cyclic recipe loops, fluid
   temperatures, and fractional machine counts.
 - **Balance the whole factory.** Every block's boundary flows (imports/exports)
   roll up into a factory-wide ledger so you can see deficits, surpluses, and how a
@@ -58,8 +58,9 @@ surpluses, and a machine count compared against what you've actually placed in-g
 
 ![Factory ledger — whole-factory balance with deficits, surpluses, and built-vs-required machines](docs/images/factory.png)
 
-The **block editor** — pick a target, choose recipes / machines / modules, and the
-solver runs the rates and building counts for the whole chain (cyclic recipes, fluid
+The **block editor** — pick one or more goals (each with its own target rate),
+choose recipes / machines / modules, and the solver runs the rates and building
+counts for the whole chain (cyclic recipes, fluid
 temperatures, byproducts, fractional machines). New recipes default to the
 lowest-tier building and cheapest fuel; star a building or fuel in its picker to make
 it the **favorite** for that category, and new recipes there adopt it once it's

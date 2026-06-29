@@ -38,7 +38,7 @@ describe("parseMigrationJson", () => {
 });
 
 const block = (data: Partial<BlockData>, icon?: { kind: string; name: string }): BlockShape => ({
-  data: { target: "", rate: 1, recipes: [], ...data },
+  data: { goals: [], recipes: [], ...data },
   iconKind: icon?.kind ?? null,
   iconName: icon?.name ?? null,
 });
@@ -59,8 +59,10 @@ describe("applyRenames", () => {
     });
     const input = block(
       {
-        target: "old-plate",
-        extraGoals: ["old-fuel"],
+        goals: [
+          { name: "old-plate", rate: 1 },
+          { name: "old-fuel", rate: 2 },
+        ],
         recipes: ["old-smelt"],
         dispositions: { "old-plate": "export" },
         machines: { "old-smelt": "old-furnace" },
@@ -72,8 +74,10 @@ describe("applyRenames", () => {
     );
     const { block: out, changed } = applyRenames(input, r);
     expect(changed).toBe(true);
-    expect(out.data.target).toBe("new-plate");
-    expect(out.data.extraGoals).toEqual(["new-fuel"]);
+    expect(out.data.goals).toEqual([
+      { name: "new-plate", rate: 1 },
+      { name: "new-fuel", rate: 2 },
+    ]);
     expect(out.data.recipes).toEqual(["new-smelt"]);
     expect(out.data.dispositions).toEqual({ "new-plate": "export" });
     expect(out.data.machines).toEqual({ "new-smelt": "new-furnace" });
@@ -87,7 +91,7 @@ describe("applyRenames", () => {
 
   it("leaves a block untouched when nothing matches", () => {
     const r = parseMigrationJson({ recipe: [["x", "y"]] });
-    const input = block({ target: "plate", recipes: ["smelt"] });
+    const input = block({ goals: [{ name: "plate", rate: 1 }], recipes: ["smelt"] });
     const { changed, block: out } = applyRenames(input, r);
     expect(changed).toBe(false);
     expect(out.data).toEqual(input.data);
