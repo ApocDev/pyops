@@ -1,0 +1,25 @@
+app/src/routes/block.$id.tsx
+  s_2dc48357e94b05::t_97c1abb70f9311 1424-1477
+app/src/server/factorio.ts
+  s_2dc48357e94b05::t_063db6cc454f3f 817-829,842
+app/src/db/queries.test.ts
+  s_2dc48357e94b05::t_2f249d36d21e66 7,42-49,164-181
+app/src/db/queries.ts
+  s_2dc48357e94b05::t_c4b260a5353226 117-154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "9460008f482ee0c52b65a2b41ddf2981c60f5045",
+  "prompts": {},
+  "sessions": {
+    "s_2dc48357e94b05": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "24495eb8-a941-4dcf-8025-b7ae80f24879",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
