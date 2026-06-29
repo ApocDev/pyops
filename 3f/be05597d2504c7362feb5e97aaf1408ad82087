@@ -1,0 +1,25 @@
+app/src/components/app-nav.tsx
+  s_3b17615400e28d::t_18b08ff29bc3a4 8-9,53-55,63-89
+app/src/components/nav-mobile.tsx
+  s_3b17615400e28d::t_c05a721c73cda6 1-58
+app/src/components/ui/sheet.tsx
+  s_3b17615400e28d::t_90290479e0cce9 1-123
+app/src/components/nav-links.ts
+  s_3b17615400e28d::t_208f61ad643660 1-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "3fbe05597d2504c7362feb5e97aaf1408ad82087",
+  "prompts": {},
+  "sessions": {
+    "s_3b17615400e28d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c80425d4-1cc5-4b06-8e5e-d9f4eb0b0b9a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
