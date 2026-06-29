@@ -511,6 +511,28 @@ function MachinesCard({ data }: { data: MachineSufficiency | undefined }) {
   if (rows.length === 0 && !data.syncedAt) return null;
   const shortCount = rows.filter((m) => m.short > 0).length;
 
+  // One stat cell, shared by the machine summary + recipe sub-rows. Desktop: a
+  // right-aligned fixed column. Mobile: a labelled stat in a 3-up grid (label
+  // omitted on sub-rows, which sit under their machine's already-labelled summary).
+  const MStat = ({
+    label,
+    w,
+    cls,
+    children,
+  }: {
+    label?: string;
+    w: string;
+    cls?: string;
+    children: ReactNode;
+  }) => (
+    <span className={`flex flex-col md:block ${w} md:text-right ${cls ?? ""}`}>
+      {label && (
+        <span className="text-xs font-normal text-muted-foreground md:hidden">{label}</span>
+      )}
+      <span>{children}</span>
+    </span>
+  );
+
   return (
     <Card className="mt-4 max-w-3xl">
       <CardHeader className="justify-between">
@@ -533,7 +555,7 @@ function MachinesCard({ data }: { data: MachineSufficiency | undefined }) {
           )}
         </span>
       </CardHeader>
-      <div className="flex px-3 pb-1 text-xs text-muted-foreground">
+      <div className="hidden px-3 pb-1 text-xs text-muted-foreground md:flex">
         <span className="flex-1">machine · recipe</span>
         <span className="w-20 text-right">built</span>
         <span className="w-20 text-right">required</span>
@@ -542,24 +564,32 @@ function MachinesCard({ data }: { data: MachineSufficiency | undefined }) {
       {rows.map((m) => (
         <div key={m.machine} className="border-t border-border">
           {/* machine summary */}
-          <div className="flex items-center gap-2 px-3 py-1.5 text-sm">
-            <Icon kind="item" name={m.machine} size="sm" title={m.display} />
-            <span className="min-w-0 flex-1 truncate font-semibold" title={m.display}>
-              {m.display}
-              {!m.recipeAware && m.builtTotal > 0 && (
-                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  (no recipe data)
-                </span>
-              )}
+          <div className="flex flex-col gap-1 px-3 py-2 text-sm md:flex-row md:items-center md:gap-2 md:py-1.5">
+            <span className="flex min-w-0 items-center gap-2 md:flex-1">
+              <Icon kind="item" name={m.machine} size="sm" title={m.display} />
+              <span className="min-w-0 flex-1 truncate font-semibold" title={m.display}>
+                {m.display}
+                {!m.recipeAware && m.builtTotal > 0 && (
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">
+                    (no recipe data)
+                  </span>
+                )}
+              </span>
             </span>
-            <span className="w-20 text-right text-muted-foreground">{m.builtTotal}</span>
-            <span className="w-20 text-right text-amber-300">{ceil(m.requiredTotal)}</span>
-            <span
-              className={`w-24 text-right font-semibold ${
-                m.short > 0 ? "text-destructive" : "text-emerald-300"
-              }`}
-            >
-              {m.short > 0 ? `need ${m.short}` : <Check className="inline size-4" />}
+            <span className="grid grid-cols-3 gap-x-3 pl-7 md:flex md:gap-2 md:pl-0">
+              <MStat label="built" w="md:w-20" cls="text-muted-foreground">
+                {m.builtTotal}
+              </MStat>
+              <MStat label="required" w="md:w-20" cls="text-amber-300">
+                {ceil(m.requiredTotal)}
+              </MStat>
+              <MStat
+                label="short"
+                w="md:w-24"
+                cls={`font-semibold ${m.short > 0 ? "text-destructive" : "text-emerald-300"}`}
+              >
+                {m.short > 0 ? `need ${m.short}` : <Check className="inline size-4" />}
+              </MStat>
             </span>
           </div>
           {/* per-recipe breakdown (only meaningful when recipe-aware) */}
@@ -567,18 +597,28 @@ function MachinesCard({ data }: { data: MachineSufficiency | undefined }) {
             m.recipes.map((r) => (
               <div
                 key={r.recipe}
-                className="flex items-center gap-2 py-0.5 pr-3 pl-10 text-xs text-muted-foreground"
+                className="flex flex-col gap-0.5 py-1 pr-3 pl-10 text-xs text-muted-foreground md:flex-row md:items-center md:gap-2 md:py-0.5"
               >
-                <Icon kind="recipe" name={r.recipe} size="sm" title={r.display} />
-                <span className="min-w-0 flex-1 truncate" title={r.display}>
-                  {r.display}
+                <span className="flex min-w-0 items-center gap-2 md:flex-1">
+                  <Icon kind="recipe" name={r.recipe} size="sm" title={r.display} />
+                  <span className="min-w-0 flex-1 truncate" title={r.display}>
+                    {r.display}
+                  </span>
                 </span>
-                <span className="w-20 text-right">{r.built ?? "—"}</span>
-                <span className="w-20 text-right">{ceil(r.required)}</span>
-                <span
-                  className={`w-24 text-right ${r.short > 0 ? "text-destructive" : "text-emerald-300/70"}`}
-                >
-                  {r.short > 0 ? `need ${r.short}` : <Check className="inline size-3.5" />}
+                <span className="grid grid-cols-3 gap-x-3 pl-6 md:flex md:gap-2 md:pl-0">
+                  <MStat label="built" w="md:w-20">
+                    {r.built ?? "—"}
+                  </MStat>
+                  <MStat label="required" w="md:w-20">
+                    {ceil(r.required)}
+                  </MStat>
+                  <MStat
+                    label="short"
+                    w="md:w-24"
+                    cls={r.short > 0 ? "text-destructive" : "text-emerald-300/70"}
+                  >
+                    {r.short > 0 ? `need ${r.short}` : <Check className="inline size-3.5" />}
+                  </MStat>
                 </span>
               </div>
             ))}
