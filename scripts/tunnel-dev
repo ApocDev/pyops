@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Expose the local PyOps dev server to the internet (or your tailnet) via a
+# tunnel, so the app is reachable from a phone, another machine, or a friend.
+#
+# Picks the first available provider unless one is named:
+#   cloudflared  — Cloudflare quick tunnel, no account/login needed (random *.trycloudflare.com URL)
+#   ngrok        — ngrok tunnel (needs `ngrok config add-authtoken …` once)
+#   tailscale    — `tailscale funnel`, public HTTPS via your tailnet (needs Funnel enabled)
+#
+# The dev server itself is NOT started by this script — run `vp dev` (or
+# `pnpm dev`) in app/ first, then run this.
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/tunnel-dev [provider] [--port N] [--name TUNNEL] [--domain HOST]
+
+  provider       One of: cloudflared | ngrok | tailscale (auto-detected if omitted)
+  --port N       Local port to expose. Default: 3000 (or $PYOPS_DEV_PORT)
+  --name TUNNEL  cloudflared only: run a pre-created NAMED tunnel (custom hostname)
+                 instead of a random quick tunnel. Requires one-time setup (see below).
+  --domain HOST  ngrok only: use a reserved/static domain (e.g. pyops.ngrok-free.app)
+                 instead of a random URL. Scheme is optional.
+
+Examples:
+  scripts/tunnel-dev                          # auto-pick a provider, expose :3000
+  scripts/tunnel-dev cloudflared              # random *.trycloudflare.com URL
+  scripts/tunnel-dev cloudflared --name pyops # custom pyops.yourdomain.com (named tunnel)
+  scripts/tunnel-dev ngrok --domain pyops.ngrok-free.app
+  scripts/tunnel-dev tailscale --port 3000
+
+Custom hostnames:
+  - cloudflared: a custom URL needs a NAMED tunnel tied to a domain on Cloudflare:
+      cloudflared login
+      cloudflared tunnel create pyops
+      cloudflared tunnel route dns pyops pyops.yourdomain.com
+      # add an ingress rule for http://localhost:3000 in ~/.cloudflared/config.yml
+    then:  scripts/tunnel-dev cloudflared --name pyops
+  - ngrok: reserve a domain (one free static domain per account), then --domain HOST.
+  - tailscale: Funnel ALWAYS serves on this node's MagicDNS name
+    (<machine>.<tailnet>.ts.net) — you can't pick an arbitrary subdomain. To get
+    pyops.<tailnet>.ts.net, rename the machine itself:  tailscale set --hostname=pyops
+    (this renames the node for everything, not just this tunnel).
+
+Notes:
+  - Start the dev server first:  cd app && vp dev   (listens on :3000)
+  - cloudflared quick tunnels need no account; ngrok needs a one-time authtoken;
+    tailscale funnel needs Funnel enabled for your tailnet/node.
+EOF
+}
+
+PROVIDER=""
+PORT="${PYOPS_DEV_PORT:-3000}"
+NAME=""
+DOMAIN=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --port) PORT="${2:?--port needs a value}"; shift 2 ;;
+    --port=*) PORT="${1#*=}"; shift ;;
+    --name) NAME="${2:?--name needs a value}"; shift 2 ;;
+    --name=*) NAME="${1#*=}"; shift ;;
+    --domain) DOMAIN="${2:?--domain needs a value}"; shift 2 ;;
+    --domain=*) DOMAIN="${1#*=}"; shift ;;
+    cloudflared|ngrok|tailscale) PROVIDER="$1"; shift ;;
+    *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
+  esac
+done
+
+# Strip any scheme from --domain (ngrok wants a bare host).
+DOMAIN="${DOMAIN#http://}"
+DOMAIN="${DOMAIN#https://}"
+
+# Auto-detect a provider if none was named (preference order: cloudflared, ngrok, tailscale).
+if [ -z "$PROVIDER" ]; then
+  for cand in cloudflared ngrok tailscale; do
+    if command -v "$cand" >/dev/null 2>&1; then PROVIDER="$cand"; break; fi
+  done
+fi
+
+if [ -z "$PROVIDER" ]; then
+  echo "No tunnel provider found. Install one of: cloudflared, ngrok, tailscale." >&2
+  exit 127
+fi
+
+# Flag/provider sanity checks.
+if [ -n "$NAME" ] && [ "$PROVIDER" != "cloudflared" ]; then
+  echo "--name only applies to cloudflared (named tunnels)." >&2; exit 2
+fi
+if [ -n "$DOMAIN" ] && [ "$PROVIDER" != "ngrok" ]; then
+  echo "--domain only applies to ngrok. For a custom cloudflared host use --name; for tailscale rename the node." >&2; exit 2
+fi
+
+if ! command -v "$PROVIDER" >/dev/null 2>&1; then
+  echo "Requested provider '$PROVIDER' is not installed or not on PATH." >&2
+  exit 127
+fi
+
+# Warn (don't fail) if nothing seems to be listening on the local port yet.
+if command -v ss >/dev/null 2>&1 && ! ss -ltn "sport = :$PORT" 2>/dev/null | grep -q ":$PORT"; then
+  echo "Warning: nothing appears to be listening on :$PORT — start the dev server (cd app && vp dev)." >&2
+fi
+
+echo "Exposing http://localhost:$PORT via $PROVIDER … (Ctrl-C to stop)"
+
+case "$PROVIDER" in
+  cloudflared)
+    if [ -n "$NAME" ]; then
+      # Named tunnel: hostname + ingress come from its Cloudflare config, not --url.
+      exec cloudflared tunnel run "$NAME"
+    else
+      exec cloudflared tunnel --url "http://localhost:$PORT"
+    fi
+    ;;
+  ngrok)
+    if [ -n "$DOMAIN" ]; then
+      exec ngrok http --domain="$DOMAIN" "$PORT"
+    else
+      exec ngrok http "$PORT"
+    fi
+    ;;
+  tailscale)
+    # Funnel serves on this node's own MagicDNS name; rename the node for a custom host.
+    if host="$(tailscale status --json 2>/dev/null | grep -o '"DNSName"[^,]*' | head -1 | cut -d'"' -f4)" && [ -n "$host" ]; then
+      echo "Public URL: https://${host%.}"
+    fi
+    # Public HTTPS via Tailscale Funnel; serves until interrupted, then resets.
+    trap 'tailscale funnel --https=443 off >/dev/null 2>&1 || true' EXIT INT TERM
+    exec tailscale funnel "$PORT"
+    ;;
+esac
