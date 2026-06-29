@@ -814,6 +814,19 @@ export async function computeBlock(rawData: SolveInput) {
     const d = itemDisp(name);
     if (d) display[name] = d;
   }
+  // One-time build cost: the materials needed to CONSTRUCT this block's buildings
+  // (#38). Aggregate machines across rows by type, then expand each building's own
+  // recipe — this surfaces e.g. steel for a science block even though no science
+  // recipe consumes it. Beacons are excluded (their physical count is ambiguous).
+  const buildingCounts = new Map<string, number>();
+  for (const r of rows)
+    if (r.machine?.count)
+      buildingCounts.set(
+        r.machine.name,
+        (buildingCounts.get(r.machine.name) ?? 0) + r.machine.count,
+      );
+  const buildCost = q.buildCost([...buildingCounts].map(([name, count]) => ({ name, count })));
+
   return {
     ...result,
     imports,
@@ -826,6 +839,7 @@ export async function computeBlock(rawData: SolveInput) {
     fuelItems,
     burntItems,
     tempWarnings,
+    buildCost,
     broken,
     missing,
   };

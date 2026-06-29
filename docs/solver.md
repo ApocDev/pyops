@@ -26,6 +26,16 @@ least-squares solve (`linalg.ts`) that handles Py's cyclic recipe chains and
 reports fractional building counts. Because the choices are the user's, the solver
 faithfully shows imbalance rather than silently "fixing" it by swapping recipes.
 
+## Build cost (capital materials)
+
+Separate from the per-second flows, `buildCost` (`db/queries.ts`, surfaced by
+`computeBlock`) reports the **one-time** materials to *construct* the block's
+buildings: it ceils the solved machine counts per building type, expands each
+building's own build recipe, and sums the direct ingredients. This is why a science
+block needs steel — the buildings are made of it — even though no recipe in the
+chain consumes steel (#38). It's direct ingredients only; producing those materials'
+sub-chain is the factory ledger's job.
+
 ## Module and beacon effects
 
 Module/beacon effects (`effects.ts`) apply **before** the solve:

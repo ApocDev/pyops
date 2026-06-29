@@ -1421,6 +1421,60 @@ function Block({ blockId }: { blockId: number }) {
         </Card>
       </div>
 
+      {/* One-time build cost: the materials to construct this block's buildings (#38)
+          — why e.g. steel is needed even when no recipe in the chain consumes it. */}
+      {res?.buildCost && res.buildCost.buildings.length > 0 && (
+        <Card className="mb-4">
+          <CardHeader className="justify-between">
+            <CardTitle>Build cost (one-time)</CardTitle>
+            <HelpButton title="Build cost">
+              <p>
+                The materials needed to{" "}
+                <span className="text-foreground">construct this block&apos;s buildings</span> — the
+                &quot;build the stuff to build the stuff&quot; requirement. It&apos;s a one-time
+                cost (not a per-second rate), and it&apos;s why something like steel is required
+                even when no recipe in the chain consumes it.
+              </p>
+              <p>
+                Direct ingredients of each building&apos;s own recipe, summed over the building
+                counts (rounded up to whole machines). Producing those materials&apos; own sub-chain
+                is the factory ledger&apos;s job.
+              </p>
+            </HelpButton>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <div className="mb-1 text-xs text-muted-foreground">Buildings</div>
+              <div className="flex flex-wrap gap-2">
+                {res.buildCost.buildings.map((b) => (
+                  <span key={b.name} className={cellChip} title={b.display}>
+                    <Icon kind="item" name={b.name} size="sm" />
+                    <span className="tabular-nums">×{b.count}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="mb-1 text-xs text-muted-foreground">Materials to build them</div>
+              {res.buildCost.materials.length === 0 ? (
+                <span className="text-sm text-muted-foreground">
+                  — (no build recipe found for these buildings)
+                </span>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {res.buildCost.materials.map((m) => (
+                    <span key={m.name} className={cellChip} title={m.display}>
+                      <Icon kind={m.kind as "item" | "fluid"} name={m.name} size="sm" />
+                      <span className="tabular-nums">{fmtAmt(m.amount)}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <BlockTasks blockId={blockId} />
 
       {/* Recipe grid: each row's I/O at the solved rate. Click any item to add a

@@ -114,6 +114,44 @@ export function recipesConsuming(name: string) {
     .all();
 }
 
+export type BuildCost = {
+  buildings: { name: string; display: string; count: number; recipe: string | null }[];
+  materials: { name: string; kind: string; display: string; amount: number }[];
+};
+/** One-time material cost to CONSTRUCT a set of buildings (the "build the stuff to
+ * build the stuff" requirement, #38): for each building item, the direct ingredients
+ * of its primary build recipe × the (ceil'd) building count. This is why e.g. steel
+ * is needed for a science block even though no science recipe consumes it. Direct
+ * ingredients only — producing those materials' own sub-chain is the factory
+ * ledger's job. */
+export function buildCost(buildings: { name: string; count: number }[]): BuildCost {
+  const materials = new Map<string, { kind: string; amount: number }>();
+  const used: BuildCost["buildings"] = [];
+  const disp = (name: string) => getItem(name)?.display ?? getFluid(name)?.display ?? name;
+  for (const b of buildings) {
+    const count = Math.ceil(b.count - 1e-6);
+    if (count <= 0) continue;
+    const crafts = recipesProducing(b.name);
+    const pick = crafts.find((r) => r.enabled) ?? crafts[0] ?? null; // prefer a base recipe
+    const def = pick ? getRecipe(pick.name) : null;
+    used.push({ name: b.name, display: disp(b.name), count, recipe: pick?.name ?? null });
+    if (!def) continue;
+    const per = def.products.find((p) => p.name === b.name)?.amount ?? 1; // buildings per craft
+    if (per <= 0) continue;
+    for (const ing of def.ingredients) {
+      const cur = materials.get(ing.name) ?? { kind: ing.kind, amount: 0 };
+      cur.amount += (ing.amount * count) / per;
+      materials.set(ing.name, cur);
+    }
+  }
+  return {
+    buildings: used,
+    materials: [...materials]
+      .map(([name, v]) => ({ name, kind: v.kind, display: disp(name), amount: v.amount }))
+      .sort((a, b) => (a.display < b.display ? -1 : 1)),
+  };
+}
+
 /** Crafting machines that can run a recipe, matched by its category — with the
  * power + fuel-category info the block view needs to size buildings and fuel. */
 export function machinesForRecipe(recipeName: string) {

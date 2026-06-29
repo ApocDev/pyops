@@ -4,6 +4,7 @@ import { db, switchDatabase } from "./index.ts";
 import {
   blockMissingRefs,
   blockReferenceFingerprint,
+  buildCost,
   createGroup,
   deleteGroup,
   getResearchHorizon,
@@ -38,7 +39,14 @@ beforeEach(async () => {
       ('make-circuit',0,'item','plate',1),
       ('hidden-sink',0,'item','plate',1);
 
-    INSERT INTO items (name, display) VALUES ('plate','Plate'),('gear','Gear');
+    INSERT INTO items (name, display) VALUES ('plate','Plate'),('gear','Gear'),('drill','Drill'),('steel','Steel');
+
+    -- a building ('drill') with its own construction recipe, for buildCost
+    INSERT INTO recipes (name, kind, hidden) VALUES ('make-drill','real',0);
+    INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES ('make-drill',0,'item','drill',1);
+    INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
+      ('make-drill',0,'item','gear',3),
+      ('make-drill',1,'item','steel',2);
 
     INSERT INTO crafting_machines (name, kind, crafting_speed) VALUES ('furnace','furnace',1);
     INSERT INTO blocks (id, name, data) VALUES (1,'smelting','{}');
@@ -150,6 +158,24 @@ describe("drift detection: missing refs + reference fingerprint", () => {
       recipes: ["gone-recipe"],
     });
     expect(gone).not.toBe(present);
+  });
+});
+
+describe("buildCost", () => {
+  it("expands building counts into their construction materials", () => {
+    const c = buildCost([{ name: "drill", count: 2.2 }]); // ceil → 3 drills
+    expect(c.buildings).toEqual([
+      { name: "drill", display: "Drill", count: 3, recipe: "make-drill" },
+    ]);
+    const mat = new Map(c.materials.map((m) => [m.name, m.amount]));
+    expect(mat.get("gear")).toBe(9); // 3 per drill × 3
+    expect(mat.get("steel")).toBe(6); // 2 per drill × 3
+  });
+
+  it("lists a building with no build recipe but contributes no materials", () => {
+    const c = buildCost([{ name: "furnace", count: 1 }]);
+    expect(c.buildings).toEqual([{ name: "furnace", display: "furnace", count: 1, recipe: null }]);
+    expect(c.materials).toEqual([]);
   });
 });
 
