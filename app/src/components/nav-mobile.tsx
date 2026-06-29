@@ -14,15 +14,15 @@ const row =
   "flex items-center gap-3 px-4 h-12 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground";
 const rowActive = "!text-foreground bg-muted/40 border-l-2 border-primary";
 
-/** Below `xl`, the desktop bar can't fit, so it collapses to a hamburger that opens
+/** Below ~1400px the desktop bar can't fit, so it collapses to a hamburger that opens
  * a left drawer with the full destination list plus the persistent toolbar controls.
- * Rendered alongside the desktop bar in app-nav; each is visibility-gated at `xl`. */
+ * Rendered alongside the desktop bar in app-nav; each is gated at the same width. */
 export function NavMobile() {
   const [open, setOpen] = useState(false);
   const links = [...NAV_LINKS, SETTINGS_LINK];
 
   return (
-    <div className="flex flex-1 items-stretch justify-end xl:hidden">
+    <div className="flex flex-1 items-stretch justify-end min-[1400px]:hidden">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger className="flex size-10 items-center justify-center text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none">
           <Menu className="size-5" />

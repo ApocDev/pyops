@@ -61,8 +61,10 @@ export function AppNav() {
         <span>PyOps</span>
       </Link>
 
-      {/* Desktop (xl+): the full inline bar. */}
-      <div className="hidden flex-1 items-stretch xl:flex">
+      {/* Full inline bar — only once it actually fits (~1400px). Below that it would
+          overflow and scroll sideways (notably at the 1280 Steam Deck width), so the
+          hamburger drawer takes over. */}
+      <div className="hidden flex-1 items-stretch min-[1400px]:flex">
         {NAV_LINKS.map(({ to, label, icon: Icon }) => (
           <Link key={to} to={to} className={item} activeProps={{ className: `${item} ${active}` }}>
             <Icon className="size-4" /> {label}
@@ -85,7 +87,7 @@ export function AppNav() {
         </span>
       </div>
 
-      {/* Below xl: hamburger + drawer. */}
+      {/* Below ~1400px: hamburger + drawer. */}
       <NavMobile />
     </nav>
   );
