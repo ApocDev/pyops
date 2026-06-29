@@ -1,0 +1,33 @@
+.codex/config.toml
+  s_4f528e18a16935::t_4882f43d24ad35 1-2
+.mcp.json
+  s_4f528e18a16935::t_86a5e4c6e092c9 1-8
+README.md
+  s_4c02a3f2f5fa49::t_10d3aa8cca39ec 41-42,90-91,103-107
+docs/ai-assistant.md
+  s_4f528e18a16935::t_0a0473c9431b75 180-184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "29f8c120f07301f8188989a5ada27eb476d62d7d",
+  "prompts": {},
+  "sessions": {
+    "s_4c02a3f2f5fa49": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f13a5-33f5-7682-b043-442cd3c9df9e",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_4f528e18a16935": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f13a0-395c-76d3-9d9e-c01a890564dc",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
