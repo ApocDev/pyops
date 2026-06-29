@@ -928,10 +928,13 @@ function Block({ blockId }: { blockId: number }) {
   const makeFor = (name: string) => setPickFor({ name, mode: "produce" });
   const useFor = (name: string) => setPickFor({ name, mode: "consume" });
 
-  const GRID = "grid items-center gap-4 px-3 py-3.5";
-  const COLS = {
-    gridTemplateColumns: "minmax(170px,1.1fr) minmax(240px,1.2fr) 1.4fr 1.4fr",
-  } as const;
+  // Recipe-grid layout. Desktop (md+): a 4-column grid — recipe | machines |
+  // ingredients | products. Mobile: the columns can't fit (the first two alone need
+  // 410px), so each row stacks vertically with per-section labels and the column
+  // header is hidden.
+  const TPL = "md:[grid-template-columns:minmax(170px,1.1fr)_minmax(240px,1.2fr)_1.4fr_1.4fr]";
+  const GRID = `flex flex-col gap-2.5 px-3 py-3 md:grid md:items-center md:gap-4 md:py-3.5 ${TPL}`;
+  const HEAD = `${head} hidden md:grid md:items-center md:gap-4 ${TPL}`;
 
   return (
     <div className="p-4 font-mono text-base text-foreground">
@@ -1571,7 +1574,7 @@ function Block({ blockId }: { blockId: number }) {
       {/* Recipe grid: each row's I/O at the solved rate. Click any item to add a
           recipe that makes it (ingredient) or consumes it (product). */}
       <Card>
-        <div className={`${head} ${GRID}`} style={COLS}>
+        <div className={HEAD}>
           <span>Recipe ({recipes.length})</span>
           <span>Machines</span>
           <span>Ingredients ↓ (click to add a producer)</span>
@@ -1598,10 +1601,7 @@ function Block({ blockId }: { blockId: number }) {
                 return (
                   <SortableRow key={name} id={name}>
                     {() => (
-                      <div
-                        className={`${GRID} border-t border-border bg-destructive/10`}
-                        style={COLS}
-                      >
+                      <div className={`${GRID} border-t border-border bg-destructive/10`}>
                         <div className="flex min-w-0 items-center gap-2">
                           <Icon kind="recipe" name={name} size="md" noTitle />
                           <span className="min-w-0 flex-1">
@@ -1634,7 +1634,6 @@ function Block({ blockId }: { blockId: number }) {
                   {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
                     <div
                       className={`${GRID} relative border-t border-border ${neg ? "bg-destructive/10" : ""} ${isDragging ? "bg-card shadow-lg" : ""}`}
-                      style={COLS}
                     >
                       <RecipeHover name={name} className="flex min-w-0 items-center gap-2">
                         <span
@@ -1672,6 +1671,9 @@ function Block({ blockId }: { blockId: number }) {
                         </button>
                       </RecipeHover>
                       <div className="flex flex-wrap items-center gap-2">
+                        <span className="w-full text-xs text-muted-foreground md:hidden">
+                          Machines
+                        </span>
                         {row?.machine ? (
                           <>
                             {/* building: icon + count; hover = name/speed, click = picker */}
@@ -1756,6 +1758,9 @@ function Block({ blockId }: { blockId: number }) {
                         )}
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-3">
+                        <span className="w-full text-xs text-muted-foreground md:hidden">
+                          Ingredients ↓
+                        </span>
                         {row?.ingredients.map((c) => (
                           <div key={c.name} className="flex flex-col items-start gap-1.5">
                             <ItemChip
@@ -1784,6 +1789,9 @@ function Block({ blockId }: { blockId: number }) {
                         ))}
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-3">
+                        <span className="w-full text-xs text-muted-foreground md:hidden">
+                          Products ↑
+                        </span>
                         {row?.products.map((c) => (
                           <div key={c.name} className="flex flex-col items-start gap-1.5">
                             <ItemChip
