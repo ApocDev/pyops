@@ -14,6 +14,7 @@ local COMBINATOR_NAME = "pyops_sum_combinator"
 local CLOSE_NAME = "pyops_sum_close"
 local MAX_NAME = "pyops_sum_max"
 local MIN_NAME = "pyops_sum_min"
+local LOGI_NAME = "pyops_sum_logi"
 
 -- Per-player panel state: the last payload (so we can rebuild on maximize) and
 -- whether the window is expanded. Factorio has no drag-resize, so maximize is the
@@ -51,6 +52,18 @@ local function fmt_num(n)
   s = s:gsub("0+$", "")
   s = s:gsub("%.$", "")
   return s
+end
+
+-- Belt/inserter counts: like fmt_num but never collapses a tiny non-zero count to
+-- "0" (that reads as "none"); shows "<0.01" instead.
+local function fmt_logi(n)
+  if not n or n <= 0 then
+    return ""
+  end
+  if n < 0.01 then
+    return "<0.01"
+  end
+  return fmt_num(n)
 end
 
 -- Larger amount for storage tooltips (a 5-minute buffer is often thousands):
@@ -191,32 +204,84 @@ end
 -- signal, exactly like Q-ing a fluid in a pump's filter. Goods that resolve to no
 -- item/fluid prototype fall back to a plain sprite. `opts.storage` appends the
 -- 5-minute buffer hint (used for the Imports/Exports lists).
-local function add_good_cell(parent, good, slot_style, opts)
-  local cell = parent.add({ type = "flow", direction = "vertical" })
+local function add_good_cell(parent, good, card_style, opts)
+  -- The good sits in its own colored card (blue product / yellow ingredient) so the
+  -- icon + rate + logistics read as one separated unit. The card's color carries the
+  -- recipe/in/out meaning, so the slot inside is left neutral. A content flow inside
+  -- the frame controls the tight inner spacing (frames have no vertical_spacing).
+  local card = parent.add({ type = "frame", direction = "vertical", style = card_style or "pyops_card" })
+  local cell = card.add({ type = "flow", direction = "vertical" })
   cell.style.vertical_spacing = 0
+  cell.style.horizontal_align = "center"
   local tip = { "", good.display or good.name, ":  ", fmt_rate(good.rate), "/s" }
+  if good.note == "fuel" then
+    tip[#tip + 1] = "  (fuel burned)"
+  elseif good.note == "burnt" then
+    tip[#tip + 1] = "  (burnt result)"
+  end
   if opts and opts.storage then
     tip[#tip + 1] = storage_hint(good)
   end
   local signal = good_signal(good)
   if signal then
+    -- A locked signal button so the engine's smart-pipette (Q) still works.
     cell.add({
       type = "choose-elem-button",
       elem_type = "signal",
       signal = signal,
       locked = true,
+      style = "slot_button",
       tooltip = { "", tip, "\n[Q] to pipette as a filter signal" },
     })
   else
     cell.add({
       type = "sprite-button",
       sprite = valid_sprite(good.kind, good.name) or "utility/questionmark",
-      style = slot_style or "slot_button",
+      style = "slot_button",
       tooltip = tip,
     })
   end
-  cell.add({ type = "label", caption = fmt_num(good.rate), style = "pyops_cell_number" })
-  return cell
+  -- Rate overlaid on the slot's lower edge, Helmod-style: a bold label pulled up
+  -- over the button with a negative margin. ignored_by_interaction lets the hover/Q
+  -- smart-pipette pass straight through to the locked signal button beneath, so we
+  -- get the count-on-slot look without giving up Q-pipette.
+  local num = cell.add({ type = "label", caption = fmt_num(good.rate) })
+  num.ignored_by_interaction = true
+  num.style.font = "default-bold"
+  num.style.font_color = { 1, 1, 1 }
+  num.style.width = 36
+  num.style.horizontal_align = "right"
+  num.style.top_margin = -19
+  num.style.right_padding = 3
+  -- Helmod-style logistics line: belts to carry this item (+ inserters/loaders to
+  -- feed one building, on recipe rows). Only when the logistics toggle is on and
+  -- this good has counts (fluids/electricity carry none).
+  local logi = opts and opts.logi
+  if logi and good.kind == "item" and (good.belts or good.inserters) then
+    -- One label per metric, "[icon] count", stacked by the cell's vertical flow —
+    -- the icon labels its own number, and belts vs. movers never collide on a line.
+    -- Styled inline (no new prototype) so the control-stage reload loop covers it.
+    local mover_word = logi.mover_kind == "loader" and "loaders" or "inserters"
+    -- A compact icon+count row per metric: a small explicit-sized sprite (rich-text
+    -- [img=] icons render too tall) next to the count, so the readout stays short.
+    local add_logi_line = function(path, value, tip)
+      if not (path and value and value > 0) then
+        return
+      end
+      local row = cell.add({ type = "flow", direction = "horizontal" })
+      row.style.vertical_align = "center"
+      row.style.horizontal_spacing = 3
+      row.style.top_margin = -2
+      local s = row.add({ type = "sprite", sprite = path, resize_to_sprite = false, tooltip = tip })
+      s.style.size = 14
+      local lbl = row.add({ type = "label", caption = fmt_logi(value), tooltip = tip })
+      lbl.style.font = "default-small"
+      lbl.style.font_color = { 0.82, 0.85, 0.90 }
+    end
+    add_logi_line(logi.belt, good.belts, "Belts to carry this item")
+    add_logi_line(logi.mover, good.inserters, mover_word:gsub("^%l", string.upper) .. " to feed one building")
+  end
+  return card
 end
 
 -- Order a recipe's goods for display: a pinned primary product first (when given),
@@ -260,7 +325,7 @@ end
 -- least by rate — so ratios and the storage each needs read at a glance. Each row
 -- is a single line (column count = its own length, capped) so it fills the width
 -- rather than wrapping. Each cell carries the 5-minute buffer hint in its tooltip.
-local function add_io_goods(parent, goods, slot_style)
+local function add_io_goods(parent, goods, slot_style, logi)
   local solids, fluids = {}, {}
   for _, g in ipairs(goods or {}) do
     if g.kind == "fluid" then
@@ -274,11 +339,12 @@ local function add_io_goods(parent, goods, slot_style)
   end
   table.sort(solids, by_rate)
   table.sort(fluids, by_rate)
+  local opts = { storage = true, logi = logi }
   if #solids > 0 then
-    add_goods_grid(parent, solids, slot_style, math.min(#solids, 12), { storage = true })
+    add_goods_grid(parent, solids, slot_style, math.min(#solids, 12), opts)
   end
   if #fluids > 0 then
-    add_goods_grid(parent, fluids, slot_style, math.min(#fluids, 12), { storage = true })
+    add_goods_grid(parent, fluids, slot_style, math.min(#fluids, 12), opts)
   end
   if #solids == 0 and #fluids == 0 then
     parent.add({ type = "label", caption = "—", style = "pyops_cell_number" })
@@ -356,6 +422,17 @@ end
 
 -- Build (or rebuild) the summary panel. `payload` is stored per player so the
 -- maximize toggle can rebuild without it; passing nil reuses the last payload.
+-- Close the panel (app cmd.hide_block / dev close tool). Mirrors the titlebar X.
+function Summary.hide(player)
+  if not (player and player.valid) then
+    return
+  end
+  local panel = player.gui.screen[PANEL_NAME]
+  if panel then
+    panel.destroy()
+  end
+end
+
 function Summary.show(player, payload)
   if not (player and player.valid) then
     return
@@ -371,17 +448,37 @@ function Summary.show(player, payload)
   end
   local maximized = state.maximized
   local minimized = state.minimized
+  local show_logistics = state.show_logistics and payload.logistics ~= nil
+  -- belt/inserter sprites for the logistics readout, resolved once per build
+  local logi = nil
+  if show_logistics then
+    logi = {
+      belt = valid_sprite("entity", payload.logistics.belt),
+      mover = payload.logistics.mover and valid_sprite("entity", payload.logistics.mover) or nil,
+      mover_kind = payload.logistics.moverKind,
+    }
+  end
   -- The window sizes to its content (tables grow past the floor when a row needs
   -- it), so the floor stays modest to avoid dead space on the right for small blocks.
   local body_min_width = maximized and 480 or 380
 
   local existing = player.gui.screen[PANEL_NAME]
   if existing then
+    -- Remember where the window sits so a rebuild (toggling logistics, maximize, a
+    -- fresh show_block push) keeps the player's chosen position instead of snapping
+    -- back to center. The titlebar is a drag_target, so this also persists drags.
+    state.location = existing.location
     existing.destroy()
   end
 
   local panel = player.gui.screen.add({ type = "frame", name = PANEL_NAME, direction = "vertical" })
-  panel.auto_center = true
+  -- Anchor by top-left: keep the saved position across rebuilds; only center the
+  -- very first time the window is opened (no saved anchor yet).
+  if state.location then
+    panel.location = state.location
+  else
+    panel.auto_center = true
+  end
 
   -- Titlebar
   local titlebar = panel.add({ type = "flow", direction = "horizontal" })
@@ -412,6 +509,24 @@ function Summary.show(player, payload)
       },
       style = "frame_action_button",
     })
+  end
+  -- logistics: toggle the Helmod-style belt/inserter readout on the good cells
+  if payload.logistics and not minimized then
+    -- pyops_toggle (not frame_action_button): the action-button style paints a harsh
+    -- amber "selected" background over the colored belt icon when toggled; this one
+    -- highlights with a subtle blue instead and leaves the icon untouched.
+    local logi_btn = titlebar.add({
+      type = "sprite-button",
+      name = LOGI_NAME,
+      sprite = valid_sprite("entity", payload.logistics.belt) or "utility/questionmark",
+      tooltip = {
+        "",
+        show_logistics and "Hide belts & inserters" or "Show belts & inserters",
+      },
+      style = "pyops_toggle",
+    })
+    logi_btn.style.size = 24
+    logi_btn.toggled = show_logistics
   end
   -- minimize: collapse to just the title bar (park it out of the way mid-build)
   titlebar.add({
@@ -502,9 +617,9 @@ function Summary.show(player, payload)
       -- ingredients just sort solids → fluids, most → least
       local rp = prototypes.recipe[m.recipe]
       local primary = rp and rp.main_product and rp.main_product.name or nil
-      add_goods_grid(matrix, sorted_goods(m.products, primary), "blue_slot", prod_cols)
+      add_goods_grid(matrix, sorted_goods(m.products, primary), "pyops_good_product", prod_cols, { logi = logi })
       add_factory_cell(matrix, m)
-      add_goods_grid(matrix, sorted_goods(m.ingredients, nil), "yellow_slot", ing_cols)
+      add_goods_grid(matrix, sorted_goods(m.ingredients, nil), "pyops_good_ingredient", ing_cols, { logi = logi })
       if has_beacons then
         add_beacon_cell(matrix, m.beacons)
       end
@@ -516,12 +631,14 @@ function Summary.show(player, payload)
     add_section_label(body, "Block in / out")
     local io = body.add({ type = "flow", direction = "horizontal" })
     io.style.horizontal_spacing = 24
-    local incol = io.add({ type = "flow", direction = "vertical" })
-    incol.add({ type = "label", caption = "Imports", style = "bold_label" })
-    add_io_goods(incol, payload.inputs, "yellow_slot")
+    -- Exports (products) on the LEFT, Imports (ingredients) on the right — mirrors the
+    -- recipe matrix (products left, ingredients right) so products always read left.
     local outcol = io.add({ type = "flow", direction = "vertical" })
     outcol.add({ type = "label", caption = "Exports", style = "bold_label" })
-    add_io_goods(outcol, payload.outputs, "blue_slot")
+    add_io_goods(outcol, payload.outputs, "pyops_good_product", logi)
+    local incol = io.add({ type = "flow", direction = "vertical" })
+    incol.add({ type = "label", caption = "Imports", style = "bold_label" })
+    add_io_goods(incol, payload.inputs, "pyops_good_ingredient", logi)
   end
 end
 
@@ -587,6 +704,13 @@ function Summary.on_gui_click(player, element)
     local state = state_for(player)
     state.minimized = not state.minimized
     Summary.show(player) -- collapse to the title bar (or restore)
+    return true
+  end
+
+  if element.name == LOGI_NAME then
+    local state = state_for(player)
+    state.show_logistics = not state.show_logistics
+    Summary.show(player) -- rebuild with belt/inserter counts shown or hidden
     return true
   end
 

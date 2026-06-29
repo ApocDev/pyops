@@ -619,6 +619,9 @@ local function handle_bridge_response(player, response)
   elseif response.type == "cmd.show_block" then
     -- the app pushed a solved block to render as an in-game build sheet
     Summary.show(player, response.payload)
+  elseif response.type == "cmd.hide_block" then
+    -- the app asked us to close the summary panel (dev close tool)
+    Summary.hide(player)
   elseif response.type == "task.list" then
     -- the app sent the project's tasks → store + re-render the panel
     local payload = response.payload or {}

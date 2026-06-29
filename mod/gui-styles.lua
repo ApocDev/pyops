@@ -45,7 +45,26 @@ local PALETTE = {
 -- ============================================================================
 -- IN USE  (styles the shipped panel references — promote here as we adopt them)
 -- ============================================================================
--- (nothing yet — we're still designing against the PALETTE below)
+
+-- Per-good cards: each item/fluid in the production matrix sits in its OWN colored
+-- panel — blue = product, yellow = ingredient — so the icon, its rate, and its
+-- belts/inserters read as one separated unit (Helmod-style) instead of text
+-- floating loose on the panel grey. Muted tints (alpha is ignored on tints, so the
+-- color itself must be subdued) keep them from fighting the icon art. Small padding
+-- + a content flow inside controls the inner spacing (frame styles have no
+-- vertical_spacing of their own).
+styles["pyops_good_product"] = {
+  type = "frame_style",
+  graphical_set = round({ 0.17, 0.29, 0.46 }, 1),
+  padding = 3,
+  vertically_stretchable = "off",
+}
+styles["pyops_good_ingredient"] = {
+  type = "frame_style",
+  graphical_set = round({ 0.39, 0.32, 0.12 }, 1),
+  padding = 3,
+  vertically_stretchable = "off",
+}
 
 -- ============================================================================
 -- PALETTE  (design candidates — safe to delete any unused ones before shipping)

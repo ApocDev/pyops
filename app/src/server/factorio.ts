@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { cycleItems, solveBlock, type Disposition, type RecipeDef } from "../solver/block";
 import { computeEffects, type BeaconConfig } from "./effects";
+import { resolveLogistics, rowLogistics } from "../lib/logistics";
 
 /**
  * Server functions exposing the query layer to the client.
@@ -849,87 +850,143 @@ export const solveBlockFn = createServerFn({ method: "GET" })
  * build sheet (Helmod-style): the buildings + counts (each clickable for a
  * configured blueprint), plus inputs/outputs and power. Fire-and-forget; returns
  * whether a peer was reachable. */
-export const bridgeShowBlockFn = createServerFn({ method: "POST" })
-  .validator((id: number) => id)
-  .handler(async ({ data }) => {
-    const q = await lib();
-    const row = q.getBlock(data);
-    if (!row) return { sent: false };
-    const input = row.data as SolveInput;
-    const r = await computeBlock(input);
-    const targetKind = q.getFluid(input.target) ? "fluid" : "item";
+/** Solve a saved block and push it to the in-game Helmod-style summary panel,
+ * including the per-good belts/inserters + top-level logistics descriptor. Shared
+ * by the web "show in game" button (`bridgeShowBlockFn`) and the `gameShowBlock`
+ * MCP dev tool, so both exercise the exact same payload path. */
+export async function showBlockInGame(id: number) {
+  const q = await lib();
+  const row = q.getBlock(id);
+  if (!row) return { sent: false as const, name: null };
+  const input = row.data as SolveInput;
+  const r = await computeBlock(input);
+  const targetKind = q.getFluid(input.target) ? "fluid" : "item";
 
-    // Energy pseudo-goods are shown as the power/heat lines, not as I/O rows
-    // (they aren't real prototypes, so an in-game icon tag wouldn't resolve).
-    const PSEUDO = new Set([HEAT, "pyops-electricity"]);
-    const goods = (arr: { name: string; kind: string; rate: number }[]) =>
-      arr
-        .filter((c) => !PSEUDO.has(c.name))
-        .map((c) => ({ name: c.name, kind: c.kind, rate: c.rate }));
+  // Energy pseudo-goods are shown as the power/heat lines, not as I/O rows
+  // (they aren't real prototypes, so an in-game icon tag wouldn't resolve).
+  const PSEUDO = new Set([HEAT, "pyops-electricity"]);
+  // Logistics for the in-game summary's Helmod-style belt/inserter readout: belts
+  // to carry each item, and inserters/loaders to feed one building (recipe rows
+  // only). Sized against the same picks as the web Logistics control.
+  const ctx = q.logisticsContext();
+  const logi = resolveLogistics(ctx);
+  const moverName = logi.moverKind === "loader" ? logi.loader?.name : logi.inserter?.name;
+  const logistics = logi.belt
+    ? { belt: logi.belt.name, mover: moverName ?? null, moverKind: logi.moverKind }
+    : null;
+  // Honour the same independent show toggles as the web Logistics control, so a
+  // belts-only (or inserters-only) setup carries through to the in-game readout
+  // instead of always emitting both.
+  const good = (
+    c: { name: string; kind: string; rate: number },
+    machineCount: number,
+    note?: "fuel" | "burnt",
+  ) => {
+    const base: {
+      name: string;
+      kind: string;
+      rate: number;
+      belts?: number;
+      inserters?: number;
+      note?: "fuel" | "burnt";
+    } = { name: c.name, kind: c.kind, rate: c.rate };
+    if (note) base.note = note;
+    if (c.kind !== "item" || !logi.belt) return base;
+    const rl = rowLogistics(logi, c.rate, machineCount);
+    if (!rl) return base;
+    // belts size the whole flow; inserters are per-building (recipe rows only)
+    if (ctx.prefs.showBelts) base.belts = rl.belts;
+    if (ctx.prefs.showInserters && machineCount > 0) base.inserters = rl.devices;
+    return base;
+  };
+  const goods = (arr: { name: string; kind: string; rate: number }[], machineCount: number) =>
+    arr.filter((c) => !PSEUDO.has(c.name)).map((c) => good(c, machineCount));
 
-    // Per-recipe rows for the Helmod-style matrix: each recipe's products, its
-    // factory + count (the blueprint button), and its ingredients.
-    const recipes = r.rows
-      .filter((row) => row.machine && row.machine.count > 0)
-      .map((row) => ({
+  // Per-recipe rows for the Helmod-style matrix: each recipe's products, its
+  // factory + count (the blueprint button), and its ingredients.
+  const recipes = r.rows
+    .filter((row) => row.machine && row.machine.count > 0)
+    .map((row) => {
+      const count = row.machine!.count;
+      const ingredients = goods(row.ingredients, count);
+      const products = goods(row.products, count);
+      // Burner machines draw fuel and emit a 1:1 burnt result (coal → ash, cell →
+      // depleted cell). Those are real item flows in/out of the building, so — like
+      // Helmod — fold the fuel into ingredients and the burnt result into products
+      // (tagged so the cell can note it). They then get belt/inserter sizing too.
+      if (row.fuel) {
+        ingredients.push(
+          good({ name: row.fuel.name, kind: row.fuel.kind, rate: row.fuel.perSec }, count, "fuel"),
+        );
+        if (row.fuel.burnt) {
+          products.push(
+            good(
+              { name: row.fuel.burnt.name, kind: "item", rate: row.fuel.burnt.perSec },
+              count,
+              "burnt",
+            ),
+          );
+        }
+      }
+      return {
         machine: row.machine!.name,
         machineDisplay: row.machine!.display,
         recipe: row.recipe,
         recipeDisplay: row.display,
-        count: Math.ceil(row.machine!.count - 1e-6),
+        count: Math.ceil(count - 1e-6),
         modules: row.modules ?? [],
-        products: goods(row.products),
-        ingredients: goods(row.ingredients),
+        products,
+        ingredients,
         beacons: (row.beacons ?? []).map((b) => ({
           beacon: b.beacon,
           count: b.count,
           modules: b.modules,
         })),
-      }));
-    const outputs = [
-      ...(input.rate > 0
-        ? [
-            {
-              name: input.target,
-              kind: targetKind,
-              rate: input.rate,
-              display: r.display[input.target],
-            },
-          ]
-        : []),
-      ...r.extraOutputs.map((f) => ({
-        name: f.name,
-        kind: f.kind,
-        rate: f.rate,
-        display: r.display[f.name],
-      })),
-      ...r.exports.map((f) => ({
-        name: f.name,
-        kind: f.kind,
-        rate: f.rate,
-        display: r.display[f.name],
-      })),
-    ].filter((f) => !PSEUDO.has(f.name));
-    const inputs = r.imports
-      .map((f) => ({ name: f.name, kind: f.kind, rate: f.rate, display: r.display[f.name] }))
-      .filter((f) => !PSEUDO.has(f.name));
-
-    const b = await import("./bridge/server.ts");
-    b.ensureBridge();
-    return {
-      sent: b.sendToPeer({
-        type: "cmd.show_block",
-        payload: {
-          name: row.name,
-          powerW: r.power.totalW,
-          heatW: r.power.heatW,
-          recipes,
-          inputs,
-          outputs,
-        },
-      }),
-    };
+      };
+    });
+  const boundary = (f: { name: string; kind: string; rate: number }) => ({
+    ...good(f, 0), // belts only — boundary flows aren't tied to one building
+    display: r.display[f.name],
   });
+  const outputs = [
+    ...(input.rate > 0 ? [{ name: input.target, kind: targetKind, rate: input.rate }] : []),
+    ...r.extraOutputs,
+    ...r.exports,
+  ]
+    .filter((f) => !PSEUDO.has(f.name))
+    .map(boundary);
+  const inputs = r.imports.filter((f) => !PSEUDO.has(f.name)).map(boundary);
+
+  const b = await import("./bridge/server.ts");
+  b.ensureBridge();
+  return {
+    sent: b.sendToPeer({
+      type: "cmd.show_block",
+      payload: {
+        name: row.name,
+        powerW: r.power.totalW,
+        heatW: r.power.heatW,
+        logistics,
+        recipes,
+        inputs,
+        outputs,
+      },
+    }),
+    name: row.name,
+  };
+}
+
+/** Close the in-game summary panel. Pairs with `showBlockInGame` for the dev
+ * loop (open → screenshot → close) and the `gameCloseSummary` MCP tool. */
+export async function hideBlockInGame() {
+  const b = await import("./bridge/server.ts");
+  b.ensureBridge();
+  return { sent: b.sendToPeer({ type: "cmd.hide_block", payload: {} }) };
+}
+
+export const bridgeShowBlockFn = createServerFn({ method: "POST" })
+  .validator((id: number) => id)
+  .handler(async ({ data }) => showBlockInGame(data));
 
 /** Save a block: solve once, persist the input + its cached I/O flows + power.
  * Name/icon default to the target product. Returns the (new or existing) id. */
@@ -1238,34 +1295,9 @@ export const setPlannerSettingsFn = createServerFn({ method: "POST" })
  * picks + stacking prefs, the current research-derived stack bonuses, and the
  * prototype options. The per-row belt/inserter math runs client-side from this so
  * changing a tier is instant (no re-solve). */
-export const logisticsContextFn = createServerFn({ method: "GET" }).handler(async () => {
-  const q = await lib();
-  const m = q.metaAll();
-  const options = q.logisticsOptions();
-  const defaultBelt = options.belts[0]?.name ?? "";
-  const defaultMover = options.inserters[0]?.name ?? "";
-  const moverKind = m.logistics_mover_kind === "loader" ? "loader" : "inserter";
-  const ov = m.logistics_stack_override;
-  return {
-    prefs: {
-      // per-metric toggles, all off by default (the readout stays out of the way
-      // until you opt in); belts/inserters migrate from the old single `enabled`.
-      showBelts: m.logistics_show_belts != null ? m.logistics_show_belts === "1" : false,
-      showInserters:
-        m.logistics_show_inserters != null ? m.logistics_show_inserters === "1" : false,
-      showRockets: m.logistics_rockets === "1",
-      belt: m.logistics_belt || defaultBelt,
-      mover: m.logistics_mover || defaultMover,
-      moverKind: moverKind as "inserter" | "loader",
-      stacking: m.logistics_stacking !== "0", // default on
-      overrideStack: ov != null && ov !== "" ? Number(ov) : null,
-    },
-    bonuses: q.stackBonuses(),
-    options,
-    rocketLiftWeight: Number(m.rocket_lift_weight ?? 1_000_000),
-    defaultItemWeight: Number(m.default_item_weight ?? 100),
-  };
-});
+export const logisticsContextFn = createServerFn({ method: "GET" }).handler(async () =>
+  (await lib()).logisticsContext(),
+);
 
 /** Rocket-lift weights for the given items (null = unset → default applies). */
 export const itemWeightsFn = createServerFn({ method: "GET" })

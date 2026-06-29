@@ -19,6 +19,7 @@ import { classifyAdditive } from "./additives.ts";
 const lib = () => import("../db/queries.ts");
 const tasksLib = () => import("../db/tasks.ts");
 const bridge = () => import("./bridge/inspect.ts");
+const gameLib = () => import("./factorio.ts");
 
 /** Electricity & heat are energy pseudo-fluids surfaced separately as powerW/heatW.
  * recipeIo (and thus the stoichiometric chainStatus) never lists them as recipe
@@ -1074,6 +1075,37 @@ export const gameReloadMods = tool({
   },
 });
 
+export const gameShowBlock = tool({
+  description:
+    "Developer live-loop helper: push a saved block to the in-game Helmod-style summary panel (`pyops_summary`), exactly as the web 'show in game' button does — same payload, including the per-good belts/inserters logistics readout. Use to drive the in-game UI yourself: gameShowBlock → gameScreenshot({panel:'pyops_summary'}) → inspect → tweak. Requires the bridge connected and a block id (see factoryBlocks).",
+  inputSchema: z.object({
+    blockId: z.number().int().describe("id of a saved block (from factoryBlocks)"),
+  }),
+  execute: async ({ blockId }) => {
+    try {
+      const r = await (await gameLib()).showBlockInGame(blockId);
+      if (!r.sent && r.name === null) return { ok: false, error: `no block with id ${blockId}` };
+      return { ok: r.sent, panel: "pyops_summary", block: r.name };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : "show error" };
+    }
+  },
+});
+
+export const gameCloseSummary = tool({
+  description:
+    "Developer live-loop helper: close the in-game summary panel (`pyops_summary`). Pairs with gameShowBlock for clean before/after screenshots.",
+  inputSchema: z.object({}),
+  execute: async () => {
+    try {
+      const r = await (await gameLib()).hideBlockInGame();
+      return { ok: r.sent };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : "close error" };
+    }
+  },
+});
+
 /** The full tool set for the planning agent: read-only data tools, block/plan
  * draft proposals (propose-then-apply), the tasks surface, read-only live
  * game-world inspection, and developer loop helpers — all via the bridge. */
@@ -1111,4 +1143,7 @@ export const agentTools = {
   gameScreenshot,
   // Reload the loaded mods without desktop/window automation.
   gameReloadMods,
+  // Drive the in-game summary panel for self-testing (open a block / close it).
+  gameShowBlock,
+  gameCloseSummary,
 };

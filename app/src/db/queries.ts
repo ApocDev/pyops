@@ -43,7 +43,13 @@ import {
   type BlockData,
   type BeaconConfig,
 } from "./schema.ts";
-import type { BeltProto, InserterProto, LoaderProto, StackBonuses } from "../lib/logistics.ts";
+import type {
+  BeltProto,
+  InserterProto,
+  LoaderProto,
+  LogisticsContext,
+  StackBonuses,
+} from "../lib/logistics.ts";
 
 const recipeSummary = {
   name: recipes.name,
@@ -1649,6 +1655,33 @@ export function stackBonuses(): StackBonuses {
     else if (r.effect === "bulk-inserter") out.bulkInserter += r.modifier;
   }
   return out;
+}
+
+/** The full logistics context — prefs (with defaults applied), research bonuses,
+ * prototype options, and rocket constants. Shared by the web `logisticsContextFn`
+ * and the in-game summary payload so both size against the same picks. */
+export function logisticsContext(): LogisticsContext {
+  const m = metaAll();
+  const options = logisticsOptions();
+  return {
+    prefs: {
+      showBelts: m.logistics_show_belts === "1",
+      showInserters: m.logistics_show_inserters === "1",
+      showRockets: m.logistics_rockets === "1",
+      belt: m.logistics_belt || (options.belts[0]?.name ?? ""),
+      mover: m.logistics_mover || (options.inserters[0]?.name ?? ""),
+      moverKind: m.logistics_mover_kind === "loader" ? "loader" : "inserter",
+      stacking: m.logistics_stacking !== "0", // default on
+      overrideStack:
+        m.logistics_stack_override != null && m.logistics_stack_override !== ""
+          ? Number(m.logistics_stack_override)
+          : null,
+    },
+    bonuses: stackBonuses(),
+    options,
+    rocketLiftWeight: Number(m.rocket_lift_weight ?? 1_000_000),
+    defaultItemWeight: Number(m.default_item_weight ?? 100),
+  };
 }
 
 /* ── Research / TURD availability horizon (plan for now vs future) ───────────── */

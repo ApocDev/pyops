@@ -25,8 +25,9 @@ on any page. The same tab hosts the companion-mod installer (see below).
   as the solver's synthetic `mine-<resource>` recipe, so built-vs-required lines up
   per ore), and item production stats — pushed on connect and on relevant in-game
   events, always as the full authoritative set (no delta merging on the app side).
-- **Commands → game:** show a production-block panel in-game (`cmd.show_block`),
-  and locate producers/consumers/storage (`cmd.locate`, relayed to the
+- **Commands → game:** show a production-block panel in-game (`cmd.show_block`)
+  and close it again (`cmd.hide_block`), and locate producers/consumers/storage
+  (`cmd.locate`, relayed to the
   [Factory Search](https://mods.factorio.com/mod/FactorySearch) mod's remote
   interface).
 - **Task panel:** the in-game panel's **Tasks** tab pulls the project's
@@ -82,9 +83,16 @@ shapes change. Each side reports its version and warns when the other disagrees.
 - `control.lua` — the in-game panel, the UDP bridge, and live-state sync.
 - `summary.lua` — the Helmod-style production-block view (`cmd.show_block`),
   including the clickable factory cell that puts a configured blueprint on the
-  cursor. Goods are rendered as locked signal buttons so the engine's own
-  smart-pipette (Q) grabs the item/fluid as a filter signal; Q over a
-  factory/beacon cell pipettes the building.
+  cursor. Goods are rendered as locked signal buttons (styled with the blue/yellow
+  slot styles — blue for products, yellow for ingredients — so the recipe/in/out
+  split reads at a glance) so the engine's own smart-pipette (Q) grabs the
+  item/fluid as a filter signal; Q over a factory/beacon cell pipettes the building.
+  A titlebar toggle shows a Helmod-style belts/inserters readout on each good — the
+  counts are computed app-side (the `cmd.show_block` payload carries per-good
+  `belts`/`inserters` plus a top-level `logistics` descriptor with the chosen
+  belt/mover for the icons), honouring the web Logistics **show-belts/show-inserters**
+  toggles (so it renders just belts, just inserters, or both), and reusing the web
+  Logistics math and picks rather than recomputing in Lua.
 - `combinator.lua` — the in-game request-combinator planner.
 - `data.lua`, `settings.lua` — prototypes and the per-player settings (bridge
   enabled, port, debug logging).
