@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, MapPin, Plus, RefreshCw, X, Zap } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import {
   blockChangeReportFn,
   blocksForGoodFn,
@@ -18,6 +18,7 @@ import { ItemHover } from "../lib/recipe-card";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { StatCell } from "#/components/stat-cell.tsx";
 
 export const Route = createFileRoute("/factory")({
   component: () => (
@@ -133,17 +134,6 @@ function FactoryPage() {
   const surpluses = rows.filter((r) => r.net > 1e-6);
   const balanced = rows.filter((r) => Math.abs(r.net) <= 1e-6);
 
-  // One stat cell. Desktop: a right-aligned fixed column. Mobile (< md): a labelled
-  // row in a 2×2 grid, so the value is readable instead of crushed into a narrow column.
-  const Stat = ({ label, cls, children }: { label: string; cls?: string; children: ReactNode }) => (
-    <span
-      className={`flex items-baseline justify-between gap-2 md:block md:w-24 md:text-right ${cls ?? ""}`}
-    >
-      <span className="text-xs font-normal text-muted-foreground md:hidden">{label}</span>
-      <span>{children}</span>
-    </span>
-  );
-
   const Row = ({ r }: { r: (typeof rows)[number] }) => (
     <button
       onClick={() => setSelected({ item: r.item, kind: r.kind })}
@@ -161,15 +151,17 @@ function FactoryPage() {
         </span>
       </span>
       <span className="grid grid-cols-2 gap-x-4 gap-y-0.5 pl-7 md:flex md:gap-2 md:pl-0">
-        <Stat label="produced/s" cls="text-emerald-300">
+        <StatCell label="produced/s" layout="row" w="md:w-24" className="text-emerald-300">
           {num(r.produced)}
-        </Stat>
-        <Stat label="consumed/s" cls="text-amber-300">
+        </StatCell>
+        <StatCell label="consumed/s" layout="row" w="md:w-24" className="text-amber-300">
           {num(r.consumed)}
-        </Stat>
-        <Stat
+        </StatCell>
+        <StatCell
           label="net/s"
-          cls={`font-semibold ${
+          layout="row"
+          w="md:w-24"
+          className={`font-semibold ${
             r.net < -1e-6
               ? "text-destructive"
               : r.net > 1e-6
@@ -179,10 +171,10 @@ function FactoryPage() {
         >
           {r.net > 0 ? "+" : ""}
           {num(r.net)}
-        </Stat>
-        <Stat label="actual/s">
+        </StatCell>
+        <StatCell label="actual/s" layout="row" w="md:w-24">
           <ActualCell planned={r.produced} actual={r.actualProduced} />
-        </Stat>
+        </StatCell>
       </span>
     </button>
   );
@@ -511,28 +503,6 @@ function MachinesCard({ data }: { data: MachineSufficiency | undefined }) {
   if (rows.length === 0 && !data.syncedAt) return null;
   const shortCount = rows.filter((m) => m.short > 0).length;
 
-  // One stat cell, shared by the machine summary + recipe sub-rows. Desktop: a
-  // right-aligned fixed column. Mobile: a labelled stat in a 3-up grid (label
-  // omitted on sub-rows, which sit under their machine's already-labelled summary).
-  const MStat = ({
-    label,
-    w,
-    cls,
-    children,
-  }: {
-    label?: string;
-    w: string;
-    cls?: string;
-    children: ReactNode;
-  }) => (
-    <span className={`flex flex-col md:block ${w} md:text-right ${cls ?? ""}`}>
-      {label && (
-        <span className="text-xs font-normal text-muted-foreground md:hidden">{label}</span>
-      )}
-      <span>{children}</span>
-    </span>
-  );
-
   return (
     <Card className="mt-4 max-w-3xl">
       <CardHeader className="justify-between">
@@ -577,19 +547,19 @@ function MachinesCard({ data }: { data: MachineSufficiency | undefined }) {
               </span>
             </span>
             <span className="grid grid-cols-3 gap-x-3 pl-7 md:flex md:gap-2 md:pl-0">
-              <MStat label="built" w="md:w-20" cls="text-muted-foreground">
+              <StatCell label="built" w="md:w-20" className="text-muted-foreground">
                 {m.builtTotal}
-              </MStat>
-              <MStat label="required" w="md:w-20" cls="text-amber-300">
+              </StatCell>
+              <StatCell label="required" w="md:w-20" className="text-amber-300">
                 {ceil(m.requiredTotal)}
-              </MStat>
-              <MStat
+              </StatCell>
+              <StatCell
                 label="short"
                 w="md:w-24"
-                cls={`font-semibold ${m.short > 0 ? "text-destructive" : "text-emerald-300"}`}
+                className={`font-semibold ${m.short > 0 ? "text-destructive" : "text-emerald-300"}`}
               >
                 {m.short > 0 ? `need ${m.short}` : <Check className="inline size-4" />}
-              </MStat>
+              </StatCell>
             </span>
           </div>
           {/* per-recipe breakdown (only meaningful when recipe-aware) */}
@@ -606,19 +576,19 @@ function MachinesCard({ data }: { data: MachineSufficiency | undefined }) {
                   </span>
                 </span>
                 <span className="grid grid-cols-3 gap-x-3 pl-6 md:flex md:gap-2 md:pl-0">
-                  <MStat label="built" w="md:w-20">
+                  <StatCell label="built" w="md:w-20">
                     {r.built ?? "—"}
-                  </MStat>
-                  <MStat label="required" w="md:w-20">
+                  </StatCell>
+                  <StatCell label="required" w="md:w-20">
                     {ceil(r.required)}
-                  </MStat>
-                  <MStat
+                  </StatCell>
+                  <StatCell
                     label="short"
                     w="md:w-24"
-                    cls={r.short > 0 ? "text-destructive" : "text-emerald-300/70"}
+                    className={r.short > 0 ? "text-destructive" : "text-emerald-300/70"}
                   >
                     {r.short > 0 ? `need ${r.short}` : <Check className="inline size-3.5" />}
-                  </MStat>
+                  </StatCell>
                 </span>
               </div>
             ))}
