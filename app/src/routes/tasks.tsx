@@ -19,6 +19,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { HelpButton } from "#/components/help-drawer.tsx";
+import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { Icon, IconProvider } from "#/lib/icons";
 import {
   addLinkFn,
@@ -165,160 +166,167 @@ function TasksShell() {
   const currentNote = (noteList.data ?? []).find((n) => n.id === search.n) ?? null;
 
   return (
-    <div className="flex h-full">
-      <aside className="flex w-72 shrink-0 flex-col border-r border-border bg-card">
-        <div className="flex items-stretch border-b border-border text-sm">
-          <TabButton active={tab === "tasks"} onClick={() => showTab("tasks")}>
-            <ListTodo className="size-4" /> Tasks
-          </TabButton>
-          <TabButton active={tab === "notes"} onClick={() => showTab("notes")}>
-            <StickyNote className="size-4" /> Notes
-          </TabButton>
-          <div className="ml-auto flex items-center pr-2">
-            <HelpButton title="Tasks & notes">
-              <p>
-                A planning to-do list scoped to this project.{" "}
-                <span className="text-foreground">Tasks</span> are things to do — build,
-                investigate, fix; <span className="text-foreground">Notes</span> (the other tab) are
-                a free-form scratchpad.
-              </p>
-              <div>
-                <div className="font-semibold text-foreground">A task has</div>
-                <ul className="mt-1 list-disc space-y-1 pl-5">
-                  <li>
-                    a <span className="text-foreground">status</span> (open / in progress / done /
-                    closed) and an optional <span className="text-foreground">priority</span>;
-                  </li>
-                  <li>
-                    <span className="text-foreground">steps</span> (its own checklist) and{" "}
-                    <span className="text-foreground">subtasks</span> (child tasks);
-                  </li>
-                  <li>
-                    a markdown <span className="text-foreground">description</span>;
-                  </li>
-                  <li>
-                    <span className="text-foreground">links</span> to items, recipes, blocks, or an
-                    in-game location/entity.
-                  </li>
-                </ul>
-              </div>
-              <p>
-                <span className="text-foreground">In-game.</span> Capture tasks from the PyOps panel
-                in Factorio — they&apos;re anchored to where you were and the entity you were
-                looking at, so &quot;go to&quot; jumps you back there. Edits sync between here and
-                the game within a few seconds.
-              </p>
-              <p>
-                <span className="text-foreground">Prioritise</span> asks the assistant to rank your
-                open tasks.
-              </p>
-            </HelpButton>
+    <SidebarShell
+      width="w-72"
+      label="Tasks"
+      sidebarClassName="bg-card"
+      sidebar={
+        <>
+          <div className="flex items-stretch border-b border-border text-sm">
+            <TabButton active={tab === "tasks"} onClick={() => showTab("tasks")}>
+              <ListTodo className="size-4" /> Tasks
+            </TabButton>
+            <TabButton active={tab === "notes"} onClick={() => showTab("notes")}>
+              <StickyNote className="size-4" /> Notes
+            </TabButton>
+            <div className="ml-auto flex items-center pr-2">
+              <HelpButton title="Tasks & notes">
+                <p>
+                  A planning to-do list scoped to this project.{" "}
+                  <span className="text-foreground">Tasks</span> are things to do — build,
+                  investigate, fix; <span className="text-foreground">Notes</span> (the other tab)
+                  are a free-form scratchpad.
+                </p>
+                <div>
+                  <div className="font-semibold text-foreground">A task has</div>
+                  <ul className="mt-1 list-disc space-y-1 pl-5">
+                    <li>
+                      a <span className="text-foreground">status</span> (open / in progress / done /
+                      closed) and an optional <span className="text-foreground">priority</span>;
+                    </li>
+                    <li>
+                      <span className="text-foreground">steps</span> (its own checklist) and{" "}
+                      <span className="text-foreground">subtasks</span> (child tasks);
+                    </li>
+                    <li>
+                      a markdown <span className="text-foreground">description</span>;
+                    </li>
+                    <li>
+                      <span className="text-foreground">links</span> to items, recipes, blocks, or
+                      an in-game location/entity.
+                    </li>
+                  </ul>
+                </div>
+                <p>
+                  <span className="text-foreground">In-game.</span> Capture tasks from the PyOps
+                  panel in Factorio — they&apos;re anchored to where you were and the entity you
+                  were looking at, so &quot;go to&quot; jumps you back there. Edits sync between
+                  here and the game within a few seconds.
+                </p>
+                <p>
+                  <span className="text-foreground">Prioritise</span> asks the assistant to rank
+                  your open tasks.
+                </p>
+              </HelpButton>
+            </div>
           </div>
-        </div>
 
-        {tab === "tasks" ? (
-          <>
-            <div className="flex items-center justify-between gap-1 px-3 py-2">
-              <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Task tree
-              </span>
-              <div className="flex items-center gap-1">
+          {tab === "tasks" ? (
+            <>
+              <div className="flex items-center justify-between gap-1 px-3 py-2">
+                <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                  Task tree
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => prioritize.mutate()}
+                    disabled={prioritize.isPending}
+                    title="Ask the assistant to prioritise open tasks"
+                    className="flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-sm hover:bg-muted disabled:opacity-60"
+                  >
+                    {prioritize.isPending ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="size-3.5" />
+                    )}
+                    Prioritise
+                  </button>
+                  <button
+                    onClick={() => newTask.mutate(null)}
+                    className="flex items-center gap-1 rounded bg-primary px-1.5 py-0.5 text-sm font-bold text-primary-foreground hover:bg-primary/80"
+                  >
+                    <Plus className="size-3.5" /> Task
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1 px-2 pb-2">
+                {STATUS_ORDER.map((s) => {
+                  const on = filter.has(s);
+                  const count = nodes.filter((n) => n.status === s).length;
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => toggleStatus(s)}
+                      className={`flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs ${
+                        on
+                          ? "border-border bg-muted text-foreground"
+                          : "border-transparent text-muted-foreground/60 hover:text-muted-foreground"
+                      }`}
+                      title={on ? `hide ${STATUS_META[s].label}` : `show ${STATUS_META[s].label}`}
+                    >
+                      <span className={`size-1.5 rounded-full ${STATUS_META[s].dot}`} />
+                      {STATUS_META[s].label}{" "}
+                      {count > 0 && <span className="tabular-nums">{count}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              {actionError && (
+                <div className="px-2 pb-1 text-xs text-destructive">{actionError}</div>
+              )}
+              <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
+                <TaskTree
+                  nodes={nodes}
+                  selected={search.t ?? null}
+                  filter={filter}
+                  onOpen={openTask}
+                />
+                {nodes.length === 0 && (
+                  <div className="px-2 py-2 text-xs text-muted-foreground">
+                    no tasks yet — add one to start a tree
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between px-3 py-2">
+                <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                  Scratch notes
+                </span>
                 <button
-                  onClick={() => prioritize.mutate()}
-                  disabled={prioritize.isPending}
-                  title="Ask the assistant to prioritise open tasks"
-                  className="flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-sm hover:bg-muted disabled:opacity-60"
-                >
-                  {prioritize.isPending ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="size-3.5" />
-                  )}
-                  Prioritise
-                </button>
-                <button
-                  onClick={() => newTask.mutate(null)}
+                  onClick={() => newNote.mutate()}
                   className="flex items-center gap-1 rounded bg-primary px-1.5 py-0.5 text-sm font-bold text-primary-foreground hover:bg-primary/80"
                 >
-                  <Plus className="size-3.5" /> Task
+                  <Plus className="size-3.5" /> Note
                 </button>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-1 px-2 pb-2">
-              {STATUS_ORDER.map((s) => {
-                const on = filter.has(s);
-                const count = nodes.filter((n) => n.status === s).length;
-                return (
+              <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
+                {(noteList.data ?? []).map((note) => (
                   <button
-                    key={s}
-                    onClick={() => toggleStatus(s)}
-                    className={`flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs ${
-                      on
-                        ? "border-border bg-muted text-foreground"
-                        : "border-transparent text-muted-foreground/60 hover:text-muted-foreground"
+                    key={note.id}
+                    onClick={() => openNote(note.id)}
+                    className={`block w-full truncate rounded px-2 py-1.5 text-left text-sm hover:bg-muted ${
+                      note.id === search.n ? "bg-accent" : ""
                     }`}
-                    title={on ? `hide ${STATUS_META[s].label}` : `show ${STATUS_META[s].label}`}
+                    title={note.title ?? "Untitled note"}
                   >
-                    <span className={`size-1.5 rounded-full ${STATUS_META[s].dot}`} />
-                    {STATUS_META[s].label}{" "}
-                    {count > 0 && <span className="tabular-nums">{count}</span>}
+                    {note.title || (
+                      <span className="text-muted-foreground italic">Untitled note</span>
+                    )}
                   </button>
-                );
-              })}
-            </div>
-            {actionError && <div className="px-2 pb-1 text-xs text-destructive">{actionError}</div>}
-            <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
-              <TaskTree
-                nodes={nodes}
-                selected={search.t ?? null}
-                filter={filter}
-                onOpen={openTask}
-              />
-              {nodes.length === 0 && (
-                <div className="px-2 py-2 text-xs text-muted-foreground">
-                  no tasks yet — add one to start a tree
-                </div>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex items-center justify-between px-3 py-2">
-              <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Scratch notes
-              </span>
-              <button
-                onClick={() => newNote.mutate()}
-                className="flex items-center gap-1 rounded bg-primary px-1.5 py-0.5 text-sm font-bold text-primary-foreground hover:bg-primary/80"
-              >
-                <Plus className="size-3.5" /> Note
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
-              {(noteList.data ?? []).map((note) => (
-                <button
-                  key={note.id}
-                  onClick={() => openNote(note.id)}
-                  className={`block w-full truncate rounded px-2 py-1.5 text-left text-sm hover:bg-muted ${
-                    note.id === search.n ? "bg-accent" : ""
-                  }`}
-                  title={note.title ?? "Untitled note"}
-                >
-                  {note.title || (
-                    <span className="text-muted-foreground italic">Untitled note</span>
-                  )}
-                </button>
-              ))}
-              {(noteList.data?.length ?? 0) === 0 && (
-                <div className="px-2 py-2 text-xs text-muted-foreground">
-                  no notes — a scratch space for calcs &amp; reminders
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </aside>
-
+                ))}
+                {(noteList.data?.length ?? 0) === 0 && (
+                  <div className="px-2 py-2 text-xs text-muted-foreground">
+                    no notes — a scratch space for calcs &amp; reminders
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </>
+      }
+    >
       <div className="min-w-0 flex-1 overflow-auto">
         {tab === "tasks" ? (
           currentTask ? (
@@ -343,7 +351,7 @@ function TasksShell() {
           <Empty>select a note, or jot a new one</Empty>
         )}
       </div>
-    </div>
+    </SidebarShell>
   );
 }
 
