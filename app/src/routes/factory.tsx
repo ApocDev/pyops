@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, MapPin, Plus, RefreshCw, X, Zap } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   blockChangeReportFn,
   blocksForGoodFn,
@@ -133,31 +133,56 @@ function FactoryPage() {
   const surpluses = rows.filter((r) => r.net > 1e-6);
   const balanced = rows.filter((r) => Math.abs(r.net) <= 1e-6);
 
+  // One stat cell. Desktop: a right-aligned fixed column. Mobile (< md): a labelled
+  // row in a 2×2 grid, so the value is readable instead of crushed into a narrow column.
+  const Stat = ({ label, cls, children }: { label: string; cls?: string; children: ReactNode }) => (
+    <span
+      className={`flex items-baseline justify-between gap-2 md:block md:w-24 md:text-right ${cls ?? ""}`}
+    >
+      <span className="text-xs font-normal text-muted-foreground md:hidden">{label}</span>
+      <span>{children}</span>
+    </span>
+  );
+
   const Row = ({ r }: { r: (typeof rows)[number] }) => (
     <button
       onClick={() => setSelected({ item: r.item, kind: r.kind })}
-      className={`flex w-full items-center gap-2 border-t border-border px-3 py-1.5 text-left text-sm hover:bg-muted ${selected?.item === r.item ? "bg-accent" : ""}`}
+      className={`flex w-full flex-col gap-1 border-t border-border px-3 py-2 text-left text-sm hover:bg-muted md:flex-row md:items-center md:gap-2 md:py-1.5 ${selected?.item === r.item ? "bg-accent" : ""}`}
     >
-      <Icon kind={r.kind as "item" | "fluid"} name={r.item} size="sm" title={r.display ?? r.item} />
-      <span className="min-w-0 flex-1 truncate" title={r.display ?? r.item}>
-        {r.display ?? r.item}
+      <span className="flex min-w-0 items-center gap-2 md:flex-1">
+        <Icon
+          kind={r.kind as "item" | "fluid"}
+          name={r.item}
+          size="sm"
+          title={r.display ?? r.item}
+        />
+        <span className="min-w-0 flex-1 truncate" title={r.display ?? r.item}>
+          {r.display ?? r.item}
+        </span>
       </span>
-      <span className="w-24 text-right text-emerald-300">{num(r.produced)}</span>
-      <span className="w-24 text-right text-amber-300">{num(r.consumed)}</span>
-      <span
-        className={`w-24 text-right font-semibold ${
-          r.net < -1e-6
-            ? "text-destructive"
-            : r.net > 1e-6
-              ? "text-violet-300"
-              : "text-muted-foreground"
-        }`}
-      >
-        {r.net > 0 ? "+" : ""}
-        {num(r.net)}
-      </span>
-      <span className="w-24 text-right" title="actual production from the game vs. planned">
-        <ActualCell planned={r.produced} actual={r.actualProduced} />
+      <span className="grid grid-cols-2 gap-x-4 gap-y-0.5 pl-7 md:flex md:gap-2 md:pl-0">
+        <Stat label="produced/s" cls="text-emerald-300">
+          {num(r.produced)}
+        </Stat>
+        <Stat label="consumed/s" cls="text-amber-300">
+          {num(r.consumed)}
+        </Stat>
+        <Stat
+          label="net/s"
+          cls={`font-semibold ${
+            r.net < -1e-6
+              ? "text-destructive"
+              : r.net > 1e-6
+                ? "text-violet-300"
+                : "text-muted-foreground"
+          }`}
+        >
+          {r.net > 0 ? "+" : ""}
+          {num(r.net)}
+        </Stat>
+        <Stat label="actual/s">
+          <ActualCell planned={r.produced} actual={r.actualProduced} />
+        </Stat>
       </span>
     </button>
   );
@@ -171,7 +196,7 @@ function FactoryPage() {
           </CardTitle>
           <span className="text-xs text-muted-foreground">{hint}</span>
         </CardHeader>
-        <div className="flex px-3 pb-1 text-xs text-muted-foreground">
+        <div className="hidden px-3 pb-1 text-xs text-muted-foreground md:flex">
           <span className="flex-1">item</span>
           <span className="w-24 text-right">produced/s</span>
           <span className="w-24 text-right">consumed/s</span>
