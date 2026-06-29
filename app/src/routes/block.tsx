@@ -53,7 +53,9 @@ function Shell() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const dragId = useRef<number | null>(null); // block being dragged in the sidebar
   const dragGroupId = useRef<number | null>(null); // folder being dragged in the sidebar
-  const [dropBlock, setDropBlock] = useState<number | null>(null); // block we're hovering to insert before
+  // block we're hovering over, and whether we'd drop after it (bottom half) — drives
+  // the insertion line so you can see exactly where the block lands
+  const [dropBlock, setDropBlock] = useState<{ id: number; after: boolean } | null>(null);
   const [dropFolder, setDropFolder] = useState<string | null>(null); // folder hovered as a drop target
   const tabDragId = useRef<number | null>(null); // block id being dragged within the tab strip
   const [tabDragOver, setTabDragOver] = useState<number | null>(null);
@@ -80,16 +82,18 @@ function Shell() {
     await setBlockGroupFn({ data: { blockId, groupId } });
     refresh();
   };
-  // Drop block `a` just before block `target`, adopting target's folder. Reorders
-  // within a folder and moves across folders at a precise position (vs. to-end).
-  const dropBlockBefore = async (a: number, target: Row) => {
+  // Drop block `a` just before (or after) block `target`, adopting target's folder.
+  // Reorders within a folder and moves across folders at a precise position.
+  const dropBlockAt = async (a: number, target: Row, after: boolean) => {
     if (a === target.id) return;
     const targetGroup = target.groupId ?? null;
     const order = (blocks.data ?? [])
       .filter((x) => (x.groupId ?? null) === targetGroup && x.id !== a)
       .map((x) => x.id);
-    const at = order.indexOf(target.id);
-    order.splice(at < 0 ? order.length : at, 0, a);
+    let at = order.indexOf(target.id);
+    if (at < 0) at = order.length;
+    else if (after) at += 1;
+    order.splice(at, 0, a);
     if ((byId.get(a)?.groupId ?? null) !== targetGroup)
       await setBlockGroupFn({ data: { blockId: a, groupId: targetGroup } });
     await setBlockOrderFn({ data: order });
@@ -250,18 +254,25 @@ function Shell() {
         if (dragId.current == null || dragId.current === b.id) return;
         e.preventDefault();
         e.stopPropagation(); // beat the folder's to-end drop handler
-        if (dropBlock !== b.id) setDropBlock(b.id);
+        const rect = e.currentTarget.getBoundingClientRect();
+        const after = e.clientY > rect.top + rect.height / 2;
+        if (dropBlock?.id !== b.id || dropBlock.after !== after) setDropBlock({ id: b.id, after });
       }}
       onDrop={(e) => {
         if (dragId.current == null) return;
         e.preventDefault();
         e.stopPropagation();
-        void dropBlockBefore(dragId.current, b);
+        void dropBlockAt(dragId.current, b, dropBlock?.id === b.id ? dropBlock.after : false);
         endDrag();
       }}
       onDragEnd={endDrag}
-      className={`group ml-3 flex items-center gap-2 rounded px-2 py-1 hover:bg-muted ${activeId === b.id ? "bg-accent" : ""} ${dropBlock === b.id ? "border-t-2 border-primary" : "border-t-2 border-transparent"}`}
+      className={`group relative ml-3 flex items-center gap-2 rounded px-2 py-1 hover:bg-muted ${activeId === b.id ? "bg-accent" : ""}`}
     >
+      {dropBlock?.id === b.id && (
+        <div
+          className={`pointer-events-none absolute inset-x-1 z-10 h-0.5 rounded-full bg-primary ${dropBlock.after ? "-bottom-px" : "-top-px"}`}
+        />
+      )}
       <button
         className="flex min-w-0 flex-1 items-center gap-2 text-left"
         onClick={() => open(b.id)}
@@ -318,8 +329,17 @@ function Shell() {
             e.stopPropagation();
             dragGroupId.current = gid;
           }}
-          className={`group flex items-center gap-1 rounded px-1 py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted/50 ${dropFolder === key ? "bg-primary/15" : ""}`}
+          className={`group relative flex items-center gap-1 rounded px-1 py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted/50 ${
+            dropFolder === key
+              ? dragGroupId.current != null
+                ? "" // reordering a folder: show the insertion line below, not a fill
+                : "bg-primary/15 ring-1 ring-primary/40" // dropping a block into this folder
+              : ""
+          }`}
         >
+          {dropFolder === key && dragGroupId.current != null && (
+            <div className="pointer-events-none absolute inset-x-1 -top-px z-10 h-0.5 rounded-full bg-primary" />
+          )}
           <button className="w-4 shrink-0" onClick={() => toggle(key)}>
             {isCol ? "▸" : "▾"}
           </button>
