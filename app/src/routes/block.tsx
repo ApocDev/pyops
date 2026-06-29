@@ -13,6 +13,7 @@ import {
   setBlockGroupFn,
   setBlockOrderFn,
   setGroupOrderFn,
+  setGroupParentFn,
 } from "../server/factorio";
 import { Icon, IconProvider } from "../lib/icons";
 import { Input } from "#/components/ui/input.tsx";
@@ -56,7 +57,9 @@ function Shell() {
   // block we're hovering over, and whether we'd drop after it (bottom half) — drives
   // the insertion line so you can see exactly where the block lands
   const [dropBlock, setDropBlock] = useState<{ id: number; after: boolean } | null>(null);
-  const [dropFolder, setDropFolder] = useState<string | null>(null); // folder hovered as a drop target
+  // folder hovered as a drop target; `into` = nest inside it (ring), else reorder
+  // before it (insertion line). Block drags always nest (`into`).
+  const [dropFolder, setDropFolder] = useState<{ key: string; into: boolean } | null>(null);
   const tabDragId = useRef<number | null>(null); // block id being dragged within the tab strip
   const [tabDragOver, setTabDragOver] = useState<number | null>(null);
   const tabsHydrated = useRef(false); // gate persistence until the saved tabs are restored
@@ -99,14 +102,30 @@ function Shell() {
     await setBlockOrderFn({ data: order });
     refresh();
   };
-  // Drop folder `a` just before folder `target` (or to the end when target is null).
-  const dropFolderBefore = async (a: number, target: number | null) => {
-    if (a === target) return;
-    const order = (groups.data ?? []).map((g) => g.id).filter((id) => id !== a);
-    const at = target == null ? order.length : order.indexOf(target);
+  const childrenOf = (parent: number | null) =>
+    (groups.data ?? []).filter((g) => (g.parentId ?? null) === parent);
+  // Reorder folder `a` just before sibling `target`, adopting target's parent.
+  const dropFolderBefore = async (a: number, target: Group) => {
+    if (a === target.id) return;
+    const parent = target.parentId ?? null;
+    if (((groups.data ?? []).find((g) => g.id === a)?.parentId ?? null) !== parent) {
+      const r = await setGroupParentFn({ data: { id: a, parentId: parent } });
+      if (!r.ok) return; // would form a cycle — leave it where it was
+    }
+    const order = childrenOf(parent)
+      .filter((g) => g.id !== a)
+      .map((g) => g.id);
+    const at = order.indexOf(target.id);
     order.splice(at < 0 ? order.length : at, 0, a);
     await setGroupOrderFn({ data: order });
     refreshGroups();
+    refresh();
+  };
+  // Nest folder `a` inside folder `parentId` (null = top level).
+  const moveGroup = async (a: number, parentId: number | null) => {
+    await setGroupParentFn({ data: { id: a, parentId } });
+    refreshGroups();
+    refresh();
   };
   const endDrag = () => {
     dragId.current = null;
@@ -127,7 +146,7 @@ function Shell() {
     refreshGroups();
   };
   const deleteFolder = async (id: number) => {
-    if (!window.confirm("Delete folder? Its blocks move to Ungrouped.")) return;
+    if (!window.confirm("Delete folder? Its blocks and subfolders move up to its parent.")) return;
     await deleteGroupFn({ data: id });
     refreshGroups();
     refresh();
@@ -243,10 +262,12 @@ function Shell() {
   );
 
   type Row = (typeof filtered)[number];
-  const renderBlock = (b: Row) => (
+  type Group = NonNullable<typeof groups.data>[number];
+  const renderBlock = (b: Row, depth: number) => (
     <div
       key={b.id}
       draggable
+      style={{ marginLeft: 8 + depth * 12 }}
       onDragStart={() => {
         dragId.current = b.id;
       }}
@@ -266,7 +287,7 @@ function Shell() {
         endDrag();
       }}
       onDragEnd={endDrag}
-      className={`group relative ml-3 flex items-center gap-2 rounded px-2 py-1 hover:bg-muted ${activeId === b.id ? "bg-accent" : ""}`}
+      className={`group relative flex items-center gap-2 rounded px-2 py-1 hover:bg-muted ${activeId === b.id ? "bg-accent" : ""}`}
     >
       {dropBlock?.id === b.id && (
         <div
@@ -299,64 +320,109 @@ function Shell() {
       </button>
     </div>
   );
-  const renderFolder = (
-    key: string,
-    title: string,
-    gid: number | null,
-    rows: Row[],
-    opts?: { onDelete: () => void; onRename: () => void },
-  ) => {
+  // A real folder, rendered recursively: its subfolders (nested) then its blocks.
+  // Dropping a folder on the top sliver reorders it before this one; lower down nests
+  // it inside. Dropping a block always nests it here.
+  const renderFolder = (group: Group, depth: number) => {
+    const key = `g${group.id}`;
     const isCol = collapsed[key];
+    const rows = filtered.filter((b) => b.groupId === group.id);
+    const kids = childrenOf(group.id);
+    const showInto = dropFolder?.key === key && dropFolder.into;
+    const showLine = dropFolder?.key === key && !dropFolder.into;
     return (
-      <div
-        key={key}
-        onDragOver={(e) => {
-          // folder-to-end / folder-reorder target; block reorder is handled per-row
-          if (dragId.current == null && dragGroupId.current == null) return;
-          e.preventDefault();
-          if (dropFolder !== key) setDropFolder(key);
-        }}
-        onDrop={() => {
-          if (dragGroupId.current != null) void dropFolderBefore(dragGroupId.current, gid);
-          else if (dragId.current != null) void moveToGroup(dragId.current, gid);
-          endDrag();
-        }}
-      >
+      <div key={key}>
         <div
-          draggable={gid != null}
+          draggable
           onDragStart={(e) => {
-            if (gid == null) return;
             e.stopPropagation();
-            dragGroupId.current = gid;
+            dragGroupId.current = group.id;
           }}
-          className={`group relative flex items-center gap-1 rounded px-1 py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted/50 ${
-            dropFolder === key
-              ? dragGroupId.current != null
-                ? "" // reordering a folder: show the insertion line below, not a fill
-                : "bg-primary/15 ring-1 ring-primary/40" // dropping a block into this folder
-              : ""
-          }`}
+          onDragOver={(e) => {
+            if (dragId.current == null && dragGroupId.current == null) return;
+            e.preventDefault();
+            // a dragged folder reorders (top sliver) or nests (rest); a block nests
+            let into = true;
+            if (dragGroupId.current != null) {
+              const r = e.currentTarget.getBoundingClientRect();
+              into = e.clientY > r.top + r.height * 0.4;
+            }
+            setDropFolder((d) => (d?.key === key && d.into === into ? d : { key, into }));
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const into = dropFolder?.key === key ? dropFolder.into : true;
+            if (dragGroupId.current != null) {
+              if (into) void moveGroup(dragGroupId.current, group.id);
+              else void dropFolderBefore(dragGroupId.current, group);
+            } else if (dragId.current != null) void moveToGroup(dragId.current, group.id);
+            endDrag();
+          }}
+          onDragEnd={endDrag}
+          style={{ marginLeft: depth * 12 }}
+          className={`group relative flex items-center gap-1 rounded px-1 py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted/50 ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
         >
-          {dropFolder === key && dragGroupId.current != null && (
+          {showLine && (
             <div className="pointer-events-none absolute inset-x-1 -top-px z-10 h-0.5 rounded-full bg-primary" />
           )}
           <button className="w-4 shrink-0" onClick={() => toggle(key)}>
             {isCol ? "▸" : "▾"}
           </button>
-          <span className="min-w-0 flex-1 truncate" onDoubleClick={opts?.onRename}>
-            {title} ({rows.length})
+          <span
+            className="min-w-0 flex-1 truncate"
+            onDoubleClick={() => renameFolder(group.id, group.name)}
+          >
+            {group.name} ({rows.length})
           </span>
-          {opts && (
-            <button
-              className="px-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
-              title="delete folder"
-              onClick={opts.onDelete}
-            >
-              ✕
-            </button>
-          )}
+          <button
+            className="px-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
+            title="delete folder"
+            onClick={() => deleteFolder(group.id)}
+          >
+            ✕
+          </button>
         </div>
-        {!isCol && rows.map(renderBlock)}
+        {!isCol && (
+          <>
+            {kids.map((k) => renderFolder(k, depth + 1))}
+            {rows.map((b) => renderBlock(b, depth + 1))}
+          </>
+        )}
+      </div>
+    );
+  };
+  // The "Ungrouped" pseudo-folder (top-level, groupId null). Dropping a folder here
+  // moves it back to the top level; dropping a block un-groups it.
+  const renderUngrouped = () => {
+    const key = "ungrouped";
+    const isCol = collapsed[key];
+    const rows = filtered.filter((b) => b.groupId == null);
+    const showInto = dropFolder?.key === key;
+    return (
+      <div key={key}>
+        <div
+          onDragOver={(e) => {
+            if (dragId.current == null && dragGroupId.current == null) return;
+            e.preventDefault();
+            setDropFolder((d) => (d?.key === key ? d : { key, into: true }));
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (dragGroupId.current != null) void moveGroup(dragGroupId.current, null);
+            else if (dragId.current != null) void moveToGroup(dragId.current, null);
+            endDrag();
+          }}
+          onDragEnd={endDrag}
+          className={`group flex items-center gap-1 rounded px-1 py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted/50 ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
+        >
+          <button className="w-4 shrink-0" onClick={() => toggle(key)}>
+            {isCol ? "▸" : "▾"}
+          </button>
+          <span className="min-w-0 flex-1 truncate">Ungrouped ({rows.length})</span>
+        </div>
+        {!isCol && rows.map((b) => renderBlock(b, 0))}
       </div>
     );
   };
@@ -397,24 +463,8 @@ function Shell() {
             </div>
           ) : (
             <>
-              {groups.data?.map((g) =>
-                renderFolder(
-                  `g${g.id}`,
-                  g.name,
-                  g.id,
-                  filtered.filter((b) => b.groupId === g.id),
-                  {
-                    onDelete: () => deleteFolder(g.id),
-                    onRename: () => renameFolder(g.id, g.name),
-                  },
-                ),
-              )}
-              {renderFolder(
-                "ungrouped",
-                "Ungrouped",
-                null,
-                filtered.filter((b) => b.groupId == null),
-              )}
+              {childrenOf(null).map((g) => renderFolder(g, 0))}
+              {renderUngrouped()}
               {filtered.length === 0 && (
                 <div className="px-2 py-2 text-xs text-muted-foreground">no matches</div>
               )}

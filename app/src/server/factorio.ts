@@ -1826,6 +1826,10 @@ export const setBlockGroupFn = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const setGroupParentFn = createServerFn({ method: "POST" })
+  .validator((d: { id: number; parentId: number | null }) => d)
+  .handler(async ({ data }) => ({ ok: (await lib()).setGroupParent(data.id, data.parentId) }));
+
 export const setBlockOrderFn = createServerFn({ method: "POST" })
   .validator((ids: number[]) => ids)
   .handler(async ({ data }) => {

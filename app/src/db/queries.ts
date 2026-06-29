@@ -747,9 +747,39 @@ export function createGroup(name: string) {
 export function renameGroup(id: number, name: string) {
   db.update(blockGroups).set({ name }).where(eq(blockGroups.id, id)).run();
 }
+/** Re-parent a folder (null = top level). Returns false without changing anything if
+ * the move would create a cycle (the new parent is the folder itself or one of its
+ * descendants). */
+export function setGroupParent(id: number, parentId: number | null): boolean {
+  if (parentId === id) return false;
+  if (parentId != null) {
+    const parentOf = new Map(
+      db
+        .select({ id: blockGroups.id, parentId: blockGroups.parentId })
+        .from(blockGroups)
+        .all()
+        .map((g) => [g.id, g.parentId]),
+    );
+    for (let cur: number | null | undefined = parentId; cur != null; cur = parentOf.get(cur))
+      if (cur === id) return false; // parentId is a descendant of id → cycle
+  }
+  db.update(blockGroups).set({ parentId }).where(eq(blockGroups.id, id)).run();
+  return true;
+}
 export function deleteGroup(id: number) {
-  db.update(blocks).set({ groupId: null }).where(eq(blocks.groupId, id)).run(); // orphan its blocks
-  db.delete(blockGroups).where(eq(blockGroups.id, id)).run();
+  // Children move up one level to this folder's parent (blocks via groupId, subfolders
+  // via parentId) rather than all dumping to the root.
+  const parent =
+    db
+      .select({ parentId: blockGroups.parentId })
+      .from(blockGroups)
+      .where(eq(blockGroups.id, id))
+      .get()?.parentId ?? null;
+  db.transaction((tx) => {
+    tx.update(blocks).set({ groupId: parent }).where(eq(blocks.groupId, id)).run();
+    tx.update(blockGroups).set({ parentId: parent }).where(eq(blockGroups.parentId, id)).run();
+    tx.delete(blockGroups).where(eq(blockGroups.id, id)).run();
+  });
 }
 export function setBlockGroup(blockId: number, groupId: number | null) {
   db.update(blocks).set({ groupId }).where(eq(blocks.id, blockId)).run();

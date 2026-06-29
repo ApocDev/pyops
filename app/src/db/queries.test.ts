@@ -4,11 +4,17 @@ import { db, switchDatabase } from "./index.ts";
 import {
   blockMissingRefs,
   blockReferenceFingerprint,
+  createGroup,
+  deleteGroup,
   getResearchHorizon,
   goodExists,
   goodGraphCounts,
+  listBlocks,
+  listGroups,
   machineSufficiency,
+  setBlockGroup,
   setBuiltMachines,
+  setGroupParent,
   setResearchHorizon,
 } from "./queries.ts";
 import { type TestDb, makeTestDb } from "./test-helpers.ts";
@@ -144,5 +150,35 @@ describe("drift detection: missing refs + reference fingerprint", () => {
       recipes: ["gone-recipe"],
     });
     expect(gone).not.toBe(present);
+  });
+});
+
+describe("nested folders", () => {
+  it("setGroupParent nests folders and rejects cycles", () => {
+    const a = createGroup("A");
+    const b = createGroup("B");
+    const c = createGroup("C");
+    expect(setGroupParent(b, a)).toBe(true); // B under A
+    expect(setGroupParent(c, b)).toBe(true); // C under B
+    expect(setGroupParent(a, c)).toBe(false); // A under C would form A→C→B→A
+    expect(setGroupParent(a, a)).toBe(false); // can't parent to self
+    const parentOf = new Map(listGroups().map((g) => [g.id, g.parentId]));
+    expect(parentOf.get(b)).toBe(a);
+    expect(parentOf.get(c)).toBe(b);
+    expect(parentOf.get(a)).toBe(null);
+  });
+
+  it("deleteGroup moves child folders and blocks up to the parent", () => {
+    const parent = createGroup("Parent");
+    const mid = createGroup("Mid");
+    const leaf = createGroup("Leaf");
+    setGroupParent(mid, parent);
+    setGroupParent(leaf, mid);
+    setBlockGroup(1, mid); // seeded block #1 now lives in Mid
+    deleteGroup(mid);
+    const groups = listGroups();
+    expect(groups.some((g) => g.id === mid)).toBe(false);
+    expect(groups.find((g) => g.id === leaf)?.parentId).toBe(parent); // subfolder → grandparent
+    expect(listBlocks().find((b) => b.id === 1)?.groupId).toBe(parent); // block → parent
   });
 });
