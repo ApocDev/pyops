@@ -177,6 +177,11 @@ and debug the integration directly, not just the in-app assistant. The handler
 (`utils/mcp-handler.ts`) is single-shot per request and waits for the tool's
 real async result (db / bridge / LLM), so slow tools work.
 
+The repo ships project-scoped MCP client config for Codex (`.codex/config.toml`)
+and Claude Code (`.mcp.json`). Both point at `http://localhost:3000/mcp`, so run
+`vp dev` in `app/` before using the external tools. Claude Code marks the project
+server pending until the user approves it in an interactive `claude` session.
+
 ## Planning horizon
 
 Before each chat turn, `api.chat.ts` injects the current planning horizon into the

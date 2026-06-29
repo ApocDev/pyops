@@ -38,7 +38,8 @@ planner that actually understands Py's tangled recipe graph.
   separate scratch-notes surface for quick calcs and reminders. Kept in the
   project's store, distinct from this repo's dev tracker.
 - **Reach into the running game.** A companion Factorio mod links over localhost
-  UDP: it shows a Helmod-style production-block panel in-game, locates
+  UDP: it shows a Helmod-style production-block panel in-game (with a toggle for
+  per-good belts & inserters), locates
   producers/consumers via Factory Search, syncs your researched tech / TURD picks /
   placed machines back into the planner, lets you **quick-capture a task** while
   playing (with your location and selected entity as anchors), and can plan a
@@ -86,6 +87,8 @@ set, with produced-by / used-in (here: Iron plate — 14 producers, 160 consumer
 - *Optional, for the in-game features:* the PyOps companion mod (in [`mod/`](mod/))
   and the [Factory Search](https://mods.factorio.com/mod/FactorySearch) mod.
 - *Optional, for the AI assistant:* an [OpenRouter](https://openrouter.ai) API key.
+- *Optional, for external MCP clients:* Codex and Claude Code can use the project
+  MCP configs in this repo once the app is running on `http://localhost:3000`.
 
 ---
 
@@ -96,6 +99,11 @@ cd app
 vp install        # install dependencies
 vp dev            # start PyOps at http://localhost:3000
 ```
+
+The dev server also exposes the PyOps MCP tool surface at
+`http://localhost:3000/mcp`. The repo includes project-scoped config for Codex
+(`.codex/config.toml`) and Claude Code (`.mcp.json`) pointing at that endpoint;
+Claude Code asks for one-time approval of project MCP servers on first use.
 
 Then open PyOps, go to **⚙ Settings › Game data**, and run a sync. PyOps launches
 your Factorio install headlessly, reads its recipe data, and loads it into a local
