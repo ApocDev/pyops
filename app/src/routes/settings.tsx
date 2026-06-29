@@ -47,15 +47,15 @@ function SettingsPage() {
   const cols = "columns-1 gap-4 xl:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid";
 
   return (
-    <div className="flex h-full font-mono text-sm text-foreground">
-      <aside className="w-40 shrink-0 border-r border-border p-2">
+    <div className="flex h-full flex-col font-mono text-sm text-foreground md:flex-row">
+      <aside className="w-full shrink-0 border-b border-border p-2 md:w-40 md:border-r md:border-b-0">
         <h1 className="mb-2 px-2 py-1 text-base font-bold">Settings</h1>
-        <nav className="space-y-0.5">
+        <nav className="flex gap-1 overflow-x-auto md:block md:space-y-0.5 md:overflow-visible">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => select(t.id)}
-              className={`block w-full rounded px-2 py-1.5 text-left ${
+              className={`shrink-0 rounded px-2 py-1.5 text-left whitespace-nowrap md:block md:w-full ${
                 tab === t.id
                   ? "bg-muted font-semibold text-foreground"
                   : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
