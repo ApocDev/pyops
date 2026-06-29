@@ -185,40 +185,6 @@ export function fuelsForCategories(categories: string[], includeFluids = false) 
   return [...solid, ...fluid];
 }
 
-/** All burnable fuels (solid items + fluid fuels), cheapest-energy first, for the
- * default-fuel setting picker. Excludes EE / user-excluded items. */
-export function fuelList() {
-  const solid = db
-    .select({
-      name: items.name,
-      display: items.display,
-      fuelValueJ: items.fuelValueJ,
-      kind: sql<string>`'item'`,
-    })
-    .from(items)
-    .where(isNotNull(items.fuelValueJ))
-    .orderBy(items.fuelValueJ)
-    .all()
-    .filter((f) => !isExcluded(f.name));
-  const fluid = db
-    .select({
-      name: fluids.name,
-      display: fluids.display,
-      fuelValueJ: fluids.fuelValueJ,
-      kind: sql<string>`'fluid'`,
-    })
-    .from(fluids)
-    .where(isNotNull(fluids.fuelValueJ))
-    .orderBy(fluids.fuelValueJ)
-    .all();
-  return [...solid, ...fluid].map((f) => ({
-    name: f.name,
-    display: f.display,
-    mj: f.fuelValueJ ? +(f.fuelValueJ / 1e6).toFixed(2) : null,
-    kind: f.kind,
-  }));
-}
-
 /** Which of the given machines are buildable under the current research horizon —
  * a machine is available if any recipe that crafts its item is reached (enabled,
  * or its unlock tech researched / its science packs produced). In FUTURE mode the
@@ -268,6 +234,12 @@ export function availableModuleItems(names: string[]): Set<string> {
 export function machineOptionsForRecipe(recipeName: string) {
   const machines = machinesForRecipe(recipeName);
   const available = availableMachines(machines.map((m) => m.name));
+  const category = db
+    .select({ category: recipes.category })
+    .from(recipes)
+    .where(eq(recipes.name, recipeName))
+    .get()?.category;
+  const favorite = category ? (getFavoriteMachines()[category] ?? null) : null;
   return machines.map((m) => {
     const crafts = recipesProducing(m.name); // recipes that build the machine item
     const startEnabled = crafts.some((r) => r.enabled);
@@ -277,7 +249,13 @@ export function machineOptionsForRecipe(recipeName: string) {
         .map((u) => ({ tech: u.tech, display: u.display })),
       (u) => u.tech,
     );
-    return { ...m, startEnabled, unlockedBy, availableNow: available.has(m.name) };
+    return {
+      ...m,
+      startEnabled,
+      unlockedBy,
+      availableNow: available.has(m.name),
+      favorite: m.name === favorite,
+    };
   });
 }
 function dedupeBy<T>(arr: T[], key: (x: T) => string): T[] {
@@ -2337,6 +2315,65 @@ export function metaSet(key: string, value: string) {
     .values({ key, value })
     .onConflictDoUpdate({ target: meta.key, set: { value } })
     .run();
+}
+
+export function metaDelete(key: string) {
+  db.delete(meta).where(eq(meta.key, key)).run();
+}
+
+/* ── Preferred defaults ("favorites") ────────────────────────────────────────
+ * A remembered pick per interchangeable-choice CATEGORY, applied when a recipe
+ * is first added to a block (see server recipeDefaultsFn) and baked into that
+ * block's stored picks. Changing a favorite never rewrites existing blocks — the
+ * solver fallback (lowest tier / cheapest fuel) is favorite-independent.
+ *
+ * `favorite_machines`: recipe crafting/resource category → machine name.
+ * `favorite_fuels`:     fuel category → fuel item name. */
+function readJsonMap(key: string): Record<string, string> {
+  const raw = metaAll()[key];
+  if (!raw) return {};
+  try {
+    const v = JSON.parse(raw) as unknown;
+    return v && typeof v === "object" ? (v as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function getFavoriteMachines(): Record<string, string> {
+  return readJsonMap("favorite_machines");
+}
+
+export function getFavoriteFuels(): Record<string, string> {
+  return readJsonMap("favorite_fuels");
+}
+
+/** Set (or clear, when `machine` is null) the preferred machine for a category. */
+export function setFavoriteMachine(category: string, machine: string | null) {
+  const map = getFavoriteMachines();
+  if (machine) map[category] = machine;
+  else delete map[category];
+  metaSet("favorite_machines", JSON.stringify(map));
+}
+
+/** Set (or clear, when `fuel` is null) the preferred fuel for a fuel category. */
+export function setFavoriteFuel(fuelCategory: string, fuel: string | null) {
+  const map = getFavoriteFuels();
+  if (fuel) map[fuelCategory] = fuel;
+  else delete map[fuelCategory];
+  metaSet("favorite_fuels", JSON.stringify(map));
+}
+
+/** Preferred fluid fuel. Fluids carry no fuel category in Factorio — a fluid burner
+ * accepts any fuel-valued fluid — so this is a single global pick, not per-category
+ * (issue #18; the shared fluid-energy pool is #25). */
+export function getFavoriteFluidFuel(): string | null {
+  return metaAll().favorite_fluid_fuel || null;
+}
+
+export function setFavoriteFluidFuel(fuel: string | null) {
+  if (fuel) metaSet("favorite_fluid_fuel", fuel);
+  else metaDelete("favorite_fluid_fuel");
 }
 
 /* ── Cost analysis lookups (LP shadow prices; see server/cost-analysis.ts) ──── */

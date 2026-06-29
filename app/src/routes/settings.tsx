@@ -5,7 +5,6 @@ import {
   aiConfigFn,
   dataStatusFn,
   exclusionsFn,
-  fuelListFn,
   modDriftFn,
   plannerSettingsFn,
   recomputeCostsFn,
@@ -291,14 +290,11 @@ const PAYBACK_PRESETS = [
 function PlannerCard() {
   const qc = useQueryClient();
   const settings = useQuery({ queryKey: ["plannerSettings"], queryFn: () => plannerSettingsFn() });
-  const fuels = useQuery({ queryKey: ["fuelList"], queryFn: () => fuelListFn() });
   const save = useMutation({
     mutationFn: (d: {
       autofillPayback: number;
       fillMiners: boolean;
       spoilImportCutoffSec?: number;
-      machineTier?: "lowest" | "highest";
-      defaultFuel?: string;
     }) => setPlannerSettingsFn({ data: d }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["plannerSettings"] });
@@ -400,63 +396,12 @@ function PlannerCard() {
         </div>
 
         <div className="border-t border-border pt-3">
-          <div className="mb-2 text-sm font-semibold">Planning defaults</div>
-          {/* default building tier */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span>default building</span>
-            {(["lowest", "highest"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() =>
-                  save.mutate({
-                    autofillPayback: s.autofillPayback,
-                    fillMiners: s.fillMiners,
-                    machineTier: t,
-                  })
-                }
-                className={`rounded border px-2 py-0.5 text-sm ${
-                  s.machineTier === t
-                    ? "border-primary text-primary"
-                    : "border-border text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                {t === "lowest" ? "lowest tier" : "highest tier"}
-              </button>
-            ))}
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Which building to pick when you haven't chosen one per recipe.{" "}
-            <span className="font-semibold">Lowest tier</span> suits an early playthrough (what you
-            can build now); <span className="font-semibold">highest tier</span> is the fastest
-            endgame machine. (Per-recipe overrides in the block editor always win.)
-          </p>
-
-          {/* default fuel */}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span>default fuel</span>
-            <select
-              value={s.defaultFuel}
-              onChange={(e) =>
-                save.mutate({
-                  autofillPayback: s.autofillPayback,
-                  fillMiners: s.fillMiners,
-                  defaultFuel: e.target.value,
-                })
-              }
-              className="h-8 rounded border border-border bg-background px-2 text-sm outline-none focus:border-primary"
-            >
-              <option value="">auto (cheapest available)</option>
-              {(fuels.data ?? []).map((f) => (
-                <option key={f.name} value={f.name}>
-                  {f.display ?? f.name}
-                  {f.mj != null ? ` — ${f.mj} MJ` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Preferred fuel for burner machines, used whenever the machine can actually burn it (else
-            falls back to the cheapest valid fuel).
+          <div className="mb-1 text-sm font-semibold">Preferred defaults (favorites)</div>
+          <p className="text-sm text-muted-foreground">
+            New recipes default to the lowest-tier building and cheapest fuel — correct and
+            buildable from the start. To prefer something else, open a recipe's building or fuel
+            picker in the block editor and click its ☆ star: the next new recipe in that category
+            uses your pick (once it's researched). Existing blocks keep their choices.
           </p>
         </div>
       </div>

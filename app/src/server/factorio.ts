@@ -160,15 +160,12 @@ const PREFERRED_FUELS = [
   "petroleum-gas",
   "natural-gas",
 ];
+/** The fallback fuel when the player has set no favorite for the category: a real,
+ * non-creative fuel by name; else the median by energy. A favorite (see
+ * recipeDefaultsFn) is resolved before this. */
 function defaultFuel<T extends { name: string; fuelValueJ: number | null }>(
   fuels: T[],
-  preferred?: string,
 ): T | undefined {
-  // the player's chosen default fuel wins when this machine can actually burn it
-  if (preferred) {
-    const m = fuels.find((f) => f.name === preferred);
-    if (m) return m;
-  }
   for (const p of PREFERRED_FUELS) {
     const m = fuels.find((f) => f.name === p);
     if (m) return m;
@@ -176,18 +173,17 @@ function defaultFuel<T extends { name: string; fuelValueJ: number | null }>(
   return fuels[Math.floor(fuels.length / 2)]; // median energy avoids junk-low / nuclear-high
 }
 
-/** Default machine for a recipe given the tier preference. `machines` is already
- * sorted fastest-first; "lowest" re-sorts to the simplest early-game machine
- * (lowest speed, then prefer non-heat, then lowest power). */
+/** The fallback machine when the player has set no favorite for the category: the
+ * simplest early-game building (lowest speed, then prefer non-heat, then lowest
+ * power) — correct and buildable now beats the fastest endgame machine. */
 function pickDefaultMachine<
   T extends {
     craftingSpeed: number | null;
     energySource: string | null;
     energyUsageW: number | null;
   },
->(machines: T[], tier: "lowest" | "highest"): T | undefined {
+>(machines: T[]): T | undefined {
   if (!machines.length) return undefined;
-  if (tier === "highest") return machines[0];
   return machines
     .slice()
     .sort(
@@ -320,11 +316,11 @@ export async function computeBlock(data: SolveInput) {
   const settings = q.metaAll();
   const payback = Number(settings.autofill_payback ?? 0); // seconds; 0 = off
   const fillMiners = settings.autofill_miners === "1";
-  // Planning defaults: which building tier and fuel to pick when the player hasn't
-  // overridden per-recipe. Default to the LOWEST tier (what's buildable early in a
-  // playthrough) rather than the fastest endgame machine.
-  const machineTier = settings.default_machine_tier === "highest" ? "highest" : "lowest";
-  const defaultFuelPref = settings.default_fuel || undefined;
+  // Preferred fuels per category (for marking the favorite in the fuel picker).
+  // Favorites are baked into a block's stored picks at recipe-add time, so the
+  // solve fallback here stays favorite-independent (lowest tier / cheapest fuel).
+  const favoriteFuels = q.getFavoriteFuels();
+  const favoriteFluidFuel = q.getFavoriteFluidFuel();
   const recipeCostMap =
     payback > 0 ? q.recipeCosts(fetched.map((r) => r.name)) : new Map<string, number>();
   const autoFill = (
@@ -351,8 +347,7 @@ export async function computeBlock(data: SolveInput) {
         ((chosen.energyUsageW ?? 0) / 1e6) * Math.max(0, costs.get("pyops-electricity") ?? 0);
     } else if (chosen.energySource === "burner" || chosen.energySource === "fluid") {
       const all = q.fuelsForCategories(chosen.fuelCategories, chosen.energySource === "fluid");
-      const pick =
-        all.find((f) => f.name === data.fuels?.[r.name]) ?? defaultFuel(all, defaultFuelPref);
+      const pick = all.find((f) => f.name === data.fuels?.[r.name]) ?? defaultFuel(all);
       if (pick?.fuelValueJ) {
         const perSec = (chosen.energyUsageW ?? 0) / pick.fuelValueJ;
         effectivityEconomy = perSec * Math.max(0, q.goodCosts([pick.name]).get(pick.name) ?? 0);
@@ -402,7 +397,7 @@ export async function computeBlock(data: SolveInput) {
         unlockedMachines && machines.some((m) => unlockedMachines.has(m.name))
           ? machines.filter((m) => unlockedMachines.has(m.name))
           : machines;
-      const fallback = pickDefaultMachine(pool, machineTier);
+      const fallback = pickDefaultMachine(pool);
       const chosen = machines.find((m) => m.name === data.machines?.[r.name]) ?? fallback ?? null;
       const manual = data.modules?.[r.name];
       let machineModules = (manual ?? [])
@@ -477,8 +472,7 @@ export async function computeBlock(data: SolveInput) {
       chosen.energyUsageW
     ) {
       const all = q.fuelsForCategories(chosen.fuelCategories, chosen.energySource === "fluid");
-      const pick =
-        all.find((f) => f.name === data.fuels?.[r.name]) ?? defaultFuel(all, defaultFuelPref);
+      const pick = all.find((f) => f.name === data.fuels?.[r.name]) ?? defaultFuel(all);
       if (pick?.fuelValueJ && producedInBlock.has(pick.name)) {
         const speed = (chosen.craftingSpeed ?? 1) * fx.speedMult;
         const energyRequired = r.energyRequired ?? 0.5;
@@ -572,18 +566,25 @@ export async function computeBlock(data: SolveInput) {
       display: string | null;
       kind: string;
       fuelValueJ: number | null;
+      favorite: boolean;
     }[] = [];
     const burns = chosen && (chosen.energySource === "burner" || chosen.energySource === "fluid");
     if (burns && chosen.energyUsageW) {
       const all = q.fuelsForCategories(chosen.fuelCategories, chosen.energySource === "fluid");
+      // a fuel is the favorite when it's the stored pick for any of the machine's
+      // fuel categories (solid fuels carry exactly one category) — or, for fluids
+      // (no category), the single global preferred fluid fuel
+      const favSet = new Set(
+        chosen.fuelCategories.map((c) => favoriteFuels[c]).filter((n): n is string => !!n),
+      );
       availableFuels = all.map((f) => ({
         name: f.name,
         display: f.display,
         kind: f.kind,
         fuelValueJ: f.fuelValueJ,
+        favorite: f.kind === "fluid" ? f.name === favoriteFluidFuel : favSet.has(f.name),
       }));
-      const pick =
-        all.find((f) => f.name === data.fuels?.[rr.recipe]) ?? defaultFuel(all, defaultFuelPref);
+      const pick = all.find((f) => f.name === data.fuels?.[rr.recipe]) ?? defaultFuel(all);
       if (pick?.fuelValueJ) {
         const perSec = powerW / pick.fuelValueJ; // J/s ÷ J/unit = units/s (effectivity≈1)
         // burning yields a burnt result 1:1 (coal → ash, fuel-cell → depleted-cell)
@@ -1264,21 +1265,13 @@ export const plannerSettingsFn = createServerFn({ method: "GET" }).handler(async
     autofillPayback: Number(m.autofill_payback ?? 0),
     fillMiners: m.autofill_miners === "1",
     spoilImportCutoffSec: Number(m.spoil_import_cutoff_sec ?? 300),
-    machineTier: m.default_machine_tier === "highest" ? "highest" : "lowest",
-    defaultFuel: m.default_fuel ?? "",
     costsComputed: q.costAnalysisCount() > 0,
   };
 });
 
 export const setPlannerSettingsFn = createServerFn({ method: "POST" })
   .validator(
-    (d: {
-      autofillPayback: number;
-      fillMiners: boolean;
-      spoilImportCutoffSec?: number;
-      machineTier?: "lowest" | "highest";
-      defaultFuel?: string;
-    }) => d,
+    (d: { autofillPayback: number; fillMiners: boolean; spoilImportCutoffSec?: number }) => d,
   )
   .handler(async ({ data }) => {
     const q = await lib();
@@ -1286,9 +1279,96 @@ export const setPlannerSettingsFn = createServerFn({ method: "POST" })
     q.metaSet("autofill_miners", data.fillMiners ? "1" : "0");
     if (data.spoilImportCutoffSec != null)
       q.metaSet("spoil_import_cutoff_sec", String(Math.max(0, data.spoilImportCutoffSec)));
-    if (data.machineTier != null) q.metaSet("default_machine_tier", data.machineTier);
-    if (data.defaultFuel != null) q.metaSet("default_fuel", data.defaultFuel);
     return { ok: true };
+  });
+
+/** Resolve the favorite (or fallback) building + fuel for each recipe, applied when
+ * a recipe is first added to a block so the pick gets baked into the block's stored
+ * config (issue #18). Availability-gated: a favorite that isn't unlocked yet (or an
+ * unpicked TURD option) falls through to the lowest-tier / cheapest fallback until
+ * it becomes buildable. Favorites are NEVER consulted at solve time, so existing
+ * blocks keep their picks when a favorite changes. */
+export const recipeDefaultsFn = createServerFn({ method: "POST" })
+  .validator((recipes: string[]) => recipes)
+  .handler(async ({ data }) => {
+    const q = await lib();
+    const favMachines = q.getFavoriteMachines();
+    const favFuels = q.getFavoriteFuels();
+    const favFluidFuel = q.getFavoriteFluidFuel();
+    const restrict = q.getResearchHorizon().mode !== "future";
+    const out: Record<string, { machine?: string; fuel?: string }> = {};
+    for (const name of data) {
+      const r = q.getRecipe(name);
+      if (!r) continue;
+      const machines = q
+        .machinesForRecipe(name)
+        .slice()
+        .sort((a, b) => (b.craftingSpeed ?? 0) - (a.craftingSpeed ?? 0));
+      if (!machines.length) continue;
+      const unlocked = restrict ? q.availableMachines(machines.map((m) => m.name)) : null;
+      const pool =
+        unlocked && machines.some((m) => unlocked.has(m.name))
+          ? machines.filter((m) => unlocked.has(m.name))
+          : machines;
+      const favMachine = r.category ? favMachines[r.category] : undefined;
+      const chosen =
+        (favMachine && pool.find((m) => m.name === favMachine)) || pickDefaultMachine(pool);
+      if (!chosen) continue;
+      const pick: { machine?: string; fuel?: string } = { machine: chosen.name };
+      if (chosen.energySource === "burner" || chosen.energySource === "fluid") {
+        const isFluid = chosen.energySource === "fluid";
+        const fuels = q.fuelsForCategories(chosen.fuelCategories, isFluid);
+        let favFuel: string | undefined;
+        if (isFluid) {
+          // fluids have no category — a single global preferred fluid fuel
+          const ff = favFluidFuel;
+          if (ff && fuels.some((x) => x.name === ff)) favFuel = ff;
+        } else {
+          for (const cat of chosen.fuelCategories) {
+            const f = favFuels[cat];
+            if (f && fuels.some((x) => x.name === f)) {
+              favFuel = f;
+              break;
+            }
+          }
+        }
+        const fuel = favFuel ?? defaultFuel(fuels)?.name;
+        if (fuel) pick.fuel = fuel;
+      }
+      out[name] = pick;
+    }
+    return out;
+  });
+
+/** Set/clear the preferred building for a recipe's category (the "favorite" star in
+ * the building picker). `machine: null` clears it. */
+export const setFavoriteMachineFn = createServerFn({ method: "POST" })
+  .validator((d: { recipe: string; machine: string | null }) => d)
+  .handler(async ({ data }) => {
+    const q = await lib();
+    const category = q.getRecipe(data.recipe)?.category;
+    if (!category) return { ok: false };
+    q.setFavoriteMachine(category, data.machine);
+    return { ok: true };
+  });
+
+/** Set/clear the preferred fuel (the "favorite" star in the fuel picker). A solid
+ * fuel sets the favorite for its fuel category; a fluid sets the single global
+ * preferred fluid fuel (fluids have no category). `clear: true` removes it. */
+export const setFavoriteFuelFn = createServerFn({ method: "POST" })
+  .validator((d: { fuel: string; clear?: boolean }) => d)
+  .handler(async ({ data }) => {
+    const q = await lib();
+    const category = q.getItem(data.fuel)?.fuelCategory;
+    if (category) {
+      q.setFavoriteFuel(category, data.clear ? null : data.fuel);
+      return { ok: true };
+    }
+    if (q.getFluid(data.fuel)) {
+      q.setFavoriteFluidFuel(data.clear ? null : data.fuel);
+      return { ok: true };
+    }
+    return { ok: false };
   });
 
 /** Logistics throughput context for the block view (#21): the user's belt/mover
@@ -1334,11 +1414,6 @@ export const setLogisticsPrefsFn = createServerFn({ method: "POST" })
       );
     return { ok: true };
   });
-
-/** Burnable fuels (solid + fluid) for the default-fuel picker — name, display, MJ. */
-export const fuelListFn = createServerFn({ method: "GET" }).handler(async () =>
-  (await lib()).fuelList(),
-);
 
 /** Manual planning exclusions (uncraftable EE is excluded by default automatically). */
 export const exclusionsFn = createServerFn({ method: "GET" }).handler(async () =>

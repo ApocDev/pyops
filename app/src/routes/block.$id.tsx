@@ -11,8 +11,11 @@ import {
   logisticsContextFn,
   machineOptionsFn,
   recipeCandidatesFn,
+  recipeDefaultsFn,
   saveBlockFn,
   searchAllFn,
+  setFavoriteFuelFn,
+  setFavoriteMachineFn,
   solveBlockFn,
 } from "../server/factorio";
 import type { BeaconConfig } from "../server/factorio";
@@ -506,6 +509,18 @@ function Block({ blockId }: { blockId: number }) {
     markEdited();
     setFuelSel((s) => ({ ...s, [recipe]: f }));
   };
+  // Favorites are app-level prefs (not a block edit): toggling one re-fetches the
+  // affected picker/solve so its ☆ updates, but leaves this block's stored picks.
+  const toggleFavoriteMachine = (recipe: string, machine: string, isFav: boolean) => {
+    void setFavoriteMachineFn({ data: { recipe, machine: isFav ? null : machine } }).then(() => {
+      void qc.invalidateQueries({ queryKey: ["machineOpts"] });
+    });
+  };
+  const toggleFavoriteFuel = (fuel: string, isFav: boolean) => {
+    void setFavoriteFuelFn({ data: { fuel, clear: isFav } }).then(() => {
+      void qc.invalidateQueries({ queryKey: ["solve"] });
+    });
+  };
   const setDispFor = (name: string, d: Disposition | "auto") => {
     markEdited();
     setDisp((m) => {
@@ -730,10 +745,32 @@ function Block({ blockId }: { blockId: number }) {
     markEdited();
     setRecipes((rs) => (rs.includes(name) ? rs : [...rs, name]));
     setPickFor(null);
+    // Bake the preferred (favorite, else lowest-tier/cheapest) building + fuel for
+    // this recipe into the block's stored picks (#18). New recipes only — existing
+    // rows already have their picks and aren't touched.
+    void recipeDefaultsFn({ data: [name] }).then((defaults) => {
+      const d = defaults[name];
+      if (!d) return;
+      if (d.machine) setMachineSel((s) => (s[name] ? s : { ...s, [name]: d.machine! }));
+      if (d.fuel) setFuelSel((s) => (s[name] ? s : { ...s, [name]: d.fuel! }));
+    });
   };
   const drop = (name: string) => {
     markEdited();
     setRecipes((rs) => rs.filter((r) => r !== name));
+    // Drop the recipe's per-row overrides too, so they don't linger as orphaned
+    // entries in the block config — and so re-adding the recipe is a fresh add that
+    // re-applies the current favorite (#18) rather than resurrecting the old pick.
+    const without = (s: Record<string, unknown>) => {
+      if (!(name in s)) return s;
+      const next = { ...s };
+      delete next[name];
+      return next;
+    };
+    setMachineSel((s) => without(s) as Record<string, string>);
+    setFuelSel((s) => without(s) as Record<string, string>);
+    setModuleSel((s) => without(s) as Record<string, string[]>);
+    setBeaconSel((s) => without(s) as Record<string, BeaconConfig[]>);
   };
   const res = solve.data;
 
@@ -1939,6 +1976,22 @@ function Block({ blockId }: { blockId: number }) {
                             <span className="text-xs text-muted-foreground">{m.moduleSlots}⊞</span>
                           )}
                           {cur && <span className="text-xs text-primary">· current</span>}
+                          <span
+                            role="button"
+                            tabIndex={-1}
+                            title={
+                              m.favorite
+                                ? "Favorite building for this category — new recipes here use it. Click to clear."
+                                : "Set as the favorite building for this category (new recipes here will use it)"
+                            }
+                            className={`ml-auto cursor-pointer text-sm ${m.favorite ? "text-amber-300" : "text-muted-foreground hover:text-amber-300"}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleFavoriteMachine(pickMachineFor, m.name, m.favorite);
+                            }}
+                          >
+                            {m.favorite ? "★" : "☆"}
+                          </span>
                         </span>
                         <span className="block truncate text-xs">
                           {m.availableNow ? (
@@ -2037,12 +2090,34 @@ function Block({ blockId }: { blockId: number }) {
                         <Icon kind={f.kind as "item" | "fluid"} name={f.name} size="md" noTitle />
                         <span className="truncate text-foreground">{f.display ?? f.name}</span>
                         {f.fuelValueJ != null && (
-                          <Badge variant="secondary" className="ml-auto">
+                          <Badge variant="secondary">
                             {fmtJ(f.fuelValueJ)}
                             {f.kind === "fluid" ? "/unit" : ""}
                           </Badge>
                         )}
                         {cur && <span className="text-xs text-primary">current</span>}
+                        {/* solid fuels favorite per fuel category; fluids have no
+                            category, so a fluid star sets the single preferred fluid fuel */}
+                        <span
+                          role="button"
+                          tabIndex={-1}
+                          title={
+                            f.kind === "fluid"
+                              ? f.favorite
+                                ? "Preferred fluid fuel — new fluid burners use it. Click to clear."
+                                : "Set as the preferred fluid fuel (new fluid burners will use it)"
+                              : f.favorite
+                                ? "Favorite fuel for this category — new burners here use it. Click to clear."
+                                : "Set as the favorite fuel for this category (new burners here will use it)"
+                          }
+                          className={`ml-auto cursor-pointer text-sm ${f.favorite ? "text-amber-300" : "text-muted-foreground hover:text-amber-300"}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavoriteFuel(f.name, f.favorite);
+                          }}
+                        >
+                          {f.favorite ? "★" : "☆"}
+                        </span>
                       </button>
                     );
                   })}

@@ -60,7 +60,10 @@ surpluses, and a machine count compared against what you've actually placed in-g
 
 The **block editor** — pick a target, choose recipes / machines / modules, and the
 solver runs the rates and building counts for the whole chain (cyclic recipes, fluid
-temperatures, byproducts, fractional machines).
+temperatures, byproducts, fractional machines). New recipes default to the
+lowest-tier building and cheapest fuel; star a building or fuel in its picker to make
+it the **favorite** for that category, and new recipes there adopt it once it's
+researched — existing blocks keep their picks.
 
 ![Block editor — the Basic substrate bio-chain, solved with byproducts](docs/images/block-editor.png)
 
