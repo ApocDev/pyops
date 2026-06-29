@@ -292,8 +292,11 @@ function RecipeRow({
 
   return (
     <div className="border-t border-border px-3 py-2">
-      <div className="flex items-center gap-2">
-        <RecipeHover name={card.name} className="flex min-w-0 items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <RecipeHover
+          name={card.name}
+          className="flex min-w-0 basis-full items-center gap-1.5 md:basis-auto"
+        >
           <Icon kind="recipe" name={card.name} size="sm" noTitle />
           <span className="truncate" title={card.display ?? card.name}>
             {card.display ?? card.name}
