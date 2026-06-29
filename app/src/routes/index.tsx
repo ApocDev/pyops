@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { Blocks, Factory, FlaskConical, Search, Settings } from "lucide-react";
 import { factoryTotalsFn, listBlocksFn, statsFn } from "../server/factorio";
 import { Card } from "#/components/ui/card.tsx";
 
@@ -32,28 +33,36 @@ function Home() {
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Link to="/block" className={tile}>
-          <span className="font-semibold">⬚ Blocks</span>
+          <span className="flex items-center gap-1.5 font-semibold">
+            <Blocks className="size-4" /> Blocks
+          </span>
           <span className="text-sm text-muted-foreground">
             {blocks.data?.length ?? "…"} production block(s) — design chains, pick machines,
             modules, beacons
           </span>
         </Link>
         <Link to="/factory" className={tile}>
-          <span className="font-semibold">∑ Factory</span>
+          <span className="flex items-center gap-1.5 font-semibold">
+            <Factory className="size-4" /> Factory
+          </span>
           <span className="text-sm text-muted-foreground">
             whole-factory balance from cached block flows
             {deficits > 0 && <span className="text-destructive"> · {deficits} deficit(s)</span>}
           </span>
         </Link>
         <Link to="/browse" className={tile}>
-          <span className="font-semibold">⌕ Browse</span>
+          <span className="flex items-center gap-1.5 font-semibold">
+            <Search className="size-4" /> Browse
+          </span>
           <span className="text-sm text-muted-foreground">
             {stats.data ? `${stats.data.recipes.toLocaleString()} recipes` : "…"} — items, fluids,
             used-in / produced-by
           </span>
         </Link>
         <Link to="/turd" className={tile}>
-          <span className="font-semibold">⚗ TURD</span>
+          <span className="flex items-center gap-1.5 font-semibold">
+            <FlaskConical className="size-4" /> TURD
+          </span>
           <span className="text-sm text-muted-foreground">
             pick your tech-upgrade paths; choices apply to every block
           </span>
@@ -62,8 +71,12 @@ function Home() {
 
       <Card className="mt-6 p-3 text-xs text-muted-foreground">
         New machine? Mod update? Head to{" "}
-        <Link to="/settings" search={{ tab: "data" }} className="text-primary underline">
-          ⚙ Settings › Game data
+        <Link
+          to="/settings"
+          search={{ tab: "data" }}
+          className="inline-flex items-center gap-1 text-primary underline"
+        >
+          <Settings className="size-3.5" /> Settings › Game data
         </Link>{" "}
         to re-sync the game dump — projects each keep their own database.
       </Card>

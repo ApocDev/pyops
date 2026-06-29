@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check } from "lucide-react";
 import { listTurdUpgradesFn, setTurdSelectionFn, turdSyncStatusFn } from "../server/factorio";
 import { Icon, IconProvider } from "../lib/icons";
 import { Badge } from "#/components/ui/badge.tsx";
@@ -90,10 +91,11 @@ function TurdPage() {
         )}
         {sync.data?.syncedAt && (
           <span
-            className="text-sm text-emerald-300"
+            className="inline-flex items-center gap-1 text-sm text-emerald-300"
             title={`pushed from the game ${timeAgo(sync.data.syncedAt)}`}
           >
-            ✓ live: {sync.data.syncedCount ?? 0} synced ({timeAgo(sync.data.syncedAt)})
+            <Check className="size-3.5" /> live: {sync.data.syncedCount ?? 0} synced (
+            {timeAgo(sync.data.syncedAt)})
             {sync.data.unknown.length > 0 && (
               <span
                 className="ml-1 text-amber-300"
@@ -115,8 +117,9 @@ function TurdPage() {
             </p>
             <p>
               This page lists every TURD master and its options. Your actual in-game picks{" "}
-              <span className="text-foreground">sync from the mod</span> (the ✓ live badge);
-              choosing one here re-solves every block that uses an affected recipe.
+              <span className="text-foreground">sync from the mod</span> (the{" "}
+              <Check className="inline size-3.5" /> live badge); choosing one here re-solves every
+              block that uses an affected recipe.
             </p>
             <div>
               <div className="font-semibold text-foreground">How PyOps treats it</div>
@@ -181,7 +184,7 @@ function TurdPage() {
                         ))}
                       </span>
                     </span>
-                    {sel && <span className="text-emerald-300">✓</span>}
+                    {sel && <Check className="size-4 shrink-0 text-emerald-300" />}
                   </button>
                 );
               })}

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
+import { Check, Flame, Recycle, RefreshCw, X, Zap } from "lucide-react";
 import { useState } from "react";
 import {
   factoryCoherenceFn,
@@ -105,8 +105,9 @@ function CoherencePage() {
               <span className="text-foreground">Why it&apos;s separate from Factory.</span> The
               Factory page sums each block&apos;s output per item, which can <em>hide</em> a real
               problem: if block A overproduces iron by +5 and block B is 5 short, the totals cancel
-              to &quot;balanced ✓&quot; — but the wiring is broken (B is starved, A backs up).
-              Coherence shows each edge, so those canceling mismatches surface.
+              to &quot;balanced <Check className="inline size-3.5" />
+              &quot; — but the wiring is broken (B is starved, A backs up). Coherence shows each
+              edge, so those canceling mismatches surface.
             </p>
             <div>
               <div className="font-semibold text-foreground">The groups</div>
@@ -271,7 +272,7 @@ function BlockEnd({ b, tone }: { b: End; tone: "make" | "use" }) {
     >
       <span className="max-w-[10rem] truncate">{b.blockName}</span>
       <span className={tone === "make" ? "text-emerald-300" : "text-amber-300"}>{num(b.rate)}</span>
-      {b.role === "byproduct" && <span className="text-violet-300/80">↺</span>}
+      {b.role === "byproduct" && <Recycle className="size-3.5 text-violet-300/80" />}
     </Link>
   );
 }
@@ -279,7 +280,11 @@ function BlockEnd({ b, tone }: { b: End; tone: "make" | "use" }) {
 function Balance({ net }: { net: number }) {
   const base = "shrink-0 rounded px-1.5 py-0.5 whitespace-nowrap";
   if (Math.abs(net) <= 1e-6)
-    return <span className={`${base} bg-emerald-500/15 text-emerald-300`}>✓ balanced</span>;
+    return (
+      <span className={`${base} inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-300`}>
+        <Check className="size-3.5" /> balanced
+      </span>
+    );
   if (net < 0)
     return (
       <span className={`${base} bg-destructive/20 text-destructive`}>short {num(-net)}/s</span>
@@ -484,7 +489,7 @@ function ScalePlanDrawer({
             onClick={onClose}
             className="rounded px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            ✕
+            <X className="size-4" />
           </button>
         </div>
 
@@ -571,12 +576,24 @@ function ScalePlanDrawer({
                   {(p.power.nextW > 1 || p.power.nextHeatW > 1) && (
                     <PlanSection title="Power">
                       {p.power.nextW > 1 && (
-                        <FlowLine label="⚡ electricity (MW)">
+                        <FlowLine
+                          label={
+                            <span className="inline-flex items-center gap-1">
+                              <Zap className="size-3.5" /> electricity (MW)
+                            </span>
+                          }
+                        >
                           <Delta from={p.power.curW / 1e6} to={p.power.nextW / 1e6} />
                         </FlowLine>
                       )}
                       {p.power.nextHeatW > 1 && (
-                        <FlowLine label="♨ heat (MW)">
+                        <FlowLine
+                          label={
+                            <span className="inline-flex items-center gap-1">
+                              <Flame className="size-3.5" /> heat (MW)
+                            </span>
+                          }
+                        >
                           <Delta from={p.power.curHeatW / 1e6} to={p.power.nextHeatW / 1e6} />
                         </FlowLine>
                       )}
@@ -643,7 +660,7 @@ function FlowLine({
   good?: string;
   display?: string | null;
   kind?: string;
-  label?: string;
+  label?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (

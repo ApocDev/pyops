@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Timer } from "lucide-react";
+import { Flame, Timer } from "lucide-react";
 import { itemDetailFn, recipeDetailFn, techDetailFn } from "../server/factorio";
 import { Icon, fmtSpoilTime } from "./icons";
 
@@ -297,12 +297,16 @@ export function ItemCard({ name, kind }: { name: string; kind: "item" | "fluid" 
         <div className="mt-1.5 space-y-0.5 text-muted-foreground">
           {data.item?.stackSize != null && <div>stack {data.item.stackSize}</div>}
           {data.item?.fuelValueJ != null && (
-            <div>
-              🔥 {fmtJ(data.item.fuelValueJ)} ({data.item.fuelCategory})
-              {data.item.burntResult && ` → ${data.item.burntResult}`}
+            <div className="flex items-center gap-1">
+              <Flame className="size-3.5 shrink-0" /> {fmtJ(data.item.fuelValueJ)} (
+              {data.item.fuelCategory}){data.item.burntResult && ` → ${data.item.burntResult}`}
             </div>
           )}
-          {data.fluid?.fuelValueJ != null && <div>🔥 {fmtJ(data.fluid.fuelValueJ)}/unit</div>}
+          {data.fluid?.fuelValueJ != null && (
+            <div className="flex items-center gap-1">
+              <Flame className="size-3.5 shrink-0" /> {fmtJ(data.fluid.fuelValueJ)}/unit
+            </div>
+          )}
           {data.fluid?.defaultTemperature != null && (
             <div>default {data.fluid.defaultTemperature}°</div>
           )}

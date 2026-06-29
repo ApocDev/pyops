@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Check, Loader2, RefreshCw, X, type LucideIcon } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { factorioRunningFn, modDriftFn, startDataSyncFn, syncStateFn } from "../server/factorio";
@@ -139,8 +139,8 @@ export function DriftModal() {
   const title =
     view === "prompt"
       ? hasDrift
-        ? { icon: "⚠", tone: "text-amber-300", text: "Reference data is out of date" }
-        : { icon: "↻", tone: "text-sky-300", text: "Sync game data" }
+        ? { icon: AlertTriangle, tone: "text-amber-300", text: "Reference data is out of date" }
+        : { icon: RefreshCw, tone: "text-sky-300", text: "Sync game data" }
       : TITLES[view];
 
   const steps = stepsForRun(icons);
@@ -265,24 +265,25 @@ function Overlay({ onClose, children }: { onClose: () => void; children: ReactNo
   );
 }
 
-type TitleSpec = { icon: string; tone: string; text: string };
+type TitleSpec = { icon: LucideIcon; tone: string; text: string };
 const TITLES: Record<"running" | "done" | "error", TitleSpec> = {
-  running: { icon: "⟳", tone: "text-sky-300", text: "Re-syncing reference data" },
-  done: { icon: "✓", tone: "text-emerald-300", text: "Reference data updated" },
-  error: { icon: "✕", tone: "text-destructive", text: "Sync failed" },
+  running: { icon: RefreshCw, tone: "text-sky-300", text: "Re-syncing reference data" },
+  done: { icon: Check, tone: "text-emerald-300", text: "Reference data updated" },
+  error: { icon: X, tone: "text-destructive", text: "Sync failed" },
 };
 
 function Header({ title, onClose }: { title: TitleSpec; onClose: () => void }) {
+  const TitleIcon = title.icon;
   return (
     <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-      <span className={`text-base ${title.tone}`}>{title.icon}</span>
+      <TitleIcon className={`size-5 shrink-0 ${title.tone}`} />
       <h2 className="text-sm font-semibold text-foreground">{title.text}</h2>
       <button
         onClick={onClose}
         className="ml-auto text-muted-foreground hover:text-foreground"
         aria-label="close"
       >
-        ✕
+        <X className="size-4" />
       </button>
     </div>
   );
@@ -313,7 +314,7 @@ function PromptBody({
     <div className="space-y-3">
       {gameUp && (
         <div className="flex items-start gap-2 rounded border border-amber-500/40 bg-amber-500/10 p-2.5 text-sm text-amber-200">
-          <span>⚠</span>
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <span>
             Factorio is running. Close the game first — PyOps launches its own headless copy to read
             the data, and the engine won&apos;t allow two instances at once.
@@ -352,18 +353,18 @@ function PromptBody({
 function StepGlyph({ status }: { status: StepStatus }) {
   if (status === "active")
     return <Loader2 className="mt-px size-5 shrink-0 animate-spin text-sky-400" />;
-  const map: Record<StepStatus, { ch: string; cls: string }> = {
-    done: { ch: "✓", cls: "border-emerald-500/50 bg-emerald-500/15 text-emerald-300" },
-    error: { ch: "✕", cls: "border-destructive/50 bg-destructive/15 text-destructive" },
-    pending: { ch: "", cls: "border-border text-muted-foreground" },
-    active: { ch: "", cls: "" },
+  const map: Record<StepStatus, { Glyph: LucideIcon | null; cls: string }> = {
+    done: { Glyph: Check, cls: "border-emerald-500/50 bg-emerald-500/15 text-emerald-300" },
+    error: { Glyph: X, cls: "border-destructive/50 bg-destructive/15 text-destructive" },
+    pending: { Glyph: null, cls: "border-border text-muted-foreground" },
+    active: { Glyph: null, cls: "" },
   };
-  const { ch, cls } = map[status];
+  const { Glyph, cls } = map[status];
   return (
     <span
-      className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border text-[11px] ${cls}`}
+      className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border ${cls}`}
     >
-      {ch}
+      {Glyph && <Glyph className="size-3" />}
     </span>
   );
 }
@@ -418,7 +419,9 @@ function DoneBody({ log }: { log: string[] }) {
   ].filter(Boolean) as string[];
   return (
     <div className="space-y-3">
-      <p className="text-sm text-emerald-300">✓ The reference data now matches the current mods.</p>
+      <p className="flex items-center gap-1.5 text-sm text-emerald-300">
+        <Check className="size-4 shrink-0" /> The reference data now matches the current mods.
+      </p>
       {summary.length > 0 && (
         <ul className="space-y-0.5 text-xs text-muted-foreground">
           {summary.map((l) => (

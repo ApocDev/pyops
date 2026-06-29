@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Check } from "lucide-react";
 import { factoryWhatIfFn } from "../server/factorio";
 import { Icon, IconProvider } from "../lib/icons";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
@@ -140,8 +141,9 @@ function WhatIf() {
             <span className="w-16 text-right">×scale</span>
           </div>
           {changed.length === 0 && !wf.isLoading ? (
-            <div className="px-3 py-2 text-sm text-emerald-300">
-              ✓ already balanced for these demands — no block changes needed
+            <div className="flex items-center gap-1.5 px-3 py-2 text-sm text-emerald-300">
+              <Check className="size-4" /> already balanced for these demands — no block changes
+              needed
             </div>
           ) : (
             changed.map((b) => (
@@ -185,7 +187,9 @@ function WhatIf() {
             </span>
           </CardHeader>
           {(r?.overproduced ?? []).length === 0 ? (
-            <div className="px-3 py-2 text-sm text-emerald-300">✓ nothing piling up</div>
+            <div className="flex items-center gap-1.5 px-3 py-2 text-sm text-emerald-300">
+              <Check className="size-4" /> nothing piling up
+            </div>
           ) : (
             <div className="divide-y divide-border">
               {(r?.overproduced ?? []).map((x) => (

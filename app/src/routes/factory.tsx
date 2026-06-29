@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, Check, MapPin, Plus, RefreshCw, X, Zap } from "lucide-react";
 import { useState } from "react";
 import {
   blockChangeReportFn,
@@ -188,8 +188,8 @@ function FactoryPage() {
     <div className="p-4 font-mono text-foreground">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="text-lg font-bold">Factory</h1>
-        <span className="text-sm text-muted-foreground">
-          {blocks.data?.length ?? 0} block(s) · ⚡ {fmtW(totalPowerW)}
+        <span className="flex items-center gap-1 text-sm text-muted-foreground">
+          {blocks.data?.length ?? 0} block(s) · <Zap className="size-3.5" /> {fmtW(totalPowerW)}
         </span>
         <Link
           to="/whatif"
@@ -208,8 +208,9 @@ function FactoryPage() {
           {recomputed && <span className="text-xs text-muted-foreground">{recomputed}</span>}
           <span className="text-xs text-muted-foreground">
             {statsSyncedAt ? (
-              <span className="text-emerald-300">
-                ✓ live stats: {production.data?.syncedCount ?? 0} goods ({timeAgo(statsSyncedAt)})
+              <span className="inline-flex items-center gap-1 text-emerald-300">
+                <Check className="size-3.5" /> live stats: {production.data?.syncedCount ?? 0} goods
+                ({timeAgo(statsSyncedAt)})
               </span>
             ) : (
               "no live stats — Sync in-game"
@@ -267,13 +268,18 @@ function FactoryPage() {
               <div className="font-semibold text-foreground">Toolbar (top-right)</div>
               <ul className="mt-1 list-disc space-y-1 pl-5">
                 <li>
-                  <span className="text-foreground">↻ recompute</span> — re-solve every block and
-                  refresh its cached flows, after a solver change, TURD pick, or data re-import.
+                  <span className="inline-flex items-center gap-1 text-foreground">
+                    <RefreshCw className="size-3.5" /> recompute
+                  </span>{" "}
+                  — re-solve every block and refresh its cached flows, after a solver change, TURD
+                  pick, or data re-import.
                 </li>
                 <li>
-                  <span className="text-foreground">⚠ check for changes</span> — a dry run of the
-                  above: list which blocks would change (or reference a now-missing recipe) without
-                  saving anything.
+                  <span className="inline-flex items-center gap-1 text-foreground">
+                    <AlertTriangle className="size-3.5" /> check for changes
+                  </span>{" "}
+                  — a dry run of the above: list which blocks would change (or reference a
+                  now-missing recipe) without saving anything.
                 </li>
               </ul>
             </div>
@@ -367,8 +373,9 @@ function ChangeReport({ data }: { data: ChangeReportData }) {
   if (data.affected === 0) {
     return (
       <Card className="mb-4 border-emerald-500/30">
-        <div className="px-3 py-2 text-sm text-emerald-300">
-          ✓ all {data.total} block(s) up to date — no drift or missing recipes
+        <div className="flex items-center gap-1.5 px-3 py-2 text-sm text-emerald-300">
+          <Check className="size-4" /> all {data.total} block(s) up to date — no drift or missing
+          recipes
         </div>
       </Card>
     );
@@ -492,8 +499,9 @@ function MachinesCard({ data }: { data: MachineSufficiency | undefined }) {
         </CardTitle>
         <span className="text-xs text-muted-foreground">
           {data.syncedAt ? (
-            <span className="text-emerald-300">
-              ✓ live: {data.syncedCount ?? 0} placed ({timeAgo(data.syncedAt)})
+            <span className="inline-flex items-center gap-1 text-emerald-300">
+              <Check className="size-3.5" /> live: {data.syncedCount ?? 0} placed (
+              {timeAgo(data.syncedAt)})
             </span>
           ) : (
             "no built-machine data — open the PyOps panel in-game and Sync"
@@ -526,7 +534,7 @@ function MachinesCard({ data }: { data: MachineSufficiency | undefined }) {
                 m.short > 0 ? "text-destructive" : "text-emerald-300"
               }`}
             >
-              {m.short > 0 ? `need ${m.short}` : "✓"}
+              {m.short > 0 ? `need ${m.short}` : <Check className="inline size-4" />}
             </span>
           </div>
           {/* per-recipe breakdown (only meaningful when recipe-aware) */}
@@ -545,7 +553,7 @@ function MachinesCard({ data }: { data: MachineSufficiency | undefined }) {
                 <span
                   className={`w-24 text-right ${r.short > 0 ? "text-destructive" : "text-emerald-300/70"}`}
                 >
-                  {r.short > 0 ? `need ${r.short}` : "✓"}
+                  {r.short > 0 ? `need ${r.short}` : <Check className="inline size-3.5" />}
                 </span>
               </div>
             ))}
@@ -661,17 +669,17 @@ function ResourceDrawer({
           <button
             onClick={() => locate.mutate()}
             disabled={locate.isPending}
-            className="rounded px-2 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
+            className="flex items-center gap-1 rounded px-2 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
             title="Find producers / storage / consumers of this in the game (needs the bridge + Factory Search mod)"
           >
-            🔍 locate
+            <MapPin className="size-4" /> locate
           </button>
           <button
             onClick={onClose}
             className="rounded px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             title="close"
           >
-            ✕
+            <X className="size-4" />
           </button>
         </div>
         {locate.data && !locate.data.sent && (
@@ -708,9 +716,10 @@ function ResourceDrawer({
           <button
             onClick={createBlock}
             disabled={creating}
-            className="w-full rounded bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-1 rounded bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-60"
           >
-            ＋ new block {sink ? "consuming" : "producing"} {label} @ {num(Math.abs(seedRate))}/s
+            <Plus className="size-4" /> new block {sink ? "consuming" : "producing"} {label} @{" "}
+            {num(Math.abs(seedRate))}/s
           </button>
           {sink ? (
             <div className="mt-1 text-center text-xs text-muted-foreground">

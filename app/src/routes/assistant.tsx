@@ -2,12 +2,18 @@ import { useChat } from "@ai-sdk/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
+  AlertTriangle,
   ArrowUp,
   Brain,
+  Check,
   ChevronDown,
+  Flame,
+  FlaskConical,
   GitBranch,
+  Grid2x2,
   Loader2,
   Pencil,
+  Plus,
   RefreshCcw,
   Square,
   X,
@@ -119,9 +125,9 @@ function AssistantShell() {
           </span>
           <button
             onClick={newChat}
-            className="rounded bg-primary px-2 py-0.5 text-sm font-bold text-primary-foreground hover:bg-primary/80"
+            className="flex items-center gap-1 rounded bg-primary px-2 py-0.5 text-sm font-bold text-primary-foreground hover:bg-primary/80"
           >
-            ＋ New
+            <Plus className="size-3.5" /> New
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
@@ -148,16 +154,16 @@ function AssistantShell() {
               <button
                 onClick={() => void rename(conv.id, conv.title)}
                 title="rename"
-                className="hidden px-1 text-muted-foreground group-hover:inline hover:text-foreground"
+                className="hidden px-1 text-muted-foreground group-hover:inline-flex hover:text-foreground"
               >
-                ✎
+                <Pencil className="size-3.5" />
               </button>
               <button
                 onClick={() => void remove(conv.id)}
                 title="delete"
-                className="hidden px-1 text-muted-foreground group-hover:inline hover:text-destructive"
+                className="hidden px-1 text-muted-foreground group-hover:inline-flex hover:text-destructive"
               >
-                ✕
+                <X className="size-3.5" />
               </button>
             </div>
           ))}
@@ -761,7 +767,7 @@ function ReasoningMenu({
                   )}
                   <span className="flex-1">{opt.label}</span>
                   {opt.hint && <span className="text-xs text-muted-foreground">{opt.hint}</span>}
-                  {isCurrent && <span className="text-primary">✓</span>}
+                  {isCurrent && <Check className="size-4 shrink-0 text-primary" />}
                 </button>
               </Popover.Close>
             );
@@ -1005,8 +1011,14 @@ function ReasoningBlock({ text, state }: { text: string; state?: string }) {
   return (
     <details className="rounded border border-sky-500/30 bg-sky-500/5 text-xs">
       <summary className="cursor-pointer select-none px-2 py-1 text-muted-foreground">
-        <span className={state === "streaming" ? "text-amber-400/90" : "text-sky-300"}>
-          {state === "streaming" ? "…" : "✓"}
+        <span
+          className={`inline-flex ${state === "streaming" ? "text-amber-400/90" : "text-sky-300"}`}
+        >
+          {state === "streaming" ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Check className="size-3.5" />
+          )}
         </span>{" "}
         reasoning
       </summary>
@@ -1159,11 +1171,11 @@ type PlanDraftData = {
 
 const fmtRate = (r?: number | null) => (r != null ? `${+r.toFixed(r < 10 ? 2 : 1)}/s` : "");
 
-function refRow(label: string, items: string[] | undefined, prefer?: "recipe", warn?: boolean) {
+function refRow(label: ReactNode, items: string[] | undefined, prefer?: "recipe", warn?: boolean) {
   return items && items.length ? (
     <div className="mt-2.5">
       <div
-        className={`text-[11px] uppercase tracking-wide ${warn ? "text-red-400" : "text-muted-foreground"}`}
+        className={`flex items-center gap-1 text-[11px] uppercase tracking-wide ${warn ? "text-red-400" : "text-muted-foreground"}`}
       >
         {label}
       </div>
@@ -1177,10 +1189,12 @@ function refRow(label: string, items: string[] | undefined, prefer?: "recipe", w
 }
 
 // chips with a per-good rate suffix (sized to demand)
-function rateRow(label: string, entries: GoodRate[] | undefined) {
+function rateRow(label: ReactNode, entries: GoodRate[] | undefined) {
   return entries && entries.length ? (
     <div className="mt-2.5">
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1.5">
         {entries.map((e) => (
           <span key={e.good} className="inline-flex items-center gap-1">
@@ -1224,18 +1238,26 @@ function DraftRows({ draft }: { draft: Draft }) {
           </div>
         </div>
       )}
-      {rateRow("⊞ suggested sub-blocks to draft next (sized to demand)", draft.subBlocksNeeded)}
+      {rateRow(
+        <>
+          <Grid2x2 className="size-3.5" /> suggested sub-blocks to draft next (sized to demand)
+        </>,
+        draft.subBlocksNeeded,
+      )}
       {rateRow("byproducts (must be routed — hard mode can't void)", draft.byproducts)}
 
       {draft.turd?.conflicts && draft.turd.conflicts.length > 0 && (
         <div className="mt-2.5">
-          <div className="text-[11px] uppercase tracking-wide text-red-400">
-            ⚠ TURD conflicts (infeasible — one choice per master)
+          <div className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-red-400">
+            <AlertTriangle className="size-3.5" /> TURD conflicts (infeasible — one choice per
+            master)
           </div>
           {draft.turd.conflicts.map((c) => (
             <div key={c.master} className="mt-1 text-sm">
-              <span className="text-red-300">⚗ {c.masterDisplay}</span>:{" "}
-              {c.choices.map((ch) => ch.choice).join(" vs ")}
+              <span className="inline-flex items-center gap-1 text-red-300">
+                <FlaskConical className="size-3.5" /> {c.masterDisplay}
+              </span>
+              : {c.choices.map((ch) => ch.choice).join(" vs ")}
             </div>
           ))}
         </div>
@@ -1249,7 +1271,7 @@ function DraftRows({ draft }: { draft: Draft }) {
             {draft.turd.selections.map((sel) => (
               <span
                 key={sel.master}
-                className={`rounded px-1.5 py-0.5 text-[11px] ${
+                className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] ${
                   sel.action === "switch"
                     ? "bg-amber-500/15 text-amber-300"
                     : sel.action === "pick"
@@ -1258,15 +1280,26 @@ function DraftRows({ draft }: { draft: Draft }) {
                 }`}
                 title={`${sel.action}${sel.current ? ` (currently: ${sel.current})` : ""}`}
               >
-                ⚗ {sel.masterDisplay} › {sel.requiredChoice}
-                {sel.action === "switch" && " ⚠ switch"}
-                {sel.action === "already-selected" && " ✓"}
+                <FlaskConical className="size-3.5" /> {sel.masterDisplay} › {sel.requiredChoice}
+                {sel.action === "switch" && (
+                  <>
+                    <AlertTriangle className="size-3.5" /> switch
+                  </>
+                )}
+                {sel.action === "already-selected" && <Check className="size-3.5" />}
               </span>
             ))}
           </div>
         </div>
       )}
-      {refRow("⚠ invalid recipe names", draft.invalid, undefined, true)}
+      {refRow(
+        <>
+          <AlertTriangle className="size-3.5" /> invalid recipe names
+        </>,
+        draft.invalid,
+        undefined,
+        true,
+      )}
     </>
   );
 }
@@ -1309,16 +1342,19 @@ function BlockDraft({ draft }: { draft: Draft }) {
             <span className="text-primary">{draft.targetDisplay ?? draft.target}</span>{" "}
             <span className="text-sm font-normal text-muted-foreground">
               @ {draft.rate}/s
-              {draft.powerW != null &&
-                draft.powerW > 0 &&
-                ` · ⚡ ${Math.round(draft.powerW / 1000)} kW`}
+              {draft.powerW != null && draft.powerW > 0 && (
+                <span className="inline-flex items-center gap-1">
+                  {" · "}
+                  <Zap className="size-3.5" /> {Math.round(draft.powerW / 1000)} kW
+                </span>
+              )}
               {draft.heatW != null && draft.heatW > 0 && (
                 <span
-                  className="text-orange-300"
+                  className="inline-flex items-center gap-1 text-orange-300"
                   title="heat doesn't travel — needs a local heat source"
                 >
-                  {" "}
-                  · ♨ {Math.round(draft.heatW / 1000)} kW heat (local)
+                  {" · "}
+                  <Flame className="size-3.5" /> {Math.round(draft.heatW / 1000)} kW heat (local)
                 </span>
               )}
             </span>
@@ -1392,9 +1428,17 @@ function BlockUpdate({ draft }: { draft: Draft }) {
         <button
           onClick={() => void apply()}
           disabled={status === "applying" || status === "done"}
-          className="shrink-0 rounded-md bg-amber-500 px-3 py-1.5 text-sm font-medium text-black hover:bg-amber-400 disabled:opacity-50"
+          className="flex shrink-0 items-center gap-1 rounded-md bg-amber-500 px-3 py-1.5 text-sm font-medium text-black hover:bg-amber-400 disabled:opacity-50"
         >
-          {status === "applying" ? "Applying…" : status === "done" ? "Applied ✓" : "Apply update →"}
+          {status === "applying" ? (
+            "Applying…"
+          ) : status === "done" ? (
+            <>
+              Applied <Check className="size-3.5" />
+            </>
+          ) : (
+            "Apply update →"
+          )}
         </button>
       </div>
 
@@ -1580,11 +1624,17 @@ function ToolCallGroup({ parts }: { parts: any[] }) {
     <details className="rounded border border-border/60 bg-background/50 text-xs">
       <summary className="cursor-pointer select-none px-2 py-1 font-mono text-muted-foreground">
         <span
-          className={
+          className={`inline-flex ${
             anyErr ? "text-red-400" : allDone ? "text-emerald-400/90" : "text-amber-400/90"
-          }
+          }`}
         >
-          {anyErr ? "✗" : allDone ? "✓" : "…"}
+          {anyErr ? (
+            <X className="size-3.5" />
+          ) : allDone ? (
+            <Check className="size-3.5" />
+          ) : (
+            <Loader2 className="size-3.5 animate-spin" />
+          )}
         </span>{" "}
         {parts.length} tool calls
       </summary>
@@ -1604,8 +1654,16 @@ function ToolCall({ part }: { part: any }) {
   return (
     <details className="rounded border border-border/60 bg-background/50 text-xs">
       <summary className="cursor-pointer select-none px-2 py-1 font-mono text-muted-foreground">
-        <span className={err ? "text-red-400" : done ? "text-emerald-400/90" : "text-amber-400/90"}>
-          {err ? "✗" : done ? "✓" : "…"}
+        <span
+          className={`inline-flex ${err ? "text-red-400" : done ? "text-emerald-400/90" : "text-amber-400/90"}`}
+        >
+          {err ? (
+            <X className="size-3.5" />
+          ) : done ? (
+            <Check className="size-3.5" />
+          ) : (
+            <Loader2 className="size-3.5 animate-spin" />
+          )}
         </span>{" "}
         {name}
         {part.input ? ` (${Object.values(part.input).join(", ")})` : ""}

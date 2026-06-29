@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Check, Star } from "lucide-react";
 import {
   aiConfigFn,
   dataStatusFn,
@@ -173,8 +174,8 @@ function ModDriftCard({ data }: { data: Awaited<ReturnType<typeof modDriftFn>> |
       <Card>
         <CardHeader className="justify-between">
           <CardTitle>Mod drift</CardTitle>
-          <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-300">
-            ✓ matches the game
+          <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-300">
+            <Check className="size-3.5" /> matches the game
           </span>
         </CardHeader>
         <div className="px-3 pb-3 text-xs text-muted-foreground">
@@ -400,8 +401,9 @@ function PlannerCard() {
           <p className="text-sm text-muted-foreground">
             New recipes default to the lowest-tier building and cheapest fuel — correct and
             buildable from the start. To prefer something else, open a recipe's building or fuel
-            picker in the block editor and click its ☆ star: the next new recipe in that category
-            uses your pick (once it's researched). Existing blocks keep their choices.
+            picker in the block editor and click its <Star className="inline size-3.5" /> star: the
+            next new recipe in that category uses your pick (once it's researched). Existing blocks
+            keep their choices.
           </p>
         </div>
       </div>
@@ -444,8 +446,8 @@ function AssistantCard() {
             OpenRouter API key
           </div>
           {d.keyFromEnv ? (
-            <div className="mt-1 text-xs text-emerald-300">
-              ✓ set via OPENROUTER_API_KEY env (wins)
+            <div className="mt-1 flex items-center gap-1 text-xs text-emerald-300">
+              <Check className="size-3.5" /> set via OPENROUTER_API_KEY env (wins)
             </div>
           ) : (
             <div className="mt-1 flex items-center gap-2">
@@ -481,8 +483,8 @@ function AssistantCard() {
         <div>
           <div className="text-[11px] uppercase tracking-wide text-muted-foreground">model</div>
           {d.modelFromEnv ? (
-            <div className="mt-1 text-xs text-emerald-300">
-              ✓ set via PYOPS_AGENT_MODEL env (wins): {d.resolvedModel}
+            <div className="mt-1 flex items-center gap-1 text-xs text-emerald-300">
+              <Check className="size-3.5" /> set via PYOPS_AGENT_MODEL env (wins): {d.resolvedModel}
             </div>
           ) : (
             <div className="mt-1 flex items-center gap-2">

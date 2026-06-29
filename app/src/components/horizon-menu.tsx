@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Clock, X } from "lucide-react";
 import { researchHorizonFn } from "../server/factorio";
 import { HorizonPicker, horizonLabel } from "./horizon-picker";
 
@@ -24,7 +25,7 @@ export function HorizonMenu() {
         className={item}
         title="Planning horizon — what the planner is allowed to use (blocks, picker, assistant)"
       >
-        ◷ Horizon: <span className="text-foreground">{label}</span>
+        <Clock className="size-4" /> Horizon: <span className="text-foreground">{label}</span>
       </button>
       {open && (
         <div
@@ -41,7 +42,7 @@ export function HorizonMenu() {
                 className="text-muted-foreground hover:text-foreground"
                 onClick={() => setOpen(false)}
               >
-                ✕
+                <X className="size-4" />
               </button>
             </div>
             <HorizonPicker />

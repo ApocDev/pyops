@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Check } from "lucide-react";
 import {
   goodInfoFn,
   researchHorizonFn,
@@ -88,8 +89,8 @@ export function HorizonPicker() {
         </div>
 
         {d.syncedAt && (
-          <div className="text-xs text-emerald-300">
-            ✓ live: {d.syncedCount} techs synced from the game
+          <div className="flex items-center gap-1.5 text-xs text-emerald-300">
+            <Check className="size-3.5 shrink-0" /> live: {d.syncedCount} techs synced from the game
             {d.mode !== "now" && (
               <span className="text-muted-foreground"> — switch to Now to plan against it</span>
             )}

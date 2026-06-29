@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { bridgeRequestSyncFn, bridgeStatusFn } from "../server/bridge/fns";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 
@@ -86,10 +87,13 @@ export function BridgeCard() {
           </div>
         )}
         {versionMismatch && peer && (
-          <p className="rounded bg-destructive/15 px-2 py-1 text-destructive">
-            ⚠ Version mismatch — this app expects protocol v{s?.appProtocolVersion}, the mod speaks
-            v{peer.protocolVersion}. Update whichever is older (re-pull the repo / reload the mod)
-            so the bridge stays in sync.
+          <p className="flex items-start gap-1.5 rounded bg-destructive/15 px-2 py-1 text-destructive">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <span>
+              Version mismatch — this app expects protocol v{s?.appProtocolVersion}, the mod speaks
+              v{peer.protocolVersion}. Update whichever is older (re-pull the repo / reload the mod)
+              so the bridge stays in sync.
+            </span>
           </p>
         )}
         {s && (s.packetsIn > 0 || s.packetsOut > 0) && (
@@ -103,9 +107,10 @@ export function BridgeCard() {
             onClick={() => pull.mutate()}
             disabled={!connected || pull.isPending}
             title="Ask the connected mod to push its current state now (research, …)"
-            className="rounded border border-border px-2 py-1 text-sm hover:bg-muted disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded border border-border px-2 py-1 text-sm hover:bg-muted disabled:opacity-50"
           >
-            {pull.isPending ? "requesting…" : "↻ pull from game"}
+            <RefreshCw className={`size-3.5 ${pull.isPending ? "animate-spin" : ""}`} />
+            {pull.isPending ? "requesting…" : "pull from game"}
           </button>
           {pullMsg && <span className="text-xs text-muted-foreground">{pullMsg}</span>}
         </div>

@@ -32,7 +32,25 @@ import type { Goal } from "../db/schema";
 import { normalizeBlockData } from "../lib/goals";
 import { Icon, IconProvider } from "../lib/icons";
 import { ModulesChip, ModulesModal } from "../lib/modules-modal";
-import { Copy, Gamepad2, Rocket } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  Copy,
+  Flame,
+  FlaskConical,
+  Gamepad2,
+  Grid2x2,
+  GripVertical,
+  Lock,
+  MapPin,
+  Pencil,
+  Plus,
+  Rocket,
+  Star,
+  Unlock,
+  X,
+  Zap,
+} from "lucide-react";
 import { ItemHover, RecipeHover, TechLine } from "../lib/recipe-card";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card.tsx";
@@ -281,7 +299,7 @@ function ItemChip({
         >
           <Icon kind={kind as "item" | "fluid"} name={name} size="md" noTitle />
           {rate != null && <span>{num(rate)}</span>}
-          {craftableImport && <span className="font-bold text-amber-300">＋</span>}
+          {craftableImport && <Plus className="size-3.5 text-amber-300" strokeWidth={3} />}
         </button>
       </ItemHover>
       {disp && (
@@ -882,8 +900,16 @@ function Block({ blockId }: { blockId: number }) {
           placeholder="auto-named from goal…"
           className="w-56 font-semibold"
         />
-        <span className="w-14 text-xs text-muted-foreground">
-          {saveState === "saving" ? "saving…" : saveState === "saved" ? "saved ✓" : ""}
+        <span className="flex w-14 items-center gap-1 text-xs text-muted-foreground">
+          {saveState === "saving" ? (
+            "saving…"
+          ) : saveState === "saved" ? (
+            <>
+              saved <Check className="size-3" />
+            </>
+          ) : (
+            ""
+          )}
         </span>
         <button
           onClick={copySetup}
@@ -904,7 +930,9 @@ function Block({ blockId }: { blockId: number }) {
           <span className="text-xs text-amber-300">game not connected</span>
         )}
         {showInGame.data?.sent && (
-          <span className="text-xs text-emerald-300">opened in game ✓</span>
+          <span className="flex items-center gap-1 text-xs text-emerald-300">
+            opened in game <Check className="size-3" />
+          </span>
         )}
         <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
           <Legend cls={linkStyle.target} label="goal" />
@@ -933,9 +961,9 @@ function Block({ blockId }: { blockId: number }) {
               good comes out at exactly that rate. Click a goal&apos;s rate to edit it. So a single
               &quot;logistics&quot; block can make belts @10/s, undergrounds @4/s and splitters @2/s
               side by side. The first goal <span className="text-blue-300">names the block</span>{" "}
-              and anchors the scale tools; <span className="text-foreground">★</span> moves a goal
-              to the front. A good you don&apos;t target isn&apos;t a goal — it falls out as a
-              byproduct (export).
+              and anchors the scale tools; <Star className="inline size-3.5 text-foreground" />{" "}
+              moves a goal to the front. A good you don&apos;t target isn&apos;t a goal — it falls
+              out as a byproduct (export).
             </p>
             <p className="mt-1">
               If your goals can&apos;t all be met at once (e.g. two goods locked to a fixed ratio by
@@ -984,9 +1012,9 @@ function Block({ blockId }: { blockId: number }) {
           worse). The block + its last-good cache are preserved untouched. */}
       {res?.broken && (
         <div className="mb-4 rounded border border-destructive/40 bg-destructive/10 p-3 text-sm">
-          <div className="font-semibold text-destructive">
-            ⚠ This block references prototypes that no longer exist in the current data — it
-            won&apos;t be solved.
+          <div className="flex items-center gap-1.5 font-semibold text-destructive">
+            <AlertTriangle className="size-4 shrink-0" /> This block references prototypes that no
+            longer exist in the current data — it won&apos;t be solved.
           </div>
           <p className="mt-1 text-muted-foreground">
             The block is preserved exactly as saved (its last solved numbers are kept). Re-enable
@@ -1061,17 +1089,17 @@ function Block({ blockId }: { blockId: number }) {
                         <button
                           onClick={() => makePrimary(g)}
                           title="move to front — name the block after this goal"
-                          className="flex size-5 items-center justify-center rounded bg-background text-sm text-blue-300 shadow ring-1 ring-border hover:text-blue-200"
+                          className="flex size-5 items-center justify-center rounded bg-background text-blue-300 shadow ring-1 ring-border hover:text-blue-200"
                         >
-                          ★
+                          <Star className="size-3" />
                         </button>
                       )}
                       <button
                         onClick={() => removeGoal(g)}
                         title="remove this goal"
-                        className="flex size-5 items-center justify-center rounded bg-background text-sm text-muted-foreground shadow ring-1 ring-border hover:text-destructive"
+                        className="flex size-5 items-center justify-center rounded bg-background text-muted-foreground shadow ring-1 ring-border hover:text-destructive"
                       >
-                        ✕
+                        <X className="size-3" />
                       </button>
                     </div>
                     <button
@@ -1081,7 +1109,9 @@ function Block({ blockId }: { blockId: number }) {
                       <Icon kind={kind} name={g} size="lg" title={res?.display?.[g] ?? g} />
                     </button>
                     {goalMissing ? (
-                      <span className="text-xs font-semibold text-destructive">⚠ gone</span>
+                      <span className="flex items-center gap-0.5 text-xs font-semibold text-destructive">
+                        <AlertTriangle className="size-3" /> gone
+                      </span>
                     ) : (
                       <span className="text-sm">
                         <EditableRate
@@ -1113,7 +1143,7 @@ function Block({ blockId }: { blockId: number }) {
                 title="add a goal product"
                 className="flex min-w-16 flex-col items-center justify-center gap-0.5 rounded border border-dashed border-border px-2 py-1 text-muted-foreground hover:text-foreground"
               >
-                <span className="text-2xl leading-none">+</span>
+                <Plus className="size-6" />
                 <span className="text-xs">goal</span>
               </button>
             </div>
@@ -1123,8 +1153,9 @@ function Block({ blockId }: { blockId: number }) {
               </div>
             )}
             {lockedInput && (
-              <div className="text-xs text-sky-300">
-                🔒 sized by input — edit the locked rate in Imports, or unlock it there
+              <div className="flex items-center gap-1 text-xs text-sky-300">
+                <Lock className="size-3 shrink-0" /> sized by input — edit the locked rate in
+                Imports, or unlock it there
               </div>
             )}
           </CardContent>
@@ -1154,7 +1185,7 @@ function Block({ blockId }: { blockId: number }) {
                   className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 ${dispTag[d].cls} hover:brightness-110`}
                 >
                   <Icon kind="item" name={name} size="sm" title={res?.display?.[name] ?? name} />
-                  {res?.display?.[name] ?? name} {dispTag[d].label} ✕
+                  {res?.display?.[name] ?? name} {dispTag[d].label} <X className="size-3" />
                 </button>
               ))}
               <button
@@ -1208,11 +1239,12 @@ function Block({ blockId }: { blockId: number }) {
                   {res.tempWarnings.map((w) => (
                     <div
                       key={`${w.recipe}-${w.item}`}
+                      className="flex items-center gap-1"
                       title="the solver links fluids by name — check your heat chain"
                     >
-                      ⚠ {res.display?.[w.recipe] ?? w.recipe} needs{" "}
-                      {res.display?.[w.item] ?? w.item} at {w.needs}, but this block makes it at{" "}
-                      {w.got.join("°, ")}°
+                      <AlertTriangle className="size-3.5 shrink-0" />{" "}
+                      {res.display?.[w.recipe] ?? w.recipe} needs {res.display?.[w.item] ?? w.item}{" "}
+                      at {w.needs}, but this block makes it at {w.got.join("°, ")}°
                     </div>
                   ))}
                 </div>
@@ -1221,23 +1253,25 @@ function Block({ blockId }: { blockId: number }) {
                 (res.power.totalW > 0 || res.power.heatW > 0 || res.power.fuel.length > 0) && (
                   <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-border px-3 py-2 text-sm">
                     {res.power.totalW > 0 && (
-                      <span className="text-sky-300">
-                        ⚡ {fmtW(res.power.totalW)}{" "}
+                      <span className="flex items-center gap-1 text-sky-300">
+                        <Zap className="size-3.5" /> {fmtW(res.power.totalW)}{" "}
                         <span className="text-muted-foreground">electric</span>
                       </span>
                     )}
                     {res.power.heatW > 0 && (
                       <span
-                        className="text-orange-300"
+                        className="flex items-center gap-1 text-orange-300"
                         title="Heat-powered buildings (Py hard mode). Heat doesn't travel far (~15 tiles), so a heat source — e.g. a py-heat-exchanger — must be built LOCAL to this block."
                       >
-                        ♨ {fmtW(res.power.heatW)}{" "}
+                        <Flame className="size-3.5" /> {fmtW(res.power.heatW)}{" "}
                         <span className="text-muted-foreground">heat · local source needed</span>
                       </span>
                     )}
                     {res.power.fuel.length > 0 && (
                       <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <span className="text-muted-foreground">🔥 burning</span>
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <Flame className="size-3.5" /> burning
+                        </span>
                         {res.power.fuel.map((f) => (
                           <span
                             key={f.name}
@@ -1262,8 +1296,8 @@ function Block({ blockId }: { blockId: number }) {
                 <div>
                   <div className="mb-1 text-xs font-semibold text-amber-400">
                     Imports — bring these in{" "}
-                    <span className="font-normal text-muted-foreground">
-                      (dashed ＋ = craftable in-block)
+                    <span className="inline-flex items-center gap-0.5 font-normal text-muted-foreground">
+                      (dashed <Plus className="inline size-3" /> = craftable in-block)
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-x-3 gap-y-2">
@@ -1318,16 +1352,22 @@ function Block({ blockId }: { blockId: number }) {
                                   ? "unlock — the Goal rate is editable again"
                                   : "lock this input: size the whole block by its rate (Goal becomes read-only)"
                               }
-                              className={`rounded px-0.5 text-sm ${
+                              className={`flex items-center rounded px-0.5 ${
                                 lockedInput === f.name
                                   ? "text-sky-300"
                                   : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground"
                               }`}
                             >
-                              {lockedInput === f.name ? "🔒" : "🔓"}
+                              {lockedInput === f.name ? (
+                                <Lock className="size-3.5" />
+                              ) : (
+                                <Unlock className="size-3.5" />
+                              )}
                             </button>
                             {fuelSet.has(f.name) && (
-                              <span title="this import is (partly) burned as fuel">🔥</span>
+                              <span title="this import is (partly) burned as fuel">
+                                <Flame className="size-3.5" />
+                              </span>
                             )}
                             {freed.has(f.name) && !disp[f.name] && (
                               <button
@@ -1386,7 +1426,9 @@ function Block({ blockId }: { blockId: number }) {
                               }
                             />
                             {fuelSet.has(f.name) && (
-                              <span title="surplus after burning some as fuel">🔥</span>
+                              <span title="surplus after burning some as fuel">
+                                <Flame className="size-3.5" />
+                              </span>
                             )}
                             {freed.has(f.name) && !disp[f.name] && (
                               <button
@@ -1510,8 +1552,8 @@ function Block({ blockId }: { blockId: number }) {
                     <span className="block truncate font-mono" title={name}>
                       {name}
                     </span>
-                    <span className="text-xs font-semibold text-destructive">
-                      ⚠ no longer exists
+                    <span className="flex items-center gap-1 text-xs font-semibold text-destructive">
+                      <AlertTriangle className="size-3" /> no longer exists
                     </span>
                   </span>
                   <button
@@ -1519,7 +1561,7 @@ function Block({ blockId }: { blockId: number }) {
                     onClick={() => drop(name)}
                     title="remove this missing recipe from the block"
                   >
-                    ✕
+                    <X className="size-3.5" />
                   </button>
                 </div>
                 <div className="col-span-3 text-sm text-muted-foreground">
@@ -1571,9 +1613,9 @@ function Block({ blockId }: { blockId: number }) {
                     setDropRecipe(null);
                   }}
                   title="drag to reorder this recipe"
-                  className="shrink-0 cursor-grab px-0.5 text-muted-foreground select-none hover:text-foreground active:cursor-grabbing"
+                  className="flex shrink-0 cursor-grab items-center text-muted-foreground select-none hover:text-foreground active:cursor-grabbing"
                 >
-                  ⠿
+                  <GripVertical className="size-4" />
                 </span>
                 <Icon kind="recipe" name={name} size="md" noTitle />
                 <span className="min-w-0 flex-1">
@@ -1584,7 +1626,8 @@ function Block({ blockId }: { blockId: number }) {
                     <span
                       className={`text-xs ${neg ? "font-semibold text-destructive" : "text-muted-foreground"}`}
                     >
-                      {neg && "⚠ backward "}
+                      {neg && <AlertTriangle className="mr-0.5 inline size-3 align-text-bottom" />}
+                      {neg && "backward "}
                       {num(row.rate)}/s
                     </span>
                   )}
@@ -1594,7 +1637,7 @@ function Block({ blockId }: { blockId: number }) {
                   onClick={() => drop(name)}
                   title="remove"
                 >
-                  ✕
+                  <X className="size-3.5" />
                 </button>
               </RecipeHover>
               <div className="flex flex-wrap items-center gap-2">
@@ -1617,7 +1660,7 @@ function Block({ blockId }: { blockId: number }) {
                         title="electric power draw"
                         className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-1 text-sm text-sky-300"
                       >
-                        ⚡ {fmtW(row.machine.powerW)}
+                        <Zap className="size-3.5" /> {fmtW(row.machine.powerW)}
                       </span>
                     )}
                     {row.machine.energySource === "heat" && (
@@ -1625,7 +1668,7 @@ function Block({ blockId }: { blockId: number }) {
                         title="heat-powered — fed by an upstream reactor"
                         className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-1 text-sm"
                       >
-                        ♨ heat
+                        <Flame className="size-3.5" /> heat
                       </span>
                     )}
                     {/* fuel: icon + rate; click = fuel picker */}
@@ -1670,7 +1713,7 @@ function Block({ blockId }: { blockId: number }) {
                         title={`TURD: ${row.turdModules.map((m) => m.display ?? m.name).join(", ")} — applied by your selected upgrades`}
                         className="flex items-center gap-1 rounded bg-fuchsia-500/15 px-1.5 py-1 text-sm text-fuchsia-300 ring-1 ring-fuchsia-400/40 hover:brightness-110"
                       >
-                        ⚗
+                        <FlaskConical className="size-3.5" />
                         {row.turdModules.map((m) => (
                           <Icon key={m.name} kind="item" name={m.name} size="sm" noTitle />
                         ))}
@@ -1765,7 +1808,7 @@ function Block({ blockId }: { blockId: number }) {
                   setSearch("");
                 }}
               >
-                ✕
+                <X className="size-4" />
               </button>
             </CardHeader>
             <div className="space-y-2 p-3">
@@ -1836,7 +1879,7 @@ function Block({ blockId }: { blockId: number }) {
                 setGoalMenu(null);
               }}
             >
-              ✎ Change item
+              <Pencil className="size-3.5" /> Change item
             </CtxBtn>
             {goalMenu.name !== target && (
               <CtxBtn
@@ -1845,7 +1888,7 @@ function Block({ blockId }: { blockId: number }) {
                   setGoalMenu(null);
                 }}
               >
-                ★ Move to front (names the block)
+                <Star className="size-3.5" /> Move to front (names the block)
               </CtxBtn>
             )}
             <div className="my-1 border-t border-border" />
@@ -1855,7 +1898,7 @@ function Block({ blockId }: { blockId: number }) {
                 setGoalMenu(null);
               }}
             >
-              ✕ Remove goal
+              <X className="size-3.5" /> Remove goal
             </CtxBtn>
           </div>
         </>
@@ -1877,7 +1920,7 @@ function Block({ blockId }: { blockId: number }) {
                 className="text-muted-foreground hover:text-foreground"
                 onClick={() => setPickFor(null)}
               >
-                ✕
+                <X className="size-4" />
               </button>
             </CardHeader>
             <div className="max-h-[60vh] overflow-auto p-2">
@@ -1966,7 +2009,8 @@ function Block({ blockId }: { blockId: number }) {
                                 size="sm"
                                 noTitle
                               />
-                              ⚗ replaced by {r.superseded.newDisplay}
+                              <FlaskConical className="size-3.5" /> replaced by{" "}
+                              {r.superseded.newDisplay}
                               <span className="text-zinc-600">
                                 ({r.superseded.masterDisplay ?? "TURD"} › {r.superseded.subDisplay})
                               </span>
@@ -1982,10 +2026,11 @@ function Block({ blockId }: { blockId: number }) {
                                     : `requires the "${r.turd.display}" choice under "${r.turd.masterDisplay ?? "TURD"}" — pick it on the TURD page (or in-game TURD explorer)`
                                 }
                               >
-                                <Icon kind="technology" name={r.turd.tech} size="sm" noTitle />⚗{" "}
+                                <Icon kind="technology" name={r.turd.tech} size="sm" noTitle />
+                                <FlaskConical className="size-3.5" />{" "}
                                 {r.turd.masterDisplay ? `${r.turd.masterDisplay} › ` : ""}
                                 {r.turd.display}
-                                {r.turd.turdSelected && " ✓"}
+                                {r.turd.turdSelected && <Check className="size-3.5" />}
                               </span>
                             ) : r.unlocks.length ? (
                               <TechLine
@@ -1995,10 +2040,10 @@ function Block({ blockId }: { blockId: number }) {
                               />
                             ) : (
                               <span
-                                className="text-sm text-zinc-500"
+                                className="flex items-center gap-1 text-sm text-zinc-500"
                                 title="no technology unlocks this recipe"
                               >
-                                🔒 locked
+                                <Lock className="size-3.5" /> locked
                               </span>
                             ))
                           )}
@@ -2033,7 +2078,7 @@ function Block({ blockId }: { blockId: number }) {
                 className="text-muted-foreground hover:text-foreground"
                 onClick={() => setPickMachineFor(null)}
               >
-                ✕
+                <X className="size-4" />
               </button>
             </CardHeader>
             <div className="max-h-[60vh] overflow-auto p-2">
@@ -2059,18 +2104,25 @@ function Block({ blockId }: { blockId: number }) {
                           <span className="text-foreground">{m.display ?? m.name}</span>
                           <Badge variant="secondary">{m.craftingSpeed}× speed</Badge>
                           {m.energySource === "electric" && (
-                            <span className="text-xs text-sky-300">
-                              ⚡ {fmtW(m.energyUsageW ?? 0)}
+                            <span className="flex items-center gap-1 text-xs text-sky-300">
+                              <Zap className="size-3" /> {fmtW(m.energyUsageW ?? 0)}
                             </span>
                           )}
                           {(m.energySource === "burner" || m.energySource === "fluid") && (
-                            <span className="text-xs text-amber-300">
-                              🔥 {fmtW(m.energyUsageW ?? 0)}
+                            <span className="flex items-center gap-1 text-xs text-amber-300">
+                              <Flame className="size-3" /> {fmtW(m.energyUsageW ?? 0)}
                             </span>
                           )}
-                          {m.energySource === "heat" && <span className="text-xs">♨ heat</span>}
+                          {m.energySource === "heat" && (
+                            <span className="flex items-center gap-1 text-xs">
+                              <Flame className="size-3" /> heat
+                            </span>
+                          )}
                           {m.moduleSlots > 0 && (
-                            <span className="text-xs text-muted-foreground">{m.moduleSlots}⊞</span>
+                            <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                              {m.moduleSlots}
+                              <Grid2x2 className="size-3" />
+                            </span>
                           )}
                           {cur && <span className="text-xs text-primary">· current</span>}
                           <span
@@ -2087,23 +2139,24 @@ function Block({ blockId }: { blockId: number }) {
                               toggleFavoriteMachine(pickMachineFor, m.name, m.favorite);
                             }}
                           >
-                            {m.favorite ? "★" : "☆"}
+                            <Star className="size-4" fill={m.favorite ? "currentColor" : "none"} />
                           </span>
                         </span>
                         <span className="block truncate text-xs">
                           {m.availableNow ? (
-                            <span className="text-emerald-300/80">
+                            <span className="flex items-center gap-1 text-emerald-300/80">
+                              <Check className="size-3 shrink-0" />
                               {m.startEnabled
-                                ? "✓ available from start"
-                                : `✓ unlocked${
+                                ? "available from start"
+                                : `unlocked${
                                     m.unlockedBy.length
                                       ? ` · ${m.unlockedBy.map((u) => u.display ?? u.tech).join(", ")}`
                                       : ""
                                   }`}
                             </span>
                           ) : (
-                            <span className="text-amber-300/90">
-                              🔒 needs{" "}
+                            <span className="flex items-center gap-1 text-amber-300/90">
+                              <Lock className="size-3 shrink-0" /> needs{" "}
                               {m.unlockedBy.length
                                 ? m.unlockedBy.map((u) => u.display ?? u.tech).join(", ")
                                 : "research"}
@@ -2169,7 +2222,7 @@ function Block({ blockId }: { blockId: number }) {
                     className="text-muted-foreground hover:text-foreground"
                     onClick={() => setPickFuelFor(null)}
                   >
-                    ✕
+                    <X className="size-4" />
                   </button>
                 </CardHeader>
                 <div className="max-h-[60vh] overflow-auto p-2">
@@ -2213,7 +2266,7 @@ function Block({ blockId }: { blockId: number }) {
                             toggleFavoriteFuel(f.name, f.favorite);
                           }}
                         >
-                          {f.favorite ? "★" : "☆"}
+                          <Star className="size-4" fill={f.favorite ? "currentColor" : "none"} />
                         </span>
                       </button>
                     );
@@ -2260,7 +2313,7 @@ function Block({ blockId }: { blockId: number }) {
                   setCtxMenu(null);
                 }}
               >
-                ★ Make a goal
+                <Star className="size-3.5" /> Make a goal
               </CtxBtn>
             )}
             {ctxMenu.link === "import" && (
@@ -2277,9 +2330,15 @@ function Block({ blockId }: { blockId: number }) {
                     setCtxMenu(null);
                   }}
                 >
-                  {lockedInput === ctxMenu.name
-                    ? "🔓 Unlock sizing"
-                    : "🔒 Size block by this input"}
+                  {lockedInput === ctxMenu.name ? (
+                    <>
+                      <Unlock className="size-3.5" /> Unlock sizing
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="size-3.5" /> Size block by this input
+                    </>
+                  )}
                 </CtxBtn>
                 <CtxBtn
                   onClick={() => {
@@ -2288,7 +2347,7 @@ function Block({ blockId }: { blockId: number }) {
                     setCtxMenu(null);
                   }}
                 >
-                  ＋ Create block to make this
+                  <Plus className="size-3.5" /> Create block to make this
                 </CtxBtn>
               </>
             )}
@@ -2354,7 +2413,11 @@ function Block({ blockId }: { blockId: number }) {
                     setCtxMenu(null);
                   }}
                 >
-                  {active ? "● " : "   "}
+                  {active ? (
+                    <Check className="mr-1 inline size-3.5" />
+                  ) : (
+                    <span className="mr-1 inline-block size-3.5" />
+                  )}
                   {labels[d]}
                 </CtxBtn>
               );
@@ -2366,7 +2429,7 @@ function Block({ blockId }: { blockId: number }) {
                 setCtxMenu(null);
               }}
             >
-              🔍 Locate in game
+              <MapPin className="size-3.5" /> Locate in game
             </CtxBtn>
           </div>
         </>

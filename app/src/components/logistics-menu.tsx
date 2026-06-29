@@ -9,6 +9,7 @@ import {
   inserterThroughput,
   resolveLogistics,
 } from "../lib/logistics";
+import { X } from "lucide-react";
 import { Icon, IconProvider } from "../lib/icons";
 import { Switch } from "#/components/ui/switch.tsx";
 import { Input } from "#/components/ui/input.tsx";
@@ -65,7 +66,7 @@ export function LogisticsMenu() {
                 className="text-muted-foreground hover:text-foreground"
                 onClick={() => setOpen(false)}
               >
-                ✕
+                <X className="size-4" />
               </button>
             </div>
             <LogisticsPicker />

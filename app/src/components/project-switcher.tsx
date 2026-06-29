@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Check, ChevronDown, Database, X } from "lucide-react";
 import {
   createProjectFn,
   listProjectsFn,
@@ -62,8 +63,8 @@ export function ProjectSwitcher() {
         className="flex items-center gap-1.5 px-3 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
         title={`project: ${active?.name ?? "…"} — click to switch`}
       >
-        ▣ {active?.name ?? "…"}
-        <span className="text-xs">▾</span>
+        <Database className="size-4" /> {active?.name ?? "…"}
+        <ChevronDown className="size-3" />
       </button>
       {open && data && (
         <div className="absolute top-full right-0 z-50 min-w-48 border border-border bg-popover py-1 shadow-2xl">
@@ -76,7 +77,7 @@ export function ProjectSwitcher() {
               }`}
             >
               <span className="min-w-0 flex-1 truncate">{p.name}</span>
-              {p.id === data.active && <span>✓</span>}
+              {p.id === data.active && <Check className="size-4 shrink-0" />}
               {p.id !== "default" && (
                 <span
                   role="button"
@@ -85,7 +86,7 @@ export function ProjectSwitcher() {
                   className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
                   title="remove from list (db file kept)"
                 >
-                  ✕
+                  <X className="size-3.5" />
                 </span>
               )}
             </button>

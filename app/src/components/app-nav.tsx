@@ -1,6 +1,16 @@
 import { useSyncExternalStore } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowLeftRight,
+  Blocks,
+  Factory,
+  FlaskConical,
+  ListChecks,
+  Search,
+  Settings,
+  Sparkles,
+} from "lucide-react";
 import { ProjectSwitcher } from "./project-switcher";
 import { BridgeIndicator } from "./bridge-indicator";
 import { HorizonMenu } from "./horizon-menu";
@@ -57,25 +67,25 @@ export function AppNav() {
         <span>PyOps</span>
       </Link>
       <Link to="/block" className={item} activeProps={{ className: `${item} ${active}` }}>
-        ⬚ Blocks
+        <Blocks className="size-4" /> Blocks
       </Link>
       <Link to="/factory" className={item} activeProps={{ className: `${item} ${active}` }}>
-        ∑ Factory
+        <Factory className="size-4" /> Factory
       </Link>
       <Link to="/coherence" className={item} activeProps={{ className: `${item} ${active}` }}>
-        ⇄ Coherence
+        <ArrowLeftRight className="size-4" /> Coherence
       </Link>
       <Link to="/browse" className={item} activeProps={{ className: `${item} ${active}` }}>
-        ⌕ Browse
+        <Search className="size-4" /> Browse
       </Link>
       <Link to="/turd" className={item} activeProps={{ className: `${item} ${active}` }}>
-        ⚗ TURD
+        <FlaskConical className="size-4" /> TURD
       </Link>
       <Link to="/assistant" className={item} activeProps={{ className: `${item} ${active}` }}>
-        ✦ Assistant
+        <Sparkles className="size-4" /> Assistant
       </Link>
       <Link to="/tasks" className={item} activeProps={{ className: `${item} ${active}` }}>
-        ✓ Tasks
+        <ListChecks className="size-4" /> Tasks
       </Link>
       <span className="ml-auto flex items-stretch">
         <DataDriftIndicator />
@@ -85,7 +95,7 @@ export function AppNav() {
         <BridgeIndicator />
         <ProjectSwitcher />
         <Link to="/settings" className={item} activeProps={{ className: `${item} ${active}` }}>
-          ⚙ Settings
+          <Settings className="size-4" /> Settings
         </Link>
       </span>
     </nav>

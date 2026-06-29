@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { Timer } from "lucide-react";
+import { Flame, Timer, Zap } from "lucide-react";
 import { iconManifestFn, spoilablesFn, type IconManifest, type IconSlot } from "../server/factorio";
 
 /** Spoil time (in game ticks, 60/sec) → a compact human duration: "27s",
@@ -175,16 +175,22 @@ export function Icon({
         </span>
       </span>
     );
-  // the electricity / heat pseudo-goods have no real prototype — render a glyph
-  if (name === "pyops-electricity" || name === "pyops-heat")
+  // the electricity / heat pseudo-goods have no real prototype — render an icon
+  if (name === "pyops-electricity" || name === "pyops-heat") {
+    const heat = name === "pyops-heat";
+    const Glyph = heat ? Flame : Zap;
     return (
       <span
-        title={noTitle ? undefined : (title ?? (name === "pyops-heat" ? "heat" : "electricity"))}
-        style={{ ...base, lineHeight: v, textAlign: "center", fontSize: `calc(${v} * 0.85)` }}
+        title={noTitle ? undefined : (title ?? (heat ? "heat" : "electricity"))}
+        style={{ ...base, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
       >
-        {name === "pyops-heat" ? "♨" : "⚡"}
+        <Glyph
+          color={heat ? "#f87171" : "#fbbf24"}
+          style={{ width: `calc(${v} * 0.85)`, height: `calc(${v} * 0.85)` }}
+        />
       </span>
     );
+  }
   if (!m) return <span style={base} />;
 
   // synthetic recipes (mine-X, boil-X-250, generate-X, spoil-X, pump-X) have no

@@ -15,6 +15,7 @@ import {
   setGroupOrderFn,
   setGroupParentFn,
 } from "../server/factorio";
+import { AlertTriangle, ChevronDown, ChevronRight, FolderPlus, Plus, X } from "lucide-react";
 import { Icon, IconProvider } from "../lib/icons";
 import { Input } from "#/components/ui/input.tsx";
 
@@ -307,7 +308,7 @@ function Shell() {
             className="shrink-0 text-destructive"
             title="references a recipe/good that no longer exists — open to see what's missing"
           >
-            ⚠
+            <AlertTriangle className="size-3.5" />
           </span>
         )}
       </button>
@@ -316,7 +317,7 @@ function Shell() {
         title="delete"
         onClick={(e) => del(b.id, e)}
       >
-        ✕
+        <X className="size-3.5" />
       </button>
     </div>
   );
@@ -366,8 +367,8 @@ function Shell() {
           {showLine && (
             <div className="pointer-events-none absolute inset-x-1 -top-px z-10 h-0.5 rounded-full bg-primary" />
           )}
-          <button className="w-4 shrink-0" onClick={() => toggle(key)}>
-            {isCol ? "▸" : "▾"}
+          <button className="flex w-4 shrink-0 justify-center" onClick={() => toggle(key)}>
+            {isCol ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
           </button>
           <span
             className="min-w-0 flex-1 truncate"
@@ -380,7 +381,7 @@ function Shell() {
             title="delete folder"
             onClick={() => deleteFolder(group.id)}
           >
-            ✕
+            <X className="size-3.5" />
           </button>
         </div>
         {!isCol && (
@@ -417,8 +418,8 @@ function Shell() {
           onDragEnd={endDrag}
           className={`group flex items-center gap-1 rounded px-1 py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted/50 ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
         >
-          <button className="w-4 shrink-0" onClick={() => toggle(key)}>
-            {isCol ? "▸" : "▾"}
+          <button className="flex w-4 shrink-0 justify-center" onClick={() => toggle(key)}>
+            {isCol ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
           </button>
           <span className="min-w-0 flex-1 truncate">Ungrouped ({rows.length})</span>
         </div>
@@ -438,16 +439,16 @@ function Shell() {
           <button
             onClick={newFolder}
             title="new folder"
-            className="ml-auto rounded border border-border px-1.5 text-sm hover:bg-muted"
+            className="ml-auto flex items-center rounded border border-border px-1.5 py-1 hover:bg-muted"
           >
-            🗀
+            <FolderPlus className="size-4" />
           </button>
           <button
             onClick={newBlock}
             title="new block"
-            className="rounded bg-primary px-2 font-bold text-primary-foreground hover:bg-primary/80"
+            className="flex items-center rounded bg-primary px-1.5 py-1 text-primary-foreground hover:bg-primary/80"
           >
-            ＋
+            <Plus className="size-4" />
           </button>
         </div>
         <Input
@@ -458,8 +459,8 @@ function Shell() {
         />
         <div className="flex-1 overflow-auto px-1 pb-2">
           {(blocks.data?.length ?? 0) === 0 ? (
-            <div className="px-2 py-2 text-xs text-muted-foreground">
-              no blocks yet — ＋ to add one
+            <div className="flex items-center gap-1 px-2 py-2 text-xs text-muted-foreground">
+              no blocks yet — <Plus className="inline size-3" /> to add one
             </div>
           ) : (
             <>
@@ -531,16 +532,16 @@ function Shell() {
                 <span className="max-w-[10rem] truncate">{b?.name ?? `#${id}`}</span>
                 {b?.broken && (
                   <span className="text-destructive" title="references missing prototypes">
-                    ⚠
+                    <AlertTriangle className="size-3.5" />
                   </span>
                 )}
                 <span
                   role="button"
                   tabIndex={-1}
                   onClick={(e) => closeTab(id, e)}
-                  className="rounded px-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="flex items-center rounded px-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
-                  ×
+                  <X className="size-3.5" />
                 </span>
               </button>
             );
@@ -548,9 +549,9 @@ function Shell() {
           <button
             onClick={() => void newBlock()}
             title="new block (or middle-click the empty tab strip)"
-            className="shrink-0 px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="flex shrink-0 items-center px-3 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            ＋
+            <Plus className="size-4" />
           </button>
           {openTabs.length === 0 && (
             <div className="px-3 py-1.5 text-sm text-muted-foreground">no open blocks</div>

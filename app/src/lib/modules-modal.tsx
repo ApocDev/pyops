@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { Ban, Minus, Plus, RotateCcw, SquarePlus, X } from "lucide-react";
 import {
   deleteModulePresetFn,
   listModulePresetsFn,
@@ -54,7 +55,7 @@ function moduleTitle(m: ModuleInfo): string {
 export type RowEffects = { speed: number; productivity: number; consumption: number };
 
 /** Compact grid-cell chip: configured module icons (grouped ×n) + a beacon tag.
- * Ghost ⊞ when the machine has slots but nothing is configured yet. */
+ * Ghost slot-grid icon when the machine has slots but nothing is configured yet. */
 export function ModulesChip({
   modules,
   beacons,
@@ -95,7 +96,7 @@ export function ModulesChip({
           : "bg-muted/50 text-emerald-300"
       }`}
     >
-      {empty && <span>⊞</span>}
+      {empty && <SquarePlus className="size-4" />}
       {auto && (
         <span className="text-sm text-sky-300" title="auto-managed — open to override">
           A
@@ -381,7 +382,7 @@ export function ModulesModal({
         <CardHeader className="justify-between">
           <CardTitle className="normal-case">Modules — {recipeDisplay}</CardTitle>
           <button className="text-muted-foreground hover:text-foreground" onClick={onClose}>
-            ✕
+            <X className="size-4" />
           </button>
         </CardHeader>
         <div className="space-y-4 p-3">
@@ -401,10 +402,10 @@ export function ModulesModal({
                 )}
                 {!data.allowProductivity && (
                   <span
-                    className="text-sm text-muted-foreground"
+                    className="flex items-center gap-1 text-sm text-muted-foreground"
                     title="this recipe does not accept productivity"
                   >
-                    🚫 productivity not allowed
+                    <Ban className="size-3.5 shrink-0" /> productivity not allowed
                   </span>
                 )}
               </div>
@@ -421,10 +422,10 @@ export function ModulesModal({
                     onReset && (
                       <button
                         onClick={onReset}
-                        className="rounded border border-dashed border-border px-1.5 py-0.5 text-muted-foreground hover:bg-accent"
+                        className="flex items-center gap-1 rounded border border-dashed border-border px-1.5 py-0.5 text-muted-foreground hover:bg-accent"
                         title="drop the manual config and let auto-fill choose again"
                       >
-                        ↺ reset to auto
+                        <RotateCcw className="size-3.5" /> reset to auto
                       </button>
                     )
                   )}
@@ -450,7 +451,7 @@ export function ModulesModal({
                       onClick={(e) => deletePreset(p.id, e)}
                       className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
                     >
-                      ✕
+                      <X className="size-3.5" />
                     </span>
                   </button>
                 ))}
@@ -547,16 +548,16 @@ export function ModulesModal({
                               onClick={() =>
                                 setBeaconAt(i, { ...cfg, count: Math.max(1, cfg.count - 1) })
                               }
-                              className="rounded border border-border px-1.5 hover:bg-accent"
+                              className="flex items-center rounded border border-border px-1.5 py-1 hover:bg-accent"
                             >
-                              −
+                              <Minus className="size-3.5" />
                             </button>
                             <span title="beacons affecting each machine">{cfg.count}</span>
                             <button
                               onClick={() => setBeaconAt(i, { ...cfg, count: cfg.count + 1 })}
-                              className="rounded border border-border px-1.5 hover:bg-accent"
+                              className="flex items-center rounded border border-border px-1.5 py-1 hover:bg-accent"
                             >
-                              ＋
+                              <Plus className="size-3.5" />
                             </button>
                           </span>
                           <button
@@ -567,7 +568,7 @@ export function ModulesModal({
                             className="ml-auto text-muted-foreground hover:text-destructive"
                             title="remove beacon"
                           >
-                            ✕
+                            <X className="size-3.5" />
                           </button>
                         </div>
                         {variantFor === i && (

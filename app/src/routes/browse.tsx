@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Check, Droplet, Flame, FlaskConical, Lock, Timer } from "lucide-react";
 import { browseDetailFn, searchAllFn, statsFn } from "../server/factorio";
 import { IconProvider, Icon } from "../lib/icons";
 import { RecipeHover } from "../lib/recipe-card";
@@ -101,8 +102,8 @@ function Browse() {
               <Icon kind={r.kind as Kind} name={r.name} size="sm" noTitle />
               <span className="min-w-0 flex-1 truncate">{r.display ?? r.name}</span>
               {r.kind === "fluid" && (
-                <span className="text-xs text-sky-300" title="fluid">
-                  ◍
+                <span className="text-sky-300" title="fluid">
+                  <Droplet className="size-3.5" />
                 </span>
               )}
             </button>
@@ -126,13 +127,20 @@ function Browse() {
               <Icon kind={detail.data.kind as Kind} name={detail.data.name} size="lg" noTitle />
               <div>
                 <div className="text-lg font-bold">{detail.data.display}</div>
-                <div className="text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
                   {detail.data.name} · {detail.data.kind}
                   {detail.data.item?.stackSize != null && ` · stack ${detail.data.item.stackSize}`}
-                  {detail.data.item?.fuelValueJ != null &&
-                    ` · 🔥 ${fmtJ(detail.data.item.fuelValueJ)} (${detail.data.item.fuelCategory})`}
-                  {detail.data.fluid?.fuelValueJ != null &&
-                    ` · 🔥 ${fmtJ(detail.data.fluid.fuelValueJ)}/unit`}
+                  {detail.data.item?.fuelValueJ != null && (
+                    <span className="inline-flex items-center gap-1">
+                      · <Flame className="size-3.5" /> {fmtJ(detail.data.item.fuelValueJ)} (
+                      {detail.data.item.fuelCategory})
+                    </span>
+                  )}
+                  {detail.data.fluid?.fuelValueJ != null && (
+                    <span className="inline-flex items-center gap-1">
+                      · <Flame className="size-3.5" /> {fmtJ(detail.data.fluid.fuelValueJ)}/unit
+                    </span>
+                  )}
                   {detail.data.item?.burntResult && ` · burns to ${detail.data.item.burntResult}`}
                 </div>
               </div>
@@ -223,7 +231,15 @@ function RecipeRow({
     : turd
       ? {
           cls: turd.turdSelected ? "text-emerald-300" : "text-fuchsia-300",
-          text: turd.turdSelected ? `⚗ ${turd.display} ✓` : `⚗ TURD: ${turd.display}`,
+          text: turd.turdSelected ? (
+            <>
+              <FlaskConical className="size-3.5" /> {turd.display} <Check className="size-3.5" />
+            </>
+          ) : (
+            <>
+              <FlaskConical className="size-3.5" /> TURD: {turd.display}
+            </>
+          ),
           title: turd.turdSelected
             ? "granted by your selected TURD choice"
             : "requires this TURD choice — pick it on the TURD page",
@@ -231,12 +247,21 @@ function RecipeRow({
       : card.unlocks.length
         ? {
             cls: "text-muted-foreground",
-            text: `🔒 ${card.unlocks[0].display}${card.unlocks.length > 1 ? ` +${card.unlocks.length - 1}` : ""}`,
+            text: (
+              <>
+                <Lock className="size-3.5" /> {card.unlocks[0].display}
+                {card.unlocks.length > 1 ? ` +${card.unlocks.length - 1}` : ""}
+              </>
+            ),
             title: `unlocked by: ${card.unlocks.map((u) => u.display).join(", ")}`,
           }
         : {
             cls: "text-muted-foreground",
-            text: "🔒 locked",
+            text: (
+              <>
+                <Lock className="size-3.5" /> locked
+              </>
+            ),
             title: "no unlocking technology found",
           };
 
@@ -268,9 +293,11 @@ function RecipeRow({
             {card.display ?? card.name}
           </span>
         </RecipeHover>
-        <span className="text-xs text-muted-foreground">⏱ {num(card.energyRequired ?? 0.5)}s</span>
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Timer className="size-3.5" /> {num(card.energyRequired ?? 0.5)}s
+        </span>
         {lock && (
-          <span className={`text-xs ${lock.cls}`} title={lock.title}>
+          <span className={`inline-flex items-center gap-1 text-xs ${lock.cls}`} title={lock.title}>
             {lock.text}
           </span>
         )}
