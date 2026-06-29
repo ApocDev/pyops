@@ -1,0 +1,19 @@
+scripts/tunnel-dev
+  s_543ac521e64ab4::t_bd7d1e3bc79885 1-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "8739910d003c67b42677ec049335a88d9ac08aaa",
+  "prompts": {},
+  "sessions": {
+    "s_543ac521e64ab4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "575f700c-8118-4672-b54c-f5bf96f1116b",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
