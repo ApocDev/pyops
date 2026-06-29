@@ -270,7 +270,7 @@ function BlockEnd({ b, tone }: { b: End; tone: "make" | "use" }) {
       className="inline-flex items-center gap-1 rounded bg-muted/50 px-1.5 py-0.5 text-sm hover:bg-muted"
       title={`${b.blockName} · ${b.role}`}
     >
-      <span className="max-w-[10rem] truncate">{b.blockName}</span>
+      <span className="max-w-[17rem] truncate md:max-w-[10rem]">{b.blockName}</span>
       <span className={tone === "make" ? "text-emerald-300" : "text-amber-300"}>{num(b.rate)}</span>
       {b.role === "byproduct" && <Recycle className="size-3.5 text-violet-300/80" />}
     </Link>
