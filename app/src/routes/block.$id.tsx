@@ -1389,26 +1389,25 @@ function Block({ blockId }: { blockId: number }) {
                   ))}
                 </div>
               )}
-              {res &&
-                (res.power.totalW > 0 || res.power.heatW > 0 || res.power.fuel.length > 0) && (
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-border px-3 py-2 text-sm">
-                    {res.power.totalW > 0 && (
-                      <span className="flex items-center gap-1 text-sky-300">
-                        <Zap className="size-3.5" /> {fmtW(res.power.totalW)}{" "}
-                        <span className="text-muted-foreground">electric</span>
-                      </span>
-                    )}
-                    {res.power.heatW > 0 && (
-                      <span
-                        className="flex items-center gap-1 text-orange-300"
-                        title="Heat-powered buildings (Py hard mode). Heat doesn't travel far (~15 tiles), so a heat source — e.g. a py-heat-exchanger — must be built LOCAL to this block."
-                      >
-                        <Flame className="size-3.5" /> {fmtW(res.power.heatW)}{" "}
-                        <span className="text-muted-foreground">heat · local source needed</span>
-                      </span>
-                    )}
-                  </div>
-                )}
+              {res && (res.power.totalW > 0 || res.power.heatW > 0) && (
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-border px-3 py-2 text-sm">
+                  {res.power.totalW > 0 && (
+                    <span className="flex items-center gap-1 text-sky-300">
+                      <Zap className="size-3.5" /> {fmtW(res.power.totalW)}{" "}
+                      <span className="text-muted-foreground">electric</span>
+                    </span>
+                  )}
+                  {res.power.heatW > 0 && (
+                    <span
+                      className="flex items-center gap-1 text-orange-300"
+                      title="Heat-powered buildings (Py hard mode). Heat doesn't travel far (~15 tiles), so a heat source — e.g. a py-heat-exchanger — must be built LOCAL to this block."
+                    >
+                      <Flame className="size-3.5" /> {fmtW(res.power.heatW)}{" "}
+                      <span className="text-muted-foreground">heat · local source needed</span>
+                    </span>
+                  )}
+                </div>
+              )}
               <div
                 className={`grid gap-4 p-3 ${res?.exports.length ? "grid-cols-2" : "grid-cols-1"}`}
               >
