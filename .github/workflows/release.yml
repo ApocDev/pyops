@@ -53,10 +53,11 @@ jobs:
             bundles: 'app,dmg'
             target: darwin-aarch64
             updater: '*.app.tar.gz'
-          - platform: macos-13        # macOS Intel
-            bundles: 'app,dmg'
-            target: darwin-x86_64
+          - platform: macos-14        # macOS Intel — cross-compiled on arm64, since the
+            bundles: 'app,dmg'        # macos-13 (Intel) runners are deprecated and badly
+            target: darwin-x86_64     # queue-starved. arm64 runners are plentiful.
             updater: '*.app.tar.gz'
+            rust_target: x86_64-apple-darwin
           - platform: windows-latest  # Windows x64
             bundles: 'nsis'
             target: windows-x86_64
@@ -84,6 +85,10 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: app/src-tauri
+      # Cross-compile target (Intel macOS on the arm64 runner); no-op otherwise.
+      - name: Add the cross-compile Rust target
+        if: ${{ matrix.rust_target != '' }}
+        run: rustup target add ${{ matrix.rust_target }}
 
       # vite-plus toolchain + app deps (same as ci.yml).
       - uses: voidzero-dev/setup-vp@v1
@@ -94,12 +99,12 @@ jobs:
         working-directory: app
         run: vp install
 
-      # Vendor the node sidecar for this runner's platform (gitignored, so it isn't
-      # in the checkout). vendor-node.sh resolves the host triple itself.
+      # Vendor the node sidecar (gitignored, so it isn't in the checkout). For a
+      # cross-compile it must match the *target* arch, not the runner's host arch.
       - name: Vendor the node sidecar
         working-directory: app/src-tauri
         shell: bash
-        run: ./vendor-node.sh
+        run: TARGET_TRIPLE="${{ matrix.rust_target }}" ./vendor-node.sh
 
       # The release tag this run targets: release-please's tag on a push, or the
       # dispatch input on a manual rebuild. Empty on a build-only smoke test.
@@ -119,7 +124,10 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: ./node_modules/.bin/tauri build --bundles ${{ matrix.bundles }}
+        run: |
+          target_arg=""
+          [ -n "${{ matrix.rust_target }}" ] && target_arg="--target ${{ matrix.rust_target }}"
+          ./node_modules/.bin/tauri build $target_arg --bundles ${{ matrix.bundles }}
 
       # Both macOS arches emit `PyOps.app.tar.gz` (no arch in the name), so they'd
       # clobber each other on upload. Arch-suffix it (and its .sig) so each is

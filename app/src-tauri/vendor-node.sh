@@ -5,11 +5,15 @@
 # and again after a Node major bump (keep it matching the ABI the native modules in
 # .output/server/node_modules were built for).
 #
+# Defaults to this host's triple; set TARGET_TRIPLE to vendor for a cross-compile
+# target instead (e.g. building x86_64 macOS on an arm64 runner):
+#
 #   NODE_VERSION=24.18.0 ./vendor-node.sh
+#   TARGET_TRIPLE=x86_64-apple-darwin ./vendor-node.sh
 set -euo pipefail
 
 NODE_VERSION="${NODE_VERSION:-24.18.0}"
-TRIPLE="$(rustc -Vv | sed -n 's/host: //p')"
+TRIPLE="${TARGET_TRIPLE:-$(rustc -Vv | sed -n 's/host: //p')}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
 case "$TRIPLE" in
