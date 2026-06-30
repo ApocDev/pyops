@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Check, Star } from "lucide-react";
+import { Check, Copy, Star } from "lucide-react";
 import {
   aiConfigFn,
+  dataPathsFn,
   dataStatusFn,
   exclusionsFn,
   modDriftFn,
@@ -146,7 +147,71 @@ function GameDataTab() {
       <ModDriftCard data={drift.data} />
 
       <ModsCard mods={status.data?.mods ?? []} />
+
+      <StorageCard />
     </div>
+  );
+}
+
+/** Where the app stores its data on disk. Per-OS for a packaged build, the working
+ * dir in dev — shown here so it's findable when sharing a db or filing a bug. */
+function StorageCard() {
+  const paths = useQuery({ queryKey: ["dataPaths"], queryFn: () => dataPathsFn() });
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = (value: string) => {
+    void navigator.clipboard?.writeText(value);
+    setCopied(value);
+    setTimeout(() => setCopied((c) => (c === value ? null : c)), 1200);
+  };
+
+  const rows: { label: string; value: string }[] = paths.data
+    ? [
+        { label: "Data folder", value: paths.data.dataDir },
+        { label: "Projects (databases)", value: paths.data.projectsDir },
+        { label: "Icon atlas", value: paths.data.iconDataDir },
+        { label: "App config", value: paths.data.appConfig },
+      ]
+    : [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Storage location</CardTitle>
+      </CardHeader>
+      <div className="space-y-2 px-3 pb-3">
+        <p className="text-sm text-muted-foreground">
+          Project databases, the icon atlas, and config live here. Useful when sharing a database or
+          filing a bug report.
+        </p>
+        <dl className="space-y-1.5">
+          {rows.map((r) => (
+            <div key={r.label}>
+              <dt className="text-xs text-muted-foreground">{r.label}</dt>
+              <dd className="flex items-center gap-1.5">
+                <code
+                  className="min-w-0 flex-1 truncate rounded bg-muted px-1.5 py-0.5 text-sm"
+                  title={r.value}
+                >
+                  {r.value}
+                </code>
+                <button
+                  onClick={() => copy(r.value)}
+                  className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  title="Copy path"
+                  aria-label={`Copy ${r.label} path`}
+                >
+                  {copied === r.value ? (
+                    <Check className="size-3.5 text-green-500" />
+                  ) : (
+                    <Copy className="size-3.5" />
+                  )}
+                </button>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </Card>
   );
 }
 
