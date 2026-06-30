@@ -8,12 +8,15 @@ use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
 use tauri::webview::PageLoadEvent;
-use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
+use tauri::{RunEvent, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_window_state::{StateFlags, WindowExt};
 
 #[cfg(not(debug_assertions))]
 use std::sync::Mutex;
 #[cfg(not(debug_assertions))]
 use tauri::path::BaseDirectory;
+#[cfg(not(debug_assertions))]
+use tauri::Manager;
 #[cfg(not(debug_assertions))]
 use tauri_plugin_shell::{process::CommandChild, ShellExt};
 
@@ -40,9 +43,16 @@ fn wait_for_port(port: u16, timeout: Duration) -> bool {
 /// server boots / server-renders.
 fn open_main_window(app: &tauri::AppHandle) {
     let url = format!("http://localhost:{PORT}");
-    let _ = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url.parse().unwrap()))
-        .title("PyOps")
-        .inner_size(1280.0, 860.0)
+    // First-run size, wide enough for the desktop nav even with fractional display
+    // scaling (the inline bar collapses to a hamburger below 1400 CSS px, and a 1.25x
+    // scale makes the CSS viewport ~physical/1.25; the Deck's ~1280 intentionally
+    // stays collapsed). After the first run, the window-state plugin restores whatever
+    // size/position the user left it at. Title carries the version (tauri.conf.json).
+    let title = format!("PyOps v{}", app.package_info().version);
+    let win = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url.parse().unwrap()))
+        .title(title)
+        .inner_size(1800.0, 1100.0)
+        .min_inner_size(900.0, 600.0)
         .visible(false)
         .on_page_load(|window, payload| {
             if matches!(payload.event(), PageLoadEvent::Finished) {
@@ -51,6 +61,11 @@ fn open_main_window(app: &tauri::AppHandle) {
             }
         })
         .build();
+    // Restore the user's last size/position (a no-op on first run). The window-state
+    // plugin saves it again on exit.
+    if let Ok(w) = win {
+        let _ = w.restore_state(StateFlags::all());
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -70,6 +85,7 @@ pub fn run() {
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
