@@ -92,6 +92,47 @@ fn open_main_window(app: &tauri::AppHandle) {
     }
 }
 
+/// Check GitHub for a newer release and, if one exists, offer to install it via a
+/// native dialog showing the version + changelog (from the release's `latest.json`
+/// notes). Bundled builds only — the updater can't replace a `cargo tauri dev`
+/// binary — and entirely Rust-side, so the web UI stays Tauri-agnostic.
+#[cfg(not(debug_assertions))]
+async fn check_for_update(app: tauri::AppHandle) {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+    use tauri_plugin_updater::UpdaterExt;
+
+    let updater = match app.updater() {
+        Ok(u) => u,
+        Err(_) => return,
+    };
+    let update = match updater.check().await {
+        Ok(Some(u)) => u,
+        // already current, or the check failed (offline, etc.) — stay quiet
+        _ => return,
+    };
+
+    let notes = update.body.clone().unwrap_or_default();
+    let message = if notes.trim().is_empty() {
+        format!("PyOps {} is available.", update.version)
+    } else {
+        format!("PyOps {} is available.\n\n{}", update.version, notes)
+    };
+
+    let install = app
+        .dialog()
+        .message(message)
+        .title("Update available")
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Install & Restart".to_string(),
+            "Later".to_string(),
+        ))
+        .blocking_show();
+
+    if install && update.download_and_install(|_, _| {}, || {}).await.is_ok() {
+        app.restart();
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // webkit2gtk on Wayland raises "Error 71 (Protocol error)" and its DMABUF renderer
@@ -120,6 +161,8 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -155,6 +198,9 @@ pub fn run() {
                 app.manage(ServerChild(Mutex::new(Some(child))));
                 // keep the pipe drained so the child never blocks on a full stdout
                 tauri::async_runtime::spawn(async move { while rx.recv().await.is_some() {} });
+
+                // check GitHub for a newer release in the background; prompt if found
+                tauri::async_runtime::spawn(check_for_update(app.handle().clone()));
             }
 
             // Wait for the server off the main thread, then open the window on it.
