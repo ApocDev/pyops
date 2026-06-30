@@ -1,0 +1,23 @@
+app/src-tauri/Cargo.lock
+  s_ad8974a3b278d5::t_c2594c279132d7 88,99-229,337-349,603-611,991-1017,1055-1075,1212-1224,1582-1587,2061-2066,2459-2468,2504-2509,2598-2608,2654-2667,3025-3037,3766-3787,3924-3936,4243,4247-4257,4307-4317,5236-5296,5376-5415
+app/src-tauri/Cargo.toml
+  s_ad8974a3b278d5::t_15bd7d9d4c8301 26
+app/src-tauri/src/lib.rs
+  s_ad8974a3b278d5::t_1dc103b51a807b 12,15-28,67,73-82,114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "8c98fcf565444dcee26078de3afad45c8030e96f",
+  "prompts": {},
+  "sessions": {
+    "s_ad8974a3b278d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
