@@ -431,7 +431,7 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
               placeholder="Ask about a recipe or chain…  (Enter to send, Shift+Enter for newline)"
               className="field-sizing-content max-h-48 min-h-[3.5rem] w-full resize-none bg-transparent px-3 py-2.5 text-sm leading-relaxed outline-none"
             />
-            <div className="flex items-center gap-1.5 px-2 pb-2">
+            <div className="flex flex-wrap items-center gap-1.5 px-2 pb-2">
               <ContextGauge
                 status={tokenStatus.data}
                 busy={busy}
@@ -449,13 +449,12 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
                 disabled={busy}
                 onSaveReasoning={(value) => void saveReasoningEffort(value)}
               />
-              <div className="flex-1" />
               {busy ? (
                 <button
                   type="button"
                   onClick={() => void stopInChat(chat.id)}
                   title="Stop generating"
-                  className="inline-flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  className="ml-auto inline-flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 >
                   <Square className="size-4" />
                 </button>
@@ -464,7 +463,7 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
                   type="submit"
                   disabled={!input.trim()}
                   title={editingId ? "Resend" : "Send"}
-                  className="inline-flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 disabled:opacity-40"
+                  className="ml-auto inline-flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 disabled:opacity-40"
                 >
                   <ArrowUp className="size-4" />
                 </button>
@@ -619,7 +618,7 @@ function ModelMenu({
           title={`Model: ${resolved || "…"}${envOverride ? " (PYOPS_AGENT_MODEL env override)" : ""}`}
           className={pillClass}
         >
-          <span className="max-w-[12rem] truncate text-foreground">
+          <span className="max-w-[6rem] truncate text-foreground md:max-w-[12rem]">
             {resolved ? shortModel(resolved) : "model"}
           </span>
           <ChevronDown className="size-3.5 opacity-60" />
