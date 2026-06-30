@@ -3,23 +3,19 @@
  * (usually a different mod list). The files are the source of truth — there is no
  * registry; each db self-describes its name/createdAt in its own `meta`, and the
  * active project id lives in `app-config.json`. Switching repoints the shared `db`
- * proxy; creating provisions a fresh db with the current schema (drizzle-kit push)
- * then the user runs a data sync to fill it.
+ * proxy; creating provisions a fresh db with the current schema by applying the
+ * bundled migrations, then the user runs a data sync to fill it.
  */
-import { spawn } from "node:child_process";
-import { mkdir } from "node:fs/promises";
 import { currentDatabaseFile, switchDatabase } from "../db/index.ts";
 import {
   DEFAULT_ID,
   fileForProject,
   listProjectFiles,
-  migrateProjectsOnce,
   removeProjectFiles,
   writeProjectMeta,
 } from "../db/projects-fs.ts";
 import { readAppConfig, writeAppConfig } from "./app-config.ts";
-
-const APP_DIR = process.cwd();
+import { migrateToLatest } from "./provision.ts";
 
 export type Project = { id: string; name: string; dbFile: string; createdAt: string };
 
@@ -30,7 +26,6 @@ const slugify = (s: string) =>
     .replace(/^-+|-+$/g, "") || "project";
 
 export async function listProjects() {
-  migrateProjectsOnce();
   const projects: Project[] = listProjectFiles().map((p) => ({
     id: p.id,
     name: p.name,
@@ -57,26 +52,10 @@ export async function createProject(name: string): Promise<Project> {
   const existing = new Set(listProjectFiles().map((p) => p.id));
   let id = slugify(name);
   while (existing.has(id) || id === DEFAULT_ID) id = `${id}-2`;
-  await mkdir("projects", { recursive: true });
   const dbFile = fileForProject(id);
 
-  // provision the schema (drizzle-kit push against the new file)
-  await new Promise<void>((resolvePromise, reject) => {
-    const child = spawn("node", ["node_modules/drizzle-kit/bin.cjs", "push", "--force"], {
-      cwd: APP_DIR,
-      env: { ...process.env, DATABASE_URL: dbFile },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let out = "";
-    child.stdout.on("data", (d: Buffer) => (out += d.toString()));
-    child.stderr.on("data", (d: Buffer) => (out += d.toString()));
-    child.on("error", reject);
-    child.on("close", (code) =>
-      code === 0
-        ? resolvePromise()
-        : reject(new Error(`drizzle push failed:\n${out.slice(-1500)}`)),
-    );
-  });
+  // provision the schema in-process by applying the bundled drizzle migrations
+  migrateToLatest(dbFile);
 
   const createdAt = new Date().toISOString();
   writeProjectMeta(dbFile, name, createdAt);

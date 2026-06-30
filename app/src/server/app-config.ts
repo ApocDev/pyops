@@ -8,16 +8,18 @@
  * Env always wins (deployment override); the stored value is the friendly default
  * for someone who didn't set env.
  */
-import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+
+import { APP_CONFIG_FILE } from "./paths.ts";
 
 /** Default OpenRouter model when neither env nor app-config sets one. */
 export const DEFAULT_MODEL = "~anthropic/claude-sonnet-latest";
 
-const FILE = join(process.cwd(), "app-config.json");
+const FILE = APP_CONFIG_FILE;
 
 export type AppConfig = {
-  active?: string; // the selected project id (replaces projects.json's `active`)
+  active?: string; // the selected project id
   openrouterApiKey?: string;
   model?: string;
 };
@@ -37,6 +39,7 @@ export function writeAppConfig(patch: Partial<AppConfig>): AppConfig {
   for (const k of Object.keys(next) as (keyof AppConfig)[]) {
     if (next[k] === "" || next[k] == null) delete next[k];
   }
+  mkdirSync(dirname(FILE), { recursive: true }); // data dir may not exist yet
   writeFileSync(FILE, JSON.stringify(next, null, 2));
   try {
     chmodSync(FILE, 0o600);

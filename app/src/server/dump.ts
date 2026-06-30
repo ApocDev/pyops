@@ -9,29 +9,38 @@
  *      prototypes that integration leaves engine-invalid)
  *   2. factorio --dump-data / --dump-prototype-locale / --dump-icon-sprites
  *   3. restore mod-list.json (the helper must NEVER stay enabled for play)
- *   4. import the dump into sqlite (tsx src/db/import-factorio.ts)
- *   5. rebuild the icon atlas (scripts/build-icon-atlas.mjs)
+ *   4. import the dump into sqlite (importFactorioDump)
+ *   5. rebuild the icon atlas (buildIconAtlas)
  *   6. stamp the mod-list fingerprint into meta
  *
  * Long-running (~1-2 min): state is held in-module and polled by the UI.
  */
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
+import { promisify } from "node:util";
 import { eq, sql } from "drizzle-orm";
+
+import { currentDatabaseFile, db } from "../db/index.ts";
+import { importFactorioDump } from "../db/import-factorio.ts";
+import * as q from "../db/queries.ts";
+import { meta } from "../db/schema.ts";
+import { computeCostAnalysis } from "./cost-analysis.ts";
+import { buildIconAtlas } from "./icon-atlas.ts";
+import { applyRenames, readModMigrations } from "./migrations.ts";
+import { ICON_DATA_DIR } from "./paths.ts";
 
 const FACTORIO_BIN =
   process.env.FACTORIO_BIN ??
   join(homedir(), ".local/share/Steam/steamapps/common/Factorio/bin/x64/factorio");
 const FACTORIO_DATA = process.env.FACTORIO_DATA_DIR ?? join(homedir(), ".factorio");
 const MODS_DIR = join(FACTORIO_DATA, "mods");
-const LOCK_FILE = join(FACTORIO_DATA, ".lock");
 const SCRIPT_OUTPUT = join(FACTORIO_DATA, "script-output");
 const APP_DIR = process.cwd();
-const ATLAS_SCRIPT = resolve(APP_DIR, "../scripts/build-icon-atlas.mjs");
-const ICON_DATA = join(APP_DIR, "icon-data");
+
+const execFileAsync = promisify(execFile);
 
 /* ── helper mod ──────────────────────────────────────────────────────────────── */
 
@@ -228,28 +237,32 @@ async function readModList(): Promise<ModList> {
 export const GAME_RUNNING_MSG =
   "Factorio is already running. Close the game first, then sync again — PyOps launches its own headless copy to read the data, and the engine won't allow two instances at once.";
 
-/** Best-effort: is Factorio already running? The engine holds a BSD `flock` on
- * `~/.factorio/.lock`, so we try a non-blocking flock on the same file via the
- * `flock(1)` util. `true` = locked (running), `false` = we acquired it (not
- * running), `null` = can't tell (no flock util / no lock file / non-Linux) — in
- * which case callers fall back to attempting the dump and mapping the lock error. */
-export function factorioRunning(): Promise<boolean | null> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const done = (v: boolean | null) => {
-      if (!settled) {
-        settled = true;
-        resolve(v);
-      }
-    };
-    try {
-      const child = spawn("flock", ["-n", LOCK_FILE, "-c", "true"], { stdio: "ignore" });
-      child.on("error", () => done(null)); // flock util not present (e.g. macOS/Windows)
-      child.on("close", (code) => done(code === 0 ? false : code === 1 ? true : null));
-    } catch {
-      done(null);
+/** Best-effort: is a Factorio instance already running? Checked before a dump,
+ * which launches its own headless Factorio and can't share the data dir with a live
+ * game. Cross-platform via the OS process list — `tasklist` on Windows, `pgrep`
+ * elsewhere. `true` = running, `false` = not, `null` = couldn't tell, in which case
+ * callers fall back to attempting the dump and mapping the lock error. */
+export async function factorioRunning(): Promise<boolean | null> {
+  try {
+    if (process.platform === "win32") {
+      const { stdout } = await execFileAsync("tasklist", [
+        "/FI",
+        "IMAGENAME eq factorio.exe",
+        "/NH",
+      ]);
+      return /factorio\.exe/i.test(stdout);
     }
-  });
+    // macOS + Linux: pgrep matches by process name; exit code 1 just means "no match"
+    const { stdout } = await execFileAsync("pgrep", ["-x", "factorio"]).catch(
+      (e: { code?: number }) => {
+        if (e?.code === 1) return { stdout: "", stderr: "" };
+        throw e;
+      },
+    );
+    return stdout.trim().length > 0;
+  } catch {
+    return null; // pgrep/tasklist missing or unexpected — fall back to the lock error
+  }
 }
 
 /** Map a raw dump failure to a friendly message for the known "game is running"
@@ -379,13 +392,10 @@ async function applyModMigrations(): Promise<{
   blocksChanged: number;
   renames: number;
 }> {
-  const { readModMigrations, applyRenames } = await import("./migrations.ts");
   const mods = await readMods();
   const files = await readModMigrations(MODS_DIR, mods);
   const allKeys = files.map((f) => f.key);
 
-  const { db } = await import("../db/index.ts");
-  const { meta } = await import("../db/schema.ts");
   const writeApplied = (keys: string[]) =>
     db
       .insert(meta)
@@ -411,7 +421,6 @@ async function applyModMigrations(): Promise<{
   let blocksChanged = 0;
   let renames = 0;
   if (newFiles.length) {
-    const q = await import("../db/queries.ts");
     for (const b of q.listBlocks()) {
       const rowB = q.getBlock(b.id);
       if (!rowB) continue;
@@ -573,20 +582,23 @@ export function startDataSync(opts: { icons?: boolean } = {}): SyncState {
         state.log.push("pyops-dump disabled again");
       }
       step("import", "importing dump into sqlite");
-      // in-process: the server already runs TS — no child process needed
-      const { importFactorioDump } = await import("../db/import-factorio.ts");
-      const { currentDatabaseFile } = await import("../db/index.ts");
       const summary = importFactorioDump({ dbUrl: currentDatabaseFile() });
       state.log.push(
         `imported ${summary.counts.recipes} recipes / ${summary.counts.items} items in ${summary.ms}ms`,
       );
       if (icons) {
         step("atlas", "rebuilding icon atlas");
-        await run("node", [ATLAS_SCRIPT, SCRIPT_OUTPUT, ICON_DATA]);
+        const atlas = await buildIconAtlas({
+          src: SCRIPT_OUTPUT,
+          out: ICON_DATA_DIR,
+          onLog: (m) => state.log.push(m),
+        });
+        state.log.push(
+          `atlas: ${atlas.sheets.length} sheet(s), ${atlas.counts.unique} unique icons`,
+        );
       }
 
       step("costs", "computing cost analysis (LP)");
-      const { computeCostAnalysis } = await import("./cost-analysis.ts");
       const costs = await computeCostAnalysis(currentDatabaseFile());
       state.log.push(`priced ${costs.goods} goods / ${costs.recipes} recipes in ${costs.ms}ms`);
 
@@ -602,8 +614,6 @@ export function startDataSync(opts: { icons?: boolean } = {}): SyncState {
 
       const fp = await modListFingerprint();
       const mods = await readMods();
-      const { db } = await import("../db/index.ts");
-      const { meta } = await import("../db/schema.ts");
       db.insert(meta)
         .values([
           { key: "data_fingerprint", value: fp },

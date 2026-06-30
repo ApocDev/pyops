@@ -73,7 +73,11 @@ function serveIconsDev() {
               : "application/octet-stream",
         );
         res.setHeader("Content-Length", String(size));
-        res.setHeader("Cache-Control", "no-cache");
+        // versioned (`?v=<fingerprint>`) sheet URLs are immutable; else revalidate
+        res.setHeader(
+          "Cache-Control",
+          /[?&]v=/.test(req.url ?? "") ? "public, max-age=31536000, immutable" : "no-cache",
+        );
         createReadStream(file).pipe(res);
       });
     },
@@ -84,10 +88,10 @@ const config = defineConfig({
   // generated/data files: TanStack Router output, sqlite db, icon atlas + manifest.
   // `e2e/**` is a standalone Playwright package (own deps + tooling) — not ours.
   fmt: {
-    ignorePatterns: ["src/routeTree.gen.ts", "dev.db*", "icon-data/**", "e2e/**"],
+    ignorePatterns: ["src/routeTree.gen.ts", "dev.db*", "icon-data/**", "drizzle/**", "e2e/**"],
   },
   lint: {
-    ignorePatterns: ["src/routeTree.gen.ts", "dev.db*", "icon-data/**", "e2e/**"],
+    ignorePatterns: ["src/routeTree.gen.ts", "dev.db*", "icon-data/**", "drizzle/**", "e2e/**"],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
     rules: { "vite-plus/prefer-vite-plus-imports": "error" },
     options: { typeAware: true, typeCheck: true },

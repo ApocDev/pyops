@@ -16,12 +16,15 @@
 import { cp, lstat, mkdir, readFile, realpath, rm, symlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { homedir, platform } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
+
+import { MOD_SOURCE_DIR } from "./paths.ts";
 
 const FACTORIO_DATA = process.env.FACTORIO_DATA_DIR ?? join(homedir(), ".factorio");
 const MODS_DIR = join(FACTORIO_DATA, "mods");
-// the app runs from app/; the mod source is the sibling mod/ directory
-const SOURCE_DIR = resolve(process.cwd(), "../mod");
+// the bundled mod source (sibling mod/ dir in the source tree; overridable for a
+// packaged build via PYOPS_MOD_DIR — see server/paths.ts)
+const SOURCE_DIR = MOD_SOURCE_DIR;
 const TARGET = join(MODS_DIR, "pyops");
 
 export type CompanionPlatform = "linux" | "mac" | "windows" | "other";

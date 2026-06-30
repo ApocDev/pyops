@@ -3,10 +3,8 @@
  * into the SQLite db. REAL prototypes only — synthetic recipes (mining/boiling/burning/
  * spoiling) and fluid temperature variants come in pass 2.
  *
- * Library:  importFactorioDump({ dumpPath, dbUrl }) — called in-process by the
- *           server-side data sync (src/server/dump.ts).
- * CLI:      vp run db:import            (uses ~/.factorio/script-output/data-raw-dump.json)
- *           vp run db:import -- <path>
+ * `importFactorioDump({ dumpPath, dbUrl })` is called in-process by the server-side
+ * data sync (src/server/dump.ts).
  *
  * Idempotent: clears the reference tables and re-inserts. Uses raw better-sqlite3
  * prepared statements in one transaction (fast for ~10k recipes / ~60k rows).
@@ -15,11 +13,8 @@ import Database from "better-sqlite3";
 import { readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
-import { config } from "dotenv";
 import { synthesizePass2 } from "./synthesize.ts";
-
-config({ path: [".env.local", ".env"] });
+import { PROJECTS_DIR } from "../server/paths.ts";
 
 const DEFAULT_DUMP = join(homedir(), ".factorio", "script-output", "data-raw-dump.json");
 
@@ -147,7 +142,7 @@ export function importFactorioDump(
   opts: { dumpPath?: string; dbUrl?: string } = {},
 ): ImportSummary {
   const DUMP = opts.dumpPath ?? DEFAULT_DUMP;
-  const DB_URL = opts.dbUrl ?? process.env.DATABASE_URL ?? "projects/default.db";
+  const DB_URL = opts.dbUrl ?? process.env.DATABASE_URL ?? join(PROJECTS_DIR, "default.db");
 
   const raw = JSON.parse(readFileSync(DUMP, "utf8")) as Record<string, Record<string, any>>;
 
@@ -510,11 +505,4 @@ export function importFactorioDump(
   const counts = Object.fromEntries(COUNT_TABLES.map((t) => [t, count(t)]));
   db.close();
   return { dump: DUMP, dbUrl: DB_URL, ms: Date.now() - t0, counts: { ...counts, ...synthetic } };
-}
-
-/* CLI entry — `vp run db:import [-- <dump path>]` */
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const summary = importFactorioDump({ dumpPath: process.argv[2] });
-  console.log(`Imported ${summary.dump} -> ${summary.dbUrl} in ${summary.ms}ms`);
-  for (const [t, n] of Object.entries(summary.counts)) console.log(`  ${t.padEnd(22)} ${n}`);
 }

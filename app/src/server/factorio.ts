@@ -1874,7 +1874,8 @@ export const iconManifestFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<IconManifest> => {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
-    const raw = await fs.readFile(path.join(process.cwd(), "icon-data", "manifest.json"), "utf8");
+    const { ICON_DATA_DIR } = await import("./paths.ts");
+    const raw = await fs.readFile(path.join(ICON_DATA_DIR, "manifest.json"), "utf8");
     // file content is untyped input — assert the shape at this boundary only
     const manifest = JSON.parse(raw) as IconManifest;
     // Cache-bust the atlas sheets: the PNGs are served at stable URLs (/icons/
@@ -1887,5 +1888,27 @@ export const iconManifestFn = createServerFn({ method: "GET" }).handler(
     const fp = q.metaAll().data_fingerprint;
     if (fp) manifest.sheets = manifest.sheets.map((s) => `${s}?v=${fp}`);
     return manifest;
+  },
+);
+
+export type DataPaths = {
+  dataDir: string;
+  projectsDir: string;
+  iconDataDir: string;
+  appConfig: string;
+};
+
+// Where the app keeps its on-disk state. Surfaced in Settings so a user (or a bug
+// report) can find the project dbs / atlas / config — handy since the location is
+// per-OS for a packaged build but the working dir in dev.
+export const dataPathsFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<DataPaths> => {
+    const { DATA_DIR, PROJECTS_DIR, ICON_DATA_DIR, APP_CONFIG_FILE } = await import("./paths.ts");
+    return {
+      dataDir: DATA_DIR,
+      projectsDir: PROJECTS_DIR,
+      iconDataDir: ICON_DATA_DIR,
+      appConfig: APP_CONFIG_FILE,
+    };
   },
 );

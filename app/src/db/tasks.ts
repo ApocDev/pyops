@@ -6,9 +6,8 @@
  * "milestone" is just a parent task; a child task is a full task shown indented
  * on its parent. Notes are a separate flat scratch surface.
  *
- * These tables are newer than most existing project dbs, so `ensureSchema()`
- * creates/upgrades them idempotently on first use — no manual `db:push` per
- * project. schema.ts stays the canonical definition.
+ * `ensureSchema()` creates/upgrades these tables idempotently on first use, so every
+ * project db has them. schema.ts stays the canonical definition.
  */
 import { asc, eq, sql } from "drizzle-orm";
 
