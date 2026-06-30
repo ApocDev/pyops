@@ -1,0 +1,19 @@
+app/src/lib/recipe-card.tsx
+  s_2ed745d42da4d2::t_f5fe89d5829f0c 1,178-235,254-258,283-287,426-430
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a5b286288cbc5130d77ae1a3053149e2a46399a6",
+  "prompts": {},
+  "sessions": {
+    "s_2ed745d42da4d2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "61feeea8-00c3-44d0-b01f-d43c3ba4957f",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
