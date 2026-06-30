@@ -58,6 +58,7 @@ import {
   Gamepad2,
   Grid2x2,
   GripVertical,
+  Hammer,
   Lock,
   MapPin,
   Pencil,
@@ -71,6 +72,13 @@ import {
 import { ItemHover, RecipeHover, TechLine } from "../lib/recipe-card";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card.tsx";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "#/components/ui/sheet.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { Input } from "#/components/ui/input.tsx";
 
@@ -1021,6 +1029,61 @@ function Block({ blockId }: { blockId: number }) {
         >
           <Gamepad2 className={`size-4 ${showInGame.isPending ? "animate-pulse" : ""}`} />
         </button>
+        {res?.buildCost && res.buildCost.buildings.length > 0 && (
+          <Sheet>
+            <SheetTrigger asChild>
+              <button
+                title="Building summary — the buildings + one-time materials to construct this block"
+                className="flex size-7 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <Hammer className="size-4" />
+              </button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-96 max-w-[92vw] font-mono">
+              <SheetHeader>
+                <SheetTitle>Building summary</SheetTitle>
+              </SheetHeader>
+              <div className="min-h-0 flex-1 space-y-4 overflow-auto p-3">
+                <p className="text-xs text-muted-foreground">
+                  The buildings to construct this block, and the one-time materials to build them —
+                  a shopping list, separate from the per-second flows.
+                </p>
+                <div>
+                  <div className="mb-1.5 text-xs font-semibold text-muted-foreground">
+                    Buildings
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {res.buildCost.buildings.map((b) => (
+                      <span key={b.name} className={cellChip} title={b.display}>
+                        <Icon kind="item" name={b.name} size="sm" />
+                        <span className="tabular-nums">×{b.count}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="mb-1.5 text-xs font-semibold text-muted-foreground">
+                    Materials to build them
+                  </div>
+                  {res.buildCost.materials.length === 0 ? (
+                    <span className="text-sm text-muted-foreground">
+                      — (no build recipe found for these buildings)
+                    </span>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {res.buildCost.materials.map((m) => (
+                        <span key={m.name} className={cellChip} title={m.display}>
+                          <Icon kind={m.kind as "item" | "fluid"} name={m.name} size="sm" />
+                          <span className="tabular-nums">{fmtAmt(m.amount)}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
         {showInGame.data && !showInGame.data.sent && (
           <span className="text-xs text-amber-300">game not connected</span>
         )}
@@ -1082,15 +1145,26 @@ function Block({ blockId }: { blockId: number }) {
             shows each item&apos;s current disposition.
           </p>
           <div>
-            <div className="font-semibold text-foreground">Toolbar (top-right)</div>
-            <ul className="mt-1 list-disc space-y-1 pl-5">
-              <li>
-                the <span className="text-foreground">copy</span> icon copies this block&apos;s
-                recipe/module setup to the clipboard;
+            <div className="font-semibold text-foreground">Toolbar (next to the name)</div>
+            <ul className="mt-1 space-y-1.5">
+              <li className="flex items-start gap-2">
+                <Copy className="mt-0.5 size-4 shrink-0 text-foreground" />
+                <span>copies this block&apos;s recipe/module setup to the clipboard;</span>
               </li>
-              <li>
-                the <span className="text-foreground">game</span> icon shows this block as an
-                in-game build sheet — click a building there for a configured blueprint.
+              <li className="flex items-start gap-2">
+                <Gamepad2 className="mt-0.5 size-4 shrink-0 text-foreground" />
+                <span>
+                  shows this block as an in-game build sheet — click a building there for a
+                  configured blueprint;
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Hammer className="mt-0.5 size-4 shrink-0 text-foreground" />
+                <span>
+                  <span className="text-foreground">Building summary</span> — opens a drawer listing
+                  the buildings and the one-time materials to construct this block (a shopping list,
+                  kept out of the way of the per-second flows).
+                </span>
               </li>
             </ul>
           </div>
@@ -1556,60 +1630,6 @@ function Block({ blockId }: { blockId: number }) {
           )}
         </Card>
       </div>
-
-      {/* One-time build cost: the materials to construct this block's buildings (#38)
-          — why e.g. steel is needed even when no recipe in the chain consumes it. */}
-      {res?.buildCost && res.buildCost.buildings.length > 0 && (
-        <Card className="mb-4">
-          <CardHeader className="justify-between">
-            <CardTitle>Build cost (one-time)</CardTitle>
-            <HelpButton title="Build cost">
-              <p>
-                The materials needed to{" "}
-                <span className="text-foreground">construct this block&apos;s buildings</span> — the
-                &quot;build the stuff to build the stuff&quot; requirement. It&apos;s a one-time
-                cost (not a per-second rate), and it&apos;s why something like steel is required
-                even when no recipe in the chain consumes it.
-              </p>
-              <p>
-                Direct ingredients of each building&apos;s own recipe, summed over the building
-                counts (rounded up to whole machines). Producing those materials&apos; own sub-chain
-                is the factory ledger&apos;s job.
-              </p>
-            </HelpButton>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <div className="mb-1 text-xs text-muted-foreground">Buildings</div>
-              <div className="flex flex-wrap gap-2">
-                {res.buildCost.buildings.map((b) => (
-                  <span key={b.name} className={cellChip} title={b.display}>
-                    <Icon kind="item" name={b.name} size="sm" />
-                    <span className="tabular-nums">×{b.count}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="mb-1 text-xs text-muted-foreground">Materials to build them</div>
-              {res.buildCost.materials.length === 0 ? (
-                <span className="text-sm text-muted-foreground">
-                  — (no build recipe found for these buildings)
-                </span>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {res.buildCost.materials.map((m) => (
-                    <span key={m.name} className={cellChip} title={m.display}>
-                      <Icon kind={m.kind as "item" | "fluid"} name={m.name} size="sm" />
-                      <span className="tabular-nums">{fmtAmt(m.amount)}</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <BlockTasks blockId={blockId} />
 

@@ -64,6 +64,11 @@ from inside `app/`:
 - `vp test` — run the Vitest suite (e.g. `block.test.ts`, `effects.test.ts`,
   `icons.test.tsx`).
 - `vp dev` / `pnpm dev` — dev server on port 3000.
+- `cd app/e2e && npm install && npm test` — the standalone Playwright E2E suite (its
+  own package, isolated from the app's nightly toolchain pins): route smoke tests,
+  the UDP-bridge round-trip, and `responsive.e2e.ts`, which screenshots every route
+  across a desktop/tablet/phone matrix and **asserts no route scrolls sideways** at
+  tablet/phone widths. See `app/e2e/README.md`.
 - DB schema: edit `src/db/schema.ts`, then `vp run db:generate <name>` to write a
   migration under `drizzle/` (a name is required, so files stay meaningful).
   `server/provision.ts` applies the migrations **in-process** on first connect to

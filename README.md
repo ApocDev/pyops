@@ -20,9 +20,10 @@ planner that actually understands Py's tangled recipe graph.
 - **Balance the whole factory.** Every block's boundary flows (imports/exports)
   roll up into a factory-wide ledger so you can see deficits, surpluses, and how a
   change in one block ripples through the rest ("what-if").
-- **See what it costs to build.** Beyond the per-second flows, each block shows its
-  one-time **build cost** — the materials needed to construct its buildings — so
-  something like steel shows up even when no recipe in the chain consumes it.
+- **See what it costs to build.** Beyond the per-second flows, each block tracks its
+  one-time **build cost** — the materials needed to construct its buildings, in the
+  block's **Building summary** drawer — so something like steel shows up even when no
+  recipe in the chain consumes it.
 - **Size your logistics.** A toggle (the **Logistics** header control) shows, per
   row, how many **belts** carry each item and how many **inserters or loaders**
   feed one building at the planned rate — sized against your current research
