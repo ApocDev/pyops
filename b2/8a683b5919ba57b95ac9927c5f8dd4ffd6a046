@@ -1,0 +1,23 @@
+AGENTS.md
+  s_ad8974a3b278d5::t_41f21ed8f80eef 19-20,24-26,64-68
+docs/architecture.md
+  s_ad8974a3b278d5::t_7bbbb67190344d 57,87-92
+docs/data-pipeline.md
+  s_ad8974a3b278d5::t_2ef4034a406fba 23-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b28a683b5919ba57b95ac9927c5f8dd4ffd6a046",
+  "prompts": {},
+  "sessions": {
+    "s_ad8974a3b278d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

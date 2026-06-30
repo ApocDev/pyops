@@ -1,0 +1,25 @@
+docs/bridge.md
+  s_b2614eafae7f31::t_edbb8bebee4132 57-59
+mod/data.lua
+  s_b2614eafae7f31::t_edbb8bebee4132 16-25
+mod/control.lua
+  s_b2614eafae7f31::t_edbb8bebee4132 566-589
+mod/summary.lua
+  s_b2614eafae7f31::t_edbb8bebee4132 150-168,172-188,221,223-227,256-258,413-446
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "2e74c327ce62cf6740b84387e21a28c203877b47",
+  "prompts": {},
+  "sessions": {
+    "s_b2614eafae7f31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "83262dbe-26d4-43b5-9efd-df427a7d6a95",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

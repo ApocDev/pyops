@@ -1,0 +1,19 @@
+app/src/components/drift-changes.tsx
+  s_5ada7f1a78c53d::t_6586b69e3e6ada 1-2,5-27,32,42-43,47-48,50,54,56-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "d81d86f30ced3b090813a103366e80e224f9261a",
+  "prompts": {},
+  "sessions": {
+    "s_5ada7f1a78c53d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7f8dc847-bb35-44cf-9b07-a89abe1b3b1d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

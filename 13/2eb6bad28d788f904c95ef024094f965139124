@@ -1,0 +1,19 @@
+app/src/lib/chat-store.ts
+  s_33569040003f79::t_4a79b68bf8ca61 102-104,108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "132eb6bad28d788f904c95ef024094f965139124",
+  "prompts": {},
+  "sessions": {
+    "s_33569040003f79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "42560d00-8664-48d5-abfb-2a84734c2490",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

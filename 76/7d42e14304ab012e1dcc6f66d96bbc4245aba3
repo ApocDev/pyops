@@ -1,0 +1,21 @@
+mod/combinator.lua
+  s_07f9706eef6df5::t_7d96a6b222ecc7 723-732
+mod/control.lua
+  s_07f9706eef6df5::t_c5dfb6133786b6 969-976
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "767d42e14304ab012e1dcc6f66d96bbc4245aba3",
+  "prompts": {},
+  "sessions": {
+    "s_07f9706eef6df5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "713d7a23-e7ba-4c11-94c7-942b3db38d1c",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

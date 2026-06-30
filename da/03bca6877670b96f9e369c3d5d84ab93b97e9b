@@ -1,0 +1,47 @@
+app/src/server/factorio.ts
+  s_2dc48357e94b05::t_2dbd35047d600e 5-12,215-218,220,227,233-245,266-269,280,282-283,539,742-744,809,842,845,853,875,964,1015-1017,1024,1056-1057,1157,1159,1209-1214,1238-1241,1706,1728
+README.md
+  s_2dc48357e94b05::t_a107a835cfda18 14-16,61-63
+app/src/db/queries.test.ts
+  s_2dc48357e94b05::t_68f0cdaf96f3d5 107,115-119,127,139,142-145
+app/src/db/queries.ts
+  s_2dc48357e94b05::t_68983e40699e7f 53,732,735,774-777,818,877-878,958
+app/src/db/schema.ts
+  s_2dc48357e94b05::t_e8e9c5610eb5a8 337-340,342-345
+app/src/lib/goals.test.ts
+  s_2dc48357e94b05::t_3c5f2cd094c247 1-86
+app/src/lib/goals.ts
+  s_2dc48357e94b05::t_dc4b91b624f5cd 1-71
+app/src/routes/assistant.tsx
+  s_2dc48357e94b05::t_29928ea2690ccd 1285,1426
+app/src/routes/block.tsx
+  s_2dc48357e94b05::t_6fa82f49c7b90d 185
+app/src/routes/factory.tsx
+  s_2dc48357e94b05::t_83a685a209f850 604
+app/src/server/agent-tools.ts
+  s_2dc48357e94b05::t_f8d5f5cf60401a 18,546-547,551,647-648,650,660
+app/src/server/migrations.test.ts
+  s_2dc48357e94b05::t_e836576ef2da8b 41,62-65,77-80,94
+app/src/server/migrations.ts
+  s_2dc48357e94b05::t_a359da0da40c90 24,99,102
+docs/data-pipeline.md
+  s_2dc48357e94b05::t_2ab5df70dfe341 75-76
+docs/solver.md
+  s_2dc48357e94b05::t_6f7460817c4f8b 9-17,19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "da03bca6877670b96f9e369c3d5d84ab93b97e9b",
+  "prompts": {},
+  "sessions": {
+    "s_2dc48357e94b05": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "24495eb8-a941-4dcf-8025-b7ae80f24879",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

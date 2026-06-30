@@ -1,0 +1,19 @@
+app/src/components/drift-modal.tsx
+  s_5ada7f1a78c53d::t_489642be2e4118 2,5,66-73,117-118,133-144,152,157,161,186-187,191-192,195,268-269,275,278-279,304,310,314-322,329-342,350,360,375,378-385,387-392,394,396-398,400
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f03c9945a4fc6546783d97c5adf546b18d7c3dd8",
+  "prompts": {},
+  "sessions": {
+    "s_5ada7f1a78c53d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7f8dc847-bb35-44cf-9b07-a89abe1b3b1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

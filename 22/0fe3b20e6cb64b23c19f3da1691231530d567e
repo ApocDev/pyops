@@ -1,0 +1,31 @@
+app/src/server/factorio.ts
+  s_a8d3e1c2a384dd::t_9cf0bf180742c7 4,853-931,936,938-939,945-949,951-989,1298-1300
+app/src/db/queries.ts
+  s_a8d3e1c2a384dd::t_d462e797afd813 46-52,1660-1686
+app/src/server/agent-tools.ts
+  s_a8d3e1c2a384dd::t_da33b55b02988f 22,1078-1108,1146-1148
+docs/bridge.md
+  s_a8d3e1c2a384dd::t_c36e1dd6bc1c50 28-30,86-95
+mod/control.lua
+  s_a8d3e1c2a384dd::t_5daad431c2ab60 622-624
+mod/gui-styles.lua
+  s_a8d3e1c2a384dd::t_eadda02f0f0e12 48-67
+mod/summary.lua
+  s_a8d3e1c2a384dd::t_7f0153a0164d32 17,57-68,207-213,215,217-221,227,233,240,244-284,328,342,344,347,425-435,451-460,467-470,475-481,513-530,620,622,634-635,638-641,710-716
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "220fe3b20e6cb64b23c19f3da1691231530d567e",
+  "prompts": {},
+  "sessions": {
+    "s_a8d3e1c2a384dd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "600be5e2-fa5f-4100-88e7-8bfa98697b79",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

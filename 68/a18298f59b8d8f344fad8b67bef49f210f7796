@@ -1,0 +1,23 @@
+app/e2e/README.md
+  s_07f9706eef6df5::t_9ffcd5e0c61526 33-44
+app/e2e/bridge.e2e.ts
+  s_07f9706eef6df5::t_e697d2e370a1af 1,5,7-14,17-18,20-29,31-37,41,45-51,56-61,64-68
+app/e2e/playwright.config.ts
+  s_07f9706eef6df5::t_051ab56b5c88e9 35-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "68a18298f59b8d8f344fad8b67bef49f210f7796",
+  "prompts": {},
+  "sessions": {
+    "s_07f9706eef6df5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "713d7a23-e7ba-4c11-94c7-942b3db38d1c",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

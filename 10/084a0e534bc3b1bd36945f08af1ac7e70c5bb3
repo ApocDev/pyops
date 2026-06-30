@@ -1,0 +1,21 @@
+app/src/routes/turd.tsx
+  s_f7e625039781bd::t_b3e076a14be56a 7,107-137
+app/src/routes/whatif.tsx
+  s_f7e625039781bd::t_0773ac703fc60a 7,49-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.1",
+  "base_commit_sha": "10084a0e534bc3b1bd36945f08af1ac7e70c5bb3",
+  "prompts": {},
+  "sessions": {
+    "s_f7e625039781bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "632f9038-5f95-40d1-8911-e40085444234",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+app/src/db/synthesize.test.ts
+  s_07f9706eef6df5::t_7288d0e5c4e9bd 1-105
+app/src/server/cost-analysis.test.ts
+  s_07f9706eef6df5::t_7b8b1e957264e3 1-99
+app/src/db/queries.test.ts
+  s_07f9706eef6df5::t_552fff378ca248 1-91
+app/src/db/test-helpers.ts
+  s_07f9706eef6df5::t_5cf7872b83cb6c 1-61
+app/src/server/bridge/handlers/handlers.test.ts
+  s_07f9706eef6df5::t_c35a0198458394 1-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "201398fefa036a2a974de5ae25202543f74c4c4e",
+  "prompts": {},
+  "sessions": {
+    "s_07f9706eef6df5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "713d7a23-e7ba-4c11-94c7-942b3db38d1c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

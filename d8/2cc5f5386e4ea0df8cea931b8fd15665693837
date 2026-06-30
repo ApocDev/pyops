@@ -1,0 +1,27 @@
+app/src/server/additives.test.ts
+  s_07f9706eef6df5::t_f267a858738bda 1-38
+app/src/server/module-fill.test.ts
+  s_07f9706eef6df5::t_0981f8dd22324b 1-102
+app/src/server/bridge/protocol.test.ts
+  s_07f9706eef6df5::t_573f58d8ac2716 1-122
+app/src/server/factory-solve.test.ts
+  s_07f9706eef6df5::t_b94b81b6793443 1-84
+app/src/solver/linalg.test.ts
+  s_07f9706eef6df5::t_ea621890517305 1-136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "d82cc5f5386e4ea0df8cea931b8fd15665693837",
+  "prompts": {},
+  "sessions": {
+    "s_07f9706eef6df5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "713d7a23-e7ba-4c11-94c7-942b3db38d1c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

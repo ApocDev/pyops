@@ -1,0 +1,19 @@
+app/pnpm-workspace.yaml
+  s_6f734d2cc94a8c::t_03e1e5bba9927b 1-6,9-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "177e14d9a60bf30556d892ae026b75a98213ff04",
+  "prompts": {},
+  "sessions": {
+    "s_6f734d2cc94a8c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1279db6f-939f-4de3-84a7-804b7dc12f5c",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

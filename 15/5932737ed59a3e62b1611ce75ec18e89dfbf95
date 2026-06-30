@@ -1,0 +1,31 @@
+app/public/logo-wordmark.svg
+  s_bc146af484a04d::t_d4ca653e329ef7 1-20
+app/public/manifest.json
+  s_bc146af484a04d::t_d4ca653e329ef7 2-3,5-10,29-30
+app/public/logo-mark.svg
+  s_bc146af484a04d::t_d4ca653e329ef7 1-14
+app/public/favicon.svg
+  s_bc146af484a04d::t_d4ca653e329ef7 1-11
+app/src/components/app-nav.tsx
+  s_bc146af484a04d::t_d4ca653e329ef7 13-14
+app/src/routes/__root.tsx
+  s_bc146af484a04d::t_d4ca653e329ef7 32-39
+app/public/pyops-logo-cube.svg
+  s_bc146af484a04d::t_d4ca653e329ef7 1-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "155932737ed59a3e62b1611ce75ec18e89dfbf95",
+  "prompts": {},
+  "sessions": {
+    "s_bc146af484a04d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "897371da-6501-47a0-b9cf-025e2f49d64e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

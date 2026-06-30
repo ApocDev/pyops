@@ -1,0 +1,27 @@
+app/src/routes/api.chat.ts
+  s_b2614eafae7f31::t_7577e265643d0a 5,11,13
+app/src/server/agent.ts
+  s_b2614eafae7f31::t_7577e265643d0a 10,12,17-19,21-24
+app/src/routes/settings.tsx
+  s_b2614eafae7f31::t_7577e265643d0a 5,11,73,400-500
+app/src/server/app-config.ts
+  s_b2614eafae7f31::t_7577e265643d0a 1-61
+app/src/server/factorio.ts
+  s_b2614eafae7f31::t_7577e265643d0a 1291-1318
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "b1971353ab61470080763bc4dc7623b36bfe37d7",
+  "prompts": {},
+  "sessions": {
+    "s_b2614eafae7f31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "83262dbe-26d4-43b5-9efd-df427a7d6a95",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

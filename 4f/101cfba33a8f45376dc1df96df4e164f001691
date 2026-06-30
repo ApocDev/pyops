@@ -1,0 +1,25 @@
+app/src/lib/chat-store.ts
+  s_b2614eafae7f31::t_0d04148b91d4b6 1-116
+app/src/components/app-nav.tsx
+  s_b2614eafae7f31::t_0d04148b91d4b6 1,6-23,56
+app/src/routes/assistant.tsx
+  s_b2614eafae7f31::t_0d04148b91d4b6 4,16-23,58-63,75,134,146-157,162,172-176,183
+docs/ai-assistant.md
+  s_b2614eafae7f31::t_0d04148b91d4b6 13-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "4f101cfba33a8f45376dc1df96df4e164f001691",
+  "prompts": {},
+  "sessions": {
+    "s_b2614eafae7f31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "83262dbe-26d4-43b5-9efd-df427a7d6a95",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

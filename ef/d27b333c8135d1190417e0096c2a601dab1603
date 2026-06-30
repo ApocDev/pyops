@@ -1,0 +1,25 @@
+app/src/components/logistics-menu.tsx
+  s_a8d3e1c2a384dd::t_cfb78978f0d44a 34,41,49-50,114-144
+app/src/server/factorio.ts
+  s_a8d3e1c2a384dd::t_bf09bb4df38bcf 1251-1256,1278-1280,1290-1293
+app/src/lib/logistics.ts
+  s_a8d3e1c2a384dd::t_2319ba9b4e52d8 125-128
+app/src/routes/block.$id.tsx
+  s_a8d3e1c2a384dd::t_5778a26b97eb0e 316-317,323-324,330-333,341-348,351,357,363,722-727,1058-1059,1306-1307,1365-1366,1570-1571,1597-1598
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "efd27b333c8135d1190417e0096c2a601dab1603",
+  "prompts": {},
+  "sessions": {
+    "s_a8d3e1c2a384dd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "600be5e2-fa5f-4100-88e7-8bfa98697b79",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

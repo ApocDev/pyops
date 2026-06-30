@@ -1,0 +1,21 @@
+README.md
+  s_543ac521e64ab4::t_97c2d06873d779 121-138
+app/vite.config.ts
+  s_543ac521e64ab4::t_4f339ba384ec6c 16-37,96-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "7d5db5ff24daa15286384ecde64383fe93ea5a97",
+  "prompts": {},
+  "sessions": {
+    "s_543ac521e64ab4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "575f700c-8118-4672-b54c-f5bf96f1116b",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

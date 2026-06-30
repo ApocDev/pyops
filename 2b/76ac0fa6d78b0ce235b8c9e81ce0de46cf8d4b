@@ -1,0 +1,29 @@
+app/src/server/agent-tools.ts
+  s_4c02a3f2f5fa49::t_d53fe817d8b773 1059-1076,1079,1112-1113
+AGENTS.md
+  s_4c02a3f2f5fa49::t_17be329210f9b2 76-80
+README.md
+  s_4c02a3f2f5fa49::t_30eb4fbce740c8 194-197
+app/src/server/agent.ts
+  s_4c02a3f2f5fa49::t_bd30d3e771171f 66
+app/src/server/bridge/protocol.ts
+  s_4c02a3f2f5fa49::t_a9f775be7d3951 13
+docs/bridge.md
+  s_4c02a3f2f5fa49::t_d3eccdb6121558 52-58,93-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2b76ac0fa6d78b0ce235b8c9e81ce0de46cf8d4b",
+  "prompts": {},
+  "sessions": {
+    "s_4c02a3f2f5fa49": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f13a5-33f5-7682-b043-442cd3c9df9e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

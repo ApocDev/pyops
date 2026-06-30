@@ -1,0 +1,33 @@
+app/src/routes/block.$id.tsx
+  s_a8d3e1c2a384dd::t_b4682299797151 3,9,19-24,30,309-311,316,321,336-339,354-361,768-799,1044,1286-1291,1343-1348,1550,1575
+app/src/components/logistics-menu.tsx
+  s_a8d3e1c2a384dd::t_26a7ca98f2ed7d 194-203
+app/src/db/import-factorio.ts
+  s_a8d3e1c2a384dd::t_b3faa1d5389a98 189,315,492-495
+app/src/db/queries.ts
+  s_a8d3e1c2a384dd::t_da15c1cb8a2a82 1616-1630
+app/src/db/schema.ts
+  s_a8d3e1c2a384dd::t_01a94449fee53c 21
+app/src/lib/logistics.test.ts
+  s_a8d3e1c2a384dd::t_161f1025fc1f3d 11,14,104-116
+app/src/lib/logistics.ts
+  s_a8d3e1c2a384dd::t_ac66abbb617d15 107-117,131,144-145
+app/src/server/factorio.ts
+  s_a8d3e1c2a384dd::t_d1bab653c80630 1257,1261-1262,1266-1270,1280,1290
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2b7d1be8ad20505d7b88c2e364169633a94b7fa0",
+  "prompts": {},
+  "sessions": {
+    "s_a8d3e1c2a384dd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "600be5e2-fa5f-4100-88e7-8bfa98697b79",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

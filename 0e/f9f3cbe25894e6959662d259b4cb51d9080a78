@@ -1,0 +1,25 @@
+app/src/routes/settings.tsx
+  s_5ada7f1a78c53d::t_4fd73871e0e746 157-158,215-288
+app/src/server/dump.test.ts
+  s_5ada7f1a78c53d::t_d45e370c5d400f 1-25
+app/src/server/dump.ts
+  s_5ada7f1a78c53d::t_5d7f2d932fcfb0 20,245-280,400,406-407,412
+app/src/server/factorio.ts
+  s_5ada7f1a78c53d::t_7471cedf4c2ef2 1374-1384,1388
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "0ef9f3cbe25894e6959662d259b4cb51d9080a78",
+  "prompts": {},
+  "sessions": {
+    "s_5ada7f1a78c53d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7f8dc847-bb35-44cf-9b07-a89abe1b3b1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

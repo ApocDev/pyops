@@ -1,0 +1,29 @@
+app/src/db/queries.ts
+  s_2ed745d42da4d2::t_8934d85ef6f060 732-739,748,756-759,779-790,792,794-806,1006,1020-1021
+README.md
+  s_2ed745d42da4d2::t_1256a7fa509659 17-19
+app/src/db/index.ts
+  s_2ed745d42da4d2::t_6af85f598cea3a 2,28,34-51
+app/src/db/schema.ts
+  s_2ed745d42da4d2::t_8b9cb0983d87b5 361-363
+app/src/routes/block.tsx
+  s_2ed745d42da4d2::t_f02fc724bed331 404-441,461-462,481,498,503-508,685-688
+app/src/server/factorio.ts
+  s_2ed745d42da4d2::t_6f934a97ebf457 865-866
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "e6c659fae93de81e2a86661cfdfdecd61569c805",
+  "prompts": {},
+  "sessions": {
+    "s_2ed745d42da4d2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "61feeea8-00c3-44d0-b01f-d43c3ba4957f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

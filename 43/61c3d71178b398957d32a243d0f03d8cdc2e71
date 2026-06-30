@@ -1,0 +1,21 @@
+README.md
+  s_a8d3e1c2a384dd::t_03f272312c91ba 21-26
+docs/data-pipeline.md
+  s_a8d3e1c2a384dd::t_4f5b08816394a1 109-120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "4361c3d71178b398957d32a243d0f03d8cdc2e71",
+  "prompts": {},
+  "sessions": {
+    "s_a8d3e1c2a384dd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "600be5e2-fa5f-4100-88e7-8bfa98697b79",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

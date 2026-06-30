@@ -1,0 +1,33 @@
+AGENTS.md
+  s_3b17615400e28d::t_f21a1319bcd4ea 123,135
+docs/ai-assistant.md
+  s_3b17615400e28d::t_c3102a55af0ef8 119-120,126,140,175
+docs/data-pipeline.md
+  s_3b17615400e28d::t_7d3d44552e12f5 16,42,44,57
+docs/solver.md
+  s_2ed745d42da4d2::t_e57d87dc321d24 42,62,68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "3120541dc9dfa5dd24eb826c90118f93e2086490",
+  "prompts": {},
+  "sessions": {
+    "s_2ed745d42da4d2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "61feeea8-00c3-44d0-b01f-d43c3ba4957f",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_3b17615400e28d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c80425d4-1cc5-4b06-8e5e-d9f4eb0b0b9a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

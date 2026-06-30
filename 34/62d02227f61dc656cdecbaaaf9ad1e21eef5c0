@@ -1,0 +1,51 @@
+docs/architecture.md
+  s_63762a4323844b::t_1da1819e1f522d 1-74
+app/src/components/companion-mod-card.tsx
+  s_63762a4323844b::t_1da1819e1f522d 1-151
+app/src/components/bridge-indicator.tsx
+  s_63762a4323844b::t_1da1819e1f522d 1-71
+docs/data-pipeline.md
+  s_63762a4323844b::t_1da1819e1f522d 1-56
+docs/solver.md
+  s_63762a4323844b::t_1da1819e1f522d 1-45
+app/src/components/project-switcher.tsx
+  s_63762a4323844b::t_1da1819e1f522d 46
+app/src/server/companion-mod-fns.ts
+  s_63762a4323844b::t_1da1819e1f522d 1-22
+docs/bridge.md
+  s_63762a4323844b::t_1da1819e1f522d 1-54
+AGENTS.md
+  s_63762a4323844b::t_1da1819e1f522d 1-98
+app/src/components/app-nav.tsx
+  s_63762a4323844b::t_1da1819e1f522d 3,36,38-39
+app/src/routeTree.gen.ts
+  s_63762a4323844b::t_1da1819e1f522d 14,36-40,100,114,130,147,161,176,192,214-220,314
+docs/README.md
+  s_63762a4323844b::t_1da1819e1f522d 1-18
+app/src/server/companion-mod.ts
+  s_63762a4323844b::t_1da1819e1f522d 1-154
+docs/ai-assistant.md
+  s_63762a4323844b::t_1da1819e1f522d 1-48
+README.md
+  s_63762a4323844b::t_1da1819e1f522d 3-6,8,10,12-30,32-33,35,37,39-46,48-99,101-102,104-154
+CLAUDE.md
+  s_63762a4323844b::t_1da1819e1f522d 1
+app/src/routes/index.tsx
+  s_63762a4323844b::t_1da1819e1f522d 62-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "3462d02227f61dc656cdecbaaaf9ad1e21eef5c0",
+  "prompts": {},
+  "sessions": {
+    "s_63762a4323844b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b83b8428-85cc-42ca-bd0e-6590cef951e7",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}

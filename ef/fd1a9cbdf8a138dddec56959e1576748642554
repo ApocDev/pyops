@@ -1,0 +1,21 @@
+app/src/server/conversations.ts
+  s_b2614eafae7f31::t_29e3568bd9a9a7 39-96
+app/src/routes/assistant.tsx
+  s_b2614eafae7f31::t_29e3568bd9a9a7 13,170-171,188-196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "effd1a9cbdf8a138dddec56959e1576748642554",
+  "prompts": {},
+  "sessions": {
+    "s_b2614eafae7f31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "83262dbe-26d4-43b5-9efd-df427a7d6a95",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

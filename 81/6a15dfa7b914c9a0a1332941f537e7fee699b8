@@ -1,0 +1,19 @@
+app/e2e/responsive.e2e.ts
+  s_3b17615400e28d::t_ac3ddb1e781f44 1-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "816a15dfa7b914c9a0a1332941f537e7fee699b8",
+  "prompts": {},
+  "sessions": {
+    "s_3b17615400e28d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c80425d4-1cc5-4b06-8e5e-d9f4eb0b0b9a",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,53 @@
+app/src/db/conversations.ts
+  s_6f734d2cc94a8c::t_8cf463a89e3871 2
+app/src/db/index.ts
+  s_6f734d2cc94a8c::t_3da65ab73f43d4 7
+app/src/db/queries.ts
+  s_6f734d2cc94a8c::t_01902bd504d876 2
+app/src/db/schema.ts
+  s_6f734d2cc94a8c::t_35c0e68d36fdfc 403,411-413,437
+app/src/db/tasks.ts
+  s_6f734d2cc94a8c::t_1614ce638d60cc 2
+app/src/lib/chat-store.ts
+  s_6f734d2cc94a8c::t_3d515d90b47ed5 2
+app/src/routes/factory.tsx
+  s_6f734d2cc94a8c::t_c9ec2f8e841aa4 95,361
+app/src/routes/tasks.tsx
+  s_6f734d2cc94a8c::t_e4f091f7dd60e4 109
+app/src/routes/whatif.tsx
+  s_6f734d2cc94a8c::t_cd2fbc22a60347 19
+app/src/server/agent-tools.ts
+  s_6f734d2cc94a8c::t_8523e1a1d23adb 731,835,1060
+app/src/server/conversations.ts
+  s_6f734d2cc94a8c::t_ef69db6d7ed991 2
+app/src/server/dump.ts
+  s_6f734d2cc94a8c::t_17220859f3ca48 2
+app/src/server/factorio.ts
+  s_6f734d2cc94a8c::t_ce7cf8576560bc 6,966,1417
+app/src/server/factory-solve.ts
+  s_6f734d2cc94a8c::t_1ce4b1949d1211 2
+app/src/server/projects.ts
+  s_6f734d2cc94a8c::t_923ed53effc03c 2
+app/src/server/tasks.ts
+  s_6f734d2cc94a8c::t_3aab2fca089aeb 2
+mod/tasks.lua
+  s_6f734d2cc94a8c::t_2a3585169fa934 1
+app/src/routes/block.$id.tsx
+  s_6f734d2cc94a8c::t_55e71cb0b8a668 44,1013
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "ed7270c6d3febbee169a5595ff5486b44f9957fd",
+  "prompts": {},
+  "sessions": {
+    "s_6f734d2cc94a8c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1279db6f-939f-4de3-84a7-804b7dc12f5c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

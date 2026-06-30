@@ -1,0 +1,45 @@
+app/drizzle/meta/0000_snapshot.json
+  s_ad8974a3b278d5::t_4693eb059c8dbf 1-2277
+app/drizzle/meta/_journal.json
+  s_ad8974a3b278d5::t_251202922a4663 1-13
+app/src/routeTree.gen.ts
+  s_ad8974a3b278d5::t_f194518ea14f0f 24,88-92,118,134,152,171,187,204,221,310-316,359
+app/src/server/dump.ts
+  s_ad8974a3b278d5::t_9a1c09095b8696 12-13,18,22-23,26-34,42-43,240-253,255-265,591-598
+app/src/server/factorio.ts
+  s_ad8974a3b278d5::t_d70e0896a82feb 1877-1878,1893-1914
+app/src/server/icon-atlas.ts
+  s_ad8974a3b278d5::t_7857943dc433bf 1-9,11-13,18-39,41-42,51-61,63-64,66-77,79,81-103,106-111,114-131,133-141,143
+app/drizzle/0000_salty_pixie.sql
+  s_ad8974a3b278d5::t_13d16aa48dc2a6 1-375
+app/package.json
+  s_ad8974a3b278d5::t_0586a89d57a74b 14-15
+app/src/db/import-factorio.ts
+  s_ad8974a3b278d5::t_47eae512cc48c8 6-7,17,145
+app/src/db/index.ts
+  s_ad8974a3b278d5::t_a80bf2a941d33c 4,28-30
+app/src/db/projects-fs.ts
+  s_ad8974a3b278d5::t_015ecfd932fe1e 5,8,11-12,14
+app/src/server/companion-mod.ts
+  s_ad8974a3b278d5::t_fc7b5ffe0ec46e 19-21,25-27
+app/src/server/paths.ts
+  s_ad8974a3b278d5::t_589fd4bfb2796e 1-61
+app/src/server/provision.ts
+  s_ad8974a3b278d5::t_2f1d3deb497ec0 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "04af2008d21eb8038b79d5f669078dabfe13c7a2",
+  "prompts": {},
+  "sessions": {
+    "s_ad8974a3b278d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
