@@ -14,7 +14,9 @@ planner that actually understands Py's tangled recipe graph.
 - **Design production blocks.** Pick one or more output goals (each with its own
   target rate), choose the recipes and machines, set modules/beacons, and PyOps
   solves the run-rates and building counts for the whole chain — including Py's cyclic recipe loops, fluid
-  temperatures, and fractional machine counts.
+  temperatures, and fractional machine counts. A goal with no recipe behind it (an
+  unfinished block, or a producer lost to a data update) is flagged on the goal and
+  tinted on the block's tab and sidebar entry instead of breaking the whole solve.
 - **Balance the whole factory.** Every block's boundary flows (imports/exports)
   roll up into a factory-wide ledger so you can see deficits, surpluses, and how a
   change in one block ripples through the rest ("what-if").

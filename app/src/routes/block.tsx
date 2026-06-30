@@ -401,6 +401,44 @@ function Shell() {
 
   type Row = (typeof filtered)[number];
   type Group = NonNullable<typeof groups.data>[number];
+
+  // Block-health indicators for the sidebar/tabs: red for broken refs / infeasible
+  // solves, amber for unmade goals or a relaxed/underdetermined solve. The verdict
+  // is computed server-side in listBlocks (no re-solve).
+  type Health = "ok" | "warn" | "error";
+  const healthRank: Record<Health, number> = { ok: 0, warn: 1, error: 2 };
+  // tint the block/folder NAME (not just the icon) so a problem reads at a glance
+  const healthText = (h: Health) =>
+    h === "error" ? "text-destructive" : h === "warn" ? "text-amber-400" : "";
+  const healthBadge = (h: Health, tip: string) =>
+    h === "ok" ? null : (
+      <span
+        className={`shrink-0 ${h === "error" ? "text-destructive" : "text-amber-400"}`}
+        title={tip}
+      >
+        <AlertTriangle className="size-3.5" />
+      </span>
+    );
+  const blockHealthTip = (b: Row) =>
+    b.broken
+      ? "references a recipe/good that no longer exists — open to see what's missing"
+      : b.health === "error"
+        ? "this block has no exact solution — open to fix"
+        : b.unmadeGoals.length
+          ? `${b.unmadeGoals.length} goal${b.unmadeGoals.length === 1 ? "" : "s"} with no recipe yet — open to add one`
+          : "this block needs attention — open to see";
+  // worst health among every block in a folder subtree (errors dominate warnings),
+  // so a problem nested anywhere bubbles up to the folder header.
+  const groupHealth = (groupId: number): Health => {
+    let worst: Health = "ok";
+    const visit = (gid: number) => {
+      for (const b of blocks.data ?? [])
+        if (b.groupId === gid && healthRank[b.health] > healthRank[worst]) worst = b.health;
+      for (const k of childrenOf(gid)) visit(k.id);
+    };
+    visit(groupId);
+    return worst;
+  };
   const renderBlock = (b: Row, depth: number) => (
     <DndRow
       key={b.id}
@@ -420,15 +458,8 @@ function Shell() {
         {b.iconName && (
           <Icon kind={(b.iconKind ?? "item") as IconKind} name={b.iconName} size="sm" noTitle />
         )}
-        <span className="truncate text-sm">{b.name}</span>
-        {b.broken && (
-          <span
-            className="shrink-0 text-destructive"
-            title="references a recipe/good that no longer exists — open to see what's missing"
-          >
-            <AlertTriangle className="size-3.5" />
-          </span>
-        )}
+        <span className={`truncate text-sm ${healthText(b.health)}`}>{b.name}</span>
+        {healthBadge(b.health, blockHealthTip(b))}
       </button>
       <button
         className="px-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
@@ -447,6 +478,7 @@ function Shell() {
     const isCol = collapsed[key];
     const rows = filtered.filter((b) => b.groupId === group.id);
     const kids = childrenOf(group.id);
+    const gHealth = groupHealth(group.id);
     const showInto = dropFolder?.key === key && dropFolder.into;
     const showLine = dropFolder?.key === key && !dropFolder.into;
     return (
@@ -463,11 +495,17 @@ function Shell() {
             {isCol ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
           </button>
           <span
-            className="min-w-0 flex-1 truncate"
+            className={`min-w-0 flex-1 truncate ${healthText(gHealth)}`}
             onDoubleClick={() => renameFolder(group.id, group.name)}
           >
             {group.name} ({rows.length})
           </span>
+          {healthBadge(
+            gHealth,
+            gHealth === "error"
+              ? "a block in this folder has an error — expand to find it"
+              : "a block in this folder needs attention — expand to find it",
+          )}
           <button
             className="px-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
             title="delete folder"
@@ -644,12 +682,10 @@ function Shell() {
                   noTitle
                 />
               )}
-              <span className="max-w-[10rem] truncate">{b?.name ?? `#${id}`}</span>
-              {b?.broken && (
-                <span className="text-destructive" title="references missing prototypes">
-                  <AlertTriangle className="size-3.5" />
-                </span>
-              )}
+              <span className={`max-w-[10rem] truncate ${b ? healthText(b.health) : ""}`}>
+                {b?.name ?? `#${id}`}
+              </span>
+              {b && healthBadge(b.health, blockHealthTip(b))}
               <span
                 role="button"
                 tabIndex={-1}

@@ -862,6 +862,8 @@ async function persistBlock(
       ...meta,
       data,
       electricityW: r.broken ? null : r.power.totalW,
+      // leave the stored status untouched on a broken solve (cache preserved)
+      solveStatus: r.broken ? undefined : r.status,
       dataFingerprint: q.blockReferenceFingerprint(data),
     },
     r.broken ? null : [...boundaryFlows(goalFlows(data, q), r)],

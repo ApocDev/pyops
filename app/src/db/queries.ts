@@ -729,6 +729,14 @@ export function deleteModulePreset(id: number) {
 
 /* ── User blocks (persistence) ──────────────────────────────────────────────── */
 
+/** A block's health for the sidebar/tabs, derived without re-solving:
+ *  - `error` (red): a referenced recipe/good vanished (broken), or the last solve
+ *    was infeasible — the block won't work as-is.
+ *  - `warn` (amber): a declared goal has no recipe making it yet (unfinished), or
+ *    the last solve was relaxed/underdetermined — fixable, not broken.
+ *  - `ok`: last solve clean and every goal has a producer. */
+export type BlockHealth = "ok" | "warn" | "error";
+
 export function listBlocks() {
   const rows = db
     .select({
@@ -737,6 +745,7 @@ export function listBlocks() {
       iconKind: blocks.iconKind,
       iconName: blocks.iconName,
       electricityW: blocks.electricityW,
+      solveStatus: blocks.solveStatus,
       groupId: blocks.groupId,
       updatedAt: blocks.updatedAt,
       data: blocks.data,
@@ -744,9 +753,10 @@ export function listBlocks() {
     .from(blocks)
     .orderBy(blocks.sortOrder, blocks.name)
     .all();
-  // Flag blocks that reference a now-missing recipe/good (one bulk lookup of the
-  // existing names, then a pure check per block) so the sidebar can warn without
-  // opening each one. Keeps `data` server-side — only the boolean is exposed.
+  // Health is derived from `data` against the CURRENT reference data (so an item
+  // migration shows up immediately, no re-solve) plus the persisted last solve
+  // status. One bulk lookup each, then pure per-block checks — `data` stays
+  // server-side; only the verdict is exposed.
   const recipeNames = new Set(
     db
       .select({ n: recipes.name })
@@ -766,12 +776,34 @@ export function listBlocks() {
       .all()
       .map((r) => r.n),
   ]);
-  return rows.map(({ data, ...b }) => {
+  // recipe → its product good names, for the "no recipe in the block makes this
+  // goal" check (one scan of recipe_products, grouped).
+  const productsByRecipe = new Map<string, Set<string>>();
+  for (const p of db
+    .select({ recipe: recipeProducts.recipe, name: recipeProducts.name })
+    .from(recipeProducts)
+    .all()) {
+    let set = productsByRecipe.get(p.recipe);
+    if (!set) productsByRecipe.set(p.recipe, (set = new Set()));
+    set.add(p.name);
+  }
+  return rows.map(({ data, solveStatus, ...b }) => {
     const d = normalizeBlockData(data as BlockData);
+    const blockRecipes = d.recipes ?? [];
     const broken =
-      (d.recipes ?? []).some((r) => !recipeNames.has(r)) ||
-      goalNames(d).some((g) => !goodNames.has(g));
-    return { ...b, broken };
+      blockRecipes.some((r) => !recipeNames.has(r)) || goalNames(d).some((g) => !goodNames.has(g));
+    // a goal is "unmade" when it still exists but no recipe in the block produces it
+    const makesInBlock = new Set<string>();
+    for (const r of blockRecipes)
+      for (const p of productsByRecipe.get(r) ?? []) makesInBlock.add(p);
+    const unmadeGoals = goalNames(d).filter((g) => goodNames.has(g) && !makesInBlock.has(g));
+    const health: BlockHealth =
+      broken || solveStatus === "infeasible"
+        ? "error"
+        : unmadeGoals.length > 0 || solveStatus === "relaxed" || solveStatus === "underdetermined"
+          ? "warn"
+          : "ok";
+    return { ...b, broken, health, unmadeGoals };
   });
 }
 
@@ -971,6 +1003,7 @@ export function saveBlockRow(
     data: BlockData;
     electricityW: number | null;
     dataFingerprint: string | null;
+    solveStatus?: string | null;
   },
   flows: BlockFlow[] | null,
   machines: BlockMachine[] | null = [],
@@ -984,6 +1017,8 @@ export function saveBlockRow(
       data: input.data,
       // null = keep the current electricity figure (broken block, cache preserved)
       ...(input.electricityW != null ? { electricityW: input.electricityW } : {}),
+      // undefined = leave the stored status untouched (broken block); null clears it
+      ...(input.solveStatus !== undefined ? { solveStatus: input.solveStatus } : {}),
       dataFingerprint: input.dataFingerprint,
     };
     if (id != null) {

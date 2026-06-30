@@ -358,6 +358,9 @@ export const blocks = sqliteTable("blocks", {
   iconName: text("icon_name"),
   data: text({ mode: "json" }).$type<BlockData>().notNull(),
   electricityW: real("electricity_w"),
+  // last solve's status (solved | relaxed | underdetermined | infeasible) so the
+  // sidebar/tabs can flag a block's health without re-solving it; null until solved
+  solveStatus: text("solve_status"),
   dataFingerprint: text("data_fingerprint"), // reference-data version the cache was solved against
   sortOrder: integer("sort_order"),
   groupId: integer("group_id"),
