@@ -297,6 +297,7 @@ function ItemChip({
   rate,
   link,
   craftable,
+  fuel,
   disp,
   onClick,
   onCycleDisp,
@@ -309,6 +310,7 @@ function ItemChip({
   rate?: number;
   link: Link;
   craftable?: boolean;
+  fuel?: boolean;
   disp?: Disposition;
   onClick: () => void;
   onCycleDisp?: () => void;
@@ -346,7 +348,16 @@ function ItemChip({
             disp ? "ring-2 ring-sky-400/60" : ""
           }`}
         >
-          <Icon kind={kind as "item" | "fluid"} name={name} size="md" noTitle />
+          <span className="relative flex">
+            <Icon kind={kind as "item" | "fluid"} name={name} size="md" noTitle />
+            {fuel && (
+              <Flame
+                aria-label="burned as fuel"
+                className="absolute -right-1 -bottom-1 size-3.5 rounded-full bg-background/90 p-px text-orange-400"
+                strokeWidth={2.5}
+              />
+            )}
+          </span>
           {rate != null && <span>{num(rate)}</span>}
           {craftableImport && <Plus className="size-3.5 text-amber-300" strokeWidth={3} />}
         </button>
@@ -1396,29 +1407,6 @@ function Block({ blockId }: { blockId: number }) {
                         <span className="text-muted-foreground">heat · local source needed</span>
                       </span>
                     )}
-                    {res.power.fuel.length > 0 && (
-                      <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <span className="flex items-center gap-1 text-muted-foreground">
-                          <Flame className="size-3.5" /> burning
-                        </span>
-                        {res.power.fuel.map((f) => (
-                          <span
-                            key={f.name}
-                            className="flex items-center gap-1 text-amber-300"
-                            title={`${f.display ?? f.name} burned across all machines (total before byproducts — see imports for the net)`}
-                          >
-                            <Icon
-                              kind={f.kind as "item" | "fluid"}
-                              name={f.name}
-                              size="sm"
-                              noTitle
-                            />
-                            {num(f.perSec)}/s{" "}
-                            <span className="text-muted-foreground">{f.display ?? f.name}</span>
-                          </span>
-                        ))}
-                      </span>
-                    )}
                   </div>
                 )}
               <div
@@ -1443,6 +1431,7 @@ function Block({ blockId }: { blockId: number }) {
                               rate={f.rate}
                               link="import"
                               craftable={producible.has(f.name)}
+                              fuel={fuelSet.has(f.name)}
                               disp={disp[f.name]}
                               onClick={() => makeFor(f.name)}
                               onCycleDisp={() => cycleDispFor(f.name)}
@@ -1457,48 +1446,29 @@ function Block({ blockId }: { blockId: number }) {
                                 })
                               }
                             />
-                            {/* lock this input to drive the block's size (Goal goes read-only) */}
-                            {lockedInput === f.name ? (
-                              <input
-                                type="number"
-                                value={lockedRate}
-                                step="0.01"
-                                min="0"
-                                autoFocus
-                                onChange={(e) => setLockedRate(Number(e.target.value) || 0)}
-                                title="locked rate — the block is sized to consume this much of this input"
-                                className="w-16 rounded border border-sky-400/60 bg-muted px-1 py-0.5 text-sm"
-                              />
-                            ) : null}
-                            <button
-                              onClick={() => {
-                                if (lockedInput === f.name) setLockedInput(null);
-                                else {
-                                  setLockedInput(f.name);
-                                  setLockedRate(+f.rate.toFixed(4));
-                                }
-                              }}
-                              title={
-                                lockedInput === f.name
-                                  ? "unlock — the Goal rate is editable again"
-                                  : "lock this input: size the whole block by its rate (Goal becomes read-only)"
-                              }
-                              className={`flex items-center rounded px-0.5 ${
-                                lockedInput === f.name
-                                  ? "text-sky-300"
-                                  : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground"
-                              }`}
-                            >
-                              {lockedInput === f.name ? (
-                                <Lock className="size-3.5" />
-                              ) : (
-                                <Unlock className="size-3.5" />
-                              )}
-                            </button>
-                            {fuelSet.has(f.name) && (
-                              <span title="this import is (partly) burned as fuel">
-                                <Flame className="size-3.5" />
-                              </span>
+                            {/* Locked-as-block-driver state (set via right-click → "Size block by this
+                                input"): edit its rate inline + an unlock control. The toggle itself
+                                lives in the context menu, so non-locked rows stay uncluttered. */}
+                            {lockedInput === f.name && (
+                              <>
+                                <input
+                                  type="number"
+                                  value={lockedRate}
+                                  step="0.01"
+                                  min="0"
+                                  autoFocus
+                                  onChange={(e) => setLockedRate(Number(e.target.value) || 0)}
+                                  title="locked rate — the block is sized to consume this much of this input"
+                                  className="w-16 rounded border border-sky-400/60 bg-muted px-1 py-0.5 text-sm"
+                                />
+                                <button
+                                  onClick={() => setLockedInput(null)}
+                                  title="unlock — the Goal rate is editable again"
+                                  className="flex items-center rounded px-0.5 text-sky-300 hover:text-foreground"
+                                >
+                                  <Lock className="size-3.5" />
+                                </button>
+                              </>
                             )}
                             {freed.has(f.name) && !disp[f.name] && (
                               <button
@@ -1542,6 +1512,7 @@ function Block({ blockId }: { blockId: number }) {
                               display={res.display?.[f.name]}
                               rate={f.rate}
                               link="export"
+                              fuel={fuelSet.has(f.name)}
                               disp={disp[f.name]}
                               onClick={() => useFor(f.name)}
                               onCycleDisp={() => cycleDispFor(f.name)}
@@ -1556,11 +1527,6 @@ function Block({ blockId }: { blockId: number }) {
                                 })
                               }
                             />
-                            {fuelSet.has(f.name) && (
-                              <span title="surplus after burning some as fuel">
-                                <Flame className="size-3.5" />
-                              </span>
-                            )}
                             {freed.has(f.name) && !disp[f.name] && (
                               <button
                                 title="recycle loop won't self-close — auto-sunk here. Click to pin it as an export (resolves the relaxed solve)."

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Blocks, Factory, FlaskConical, Search, Settings } from "lucide-react";
+import { Blocks, Factory, FlaskConical, Github, Search, Settings } from "lucide-react";
 import { factoryTotalsFn, listBlocksFn, statsFn } from "../server/factorio";
 import { Card } from "#/components/ui/card.tsx";
 
@@ -26,6 +26,15 @@ function Home() {
       <div className="flex items-center gap-4">
         <img src="/logo.svg" alt="" className="size-16 shrink-0" />
         <h1 className="text-3xl font-bold">PyOps</h1>
+        <a
+          href="https://github.com/ApocDev/pyops"
+          target="_blank"
+          rel="noreferrer"
+          title="View PyOps on GitHub"
+          className="ml-auto inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <Github className="size-5" /> GitHub
+        </a>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Pyanodons factory planner — blocks, TURD, modules, the lot.
