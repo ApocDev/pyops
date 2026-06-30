@@ -1,29 +1,132 @@
+// PyOps desktop shell. The whole app (UI + backend) is the Nitro server; this shell
+// runs that server and shows it in a window.
+//   - dev:   `beforeDevCommand` starts the server (see tauri.conf.json); we just wait
+//            for it and open the window.
+//   - bundle: we start the server ourselves via the vendored `node` sidecar against
+//            the bundled `.output`, with the data/migrations/mod dirs passed in.
+use std::net::TcpStream;
+use std::time::{Duration, Instant};
+
+use tauri::webview::PageLoadEvent;
+use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
+
+#[cfg(not(debug_assertions))]
+use std::sync::Mutex;
+#[cfg(not(debug_assertions))]
+use tauri::path::BaseDirectory;
+#[cfg(not(debug_assertions))]
+use tauri_plugin_shell::{process::CommandChild, ShellExt};
+
+const PORT: u16 = 34115;
+
+/// Holds the sidecar server process so it can be killed when the app exits.
+#[cfg(not(debug_assertions))]
+struct ServerChild(Mutex<Option<CommandChild>>);
+
+/// Block until something accepts connections on the port, or time out.
+fn wait_for_port(port: u16, timeout: Duration) -> bool {
+    let start = Instant::now();
+    while start.elapsed() < timeout {
+        if TcpStream::connect(("127.0.0.1", port)).is_ok() {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(150));
+    }
+    false
+}
+
+/// Open the main window (hidden) pointed at the local server, revealing it only once
+/// the first page has painted — so the user never sees a blank webview while the
+/// server boots / server-renders.
+fn open_main_window(app: &tauri::AppHandle) {
+    let url = format!("http://localhost:{PORT}");
+    let _ = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url.parse().unwrap()))
+        .title("PyOps")
+        .inner_size(1280.0, 860.0)
+        .visible(false)
+        .on_page_load(|window, payload| {
+            if matches!(payload.event(), PageLoadEvent::Finished) {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        })
+        .build();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  // webkit2gtk on Wayland raises "Error 71 (Protocol error)" and its DMABUF renderer
-  // glitches on some GPU/compositor combos, so force XWayland + the non-DMABUF path.
-  // Must be set before GTK initializes; only fill in what the user hasn't overridden.
-  #[cfg(target_os = "linux")]
-  {
-    if std::env::var_os("GDK_BACKEND").is_none() {
-      std::env::set_var("GDK_BACKEND", "x11");
+    // webkit2gtk on Wayland raises "Error 71 (Protocol error)" and its DMABUF renderer
+    // glitches on some GPU/compositor combos, so force XWayland + the non-DMABUF path.
+    // Must be set before GTK initializes; only fill in what the user hasn't overridden.
+    #[cfg(target_os = "linux")]
+    {
+        if std::env::var_os("GDK_BACKEND").is_none() {
+            std::env::set_var("GDK_BACKEND", "x11");
+        }
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
     }
-    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
-      std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-    }
-  }
 
-  tauri::Builder::default()
-    .setup(|app| {
-      if cfg!(debug_assertions) {
-        app.handle().plugin(
-          tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build(),
-        )?;
-      }
-      Ok(())
-    })
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    let app = tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .setup(|app| {
+            if cfg!(debug_assertions) {
+                app.handle().plugin(
+                    tauri_plugin_log::Builder::default()
+                        .level(log::LevelFilter::Info)
+                        .build(),
+                )?;
+            }
+
+            // Bundled build: start the server via the vendored node sidecar. The data
+            // dir is the per-OS app-data dir; migrations + mod source are bundled
+            // resources. (In dev the server is already up from beforeDevCommand.)
+            #[cfg(not(debug_assertions))]
+            {
+                let server_entry =
+                    app.path().resolve("output/server/index.mjs", BaseDirectory::Resource)?;
+                let drizzle = app.path().resolve("drizzle", BaseDirectory::Resource)?;
+                let mod_dir = app.path().resolve("mod", BaseDirectory::Resource)?;
+                let data_dir = app.path().app_data_dir()?;
+                std::fs::create_dir_all(&data_dir).ok();
+
+                let (mut rx, child) = app
+                    .shell()
+                    .sidecar("node")?
+                    .arg(server_entry.to_string_lossy().to_string())
+                    .env("PORT", PORT.to_string())
+                    .env("HOST", "127.0.0.1")
+                    .env("PYOPS_DATA_DIR", data_dir.to_string_lossy().to_string())
+                    .env("PYOPS_MIGRATIONS_DIR", drizzle.to_string_lossy().to_string())
+                    .env("PYOPS_MOD_DIR", mod_dir.to_string_lossy().to_string())
+                    .spawn()?;
+                app.manage(ServerChild(Mutex::new(Some(child))));
+                // keep the pipe drained so the child never blocks on a full stdout
+                tauri::async_runtime::spawn(async move { while rx.recv().await.is_some() {} });
+            }
+
+            // Wait for the server off the main thread, then open the window on it.
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                wait_for_port(PORT, Duration::from_secs(90));
+                let h = handle.clone();
+                let _ = handle.run_on_main_thread(move || open_main_window(&h));
+            });
+
+            Ok(())
+        })
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|_handle, event| {
+        if let RunEvent::Exit = event {
+            #[cfg(not(debug_assertions))]
+            if let Some(state) = _handle.try_state::<ServerChild>() {
+                if let Some(child) = state.0.lock().unwrap().take() {
+                    let _ = child.kill();
+                }
+            }
+        }
+    });
 }

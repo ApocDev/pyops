@@ -10,23 +10,20 @@
     "devUrl": "http://localhost:34115"
   },
   "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "PyOps",
-        "width": 1280,
-        "height": 860,
-        "resizable": true,
-        "fullscreen": false
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["deb"],
+    "externalBin": ["binaries/node"],
+    "resources": {
+      "../.output": "output",
+      "../drizzle": "drizzle",
+      "../../mod": "mod"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
