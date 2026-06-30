@@ -46,6 +46,8 @@ pyops/
 │   │   ├── server/        server-only modules (data, solver glue, bridge, AI)
 │   │   ├── solver/        pure-TS linear-system block solver + tests
 │   │   └── db/            Drizzle schema, import, synthesize, queries
+│   ├── src-tauri/         Tauri desktop shell + packaging (see desktop.md)
+│   ├── drizzle/           generated SQL migrations, applied in-process
 │   ├── icon-data/         generated icon atlas (gitignored)
 │   ├── projects/          per-project .db files, each self-named (gitignored)
 │   └── app-config.json    app-level config: active project + AI key/model (gitignored)
@@ -54,7 +56,7 @@ pyops/
 │   ├── summary.lua        Helmod-style production-block view
 │   ├── combinator.lua     in-game request-combinator planner
 │   └── data.lua, settings.lua
-├── scripts/          one-off dev/test scripts (icon-atlas builder, atlas server)
+├── scripts/          dev-only helpers (tunnel-dev)
 └── docs/             this documentation
 ```
 
@@ -84,7 +86,9 @@ Each "project" (usually a different mod list) is its own SQLite file under
 self-describes its name/createdAt in its own `meta`, and the active project id
 lives in `app-config.json`. The `db` export (`app/src/db/index.ts`) is a proxy
 that always points at the active connection, so the query layer never changes when
-you switch. Creating a project provisions a fresh schema (`drizzle-kit push`); you
-then run a [data sync](data-pipeline.md) to
-fill it. The relevant code lives in `app/src/server/projects.ts` and
-`app/src/db/index.ts`.
+you switch. Schema is provisioned in-process: on first connect (and when creating a
+project) the bundled `drizzle/` migrations are applied via drizzle-orm's `migrate()`
+(`app/src/server/provision.ts`), so no dev tooling is needed at runtime. A new
+project starts empty; you then run a [data sync](data-pipeline.md) to fill it. The
+relevant code lives in `app/src/server/projects.ts`, `app/src/server/provision.ts`,
+and `app/src/db/index.ts`.

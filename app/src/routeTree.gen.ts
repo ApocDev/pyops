@@ -21,6 +21,7 @@ import { Route as BlockRouteImport } from './routes/block'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BlockIndexRouteImport } from './routes/block.index'
+import { Route as IconsSplatRouteImport } from './routes/icons.$'
 import { Route as BlockIdRouteImport } from './routes/block.$id'
 import { Route as ApiChatRouteImport } from './routes/api.chat'
 
@@ -84,6 +85,11 @@ const BlockIndexRoute = BlockIndexRouteImport.update({
   path: '/',
   getParentRoute: () => BlockRoute,
 } as any)
+const IconsSplatRoute = IconsSplatRouteImport.update({
+  id: '/icons/$',
+  path: '/icons/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BlockIdRoute = BlockIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/whatif': typeof WhatifRoute
   '/api/chat': typeof ApiChatRoute
   '/block/$id': typeof BlockIdRoute
+  '/icons/$': typeof IconsSplatRoute
   '/block/': typeof BlockIndexRoute
 }
 export interface FileRoutesByTo {
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/whatif': typeof WhatifRoute
   '/api/chat': typeof ApiChatRoute
   '/block/$id': typeof BlockIdRoute
+  '/icons/$': typeof IconsSplatRoute
   '/block': typeof BlockIndexRoute
 }
 export interface FileRoutesById {
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/whatif': typeof WhatifRoute
   '/api/chat': typeof ApiChatRoute
   '/block/$id': typeof BlockIdRoute
+  '/icons/$': typeof IconsSplatRoute
   '/block/': typeof BlockIndexRoute
 }
 export interface FileRouteTypes {
@@ -159,6 +168,7 @@ export interface FileRouteTypes {
     | '/whatif'
     | '/api/chat'
     | '/block/$id'
+    | '/icons/$'
     | '/block/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
     | '/whatif'
     | '/api/chat'
     | '/block/$id'
+    | '/icons/$'
     | '/block'
   id:
     | '__root__'
@@ -190,6 +201,7 @@ export interface FileRouteTypes {
     | '/whatif'
     | '/api/chat'
     | '/block/$id'
+    | '/icons/$'
     | '/block/'
   fileRoutesById: FileRoutesById
 }
@@ -206,6 +218,7 @@ export interface RootRouteChildren {
   TurdRoute: typeof TurdRoute
   WhatifRoute: typeof WhatifRoute
   ApiChatRoute: typeof ApiChatRoute
+  IconsSplatRoute: typeof IconsSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -294,6 +307,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BlockIndexRouteImport
       parentRoute: typeof BlockRoute
     }
+    '/icons/$': {
+      id: '/icons/$'
+      path: '/icons/$'
+      fullPath: '/icons/$'
+      preLoaderRoute: typeof IconsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/block/$id': {
       id: '/block/$id'
       path: '/$id'
@@ -336,6 +356,7 @@ const rootRouteChildren: RootRouteChildren = {
   TurdRoute: TurdRoute,
   WhatifRoute: WhatifRoute,
   ApiChatRoute: ApiChatRoute,
+  IconsSplatRoute: IconsSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

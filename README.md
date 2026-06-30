@@ -91,7 +91,28 @@ set, with produced-by / used-in (here: Iron plate — 14 producers, 160 consumer
 
 ---
 
+## Desktop app
+
+PyOps also ships as a self-contained **desktop app** — a [Tauri](https://tauri.app)
+window around the same server, bundling its own Node runtime so it needs no toolchain
+to run. Grab the build for your OS from the
+[Releases](https://github.com/ApocDev/pyops/releases) page:
+
+- **Linux** — `.AppImage` (`chmod +x` it and run; self-updates) or `.deb`
+- **macOS** — `.dmg`
+- **Windows** — the `-setup.exe` installer
+
+It still needs **Factorio + the Py mods** installed locally (it reads your recipe
+data via a data sync), and a fresh install starts empty — open **⚙ Settings › Game
+data** and run a sync on first launch, same as below. Bundled builds **check for
+updates on launch** and prompt to install. For how it's built and released, see
+[`docs/desktop.md`](docs/desktop.md).
+
+---
+
 ## Requirements
+
+_To run from source (below). The desktop app needs none of this._
 
 - **Node.js** (current LTS) and **pnpm** — the app's toolchain ([Vite+](https://viteplus.dev/),
   the `vp` CLI) handles the rest.

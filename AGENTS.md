@@ -13,18 +13,20 @@ This is a single repo with three cooperating parts:
   in one process. Hosts the SQLite store, the block solver, the Factorio UDP
   bridge, the data-dump + icon pipeline, and the AI assistant. This is where almost
   all work happens. It has its own `AGENTS.md`/`CLAUDE.md` (Vite+ toolchain notes).
+  `app/src-tauri/` is the Tauri **desktop shell** that wraps this server in a native
+  window and packages it into a self-contained bundle (vendored Node + bundled
+  resources) with self-update — see [`docs/desktop.md`](docs/desktop.md).
 - **`mod/`** — the Factorio mod (`pyops`, Factorio 2.0): in-game panel, UDP link to
   the app, data-dump trigger, Helmod-style production-block view, and the
   request-combinator planner. Pure Lua, no build step.
-- **`scripts/`** — one-off dev/test scripts (icon-atlas builder, atlas preview
-  server, a Factorio reload helper). Not part of the app build; has its own
-  `package.json` (uses `sharp`).
+- **`scripts/`** — dev-only helpers (currently `tunnel-dev`, to expose the dev
+  server through a tunnel). Not part of the app build.
 
 Per-project SQLite stores live in `projects/*.db` (each self-describes its name in
 its own `meta`); `app-config.json` holds app-level config (active project + the
-OpenRouter key/model). All are generated/gitignored. A legacy root `dev.db` is
-migrated to `projects/default.db` on first run, and any old `projects.json`
-registry is imported into the dbs' `meta` and backed up to `.bak`.
+OpenRouter key/model). Both live under the app's **data dir** — the working dir in
+dev, a per-OS user-data dir for a packaged build, overridable via `PYOPS_DATA_DIR`
+(see `app/src/server/paths.ts`). All are generated/gitignored.
 
 ## App architecture (`app/src/`)
 
@@ -67,8 +69,16 @@ from inside `app/`:
   the UDP-bridge round-trip, and `responsive.e2e.ts`, which screenshots every route
   across a desktop/tablet/phone matrix and **asserts no route scrolls sideways** at
   tablet/phone widths. See `app/e2e/README.md`.
-- DB: `pnpm db:generate` / `db:migrate` / `db:push` / `db:studio` (drizzle-kit),
-  `pnpm db:import` to load the Factorio dump.
+- DB schema: edit `src/db/schema.ts`, then `vp run db:generate <name>` to write a
+  migration under `drizzle/` (a name is required, so files stay meaningful).
+  `server/provision.ts` applies the migrations **in-process** on first connect to
+  each project db. `db:studio` opens the drizzle DB browser. A Factorio dump loads
+  through the in-app data sync.
+- Desktop shell: `vp run tauri dev` runs the app in a native window; `vp run tauri
+  build` packages a bundle (run `src-tauri/vendor-node.sh` first). Releases are
+  automated by **release-please** — **don't hand-edit the version** in
+  `package.json` / `Cargo.toml` / `tauri.conf.json`; it bumps all three from
+  conventional commits. See [`docs/desktop.md`](docs/desktop.md).
 
 If setup/runtime/package-manager behavior looks wrong, run `vp env doctor`.
 

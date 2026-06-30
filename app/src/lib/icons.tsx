@@ -21,7 +21,7 @@ export function fmtSpoilTime(ticks: number): string {
 
 /**
  * Renders Factorio icons from the sprite atlas (manifest comes from a typed
- * server fn; atlas sheets are served from /icons by the dev middleware). Each
+ * server fn; atlas sheets are served from /icons). Each
  * icon is a background-position slice. Manifest keys are `${prototypeType}/${name}`.
  *
  * The manifest loads CLIENT-ONLY (useEffect) so it isn't fetched during SSR.

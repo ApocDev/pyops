@@ -2,8 +2,8 @@
  * Test-only helpers: spin up a throwaway SQLite database with the REAL schema.
  *
  * The schema DDL is derived straight from `schema.ts` via drizzle-kit's
- * programmatic api (the same engine `db:push` uses), so fixtures never drift
- * from the production schema — change a column and the next test run builds it.
+ * programmatic api, so fixtures never drift from the production schema — change a
+ * column and the next test run builds it.
  * Not imported by app code; only `*.test.ts` files use it.
  */
 import { mkdtempSync, rmSync } from "node:fs";

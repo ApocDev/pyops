@@ -20,9 +20,11 @@ orchestrated end-to-end from **Settings › Game data** in the UI
    synthesize the recipes the engine doesn't model as recipes: mining, boiling,
    burning, spoiling, and per-temperature fluid variants
    (`app/src/db/synthesize.ts`).
-5. **Rebuild the icon atlas** (`scripts/build-icon-atlas.mjs`): pack the dumped
-   sprites into content-hash-deduped 4096² sheets + a `(type, name) → slot`
-   manifest, served `immutable`.
+5. **Rebuild the icon atlas** (`buildIconAtlas`, `app/src/server/icon-atlas.ts`):
+   pack the dumped sprites into content-hash-deduped 4096² sheets + a
+   `(type, name) → slot` manifest, written to the data dir's `icon-data/`. The app
+   serves them at `/icons/*` (`app/src/routes/icons.$.ts`), cached `immutable` and
+   cache-busted by the data fingerprint in the sheet URLs (`?v=…`).
 6. **Compute cost analysis** — a YAFC-style LP that assigns each good an intrinsic
    cost (`app/src/server/cost-analysis.ts`, a port of YAFC's `CostAnalysis.cs`).
 7. **Apply mod migrations** — read each enabled mod's `migrations/*.json` and

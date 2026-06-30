@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { sql } from "drizzle-orm";
 
 import * as schema from "./schema.ts";
+import { migrateConnection } from "../server/provision.ts";
 import { activeProjectFile } from "./projects-fs.ts";
 
 /**
@@ -25,28 +25,12 @@ function connection(file: string): Drizzle {
   let c = connections.get(file);
   if (!c) {
     c = drizzle(file, { schema });
-    ensureCoreUpgrades(c);
+    // Provision/upgrade the db to the current schema on first connect by applying
+    // the bundled drizzle migrations. Idempotent and runs once per file (cached).
+    migrateConnection(c);
     connections.set(file, c);
   }
   return c;
-}
-
-/**
- * Columns added to core tables after some project dbs were already provisioned.
- * `drizzle-kit push` gives brand-new dbs the full schema, but existing dbs have no
- * migrate step — so without this, selecting a newer column throws "no such column".
- * Apply each ALTER idempotently on first connect (the ALTER errors harmlessly when
- * the column already exists). Mirrors the per-feature `ensureSchema()` guards used
- * by conversations/tasks. Runs once per db file (connections are cached).
- */
-function ensureCoreUpgrades(c: Drizzle) {
-  for (const stmt of [sql`ALTER TABLE blocks ADD COLUMN solve_status text`]) {
-    try {
-      c.run(stmt);
-    } catch {
-      /* column already present (or table not created yet — push will include it) */
-    }
-  }
 }
 
 /** Point `db` at another project's database file. */

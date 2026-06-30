@@ -1,0 +1,94 @@
+name: Release
+
+# release-please watches conventional commits on `main` and maintains a "release PR"
+# that bumps the version (app/package.json + Cargo.toml + tauri.conf.json) and the
+# changelog. Merging that PR cuts the GitHub release + tag, and the build job then
+# attaches the platform bundles to it. workflow_dispatch runs a build-only smoke test
+# (no release). Activates once this branch is merged to main.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: rp
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  build:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04    # Linux x64 (deb + AppImage)
+            bundles: 'deb,appimage'
+          - platform: macos-14        # macOS Apple Silicon
+            bundles: 'dmg'
+          - platform: macos-13        # macOS Intel
+            bundles: 'dmg'
+          - platform: windows-latest  # Windows x64
+            bundles: 'nsis'
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Tauri's webview + bundling deps (Linux only). The Ubuntu runner is Debian-
+      # based, so unlike an Arch host its linuxdeploy/AppImage tooling works.
+      - name: Install Linux build dependencies
+        if: startsWith(matrix.platform, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+            libayatana-appindicator3-dev patchelf file
+
+      # Rust toolchain for the Tauri shell.
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+
+      # vite-plus toolchain + app deps (same as ci.yml).
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version: '24'
+          cache: true
+      - name: Install app dependencies
+        working-directory: app
+        run: vp install
+
+      # Vendor the node sidecar for this runner's platform (gitignored, so it isn't
+      # in the checkout). vendor-node.sh resolves the host triple itself.
+      - name: Vendor the node sidecar
+        working-directory: app/src-tauri
+        shell: bash
+        run: ./vendor-node.sh
+
+      # Build, sign the updater artifacts, attach bundles to the release-please
+      # release, and generate/aggregate latest.json across the matrix. tauri-action
+      # runs `vp build` (beforeBuildCommand) then the tauri build via the CLI vp
+      # installed. With no tag (workflow_dispatch), it builds only — a smoke test.
+      - name: Build, sign, and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: app
+          tagName: ${{ needs.release-please.outputs.tag_name }}
+          args: --bundles ${{ matrix.bundles }}

@@ -1,5 +1,6 @@
 {
   "name": "app",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "imports": {
@@ -11,12 +12,9 @@
     "build": "vp build",
     "preview": "vp preview",
     "test": "vp test run",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:pull": "drizzle-kit pull",
+    "db:generate": "node scripts/db-generate.mjs",
     "db:studio": "drizzle-kit studio",
-    "db:import": "tsx src/db/import-factorio.ts"
+    "tauri": "tauri"
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.206",
@@ -69,6 +67,7 @@
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/devtools-vite": "latest",
     "@tanstack/router-cli": "^1.132.0",
+    "@tauri-apps/cli": "^2.11.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.0",
     "@types/better-sqlite3": "^7.6.0",

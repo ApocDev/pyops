@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "PyOps",
+  "version": "0.1.0",
+  "identifier": "com.apocdev.pyops",
+  "build": {
+    "beforeDevCommand": "PORT=34115 HOST=127.0.0.1 node .output/server/index.mjs",
+    "beforeBuildCommand": "vp build",
+    "frontendDist": "../.output/public",
+    "devUrl": "http://localhost:34115"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": ["deb"],
+    "externalBin": ["binaries/node"],
+    "resources": {
+      "../.output": "output",
+      "../drizzle": "drizzle",
+      "../../mod": "mod"
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "android": {
+      "debugApplicationIdSuffix": ".debug"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://github.com/ApocDev/pyops/releases/latest/download/latest.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENBOTFGMkJFNTE1REQ2NUYKUldSZjFsMVJ2dktSeXNLb1FTbVBzNEprb0twUVJPWnh3WmF1cVp4Z2RBcVczNFhNK1dCdjVYeFUK"
+    }
+  }
+}

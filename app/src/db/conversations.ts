@@ -1,9 +1,7 @@
 /**
- * Persisted assistant conversations, per-project. Pure queries over the
- * active project's db. Because these tables are newer than most existing project
- * dbs, `ensureSchema()` creates them idempotently on first use so the feature
- * works without a manual `db:push` per project (new projects get them from the
- * schema via drizzle-kit push). schema.ts stays the canonical definition.
+ * Persisted assistant conversations, per-project. Pure queries over the active
+ * project's db. `ensureSchema()` creates these tables idempotently on first use, so
+ * every project db has them. schema.ts stays the canonical definition.
  */
 import { desc, eq, sql } from "drizzle-orm";
 
