@@ -1,0 +1,19 @@
+.github/workflows/release.yml
+  s_ad8974a3b278d5::t_0fac9b2231a2f8 45-47,51,55,59,63,124-137,160-165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "217bd62bf7e06dad1ce913b5a7424f2935917a96",
+  "prompts": {},
+  "sessions": {
+    "s_ad8974a3b278d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
