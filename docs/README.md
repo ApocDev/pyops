@@ -13,6 +13,8 @@ PyOps, see the [top-level README](../README.md).
   companion mod, and what flows across it.
 - [AI assistant](ai-assistant.md) — the planning agent, its tools, and the MCP
   surface.
+- [Desktop app & releases](desktop.md) — the Tauri shell, packaging into a
+  self-contained bundle, the release-please pipeline, and self-update.
 
 See also [`AGENTS.md`](../AGENTS.md) for the contributor/agent working guide
 (toolchain commands, conventions, issue tracking).

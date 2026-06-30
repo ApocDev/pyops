@@ -46,6 +46,8 @@ pyops/
 │   │   ├── server/        server-only modules (data, solver glue, bridge, AI)
 │   │   ├── solver/        pure-TS linear-system block solver + tests
 │   │   └── db/            Drizzle schema, import, synthesize, queries
+│   ├── src-tauri/         Tauri desktop shell + packaging (see desktop.md)
+│   ├── drizzle/           generated SQL migrations, applied in-process
 │   ├── icon-data/         generated icon atlas (gitignored)
 │   ├── projects/          per-project .db files, each self-named (gitignored)
 │   └── app-config.json    app-level config: active project + AI key/model (gitignored)
