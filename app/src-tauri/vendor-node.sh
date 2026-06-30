@@ -27,7 +27,10 @@ trap 'rm -rf "$TMP"' EXIT
 
 if [[ "$NODE_ARCH" == win-* ]]; then
   curl -fsSL "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-$NODE_ARCH.zip" -o "$TMP/node.zip"
-  unzip -q "$TMP/node.zip" -d "$TMP"
+  # extract with whatever's available (Git Bash often lacks unzip; 7z/bsdtar do zip)
+  if command -v unzip >/dev/null 2>&1; then unzip -q "$TMP/node.zip" -d "$TMP"
+  elif command -v 7z >/dev/null 2>&1; then 7z x -o"$TMP" "$TMP/node.zip" >/dev/null
+  else tar -xf "$TMP/node.zip" -C "$TMP"; fi
   cp "$TMP/node-v$NODE_VERSION-$NODE_ARCH/node.exe" "$DIR/binaries/node-$TRIPLE.exe"
 else
   curl -fsSL "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-$NODE_ARCH.tar.xz" -o "$TMP/node.tar.xz"
