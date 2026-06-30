@@ -1,6 +1,27 @@
 import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, useEffect, useRef, useState, type MutableRefObject } from "react";
+import {
+  createContext,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MutableRefObject,
+  type ReactNode,
+} from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
 import {
   createGroupFn,
   deleteBlockFn,
@@ -15,7 +36,15 @@ import {
   setGroupOrderFn,
   setGroupParentFn,
 } from "../server/factorio";
-import { AlertTriangle, ChevronDown, ChevronRight, FolderPlus, Plus, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  FolderPlus,
+  GripVertical,
+  Plus,
+  X,
+} from "lucide-react";
 import { Icon, IconProvider } from "../lib/icons";
 import { Input } from "#/components/ui/input.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
@@ -40,6 +69,64 @@ export type ActiveEditorState = { id: number; empty: boolean };
 export const ActiveEditorRefContext =
   createContext<MutableRefObject<ActiveEditorState | null> | null>(null);
 
+/** A sidebar tree row that is both a dnd-kit drag source and a drop target. The
+ * grip (handed to the child via the render prop) is the only drag activator, so a
+ * tap to open a block or a scroll of the list still works on touch. */
+function DndRow({
+  id,
+  className,
+  style,
+  children,
+}: {
+  id: string;
+  className?: string;
+  style?: CSSProperties;
+  children: (handle: {
+    attributes: ReturnType<typeof useDraggable>["attributes"];
+    listeners: ReturnType<typeof useDraggable>["listeners"];
+    setActivatorNodeRef: ReturnType<typeof useDraggable>["setActivatorNodeRef"];
+  }) => ReactNode;
+}) {
+  const drag = useDraggable({ id });
+  const drop = useDroppable({ id });
+  const setRef = (el: HTMLElement | null) => {
+    drag.setNodeRef(el);
+    drop.setNodeRef(el);
+  };
+  return (
+    <div
+      ref={setRef}
+      style={style}
+      className={`${className ?? ""} ${drag.isDragging ? "opacity-40" : ""}`}
+    >
+      {children({
+        attributes: drag.attributes,
+        listeners: drag.listeners,
+        setActivatorNodeRef: drag.setActivatorNodeRef,
+      })}
+    </div>
+  );
+}
+
+/** A droppable-only sidebar target — the Ungrouped pseudo-folder, which accepts
+ * drops but can't itself be dragged. */
+function DropZone({
+  id,
+  className,
+  children,
+}: {
+  id: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  const { setNodeRef } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className={className}>
+      {children}
+    </div>
+  );
+}
+
 /** Block workspace: a sidebar inventory of every block + tabs for the open ones,
  * with the active block's editor in the main pane (the /block/$id Outlet). */
 function Shell() {
@@ -54,8 +141,8 @@ function Shell() {
   const [search, setSearch] = useState("");
   const [openTabs, setOpenTabs] = useState<number[]>([]);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const dragId = useRef<number | null>(null); // block being dragged in the sidebar
-  const dragGroupId = useRef<number | null>(null); // folder being dragged in the sidebar
+  // the sidebar row currently being dragged (dnd-kit id: "b<id>" block | "g<id>" folder)
+  const [dragKey, setDragKey] = useState<string | null>(null);
   // block we're hovering over, and whether we'd drop after it (bottom half) — drives
   // the insertion line so you can see exactly where the block lands
   const [dropBlock, setDropBlock] = useState<{ id: number; after: boolean } | null>(null);
@@ -130,10 +217,68 @@ function Shell() {
     refresh();
   };
   const endDrag = () => {
-    dragId.current = null;
-    dragGroupId.current = null;
+    setDragKey(null);
     setDropBlock(null);
     setDropFolder(null);
+  };
+
+  // ── Sidebar drag-and-drop (dnd-kit; pointer sensor → mouse + touch) ──────────
+  // Rows are draggable + droppable with ids "b<id>" (block) / "g<id>" (folder) /
+  // "ungrouped". Drag starts only from each row's grip; a small activation distance
+  // keeps a tap (to open a block) or a scroll from being read as a drag.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  const pointerY = (e: DragOverEvent | DragEndEvent) =>
+    ((e.activatorEvent as PointerEvent).clientY ?? 0) + e.delta.y;
+
+  // Where the active row would land over `overId` with the pointer at `pointerY` —
+  // mirrors the old native-drag rules. Returns the drop-indicator to show/apply.
+  const computeDrop = (
+    activeKey: string,
+    overId: string,
+    rect: { top: number; height: number },
+    y: number,
+  ): { block?: { id: number; after: boolean }; folder?: { key: string; into: boolean } } | null => {
+    if (overId === activeKey) return null;
+    const draggingFolder = activeKey.startsWith("g");
+    if (overId.startsWith("b")) {
+      if (draggingFolder) return null; // a folder can't nest into a block
+      return { block: { id: Number(overId.slice(1)), after: y > rect.top + rect.height / 2 } };
+    }
+    // a folder header / Ungrouped: a dragged folder reorders in the top sliver and
+    // nests in the rest; a dragged block always nests
+    const into = draggingFolder && overId !== "ungrouped" ? y > rect.top + rect.height * 0.4 : true;
+    return { folder: { key: overId, into } };
+  };
+
+  const onDragStart = (e: DragStartEvent) => setDragKey(String(e.active.id));
+
+  const onDragOver = (e: DragOverEvent) => {
+    const drop =
+      e.over && computeDrop(String(e.active.id), String(e.over.id), e.over.rect, pointerY(e));
+    setDropBlock(drop?.block ?? null);
+    setDropFolder(drop?.folder ?? null);
+  };
+
+  const onDragEnd = (e: DragEndEvent) => {
+    if (e.over) {
+      const activeKey = String(e.active.id);
+      const aId = Number(activeKey.slice(1));
+      const drop = computeDrop(activeKey, String(e.over.id), e.over.rect, pointerY(e));
+      if (drop?.block) {
+        const target = byId.get(drop.block.id);
+        if (target) void dropBlockAt(aId, target, drop.block.after);
+      } else if (drop?.folder) {
+        const groupId = drop.folder.key === "ungrouped" ? null : Number(drop.folder.key.slice(1));
+        if (!activeKey.startsWith("g")) void moveToGroup(aId, groupId);
+        else if (drop.folder.into) void moveGroup(aId, groupId);
+        else {
+          const target = (groups.data ?? []).find((g) => g.id === groupId);
+          if (target) void dropFolderBefore(aId, target);
+        }
+      }
+    }
+    endDrag();
   };
   const newFolder = async () => {
     const name = window.prompt("Folder name?")?.trim();
@@ -266,61 +411,55 @@ function Shell() {
   type Row = (typeof filtered)[number];
   type Group = NonNullable<typeof groups.data>[number];
   const renderBlock = (b: Row, depth: number) => (
-    <div
+    <DndRow
       key={b.id}
-      draggable
+      id={`b${b.id}`}
       style={{ marginLeft: 8 + depth * 12 }}
-      onDragStart={() => {
-        dragId.current = b.id;
-      }}
-      onDragOver={(e) => {
-        if (dragId.current == null || dragId.current === b.id) return;
-        e.preventDefault();
-        e.stopPropagation(); // beat the folder's to-end drop handler
-        const rect = e.currentTarget.getBoundingClientRect();
-        const after = e.clientY > rect.top + rect.height / 2;
-        if (dropBlock?.id !== b.id || dropBlock.after !== after) setDropBlock({ id: b.id, after });
-      }}
-      onDrop={(e) => {
-        if (dragId.current == null) return;
-        e.preventDefault();
-        e.stopPropagation();
-        void dropBlockAt(dragId.current, b, dropBlock?.id === b.id ? dropBlock.after : false);
-        endDrag();
-      }}
-      onDragEnd={endDrag}
-      className={`group relative flex items-center gap-2 rounded px-2 py-1 hover:bg-muted ${activeId === b.id ? "bg-accent" : ""}`}
+      className={`group relative flex items-center gap-1 rounded px-1.5 py-1 hover:bg-muted ${activeId === b.id ? "bg-accent" : ""}`}
     >
-      {dropBlock?.id === b.id && (
-        <div
-          className={`pointer-events-none absolute inset-x-1 z-10 h-0.5 rounded-full bg-primary ${dropBlock.after ? "-bottom-px" : "-top-px"}`}
-        />
-      )}
-      <button
-        className="flex min-w-0 flex-1 items-center gap-2 text-left"
-        onClick={() => open(b.id)}
-      >
-        {b.iconName && (
-          <Icon kind={(b.iconKind ?? "item") as IconKind} name={b.iconName} size="sm" noTitle />
-        )}
-        <span className="truncate text-sm">{b.name}</span>
-        {b.broken && (
+      {(h) => (
+        <>
+          {dropBlock?.id === b.id && (
+            <div
+              className={`pointer-events-none absolute inset-x-1 z-10 h-0.5 rounded-full bg-primary ${dropBlock.after ? "-bottom-px" : "-top-px"}`}
+            />
+          )}
           <span
-            className="shrink-0 text-destructive"
-            title="references a recipe/good that no longer exists — open to see what's missing"
+            ref={h.setActivatorNodeRef}
+            {...h.attributes}
+            {...h.listeners}
+            title="drag to reorder, or onto a folder to move it there"
+            className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground/40 select-none hover:text-foreground active:cursor-grabbing"
           >
-            <AlertTriangle className="size-3.5" />
+            <GripVertical className="size-4" />
           </span>
-        )}
-      </button>
-      <button
-        className="px-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
-        title="delete"
-        onClick={(e) => del(b.id, e)}
-      >
-        <X className="size-3.5" />
-      </button>
-    </div>
+          <button
+            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+            onClick={() => open(b.id)}
+          >
+            {b.iconName && (
+              <Icon kind={(b.iconKind ?? "item") as IconKind} name={b.iconName} size="sm" noTitle />
+            )}
+            <span className="truncate text-sm">{b.name}</span>
+            {b.broken && (
+              <span
+                className="shrink-0 text-destructive"
+                title="references a recipe/good that no longer exists — open to see what's missing"
+              >
+                <AlertTriangle className="size-3.5" />
+              </span>
+            )}
+          </button>
+          <button
+            className="px-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
+            title="delete"
+            onClick={(e) => del(b.id, e)}
+          >
+            <X className="size-3.5" />
+          </button>
+        </>
+      )}
+    </DndRow>
   );
   // A real folder, rendered recursively: its subfolders (nested) then its blocks.
   // Dropping a folder on the top sliver reorders it before this one; lower down nests
@@ -334,57 +473,44 @@ function Shell() {
     const showLine = dropFolder?.key === key && !dropFolder.into;
     return (
       <div key={key}>
-        <div
-          draggable
-          onDragStart={(e) => {
-            e.stopPropagation();
-            dragGroupId.current = group.id;
-          }}
-          onDragOver={(e) => {
-            if (dragId.current == null && dragGroupId.current == null) return;
-            e.preventDefault();
-            // a dragged folder reorders (top sliver) or nests (rest); a block nests
-            let into = true;
-            if (dragGroupId.current != null) {
-              const r = e.currentTarget.getBoundingClientRect();
-              into = e.clientY > r.top + r.height * 0.4;
-            }
-            setDropFolder((d) => (d?.key === key && d.into === into ? d : { key, into }));
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const into = dropFolder?.key === key ? dropFolder.into : true;
-            if (dragGroupId.current != null) {
-              if (into) void moveGroup(dragGroupId.current, group.id);
-              else void dropFolderBefore(dragGroupId.current, group);
-            } else if (dragId.current != null) void moveToGroup(dragId.current, group.id);
-            endDrag();
-          }}
-          onDragEnd={endDrag}
+        <DndRow
+          id={key}
           style={{ marginLeft: depth * 12 }}
           className={`group relative flex items-center gap-1 rounded px-1 py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted/50 ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
         >
-          {showLine && (
-            <div className="pointer-events-none absolute inset-x-1 -top-px z-10 h-0.5 rounded-full bg-primary" />
+          {(h) => (
+            <>
+              {showLine && (
+                <div className="pointer-events-none absolute inset-x-1 -top-px z-10 h-0.5 rounded-full bg-primary" />
+              )}
+              <span
+                ref={h.setActivatorNodeRef}
+                {...h.attributes}
+                {...h.listeners}
+                title="drag to reorder, or onto a folder to nest it"
+                className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground/40 hover:text-foreground active:cursor-grabbing"
+              >
+                <GripVertical className="size-3.5" />
+              </span>
+              <button className="flex w-4 shrink-0 justify-center" onClick={() => toggle(key)}>
+                {isCol ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
+              </button>
+              <span
+                className="min-w-0 flex-1 truncate"
+                onDoubleClick={() => renameFolder(group.id, group.name)}
+              >
+                {group.name} ({rows.length})
+              </span>
+              <button
+                className="px-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
+                title="delete folder"
+                onClick={() => deleteFolder(group.id)}
+              >
+                <X className="size-3.5" />
+              </button>
+            </>
           )}
-          <button className="flex w-4 shrink-0 justify-center" onClick={() => toggle(key)}>
-            {isCol ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
-          </button>
-          <span
-            className="min-w-0 flex-1 truncate"
-            onDoubleClick={() => renameFolder(group.id, group.name)}
-          >
-            {group.name} ({rows.length})
-          </span>
-          <button
-            className="px-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
-            title="delete folder"
-            onClick={() => deleteFolder(group.id)}
-          >
-            <X className="size-3.5" />
-          </button>
-        </div>
+        </DndRow>
         {!isCol && (
           <>
             {kids.map((k) => renderFolder(k, depth + 1))}
@@ -403,30 +529,40 @@ function Shell() {
     const showInto = dropFolder?.key === key;
     return (
       <div key={key}>
-        <div
-          onDragOver={(e) => {
-            if (dragId.current == null && dragGroupId.current == null) return;
-            e.preventDefault();
-            setDropFolder((d) => (d?.key === key ? d : { key, into: true }));
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (dragGroupId.current != null) void moveGroup(dragGroupId.current, null);
-            else if (dragId.current != null) void moveToGroup(dragId.current, null);
-            endDrag();
-          }}
-          onDragEnd={endDrag}
+        <DropZone
+          id={key}
           className={`group flex items-center gap-1 rounded px-1 py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted/50 ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
         >
           <button className="flex w-4 shrink-0 justify-center" onClick={() => toggle(key)}>
             {isCol ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
           </button>
           <span className="min-w-0 flex-1 truncate">Ungrouped ({rows.length})</span>
-        </div>
+        </DropZone>
         {!isCol && rows.map((b) => renderBlock(b, 0))}
       </div>
     );
+  };
+
+  // What the cursor carries during a sidebar drag (rendered in the DragOverlay).
+  const dragPreview = () => {
+    if (!dragKey) return null;
+    if (dragKey.startsWith("b")) {
+      const b = byId.get(Number(dragKey.slice(1)));
+      return b ? (
+        <div className="flex items-center gap-2 rounded border border-border bg-card px-2 py-1 text-sm shadow-lg">
+          {b.iconName && (
+            <Icon kind={(b.iconKind ?? "item") as IconKind} name={b.iconName} size="sm" noTitle />
+          )}
+          <span className="truncate">{b.name}</span>
+        </div>
+      ) : null;
+    }
+    const g = (groups.data ?? []).find((x) => `g${x.id}` === dragKey);
+    return g ? (
+      <div className="rounded border border-border bg-card px-2 py-1 text-xs font-semibold tracking-wide uppercase shadow-lg">
+        {g.name}
+      </div>
+    ) : null;
   };
 
   return (
@@ -461,21 +597,31 @@ function Shell() {
             placeholder="search blocks…"
             className="m-2 w-auto"
           />
-          <div className="flex-1 overflow-auto px-1 pb-2">
-            {(blocks.data?.length ?? 0) === 0 ? (
-              <div className="flex items-center gap-1 px-2 py-2 text-xs text-muted-foreground">
-                no blocks yet — <Plus className="inline size-3" /> to add one
-              </div>
-            ) : (
-              <>
-                {childrenOf(null).map((g) => renderFolder(g, 0))}
-                {renderUngrouped()}
-                {filtered.length === 0 && (
-                  <div className="px-2 py-2 text-xs text-muted-foreground">no matches</div>
-                )}
-              </>
-            )}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={pointerWithin}
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDragEnd={onDragEnd}
+            onDragCancel={endDrag}
+          >
+            <div className="flex-1 overflow-auto px-1 pb-2">
+              {(blocks.data?.length ?? 0) === 0 ? (
+                <div className="flex items-center gap-1 px-2 py-2 text-xs text-muted-foreground">
+                  no blocks yet — <Plus className="inline size-3" /> to add one
+                </div>
+              ) : (
+                <>
+                  {childrenOf(null).map((g) => renderFolder(g, 0))}
+                  {renderUngrouped()}
+                  {filtered.length === 0 && (
+                    <div className="px-2 py-2 text-xs text-muted-foreground">no matches</div>
+                  )}
+                </>
+              )}
+            </div>
+            <DragOverlay dropAnimation={null}>{dragPreview()}</DragOverlay>
+          </DndContext>
         </>
       }
     >
