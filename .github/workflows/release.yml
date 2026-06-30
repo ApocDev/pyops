@@ -1,0 +1,84 @@
+name: Release
+
+# Cut a release by pushing a tag, e.g. `git tag v0.1.0 && git push origin v0.1.0`.
+# Each platform builds on its own runner and the bundles are attached to a draft
+# GitHub Release for that tag. Can also be run manually (build-only, no release).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            bundles: 'deb,appimage'
+          # Expand over time — vendor-node.sh auto-detects the runner's triple, so
+          # adding a platform is mostly just another matrix entry:
+          #   - platform: macos-14         # Apple Silicon
+          #     bundles: 'dmg'
+          #   - platform: macos-13         # Intel
+          #     bundles: 'dmg'
+          #   - platform: windows-latest   # (use node_modules/.bin/tauri.cmd to build)
+          #     bundles: 'nsis'
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Tauri's webview + bundling deps (Linux only). The Ubuntu runner is Debian-
+      # based, so unlike an Arch host its linuxdeploy/AppImage tooling works.
+      - name: Install Linux build dependencies
+        if: startsWith(matrix.platform, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+            libayatana-appindicator3-dev patchelf file
+
+      # Rust toolchain for the Tauri shell.
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+
+      # vite-plus toolchain + app deps (same as ci.yml).
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version: '24'
+          cache: true
+      - name: Install app dependencies
+        working-directory: app
+        run: vp install
+
+      # Vendor the node sidecar for this runner's platform (gitignored, so it isn't
+      # in the checkout). vendor-node.sh resolves the host triple itself.
+      - name: Vendor the node sidecar
+        working-directory: app/src-tauri
+        run: ./vendor-node.sh
+
+      # Build the bundle. The tauri CLI (from @tauri-apps/cli, installed by vp) runs
+      # `vp build` (beforeBuildCommand) then bundles. `--bundles` overrides the
+      # deb-only default in tauri.conf.json for this platform.
+      - name: Build the desktop bundle
+        working-directory: app
+        run: ./node_modules/.bin/tauri build --bundles ${{ matrix.bundles }}
+
+      # Attach the bundles to a draft Release for the pushed tag.
+      - name: Publish to GitHub Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            app/src-tauri/target/release/bundle/**/*.deb
+            app/src-tauri/target/release/bundle/**/*.AppImage
+            app/src-tauri/target/release/bundle/**/*.dmg
+            app/src-tauri/target/release/bundle/**/*.msi
+            app/src-tauri/target/**/release/bundle/**/*.deb
+            app/src-tauri/target/**/release/bundle/**/*.AppImage
