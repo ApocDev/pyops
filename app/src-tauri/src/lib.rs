@@ -9,7 +9,22 @@ use std::time::{Duration, Instant};
 
 use tauri::webview::PageLoadEvent;
 use tauri::{RunEvent, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_window_state::{StateFlags, WindowExt};
+
+// External `<a>` clicks (incl. target=_blank, which on_navigation alone misses)
+// become a same-frame navigation, which the on_navigation hook cancels and hands to
+// the system browser — so links like the GitHub button open in the user's browser
+// instead of hijacking the app window.
+const EXTERNAL_LINKS_SCRIPT: &str = r#"
+window.addEventListener('click', function (e) {
+  var a = e.target && e.target.closest && e.target.closest('a[href]');
+  if (a && /^https?:\/\//i.test(a.href) && a.origin !== window.location.origin) {
+    e.preventDefault();
+    window.location.href = a.href;
+  }
+}, true);
+"#;
 
 #[cfg(not(debug_assertions))]
 use std::sync::Mutex;
@@ -49,11 +64,22 @@ fn open_main_window(app: &tauri::AppHandle) {
     // stays collapsed). After the first run, the window-state plugin restores whatever
     // size/position the user left it at. Title carries the version (tauri.conf.json).
     let title = format!("PyOps v{}", app.package_info().version);
+    let nav_handle = app.clone();
     let win = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url.parse().unwrap()))
         .title(title)
         .inner_size(1800.0, 1100.0)
         .min_inner_size(900.0, 600.0)
         .visible(false)
+        .initialization_script(EXTERNAL_LINKS_SCRIPT)
+        .on_navigation(move |url| {
+            // Stay on the local server; send any other web link to the system browser.
+            let is_local = matches!(url.host_str(), Some("localhost") | Some("127.0.0.1"));
+            if matches!(url.scheme(), "http" | "https") && !is_local {
+                let _ = nav_handle.opener().open_url(url.as_str(), None::<&str>);
+                return false;
+            }
+            true
+        })
         .on_page_load(|window, payload| {
             if matches!(payload.event(), PageLoadEvent::Finished) {
                 let _ = window.show();
@@ -85,6 +111,7 @@ pub fn run() {
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             if cfg!(debug_assertions) {
