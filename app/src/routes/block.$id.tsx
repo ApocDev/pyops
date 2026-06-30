@@ -1145,15 +1145,26 @@ function Block({ blockId }: { blockId: number }) {
             shows each item&apos;s current disposition.
           </p>
           <div>
-            <div className="font-semibold text-foreground">Toolbar (top-right)</div>
-            <ul className="mt-1 list-disc space-y-1 pl-5">
-              <li>
-                the <span className="text-foreground">copy</span> icon copies this block&apos;s
-                recipe/module setup to the clipboard;
+            <div className="font-semibold text-foreground">Toolbar (next to the name)</div>
+            <ul className="mt-1 space-y-1.5">
+              <li className="flex items-start gap-2">
+                <Copy className="mt-0.5 size-4 shrink-0 text-foreground" />
+                <span>copies this block&apos;s recipe/module setup to the clipboard;</span>
               </li>
-              <li>
-                the <span className="text-foreground">game</span> icon shows this block as an
-                in-game build sheet — click a building there for a configured blueprint.
+              <li className="flex items-start gap-2">
+                <Gamepad2 className="mt-0.5 size-4 shrink-0 text-foreground" />
+                <span>
+                  shows this block as an in-game build sheet — click a building there for a
+                  configured blueprint;
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Hammer className="mt-0.5 size-4 shrink-0 text-foreground" />
+                <span>
+                  <span className="text-foreground">Building summary</span> — opens a drawer listing
+                  the buildings and the one-time materials to construct this block (a shopping list,
+                  kept out of the way of the per-second flows).
+                </span>
               </li>
             </ul>
           </div>
