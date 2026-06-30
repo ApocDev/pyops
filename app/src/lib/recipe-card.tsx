@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Flame, Timer } from "lucide-react";
@@ -175,6 +175,64 @@ export function TechCard({ name }: { name: string }) {
 }
 
 /** Wraps a row; shows a floating TechCard near the cursor on hover (portaled). */
+/** Portals a hover card near the cursor and keeps it fully on-screen: it prefers
+ * below-right of the pointer and flips to the cursor's left / above when the card
+ * would overflow that edge, then clamps to an 8px margin. Measures the real
+ * rendered card (not a guessed size) and re-measures on cursor move and whenever
+ * the card resizes — its detail data loads async, so a tall card would otherwise
+ * run off the bottom before the next mouse move. */
+function CursorCard({
+  pos,
+  z = 50,
+  children,
+}: {
+  pos: { x: number; y: number };
+  z?: number;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const GAP = 16; // offset from the cursor
+    const M = 8; // viewport margin
+    const reposition = () => {
+      const { width, height } = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      let left = pos.x + GAP;
+      if (left + width > vw - M) left = pos.x - GAP - width; // flip to the cursor's left
+      left = Math.max(M, Math.min(left, vw - width - M));
+      let top = pos.y + GAP;
+      if (top + height > vh - M) top = pos.y - GAP - height; // flip above the cursor
+      top = Math.max(M, Math.min(top, vh - height - M));
+      setPlace({ left, top });
+    };
+    reposition();
+    const ro = new ResizeObserver(reposition);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [pos.x, pos.y]);
+  return createPortal(
+    <div
+      ref={ref}
+      style={{
+        position: "fixed",
+        // hidden until the first measure so it never flashes at the wrong spot
+        left: place?.left ?? 0,
+        top: place?.top ?? 0,
+        zIndex: z,
+        pointerEvents: "none",
+        visibility: place ? "visible" : "hidden",
+      }}
+    >
+      {children}
+    </div>,
+    document.body,
+  );
+}
+
 export function TechHover({
   name,
   className,
@@ -193,22 +251,11 @@ export function TechHover({
       onMouseLeave={() => setPos(null)}
     >
       {children}
-      {pos &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            style={{
-              position: "fixed",
-              left: Math.min(pos.x + 16, window.innerWidth - 432),
-              top: Math.min(pos.y + 16, window.innerHeight - 360),
-              zIndex: 50,
-              pointerEvents: "none",
-            }}
-          >
-            <TechCard name={name} />
-          </div>,
-          document.body,
-        )}
+      {pos && typeof document !== "undefined" && (
+        <CursorCard pos={pos} z={50}>
+          <TechCard name={name} />
+        </CursorCard>
+      )}
     </div>
   );
 }
@@ -233,22 +280,11 @@ export function RecipeHover({
       onMouseLeave={() => setPos(null)}
     >
       {children}
-      {pos &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            style={{
-              position: "fixed",
-              left: Math.min(pos.x + 16, window.innerWidth - 432),
-              top: Math.min(pos.y + 16, window.innerHeight - 320),
-              zIndex: 50,
-              pointerEvents: "none",
-            }}
-          >
-            <RecipeCard name={name} />
-          </div>,
-          document.body,
-        )}
+      {pos && typeof document !== "undefined" && (
+        <CursorCard pos={pos} z={50}>
+          <RecipeCard name={name} />
+        </CursorCard>
+      )}
     </div>
   );
 }
@@ -387,22 +423,11 @@ export function ItemHover({
       onMouseLeave={() => setPos(null)}
     >
       {children}
-      {pos &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            style={{
-              position: "fixed",
-              left: Math.min(pos.x + 16, window.innerWidth - 400),
-              top: Math.max(8, Math.min(pos.y + 16, window.innerHeight - 480)),
-              zIndex: 60,
-              pointerEvents: "none",
-            }}
-          >
-            <ItemCard name={name} kind={kind} />
-          </div>,
-          document.body,
-        )}
+      {pos && typeof document !== "undefined" && (
+        <CursorCard pos={pos} z={60}>
+          <ItemCard name={name} kind={kind} />
+        </CursorCard>
+      )}
     </span>
   );
 }
