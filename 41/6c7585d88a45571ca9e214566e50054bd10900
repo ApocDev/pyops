@@ -1,0 +1,27 @@
+AGENTS.md
+  s_ad8974a3b278d5::t_d4ea9cca0c051f 16-18,72-76
+README.md
+  s_ad8974a3b278d5::t_e0a1f25abfcd84 93-111,114-115
+docs/README.md
+  s_ad8974a3b278d5::t_840dcfd7c15bdc 16-17
+docs/architecture.md
+  s_ad8974a3b278d5::t_63c71cf739dcbf 49-50
+docs/desktop.md
+  s_ad8974a3b278d5::t_b7ca507fafabcc 1-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "416c7585d88a45571ca9e214566e50054bd10900",
+  "prompts": {},
+  "sessions": {
+    "s_ad8974a3b278d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
