@@ -78,23 +78,17 @@ jobs:
         shell: bash
         run: ./vendor-node.sh
 
-      # Build the bundle. The tauri CLI (from @tauri-apps/cli, installed by vp) runs
-      # `vp build` (beforeBuildCommand) then bundles. `--bundles` overrides the
-      # deb-only default in tauri.conf.json for this platform.
-      - name: Build the desktop bundle
-        working-directory: app
-        shell: bash
-        run: ./node_modules/.bin/tauri build --bundles ${{ matrix.bundles }}
-
-      # Attach the bundles to the release release-please just created.
-      - name: Attach bundles to the release
-        if: ${{ needs.release-please.outputs.release_created == 'true' }}
-        uses: softprops/action-gh-release@v2
+      # Build, sign the updater artifacts, attach bundles to the release-please
+      # release, and generate/aggregate latest.json across the matrix. tauri-action
+      # runs `vp build` (beforeBuildCommand) then the tauri build via the CLI vp
+      # installed. With no tag (workflow_dispatch), it builds only — a smoke test.
+      - name: Build, sign, and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tag_name: ${{ needs.release-please.outputs.tag_name }}
-          files: |
-            app/src-tauri/target/**/bundle/**/*.deb
-            app/src-tauri/target/**/bundle/**/*.AppImage
-            app/src-tauri/target/**/bundle/**/*.dmg
-            app/src-tauri/target/**/bundle/**/*.msi
-            app/src-tauri/target/**/bundle/**/*.exe
+          projectPath: app
+          tagName: ${{ needs.release-please.outputs.tag_name }}
+          args: --bundles ${{ matrix.bundles }}

@@ -17,6 +17,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": ["deb"],
     "externalBin": ["binaries/node"],
     "resources": {
@@ -33,6 +34,12 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://github.com/ApocDev/pyops/releases/latest/download/latest.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENBOTFGMkJFNTE1REQ2NUYKUldSZjFsMVJ2dktSeXNLb1FTbVBzNEprb0twUVJPWnh3WmF1cVp4Z2RBcVczNFhNK1dCdjVYeFUK"
     }
   }
 }
