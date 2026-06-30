@@ -1,0 +1,23 @@
+app/src-tauri/Cargo.lock
+  s_ad8974a3b278d5::t_2bf5e9d9176806 89,3506-3520
+app/src-tauri/Cargo.toml
+  s_ad8974a3b278d5::t_9adf7f6df82bad 27
+app/src-tauri/src/lib.rs
+  s_ad8974a3b278d5::t_00f23df3238238 11-12,19-20,46-55,64-68,88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "755e51e4605d20e1d6d073891ac315c3a63c5d8d",
+  "prompts": {},
+  "sessions": {
+    "s_ad8974a3b278d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
