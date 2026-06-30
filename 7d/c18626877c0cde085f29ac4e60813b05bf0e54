@@ -1,0 +1,31 @@
+app/src-tauri/.gitignore
+  s_ad8974a3b278d5::t_fe1c4b40f3238d 5-7
+app/src-tauri/vendor-node.sh
+  s_ad8974a3b278d5::t_6d5117266783fa 1-39
+app/src-tauri/Cargo.lock
+  s_ad8974a3b278d5::t_ca041c23316eb1 88,827-835,863-872,1645-1663,2214-2224,2231-2240,3032-3042,3049-3079,3484-3504,4516-4524,4558,4565-4581,4612-4617,4630-4635,4648-4653,4660-4665,4678-4683,4696-4701,4714-4719,4732-4737
+app/src-tauri/Cargo.toml
+  s_ad8974a3b278d5::t_cefe5b692b2daa 26
+app/src-tauri/capabilities/default.json
+  s_ad8974a3b278d5::t_1c8d1bb401ed4c 6-12
+app/src-tauri/src/lib.rs
+  s_ad8974a3b278d5::t_e9e9ff8cb94915 1-55,58-68,70-131
+app/src-tauri/tauri.conf.json
+  s_ad8974a3b278d5::t_23505d0dc9a92b 13,20-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "7dc18626877c0cde085f29ac4e60813b05bf0e54",
+  "prompts": {},
+  "sessions": {
+    "s_ad8974a3b278d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
