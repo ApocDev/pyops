@@ -72,19 +72,35 @@ Releases are driven by **conventional commits** via
    lockstep across `app/package.json`, `app/src-tauri/Cargo.toml`, and
    `tauri.conf.json` — **don't hand-edit these**) and updates the changelog.
 3. Merging the release PR creates the tag + GitHub release; the build matrix then
-   attaches the bundles + `latest.json` to it.
+   builds, signs, and attaches each platform's bundles, and a final job aggregates a
+   signed `latest.json` onto the release.
+
+The matrix builds Linux (`deb` + `AppImage`), Windows (NSIS), and **both** macOS
+arches — Apple Silicon natively and Intel **cross-compiled on the arm64 runner**
+(`--target x86_64-apple-darwin`, with `vendor-node.sh TARGET_TRIPLE=…` fetching the
+matching x64 Node sidecar), since GitHub's Intel `macos-13` runners are deprecated
+and queue-starved. The tauri CLI is invoked directly (`tauri build`), not via
+`tauri-action`, which assumes an npm/pnpm script runner rather than `vp`.
 
 Config: `release-please-config.json` + `.release-please-manifest.json`; workflow:
-`.github/workflows/release.yml` (release-please job → gated build job, same workflow
-so no PAT is needed). `workflow_dispatch` runs a build-only smoke test.
+`.github/workflows/release.yml` (release-please job → gated build matrix →
+`latest-json` aggregate job, all one workflow so no PAT is needed). Manifest mode
+exposes per-package outputs (`app--tag_name`) plus a top-level `releases_created`,
+which the build gate reads. `workflow_dispatch` with a `tag` input rebuilds an
+existing release's assets (recovery / fill-in) by building `main`; without a tag
+it's a build-only smoke test.
 
 ## Self-update
 
 The app updates itself from GitHub Releases.
 
-- The release build (via `tauri-action`, with the signing key from CI secrets)
-  produces **signed** updater artifacts and an aggregated `latest.json` listing each
-  platform's artifact URL + signature + the changelog (`notes`).
+- The release build signs the updater artifacts with the CI key
+  (`createUpdaterArtifacts` emits a `.sig` per platform), and the `latest-json` job
+  aggregates each platform's `{signature, url}` into one `latest.json` — listing each
+  artifact's URL + signature, with the changelog as `notes` — attached to the release.
+  The updater artifact is picked explicitly per platform (AppImage / `.app.tar.gz` /
+  `-setup.exe`), and the macOS `.app.tar.gz` is arch-suffixed so the two Mac builds
+  don't collide.
 - On launch, a bundled app checks `releases/latest/download/latest.json`; if a newer
   version exists it shows a native **"Update available"** dialog with the version and
   changelog, and **Install & Restart** downloads, verifies the signature against the
