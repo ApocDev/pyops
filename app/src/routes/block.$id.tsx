@@ -1421,7 +1421,9 @@ function Block({ blockId }: { blockId: number }) {
                     )}
                   </div>
                 )}
-              <div className="grid grid-cols-2 gap-4 p-3">
+              <div
+                className={`grid gap-4 p-3 ${res?.exports.length ? "grid-cols-2" : "grid-cols-1"}`}
+              >
                 <div>
                   <div className="mb-1 text-xs font-semibold text-amber-400">
                     Imports — bring these in{" "}
@@ -1525,13 +1527,13 @@ function Block({ blockId }: { blockId: number }) {
                     )}
                   </div>
                 </div>
-                <div>
-                  <div className="mb-1 text-xs font-semibold text-violet-400">
-                    Exports — surplus, nothing consumes these
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-2">
-                    {res?.exports.length ? (
-                      res.exports.map((f) => (
+                {!!res?.exports.length && (
+                  <div>
+                    <div className="mb-1 text-xs font-semibold text-violet-400">
+                      Exports — surplus, nothing consumes these
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-2">
+                      {res.exports.map((f) => (
                         <span key={f.name} className="flex flex-col items-start gap-1.5">
                           <span className="inline-flex items-center gap-1.5">
                             <ItemChip
@@ -1580,12 +1582,10 @@ function Block({ blockId }: { blockId: number }) {
                             />
                           )}
                         </span>
-                      ))
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </>
           )}
