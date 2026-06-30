@@ -881,6 +881,26 @@ function Block({ blockId }: { blockId: number }) {
         ? "text-destructive"
         : "text-amber-400";
 
+  // Block health for the title tint (mirrors the sidebar verdict): red for broken
+  // refs / infeasible, amber for unmade goals / relaxed / underdetermined / temp
+  // mismatches, none when clean.
+  const editorHealth: "error" | "warn" | null = !res
+    ? null
+    : res.broken || res.status === "infeasible"
+      ? "error"
+      : (res.unmadeTargets?.length ?? 0) > 0 ||
+          res.status === "relaxed" ||
+          res.status === "underdetermined" ||
+          res.tempWarnings.length > 0
+        ? "warn"
+        : null;
+  const titleHealthCls =
+    editorHealth === "error"
+      ? "border-destructive/70 text-destructive focus-visible:ring-destructive/40"
+      : editorHealth === "warn"
+        ? "border-amber-400/70 text-amber-400 focus-visible:ring-amber-400/40"
+        : "";
+
   // Per-item link state from the solve, so each chip can show whether it's the
   // goal, an unmade input (import), a surplus (export), or balanced in-block.
   const importSet = new Set(res?.imports.map((f) => f.name));
@@ -962,7 +982,7 @@ function Block({ blockId }: { blockId: number }) {
             setNameCustom(v.trim().length > 0);
           }}
           placeholder="auto-named from goal…"
-          className="w-56 font-semibold"
+          className={`w-56 font-semibold ${titleHealthCls}`}
         />
         <span className="flex w-14 items-center gap-1 text-xs text-muted-foreground">
           {saveState === "saving" ? (
@@ -1127,6 +1147,11 @@ function Block({ blockId }: { blockId: number }) {
                 const isFirst = i === 0;
                 const kind = kindOf(g);
                 const goalMissing = res?.missing?.goods.includes(g) ?? false;
+                // declared but no recipe in the block makes it — fixable, not broken.
+                // Suppressed on a broken block: the missing-refs banner already
+                // explains why nothing's being made there.
+                const goalUnmade =
+                  !goalMissing && !res?.broken && (res?.unmadeTargets?.includes(g) ?? false);
                 return (
                   <div
                     key={g}
@@ -1137,14 +1162,18 @@ function Block({ blockId }: { blockId: number }) {
                     className={`group relative flex min-w-16 flex-col items-center gap-0.5 rounded px-2 py-1 ${
                       goalMissing
                         ? "bg-destructive/10 ring-1 ring-destructive/40"
-                        : isFirst
-                          ? "bg-blue-500/10 ring-1 ring-blue-400/30"
-                          : "bg-sky-500/5 ring-1 ring-sky-400/20"
+                        : goalUnmade
+                          ? "bg-amber-500/10 ring-1 ring-amber-400/40"
+                          : isFirst
+                            ? "bg-blue-500/10 ring-1 ring-blue-400/30"
+                            : "bg-sky-500/5 ring-1 ring-sky-400/20"
                     }`}
                     title={
                       goalMissing
                         ? `${g} — no longer exists in the current data`
-                        : `${res?.display?.[g] ?? g}${isFirst ? " — names the block" : ""} · right-click for options`
+                        : goalUnmade
+                          ? `${res?.display?.[g] ?? g} — no recipe in this block makes it. Click the icon to add one.`
+                          : `${res?.display?.[g] ?? g}${isFirst ? " — names the block" : ""} · right-click for options`
                     }
                   >
                     {/* move-to-front (not on the first goal) · remove — on hover */}
@@ -1183,6 +1212,11 @@ function Block({ blockId }: { blockId: number }) {
                           readOnly={isFirst && !!lockedInput}
                           onChange={(v) => setGoalRate(g, v)}
                         />
+                      </span>
+                    )}
+                    {goalUnmade && (
+                      <span className="flex items-center gap-0.5 text-xs font-semibold text-amber-400">
+                        <AlertTriangle className="size-3" /> no recipe
                       </span>
                     )}
                     {logiResolved && kind === "item" && !goalMissing && (
@@ -1266,38 +1300,69 @@ function Block({ blockId }: { blockId: number }) {
           )}
           {res?.status === "infeasible" ? (
             <div className="m-3 rounded border border-destructive/30 bg-destructive/10 p-3 text-xs">
-              <div className="mb-2 font-semibold text-destructive">
-                Chain runs backward — a loop has no raw feed. Recipes in red below would run in
-                reverse.
-              </div>
-              {res.stuckItems?.length ? (
+              {/* Only a genuine reverse-running cycle gets the "chain runs backward"
+                  story; any other infeasibility shows the solver's own reason. */}
+              {res.negativeRecipes?.length ? (
                 <>
-                  <div className="mb-1 text-muted-foreground">
-                    Starved loop items — click one to add a recipe that feeds it:
+                  <div className="mb-2 font-semibold text-destructive">
+                    Chain runs backward — a loop has no raw feed. Recipes in red below would run in
+                    reverse.
                   </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-2">
-                    {res.stuckItems.map((n) => (
-                      <ItemChip
-                        key={n}
-                        name={n}
-                        kind="item"
-                        display={res.display?.[n]}
-                        link="import"
-                        craftable={producible.has(n)}
-                        onClick={() => makeFor(n)}
-                      />
-                    ))}
-                  </div>
+                  {res.stuckItems?.length ? (
+                    <>
+                      <div className="mb-1 text-muted-foreground">
+                        Starved loop items — click one to add a recipe that feeds it:
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-2">
+                        {res.stuckItems.map((n) => (
+                          <ItemChip
+                            key={n}
+                            name={n}
+                            kind="item"
+                            display={res.display?.[n]}
+                            link="import"
+                            craftable={producible.has(n)}
+                            onClick={() => makeFor(n)}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-muted-foreground">
+                      Mark a cycling item as <span className="font-semibold">import</span>, or add a
+                      recipe that supplies the loop.
+                    </div>
+                  )}
                 </>
               ) : (
-                <div className="text-muted-foreground">
-                  Mark a cycling item as <span className="font-semibold">import</span>, or add a
-                  recipe that supplies the loop.
+                <div className="font-semibold text-destructive">
+                  {res.message ?? "This block has no exact solution. Adjust a target or recipe."}
                 </div>
               )}
             </div>
           ) : (
             <>
+              {res?.unmadeTargets?.length && !res.broken ? (
+                <div className="border-b border-border px-3 py-2 text-xs text-amber-300">
+                  <div className="mb-1 flex items-center gap-1 font-semibold">
+                    <AlertTriangle className="size-3.5 shrink-0" />
+                    {res.unmadeTargets.length === 1 ? "Goal has" : "Goals have"} no recipe yet — add
+                    one to make {res.unmadeTargets.length === 1 ? "it" : "them"}:
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-2">
+                    {res.unmadeTargets.map((n) => (
+                      <ItemChip
+                        key={n}
+                        name={n}
+                        kind={kindOf(n)}
+                        display={res.display?.[n]}
+                        link="target"
+                        onClick={() => makeFor(n)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               {res && res.tempWarnings?.length > 0 && (
                 <div className="border-b border-border px-3 py-2 text-xs text-amber-300">
                   {res.tempWarnings.map((w) => (

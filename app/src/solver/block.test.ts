@@ -106,9 +106,26 @@ test("probabilistic byproduct uses expected amount", () => {
   expect(flows(r.exports)).toEqual([{ name: "b", kind: "item", rate: 0.5 }]);
 });
 
-test("a target with no producing recipe is not solved", () => {
+test("a target with no producing recipe is reported as unmade, not solved", () => {
   const r = solveBlock({ targets: [{ name: "gear", rate: 1 }], recipes: [plate] });
   expect(r.status).not.toBe("solved");
+  expect(r.unmadeTargets).toEqual(["gear"]);
+});
+
+test("an unmade goal does not poison an otherwise-solvable block", () => {
+  // plate is makeable (the plate recipe), gear is not — the block must still solve
+  // for plate and merely flag gear as unmade, never going infeasible.
+  const r = solveBlock({
+    targets: [
+      { name: "plate", rate: 1 },
+      { name: "gear", rate: 1 },
+    ],
+    recipes: [plate],
+  });
+  expect(r.status).toBe("solved");
+  expect(rate(r).plate).toBeCloseTo(1);
+  expect(r.unmadeTargets).toEqual(["gear"]);
+  expect(flows(r.imports)).toEqual([{ name: "ore", kind: "item", rate: 8 }]);
 });
 
 // Real Py Hard Mode iron-plate chain (from molten iron, via the cyclic ore-pulp

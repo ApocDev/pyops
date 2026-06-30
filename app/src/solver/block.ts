@@ -45,6 +45,11 @@ export type BlockResult = {
    * reverse) — the tell-tale of a cycle with no raw feed. When set, the boundary
    * flows are physically meaningless and are suppressed. */
   negativeRecipes?: string[];
+  /** declared goals that no recipe in the block produces (an unfinished or
+   * over-migrated block). These are NOT pinned — they can't force infeasibility —
+   * so the rest of the block still solves; the UI flags just these goals with a
+   * "no recipe — add one" hint. */
+  unmadeTargets?: string[];
 };
 
 const EPS = 1e-6;
@@ -83,6 +88,8 @@ export function solveBlock(input: BlockInput): BlockResult {
     return {
       status: targets.length ? "underdetermined" : "solved",
       message: targets.length ? "No recipes added." : undefined,
+      // with no recipes, every declared goal is unmade
+      ...(targets.length ? { unmadeTargets: targets.map((t) => t.name) } : {}),
       ...empty,
     };
   }
@@ -97,9 +104,17 @@ export function solveBlock(input: BlockInput): BlockResult {
   type Eq = { item: string; b: number };
   const forced: Eq[] = [];
   const candidates: Eq[] = [];
+  // Goals that no recipe in the block produces (an unfinished or over-migrated
+  // block). We deliberately do NOT pin these: a goal with no producer has an
+  // all-zero coefficient row, so forcing it to a nonzero rate makes the whole
+  // least-squares solve infeasible and masks an otherwise valid block. Collect
+  // them separately instead — the rest of the block solves, and the UI flags only
+  // these goals with "add a recipe that makes this".
+  const unmadeTargets: string[] = [];
   for (const item of items) {
     if (targetRate.has(item)) {
-      forced.push({ item, b: targetRate.get(item)! });
+      if (produced[item]) forced.push({ item, b: targetRate.get(item)! });
+      else unmadeTargets.push(item); // referenced in-block (consumed) but nothing makes it
       continue;
     }
     const d = dispositions[item];
@@ -107,8 +122,9 @@ export function solveBlock(input: BlockInput): BlockResult {
     if (d === "balance") forced.push({ item, b: 0 });
     else if (produced[item] && consumed[item]) candidates.push({ item, b: 0 });
   }
-  // a target with no producing recipe is unsatisfiable — surface it as a forced eq
-  for (const t of targets) if (!(t.name in coeff)) forced.push({ item: t.name, b: t.rate });
+  // a target no recipe references at all (absent from `coeff`) is unmade too
+  for (const t of targets) if (!(t.name in coeff)) unmadeTargets.push(t.name);
+  const unmade = unmadeTargets.length ? { unmadeTargets } : {};
 
   const rowsOf = (eqs: Eq[]) => eqs.map((e) => coeff[e.item] ?? Array.from({ length: n }, () => 0));
   const solveOf = (eqs: Eq[]) =>
@@ -148,6 +164,7 @@ export function solveBlock(input: BlockInput): BlockResult {
     return {
       status: "underdetermined",
       message: `${n} recipes vs ${kept.length} constraints — add a target/recipe or balance an item to pin the rates.`,
+      ...unmade,
       ...empty,
     };
   }
@@ -157,6 +174,7 @@ export function solveBlock(input: BlockInput): BlockResult {
       status: "infeasible",
       message:
         "Pinned targets or balanced items conflict — no exact solution. Adjust a target or free a balanced item.",
+      ...unmade,
       ...empty,
     };
   }
@@ -191,6 +209,7 @@ export function solveBlock(input: BlockInput): BlockResult {
       imports: [],
       exports: [],
       negativeRecipes,
+      ...unmade,
       ...(autoFreed.length ? { autoFreed } : {}),
     };
   }
@@ -203,6 +222,7 @@ export function solveBlock(input: BlockInput): BlockResult {
     recipes: recipeRates,
     imports: imports.sort(byName),
     exports: exports.sort(byName),
+    ...unmade,
     ...(autoFreed.length ? { autoFreed } : {}),
   };
 }

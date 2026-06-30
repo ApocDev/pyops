@@ -21,6 +21,16 @@ system** and solves for recipe run-rates (executions/sec):
 - Default disposition: a good produced **and** consumed in-block balances to zero;
   produced-only becomes an export, consumed-only an import.
 
+A goal that **no recipe in the block makes** (an unfinished block, or one whose
+producer vanished after a data migration) is _not_ pinned — pinning it would be a
+zero-coefficient equation with a nonzero rate, forcing the whole least-squares solve
+infeasible and masking an otherwise-valid block. Instead such goals are returned in
+`unmadeTargets` and the rest of the block solves normally; the editor flags just
+those goals ("no recipe — add one") and the sidebar/tabs tint the block amber. Note
+the factory/coherence index still treats every goal as produced at its target rate
+(goals are a declared _intent_), so an unmade goal won't show as a deficit there —
+the per-block health flag is what surfaces it.
+
 Recipes and splits are **user-chosen**, so there's no LP/optimizer here — it's a
 least-squares solve (`linalg.ts`) that handles Py's cyclic recipe chains and
 reports fractional building counts. Because the choices are the user's, the solver
