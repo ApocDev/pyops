@@ -2,10 +2,11 @@ name: Release
 
 # release-please watches conventional commits on `main` and maintains a "release PR"
 # that bumps the version (app/package.json + Cargo.toml + tauri.conf.json) and the
-# changelog. Merging that PR cuts the GitHub release + tag, and the build job then
-# attaches the platform bundles to it. workflow_dispatch with a `tag` rebuilds an
-# existing release's assets (recovery / manual fill-in); without one it's a build-
-# only smoke test.
+# changelog. Merging that PR cuts the GitHub release + tag; the build matrix then
+# builds + signs each platform's bundles and the latest-json job aggregates a signed
+# latest.json onto the release. workflow_dispatch with a `tag` rebuilds an existing
+# release's assets (recovery / manual fill-in); without one it's a build-only smoke
+# test.
 on:
   push:
     branches: [main]
@@ -43,12 +44,16 @@ jobs:
         include:
           - platform: ubuntu-22.04    # Linux x64 (deb + AppImage)
             bundles: 'deb,appimage'
-          - platform: macos-14        # macOS Apple Silicon
-            bundles: 'dmg'
+            target: linux-x86_64
+          - platform: macos-14        # macOS Apple Silicon (app.tar.gz = updater artifact)
+            bundles: 'app,dmg'
+            target: darwin-aarch64
           - platform: macos-13        # macOS Intel
-            bundles: 'dmg'
+            bundles: 'app,dmg'
+            target: darwin-x86_64
           - platform: windows-latest  # Windows x64
             bundles: 'nsis'
+            target: windows-x86_64
     runs-on: ${{ matrix.platform }}
     steps:
       # On a manual tag build, check out that tag's code so the bundle's version
@@ -89,17 +94,89 @@ jobs:
         shell: bash
         run: ./vendor-node.sh
 
-      # Build, sign the updater artifacts, attach bundles to the release-please
-      # release, and generate/aggregate latest.json across the matrix. tauri-action
-      # runs `vp build` (beforeBuildCommand) then the tauri build via the CLI vp
-      # installed. With no tag (workflow_dispatch), it builds only — a smoke test.
-      - name: Build, sign, and publish
-        uses: tauri-apps/tauri-action@v0
+      # The release tag this run targets: release-please's tag on a push, or the
+      # dispatch input on a manual rebuild. Empty on a build-only smoke test.
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        run: echo "tag=${{ needs.release-please.outputs.tag_name || inputs.tag }}" >> "$GITHUB_OUTPUT"
+
+      # Build the bundles and sign the updater artifacts. createUpdaterArtifacts (in
+      # tauri.conf.json) emits the updater bundle + a .sig per platform. We run the
+      # CLI directly rather than via tauri-action, which assumes pnpm — our toolchain
+      # is vp (it runs as beforeBuildCommand). `shell: bash` resolves the .bin shim
+      # on every OS, including Windows.
+      - name: Build and sign
+        working-directory: app
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: ./node_modules/.bin/tauri build --bundles ${{ matrix.bundles }}
+
+      # Attach the install bundles + updater artifacts (+ their .sig) to the release.
+      # `while read` (not mapfile) so it works on the macOS runners' bash 3.2.
+      - name: Upload bundles to the release
+        if: ${{ steps.tag.outputs.tag != '' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          files=()
+          while IFS= read -r -d '' f; do files+=("$f"); done < <(
+            find app/src-tauri/target -path '*/release/bundle/*' -type f \
+              \( -name '*.deb' -o -name '*.AppImage' -o -name '*.dmg' \
+                 -o -name '*-setup.exe' -o -name '*.app.tar.gz' -o -name '*.sig' \) -print0)
+          printf 'uploading: %s\n' "${files[@]}"
+          gh release upload "${{ steps.tag.outputs.tag }}" "${files[@]}" --clobber
+
+      # Emit this platform's latest.json fragment (target -> signature + asset URL);
+      # the aggregate job merges all four into one latest.json.
+      - name: Build updater fragment
+        if: ${{ steps.tag.outputs.tag != '' }}
+        shell: bash
+        run: |
+          sig=$(find app/src-tauri/target -path '*/release/bundle/*' -name '*.sig' -type f | head -1)
+          if [ -z "$sig" ]; then echo "::error::no updater .sig found for ${{ matrix.target }}"; exit 1; fi
+          artifact=$(basename "${sig%.sig}")
+          url="https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${artifact}"
+          jq -n --arg t "${{ matrix.target }}" --arg sig "$(cat "$sig")" --arg url "$url" \
+            '{($t): {signature: $sig, url: $url}}' > "fragment-${{ matrix.target }}.json"
+          cat "fragment-${{ matrix.target }}.json"
+
+      - name: Upload fragment
+        if: ${{ steps.tag.outputs.tag != '' }}
+        uses: actions/upload-artifact@v4
         with:
-          projectPath: app
-          tagName: ${{ needs.release-please.outputs.tag_name || inputs.tag }}
-          args: --bundles ${{ matrix.bundles }}
+          name: updater-${{ matrix.target }}
+          path: fragment-${{ matrix.target }}.json
+
+  # Merge the per-platform fragments into one latest.json and attach it. The app's
+  # updater endpoint is releases/latest/download/latest.json. Runs only when the
+  # builds targeted a real tag (skipped on a build-only smoke test).
+  latest-json:
+    needs: [release-please, build]
+    if: ${{ (needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch') && (needs.release-please.outputs.tag_name != '' || inputs.tag != '') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: updater-*
+          merge-multiple: true
+          path: fragments
+      - name: Assemble and upload latest.json
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.release-please.outputs.tag_name || inputs.tag }}"
+          shopt -s nullglob
+          frags=(fragments/*.json)
+          if [ ${#frags[@]} -eq 0 ]; then echo "::error::no updater fragments"; exit 1; fi
+          NOTES="$(gh release view "$TAG" --repo "${{ github.repository }}" --json body -q .body)"
+          PLATFORMS="$(jq -s 'add' "${frags[@]}")"
+          jq -n --arg v "${TAG#v}" --arg n "$NOTES" \
+                --arg d "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson p "$PLATFORMS" \
+                '{version: $v, notes: $n, pub_date: $d, platforms: $p}' > latest.json
+          cat latest.json
+          gh release upload "$TAG" latest.json --repo "${{ github.repository }}" --clobber
