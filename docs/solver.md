@@ -39,7 +39,7 @@ faithfully shows imbalance rather than silently "fixing" it by swapping recipes.
 ## Build cost (capital materials)
 
 Separate from the per-second flows, `buildCost` (`db/queries.ts`, surfaced by
-`computeBlock`) reports the **one-time** materials to *construct* the block's
+`computeBlock`) reports the **one-time** materials to _construct_ the block's
 buildings: it ceils the solved machine counts per building type, expands each
 building's own build recipe, and sums the direct ingredients. This is why a science
 block needs steel — the buildings are made of it — even though no recipe in the
@@ -59,13 +59,13 @@ Factorio's clamps are respected: speed and consumption multipliers bottom out at
 
 ## Factory-level what-if
 
-The factory-level **what-if** (`factory-solve.ts`) *is* an LP. It treats each block
+The factory-level **what-if** (`factory-solve.ts`) _is_ an LP. It treats each block
 as a fixed-ratio "super-recipe" (its cached boundary flows at the current rate) and
 solves for the per-block scale factors that satisfy every demand.
 
 Why an LP rather than the exact block solver: real Py factories can't balance every
 good exactly — multi-product blocks force off-ratio surplus — so exact equality is
-infeasible. The LP uses *production ≥ demand* (surplus allowed) and minimizes total
+infeasible. The LP uses _production ≥ demand_ (surplus allowed) and minimizes total
 scaling, which is always feasible and matches "scale each block up/down to meet
 demand". It's report-only: it never writes; you adjust each block by hand (or
 ignore the suggestion).

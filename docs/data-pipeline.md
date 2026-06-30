@@ -13,7 +13,7 @@ orchestrated end-to-end from **Settings › Game data** in the UI
    missing icons, broken TURD unlock effects) and exports the TURD
    recipe-replacement map as mod-data.
 2. **Dump** via `factorio --dump-data`, `--dump-prototype-locale`, and optionally
-   `--dump-icon-sprites`. (Icons load the *full* game/renderer and are slow, so
+   `--dump-icon-sprites`. (Icons load the _full_ game/renderer and are slow, so
    they're opt-in; data + locale dump in seconds.)
 3. **Disable the helper mod again** — it must never be active during normal play.
 4. **Import** the dump into SQLite (`app/src/db/import-factorio.ts`), then
@@ -39,9 +39,9 @@ Settings → Game data tab — and gives drift detection and rename capture
 a concrete previous state to diff against, not just a hash.
 
 **Drift detection** (`modDriftFn`, `diffMods`/`redumpNeeded` in `dump.ts`) compares
-the game's *current* mod set against that persisted baseline, by name **and**
+the game's _current_ mod set against that persisted baseline, by name **and**
 version, and categorizes the change (added / removed / enabled / disabled /
-version-changed). `needsRedump` is true only when the *enabled* mods or their
+version-changed). `needsRedump` is true only when the _enabled_ mods or their
 versions changed (disabled-mod churn doesn't affect the data). When drift is
 detected a **guided modal** (`DriftModal`, opened via the shared `drift-store`)
 pops with the categorized changes and an ignore/re-sync choice, then walks the dump
@@ -54,7 +54,7 @@ shows the same detail. Reading the mod set is cheap (two small file reads), so
 checking often costs little.
 
 Saved blocks additionally carry a **per-block reference fingerprint**
-(`blockReferenceFingerprint`, `app/src/db/queries.ts`): a hash over the *current*
+(`blockReferenceFingerprint`, `app/src/db/queries.ts`): a hash over the _current_
 definitions of just the recipes and goal goods that block references. Unlike the
 global mod-name hash, it changes when a referenced recipe is altered in place (an
 in-place mod update) or disappears, so staleness registers for exactly the blocks

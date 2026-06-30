@@ -120,7 +120,7 @@ bridge + live-state sync), `summary.lua` (production-block view), `combinator.lu
 
 This repo uses [Conventional Commits](https://www.conventionalcommits.org) so
 changelogs can be generated from history. (The "don't commit unless asked" rule
-above still stands — this is how to format the message *when* you do commit.)
+above still stands — this is how to format the message _when_ you do commit.)
 
 Format the subject as `type(scope): summary`:
 
@@ -132,7 +132,7 @@ Format the subject as `type(scope): summary`:
 - **summary**: imperative mood, lower-case, no trailing period, ≤ ~72 chars
   ("add OS-aware companion-mod installer", not "Added installer.").
 
-Body (optional, after a blank line): explain the *why* and any notable choices,
+Body (optional, after a blank line): explain the _why_ and any notable choices,
 wrapped at ~72 cols. Footer: reference GitHub issues (`Refs #27`, or `Closes #27`
 to auto-close).
 

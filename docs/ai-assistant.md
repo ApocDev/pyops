@@ -116,14 +116,14 @@ about "how do I make X":
   handle.
 - **Recipe-candidate ranking** — find and rank the recipes that produce a good.
 - **Additive/commodity classifier** (`app/src/server/additives.ts`) — decides
-  whether an input should be *imported* (a cross-cutting commodity like an acid,
-  gas, or solvent — stop recursing) or *built* (part of the target's own lineage —
+  whether an input should be _imported_ (a cross-cutting commodity like an acid,
+  gas, or solvent — stop recursing) or _built_ (part of the target's own lineage —
   recurse into a sub-chain). The signal is fan-out ubiquity: in Py, commodities sit
   at 10s–100s of consumers while private intermediates sit at 1–2, so a simple
   threshold plus a short override list classifies the common case. Per-block user
   pins override it.
 - **Draft-a-block** — assemble the reasoning into a reviewable single-block draft.
-- **Revise-a-block** — propose RAISING/LOWERING an *existing* block's output rate
+- **Revise-a-block** — propose RAISING/LOWERING an _existing_ block's output rate
   to meet new demand, instead of building a duplicate.
 - **Draft-a-plan** — assemble several solved block drafts for one request (and,
   optionally, resizes of existing blocks), then let the user apply all of them in
@@ -137,7 +137,7 @@ about "how do I make X":
   action on a task (`enrichTaskFn`, not an agent tool) rewrites a rough capture's
   title/body into something sharper while preserving the original intent.
 - **Live game-world (read-only)** — `gameContext`, `gameInspectArea`,
-  `gameFindEntities`, `gameProduction` query the *running* factory through the
+  `gameFindEntities`, `gameProduction` query the _running_ factory through the
   bridge (app→mod→Factorio), so the agent can ground a task in real evidence
   ("what's built here", "is X actually being made"). Bounded and structured; they
   return a clear error when the companion mod isn't connected. Two lower-level
@@ -172,7 +172,7 @@ specifically asks to produce them too.
 The same tool bodies back two front doors: the in-app agent and the MCP route
 (`routes/mcp.ts`), which registers **every** tool in `agentTools` for external
 MCP clients over `POST /mcp` (JSON-RPC). This lets an external agent — e.g.
-Claude driving the *running game* via the read-only game-world tools — exercise
+Claude driving the _running game_ via the read-only game-world tools — exercise
 and debug the integration directly, not just the in-app assistant. The handler
 (`utils/mcp-handler.ts`) is single-shot per request and waits for the tool's
 real async result (db / bridge / LLM), so slow tools work.
