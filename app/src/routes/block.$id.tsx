@@ -835,6 +835,18 @@ function Block({ blockId }: { blockId: number }) {
     setModuleSel((s) => without(s) as Record<string, string[]>);
     setBeaconSel((s) => without(s) as Record<string, BeaconConfig[]>);
   };
+
+  // When a flow has exactly one craftable recipe, skip the picker dialog and add
+  // it directly. A superseded recipe (its base no longer exists in-game) or one
+  // that's already in the block still opens the dialog, so the explanation/state
+  // stays visible rather than the click silently doing nothing.
+  const loneRecipe =
+    pickFor && picker.data?.length === 1 && !picker.data[0].superseded ? picker.data[0] : null;
+  const autoAddRecipe = loneRecipe && !recipes.includes(loneRecipe.name) ? loneRecipe.name : null;
+  useEffect(() => {
+    if (autoAddRecipe) add(autoAddRecipe);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAddRecipe]);
   const res = solve.data;
 
   // "Size by input": locking an import makes the Goal read-only and drives the
@@ -1948,7 +1960,7 @@ function Block({ blockId }: { blockId: number }) {
       )}
 
       {/* Recipe picker — floats over everything, dismissable */}
-      {pickFor && (
+      {pickFor && !picker.isLoading && !autoAddRecipe && (
         <div
           className="fixed inset-0 z-40 flex items-start justify-center bg-black/55 p-10"
           onClick={() => setPickFor(null)}
@@ -1967,7 +1979,6 @@ function Block({ blockId }: { blockId: number }) {
               </button>
             </CardHeader>
             <div className="max-h-[60vh] overflow-auto p-2">
-              {picker.isLoading && <div className="px-2 py-1 text-muted-foreground">…</div>}
               {picker.data?.length
                 ? picker.data.map((r) => {
                     const added = recipes.includes(r.name);
