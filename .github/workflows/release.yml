@@ -42,18 +42,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # `updater` is the glob for this platform's updater artifact — the one that
+          # goes in latest.json (deb/dmg are install-only and also produce .sig files,
+          # so pick explicitly rather than grab the first .sig).
           - platform: ubuntu-22.04    # Linux x64 (deb + AppImage)
             bundles: 'deb,appimage'
             target: linux-x86_64
+            updater: '*.AppImage'
           - platform: macos-14        # macOS Apple Silicon (app.tar.gz = updater artifact)
             bundles: 'app,dmg'
             target: darwin-aarch64
+            updater: '*.app.tar.gz'
           - platform: macos-13        # macOS Intel
             bundles: 'app,dmg'
             target: darwin-x86_64
+            updater: '*.app.tar.gz'
           - platform: windows-latest  # Windows x64
             bundles: 'nsis'
             target: windows-x86_64
+            updater: '*-setup.exe'
     runs-on: ${{ matrix.platform }}
     steps:
       # On a manual tag build, check out that tag's code so the bundle's version
@@ -114,6 +121,20 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: ./node_modules/.bin/tauri build --bundles ${{ matrix.bundles }}
 
+      # Both macOS arches emit `PyOps.app.tar.gz` (no arch in the name), so they'd
+      # clobber each other on upload. Arch-suffix it (and its .sig) so each is
+      # distinct. The .app.tar.gz is updater-only (users download the .dmg), so this
+      # rename is invisible to them.
+      - name: Disambiguate the macOS updater artifact
+        if: ${{ steps.tag.outputs.tag != '' && startsWith(matrix.target, 'darwin') }}
+        shell: bash
+        run: |
+          f=$(find app/src-tauri/target -path '*/release/bundle/*' -name '*.app.tar.gz' -type f | head -1)
+          if [ -z "$f" ]; then echo "::error::no .app.tar.gz produced"; exit 1; fi
+          base="${f%.app.tar.gz}"
+          mv "$f"     "${base}_${{ matrix.target }}.app.tar.gz"
+          mv "$f.sig" "${base}_${{ matrix.target }}.app.tar.gz.sig"
+
       # Attach the install bundles + updater artifacts (+ their .sig) to the release.
       # `while read` (not mapfile) so it works on the macOS runners' bash 3.2.
       - name: Upload bundles to the release
@@ -136,10 +157,12 @@ jobs:
         if: ${{ steps.tag.outputs.tag != '' }}
         shell: bash
         run: |
-          sig=$(find app/src-tauri/target -path '*/release/bundle/*' -name '*.sig' -type f | head -1)
-          if [ -z "$sig" ]; then echo "::error::no updater .sig found for ${{ matrix.target }}"; exit 1; fi
-          artifact=$(basename "${sig%.sig}")
-          url="https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${artifact}"
+          art=$(find app/src-tauri/target -path '*/release/bundle/*' -name '${{ matrix.updater }}' -type f | head -1)
+          if [ -z "$art" ]; then echo "::error::no updater artifact (${{ matrix.updater }}) for ${{ matrix.target }}"; exit 1; fi
+          sig="${art}.sig"
+          if [ ! -f "$sig" ]; then echo "::error::no .sig beside $art"; exit 1; fi
+          name=$(basename "$art")
+          url="https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${name}"
           jq -n --arg t "${{ matrix.target }}" --arg sig "$(cat "$sig")" --arg url "$url" \
             '{($t): {signature: $sig, url: $url}}' > "fragment-${{ matrix.target }}.json"
           cat "fragment-${{ matrix.target }}.json"
