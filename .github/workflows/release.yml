@@ -1,18 +1,35 @@
 name: Release
 
-# Cut a release by pushing a tag, e.g. `git tag v0.1.0 && git push origin v0.1.0`.
-# Each platform builds on its own runner and the bundles are attached to a draft
-# GitHub Release for that tag. Can also be run manually (build-only, no release).
+# release-please watches conventional commits on `main` and maintains a "release PR"
+# that bumps the version (app/package.json + Cargo.toml + tauri.conf.json) and the
+# changelog. Merging that PR cuts the GitHub release + tag, and the build job then
+# attaches the platform bundles to it. workflow_dispatch runs a build-only smoke test
+# (no release). Activates once this branch is merged to main.
 on:
   push:
-    tags: ['v*']
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: rp
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
   build:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch' }}
     strategy:
       fail-fast: false
       matrix:
@@ -69,12 +86,12 @@ jobs:
         shell: bash
         run: ./node_modules/.bin/tauri build --bundles ${{ matrix.bundles }}
 
-      # Attach the bundles to a draft Release for the pushed tag.
-      - name: Publish to GitHub Release
-        if: github.ref_type == 'tag'
+      # Attach the bundles to the release release-please just created.
+      - name: Attach bundles to the release
+        if: ${{ needs.release-please.outputs.release_created == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
-          draft: true
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
           files: |
             app/src-tauri/target/**/bundle/**/*.deb
             app/src-tauri/target/**/bundle/**/*.AppImage
