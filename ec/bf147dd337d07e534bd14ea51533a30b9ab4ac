@@ -1,0 +1,21 @@
+README.md
+  s_ad8974a3b278d5::t_c04961ac5f18ff 23-26
+app/src/routes/block.$id.tsx
+  s_ad8974a3b278d5::t_06f99cb464bb9c 61,75-81,1032-1086,1148-1152,1154-1167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "ecbf147dd337d07e534bd14ea51533a30b9ab4ac",
+  "prompts": {},
+  "sessions": {
+    "s_ad8974a3b278d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
