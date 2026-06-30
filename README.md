@@ -34,7 +34,7 @@ planner that actually understands Py's tangled recipe graph.
   are first-class: pick a path and every block re-solves against it.
 - **Plan with AI.** An assistant (via OpenRouter) drafts whole production chains
   and multi-block plans using tools over the recipe data, honouring what you can
-  build *now* vs. *after research*.
+  build _now_ vs. _after research_.
 - **Keep tasks & notes.** A per-project planner: nested tasks (a markdown
   description, a checklist of steps, and child tasks for bigger breakdowns) that
   link to the recipes, items, fluids, research, and blocks they involve — plus a
@@ -51,7 +51,7 @@ planner that actually understands Py's tangled recipe graph.
 - **Use it on any screen.** The UI is responsive: the full desktop layout on a
   monitor, and on tablets, phones, and the Steam Deck the global nav and the
   block/browse/assistant/tasks sidebars collapse into drawers, dense tables reflow
-  into readable cards, and reorder handles work by touch.
+  into readable cards, and reordering works by touch.
 
 PyOps runs locally on your own machine, alongside your Factorio install — it reads
 the recipe data straight from the game and (optionally) talks to a running session.
@@ -95,10 +95,10 @@ set, with produced-by / used-in (here: Iron plate — 14 producers, 160 consumer
 - **Factorio 2.0** installed locally, with the **Pyanodons** mod suite and
   **pypostprocessing** — PyOps reads your recipe data by running the game's data
   dump.
-- *Optional, for the in-game features:* the PyOps companion mod (in [`mod/`](mod/))
+- _Optional, for the in-game features:_ the PyOps companion mod (in [`mod/`](mod/))
   and the [Factory Search](https://mods.factorio.com/mod/FactorySearch) mod.
-- *Optional, for the AI assistant:* an [OpenRouter](https://openrouter.ai) API key.
-- *Optional, for external MCP clients:* Codex and Claude Code can use the project
+- _Optional, for the AI assistant:_ an [OpenRouter](https://openrouter.ai) API key.
+- _Optional, for external MCP clients:_ Codex and Claude Code can use the project
   MCP configs in this repo once the app is running on `http://localhost:3000`.
 
 ---
@@ -158,17 +158,20 @@ Mode.
 To do it by hand instead, link or copy `mod/` into your mods folder as a folder
 named `pyops`, from the repo root:
 
-*Linux*
+_Linux_
+
 ```bash
 ln -s "$PWD/mod" ~/.factorio/mods/pyops
 ```
 
-*macOS*
+_macOS_
+
 ```bash
 ln -s "$PWD/mod" ~/"Library/Application Support/factorio/mods/pyops"
 ```
 
-*Windows (PowerShell, from the repo root)*
+_Windows (PowerShell, from the repo root)_
+
 ```powershell
 # directory junction — no admin needed (what the in-app button uses):
 New-Item -ItemType Junction -Path "$env:APPDATA\Factorio\mods\pyops" -Target "$PWD\mod"
@@ -193,14 +196,14 @@ picks, and placed machines back into the planner.
 
 Set these in `app/.env.local` (or the environment). All are optional.
 
-| Setting              | Default                                     | Purpose |
-| -------------------- | ------------------------------------------- | ------- |
-| `FACTORIO_BIN`       | `~/.local/share/Steam/.../bin/x64/factorio` | Path to the Factorio executable used for data syncs. |
-| `FACTORIO_DATA_DIR`  | `~/.factorio`                               | Factorio user data (mods, `script-output`). |
-| `OPENROUTER_API_KEY` | —                                           | AI **Assistant** key. Optional — set it here *or* in **Settings → Assistant** (env wins). |
-| `PYOPS_AGENT_MODEL`  | `~anthropic/claude-sonnet-latest`           | Any OpenRouter model id. Optional — set it here, per chat, or in **Settings → Assistant** (env wins). |
-| `PYOPS_BRIDGE_PORT`  | `37657`                                     | UDP port for the Factorio bridge (must match the `--enable-lua-udp` port). |
-| `DATABASE_URL`       | active project's file (else `projects/default.db`) | Override the local SQLite file. |
+| Setting              | Default                                            | Purpose                                                                                               |
+| -------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `FACTORIO_BIN`       | `~/.local/share/Steam/.../bin/x64/factorio`        | Path to the Factorio executable used for data syncs.                                                  |
+| `FACTORIO_DATA_DIR`  | `~/.factorio`                                      | Factorio user data (mods, `script-output`).                                                           |
+| `OPENROUTER_API_KEY` | —                                                  | AI **Assistant** key. Optional — set it here _or_ in **Settings → Assistant** (env wins).             |
+| `PYOPS_AGENT_MODEL`  | `~anthropic/claude-sonnet-latest`                  | Any OpenRouter model id. Optional — set it here, per chat, or in **Settings → Assistant** (env wins). |
+| `PYOPS_BRIDGE_PORT`  | `37657`                                            | UDP port for the Factorio bridge (must match the `--enable-lua-udp` port).                            |
+| `DATABASE_URL`       | active project's file (else `projects/default.db`) | Override the local SQLite file.                                                                       |
 
 ---
 

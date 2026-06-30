@@ -1,7 +1,7 @@
 # Architecture
 
 PyOps is **one app** plus a **game mod**. There is no separate backend service —
-the [TanStack Start](https://tanstack.com/start) app *is* the backend: React UI in
+the [TanStack Start](https://tanstack.com/start) app _is_ the backend: React UI in
 the browser, and server functions + Nitro routes running server-side in the same
 process. SQLite, the solver, the UDP bridge, the data pipeline, and the AI all
 live as server-side modules.
@@ -69,8 +69,10 @@ the width where its full bar fits (~1400px, so the 1280px Deck uses the drawer);
 the fixed left rails (block, browse, assistant, tasks) collapse below `md` via a
 shared `SidebarShell` built on a `Sheet` drawer primitive (radix Dialog); and the
 dense data tables (factory, whatif) stack into labelled cards on phones via a
-shared `StatCell` instead of squeezing fixed columns. Reorder handles use dnd-kit
-(pointer + keyboard sensors) so they work by touch. A Playwright harness,
+shared `StatCell` instead of squeezing fixed columns. Reordering uses dnd-kit so
+it works by touch — the recipe rows via a drag grip, and the block sidebar via
+whole-row drag (mouse needs a small move, touch a short press-hold, so a tap still
+opens and an immediate finger-drag still scrolls). A Playwright harness,
 [`app/e2e/responsive.e2e.ts`](../app/e2e/responsive.e2e.ts), screenshots every
 route across a desktop/tablet/phone matrix and asserts no route scrolls sideways
 at tablet/phone widths.

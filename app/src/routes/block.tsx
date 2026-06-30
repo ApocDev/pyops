@@ -12,7 +12,8 @@ import {
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   pointerWithin,
   useDraggable,
   useDroppable,
@@ -36,15 +37,7 @@ import {
   setGroupOrderFn,
   setGroupParentFn,
 } from "../server/factorio";
-import {
-  AlertTriangle,
-  ChevronDown,
-  ChevronRight,
-  FolderPlus,
-  GripVertical,
-  Plus,
-  X,
-} from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, FolderPlus, Plus, X } from "lucide-react";
 import { Icon, IconProvider } from "../lib/icons";
 import { Input } from "#/components/ui/input.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
@@ -70,8 +63,9 @@ export const ActiveEditorRefContext =
   createContext<MutableRefObject<ActiveEditorState | null> | null>(null);
 
 /** A sidebar tree row that is both a dnd-kit drag source and a drop target. The
- * grip (handed to the child via the render prop) is the only drag activator, so a
- * tap to open a block or a scroll of the list still works on touch. */
+ * whole row is the drag activator — the mouse/touch sensors (a small move on
+ * mouse, a short press-hold on touch) distinguish a drag from a tap-to-open or a
+ * list scroll, so no separate grip handle is needed. */
 function DndRow({
   id,
   className,
@@ -81,11 +75,7 @@ function DndRow({
   id: string;
   className?: string;
   style?: CSSProperties;
-  children: (handle: {
-    attributes: ReturnType<typeof useDraggable>["attributes"];
-    listeners: ReturnType<typeof useDraggable>["listeners"];
-    setActivatorNodeRef: ReturnType<typeof useDraggable>["setActivatorNodeRef"];
-  }) => ReactNode;
+  children: ReactNode;
 }) {
   const drag = useDraggable({ id });
   const drop = useDroppable({ id });
@@ -98,12 +88,9 @@ function DndRow({
       ref={setRef}
       style={style}
       className={`${className ?? ""} ${drag.isDragging ? "opacity-40" : ""}`}
+      {...drag.listeners}
     >
-      {children({
-        attributes: drag.attributes,
-        listeners: drag.listeners,
-        setActivatorNodeRef: drag.setActivatorNodeRef,
-      })}
+      {children}
     </div>
   );
 }
@@ -222,11 +209,15 @@ function Shell() {
     setDropFolder(null);
   };
 
-  // ── Sidebar drag-and-drop (dnd-kit; pointer sensor → mouse + touch) ──────────
+  // ── Sidebar drag-and-drop (dnd-kit) ──────────────────────────────────────────
   // Rows are draggable + droppable with ids "b<id>" (block) / "g<id>" (folder) /
-  // "ungrouped". Drag starts only from each row's grip; a small activation distance
-  // keeps a tap (to open a block) or a scroll from being read as a drag.
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  // "ungrouped". The whole row drags; separate mouse/touch sensors keep that from
+  // clobbering a tap or a scroll — mouse needs a 5px move, touch a 200ms press-hold
+  // (an immediate finger-drag scrolls the list instead).
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
 
   const pointerY = (e: DragOverEvent | DragEndEvent) =>
     ((e.activatorEvent as PointerEvent).clientY ?? 0) + e.delta.y;
@@ -415,50 +406,37 @@ function Shell() {
       key={b.id}
       id={`b${b.id}`}
       style={{ marginLeft: 8 + depth * 12 }}
-      className={`group relative flex items-center gap-1 rounded px-1.5 py-1 hover:bg-muted ${activeId === b.id ? "bg-accent" : ""}`}
+      className={`group relative flex cursor-grab items-center gap-2 rounded px-2 py-1 select-none hover:bg-muted active:cursor-grabbing ${activeId === b.id ? "bg-accent" : ""}`}
     >
-      {(h) => (
-        <>
-          {dropBlock?.id === b.id && (
-            <div
-              className={`pointer-events-none absolute inset-x-1 z-10 h-0.5 rounded-full bg-primary ${dropBlock.after ? "-bottom-px" : "-top-px"}`}
-            />
-          )}
-          <span
-            ref={h.setActivatorNodeRef}
-            {...h.attributes}
-            {...h.listeners}
-            title="drag to reorder, or onto a folder to move it there"
-            className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground/40 select-none hover:text-foreground active:cursor-grabbing"
-          >
-            <GripVertical className="size-4" />
-          </span>
-          <button
-            className="flex min-w-0 flex-1 items-center gap-2 text-left"
-            onClick={() => open(b.id)}
-          >
-            {b.iconName && (
-              <Icon kind={(b.iconKind ?? "item") as IconKind} name={b.iconName} size="sm" noTitle />
-            )}
-            <span className="truncate text-sm">{b.name}</span>
-            {b.broken && (
-              <span
-                className="shrink-0 text-destructive"
-                title="references a recipe/good that no longer exists — open to see what's missing"
-              >
-                <AlertTriangle className="size-3.5" />
-              </span>
-            )}
-          </button>
-          <button
-            className="px-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
-            title="delete"
-            onClick={(e) => del(b.id, e)}
-          >
-            <X className="size-3.5" />
-          </button>
-        </>
+      {dropBlock?.id === b.id && (
+        <div
+          className={`pointer-events-none absolute inset-x-1 z-10 h-0.5 rounded-full bg-primary ${dropBlock.after ? "-bottom-px" : "-top-px"}`}
+        />
       )}
+      <button
+        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        onClick={() => open(b.id)}
+      >
+        {b.iconName && (
+          <Icon kind={(b.iconKind ?? "item") as IconKind} name={b.iconName} size="sm" noTitle />
+        )}
+        <span className="truncate text-sm">{b.name}</span>
+        {b.broken && (
+          <span
+            className="shrink-0 text-destructive"
+            title="references a recipe/good that no longer exists — open to see what's missing"
+          >
+            <AlertTriangle className="size-3.5" />
+          </span>
+        )}
+      </button>
+      <button
+        className="px-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
+        title="delete"
+        onClick={(e) => del(b.id, e)}
+      >
+        <X className="size-3.5" />
+      </button>
     </DndRow>
   );
   // A real folder, rendered recursively: its subfolders (nested) then its blocks.
@@ -476,40 +454,27 @@ function Shell() {
         <DndRow
           id={key}
           style={{ marginLeft: depth * 12 }}
-          className={`group relative flex items-center gap-1 rounded px-1 py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted/50 ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
+          className={`group relative flex cursor-grab items-center gap-1 rounded px-1 py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase select-none hover:bg-muted/50 active:cursor-grabbing ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
         >
-          {(h) => (
-            <>
-              {showLine && (
-                <div className="pointer-events-none absolute inset-x-1 -top-px z-10 h-0.5 rounded-full bg-primary" />
-              )}
-              <span
-                ref={h.setActivatorNodeRef}
-                {...h.attributes}
-                {...h.listeners}
-                title="drag to reorder, or onto a folder to nest it"
-                className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground/40 hover:text-foreground active:cursor-grabbing"
-              >
-                <GripVertical className="size-3.5" />
-              </span>
-              <button className="flex w-4 shrink-0 justify-center" onClick={() => toggle(key)}>
-                {isCol ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
-              </button>
-              <span
-                className="min-w-0 flex-1 truncate"
-                onDoubleClick={() => renameFolder(group.id, group.name)}
-              >
-                {group.name} ({rows.length})
-              </span>
-              <button
-                className="px-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
-                title="delete folder"
-                onClick={() => deleteFolder(group.id)}
-              >
-                <X className="size-3.5" />
-              </button>
-            </>
+          {showLine && (
+            <div className="pointer-events-none absolute inset-x-1 -top-px z-10 h-0.5 rounded-full bg-primary" />
           )}
+          <button className="flex w-4 shrink-0 justify-center" onClick={() => toggle(key)}>
+            {isCol ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
+          </button>
+          <span
+            className="min-w-0 flex-1 truncate"
+            onDoubleClick={() => renameFolder(group.id, group.name)}
+          >
+            {group.name} ({rows.length})
+          </span>
+          <button
+            className="px-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
+            title="delete folder"
+            onClick={() => deleteFolder(group.id)}
+          >
+            <X className="size-3.5" />
+          </button>
         </DndRow>
         {!isCol && (
           <>
