@@ -170,7 +170,7 @@ function TasksShell() {
       width="w-72"
       label="Tasks"
       sidebarClassName="bg-card"
-      sidebar={
+      sidebar={(close) => (
         <>
           <div className="flex items-stretch border-b border-border text-sm">
             <TabButton active={tab === "tasks"} onClick={() => showTab("tasks")}>
@@ -279,7 +279,10 @@ function TasksShell() {
                   nodes={nodes}
                   selected={search.t ?? null}
                   filter={filter}
-                  onOpen={openTask}
+                  onOpen={(id) => {
+                    openTask(id);
+                    close();
+                  }}
                 />
                 {nodes.length === 0 && (
                   <div className="px-2 py-2 text-xs text-muted-foreground">
@@ -305,7 +308,10 @@ function TasksShell() {
                 {(noteList.data ?? []).map((note) => (
                   <button
                     key={note.id}
-                    onClick={() => openNote(note.id)}
+                    onClick={() => {
+                      openNote(note.id);
+                      close();
+                    }}
                     className={`block w-full truncate rounded px-2 py-1.5 text-left text-sm hover:bg-muted ${
                       note.id === search.n ? "bg-accent" : ""
                     }`}
@@ -325,7 +331,7 @@ function TasksShell() {
             </>
           )}
         </>
-      }
+      )}
     >
       <div className="min-w-0 flex-1 overflow-auto">
         {tab === "tasks" ? (

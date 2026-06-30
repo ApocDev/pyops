@@ -122,14 +122,17 @@ function AssistantShell() {
       width="w-60"
       label="Chats"
       sidebarClassName="bg-card"
-      sidebar={
+      sidebar={(close) => (
         <>
           <div className="flex items-center justify-between px-3 py-2">
             <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               Chats
             </span>
             <button
-              onClick={newChat}
+              onClick={() => {
+                newChat();
+                close();
+              }}
               className="flex items-center gap-1 rounded bg-primary px-2 py-0.5 text-sm font-bold text-primary-foreground hover:bg-primary/80"
             >
               <Plus className="size-3.5" /> New
@@ -150,7 +153,10 @@ function AssistantShell() {
                   title={running.has(conv.id) ? "running…" : undefined}
                 />
                 <button
-                  onClick={() => openChat(conv.id)}
+                  onClick={() => {
+                    openChat(conv.id);
+                    close();
+                  }}
                   className="min-w-0 flex-1 truncate text-left"
                   title={conv.title ?? "Untitled"}
                 >
@@ -177,7 +183,7 @@ function AssistantShell() {
             )}
           </div>
         </>
-      }
+      )}
     >
       <div className="relative flex min-w-0 flex-1">
         {openIds.map((id) => (

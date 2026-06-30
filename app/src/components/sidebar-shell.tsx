@@ -7,9 +7,16 @@ import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
 
 /**
  * Rail-or-drawer layout shell for the routes built around a fixed left sidebar
- * (block, browse). From `md` up the sidebar is the familiar inline rail; below
- * `md` it would crush the content, so it collapses behind a toggle into a left
- * drawer. The drawer auto-closes on navigation, so picking an item dismisses it.
+ * (block, browse, assistant, tasks). From `md` up the sidebar is the familiar
+ * inline rail; below `md` it would crush the content, so it collapses behind a
+ * toggle into a left drawer.
+ *
+ * Closing the drawer on selection: routes that open a detail by changing the
+ * pathname (block → /block/$id) close automatically. Routes that select via a
+ * search param (browse ?sel, assistant ?c, tasks ?t/?n) pass a render function
+ * for `sidebar` and call the supplied `close()` in their select handlers — that
+ * way switching an in-drawer list tab (tasks' Tasks/Notes) does NOT close it,
+ * only actually picking an item does.
  *
  * `sidebar` is rendered in both the rail and the drawer; keep its state in the
  * consuming route (both renders then read one source of truth, no divergence).
@@ -22,7 +29,7 @@ export function SidebarShell({
   className,
   sidebarClassName,
 }: {
-  sidebar: ReactNode;
+  sidebar: ReactNode | ((close: () => void) => ReactNode);
   children: ReactNode;
   /** Tailwind width class for the rail/drawer (must be a literal, e.g. "w-64"). */
   width?: string;
@@ -33,11 +40,13 @@ export function SidebarShell({
   sidebarClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const location = useLocation();
+  const { pathname } = useLocation();
 
-  // Selecting an item navigates; close the drawer whenever that happens. Keyed on
-  // the full href so it also fires for search-param selections (e.g. browse's ?sel).
-  useEffect(() => setOpen(false), [location.href]);
+  const close = () => setOpen(false);
+  // Pathname-based selection (block → /block/$id) auto-closes. Search-param routes
+  // call close() themselves so an in-drawer tab switch (same pathname) doesn't.
+  useEffect(() => setOpen(false), [pathname]);
+  const sidebarNode = typeof sidebar === "function" ? sidebar(close) : sidebar;
 
   return (
     <div className={cn("flex h-full", className)}>
@@ -49,7 +58,7 @@ export function SidebarShell({
           sidebarClassName,
         )}
       >
-        {sidebar}
+        {sidebarNode}
       </aside>
 
       {/* main column, with a mobile-only toggle bar above it */}
@@ -75,7 +84,7 @@ export function SidebarShell({
           className={cn("p-0", width)}
         >
           <SheetTitle className="sr-only">{label}</SheetTitle>
-          <div className="flex h-full flex-col">{sidebar}</div>
+          <div className="flex h-full flex-col">{sidebarNode}</div>
         </SheetContent>
       </Sheet>
     </div>

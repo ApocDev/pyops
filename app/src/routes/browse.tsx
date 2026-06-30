@@ -55,7 +55,7 @@ function Browse() {
       className="font-mono text-sm text-foreground"
       width="w-72"
       label="Browse"
-      sidebar={
+      sidebar={(close) => (
         <>
           <div className="border-b border-border p-2">
             <div className="mb-1.5 flex items-center justify-between">
@@ -98,7 +98,10 @@ function Browse() {
             {results.data?.map((r) => (
               <button
                 key={`${r.kind}/${r.name}`}
-                onClick={() => open(r.name)}
+                onClick={() => {
+                  open(r.name);
+                  close();
+                }}
                 className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left hover:bg-muted ${
                   sel === r.name ? "bg-accent" : ""
                 }`}
@@ -118,7 +121,7 @@ function Browse() {
             )}
           </div>
         </>
-      }
+      )}
     >
       {/* Detail pane */}
       <div className="min-w-0 flex-1 overflow-auto p-4">
