@@ -1,0 +1,21 @@
+app/src-tauri/tauri.conf.json
+  s_ad8974a3b278d5::t_136dfd45fdcd7c 20,38-43
+.github/workflows/release.yml
+  s_ad8974a3b278d5::t_ac67ab2f0dacab 81-90,92-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "e8e5d6cdb0a8755698d36214f6b578aca5814190",
+  "prompts": {},
+  "sessions": {
+    "s_ad8974a3b278d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
