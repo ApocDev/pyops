@@ -1,0 +1,23 @@
+README.md
+  s_3b17615400e28d::t_d48d5fd04c87d8 37,54,98,100-101,161-162,167-168,173-174,199-206
+app/src/routes/block.tsx
+  s_3b17615400e28d::t_1ff55098f5d5b2 15-16,40,66-68,78,91,93,212,214-220,409,411-424,426-427,429,431-439,457,459-460,462-477
+docs/architecture.md
+  s_3b17615400e28d::t_505da93a3a6d13 4,72-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f8f92b8423f7e96fdad70f8a6fa714336a700c33",
+  "prompts": {},
+  "sessions": {
+    "s_3b17615400e28d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c80425d4-1cc5-4b06-8e5e-d9f4eb0b0b9a",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
