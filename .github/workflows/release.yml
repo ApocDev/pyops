@@ -3,12 +3,17 @@ name: Release
 # release-please watches conventional commits on `main` and maintains a "release PR"
 # that bumps the version (app/package.json + Cargo.toml + tauri.conf.json) and the
 # changelog. Merging that PR cuts the GitHub release + tag, and the build job then
-# attaches the platform bundles to it. workflow_dispatch runs a build-only smoke test
-# (no release). Activates once this branch is merged to main.
+# attaches the platform bundles to it. workflow_dispatch with a `tag` rebuilds an
+# existing release's assets (recovery / manual fill-in); without one it's a build-
+# only smoke test.
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to build + attach assets to (e.g. v0.2.0). Empty = build-only smoke test.'
+        required: false
 
 permissions:
   contents: write
@@ -17,9 +22,11 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    # Manifest mode prefixes per-package outputs with the path: app--tag_name, etc.
+    # `releases_created` is the top-level "did anything get released this run" flag.
     outputs:
-      release_created: ${{ steps.rp.outputs.release_created }}
-      tag_name: ${{ steps.rp.outputs.tag_name }}
+      release_created: ${{ steps.rp.outputs.releases_created }}
+      tag_name: ${{ steps.rp.outputs['app--tag_name'] }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: rp
@@ -44,7 +51,11 @@ jobs:
             bundles: 'nsis'
     runs-on: ${{ matrix.platform }}
     steps:
+      # On a manual tag build, check out that tag's code so the bundle's version
+      # matches the release; otherwise build the pushed commit.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       # Tauri's webview + bundling deps (Linux only). The Ubuntu runner is Debian-
       # based, so unlike an Arch host its linuxdeploy/AppImage tooling works.
@@ -90,5 +101,5 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: app
-          tagName: ${{ needs.release-please.outputs.tag_name }}
+          tagName: ${{ needs.release-please.outputs.tag_name || inputs.tag }}
           args: --bundles ${{ matrix.bundles }}
