@@ -1875,7 +1875,14 @@ export const iconManifestFn = createServerFn({ method: "GET" }).handler(
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
     const { ICON_DATA_DIR } = await import("./paths.ts");
-    const raw = await fs.readFile(path.join(ICON_DATA_DIR, "manifest.json"), "utf8");
+    let raw: string;
+    try {
+      raw = await fs.readFile(path.join(ICON_DATA_DIR, "manifest.json"), "utf8");
+    } catch {
+      // No atlas yet (a fresh install, before the first data sync) — return an empty
+      // manifest so icons fall back gracefully instead of surfacing an ENOENT.
+      return { cell: 0, atlasSize: 0, sheets: [], icons: {} };
+    }
     // file content is untyped input — assert the shape at this boundary only
     const manifest = JSON.parse(raw) as IconManifest;
     // Cache-bust the atlas sheets: the PNGs are served at stable URLs (/icons/
