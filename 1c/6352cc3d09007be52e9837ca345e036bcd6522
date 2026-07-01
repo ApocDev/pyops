@@ -1,0 +1,31 @@
+app/src/components/app-nav.tsx
+  s_ad8974a3b278d5::t_5afb7d29d4d1c7 9,11,57,69
+app/src/components/nav-links.ts
+  s_ad8974a3b278d5::t_f132262c976da1 26-37,45,50-56
+app/src/components/nav-mobile.tsx
+  s_ad8974a3b278d5::t_edce7ada9de5bd 3,6,11,24-25
+app/src/db/queries.test.ts
+  s_ad8974a3b278d5::t_084608c1727368 9,74-86
+app/src/db/queries.ts
+  s_ad8974a3b278d5::t_83642b4ccfe210 2564-2579
+app/src/routes/turd.tsx
+  s_ad8974a3b278d5::t_d5e7175204ef98 145-152
+app/src/server/factorio.ts
+  s_ad8974a3b278d5::t_196bedb66d2f2b 34-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "1c6352cc3d09007be52e9837ca345e036bcd6522",
+  "prompts": {},
+  "sessions": {
+    "s_ad8974a3b278d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
