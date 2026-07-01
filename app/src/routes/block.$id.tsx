@@ -893,6 +893,7 @@ function Block({ blockId }: { blockId: number }) {
   }, [res, lockedInput, lockedRate]);
 
   const freed = new Set(res?.autoFreed ?? []);
+  const unused = new Set(res?.unusedRecipes ?? []);
   const statusColor =
     res?.status === "solved"
       ? "text-emerald-400"
@@ -908,6 +909,7 @@ function Block({ blockId }: { blockId: number }) {
     : res.broken || res.status === "infeasible"
       ? "error"
       : (res.unmadeTargets?.length ?? 0) > 0 ||
+          (res.unusedRecipes?.length ?? 0) > 0 ||
           res.status === "relaxed" ||
           res.status === "underdetermined" ||
           res.tempWarnings.length > 0
@@ -1448,6 +1450,27 @@ function Block({ blockId }: { blockId: number }) {
                   </div>
                 </div>
               ) : null}
+              {res?.unusedRecipes?.length && !res.broken ? (
+                <div className="border-b border-border px-3 py-2 text-xs text-destructive">
+                  <div className="mb-1 flex items-center gap-1 font-semibold">
+                    <AlertTriangle className="size-3.5 shrink-0" />
+                    {res.unusedRecipes.length === 1
+                      ? "1 recipe isn't"
+                      : `${res.unusedRecipes.length} recipes aren't`}{" "}
+                    used by this block&apos;s goal — pinned to 0. Remove{" "}
+                    {res.unusedRecipes.length === 1 ? "it" : "them"}, or balance an item to connect{" "}
+                    {res.unusedRecipes.length === 1 ? "it" : "them"}:
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-2">
+                    {res.unusedRecipes.map((n) => (
+                      <span key={n} className="flex min-w-0 items-center gap-1">
+                        <Icon kind="recipe" name={n} size="md" noHover />
+                        <span className="truncate">{res.display?.[n] ?? n}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               {res && res.tempWarnings?.length > 0 && (
                 <div className="border-b border-border px-3 py-2 text-xs text-amber-300">
                   {res.tempWarnings.map((w) => (
@@ -1656,6 +1679,7 @@ function Block({ blockId }: { blockId: number }) {
             {recipes.map((name) => {
               const row = res?.rows?.find((r) => r.recipe === name);
               const neg = (row?.rate ?? 0) < -1e-6; // running backward — can't physically happen
+              const isUnused = unused.has(name); // pinned to 0 — nothing in the block needs it
               // a recipe that no longer exists in the data: show it as a labelled
               // placeholder row (preserved, not silently dropped) rather than solving.
               const missingRecipe = res?.missing?.recipes.includes(name) ?? false;
@@ -1695,7 +1719,7 @@ function Block({ blockId }: { blockId: number }) {
                 <SortableRow key={name} id={name}>
                   {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
                     <div
-                      className={`${GRID} relative border-t border-border ${neg ? "bg-destructive/10" : ""} ${isDragging ? "bg-card shadow-lg" : ""}`}
+                      className={`${GRID} relative border-t border-border ${neg || isUnused ? "bg-destructive/10" : ""} ${isDragging ? "bg-card shadow-lg" : ""}`}
                     >
                       <RecipeHover name={name} className="flex min-w-0 items-center gap-2">
                         <span
@@ -1712,7 +1736,12 @@ function Block({ blockId }: { blockId: number }) {
                           <span className="block truncate" title={res?.display?.[name] ?? name}>
                             {res?.display?.[name] ?? name}
                           </span>
-                          {row && (
+                          {isUnused ? (
+                            <span className="flex items-center gap-1 text-xs font-semibold text-destructive">
+                              <AlertTriangle className="size-3 shrink-0" /> not made — nothing here
+                              needs it
+                            </span>
+                          ) : row ? (
                             <span
                               className={`text-xs ${neg ? "font-semibold text-destructive" : "text-muted-foreground"}`}
                             >
@@ -1722,7 +1751,7 @@ function Block({ blockId }: { blockId: number }) {
                               {neg && "backward "}
                               {num(row.rate)}/s
                             </span>
-                          )}
+                          ) : null}
                         </span>
                         <button
                           className="text-muted-foreground hover:text-destructive"

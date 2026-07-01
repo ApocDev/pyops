@@ -54,6 +54,7 @@ import type {
   StackBonuses,
 } from "../lib/logistics.ts";
 import { goalNames, normalizeBlockData, primaryRate } from "../lib/goals.ts";
+import { relevantRecipes, type RecipeDef } from "../solver/block.ts";
 
 const recipeSummary = {
   name: recipes.name,
@@ -1104,6 +1105,17 @@ export function listBlocks() {
     if (!set) productsByRecipe.set(p.recipe, (set = new Set()));
     set.add(p.name);
   }
+  // recipe → its ingredient good names, for the "can this recipe reach a goal?"
+  // check that mirrors the solver's unused-recipe pinning.
+  const ingredientsByRecipe = new Map<string, Set<string>>();
+  for (const p of db
+    .select({ recipe: recipeIngredients.recipe, name: recipeIngredients.name })
+    .from(recipeIngredients)
+    .all()) {
+    let set = ingredientsByRecipe.get(p.recipe);
+    if (!set) ingredientsByRecipe.set(p.recipe, (set = new Set()));
+    set.add(p.name);
+  }
   return rows.map(({ data, solveStatus, ...b }) => {
     const d = normalizeBlockData(data as BlockData);
     const blockRecipes = d.recipes ?? [];
@@ -1114,13 +1126,47 @@ export function listBlocks() {
     for (const r of blockRecipes)
       for (const p of productsByRecipe.get(r) ?? []) makesInBlock.add(p);
     const unmadeGoals = goalNames(d).filter((g) => goodNames.has(g) && !makesInBlock.has(g));
+    // Recipes that can't reach any in-block goal — the solver pins these to 0 and
+    // the block still solves, so surface them here (mirrors the solver's check) or
+    // the sidebar would go green on a block full of dead recipes. Only meaningful
+    // when a goal is actually produced in-block; an explicit `balance` protects a
+    // recipe from being flagged.
+    let unusedCount = 0;
+    if (goalNames(d).some((g) => makesInBlock.has(g))) {
+      const pseudo: RecipeDef[] = blockRecipes.map((name) => ({
+        name,
+        energyRequired: 0,
+        ingredients: [...(ingredientsByRecipe.get(name) ?? [])].map((n) => ({
+          kind: "item",
+          name: n,
+          amount: 0,
+        })),
+        products: [...(productsByRecipe.get(name) ?? [])].map((n) => ({
+          kind: "item",
+          name: n,
+          amount: 0,
+        })),
+      }));
+      const relevant = relevantRecipes(pseudo, goalNames(d));
+      const balanced = new Set(
+        Object.entries(d.dispositions ?? {}).flatMap(([k, v]) => (v === "balance" ? [k] : [])),
+      );
+      unusedCount = pseudo.filter((r, i) => {
+        if (relevant.has(i)) return false;
+        const touches = (c: { name: string }) => balanced.has(c.name);
+        return !(balanced.size && (r.ingredients.some(touches) || r.products.some(touches)));
+      }).length;
+    }
     const health: BlockHealth =
       broken || solveStatus === "infeasible"
         ? "error"
-        : unmadeGoals.length > 0 || solveStatus === "relaxed" || solveStatus === "underdetermined"
+        : unmadeGoals.length > 0 ||
+            unusedCount > 0 ||
+            solveStatus === "relaxed" ||
+            solveStatus === "underdetermined"
           ? "warn"
           : "ok";
-    return { ...b, broken, health, unmadeGoals };
+    return { ...b, broken, health, unmadeGoals, unusedCount };
   });
 }
 
