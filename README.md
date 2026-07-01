@@ -109,7 +109,10 @@ compare them, or park future rows (T1 now, T2–T4 later) until you enable them.
 a whole block off** the same way: it stays in the sidebar (dimmed) and still opens for
 editing, but contributes nothing to the factory-wide totals until re-enabled. A block's
 icon follows its first goal by default — click the icon next to the block's name to
-pick any item or fluid instead (with a one-click reset back to auto).
+pick any item or fluid instead (with a one-click reset back to auto). Long chains fold
+into **sub-blocks**: right-click a recipe's name to start a named group, add rows to it,
+and collapse it to a single line showing the chain's net flows (inputs → outputs,
+intermediates cancelled), machines and power. Purely visual — the solve is unchanged.
 
 ![Block editor — the Basic substrate bio-chain, solved with byproducts](docs/images/block-editor.png)
 

@@ -31,6 +31,12 @@ later. A whole block can likewise be disabled (`blocks.enabled = false`): it sti
 opens and solves for editing, but every factory-wide rollup (totals, coherence,
 suppliers, machine counts, what-if) skips it.
 
+Rows can be grouped into **sub-blocks** (`rowGroups` + `recipeGroups` in the block
+doc) — named, collapsible groups the editor renders as one folded line with the
+chain's net flows (member products minus member ingredients; intermediates cancel).
+Display-only: the groups never reach the solver, which sees the same flat recipe set
+either way (`app/src/lib/row-groups.ts` holds the pure grouping/net-flow logic).
+
 A goal that **no recipe in the block makes** (an unfinished block, or one whose
 producer vanished after a data migration) is _not_ pinned — pinning it would be a
 zero-coefficient equation with a nonzero rate, forcing the whole least-squares solve
