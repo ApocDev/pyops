@@ -1,0 +1,35 @@
+app/src/components/logistics-menu.tsx
+  s_b92d5ef9e1806e::t_a74d19da8d67ff 13,102
+app/src/lib/recipe-card.tsx
+  s_b92d5ef9e1806e::t_fc7b0a2bb2068f 9,364,366,654-655
+app/src/routes/assistant.tsx
+  s_b92d5ef9e1806e::t_e6a832742ccafd 30,1214
+app/src/routes/coherence.tsx
+  s_b92d5ef9e1806e::t_f13fcd5acecf12 23
+app/src/routes/factory.tsx
+  s_b92d5ef9e1806e::t_6b5bc61713c29c 31
+app/src/routes/whatif.tsx
+  s_b92d5ef9e1806e::t_b84f7d6f8a4346 19
+app/src/lib/format.test.ts
+  s_b92d5ef9e1806e::t_dffc549047b98b 1-51
+app/src/lib/format.ts
+  s_b92d5ef9e1806e::t_e66622df70bf9e 1-74
+app/src/routes/settings.tsx
+  s_b92d5ef9e1806e::t_95dfee10456060 3,25-31,82,364-397
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "c0fcb87746ca6ced0b34ecabb03d19e10a15f88a",
+  "prompts": {},
+  "sessions": {
+    "s_b92d5ef9e1806e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a7099cb-0e25-4285-9a43-6f6e104a2ec9",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
