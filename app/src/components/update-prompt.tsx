@@ -43,7 +43,10 @@ export function UpdatePrompt() {
     if (checked.current) return; // launch-only; no polling
     checked.current = true;
     checkForUpdate()
-      .then((u) => u && setUpdate(u))
+      .then((u) => {
+        console.info("[updater] check:", u ? `update ${u.version} available` : "up to date");
+        if (u) setUpdate(u);
+      })
       .catch((err) => console.error("[updater] check failed", err));
   }, []);
 
