@@ -101,11 +101,15 @@ The app updates itself from GitHub Releases.
   The updater artifact is picked explicitly per platform (AppImage / `.app.tar.gz` /
   `-setup.exe`), and the macOS `.app.tar.gz` is arch-suffixed so the two Mac builds
   don't collide.
-- On launch, a bundled app checks `releases/latest/download/latest.json`; if a newer
-  version exists it shows a native **"Update available"** dialog with the version and
-  changelog, and **Install & Restart** downloads, verifies the signature against the
-  baked-in public key, installs, and relaunches. All Rust-side (`check_for_update` in
-  `lib.rs`); dev builds skip it.
+- On launch the desktop shell checks `releases/latest/download/latest.json` (the
+  `updater_check` command). If a newer version exists, the **web UI** pins a small
+  toast bottom-right that opens a changelog dialog (rendered markdown, scrollable);
+  **Install & Restart** runs `updater_install` — download with streaming progress,
+  signature-verify against the baked-in public key, install, then `app.restart()`.
+  The updater logic is Rust (`tauri-plugin-updater`); only these two commands cross
+  into JS, guarded by `window.isTauri` so the web app stays Tauri-agnostic (a
+  `?mockUpdate=` dev switch previews the toast + dialog in `vp dev`). No JS
+  `plugin-updater`/`plugin-process` — just a lazy `@tauri-apps/api` for `invoke`.
 - Self-update rides the **AppImage / NSIS / .app** artifacts — the `.deb` does not
   self-update (use the AppImage on Linux for updates).
 

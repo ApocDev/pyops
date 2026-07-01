@@ -6,6 +6,7 @@ import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 
 import { AppNav } from "../components/app-nav";
 import { DriftModal } from "../components/drift-modal";
+import { UpdatePrompt } from "../components/update-prompt";
 import appCss from "../styles.css?url";
 
 import type { QueryClient } from "@tanstack/react-query";
@@ -59,6 +60,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <div className="min-h-0 flex-1 overflow-auto">{children}</div>
         </div>
         <DriftModal />
+        <UpdatePrompt />
         <TanStackDevtools
           config={{
             position: "bottom-right",
