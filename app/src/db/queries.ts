@@ -2561,6 +2561,22 @@ export function costAnalysisCount(): number {
 }
 
 /** Row counts — useful for a health check / "is the db loaded" probe. */
+/** Which data-driven, mod-specific surfaces the loaded dataset actually supports,
+ * so the UI can hide features that have no data behind them (e.g. TURD when the
+ * Pyanodons alien-life mods aren't part of the synced mod set). Keyed on the data
+ * being present, not on sniffing for a named mod — see #68 for the broader
+ * mod-agnostic goal. */
+export function dataCapabilities(): { hasTurd: boolean } {
+  const turd = (
+    db
+      .select({ n: sql<number>`count(*)` })
+      .from(technologies)
+      .where(eq(technologies.isTurd, true))
+      .get() as { n: number }
+  ).n;
+  return { hasTurd: turd > 0 };
+}
+
 export function stats() {
   const count = (t: Parameters<ReturnType<typeof db.select>["from"]>[0]) =>
     (

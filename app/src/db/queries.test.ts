@@ -6,6 +6,7 @@ import {
   blockReferenceFingerprint,
   buildCost,
   createGroup,
+  dataCapabilities,
   deleteGroup,
   getResearchHorizon,
   goodExists,
@@ -67,6 +68,19 @@ describe("goodGraphCounts", () => {
 
   it("returns zeros for an unknown good", () => {
     expect(goodGraphCounts("nonexistent")).toEqual({ producers: 0, consumers: 0 });
+  });
+});
+
+describe("dataCapabilities", () => {
+  it("reports hasTurd false when the dataset has no TURD techs", () => {
+    expect(dataCapabilities()).toEqual({ hasTurd: false });
+  });
+
+  it("reports hasTurd true once a TURD master tech is present", () => {
+    db.run(
+      sql`INSERT INTO technologies (name, unit_count, enabled, is_turd) VALUES ('t-master', 1, 1, 1)`,
+    );
+    expect(dataCapabilities()).toEqual({ hasTurd: true });
   });
 });
 

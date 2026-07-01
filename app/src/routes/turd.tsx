@@ -142,6 +142,14 @@ function TurdPage() {
 
       {upgrades.isLoading && <div className="text-muted-foreground">loading…</div>}
 
+      {!upgrades.isLoading && (upgrades.data?.length ?? 0) === 0 && (
+        <div className="max-w-prose text-sm text-muted-foreground">
+          No TURD upgrades in this dataset. TURD is a Pyanodons mechanic — sync a mod set that
+          includes it (e.g. pyalienlife) and its upgrades appear here. (This tab is hidden from the
+          nav when there&apos;s no TURD data.)
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         {list.map((u) => (
           <Card key={u.name} className="p-3">

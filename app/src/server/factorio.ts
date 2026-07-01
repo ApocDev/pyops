@@ -31,6 +31,9 @@ function pseudoDisplay(name: string) {
 }
 
 export const statsFn = createServerFn({ method: "GET" }).handler(async () => (await lib()).stats());
+export const dataCapabilitiesFn = createServerFn({ method: "GET" }).handler(async () =>
+  (await lib()).dataCapabilities(),
+);
 
 export const searchItemsFn = createServerFn({ method: "GET" })
   .validator((query: string) => query)
