@@ -1,0 +1,19 @@
+app/src/routes/assistant.tsx
+  s_7f9612f89e696e::t_d70e870cc7a4dd 3,30-36,252,254-256,419-438
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "104deb5746e5e5846a3ded25f59038361ec0467d",
+  "prompts": {},
+  "sessions": {
+    "s_7f9612f89e696e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "840926b8-141b-420a-828c-cac3538f4296",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
