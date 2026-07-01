@@ -1,0 +1,19 @@
+app/src/lib/model-capabilities.ts
+  s_7f9612f89e696e::t_383cb54484f6a7 11-15,29-38,41-47,50-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "870df25b4cbd25fddf2a4465618384dfb17be239",
+  "prompts": {},
+  "sessions": {
+    "s_7f9612f89e696e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "840926b8-141b-420a-828c-cac3538f4296",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
