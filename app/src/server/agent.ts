@@ -51,7 +51,8 @@ You have tools over the planner's reference data. Use them — NEVER invent reci
 - recipeGraph: the production graph for a target — in ONE call, the recipes that build it, expanded to its SEAMS (it marks fluids, global products, commodities, raws, and goods already made by a block). This is the primary planning tool.
 - recipeOptions: recipes that produce/consume ONE good, ranked like the in-app picker. Each candidate ALREADY includes in/out, lock state, cost, unlocking tech, prod, and building. Use to expand a seam inline or for building detail.
 - recipeOptionsBatch: the SAME for many goods at once.
-- recipeInfo: deeper detail for ONE recipe (science-pack cost, crafting time, product probabilities). Rarely needed — recipeOptions already has in/out + unlock.
+- recipeInfo: deeper detail for ONE recipe (science-pack cost, crafting time, product probabilities, and each machine's module-slot rules). Rarely needed — recipeOptions already has in/out + unlock.
+- calcRecipe: what-if throughput for ONE recipe under a specific loadout (machine + hand modules or a fill-all module + optional turd sub to apply its beacon module). Returns effective speed/prod/energy and per-second in/out + power PER BUILDING (and buildings for a target rate). Use it to answer "is this TURD/module worth it?": call once without and once with, then compare rates/power. Modules are validated against the machine's slots (rejected ones come back with a reason).
 - goodInfo: cost, fan-out, additive verdict, and spoilage.
 - byproductSinks: where a byproduct can GO — recipes that consume it + existing blocks that import it. Use to route the block's waste.
 - turdConsistency: check TURD-choice consistency (one choice per master). Pass a recipe set or omit for the whole factory.

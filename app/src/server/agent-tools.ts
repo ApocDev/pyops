@@ -281,7 +281,7 @@ export const recipeOptionsBatch = tool({
 
 export const recipeInfo = tool({
   description:
-    "Full detail for one recipe: exact ingredients/products with amounts, energy/time, category, cost, and unlock state (the techs that unlock it, their science-pack cost, and any TURD master›choice it belongs to). `turd` lists the FULL branch set of every TURD master that affects this recipe — whether the recipe is a branch's new unlock OR a base recipe some branch replaces — so you see all sibling choices, not just this one. Use after recipeOptions to inspect a specific candidate.",
+    "Full detail for one recipe: exact ingredients/products with amounts, energy/time, category, cost, and unlock state (the techs that unlock it, their science-pack cost, and any TURD master›choice it belongs to). Each machine reports its module-slot rules: `allowedModuleCategories` (null = normal modules; a list like ['vrauks'] means the slots ONLY accept that category — Py creature buildings lock their slots to their own module) and, when restricted, `modules` — the hand-placeable modules that fit (e.g. Vrauk speed modules). A TURD choice's own module is NOT a slot option; it's applied by an always-on hidden T.U.R.D. beacon at no slot cost (see turdChoices), so the slots stay free for these. `turd` lists the FULL branch set of every TURD master that affects this recipe — whether the recipe is a branch's new unlock OR a base recipe some branch replaces — so you see all sibling choices, not just this one. Use after recipeOptions to inspect a specific candidate.",
   inputSchema: z.object({
     recipe: z.string().describe("Internal recipe name, e.g. 'molten-iron-01'"),
   }),
@@ -298,6 +298,7 @@ export const recipeInfo = tool({
     }));
     const machines = q.machineOptionsForRecipe(recipe).map((m) => ({
       machine: m.display ?? m.name,
+      name: m.name,
       kind: m.kind,
       speed: m.craftingSpeed,
       moduleSlots: m.moduleSlots,
@@ -305,6 +306,15 @@ export const recipeInfo = tool({
       energySource: m.energySource,
       available: m.startEnabled || m.unlockedBy.length > 0,
       unlockedBy: m.startEnabled ? null : m.unlockedBy.map((u) => u.display ?? u.tech),
+      // Module-slot eligibility. allowedModuleCategories null = normal modules; a list
+      // (e.g. ['vrauks']) means the slots ONLY accept that category — Py creature
+      // buildings lock their slots to their own module. When restricted, `modules`
+      // lists the HAND-PLACEABLE modules that fit (e.g. Vrauk speed modules). A TURD
+      // choice's own module is NOT here — it's applied via an always-on hidden beacon
+      // (no slot cost), so the building's slots stay free for these; see turdChoices.
+      allowedModuleCategories: m.allowedModuleCategories ?? null,
+      allowedEffects: m.allowedEffects ?? null,
+      modules: m.allowedModuleCategories?.length ? q.modulesFittingMachine(m.name) : undefined,
     }));
     const fuel = q.fuelOptionsForRecipe(recipe); // burner fuels w/ ash, or null (electric)
     return {
@@ -331,6 +341,40 @@ export const recipeInfo = tool({
       // Full branch set of every TURD master touching this recipe (empty if none).
       turd: q.turdChoicesLookup({ recipe }),
     };
+  },
+});
+
+export const calcRecipe = tool({
+  description:
+    "What-if throughput calculator for ONE recipe under a specific loadout — a tiny single-building plan to judge whether a TURD or a module fill actually pays off. Give a recipe (optionally a machine, hand-placed `modules` or a `fill` module for every slot, and/or a `turd` sub-tech to apply its always-on beacon module). Returns the effective speed/productivity/energy multipliers and the resulting per-second inputs/outputs and power PER BUILDING, plus buildings needed for a `targetRate`. To evaluate a change, call once WITHOUT it and once WITH it and compare the rates/power. Hand modules are validated against the machine's slot rules (category + effects) — invalid ones come back in `rejectedModules` with a reason. Productivity scales only non-ignored outputs (not barrels), speed scales crafts/sec, consumption scales power; the TURD module applies via the hidden beacon at no slot cost.",
+  inputSchema: z.object({
+    recipe: z.string().describe("Internal recipe name, e.g. 'vrauks-rearing-mk04'"),
+    machine: z
+      .string()
+      .optional()
+      .describe("Machine internal name; default = fastest that can craft it"),
+    modules: z
+      .array(z.string())
+      .optional()
+      .describe("Hand-placed module names, one per slot (truncated to the machine's slot count)"),
+    fill: z
+      .string()
+      .optional()
+      .describe("Fill EVERY slot with this one module (ignored if `modules` is given)"),
+    turd: z
+      .string()
+      .optional()
+      .describe(
+        "A TURD sub-tech name whose always-on beacon module to apply (hypothetical — independent of the current selection)",
+      ),
+    targetRate: z
+      .number()
+      .optional()
+      .describe("Desired /s of the recipe's main product → buildings needed"),
+  }),
+  execute: async ({ recipe, machine, modules, fill, turd, targetRate }) => {
+    const q = await lib();
+    return q.computeRecipeScenario({ recipe, machine, modules, fill, turd, targetRate });
   },
 });
 
@@ -1141,6 +1185,7 @@ export const agentTools = {
   recipeOptions,
   recipeOptionsBatch,
   recipeInfo,
+  calcRecipe,
   goodInfo,
   byproductSinks,
   turdConsistency,

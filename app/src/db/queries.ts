@@ -44,6 +44,7 @@ import {
   type BeaconConfig,
 } from "./schema.ts";
 import { stripRichText } from "../lib/factorio-text.ts";
+import { computeEffects } from "../server/effects.ts";
 import type {
   BeltProto,
   InserterProto,
@@ -352,6 +353,187 @@ function effectsAllowed(m: ModuleRow, fx: string[] | null | undefined): boolean 
   if (m.effProductivity > 0 && !fx.includes("productivity")) return false;
   if (m.effConsumption < 0 && !fx.includes("consumption")) return false;
   return true;
+}
+
+/** The HAND-PLACEABLE modules that fit a machine's slots — what you actually put in
+ * this building. Py's creature buildings lock their slots to their own module
+ * category (e.g. a Vrauk paddock only takes 'vrauks' modules → the Vrauk speed
+ * modules). Hidden modules are excluded: those are Py's TURD modules, delivered by
+ * the always-on hidden T.U.R.D. beacon (1:1, no slot cost), not placed by hand —
+ * see turdChoices for a choice's module. */
+export function modulesFittingMachine(machineName: string) {
+  const m = db.select().from(craftingMachines).where(eq(craftingMachines.name, machineName)).get();
+  if (!m) return [];
+  return db
+    .select()
+    .from(modules)
+    .where(eq(modules.hidden, false))
+    .orderBy(modules.category, modules.tier, modules.name)
+    .all()
+    .filter(
+      (mod) =>
+        categoryAllowed(mod, m.allowedModuleCategories) && effectsAllowed(mod, m.allowedEffects),
+    )
+    .map((mod) => ({
+      name: mod.name,
+      display: mod.display ?? mod.name,
+      category: mod.category,
+      speed: mod.effSpeed,
+      productivity: mod.effProductivity,
+      consumption: mod.effConsumption,
+    }));
+}
+
+/** The TURD modules of a sub-tech that would actually apply to a machine — its slot
+ * category must accept the module's category, and per-tier -mk0N modules match the
+ * machine's own -mk0N tier (mirrors the live TURD-beacon insertion). */
+function turdModulesForMachine(
+  sub: string,
+  machine: {
+    name: string;
+    allowedModuleCategories: string[] | null;
+  },
+): ModuleRow[] {
+  return turdModulesOf(sub).filter((mod) => {
+    if (!machine.allowedModuleCategories?.includes(mod.category ?? "")) return false;
+    const tier = /-mk0(\d)$/.exec(mod.name);
+    return !tier || machine.name.endsWith(`-mk0${tier[1]}`);
+  });
+}
+
+const avgAmount = (c: {
+  amount: number | null;
+  amountMin?: number | null;
+  amountMax?: number | null;
+}) =>
+  c.amount ?? (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0);
+
+/** "What-if" throughput for ONE recipe under a specific loadout — a tiny single-
+ * building plan the assistant can use to judge whether a TURD or a module fill is
+ * worth it. Resolves the machine, validates the hand-placed modules against its
+ * slot rules, optionally applies a TURD choice's beacon module, then reports the
+ * effective speed/productivity/energy multipliers and the resulting per-second
+ * inputs/outputs and power PER BUILDING (plus buildings needed for a target rate).
+ * Productivity scales only non-ignored outputs; speed scales crafts/sec; the TURD
+ * module is applied via the hidden beacon at no slot cost (see [[modulesFittingMachine]]). */
+export function computeRecipeScenario(opts: {
+  recipe: string;
+  machine?: string;
+  modules?: string[];
+  fill?: string;
+  beacons?: BeaconConfig[];
+  turd?: string;
+  targetRate?: number;
+}) {
+  const r = getRecipe(opts.recipe);
+  if (!r) return { error: `no recipe '${opts.recipe}'` };
+  const machineList = machinesForRecipe(opts.recipe)
+    .slice()
+    .sort((a, b) => (b.craftingSpeed ?? 0) - (a.craftingSpeed ?? 0));
+  if (!machineList.length) return { error: `recipe '${opts.recipe}' has no crafting machine` };
+  const machine = opts.machine ? machineList.find((m) => m.name === opts.machine) : machineList[0];
+  if (!machine) return { error: `machine '${opts.machine}' can't craft '${opts.recipe}'` };
+
+  const slots = machine.moduleSlots ?? 0;
+  const wanted = (opts.modules ?? (opts.fill ? Array(slots).fill(opts.fill) : [])).slice(0, slots);
+  // validate each requested hand module against the machine's slot rules
+  const wantRows = getModules([...new Set(wanted)]);
+  const rejected: { name: string; reason: string }[] = [];
+  const validSlots = wanted.filter((name) => {
+    const mod = wantRows.get(name);
+    if (!mod) return void rejected.push({ name, reason: "unknown module" });
+    if (mod.hidden)
+      return void rejected.push({ name, reason: "hidden (TURD/beacon module, not hand-placed)" });
+    if (!categoryAllowed(mod, machine.allowedModuleCategories))
+      return void rejected.push({
+        name,
+        reason: `category '${mod.category}' not accepted (slots take ${JSON.stringify(machine.allowedModuleCategories ?? "any")})`,
+      });
+    if (!effectsAllowed(mod, machine.allowedEffects))
+      return void rejected.push({ name, reason: "effect not allowed by this machine" });
+    if (mod.effProductivity > 0 && !r.allowProductivity)
+      return void rejected.push({ name, reason: "recipe doesn't allow productivity" });
+    return true;
+  });
+
+  const turdModules = opts.turd ? turdModulesForMachine(opts.turd, machine) : [];
+  const moduleDb = getModules(validSlots);
+  const beaconCfgs = (opts.beacons ?? []).filter((b) => b.count > 0);
+  const beaconDb = getBeacons(beaconCfgs.map((b) => b.beacon));
+
+  const fx = computeEffects(
+    r.allowProductivity,
+    validSlots,
+    beaconCfgs,
+    moduleDb,
+    beaconDb,
+    turdModules,
+  );
+
+  const craftsPerSec = (machine.craftingSpeed * fx.speedMult) / (r.energyRequired || 0.5);
+  const outputs = r.products.map((p) => ({
+    good: p.name,
+    display: p.display ?? p.name,
+    perSec:
+      craftsPerSec *
+      avgAmount(p) *
+      (p.probability ?? 1) *
+      (p.ignoredByProductivity ? 1 : fx.prodMult),
+  }));
+  const inputs = r.ingredients.map((c) => ({
+    good: c.name,
+    display: c.display ?? c.name,
+    perSec: craftsPerSec * (c.amount ?? 0),
+  }));
+  const powerW = (machine.energyUsageW ?? 0) * fx.consMult + fx.beaconPowerPerMachineW;
+
+  const mainName = r.mainProduct ?? r.products[0]?.name ?? null;
+  const mainRate = outputs.find((o) => o.good === mainName)?.perSec ?? outputs[0]?.perSec ?? 0;
+
+  return {
+    recipe: r.name,
+    display: r.display ?? r.name,
+    machine: {
+      name: machine.name,
+      display: machine.display ?? machine.name,
+      craftingSpeed: machine.craftingSpeed,
+      moduleSlots: slots,
+      allowedModuleCategories: machine.allowedModuleCategories ?? null,
+      allowedEffects: machine.allowedEffects ?? null,
+    },
+    modulesPlaced: validSlots,
+    rejectedModules: rejected.length ? rejected : undefined,
+    turd: opts.turd
+      ? {
+          sub: opts.turd,
+          modulesApplied: turdModules.map((m) => m.name),
+          applied: turdModules.length > 0,
+        }
+      : null,
+    beacons: beaconCfgs.length ? beaconCfgs : undefined,
+    effects: {
+      speedPct: Math.round(fx.speedBonus * 1000) / 10,
+      productivityPct: Math.round(fx.prodBonus * 1000) / 10,
+      energyPct: Math.round(fx.consBonus * 1000) / 10,
+      speedMult: Math.round(fx.speedMult * 1000) / 1000,
+      prodMult: Math.round(fx.prodMult * 1000) / 1000,
+      energyMult: Math.round(fx.consMult * 1000) / 1000,
+    },
+    perBuilding: {
+      craftsPerSec: Math.round(craftsPerSec * 1000) / 1000,
+      outputs: outputs.map((o) => ({ ...o, perSec: Math.round(o.perSec * 1000) / 1000 })),
+      inputs: inputs.map((i) => ({ ...i, perSec: Math.round(i.perSec * 1000) / 1000 })),
+      powerKW: Math.round(powerW / 10) / 100,
+    },
+    target:
+      opts.targetRate && mainRate > 0
+        ? {
+            good: mainName,
+            rate: opts.targetRate,
+            buildingsNeeded: Math.round((opts.targetRate / mainRate) * 100) / 100,
+          }
+        : undefined,
+  };
 }
 
 /** Everything the module/beacon picker needs for one recipe row: the chosen
