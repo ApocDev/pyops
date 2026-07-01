@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.4](https://github.com/ApocDev/pyops/compare/v0.4.3...v0.4.4) (2026-07-01)
+
+
+### Bug Fixes
+
+* **desktop:** use the built-in updater/process plugins (fixes the ACL dead end) ([#63](https://github.com/ApocDev/pyops/issues/63)) ([fdc9800](https://github.com/ApocDev/pyops/commit/fdc980072dd0dd6b92a30e67886c925612fe7a8d))
+
 ## [0.4.3](https://github.com/ApocDev/pyops/compare/v0.4.2...v0.4.3) (2026-07-01)
 
 
