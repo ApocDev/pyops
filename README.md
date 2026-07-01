@@ -34,7 +34,10 @@ planner that actually understands Py's tangled recipe graph.
 - **Browse the data.** A searchable catalogue of every item, fluid, and recipe in
   your exact mod set — used-in / produced-by, ingredients, products, machines.
 - **Track TURD choices.** Py's "There's Usually a Recipe Difference" tech upgrades
-  are first-class: pick a path and every block re-solves against it.
+  are first-class: each master shows every branch — its description, the recipes it
+  swaps or newly unlocks, and a hover diff of what actually changes (inputs,
+  outputs, and base throughput per second). Pick a path and every block re-solves
+  against it.
 - **Plan with AI.** An assistant (via OpenRouter) drafts whole production chains
   and multi-block plans using tools over the recipe data, honouring what you can
   build _now_ vs. _after research_.

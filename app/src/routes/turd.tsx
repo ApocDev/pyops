@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check } from "lucide-react";
+import { ArrowRight, Check, Plus } from "lucide-react";
 import { listTurdUpgradesFn, setTurdSelectionFn, turdSyncStatusFn } from "../server/factorio";
 import { Icon, IconProvider } from "../lib/icons";
+import { RecipeDiffHover, RecipeHover } from "../lib/recipe-card";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Card } from "#/components/ui/card.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
@@ -26,20 +27,108 @@ function timeAgo(iso: string): string {
   return `${Math.round(sec / 3600)}h ago`;
 }
 
-function subEffectSummary(s: {
+type TurdChange = {
+  from: string | null;
+  fromDisplay: string | null;
+  to: string;
+  toDisplay: string;
+  buildsBuilding: boolean;
+};
+/** A choice's always-on module effects, applied to swap-recipe throughput. */
+type RateBonus = { speed: number; prod: number };
+type SubTech = {
+  name: string;
+  display: string;
+  description: string;
+  changes: TurdChange[];
   modules: { effSpeed: number; effProductivity: number; effConsumption: number }[];
-  unlocks: string[];
-}): string[] {
-  const out: string[] = [];
-  // per-tier modules share the intent; summarize from the lowest tier
+};
+
+/** The always-on module effects a choice grants (summarized from the lowest tier).
+ * Recipe changes are shown explicitly below, not folded into a bare count. Each
+ * effect is color-coded by kind so speed/productivity/energy stand out. */
+type Effect = { label: string; className: string };
+function subEffectSummary(s: Pick<SubTech, "modules">): Effect[] {
+  const out: Effect[] = [];
   const m = s.modules[0];
+  const suffix = s.modules.length > 1 ? " (mk01)" : "";
   if (m) {
-    if (m.effSpeed) out.push(`${pct(m.effSpeed)} speed${s.modules.length > 1 ? " (mk01)" : ""}`);
-    if (m.effProductivity) out.push(`${pct(m.effProductivity)} productivity`);
-    if (m.effConsumption) out.push(`${pct(m.effConsumption)} energy`);
+    if (m.effSpeed)
+      out.push({
+        label: `${pct(m.effSpeed)} speed${suffix}`,
+        className: "border-sky-500/40 bg-sky-500/15 text-sky-300",
+      });
+    if (m.effProductivity)
+      out.push({
+        label: `${pct(m.effProductivity)} productivity${suffix}`,
+        className: "border-emerald-500/40 bg-emerald-500/15 text-emerald-300",
+      });
+    if (m.effConsumption)
+      out.push({
+        label: `${pct(m.effConsumption)} energy${suffix}`,
+        className: "border-amber-500/40 bg-amber-500/15 text-amber-300",
+      });
   }
-  if (s.unlocks.length) out.push(`${s.unlocks.length} recipe${s.unlocks.length > 1 ? "s" : ""}`);
   return out;
+}
+
+/** One recipe change a choice makes — a swap (old→new, hover for the full diff) or
+ * a brand-new unlock (hover for the recipe). This is what "5 recipes" now expands
+ * to: exactly which recipes, and what actually changes. */
+function ChangeRow({ change: c, moduleBonus }: { change: TurdChange; moduleBonus?: RateBonus }) {
+  if (c.from) {
+    // the module boosts recipes the affected building RUNS — not a recipe that just
+    // builds a building, so skip the bonus there (its rate stays pure recipe math)
+    const bonus = c.buildsBuilding ? undefined : moduleBonus;
+    return (
+      <RecipeDiffHover
+        a={c.from}
+        b={c.to}
+        bonus={bonus}
+        className="flex min-w-0 cursor-help items-center gap-1.5"
+      >
+        <Icon kind="recipe" name={c.from} size="sm" noTitle />
+        <span className="truncate text-muted-foreground line-through">{c.fromDisplay}</span>
+        <ArrowRight className="size-3 shrink-0 text-muted-foreground" />
+        <Icon kind="recipe" name={c.to} size="sm" noTitle />
+        <span className="truncate">{c.toDisplay}</span>
+      </RecipeDiffHover>
+    );
+  }
+  return (
+    <RecipeHover name={c.to} className="flex min-w-0 cursor-help items-center gap-1.5">
+      <Plus className="size-3 shrink-0 text-emerald-400" />
+      <Icon kind="recipe" name={c.to} size="sm" noTitle />
+      <span className="truncate">{c.toDisplay}</span>
+      <span className="shrink-0 text-xs text-muted-foreground">new</span>
+    </RecipeHover>
+  );
+}
+
+/** The expandable body under a choice: its flavor description and the concrete
+ * recipe changes it makes. */
+function ChoiceDetails({ s }: { s: SubTech }) {
+  if (!s.description && s.changes.length === 0) return null;
+  // the choice's always-on module (lowest tier) boosts the recipes it runs in the
+  // affected buildings; ChangeRow applies it to each swap that isn't a building recipe
+  const m = s.modules[0];
+  const moduleBonus: RateBonus | undefined = m
+    ? { speed: m.effSpeed, prod: m.effProductivity }
+    : undefined;
+  return (
+    <div className="space-y-1.5 border-t border-border/50 px-2 py-1.5">
+      {s.description && (
+        <p className="text-xs leading-relaxed text-muted-foreground">{s.description}</p>
+      )}
+      {s.changes.length > 0 && (
+        <div className="flex flex-col gap-1 text-sm">
+          {s.changes.map((c) => (
+            <ChangeRow key={c.to} change={c} moduleBonus={moduleBonus} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Pyanodon TURD board: one selectable sub-tech per master upgrade. Click a
@@ -145,7 +234,7 @@ function TurdPage() {
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         {list.map((u) => (
           <Card key={u.name} className="p-3">
-            <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               <Icon kind="technology" name={u.name} size="md" title={u.display} />
               <span className="font-semibold">{u.display}</span>
               <span className="ml-auto flex flex-wrap items-center justify-end gap-1">
@@ -154,38 +243,53 @@ function TurdPage() {
                 ))}
               </span>
             </div>
+            {u.description && (
+              <p className="mb-2 text-xs leading-relaxed text-muted-foreground">{u.description}</p>
+            )}
             <div className="space-y-1.5">
               {u.subTechs.map((s) => {
                 const sel = u.selected === s.name;
                 return (
-                  <button
+                  <div
                     key={s.name}
-                    disabled={select.isPending}
-                    onClick={() =>
-                      select.mutate({ masterTech: u.name, subTech: sel ? null : s.name })
-                    }
-                    title={sel ? "selected — click to clear" : "click to select this upgrade path"}
-                    className={`flex w-full items-center gap-2 rounded border px-2 py-1.5 text-left text-sm ${
-                      sel
-                        ? "border-emerald-400/60 bg-emerald-500/15"
-                        : "border-border hover:bg-muted"
+                    className={`overflow-hidden rounded border ${
+                      sel ? "border-emerald-400/60 bg-emerald-500/10" : "border-border"
                     }`}
                   >
-                    <Icon kind="technology" name={s.name} size="md" title={s.display} />
-                    <span className="min-w-0 flex-1">
-                      <span className={`block truncate ${sel ? "text-emerald-200" : ""}`}>
-                        {s.display}
+                    <button
+                      disabled={select.isPending}
+                      onClick={() =>
+                        select.mutate({ masterTech: u.name, subTech: sel ? null : s.name })
+                      }
+                      title={
+                        sel ? "selected — click to clear" : "click to select this upgrade path"
+                      }
+                      className={`flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm ${
+                        sel ? "" : "hover:bg-muted"
+                      }`}
+                    >
+                      <Icon kind="technology" name={s.name} size="md" title={s.display} />
+                      <span className="min-w-0 flex-1">
+                        <span className={`block truncate ${sel ? "text-emerald-200" : ""}`}>
+                          {s.display}
+                        </span>
+                        <span className="flex flex-wrap gap-1">
+                          {subEffectSummary(s).map((fx) => (
+                            <Badge
+                              key={fx.label}
+                              variant="outline"
+                              className={`text-xs ${fx.className}`}
+                              title="Always-on module effect inserted into this upgrade's affected buildings — it boosts the recipes those buildings run, not the recipe swaps shown below."
+                            >
+                              {fx.label}
+                            </Badge>
+                          ))}
+                        </span>
                       </span>
-                      <span className="flex flex-wrap gap-1">
-                        {subEffectSummary(s).map((fx) => (
-                          <Badge key={fx} variant="secondary" className="text-xs">
-                            {fx}
-                          </Badge>
-                        ))}
-                      </span>
-                    </span>
-                    {sel && <Check className="size-4 shrink-0 text-emerald-300" />}
-                  </button>
+                      {sel && <Check className="size-4 shrink-0 text-emerald-300" />}
+                    </button>
+                    <ChoiceDetails s={s} />
+                  </div>
                 );
               })}
             </div>

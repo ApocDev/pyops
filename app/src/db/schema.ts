@@ -256,6 +256,7 @@ export const techStackBonuses = sqliteTable(
 export const technologies = sqliteTable("technologies", {
   name: text().primaryKey(),
   display: text(),
+  description: text(), // localised description; Factorio rich-text markup — strip before display
   order: text(),
   unitCount: real("unit_count"), // research cost multiplier (unit.count)
   enabled: bool("enabled").notNull().default(true),

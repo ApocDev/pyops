@@ -210,7 +210,7 @@ export function importFactorioDump(
       `INSERT INTO beacons (name,display,distribution_effectivity,module_slots,energy_usage_w,hidden,allowed_effects,allowed_module_categories,profile) VALUES (@name,@display,@distribution_effectivity,@module_slots,@energy_usage_w,@hidden,@allowed_effects,@allowed_module_categories,@profile)`,
     ),
     tech: db.prepare(
-      `INSERT INTO technologies (name,display,"order",unit_count,enabled,is_turd) VALUES (@name,@display,@order,@unit_count,@enabled,@is_turd)`,
+      `INSERT INTO technologies (name,display,description,"order",unit_count,enabled,is_turd) VALUES (@name,@display,@description,@order,@unit_count,@enabled,@is_turd)`,
     ),
     techPrereq: db.prepare(
       `INSERT OR IGNORE INTO tech_prerequisites (technology,prerequisite) VALUES (?,?)`,
@@ -456,6 +456,7 @@ export function importFactorioDump(
       ins.tech.run({
         name,
         display: localeByKind.technology?.names?.[name] ?? null,
+        description: localeByKind.technology?.descriptions?.[name] ?? null,
         order: t.order ?? null,
         unit_count: t.unit?.count ?? null,
         enabled: t.enabled === false ? 0 : 1,

@@ -115,6 +115,14 @@ about "how do I make X":
 - **Fuzzy name resolution** — map a loose item/recipe name to a stable internal
   handle.
 - **Recipe-candidate ranking** — find and rank the recipes that produce a good.
+- **TURD choices** (`turdChoices`) — the full mutually-exclusive branch set of a
+  TURD master (looked up by master, recipe, or good): each branch's description,
+  the recipes it swaps (old→new) or newly **unlocks**, and its always-on modules.
+  It walks the tech-prerequisite graph, so unlike `availableTurds`/`turdConsistency`
+  (which key off recipe *replacements*) it also sees branches that grant a brand-new
+  recipe. `recipeInfo.turd` returns the same full detail for every master touching a
+  recipe. This is what the agent consults for "what does this TURD give / which
+  branch is best" — never assume a master has a single choice.
 - **Additive/commodity classifier** (`app/src/server/additives.ts`) — decides
   whether an input should be _imported_ (a cross-cutting commodity like an acid,
   gas, or solvent — stop recursing) or _built_ (part of the target's own lineage —

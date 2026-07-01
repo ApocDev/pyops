@@ -402,6 +402,280 @@ function RecipeList({
   );
 }
 
+/* ── Recipe comparison ─────────────────────────────────────────────────────────
+ * Side-by-side diff of two recipes — what a TURD swap or a Py recipe tier actually
+ * changes: which inputs/outputs are added, dropped, or re-sized, plus time. */
+
+type RecipeComp = Parameters<typeof Comp>[0];
+// products (not ingredients) additionally carry this — productivity doesn't apply
+// to ignored-by-productivity outputs like barrels/catalysts.
+type DiffInput = RecipeComp & { ignoredByProductivity?: boolean | null };
+// Always-on module effects a TURD choice grants; applied to the chosen recipe's
+// output rate (speed scales all outputs, productivity skips ignored ones).
+type RateBonus = { speed: number; prod: number };
+
+const compAmount = (c: RecipeComp) =>
+  c.amount ?? (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0);
+
+const fmtAmount = (n: number) =>
+  Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, "");
+
+const fmtRate = (n: number) => `${n >= 10 ? n.toFixed(1) : n >= 1 ? n.toFixed(2) : n.toFixed(3)}/s`;
+
+type DiffCell = {
+  kind: string;
+  name: string;
+  display?: string | null;
+  amount: number;
+  rate: number | null; // per-second base output, 1 building at 1× speed; null for inputs
+};
+
+/** Map a recipe's inputs/outputs by good, tagging each with its per-second rate
+ * (only meaningful for outputs, where amount ÷ crafting time is the yield). `bonus`
+ * is the chosen recipe's always-on module effects: speed scales every output,
+ * productivity only the non-ignored ones (barrels/catalysts don't get duplicated).
+ * Pass null for the base side (or a recipe the module doesn't touch). */
+function ioByName(
+  comps: DiffInput[],
+  time: number,
+  withRate: boolean,
+  bonus: RateBonus | null,
+): Map<string, DiffCell> {
+  const m = new Map<string, DiffCell>();
+  for (const c of comps) {
+    let rate: number | null = null;
+    if (withRate && time > 0) {
+      const speedMult = bonus ? 1 + bonus.speed : 1;
+      const prodMult = bonus && !c.ignoredByProductivity ? 1 + bonus.prod : 1;
+      rate = ((compAmount(c) * (c.probability ?? 1)) / time) * speedMult * prodMult;
+    }
+    m.set(c.name, { kind: c.kind, name: c.name, display: c.display, amount: compAmount(c), rate });
+  }
+  return m;
+}
+
+// Conventional diff coloring — read at a glance regardless of in/out: added is
+// green, removed is red, a resized amount is amber. (Whether a change is *good* is
+// conveyed separately by the output-rate line, which greens/reds by direction.)
+const DIFF_TONE = {
+  added: "text-emerald-400",
+  removed: "text-rose-400",
+  changed: "text-amber-400",
+  same: "text-muted-foreground",
+};
+
+/** One diffed input/output line: the good, its amount delta, and — for outputs —
+ * the base /s rate delta (colored by whether throughput went up or down). */
+function DiffRow({ before, after }: { before: DiffCell | null; after: DiffCell | null }) {
+  const row = before ?? after!;
+  const status = !before
+    ? "added"
+    : !after
+      ? "removed"
+      : before.amount !== after.amount
+        ? "changed"
+        : "same";
+  const amountBody =
+    status === "added" ? (
+      <span>+{fmtAmount(after!.amount)}</span>
+    ) : status === "removed" ? (
+      <span>−{fmtAmount(before!.amount)}</span>
+    ) : status === "changed" ? (
+      <span>
+        {fmtAmount(before!.amount)} <span className="text-muted-foreground">→</span>{" "}
+        {fmtAmount(after!.amount)}
+      </span>
+    ) : (
+      <span>{fmtAmount(before!.amount)}</span>
+    );
+  const rb = before?.rate ?? null;
+  const ra = after?.rate ?? null;
+  const hasRate = rb != null || ra != null;
+  const rateUp = rb != null && ra != null ? (ra > rb ? 1 : ra < rb ? -1 : 0) : ra != null ? 1 : -1;
+  const rateTone =
+    rateUp > 0 ? "text-emerald-400" : rateUp < 0 ? "text-rose-400" : "text-muted-foreground";
+  // % change in throughput when both sides have a rate (e.g. same yield but faster)
+  const pctStr =
+    rb != null && ra != null && rb > 0 && ra !== rb
+      ? ` (${ra > rb ? "+" : ""}${Math.round(((ra - rb) / rb) * 100)}%)`
+      : "";
+  return (
+    <div className="flex items-start gap-1.5 py-0.5">
+      <Icon kind={row.kind as "item" | "fluid"} name={row.name} size="md" />
+      <span className="min-w-0 flex-1 truncate text-foreground/90">{row.display ?? row.name}</span>
+      <span className="shrink-0 text-right">
+        <span className={`block tabular-nums ${DIFF_TONE[status]}`}>{amountBody}</span>
+        {hasRate && (
+          <span className={`block text-xs tabular-nums ${rateTone}`}>
+            {rb != null && ra != null && rb !== ra
+              ? `${fmtRate(rb)} → ${fmtRate(ra)}${pctStr}`
+              : ra != null && rb == null
+                ? `+${fmtRate(ra)}`
+                : ra == null && rb != null
+                  ? `−${fmtRate(rb)}`
+                  : fmtRate(ra ?? rb!)}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
+function DiffGroup({
+  label,
+  a,
+  b,
+  timeA,
+  timeB,
+  rate,
+  bonusB = null,
+}: {
+  label: string;
+  a: DiffInput[];
+  b: DiffInput[];
+  timeA: number;
+  timeB: number;
+  rate: boolean;
+  bonusB?: RateBonus | null;
+}) {
+  const am = ioByName(a, timeA, rate, null);
+  const bm = ioByName(b, timeB, rate, bonusB);
+  const names = [...new Set([...am.keys(), ...bm.keys()])];
+  const rank = (n: string) => {
+    const x = am.get(n);
+    const y = bm.get(n);
+    if (!x || !y) return 0; // added/removed first
+    return x.amount !== y.amount ? 1 : 2; // then resized, then unchanged
+  };
+  names.sort((p, q) => rank(p) - rank(q) || p.localeCompare(q));
+  return (
+    <div>
+      <div className="mb-0.5 text-muted-foreground">{label}</div>
+      {names.length === 0 ? (
+        <div className="text-muted-foreground">—</div>
+      ) : (
+        names.map((n) => <DiffRow key={n} before={am.get(n) ?? null} after={bm.get(n) ?? null} />)
+      )}
+    </div>
+  );
+}
+
+/** Compare two recipes (a = base/old tier, b = upgraded/new tier). `bonus` is the
+ * chosen recipe's always-on module effects (a TURD choice's +prod/±speed), applied
+ * to side b's output rate — pass it only when the module actually affects this
+ * recipe (i.e. NOT a recipe that just builds a building; see turd.tsx). */
+export function RecipeDiffCard({ a, b, bonus }: { a: string; b: string; bonus?: RateBonus }) {
+  const qa = useQuery({
+    queryKey: ["recipe", a],
+    queryFn: () => recipeDetailFn({ data: a }),
+    staleTime: 60_000,
+  });
+  const qb = useQuery({
+    queryKey: ["recipe", b],
+    queryFn: () => recipeDetailFn({ data: b }),
+    staleTime: 60_000,
+  });
+  const ra = qa.data?.recipe;
+  const rb = qb.data?.recipe;
+  return (
+    <div className="w-[32rem] rounded border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
+      <div className="flex items-center gap-1.5 text-sm font-semibold">
+        <Icon kind="recipe" name={a} size="sm" />
+        <span className="min-w-0 truncate">{ra?.display ?? a}</span>
+        <span className="shrink-0 text-muted-foreground">→</span>
+        <Icon kind="recipe" name={b} size="sm" />
+        <span className="min-w-0 truncate">{rb?.display ?? b}</span>
+      </div>
+      {!ra || !rb ? (
+        <div className="mt-2 text-muted-foreground">…</div>
+      ) : (
+        (() => {
+          const ta = ra.energyRequired ?? 0;
+          const tb = rb.energyRequired ?? 0;
+          const bonusParts = [
+            bonus?.prod ? `${bonus.prod > 0 ? "+" : ""}${Math.round(bonus.prod * 100)}% prod` : "",
+            bonus?.speed
+              ? `${bonus.speed > 0 ? "+" : ""}${Math.round(bonus.speed * 100)}% speed`
+              : "",
+          ].filter(Boolean);
+          return (
+            <>
+              {ta !== tb && (
+                <div className="mt-1 flex items-center gap-1">
+                  <Timer className="size-3.5 text-muted-foreground" />
+                  <span className="text-muted-foreground">{ta}s</span>
+                  <span className="text-muted-foreground">→</span>
+                  <span className={tb < ta ? "text-emerald-400" : "text-rose-400"}>{tb}s</span>
+                  <span className="text-xs text-muted-foreground">
+                    ({tb < ta ? "faster" : "slower"})
+                  </span>
+                </div>
+              )}
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                <DiffGroup
+                  label="in"
+                  a={ra.ingredients}
+                  b={rb.ingredients}
+                  timeA={ta}
+                  timeB={tb}
+                  rate={false}
+                />
+                <DiffGroup
+                  label="out (/s per building)"
+                  a={ra.products}
+                  b={rb.products}
+                  timeA={ta}
+                  timeB={tb}
+                  rate
+                  bonusB={bonus ?? null}
+                />
+              </div>
+              {bonusParts.length > 0 && (
+                <div className="mt-1.5 text-xs text-muted-foreground">
+                  out /s includes this choice&apos;s module ({bonusParts.join(", ")}); productivity
+                  skips barrels &amp; catalysts
+                </div>
+              )}
+            </>
+          );
+        })()
+      )}
+    </div>
+  );
+}
+
+/** Wraps a trigger; shows a floating RecipeDiffCard near the cursor on hover. */
+export function RecipeDiffHover({
+  a,
+  b,
+  bonus,
+  className,
+  children,
+}: {
+  a: string;
+  b: string;
+  bonus?: RateBonus;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  return (
+    <div
+      className={className}
+      onMouseEnter={(e) => setPos({ x: e.clientX, y: e.clientY })}
+      onMouseMove={(e) => setPos({ x: e.clientX, y: e.clientY })}
+      onMouseLeave={() => setPos(null)}
+    >
+      {children}
+      {pos && typeof document !== "undefined" && (
+        <CursorCard pos={pos} z={50}>
+          <RecipeDiffCard a={a} b={b} bonus={bonus} />
+        </CursorCard>
+      )}
+    </div>
+  );
+}
+
 /** Hover wrapper showing an ItemCard near the cursor (portaled, like RecipeHover). */
 export function ItemHover({
   name,
