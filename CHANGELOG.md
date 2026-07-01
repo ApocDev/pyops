@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/ApocDev/pyops/compare/v0.4.0...v0.4.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* **desktop:** grant the localhost webview IPC access so the updater works ([#57](https://github.com/ApocDev/pyops/issues/57)) ([fd1bcca](https://github.com/ApocDev/pyops/commit/fd1bcca4b668d758ba15652e0faab0a0adde06a9))
+
 ## [0.4.0](https://github.com/ApocDev/pyops/compare/v0.3.0...v0.4.0) (2026-07-01)
 
 
