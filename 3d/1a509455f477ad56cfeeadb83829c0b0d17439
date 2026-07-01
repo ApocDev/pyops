@@ -1,0 +1,27 @@
+app/src/db/schema.ts
+  s_b92d5ef9e1806e::t_2f3caa38fd84ed 357-361
+app/src/lib/row-groups.test.ts
+  s_b92d5ef9e1806e::t_ffe961676df755 1-105
+app/src/lib/row-groups.ts
+  s_b92d5ef9e1806e::t_3dfc4137c480a6 1-175
+app/src/routes/block.$id.tsx
+  s_b92d5ef9e1806e::t_2959f1603819b6 51-61,66,68-69,77,549-567,569-571,574-575,577-606,608-629,694-705,862,958-959,1050-1055,1196-1320,1516-1527,2057-2061,2105,2120-2126,2538-2596
+app/src/server/factorio.ts
+  s_b92d5ef9e1806e::t_24b7bf4ac51b83 284-285
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "3d1a509455f477ad56cfeeadb83829c0b0d17439",
+  "prompts": {},
+  "sessions": {
+    "s_b92d5ef9e1806e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a7099cb-0e25-4285-9a43-6f6e104a2ec9",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
