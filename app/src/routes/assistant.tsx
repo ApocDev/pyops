@@ -191,7 +191,7 @@ function AssistantShell() {
         </>
       )}
     >
-      <div className="relative flex min-w-0 flex-1">
+      <div className="relative flex min-h-0 min-w-0 flex-1">
         {openIds.map((id) => (
           <ChatPane key={id} id={id} active={id === selected} />
         ))}
