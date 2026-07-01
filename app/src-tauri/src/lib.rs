@@ -26,8 +26,8 @@ window.addEventListener('click', function (e) {
 }, true);
 "#;
 
-#[cfg(not(debug_assertions))]
 use std::sync::Mutex;
+use tauri_plugin_updater::UpdaterExt;
 #[cfg(not(debug_assertions))]
 use tauri::path::BaseDirectory;
 #[cfg(not(debug_assertions))]
@@ -92,45 +92,84 @@ fn open_main_window(app: &tauri::AppHandle) {
     }
 }
 
-/// Check GitHub for a newer release and, if one exists, offer to install it via a
-/// native dialog showing the version + changelog (from the release's `latest.json`
-/// notes). Bundled builds only — the updater can't replace a `cargo tauri dev`
-/// binary — and entirely Rust-side, so the web UI stays Tauri-agnostic.
-#[cfg(not(debug_assertions))]
-async fn check_for_update(app: tauri::AppHandle) {
-    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
-    use tauri_plugin_updater::UpdaterExt;
+/// Holds the update found by `updater_check` so `updater_install` can consume it.
+struct PendingUpdate(Mutex<Option<tauri_plugin_updater::Update>>);
 
-    let updater = match app.updater() {
-        Ok(u) => u,
-        Err(_) => return,
-    };
-    let update = match updater.check().await {
-        Ok(Some(u)) => u,
-        // already current, or the check failed (offline, etc.) — stay quiet
-        _ => return,
-    };
+/// Update metadata handed to the web UI (which renders its own toast + changelog).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateInfo {
+    version: String,
+    current_version: String,
+    notes: Option<String>,
+    date: Option<String>,
+}
 
-    let notes = update.body.clone().unwrap_or_default();
-    let message = if notes.trim().is_empty() {
-        format!("PyOps {} is available.", update.version)
-    } else {
-        format!("PyOps {} is available.\n\n{}", update.version, notes)
-    };
+/// Download progress, streamed to the UI over a channel so it can show a bar.
+#[derive(Clone, serde::Serialize)]
+#[serde(tag = "event", content = "data", rename_all = "camelCase")]
+enum DownloadEvent {
+    Progress {
+        chunk_length: usize,
+        content_length: Option<u64>,
+    },
+    Finished,
+}
 
-    let install = app
-        .dialog()
-        .message(message)
-        .title("Update available")
-        .buttons(MessageDialogButtons::OkCancelCustom(
-            "Install & Restart".to_string(),
-            "Later".to_string(),
-        ))
-        .blocking_show();
+/// Check GitHub for a newer release. Returns its metadata (and stashes the pending
+/// update for `updater_install`), or `null` if current / the check failed. The web UI
+/// calls this on launch, guarded by `window.isTauri`, so a plain browser never does.
+#[tauri::command]
+async fn updater_check(
+    app: tauri::AppHandle,
+    pending: tauri::State<'_, PendingUpdate>,
+) -> Result<Option<UpdateInfo>, String> {
+    let update = app
+        .updater()
+        .map_err(|e| e.to_string())?
+        .check()
+        .await
+        .map_err(|e| e.to_string())?;
+    let info = update.as_ref().map(|u| UpdateInfo {
+        version: u.version.clone(),
+        current_version: u.current_version.clone(),
+        notes: u.body.clone(),
+        date: u.date.map(|d| d.to_string()),
+    });
+    *pending.0.lock().unwrap() = update;
+    Ok(info)
+}
 
-    if install && update.download_and_install(|_, _| {}, || {}).await.is_ok() {
-        app.restart();
-    }
+/// Download + install the pending update (streaming progress), then relaunch. The
+/// signature verifies against the baked-in public key inside `download_and_install`.
+#[tauri::command]
+async fn updater_install(
+    app: tauri::AppHandle,
+    pending: tauri::State<'_, PendingUpdate>,
+    on_event: tauri::ipc::Channel<DownloadEvent>,
+) -> Result<(), String> {
+    let update = pending
+        .0
+        .lock()
+        .unwrap()
+        .take()
+        .ok_or_else(|| "no pending update".to_string())?;
+    let on_finish = on_event.clone();
+    update
+        .download_and_install(
+            move |chunk_length, content_length| {
+                let _ = on_event.send(DownloadEvent::Progress {
+                    chunk_length,
+                    content_length,
+                });
+            },
+            move || {
+                let _ = on_finish.send(DownloadEvent::Finished);
+            },
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    app.restart()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -161,9 +200,10 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .manage(PendingUpdate(Mutex::new(None)))
+        .invoke_handler(tauri::generate_handler![updater_check, updater_install])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -198,10 +238,10 @@ pub fn run() {
                 app.manage(ServerChild(Mutex::new(Some(child))));
                 // keep the pipe drained so the child never blocks on a full stdout
                 tauri::async_runtime::spawn(async move { while rx.recv().await.is_some() {} });
-
-                // check GitHub for a newer release in the background; prompt if found
-                tauri::async_runtime::spawn(check_for_update(app.handle().clone()));
             }
+
+            // The web UI drives the update check (calls `updater_check` on launch when
+            // it detects it's inside the desktop shell), so nothing to spawn here.
 
             // Wait for the server off the main thread, then open the window on it.
             let handle = app.handle().clone();

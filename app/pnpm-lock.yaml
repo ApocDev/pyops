@@ -77,6 +77,9 @@ importers:
       '@tanstack/router-plugin':
         specifier: ^1.132.0
         version: 1.168.18(@tanstack/react-router@1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@voidzero-dev/vite-plus-core@0.2.1(@types/node@22.19.21)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(typescript@6.0.3))
+      '@tauri-apps/api':
+        specifier: ^2.11.1
+        version: 2.11.1
       ai:
         specifier: ^6.0.204
         version: 6.0.204(zod@4.4.3)
@@ -2878,6 +2881,9 @@ packages:
   '@tanstack/virtual-file-routes@1.162.0':
     resolution: {integrity: sha512-uhOeFyxLcU41HzvrxsGpiWdcMbScY1EDgbZ5K7DVRMYInbLYWAC0EA/kx9wXAoSM8q82bUG2hRl8+EAjE6XAbA==}
     engines: {node: '>=20.19'}
+
+  '@tauri-apps/api@2.11.1':
+    resolution: {integrity: sha512-M2FPuYND2m+wh5hfW9ZpSdxMPdEJovPBWwoHJmwUpysTYNHaOkVFN419m/K0LIgjb/7KU2vBgsUepJWugQCvAA==}
 
   '@tauri-apps/cli-darwin-arm64@2.11.4':
     resolution: {integrity: sha512-1ryOF3ZhpZ/nemHV5zVwBQBz9jDGKmKPvWPADOhc83ig0P4bMc2iER4NbC6r9sjeIZ6RVQ4g3RZIYvezhcl4TQ==}
@@ -8061,6 +8067,8 @@ snapshots:
   '@tanstack/table-core@8.21.3': {}
 
   '@tanstack/virtual-file-routes@1.162.0': {}
+
+  '@tauri-apps/api@2.11.1': {}
 
   '@tauri-apps/cli-darwin-arm64@2.11.4':
     optional: true
