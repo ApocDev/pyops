@@ -114,6 +114,14 @@ into **sub-blocks**: right-click a recipe's name to start a named group, add row
 and collapse it to a single line showing the chain's net flows (inputs → outputs,
 intermediates cancelled), machines and power. Purely visual — the solve is unchanged.
 
+Numbers everywhere scale their precision to the value: a `0.001/s` trickle block shows
+its real rates instead of a wall of rounded-down `0.00`, and only a true zero reads as
+`0`. Large figures render compact (`200K`) by default — switch to full (`200,000`) with
+the **Compact large numbers** toggle under **⚙ Settings › Planning › Display**. Goal
+rates aren't chained to per-second either: click a goal's unit to cycle `/s → /min →
+/h` and enter science as `10/min` or a slow bootstrap as `0.5/h` — the unit sticks per
+goal, while the solver keeps working in per-second underneath.
+
 ![Block editor — the Basic substrate bio-chain, solved with byproducts](docs/images/block-editor.png)
 
 The **AI assistant** drafts a whole block from a goal: it resolves the chain, cuts
