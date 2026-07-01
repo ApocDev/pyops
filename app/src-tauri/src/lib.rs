@@ -124,12 +124,19 @@ async fn updater_check(
     app: tauri::AppHandle,
     pending: tauri::State<'_, PendingUpdate>,
 ) -> Result<Option<UpdateInfo>, String> {
-    let update = app
-        .updater()
-        .map_err(|e| e.to_string())?
-        .check()
-        .await
-        .map_err(|e| e.to_string())?;
+    log::info!("updater_check: querying for updates");
+    let updater = app.updater().map_err(|e| {
+        log::error!("updater_check: updater unavailable: {e}");
+        e.to_string()
+    })?;
+    let update = updater.check().await.map_err(|e| {
+        log::error!("updater_check: check failed: {e}");
+        e.to_string()
+    })?;
+    match &update {
+        Some(u) => log::info!("updater_check: update available: {}", u.version),
+        None => log::info!("updater_check: up to date"),
+    }
     let info = update.as_ref().map(|u| UpdateInfo {
         version: u.version.clone(),
         current_version: u.current_version.clone(),
@@ -205,13 +212,14 @@ pub fn run() {
         .manage(PendingUpdate(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![updater_check, updater_install])
         .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
+            // Log in every build (stdout + the OS log dir), so the updater path — the
+            // one place that uses Tauri IPC — can be diagnosed from a terminal even on
+            // a release, where the webview console isn't available.
+            app.handle().plugin(
+                tauri_plugin_log::Builder::default()
+                    .level(log::LevelFilter::Info)
+                    .build(),
+            )?;
 
             // Bundled build: start the server via the vendored node sidecar. The data
             // dir is the per-OS app-data dir; migrations + mod source are bundled

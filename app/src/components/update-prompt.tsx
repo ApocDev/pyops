@@ -44,7 +44,7 @@ export function UpdatePrompt() {
     checked.current = true;
     checkForUpdate()
       .then((u) => u && setUpdate(u))
-      .catch(() => {});
+      .catch((err) => console.error("[updater] check failed", err));
   }, []);
 
   if (!update) return null;
