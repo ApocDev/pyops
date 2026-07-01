@@ -21,9 +21,12 @@ tauri-build = { version = "2.6.3", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.11.3", features = [] }
+# `devtools` enables right-click → Inspect in release too — useful while the desktop
+# shell is young (e.g. to see updater/ACL errors from the webview console).
+tauri = { version = "2.11.3", features = ["devtools"] }
 tauri-plugin-log = "2"
 tauri-plugin-opener = "2"
+tauri-plugin-process = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"

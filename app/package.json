@@ -41,6 +41,8 @@
     "@tanstack/react-table": "latest",
     "@tanstack/router-plugin": "^1.132.0",
     "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1",
     "ai": "^6.0.204",
     "better-sqlite3": "^12.6.2",
     "class-variance-authority": "^0.7.1",

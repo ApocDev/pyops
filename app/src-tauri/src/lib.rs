@@ -27,7 +27,6 @@ window.addEventListener('click', function (e) {
 "#;
 
 use std::sync::Mutex;
-use tauri_plugin_updater::UpdaterExt;
 #[cfg(not(debug_assertions))]
 use tauri::path::BaseDirectory;
 #[cfg(not(debug_assertions))]
@@ -92,101 +91,10 @@ fn open_main_window(app: &tauri::AppHandle) {
     }
 }
 
-/// Holds the update found by `updater_check` so `updater_install` can consume it.
-struct PendingUpdate(Mutex<Option<tauri_plugin_updater::Update>>);
-
-/// Update metadata handed to the web UI (which renders its own toast + changelog).
-#[derive(serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct UpdateInfo {
-    version: String,
-    current_version: String,
-    notes: Option<String>,
-    date: Option<String>,
-}
-
-/// Download progress, streamed to the UI over a channel so it can show a bar.
-#[derive(Clone, serde::Serialize)]
-#[serde(tag = "event", content = "data", rename_all = "camelCase")]
-enum DownloadEvent {
-    Progress {
-        chunk_length: usize,
-        content_length: Option<u64>,
-    },
-    Finished,
-}
-
-/// Check GitHub for a newer release. Returns its metadata (and stashes the pending
-/// update for `updater_install`), or `null` if current / the check failed. The web UI
-/// calls this on launch, guarded by `window.isTauri`, so a plain browser never does.
-#[tauri::command]
-async fn updater_check(
-    app: tauri::AppHandle,
-    pending: tauri::State<'_, PendingUpdate>,
-) -> Result<Option<UpdateInfo>, String> {
-    log::info!("updater_check: querying for updates");
-    let updater = app.updater().map_err(|e| {
-        log::error!("updater_check: updater unavailable: {e}");
-        e.to_string()
-    })?;
-    let update = updater.check().await.map_err(|e| {
-        log::error!("updater_check: check failed: {e}");
-        e.to_string()
-    })?;
-    match &update {
-        Some(u) => log::info!("updater_check: update available: {}", u.version),
-        None => log::info!("updater_check: up to date"),
-    }
-    let info = update.as_ref().map(|u| UpdateInfo {
-        version: u.version.clone(),
-        current_version: u.current_version.clone(),
-        notes: u.body.clone(),
-        date: u.date.map(|d| d.to_string()),
-    });
-    *pending.0.lock().unwrap() = update;
-    Ok(info)
-}
-
-/// Download + install the pending update (streaming progress), then relaunch. The
-/// signature verifies against the baked-in public key inside `download_and_install`.
-#[tauri::command]
-async fn updater_install(
-    app: tauri::AppHandle,
-    pending: tauri::State<'_, PendingUpdate>,
-    on_event: tauri::ipc::Channel<DownloadEvent>,
-) -> Result<(), String> {
-    let update = pending
-        .0
-        .lock()
-        .unwrap()
-        .take()
-        .ok_or_else(|| "no pending update".to_string())?;
-    let on_finish = on_event.clone();
-    update
-        .download_and_install(
-            move |chunk_length, content_length| {
-                let _ = on_event.send(DownloadEvent::Progress {
-                    chunk_length,
-                    content_length,
-                });
-            },
-            move || {
-                let _ = on_finish.send(DownloadEvent::Finished);
-            },
-        )
-        .await
-        .map_err(|e| e.to_string())?;
-    // Kill the node sidecar before relaunching; restart() may not run the Exit
-    // handler, and a lingering server would hold port 34115 and break the new
-    // instance's own sidecar.
-    #[cfg(not(debug_assertions))]
-    if let Some(state) = app.try_state::<ServerChild>() {
-        if let Some(child) = state.0.lock().unwrap().take() {
-            let _ = child.kill();
-        }
-    }
-    app.restart()
-}
+// The self-updater is the standard tauri-plugin-updater + tauri-plugin-process,
+// driven from the web UI via their JS APIs (guarded by `window.isTauri`). The window
+// loads the app over HTTP, so that content is "remote" to Tauri and the capability
+// grants it `updater:default` + `process:default` (see capabilities/default.json).
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -217,18 +125,16 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
-        .manage(PendingUpdate(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![updater_check, updater_install])
         .setup(|app| {
-            // Log in every build (stdout + the OS log dir), so the updater path — the
-            // one place that uses Tauri IPC — can be diagnosed from a terminal even on
-            // a release, where the webview console isn't available.
-            app.handle().plugin(
-                tauri_plugin_log::Builder::default()
-                    .level(log::LevelFilter::Info)
-                    .build(),
-            )?;
+            if cfg!(debug_assertions) {
+                app.handle().plugin(
+                    tauri_plugin_log::Builder::default()
+                        .level(log::LevelFilter::Info)
+                        .build(),
+                )?;
+            }
 
             // Bundled build: start the server via the vendored node sidecar. The data
             // dir is the per-OS app-data dir; migrations + mod source are bundled
@@ -257,8 +163,8 @@ pub fn run() {
                 tauri::async_runtime::spawn(async move { while rx.recv().await.is_some() {} });
             }
 
-            // The web UI drives the update check (calls `updater_check` on launch when
-            // it detects it's inside the desktop shell), so nothing to spawn here.
+            // The web UI drives the update via the updater/process plugins on launch
+            // (guarded by window.isTauri), so nothing to spawn here.
 
             // Wait for the server off the main thread, then open the window on it.
             let handle = app.handle().clone();

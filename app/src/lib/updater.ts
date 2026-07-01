@@ -1,12 +1,13 @@
-// Client for the desktop shell's self-updater. The updater logic lives in Rust
-// (`app/src-tauri`: the `updater_check` / `updater_install` commands + a signature
-// check); this module just calls them when we detect we're running inside the Tauri
-// window. In a plain browser it's inert — except for a `?mockUpdate=` dev switch that
-// fakes an update so the toast + dialog can be built and reviewed in `vp dev` without
-// a bundled build.
+// Client for the desktop shell's self-updater. It drives the standard
+// tauri-plugin-updater + tauri-plugin-process via their JS APIs when we detect we're
+// inside the Tauri window. In a plain browser it's inert — except for a `?mockUpdate=`
+// dev switch that fakes an update so the toast + dialog can be built and reviewed in
+// `vp dev` without a bundled build.
 //
-// `@tauri-apps/api` is imported dynamically and only under `isTauri()`, so the browser
-// build / web deploy never loads it.
+// The plugin JS is imported dynamically and only under `isTauri()`, so the browser
+// build / web deploy never loads it — no hard Tauri dependency in the web runtime.
+
+import type { Update } from "@tauri-apps/plugin-updater";
 
 export interface UpdateInfo {
   version: string;
@@ -69,19 +70,30 @@ export function mockUpdate(): UpdateInfo | null {
   };
 }
 
+// The pending Update from the last check, so installUpdate can download + install it.
+let pending: Update | null = null;
+
 /** Check once for a newer release. Returns metadata, or null when up to date / not in
  * the desktop shell / the check failed. */
 export async function checkForUpdate(): Promise<UpdateInfo | null> {
   const mock = mockUpdate();
   if (mock) return mock;
   if (!isTauri()) return null;
-  const { invoke } = await import("@tauri-apps/api/core");
-  return await invoke<UpdateInfo | null>("updater_check");
+  const { check } = await import("@tauri-apps/plugin-updater");
+  const update = await check();
+  pending = update;
+  if (!update) return null;
+  return {
+    version: update.version,
+    currentVersion: update.currentVersion,
+    notes: update.body ?? null,
+    date: update.date ?? null,
+  };
 }
 
 /** Download + install the pending update, reporting progress as a 0..1 fraction (or
- * null while the total size is unknown). In the real shell the app relaunches when
- * done, so this may never resolve; in mock mode it simulates a few seconds. */
+ * null while the total size is unknown), then relaunch. In the real shell the app
+ * relaunches when done; in mock mode it simulates a few seconds. */
 export async function installUpdate(onProgress: (fraction: number | null) => void): Promise<void> {
   if (mockUpdate()) {
     for (let p = 0; p <= 1; p += 0.04) {
@@ -91,21 +103,23 @@ export async function installUpdate(onProgress: (fraction: number | null) => voi
     onProgress(1);
     return;
   }
-  const { invoke, Channel } = await import("@tauri-apps/api/core");
-  type Msg =
-    | { event: "progress"; data: { chunkLength: number; contentLength: number | null } }
-    | { event: "finished" };
-  const channel = new Channel<Msg>();
+  if (!pending) throw new Error("no pending update");
   let downloaded = 0;
   let total = 0;
-  channel.onmessage = (msg) => {
-    if (msg.event === "progress") {
-      if (msg.data.contentLength) total = msg.data.contentLength;
-      downloaded += msg.data.chunkLength;
-      onProgress(total ? Math.min(downloaded / total, 1) : null);
-    } else if (msg.event === "finished") {
-      onProgress(1);
+  await pending.downloadAndInstall((event) => {
+    switch (event.event) {
+      case "Started":
+        total = event.data.contentLength ?? 0;
+        break;
+      case "Progress":
+        downloaded += event.data.chunkLength;
+        onProgress(total ? Math.min(downloaded / total, 1) : null);
+        break;
+      case "Finished":
+        onProgress(1);
+        break;
     }
-  };
-  await invoke("updater_install", { onEvent: channel });
+  });
+  const { relaunch } = await import("@tauri-apps/plugin-process");
+  await relaunch();
 }
