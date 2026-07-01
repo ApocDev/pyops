@@ -3,8 +3,10 @@
 -- live-state messages layer on top of send_request / handle_bridge_response.
 --
 -- Transport: localhost UDP via Factorio's helpers.send_udp / recv_udp. The game
--- must be launched with `--enable-lua-udp <port>` (default 37657), and the
--- bridge must be enabled in the per-player mod settings.
+-- must be launched with `--enable-lua-udp <port>` on a DIFFERENT port than the app's
+-- bridge port (they can't share one loopback socket). The bridge then runs
+-- automatically — no in-game toggle; if the flag is missing the first send throws
+-- and we disable it for the session (see guarded_udp).
 
 local mod_gui = require("__core__.lualib.mod-gui")
 local Summary = require("summary")
@@ -28,10 +30,6 @@ end
 
 local function get_bridge_port(player)
   return settings.get_player_settings(player)["pyops-bridge-port"].value
-end
-
-local function is_bridge_enabled(player)
-  return settings.get_player_settings(player)["pyops-bridge-enabled"].value
 end
 
 local function get_panel(player)
@@ -101,11 +99,33 @@ end
 
 -- ── UDP bridge ───────────────────────────────────────────────────────────────
 
+-- lua-udp is only available when Factorio was launched with --enable-lua-udp (the
+-- app's Live bridge card shows the exact flag). The first send/recv that throws
+-- flips this off for the session, so we surface a hint once instead of erroring on
+-- every heartbeat. It stays off until the game is relaunched with the flag.
+local udp_available = true
+
+-- Run a helpers.send_udp / recv_udp call, swallowing the error Factorio raises when
+-- the game wasn't launched with --enable-lua-udp. Returns whether it actually ran.
+local function guarded_udp(player, fn, ...)
+  if not udp_available then
+    return false
+  end
+  local ok = pcall(fn, ...)
+  if not ok then
+    udp_available = false
+    if player and player.valid then
+      set_status(player, {"pyops.status-no-udp"})
+      set_led(player, "disconnected")
+    end
+  end
+  return ok
+end
+
 -- Send a JSON request to the app. `payload` is an optional table. Future message
 -- types (state.research, todo.*, …) reuse this same envelope.
 local function send_request(player, request_type, payload)
-  if not is_bridge_enabled(player) then
-    set_status(player, {"pyops.status-disabled"})
+  if not udp_available then
     return false
   end
 
@@ -119,8 +139,7 @@ local function send_request(player, request_type, payload)
     payload = payload
   })
 
-  helpers.send_udp(get_bridge_port(player), message, player.index)
-  return true
+  return guarded_udp(player, helpers.send_udp, get_bridge_port(player), message, player.index)
 end
 
 -- Let the Tasks module send app requests (task.list / task.capture) without a
@@ -133,7 +152,7 @@ end
 -- echo that request_id in a `bridge.result` so the app correlates it back to the
 -- awaiting caller (see server/bridge/inspect.ts).
 local function send_reply(player, reply_to, payload)
-  if not is_bridge_enabled(player) then
+  if not udp_available then
     return
   end
   local message = helpers.table_to_json({
@@ -144,7 +163,7 @@ local function send_reply(player, reply_to, payload)
     player = player.name,
     payload = payload
   })
-  helpers.send_udp(get_bridge_port(player), message, player.index)
+  guarded_udp(player, helpers.send_udp, get_bridge_port(player), message, player.index)
 end
 
 -- Manual / on-open ping shows progress; the heartbeat pings silently.
@@ -917,7 +936,7 @@ script.on_event(defines.events.on_research_finished, function(event)
   end
 
   for _, player in pairs(game.connected_players) do
-    if player.force == force and is_bridge_enabled(player) then
+    if player.force == force then
       send_research(player)
     end
   end
@@ -931,17 +950,19 @@ script.on_event(defines.events.on_tick, function()
   end
 end)
 
--- The bridge runs whenever it's enabled in settings — NOT only while the in-game
--- panel is open. The panel is just a status surface (set_status is a no-op when
--- it's closed); the user typically keeps the web UI open and the panel closed.
+-- The bridge runs automatically whenever the game was launched with
+-- --enable-lua-udp — NOT only while the in-game panel is open. The panel is just a
+-- status surface (set_status is a no-op when it's closed); the user typically keeps
+-- the web UI open and the panel closed.
 
 -- Poll for incoming bridge packets (~twice a second) so the app's request.sync /
 -- "pull from game" is picked up even with the panel closed.
 script.on_nth_tick(30, function()
+  if not udp_available then
+    return
+  end
   for _, player in pairs(game.connected_players) do
-    if is_bridge_enabled(player) then
-      helpers.recv_udp(player.index)
-    end
+    guarded_udp(player, helpers.recv_udp, player.index)
   end
 end)
 
@@ -955,15 +976,16 @@ local pending_resync = true
 -- Heartbeat: keep the connection fresh so the app shows connected (~every 2s). On
 -- the first beat after a load, push a full resync instead of a bare ping.
 script.on_nth_tick(120, function()
+  if not udp_available then
+    return
+  end
   local synced = false
   for _, player in pairs(game.connected_players) do
-    if is_bridge_enabled(player) then
-      if pending_resync then
-        sync_state(player)
-        synced = true
-      else
-        ping(player, true)
-      end
+    if pending_resync then
+      sync_state(player)
+      synced = true
+    else
+      ping(player, true)
     end
   end
   if synced then
@@ -974,16 +996,17 @@ end)
 -- Live stats refresh: production rates change continuously, so re-push them on a
 -- slow timer (~every 10s) so the app's actual/s stays live while the web UI is open.
 script.on_nth_tick(600, function()
+  if not udp_available then
+    return
+  end
   for _, player in pairs(game.connected_players) do
-    if is_bridge_enabled(player) then
-      send_stats(player)
-    end
+    send_stats(player)
   end
 end)
 
 script.on_event(defines.events.on_udp_packet_received, function(event)
   local player = get_player(event)
-  if not player or not is_bridge_enabled(player) then
+  if not player then
     return
   end
 
