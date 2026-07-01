@@ -1,0 +1,19 @@
+app/src/db/test-helpers.ts
+  s_7f9612f89e696e::t_3f1be13235ee22 4-7,14,16,27,32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "c075e6fde7cd68fd7d6617fc2bf12d1a97bb9c72",
+  "prompts": {},
+  "sessions": {
+    "s_7f9612f89e696e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "840926b8-141b-420a-828c-cac3538f4296",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
