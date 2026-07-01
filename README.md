@@ -103,7 +103,11 @@ counts for the whole chain (cyclic recipes, fluid
 temperatures, byproducts, fractional machines). New recipes default to the
 lowest-tier building and cheapest fuel; star a building or fuel in its picker to make
 it the **favorite** for that category, and new recipes there adopt it once it's
-researched — existing blocks keep their picks.
+researched — existing blocks keep their picks. **Toggle a recipe off** to keep it in
+the block but drop it from the solve — flip between two recipes for the same output to
+compare them, or park future rows (T1 now, T2–T4 later) until you enable them. **Toggle
+a whole block off** the same way: it stays in the sidebar (dimmed) and still opens for
+editing, but contributes nothing to the factory-wide totals until re-enabled.
 
 ![Block editor — the Basic substrate bio-chain, solved with byproducts](docs/images/block-editor.png)
 

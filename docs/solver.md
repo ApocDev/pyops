@@ -21,6 +21,14 @@ system** and solves for recipe run-rates (executions/sec):
 - Default disposition: a good produced **and** consumed in-block balances to zero;
   produced-only becomes an export, consumed-only an import.
 
+A recipe can be **disabled** (`disabledRecipes` in the block doc): it stays in the
+block, keeping its machine/fuel/module picks, but is filtered out before the system is
+built, so it adds no equations, boundary flows, or building counts — as if it weren't
+there. Use it to A/B two recipes for the same output, or to stage rows you'll enable
+later. A whole block can likewise be disabled (`blocks.enabled = false`): it still
+opens and solves for editing, but every factory-wide rollup (totals, coherence,
+suppliers, machine counts, what-if) skips it.
+
 A goal that **no recipe in the block makes** (an unfinished block, or one whose
 producer vanished after a data migration) is _not_ pinned — pinning it would be a
 zero-coefficient equation with a nonzero rate, forcing the whole least-squares solve
