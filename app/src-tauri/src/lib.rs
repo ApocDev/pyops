@@ -176,6 +176,15 @@ async fn updater_install(
         )
         .await
         .map_err(|e| e.to_string())?;
+    // Kill the node sidecar before relaunching; restart() may not run the Exit
+    // handler, and a lingering server would hold port 34115 and break the new
+    // instance's own sidecar.
+    #[cfg(not(debug_assertions))]
+    if let Some(state) = app.try_state::<ServerChild>() {
+        if let Some(child) = state.0.lock().unwrap().take() {
+            let _ = child.kill();
+        }
+    }
     app.restart()
 }
 
