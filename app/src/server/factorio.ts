@@ -84,6 +84,14 @@ export const recipeDetailFn = createServerFn({ method: "GET" })
     };
   });
 
+export const entityDetailFn = createServerFn({ method: "GET" })
+  .validator((name: string) => name)
+  .handler(async ({ data }) => (await lib()).entityDetail(data));
+
+export const moduleInfoFn = createServerFn({ method: "GET" })
+  .validator((names: string[]) => names)
+  .handler(async ({ data }) => (await lib()).moduleInfo(data));
+
 /** Classify a bare name (item/fluid/recipe) so prose refs render with icon+hover. */
 export const classifyRefFn = createServerFn({ method: "GET" })
   .validator((data: string | { name: string; prefer?: "recipe" }) => data)

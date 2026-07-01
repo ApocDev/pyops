@@ -357,7 +357,7 @@ function ItemChip({
           }`}
         >
           <span className="relative flex">
-            <Icon kind={kind as "item" | "fluid"} name={name} size="md" noTitle />
+            <Icon kind={kind as "item" | "fluid"} name={name} size="md" noHover />
             {fuel && (
               <Flame
                 aria-label="burned as fuel"
@@ -441,13 +441,13 @@ function LogiTag({
     <span className="flex items-center gap-2.5 pl-1 text-xs text-muted-foreground" title={title}>
       {beltOn && beltName && (
         <span className="inline-flex items-center gap-1.5">
-          <Icon kind="entity" name={beltName} size="sm" noTitle />
+          <Icon kind="entity" name={beltName} size="sm" noHover />
           <span className="tabular-nums">{fmtCount(r.belts)}</span>
         </span>
       )}
       {insOn && moverName && (
         <span className="inline-flex items-center gap-1.5">
-          <Icon kind="entity" name={moverName} size="sm" noTitle />
+          <Icon kind="entity" name={moverName} size="sm" noHover />
           <span className="tabular-nums">{fmtCount(r.devices)}</span>
         </span>
       )}
@@ -1707,7 +1707,7 @@ function Block({ blockId }: { blockId: number }) {
                         >
                           <GripVertical className="size-4" />
                         </span>
-                        <Icon kind="recipe" name={name} size="md" noTitle />
+                        <Icon kind="recipe" name={name} size="md" noHover />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate" title={res?.display?.[name] ?? name}>
                             {res?.display?.[name] ?? name}
@@ -1744,7 +1744,7 @@ function Block({ blockId }: { blockId: number }) {
                               title={`${row.machine.display ?? row.machine.name} · ${num(row.machine.craftingSpeed ?? 1)}× speed · click to change building`}
                               className={cellChip}
                             >
-                              <Icon kind="item" name={row.machine.name} size="md" noTitle />
+                              <Icon kind="entity" name={row.machine.name} size="md" />
                               <span className="font-semibold text-foreground">
                                 {num(row.machine.count)}
                               </span>
@@ -2073,7 +2073,7 @@ function Block({ blockId }: { blockId: number }) {
                                   kind={c.kind as "item" | "fluid"}
                                   name={c.name}
                                   size="sm"
-                                  noTitle
+                                  noHover
                                 />
                                 <span className="text-sm text-muted-foreground">
                                   {fmtAmt(c.amount)}
@@ -2092,7 +2092,7 @@ function Block({ blockId }: { blockId: number }) {
                                   kind={c.kind as "item" | "fluid"}
                                   name={c.name}
                                   size="sm"
-                                  noTitle
+                                  noHover
                                 />
                                 <span className="text-sm text-muted-foreground">
                                   {fmtAmt(c.amount)}

@@ -300,7 +300,7 @@ function RecipeRow({
           name={card.name}
           className="flex min-w-0 basis-full items-center gap-1.5 md:basis-auto"
         >
-          <Icon kind="recipe" name={card.name} size="sm" noTitle />
+          <Icon kind="recipe" name={card.name} size="sm" noHover />
           <span className="truncate" title={card.display ?? card.name}>
             {card.display ?? card.name}
           </span>

@@ -4,12 +4,14 @@ import { Ban, Minus, Plus, RotateCcw, SquarePlus, X } from "lucide-react";
 import {
   deleteModulePresetFn,
   listModulePresetsFn,
+  moduleInfoFn,
   modulePickerFn,
   saveModulePresetFn,
   type BeaconConfig,
 } from "../server/factorio";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
+import { CursorHover } from "./hover";
 import { Icon } from "./icons";
 
 /**
@@ -75,20 +77,18 @@ export function ModulesChip({
   const counts = new Map<string, number>();
   for (const n of modules) counts.set(n, (counts.get(n) ?? 0) + 1);
   const grouped = [...counts.entries()];
-  const fx: string[] = [];
-  if (effects?.speed) fx.push(`${pct(effects.speed)} speed`);
-  if (effects?.productivity) fx.push(`${pct(effects.productivity)} prod`);
-  if (effects?.consumption) fx.push(`${pct(effects.consumption)} energy`);
   const empty = !modules.length && !beacons.length;
-  return (
+  const button = (
     <button
       onClick={onClick}
+      // Empty state keeps a plain caption; a configured loadout shows the rich
+      // ModuleLoadoutCard hover (below) instead of a flat "+X% speed" title.
       title={
         empty
           ? auto
             ? "auto-managed — no module is worth it here (payback economy) · click to override"
             : "no modules — click to configure"
-          : `${auto ? "auto-filled (payback economy) · " : ""}${fx.join(" · ") || "modules"} · click to edit`
+          : undefined
       }
       className={`flex items-center gap-1 rounded px-1.5 py-1 text-sm hover:bg-accent ${
         empty
@@ -97,26 +97,133 @@ export function ModulesChip({
       }`}
     >
       {empty && <SquarePlus className="size-4" />}
-      {auto && (
-        <span className="text-sm text-sky-300" title="auto-managed — open to override">
-          A
-        </span>
-      )}
+      {auto && <span className="text-sm text-sky-300">A</span>}
       {grouped.map(([n, c]) => (
         <span key={n} className="flex items-center">
-          <Icon kind="item" name={n} size="sm" noTitle />
+          <Icon kind="item" name={n} size="sm" noHover />
           {c > 1 && <span className="text-sm">×{c}</span>}
         </span>
       ))}
       {beacons.map((b, i) => (
-        <span key={i} className="flex items-center gap-0.5" title={`${b.count}× ${b.beacon}`}>
-          <Icon kind="entity" name={b.beacon} size="sm" noTitle />
+        <span key={i} className="flex items-center gap-0.5">
+          <Icon kind="entity" name={b.beacon} size="sm" noHover />
           {b.modules.map((mn, j) => (
-            <Icon key={j} kind="item" name={mn} size="sm" noTitle />
+            <Icon key={j} kind="item" name={mn} size="sm" noHover />
           ))}
         </span>
       ))}
     </button>
+  );
+  if (empty) return button;
+  return (
+    <CursorHover
+      card={<ModuleLoadoutCard modules={modules} beacons={beacons} effects={effects} auto={auto} />}
+      z={70}
+    >
+      {button}
+    </CursorHover>
+  );
+}
+
+/** Per-module effect summary (a single module's own base effect), for the card. */
+function moduleEffects(m: {
+  effSpeed: number;
+  effProductivity: number;
+  effConsumption: number;
+}): string {
+  const fx: string[] = [];
+  if (m.effSpeed) fx.push(`${pct(m.effSpeed)} spd`);
+  if (m.effProductivity) fx.push(`${pct(m.effProductivity)} prod`);
+  if (m.effConsumption) fx.push(`${pct(m.effConsumption)} nrg`);
+  return fx.join(" · ");
+}
+
+/** Rich hover for a configured module loadout: what each module is and provides,
+ * the beacons and their modules, and the row's total speed/prod/energy effect —
+ * replacing the old flat "+X% speed · click to edit" native title. */
+function ModuleLoadoutCard({
+  modules,
+  beacons,
+  effects,
+  auto,
+}: {
+  modules: string[];
+  beacons: BeaconConfig[];
+  effects?: RowEffects;
+  auto?: boolean;
+}) {
+  const names = useMemo(
+    () => [...new Set([...modules, ...beacons.flatMap((b) => b.modules)])],
+    [modules, beacons],
+  );
+  const { data } = useQuery({
+    queryKey: ["moduleInfo", [...names].sort()],
+    queryFn: () => moduleInfoFn({ data: names }),
+    enabled: names.length > 0,
+    staleTime: 60_000,
+  });
+  const byName = new Map((data ?? []).map((m) => [m.name, m]));
+  const counts = new Map<string, number>();
+  for (const n of modules) counts.set(n, (counts.get(n) ?? 0) + 1);
+  const total: string[] = [];
+  if (effects?.speed) total.push(`${pct(effects.speed)} speed`);
+  if (effects?.productivity) total.push(`${pct(effects.productivity)} prod`);
+  if (effects?.consumption) total.push(`${pct(effects.consumption)} energy`);
+  return (
+    <div className="w-72 rounded border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
+      <div className="flex items-center gap-2 font-semibold">
+        Module loadout
+        {auto && (
+          <span className="rounded bg-sky-500/15 px-1 text-xs font-normal text-sky-300">auto</span>
+        )}
+      </div>
+      {total.length > 0 && (
+        <div className="mt-0.5 flex flex-wrap gap-x-3 text-muted-foreground">
+          {total.map((t) => (
+            <span key={t}>{t}</span>
+          ))}
+          <span className="text-xs text-muted-foreground/60">· total for this row</span>
+        </div>
+      )}
+      <div className="mt-2 space-y-1">
+        {[...counts.entries()].map(([n, c]) => {
+          const m = byName.get(n);
+          const fx = m ? moduleEffects(m) : "";
+          return (
+            <div key={n} className="flex items-center gap-1.5">
+              <Icon kind="item" name={n} size="sm" noHover />
+              <span className="truncate">
+                {c > 1 ? `${c}× ` : ""}
+                {m?.display ?? n}
+              </span>
+              {fx && <span className="ml-auto shrink-0 text-xs text-emerald-300/90">{fx}</span>}
+            </div>
+          );
+        })}
+      </div>
+      {beacons.length > 0 && (
+        <div className="mt-2 border-t border-border pt-1.5">
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+            beacons
+          </div>
+          {beacons.map((b, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <Icon kind="entity" name={b.beacon} size="sm" noHover />
+              <span className="text-muted-foreground">×{b.count}</span>
+              <span className="flex items-center gap-0.5">
+                {b.modules.map((mn, j) => (
+                  <Icon key={j} kind="item" name={mn} size="sm" noHover />
+                ))}
+              </span>
+              <span className="truncate text-xs text-muted-foreground">
+                {b.modules.map((mn) => byName.get(mn)?.display ?? mn).join(", ")}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="mt-2 text-xs text-muted-foreground/70">click to edit</div>
+    </div>
   );
 }
 

@@ -255,7 +255,7 @@ function Good({ good, display, kind }: { good: string; display: string | null; k
       kind={kind as "item" | "fluid"}
       className="inline-flex items-center gap-1.5"
     >
-      <Icon kind={kind as "item" | "fluid"} name={good} size="sm" title={display ?? good} />
+      <Icon kind={kind as "item" | "fluid"} name={good} size="sm" noHover />
       <span className="truncate">{display ?? good}</span>
     </ItemHover>
   );

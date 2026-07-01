@@ -178,12 +178,7 @@ function TargetPicker({
             <span className="text-muted-foreground">unlocked by</span>
             {targetTech ? (
               <TechHover name={targetTech} className="flex items-center gap-1.5">
-                <Icon
-                  kind="technology"
-                  name={targetTech}
-                  size="sm"
-                  title={targetTechDisplay ?? targetTech}
-                />
+                <Icon kind="technology" name={targetTech} size="sm" noHover />
                 <span className="text-foreground underline decoration-dotted">
                   {targetTechDisplay ?? targetTech}
                 </span>
@@ -302,7 +297,7 @@ function ResearchedPicker({
                 className="flex w-full items-center gap-2 px-2 py-1 text-left text-sm hover:bg-muted"
               >
                 <input type="checkbox" readOnly checked={researched.includes(t.name)} />
-                <Icon kind="technology" name={t.name} size="sm" title={t.display ?? t.name} />
+                <Icon kind="technology" name={t.name} size="sm" noHover />
                 <span>{t.display ?? t.name}</span>
               </button>
             </TechHover>
@@ -319,7 +314,7 @@ function ResearchedPicker({
                 name={n}
                 className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-sm"
               >
-                <Icon kind="technology" name={n} size="sm" title={dmap.get(n) ?? n} />
+                <Icon kind="technology" name={n} size="sm" noHover />
                 {dmap.get(n) ?? n}
                 <button
                   onClick={() => toggle(n)}

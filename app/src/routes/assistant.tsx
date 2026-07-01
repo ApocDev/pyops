@@ -1088,7 +1088,7 @@ function Ref({ name, prefer }: { name: string; prefer?: "recipe" }) {
   const kind: "item" | "fluid" | "recipe" = prefer === "recipe" ? "recipe" : data.kind;
   const chip = (
     <span className="inline-flex items-center gap-1 rounded bg-muted/60 px-1 py-0.5 align-middle font-mono text-[0.85em] hover:bg-muted">
-      <Icon kind={kind} name={name} size="sm" noTitle />
+      <Icon kind={kind} name={name} size="sm" noHover />
       <span>{data.display}</span>
     </span>
   );

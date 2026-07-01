@@ -154,7 +154,7 @@ export function LogisticsPicker() {
                 className={`${tier} ${d.prefs.belt === b.name ? tierOn : tierOff}`}
                 title={beltTip(b.name, b.display, b.speed)}
               >
-                <Icon kind="entity" name={b.name} size="sm" noTitle />
+                <Icon kind="entity" name={b.name} size="sm" noHover />
                 <span>{b.display ?? b.name}</span>
               </button>
             ))}
@@ -177,7 +177,7 @@ export function LogisticsPicker() {
                   inserterThroughput(i, inserterHandStack(i, effBonuses)),
                 )}/s into a machine${i.bulk ? " · bulk" : ""}`}
               >
-                <Icon kind="entity" name={i.name} size="sm" noTitle />
+                <Icon kind="entity" name={i.name} size="sm" noHover />
                 <span>{i.display ?? i.name}</span>
               </button>
             ))}
@@ -190,7 +190,7 @@ export function LogisticsPicker() {
                 }`}
                 title={beltTip(l.name, l.display, l.speed)}
               >
-                <Icon kind="entity" name={l.name} size="sm" noTitle />
+                <Icon kind="entity" name={l.name} size="sm" noHover />
                 <span>{l.display ?? l.name}</span>
               </button>
             ))}

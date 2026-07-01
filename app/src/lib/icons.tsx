@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Flame, Timer, Zap } from "lucide-react";
 import { iconManifestFn, spoilablesFn, type IconManifest, type IconSlot } from "../server/factorio";
+import { GoodHover } from "./recipe-card";
 
 /** Spoil time (in game ticks, 60/sec) → a compact human duration: "27s",
  * "2m 30s", "1h 5m". Shared by the icon overlay's title and the item tooltip. */
@@ -121,19 +122,37 @@ const ICON_VAR: Record<IconSize, string> = {
   lg: "var(--icon-lg)",
 };
 
-export function Icon({
-  kind,
-  name,
-  size = "sm",
-  noTitle = false,
-  title,
-}: {
-  kind: "item" | "fluid" | "recipe" | "entity" | "technology";
+export type IconKind = "item" | "fluid" | "recipe" | "entity" | "technology";
+
+export type IconProps = {
+  kind: IconKind;
   name: string;
   size?: IconSize;
   noTitle?: boolean;
   title?: string | null;
-}) {
+};
+
+/** The default icon: renders the sprite wrapped in a rich hover card for its
+ * `kind` (item/fluid → ItemCard, recipe → RecipeCard, technology → TechCard,
+ * entity → EntityCard). Pass `noHover` to opt a specific place out — e.g. an
+ * icon inside a row that already carries its own hover/tooltip, a decorative
+ * glyph, or the pseudo-goods. The hover supersedes the native `title`, so the
+ * bare `title`/`noTitle` props only apply when `noHover` is set. */
+export function Icon(props: IconProps & { noHover?: boolean }) {
+  const { noHover, ...rest } = props;
+  // pseudo-goods (heat/electricity) have no prototype/detail to card.
+  const noCard = rest.name === "pyops-electricity" || rest.name === "pyops-heat";
+  if (noHover || noCard) return <RawIcon {...rest} />;
+  return (
+    <GoodHover kind={rest.kind} name={rest.name}>
+      <RawIcon {...rest} noTitle />
+    </GoodHover>
+  );
+}
+
+/** The bare sprite, no hover card. Used by the hover cards themselves (so a
+ * card's own icons don't spawn nested cards) and anywhere `Icon` opts out. */
+export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: IconProps) {
   const { m, itemIdx, spoil } = useContext(IconCtx);
   const v = ICON_VAR[size];
   const base: React.CSSProperties = {

@@ -20,10 +20,12 @@ vi.mock("../server/factorio", () => ({
   spoilablesFn: () => Promise.resolve({}),
 }));
 
+// `noHover` renders the bare sprite (RawIcon) with its native title, which is
+// where the slicing math lives; the default `Icon` wraps this in a hover card.
 test("draws an item icon as a slice scaled off the size token", async () => {
   const { container } = render(
     <IconProvider>
-      <Icon kind="item" name="iron-plate" size="sm" />
+      <Icon kind="item" name="iron-plate" size="sm" noHover />
     </IconProvider>,
   );
   await waitFor(() => {
@@ -44,7 +46,7 @@ test("draws an item icon as a slice scaled off the size token", async () => {
 test("item-kind falls back to non-item folders (module/)", async () => {
   const { container } = render(
     <IconProvider>
-      <Icon kind="item" name="speed-module" size="md" />
+      <Icon kind="item" name="speed-module" size="md" noHover />
     </IconProvider>,
   );
   await waitFor(() => {
@@ -53,4 +55,17 @@ test("item-kind falls back to non-item folders (module/)", async () => {
       "calc(var(--icon-md) * -0.15625) calc(var(--icon-md) * -0.3125)",
     );
   });
+});
+
+test("the default icon shows no internal-name title (a rich hover card replaces it)", async () => {
+  const { container } = render(
+    <IconProvider>
+      <Icon kind="item" name="iron-plate" size="sm" />
+    </IconProvider>,
+  );
+  await waitFor(() => {
+    expect(container.querySelector("span[style*='background-image']")).toBeTruthy();
+  });
+  // the sprite no longer leaks the internal name as a native tooltip
+  expect(container.querySelector("[title='iron-plate']")).toBeNull();
 });

@@ -19,6 +19,7 @@ import {
   craftingMachines,
   machineCategories,
   machineFuelCategories,
+  miningDrills,
   techUnlocks,
   technologies,
   techIngredients,
@@ -1862,8 +1863,82 @@ export function getItem(name: string) {
   return db.select().from(items).where(eq(items.name, name)).get() ?? null;
 }
 
+/** Module rows by name — display + per-effect values. Powers the module-loadout
+ * hover card so it can show what each module contributes, not just a total. */
+export function moduleInfo(names: string[]) {
+  if (!names.length) return [];
+  return db
+    .select({
+      name: modules.name,
+      display: modules.display,
+      category: modules.category,
+      effSpeed: modules.effSpeed,
+      effProductivity: modules.effProductivity,
+      effConsumption: modules.effConsumption,
+    })
+    .from(modules)
+    .where(inArray(modules.name, names))
+    .all();
+}
+
 export function getFluid(name: string) {
   return db.select().from(fluids).where(eq(fluids.name, name)).get() ?? null;
+}
+
+/** Detail for a placeable entity icon — crafting machine, mining drill, or beacon
+ * (and its item facts, since most entities are also items). Powers the EntityCard
+ * hover. Returns thin data if the name is only an item (or unknown). */
+export function entityDetail(name: string) {
+  const machine =
+    db.select().from(craftingMachines).where(eq(craftingMachines.name, name)).get() ?? null;
+  const drill = db.select().from(miningDrills).where(eq(miningDrills.name, name)).get() ?? null;
+  const beacon = db.select().from(beacons).where(eq(beacons.name, name)).get() ?? null;
+  const item = getItem(name);
+  const categories = machine
+    ? db
+        .select({ c: machineCategories.category })
+        .from(machineCategories)
+        .where(eq(machineCategories.machine, name))
+        .all()
+        .map((r) => r.c)
+    : [];
+  return {
+    name,
+    display: machine?.display ?? beacon?.display ?? item?.display ?? name,
+    machine: machine
+      ? {
+          kind: machine.kind,
+          craftingSpeed: machine.craftingSpeed,
+          moduleSlots: machine.moduleSlots,
+          energyUsageW: machine.energyUsageW,
+          energySource: machine.energySource,
+          categories,
+        }
+      : null,
+    drill: drill
+      ? {
+          miningSpeed: drill.miningSpeed,
+          moduleSlots: drill.moduleSlots,
+          energyUsageW: drill.energyUsageW,
+          energySource: drill.energySource,
+        }
+      : null,
+    beacon: beacon
+      ? {
+          distributionEffectivity: beacon.distributionEffectivity,
+          moduleSlots: beacon.moduleSlots,
+          energyUsageW: beacon.energyUsageW,
+        }
+      : null,
+    item: item
+      ? {
+          stackSize: item.stackSize,
+          fuelValueJ: item.fuelValueJ,
+          fuelCategory: item.fuelCategory,
+        }
+      : null,
+    cost: goodCosts([name]).get(name) ?? null,
+  };
 }
 
 /** All spoilable items → name→spoil-time-in-ticks (60 ticks/sec). Drives the

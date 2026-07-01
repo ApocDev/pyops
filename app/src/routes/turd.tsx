@@ -98,7 +98,7 @@ function ChangeRow({ change: c, moduleBonus }: { change: TurdChange; moduleBonus
   return (
     <RecipeHover name={c.to} className="flex min-w-0 cursor-help items-center gap-1.5">
       <Plus className="size-3 shrink-0 text-emerald-400" />
-      <Icon kind="recipe" name={c.to} size="sm" noTitle />
+      <Icon kind="recipe" name={c.to} size="sm" noHover />
       <span className="truncate">{c.toDisplay}</span>
       <span className="shrink-0 text-xs text-muted-foreground">new</span>
     </RecipeHover>

@@ -1,9 +1,11 @@
-import { useLayoutEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Flame, Timer } from "lucide-react";
-import { itemDetailFn, recipeDetailFn, techDetailFn } from "../server/factorio";
-import { Icon, fmtSpoilTime } from "./icons";
+import { Bolt, Flame, Timer, Zap } from "lucide-react";
+import { entityDetailFn, itemDetailFn, recipeDetailFn, techDetailFn } from "../server/factorio";
+// Cards render the bare sprite (RawIcon) so a card's own icons never spawn nested
+// hover cards. The rich hover is the wrapper `Icon` adds around a RawIcon.
+import { RawIcon as Icon, fmtSpoilTime } from "./icons";
+import { CursorCard, CursorHover } from "./hover";
 
 /** One ingredient/product line: icon + amount + name (+ temps / probability). */
 function Comp(c: {
@@ -171,65 +173,6 @@ export function TechCard({ name }: { name: string }) {
         </>
       )}
     </div>
-  );
-}
-
-/** Wraps a row; shows a floating TechCard near the cursor on hover (portaled). */
-/** Portals a hover card near the cursor and keeps it fully on-screen: it prefers
- * below-right of the pointer and flips to the cursor's left / above when the card
- * would overflow that edge, then clamps to an 8px margin. Measures the real
- * rendered card (not a guessed size) and re-measures on cursor move and whenever
- * the card resizes — its detail data loads async, so a tall card would otherwise
- * run off the bottom before the next mouse move. */
-function CursorCard({
-  pos,
-  z = 50,
-  children,
-}: {
-  pos: { x: number; y: number };
-  z?: number;
-  children: React.ReactNode;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const GAP = 16; // offset from the cursor
-    const M = 8; // viewport margin
-    const reposition = () => {
-      const { width, height } = el.getBoundingClientRect();
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      let left = pos.x + GAP;
-      if (left + width > vw - M) left = pos.x - GAP - width; // flip to the cursor's left
-      left = Math.max(M, Math.min(left, vw - width - M));
-      let top = pos.y + GAP;
-      if (top + height > vh - M) top = pos.y - GAP - height; // flip above the cursor
-      top = Math.max(M, Math.min(top, vh - height - M));
-      setPlace({ left, top });
-    };
-    reposition();
-    const ro = new ResizeObserver(reposition);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [pos.x, pos.y]);
-  return createPortal(
-    <div
-      ref={ref}
-      style={{
-        position: "fixed",
-        // hidden until the first measure so it never flashes at the wrong spot
-        left: place?.left ?? 0,
-        top: place?.top ?? 0,
-        zIndex: z,
-        pointerEvents: "none",
-        visibility: place ? "visible" : "hidden",
-      }}
-    >
-      {children}
-    </div>,
-    document.body,
   );
 }
 
@@ -703,6 +646,166 @@ export function ItemHover({
         </CursorCard>
       )}
     </span>
+  );
+}
+
+const fmtW = (w: number) =>
+  w >= 1e6 ? `${(w / 1e6).toFixed(1)} MW` : w >= 1e3 ? `${(w / 1e3).toFixed(0)} kW` : `${w} W`;
+// compact number for speeds: trim to a few significant places, no trailing zeros
+const fmtNum = (n: number) => (n >= 1 ? n.toFixed(2) : n.toFixed(3)).replace(/\.?0+$/, "");
+
+/** Hover card for a placeable entity — crafting machine, mining drill, or beacon:
+ * its throughput (crafting/mining speed or beacon effectivity), module slots,
+ * power draw + energy source, and (for machines) the recipe categories it runs.
+ * Falls back to item facts (stack/fuel/cost) since most entities are also items. */
+export function EntityCard({ name }: { name: string }) {
+  const { data } = useQuery({
+    queryKey: ["entity", name],
+    queryFn: () => entityDetailFn({ data: name }),
+    staleTime: 60_000,
+  });
+  const display = data?.display ?? name;
+  const rows: React.ReactNode[] = [];
+  if (data?.machine) {
+    const mc = data.machine;
+    rows.push(<div key="speed">{fmtNum(mc.craftingSpeed)}× crafting speed</div>);
+    if (mc.moduleSlots > 0) rows.push(<div key="slots">{mc.moduleSlots} module slots</div>);
+    if (mc.energyUsageW != null)
+      rows.push(
+        <div key="power" className="flex items-center gap-1">
+          <Zap className="size-3.5 shrink-0 text-amber-400" />
+          {fmtW(mc.energyUsageW)}
+          {mc.energySource ? ` · ${mc.energySource}` : ""}
+        </div>,
+      );
+    if (mc.categories.length)
+      rows.push(
+        <div key="cats" className="text-xs">
+          crafts: {mc.categories.join(", ")}
+        </div>,
+      );
+  }
+  if (data?.drill) {
+    const d = data.drill;
+    rows.push(<div key="mine">{fmtNum(d.miningSpeed)}× mining speed</div>);
+    if (d.moduleSlots > 0) rows.push(<div key="dslots">{d.moduleSlots} module slots</div>);
+    if (d.energyUsageW != null)
+      rows.push(
+        <div key="dpower" className="flex items-center gap-1">
+          <Zap className="size-3.5 shrink-0 text-amber-400" />
+          {fmtW(d.energyUsageW)}
+          {d.energySource ? ` · ${d.energySource}` : ""}
+        </div>,
+      );
+  }
+  if (data?.beacon) {
+    const b = data.beacon;
+    if (b.distributionEffectivity != null)
+      rows.push(
+        <div key="eff" className="flex items-center gap-1">
+          <Bolt className="size-3.5 shrink-0 text-sky-400" />
+          {Math.round(b.distributionEffectivity * 100)}% module effect
+        </div>,
+      );
+    if (b.moduleSlots > 0) rows.push(<div key="bslots">{b.moduleSlots} module slots</div>);
+    if (b.energyUsageW != null)
+      rows.push(
+        <div key="bpower" className="flex items-center gap-1">
+          <Zap className="size-3.5 shrink-0 text-amber-400" />
+          {fmtW(b.energyUsageW)}
+        </div>,
+      );
+  }
+  if (data?.item?.fuelValueJ != null)
+    rows.push(
+      <div key="fuel" className="flex items-center gap-1">
+        <Flame className="size-3.5 shrink-0" /> {fmtJ(data.item.fuelValueJ)} (
+        {data.item.fuelCategory})
+      </div>,
+    );
+  if (data?.item?.stackSize != null) rows.push(<div key="stack">stack {data.item.stackSize}</div>);
+  return (
+    <div className="w-80 rounded border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
+      <div className="flex items-center gap-2 text-base font-semibold">
+        <Icon kind="entity" name={name} size="md" noTitle />
+        <span className="truncate">{display}</span>
+        {data?.cost != null && (
+          <span className="ml-auto font-normal text-muted-foreground" title="cost analysis">
+            ¥{fmtCost(data.cost)}
+          </span>
+        )}
+      </div>
+      <div className="truncate text-sm text-muted-foreground">
+        {name} ·{" "}
+        {data?.machine?.kind ?? (data?.drill ? "mining-drill" : data?.beacon ? "beacon" : "entity")}
+      </div>
+      {!data ? (
+        <div className="mt-1.5 text-muted-foreground">…</div>
+      ) : rows.length ? (
+        <div className="mt-1.5 space-y-0.5 text-muted-foreground">{rows}</div>
+      ) : (
+        <div className="mt-1.5 text-xs italic text-muted-foreground/60">no extra detail</div>
+      )}
+    </div>
+  );
+}
+
+/** Wraps a row; shows a floating EntityCard near the cursor on hover. */
+export function EntityHover({
+  name,
+  className,
+  children,
+}: {
+  name: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  return (
+    <span
+      className={className}
+      onMouseEnter={(e) => setPos({ x: e.clientX, y: e.clientY })}
+      onMouseMove={(e) => setPos({ x: e.clientX, y: e.clientY })}
+      onMouseLeave={() => setPos(null)}
+    >
+      {children}
+      {pos && typeof document !== "undefined" && (
+        <CursorCard pos={pos} z={60}>
+          <EntityCard name={name} />
+        </CursorCard>
+      )}
+    </span>
+  );
+}
+
+/** The default rich hover for any game icon: dispatches to the right card by
+ * `kind`. `Icon` (in icons.tsx) wraps every sprite in this unless `noHover` is
+ * set. The wrapper is layout-neutral (inline-flex, middle-aligned). */
+export function GoodHover({
+  kind,
+  name,
+  className,
+  children,
+}: {
+  kind: "item" | "fluid" | "recipe" | "entity" | "technology";
+  name: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const card =
+    kind === "recipe" ? (
+      <RecipeCard name={name} />
+    ) : kind === "technology" ? (
+      <TechCard name={name} />
+    ) : kind === "entity" ? (
+      <EntityCard name={name} />
+    ) : (
+      <ItemCard name={name} kind={kind} />
+    );
+  return (
+    <CursorHover card={card} className={className} z={60}>
+      {children}
+    </CursorHover>
   );
 }
 
