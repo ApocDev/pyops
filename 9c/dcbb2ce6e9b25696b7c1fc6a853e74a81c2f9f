@@ -1,0 +1,21 @@
+README.md
+  s_b357aaf79aad49::t_ae6baad9f12ca5 217-230,244
+docs/bridge.md
+  s_b357aaf79aad49::t_82885b6c35c0db 64-77,107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "9cdcbb2ce6e9b25696b7c1fc6a853e74a81c2f9f",
+  "prompts": {},
+  "sessions": {
+    "s_b357aaf79aad49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08799167-fce8-401e-95ad-430c2161072b",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
