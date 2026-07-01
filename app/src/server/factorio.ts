@@ -281,6 +281,8 @@ export type SolveInput = {
   icon?: { kind: string; name: string }; // explicit block icon (#40); unset = first goal's
   recipes: string[];
   disabledRecipes?: string[]; // recipes kept in the block but excluded from the solve (#73)
+  rowGroups?: { id: number; name: string }[]; // sub-block groups (#7), display-only
+  recipeGroups?: Record<string, number>; // recipe → sub-block group id (#7)
   dispositions?: Record<string, Disposition>;
   machines?: Record<string, string>; // recipe → chosen machine (else fastest)
   fuels?: Record<string, string>; // recipe → chosen fuel (else cheapest available)

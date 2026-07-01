@@ -48,11 +48,25 @@ import { tasksForBlockFn } from "../server/tasks.ts";
 import type { Disposition } from "../solver/block";
 import type { Goal } from "../db/schema";
 import { normalizeBlockData } from "../lib/goals";
+import {
+  groupMembers,
+  groupNet,
+  joinGroup,
+  leaveGroup,
+  moveGroupSpan,
+  normalizeGroups,
+  resolveGroupAfterMove,
+  type GroupAssign,
+  type RowGroup,
+} from "../lib/row-groups";
 import { Icon, IconProvider } from "../lib/icons";
 import { ModulesChip, ModulesModal } from "../lib/modules-modal";
 import {
   AlertTriangle,
+  ArrowRight,
   Check,
+  ChevronDown,
+  ChevronRight,
   Copy,
   Flame,
   FlaskConical,
@@ -60,6 +74,7 @@ import {
   Grid2x2,
   GripVertical,
   Hammer,
+  Layers,
   Lock,
   MapPin,
   Pencil,
@@ -531,21 +546,88 @@ function Block({ blockId }: { blockId: number }) {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  // Reorder is display/authoring only — the solver is order-independent, so this just
-  // changes how the rows are listed (and persists `recipes`).
-  const onRecipeDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!over || active.id === over.id) return;
-    markEdited();
-    setRecipes((rs) => {
-      const from = rs.indexOf(String(active.id));
-      const to = rs.indexOf(String(over.id));
-      return from < 0 || to < 0 ? rs : arrayMove(rs, from, to);
-    });
-  };
   const [disp, setDisp] = useState<Record<string, Disposition>>({});
   // Recipes toggled off (#73): kept in `recipes` but excluded from the solve. A
   // Set for O(1) row lookups; persisted/solved as a sorted array via solveInput.
   const [disabled, setDisabled] = useState<Set<string>>(new Set());
+  // Sub-blocks (#7): named groups of recipe rows, display-only. Members stay
+  // contiguous in `recipes` order (lib/row-groups.ts). Fold state is a view
+  // preference — localStorage, not the doc, so folding doesn't churn auto-save.
+  const [rowGroups, setRowGroups] = useState<RowGroup[]>([]);
+  const [recipeGroups, setRecipeGroups] = useState<GroupAssign>({});
+  const [foldedGroups, setFoldedGroups] = useState<Record<number, boolean>>({});
+  // rename-in-place on a group header (holds the group id being edited)
+  const [renamingGroup, setRenamingGroup] = useState<number | null>(null);
+  // right-click menu on a recipe row (sub-block actions)
+  const [rowMenu, setRowMenu] = useState<{ x: number; y: number; name: string } | null>(null);
+  // Drop groups that lost their last member (ungrouping happens by attrition too).
+  const pruneEmptyGroups = (rs: string[], assign: GroupAssign) => {
+    const used = new Set(rs.map((r) => assign[r]).filter((g): g is number => g != null));
+    setRowGroups((gs) => (gs.every((g) => used.has(g.id)) ? gs : gs.filter((g) => used.has(g.id))));
+  };
+  // Reorder is display/authoring only — the solver is order-independent, so this just
+  // changes how the rows are listed (and persists `recipes`). Sub-blocks (#7) make
+  // it three cases: drag a group header to move the whole span; drop a row on a
+  // header to join that group; drop a row between two members to adopt their group.
+  const onRecipeDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const aid = String(active.id);
+    const oid = String(over.id);
+    markEdited();
+    if (aid.startsWith("grp:")) {
+      const gid = Number(aid.slice(4));
+      const rest = recipes.filter((r) => recipeGroups[r] !== gid);
+      const at = oid.startsWith("grp:")
+        ? rest.findIndex((r) => recipeGroups[r] === Number(oid.slice(4)))
+        : rest.indexOf(oid);
+      setRecipes(moveGroupSpan(recipes, recipeGroups, gid, at < 0 ? rest.length : at));
+      return;
+    }
+    if (oid.startsWith("grp:")) {
+      const joined = joinGroup(recipes, recipeGroups, aid, Number(oid.slice(4)));
+      setRecipes(joined.recipes);
+      setRecipeGroups(joined.assign);
+      pruneEmptyGroups(joined.recipes, joined.assign);
+      return;
+    }
+    const from = recipes.indexOf(aid);
+    const to = recipes.indexOf(oid);
+    if (from < 0 || to < 0) return;
+    const moved = arrayMove(recipes, from, to);
+    const assign = resolveGroupAfterMove(moved, recipeGroups, aid);
+    setRecipes(moved);
+    setRecipeGroups(assign);
+    pruneEmptyGroups(moved, assign);
+  };
+  const toggleFold = (id: number) =>
+    setFoldedGroups((f) => {
+      const next = { ...f, [id]: !f[id] };
+      localStorage.setItem(`pyops.groupFold.${blockId}`, JSON.stringify(next));
+      return next;
+    });
+  const createGroupFromRow = (recipe: string) => {
+    markEdited();
+    const id = Math.max(0, ...rowGroups.map((g) => g.id)) + 1;
+    setRowGroups((gs) => [...gs, { id, name: "Sub-block" }]);
+    setRecipeGroups((a) => ({ ...a, [recipe]: id }));
+    setRenamingGroup(id); // name it right away
+  };
+  const renameGroup = (id: number, name: string) => {
+    markEdited();
+    setRowGroups((gs) => gs.map((g) => (g.id === id ? { ...g, name } : g)));
+  };
+  /** Dissolve a group — its rows stay, just ungrouped. */
+  const ungroupRows = (id: number) => {
+    markEdited();
+    setRowGroups((gs) => gs.filter((g) => g.id !== id));
+    setRecipeGroups((a) => Object.fromEntries(Object.entries(a).filter(([, g]) => g !== id)));
+  };
+  const removeFromGroup = (recipe: string) => {
+    markEdited();
+    const assign = leaveGroup(recipeGroups, recipe);
+    setRecipeGroups(assign);
+    pruneEmptyGroups(recipes, assign);
+  };
   const [machineSel, setMachineSel] = useState<Record<string, string>>({}); // recipe → machine
   const [fuelSel, setFuelSel] = useState<Record<string, string>>({}); // recipe → fuel
   const [moduleSel, setModuleSel] = useState<Record<string, string[]>>({}); // recipe → modules
@@ -609,7 +691,18 @@ function Block({ blockId }: { blockId: number }) {
     hydrated.current = true;
     const d = loaded.data.data;
     setGoals(normalizeBlockData(d).goals);
-    setRecipes(d.recipes ?? []);
+    // sub-block groups (#7): normalize on read so a drifted doc (orphaned
+    // assignments, scattered members) can't break the grouped rendering
+    const ng = normalizeGroups(d.recipes ?? [], d.rowGroups ?? [], d.recipeGroups ?? {});
+    setRecipes(ng.recipes);
+    setRowGroups(ng.groups);
+    setRecipeGroups(ng.assign);
+    try {
+      const s = JSON.parse(localStorage.getItem(`pyops.groupFold.${blockId}`) || "{}");
+      if (s && typeof s === "object") setFoldedGroups(s);
+    } catch {
+      /* ignore */
+    }
     setDisp((d.dispositions ?? {}) as Record<string, Disposition>);
     setDisabled(new Set(d.disabledRecipes ?? []));
     setMachineSel(d.machines ?? {});
@@ -766,6 +859,7 @@ function Block({ blockId }: { blockId: number }) {
     ...(customIcon ? { icon: customIcon } : {}),
     recipes,
     ...(disabledRecipes.length ? { disabledRecipes } : {}),
+    ...(rowGroups.length ? { rowGroups, recipeGroups } : {}),
     ...(hasDisp ? { dispositions: disp } : {}),
     ...(Object.keys(machineSel).length ? { machines: machineSel } : {}),
     ...(Object.keys(fuelSel).length ? { fuels: fuelSel } : {}),
@@ -861,6 +955,8 @@ function Block({ blockId }: { blockId: number }) {
     customIcon,
     recipes,
     disabled,
+    rowGroups,
+    recipeGroups,
     disp,
     machineSel,
     fuelSel,
@@ -951,6 +1047,12 @@ function Block({ blockId }: { blockId: number }) {
       next.delete(name);
       return next;
     });
+    const assign = leaveGroup(recipeGroups, name);
+    if (assign !== recipeGroups) setRecipeGroups(assign);
+    pruneEmptyGroups(
+      recipes.filter((r) => r !== name),
+      assign,
+    );
   };
 
   // When a flow has exactly one craftable recipe, skip the picker dialog and add
@@ -1090,6 +1192,131 @@ function Block({ blockId }: { blockId: number }) {
   // The block's face (#40): the explicit pick when set, else the first goal's icon.
   const blockIcon =
     customIcon ?? (target ? { kind: goalInfo.data?.[target]?.kind ?? "item", name: target } : null);
+
+  // Sub-blocks (#7): flatten recipes+groups into the render sequence. A group
+  // renders a header at its first member's position; members follow (contiguous
+  // by invariant) unless the group is folded, in which case they're skipped and
+  // the header shows the chain's net flows instead.
+  type RowEntry = { type: "group"; group: RowGroup } | { type: "recipe"; name: string };
+  const rowSeq: RowEntry[] = [];
+  {
+    const byId = new Map(rowGroups.map((g) => [g.id, g]));
+    const seen = new Set<number>();
+    for (const name of recipes) {
+      const g = recipeGroups[name] != null ? byId.get(recipeGroups[name]) : undefined;
+      if (g) {
+        if (!seen.has(g.id)) {
+          seen.add(g.id);
+          rowSeq.push({ type: "group", group: g });
+        }
+        if (!foldedGroups[g.id]) rowSeq.push({ type: "recipe", name });
+      } else rowSeq.push({ type: "recipe", name });
+    }
+  }
+  const sortableIds = rowSeq.map((e) => (e.type === "group" ? `grp:${e.group.id}` : e.name));
+
+  /** A sub-block's header row: fold chevron, rename-in-place name, and — when
+   * folded — the chain's net I/O ("ore in → plates out"), machines and power. */
+  const renderGroupHeader = (g: RowGroup) => {
+    const members = groupMembers(recipes, recipeGroups, g.id);
+    const folded = !!foldedGroups[g.id];
+    // disabled rows (#73) contribute nothing to the solve, so keep them out of
+    // the net too — the header should read what the chain actually does
+    const net =
+      folded && res?.rows
+        ? groupNet(res.rows, new Set(members.filter((m) => !disabled.has(m))))
+        : null;
+    return (
+      <SortableRow key={`grp:${g.id}`} id={`grp:${g.id}`}>
+        {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
+          <div
+            className={`relative flex flex-wrap items-center gap-2 border-t border-border border-l-2 border-l-primary/50 bg-muted/40 px-2 py-2 ${isDragging ? "bg-card shadow-lg" : ""}`}
+          >
+            <span
+              ref={setActivatorNodeRef}
+              {...attributes}
+              {...listeners}
+              title="drag to move this sub-block (its rows move with it)"
+              className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground select-none hover:text-foreground active:cursor-grabbing"
+            >
+              <GripVertical className="size-4" />
+            </span>
+            <button
+              onClick={() => toggleFold(g.id)}
+              title={folded ? "expand this sub-block" : "collapse this sub-block to one line"}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              {folded ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
+            </button>
+            <Layers className="size-4 shrink-0 text-primary/70" />
+            {renamingGroup === g.id ? (
+              <input
+                autoFocus
+                defaultValue={g.name}
+                onFocus={(e) => e.target.select()}
+                onBlur={(e) => {
+                  renameGroup(g.id, e.target.value.trim() || g.name);
+                  setRenamingGroup(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                  if (e.key === "Escape") setRenamingGroup(null);
+                }}
+                className="w-44 rounded border border-input bg-muted px-1.5 py-0.5 text-sm"
+              />
+            ) : (
+              <span
+                className="cursor-default font-semibold select-none"
+                onDoubleClick={() => setRenamingGroup(g.id)}
+                title="double-click to rename"
+              >
+                {g.name}
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground">
+              {members.length} recipe{members.length === 1 ? "" : "s"}
+            </span>
+            {net && (
+              <span className="flex flex-wrap items-center gap-1.5 text-sm">
+                {net.inputs.map((f) => (
+                  <span
+                    key={f.name}
+                    className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-0.5"
+                  >
+                    <Icon kind={f.kind as "item" | "fluid"} name={f.name} size="sm" />
+                    <span className="tabular-nums">{num(f.rate)}</span>
+                  </span>
+                ))}
+                <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
+                {net.outputs.map((f) => (
+                  <span
+                    key={f.name}
+                    className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-0.5"
+                  >
+                    <Icon kind={f.kind as "item" | "fluid"} name={f.name} size="sm" />
+                    <span className="tabular-nums">{num(f.rate)}</span>
+                  </span>
+                ))}
+                {net.machines > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    · {num(net.machines)} machines
+                  </span>
+                )}
+                {net.powerW > 0 && <span className="text-xs text-sky-300">{fmtW(net.powerW)}</span>}
+              </span>
+            )}
+            <button
+              className="ml-auto text-muted-foreground hover:text-destructive"
+              onClick={() => ungroupRows(g.id)}
+              title="ungroup — dissolve the sub-block, its rows stay"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
+      </SortableRow>
+    );
+  };
 
   return (
     <div className="p-4 font-mono text-base text-foreground">
@@ -1286,6 +1513,18 @@ function Block({ blockId }: { blockId: number }) {
             goal, lock it as a sizing input, or force import / export / balance — the colored legend
             shows each item&apos;s current disposition.
           </p>
+          <div>
+            <div className="font-semibold text-foreground">Sub-blocks</div>
+            <p className="mt-1">
+              <span className="text-foreground">Right-click a recipe&apos;s name</span> to start a
+              sub-block — a named, collapsible group of rows. Add more rows from the same menu or by
+              dragging them onto the header; collapse it and the whole chain reads as one line
+              showing its <span className="text-foreground">net flows</span> (what goes in, what
+              comes out — intermediates cancel), machines and power. Display-only: the solve is
+              exactly the same expanded, collapsed, or dissolved. Drag the header to move the whole
+              chain; double-click its name to rename; × ungroups (the rows stay).
+            </p>
+          </div>
           <div>
             <div className="font-semibold text-foreground">Toolbar (next to the name)</div>
             <ul className="mt-1 space-y-1.5">
@@ -1815,8 +2054,11 @@ function Block({ blockId }: { blockId: number }) {
           collisionDetection={closestCenter}
           onDragEnd={onRecipeDragEnd}
         >
-          <SortableContext items={recipes} strategy={verticalListSortingStrategy}>
-            {recipes.map((name) => {
+          <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+            {rowSeq.map((entry) => {
+              if (entry.type === "group") return renderGroupHeader(entry.group);
+              const name = entry.name;
+              const grouped = recipeGroups[name] != null; // member of a sub-block (#7)
               const off = disabled.has(name); // toggled out of the solve (#73)
               const row = res?.rows?.find((r) => r.recipe === name);
               const neg = (row?.rate ?? 0) < -1e-6; // running backward — can't physically happen
@@ -1860,7 +2102,7 @@ function Block({ blockId }: { blockId: number }) {
                 <SortableRow key={name} id={name}>
                   {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
                     <div
-                      className={`${GRID} relative border-t border-border ${neg || isUnused ? "bg-destructive/10" : ""} ${off ? "bg-muted/30" : ""} ${isDragging ? "bg-card shadow-lg" : ""}`}
+                      className={`${GRID} relative border-t border-border ${grouped ? "border-l-2 border-l-primary/50" : ""} ${neg || isUnused ? "bg-destructive/10" : ""} ${off ? "bg-muted/30" : ""} ${isDragging ? "bg-card shadow-lg" : ""}`}
                     >
                       <RecipeHover name={name} className="flex min-w-0 items-center gap-2">
                         <span
@@ -1875,7 +2117,13 @@ function Block({ blockId }: { blockId: number }) {
                         <span className={off ? "opacity-40" : undefined}>
                           <Icon kind="recipe" name={name} size="md" noHover />
                         </span>
-                        <span className={`min-w-0 flex-1 ${off ? "opacity-60" : ""}`}>
+                        <span
+                          className={`min-w-0 flex-1 ${off ? "opacity-60" : ""}`}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            setRowMenu({ x: e.clientX, y: e.clientY, name });
+                          }}
+                        >
                           <span
                             className={`block truncate ${off ? "line-through" : ""}`}
                             title={res?.display?.[name] ?? name}
@@ -2283,6 +2531,65 @@ function Block({ blockId }: { blockId: number }) {
             >
               <X className="size-3.5" /> Remove goal
             </CtxBtn>
+          </div>
+        </>
+      )}
+
+      {/* Recipe-row context menu — sub-block (#7) actions on the row's name */}
+      {rowMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setRowMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setRowMenu(null);
+            }}
+          />
+          <div
+            className="fixed z-50 min-w-48 overflow-hidden rounded-md border border-border bg-background py-1 shadow-xl"
+            style={{ left: rowMenu.x, top: rowMenu.y }}
+          >
+            <div className="flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
+              <Icon kind="recipe" name={rowMenu.name} size="sm" noTitle noHover />
+              <span className="truncate">{res?.display?.[rowMenu.name] ?? rowMenu.name}</span>
+            </div>
+            {recipeGroups[rowMenu.name] == null ? (
+              <>
+                <CtxBtn
+                  onClick={() => {
+                    createGroupFromRow(rowMenu.name);
+                    setRowMenu(null);
+                  }}
+                >
+                  <Layers className="size-3.5" /> New sub-block from this row
+                </CtxBtn>
+                {rowGroups.map((g) => (
+                  <CtxBtn
+                    key={g.id}
+                    onClick={() => {
+                      markEdited();
+                      const joined = joinGroup(recipes, recipeGroups, rowMenu.name, g.id);
+                      setRecipes(joined.recipes);
+                      setRecipeGroups(joined.assign);
+                      setRowMenu(null);
+                    }}
+                  >
+                    <Layers className="size-3.5 text-primary/70" /> Add to “{g.name}”
+                  </CtxBtn>
+                ))}
+              </>
+            ) : (
+              <CtxBtn
+                onClick={() => {
+                  removeFromGroup(rowMenu.name);
+                  setRowMenu(null);
+                }}
+              >
+                <X className="size-3.5" /> Remove from “
+                {rowGroups.find((g) => g.id === recipeGroups[rowMenu.name])?.name ?? "sub-block"}”
+              </CtxBtn>
+            )}
           </div>
         </>
       )}

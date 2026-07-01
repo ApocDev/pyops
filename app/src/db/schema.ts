@@ -354,6 +354,11 @@ export type BlockData = {
   // they contribute no flows or machine counts. Used to A/B two recipes or to
   // stage future rows without deleting them.
   disabledRecipes?: string[];
+  // Sub-blocks (#7): named, collapsible groups of recipe rows — display-only,
+  // the solve is untouched. `recipeGroups` maps recipe → group id; members are
+  // kept contiguous in `recipes` order (see lib/row-groups.ts).
+  rowGroups?: { id: number; name: string }[];
+  recipeGroups?: Record<string, number>;
   dispositions?: Record<string, string>;
   machines?: Record<string, string>; // recipe → chosen machine
   fuels?: Record<string, string>; // recipe → chosen fuel
