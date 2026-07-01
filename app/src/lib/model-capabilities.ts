@@ -10,7 +10,7 @@ export type ModelCapability = {
 export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
   // Claude's default window over the API is 200k; the 1M context is a beta we don't
   // request yet (no context-1m beta header), so 200k is the honest usable size.
-  // Bump back to 1M once that beta is wired up — see the tracked follow-up issue.
+  // Bump back to 1M once that beta is wired up — see #72.
   "~anthropic/claude-sonnet-latest": { contextWindow: 200_000, reasoningEffort: true },
   "~anthropic/claude-opus-latest": { contextWindow: 200_000, reasoningEffort: true },
   "~google/gemini-flash-latest": { contextWindow: 1_048_576, reasoningEffort: true },
