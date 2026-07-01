@@ -281,7 +281,7 @@ export const recipeOptionsBatch = tool({
 
 export const recipeInfo = tool({
   description:
-    "Full detail for one recipe: exact ingredients/products with amounts, energy/time, category, cost, and unlock state (the techs that unlock it, their science-pack cost, and any TURD master›choice it belongs to). Use after recipeOptions to inspect a specific candidate.",
+    "Full detail for one recipe: exact ingredients/products with amounts, energy/time, category, cost, and unlock state (the techs that unlock it, their science-pack cost, and any TURD master›choice it belongs to). `turd` lists the FULL branch set of every TURD master that affects this recipe — whether the recipe is a branch's new unlock OR a base recipe some branch replaces — so you see all sibling choices, not just this one. Use after recipeOptions to inspect a specific candidate.",
   inputSchema: z.object({
     recipe: z.string().describe("Internal recipe name, e.g. 'molten-iron-01'"),
   }),
@@ -328,6 +328,8 @@ export const recipeInfo = tool({
         probability: c.probability,
       })),
       unlocks,
+      // Full branch set of every TURD master touching this recipe (empty if none).
+      turd: q.turdChoicesLookup({ recipe }),
     };
   },
 });
@@ -503,6 +505,27 @@ export const availableTurds = tool({
   execute: async ({ recipes }) => {
     const q = await lib();
     return { opportunities: q.turdOpportunities(recipes) };
+  },
+});
+
+export const turdChoices = tool({
+  description:
+    "Every choice a Pyanodons TURD upgrade offers — the whole mutually-exclusive branch set for a master, each branch's description, the recipes it swaps (old→new) or newly UNLOCKS, its always-on modules, and which branch (if any) is selected. Unlike availableTurds/turdConsistency (which only see branches that REPLACE a recipe), this also surfaces branches that grant a brand-new recipe. Use it whenever the user asks what a TURD gives, which choice is best, or to compare branches. Look up by master tech name, or pass a recipe or good to find the master(s) affecting it. Read each branch's description — it often carries flavor/consequences that matter (e.g. a choice that makes a creature explode).",
+  inputSchema: z.object({
+    master: z
+      .string()
+      .optional()
+      .describe("TURD master tech name (e.g. 'moondrop-upgrade') or one of its sub-tech names"),
+    recipe: z.string().optional().describe("A recipe to find the TURD master(s) that affect it"),
+    good: z
+      .string()
+      .optional()
+      .describe("A good — finds TURD masters on recipes that produce or consume it"),
+  }),
+  execute: async ({ master, recipe, good }) => {
+    if (!master && !recipe && !good) return { error: "pass one of master, recipe, or good" };
+    const q = await lib();
+    return { masters: q.turdChoicesLookup({ master, recipe, good }) };
   },
 });
 
@@ -1122,6 +1145,7 @@ export const agentTools = {
   byproductSinks,
   turdConsistency,
   availableTurds,
+  turdChoices,
   chainStatus,
   submitBlock,
   reviseBlock,

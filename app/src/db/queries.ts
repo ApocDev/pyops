@@ -43,6 +43,7 @@ import {
   type BlockData,
   type BeaconConfig,
 } from "./schema.ts";
+import { stripRichText } from "../lib/factorio-text.ts";
 import type {
   BeltProto,
   InserterProto,
@@ -470,42 +471,175 @@ export function listTurdUpgrades() {
       .map((s) => [s.masterTech, s.subTech]),
   );
   return masters
-    .map((m) => {
-      const subs = turdSubTechs(m.name).map((sub) => {
-        const tech = db.select().from(technologies).where(eq(technologies.name, sub)).get();
-        const unlocks = db
-          .select({ recipe: techUnlocks.recipe })
-          .from(techUnlocks)
-          .where(eq(techUnlocks.technology, sub))
-          .all()
-          .map((u) => u.recipe);
-        const mods = turdModulesOf(sub);
-        return {
-          name: sub,
-          display: tech?.display ?? sub,
-          unlocks: unlocks.filter((r) => !mods.some((mod) => mod.name === r)),
-          modules: mods.map((mod) => ({
-            name: mod.name,
-            effSpeed: mod.effSpeed,
-            effProductivity: mod.effProductivity,
-            effConsumption: mod.effConsumption,
-          })),
-        };
-      });
-      return {
-        name: m.name,
-        display: m.display ?? m.name,
-        science: db
-          .select({ name: techIngredients.name, amount: techIngredients.amount })
-          .from(techIngredients)
-          .where(eq(techIngredients.technology, m.name))
-          .all()
-          .map((s) => ({ ...s, display: compDisplay("item", s.name) ?? s.name })),
-        subTechs: subs,
-        selected: selections.get(m.name) ?? null,
-      };
-    })
+    .map((m) => ({
+      name: m.name,
+      display: m.display ?? m.name,
+      description: stripRichText(m.description),
+      science: db
+        .select({ name: techIngredients.name, amount: techIngredients.amount })
+        .from(techIngredients)
+        .where(eq(techIngredients.technology, m.name))
+        .all()
+        .map((s) => ({ ...s, display: compDisplay("item", s.name) ?? s.name })),
+      subTechs: turdSubTechs(m.name).map(buildTurdSub),
+      selected: selections.get(m.name) ?? null,
+    }))
     .filter((m) => m.subTechs.length > 0); // respec helpers are turd-flagged but offer no choices
+}
+
+/** One selectable TURD branch, fully described: the recipes it swaps (old→new) or
+ * newly unlocks, its always-on modules, and its localised description. Shared by
+ * the /turd board, the assistant's turdChoices tool, and recipeInfo. */
+export type TurdChange = {
+  from: string | null; // the base recipe this branch replaces, or null for a pure new unlock
+  fromDisplay: string | null;
+  to: string; // the recipe the branch grants
+  toDisplay: string;
+  // true when `to` crafts a building (a crafting machine). The choice's module is
+  // inserted INTO that building to boost what it produces — it does NOT apply to the
+  // building's own construction recipe, so throughput math must skip the bonus here.
+  buildsBuilding: boolean;
+};
+
+/** Does this recipe produce a building (a crafting machine)? Used to decide whether
+ * a TURD choice's module applies to the recipe's throughput. */
+function recipeBuildsBuilding(recipe: string): boolean {
+  const prods = db
+    .select({ name: recipeProducts.name })
+    .from(recipeProducts)
+    .where(eq(recipeProducts.recipe, recipe))
+    .all()
+    .map((p) => p.name);
+  if (!prods.length) return false;
+  return !!db
+    .select({ n: craftingMachines.name })
+    .from(craftingMachines)
+    .where(inArray(craftingMachines.name, prods))
+    .get();
+}
+
+function buildTurdSub(sub: string) {
+  const tech = db.select().from(technologies).where(eq(technologies.name, sub)).get();
+  const mods = turdModulesOf(sub);
+  const modNames = new Set(mods.map((mod) => mod.name));
+  const unlocks = db
+    .select({ recipe: techUnlocks.recipe })
+    .from(techUnlocks)
+    .where(eq(techUnlocks.technology, sub))
+    .all()
+    .map((u) => u.recipe)
+    .filter((r) => !modNames.has(r)); // hide the hidden <sub>-module recipes
+  // old→new swaps this branch performs, keyed by the new recipe it grants
+  const oldByNew = new Map(
+    db
+      .select()
+      .from(turdReplacements)
+      .where(eq(turdReplacements.subTech, sub))
+      .all()
+      .map((r) => [r.newRecipe, r.oldRecipe] as const),
+  );
+  const changes: TurdChange[] = unlocks.map((to) => {
+    const from = oldByNew.get(to) ?? null;
+    return {
+      from,
+      fromDisplay: from ? (getRecipe(from)?.display ?? from) : null,
+      to,
+      toDisplay: getRecipe(to)?.display ?? to,
+      buildsBuilding: recipeBuildsBuilding(to),
+    };
+  });
+  return {
+    name: sub,
+    display: tech?.display ?? sub,
+    description: stripRichText(tech?.description),
+    unlocks,
+    changes,
+    modules: mods.map((mod) => ({
+      name: mod.name,
+      effSpeed: mod.effSpeed,
+      effProductivity: mod.effProductivity,
+      effConsumption: mod.effConsumption,
+    })),
+  };
+}
+
+/** Full detail for one TURD master: every mutually-exclusive branch it offers,
+ * each branch's description + changes + modules, and the current selection. Unlike
+ * turdOpportunities/turdConsistency (which key off recipe *replacements*), this
+ * walks the tech-prerequisite graph, so it also surfaces branches that unlock a
+ * BRAND-NEW recipe rather than swapping an existing one. Returns null for a
+ * non-TURD tech or a master with no selectable choices. */
+export function turdMasterDetail(masterName: string) {
+  const m = db.select().from(technologies).where(eq(technologies.name, masterName)).get();
+  if (!m?.isTurd) return null;
+  const subs = turdSubTechs(masterName);
+  if (!subs.length) return null;
+  const selected = getTurdSelections().get(masterName) ?? null;
+  return {
+    master: masterName,
+    masterDisplay: m.display ?? masterName,
+    description: stripRichText(m.description),
+    selected,
+    choices: subs.map((sub) => {
+      const s = buildTurdSub(sub);
+      return { ...s, selected: s.name === selected };
+    }),
+  };
+}
+
+/** Masters a recipe touches: it's a TURD-gated unlock (the recipe a branch grants)
+ * or a base recipe some branch replaces. */
+function turdMastersForRecipe(recipe: string): string[] {
+  const out = new Set<string>();
+  for (const u of recipeLockState(recipe)) if (u.isTurdSub && u.master) out.add(u.master);
+  for (const r of db
+    .select()
+    .from(turdReplacements)
+    .where(eq(turdReplacements.oldRecipe, recipe))
+    .all()) {
+    const mo = turdMasterOf(r.subTech);
+    if (mo) out.add(mo.name);
+  }
+  return [...out];
+}
+
+/** Masters relevant to a good: resolve every recipe that produces or consumes it,
+ * then map those to their TURD masters. */
+function turdMastersForGood(good: string): string[] {
+  const recs = new Set<string>([
+    ...db
+      .select({ r: recipeProducts.recipe })
+      .from(recipeProducts)
+      .where(eq(recipeProducts.name, good))
+      .all()
+      .map((x) => x.r),
+    ...db
+      .select({ r: recipeIngredients.recipe })
+      .from(recipeIngredients)
+      .where(eq(recipeIngredients.name, good))
+      .all()
+      .map((x) => x.r),
+  ]);
+  const out = new Set<string>();
+  for (const r of recs) for (const mn of turdMastersForRecipe(r)) out.add(mn);
+  return [...out];
+}
+
+/** Resolve TURD masters from a master tech name (or its sub-tech), a recipe, or a
+ * good, and return full detail for each. Drives the assistant's turdChoices tool. */
+export function turdChoicesLookup(opts: { master?: string; recipe?: string; good?: string }) {
+  const masters = new Set<string>();
+  if (opts.master) {
+    const direct = db.select().from(technologies).where(eq(technologies.name, opts.master)).get();
+    if (direct?.isTurd) masters.add(opts.master);
+    else {
+      const mo = turdMasterOf(opts.master); // maybe they passed a sub-tech name
+      if (mo) masters.add(mo.name);
+    }
+  }
+  if (opts.recipe) for (const mn of turdMastersForRecipe(opts.recipe)) masters.add(mn);
+  if (opts.good) for (const mn of turdMastersForGood(opts.good)) masters.add(mn);
+  return [...masters].map(turdMasterDetail).filter((d) => d !== null);
 }
 
 /** The hidden modules a sub-tech's choice inserts (named <sub>-module[-mk0N]). */

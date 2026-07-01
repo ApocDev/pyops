@@ -8,6 +8,13 @@
       "when": 1782787858823,
       "tag": "0000_salty_pixie",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1782914917684,
+      "tag": "0001_add_tech_description",
+      "breakpoints": true
     }
   ]
 }

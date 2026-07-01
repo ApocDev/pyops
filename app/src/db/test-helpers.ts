@@ -1,34 +1,19 @@
 /**
  * Test-only helpers: spin up a throwaway SQLite database with the REAL schema.
  *
- * The schema DDL is derived straight from `schema.ts` via drizzle-kit's
- * programmatic api, so fixtures never drift from the production schema — change a
- * column and the next test run builds it.
+ * The db is provisioned by applying the bundled drizzle migrations — the exact
+ * same path production uses (`server/provision.ts`) — so a test db is byte-for-byte
+ * what a real install gets, incremental ALTER migrations and all. Keep migrations
+ * in sync with `schema.ts` via `vp run db:generate` and fixtures never drift.
  * Not imported by app code; only `*.test.ts` files use it.
  */
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { generateSQLiteDrizzleJson, generateSQLiteMigration } from "drizzle-kit/api";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.ts";
-
-type MigrationSnapshot = Parameters<typeof generateSQLiteMigration>[0];
-
-let cached: Promise<string[]> | null = null;
-/** CREATE-TABLE statements for the whole schema, generated once per run. */
-function schemaStatements(): Promise<string[]> {
-  if (!cached) {
-    cached = (async () => {
-      const empty = (await generateSQLiteDrizzleJson({})) as unknown as MigrationSnapshot;
-      const full = (await generateSQLiteDrizzleJson(
-        schema as unknown as Record<string, unknown>,
-      )) as unknown as MigrationSnapshot;
-      return generateSQLiteMigration(empty, full);
-    })();
-  }
-  return cached;
-}
+import { migrateConnection } from "../server/provision.ts";
 
 export type TestDb = {
   /** raw better-sqlite3 handle, schema applied */
@@ -39,13 +24,12 @@ export type TestDb = {
   cleanup: () => void;
 };
 
-/** Create a fresh temp-file database with every table from `schema.ts`. */
+/** Create a fresh temp-file database migrated to the current schema. */
 export async function makeTestDb(): Promise<TestDb> {
-  const stmts = await schemaStatements();
   const dir = mkdtempSync(join(tmpdir(), "pyops-test-"));
   const file = join(dir, "test.db");
   const db = new Database(file);
-  for (const s of stmts) db.exec(s);
+  migrateConnection(drizzle(db, { schema }));
   return {
     db,
     file,
