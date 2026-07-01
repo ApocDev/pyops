@@ -68,9 +68,10 @@ Releases are driven by **conventional commits** via
 `fix:` → patch, `feat!:`/`BREAKING CHANGE:` → major.
 
 1. Push conventional commits to `main`.
-2. release-please opens/maintains a **release PR** that bumps the version (kept in
-   lockstep across `app/package.json`, `app/src-tauri/Cargo.toml`, and
-   `tauri.conf.json` — **don't hand-edit these**) and updates the changelog.
+2. release-please opens/maintains a **release PR** that bumps the version — one
+   version for the whole product, kept in lockstep across `version.txt`,
+   `app/package.json`, `app/src-tauri/tauri.conf.json`, `app/src-tauri/Cargo.toml`,
+   and the mod's `mod/info.json` (**don't hand-edit these**) — and the changelog.
 3. Merging the release PR creates the tag + GitHub release; the build matrix then
    builds, signs, and attaches each platform's bundles, and a final job aggregates a
    signed `latest.json` onto the release.
@@ -82,12 +83,14 @@ matching x64 Node sidecar), since GitHub's Intel `macos-13` runners are deprecat
 and queue-starved. The tauri CLI is invoked directly (`tauri build`), not via
 `tauri-action`, which assumes an npm/pnpm script runner rather than `vp`.
 
-Config: `release-please-config.json` + `.release-please-manifest.json`; workflow:
+Config: `release-please-config.json` + `.release-please-manifest.json` — a single
+package rooted at the repo (`.`), so all the version files above (across `app/` and
+`mod/`) are reachable as plain `extra-files` paths, and the action emits unprefixed
+outputs (`tag_name`, `releases_created`) that the build gate reads. Workflow:
 `.github/workflows/release.yml` (release-please job → gated build matrix →
-`latest-json` aggregate job, all one workflow so no PAT is needed). Manifest mode
-exposes per-package outputs (`app--tag_name`) plus a top-level `releases_created`,
-which the build gate reads. `workflow_dispatch` with a `tag` input rebuilds an
-existing release's assets (recovery / fill-in) by building `main`; without a tag
+`latest-json` aggregate job, all one workflow so no PAT is needed).
+`workflow_dispatch` with a `tag` input rebuilds an existing release's assets
+(recovery / fill-in) by building `main`; without a tag
 it's a build-only smoke test.
 
 ## Self-update

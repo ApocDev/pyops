@@ -87,8 +87,9 @@ function serveIconsDev() {
 const config = defineConfig({
   // generated/data files: TanStack Router output, sqlite db, icon atlas + manifest.
   // `e2e/**` is a standalone Playwright package (own deps + tooling) — not ours.
-  // `CHANGELOG.md` + `src-tauri/tauri.conf.json` are owned by release-please, which
-  // re-serializes them its own way each release — don't let oxfmt fight it.
+  // release-please re-serializes `src-tauri/tauri.conf.json` its own way each release,
+  // so don't let oxfmt fight it (the changelog it owns lives at the repo root, outside
+  // this app/ scope).
   fmt: {
     ignorePatterns: [
       "src/routeTree.gen.ts",
@@ -96,7 +97,6 @@ const config = defineConfig({
       "icon-data/**",
       "drizzle/**",
       "e2e/**",
-      "CHANGELOG.md",
       "src-tauri/tauri.conf.json",
     ],
   },
@@ -107,7 +107,6 @@ const config = defineConfig({
       "icon-data/**",
       "drizzle/**",
       "e2e/**",
-      "CHANGELOG.md",
       "src-tauri/tauri.conf.json",
     ],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],

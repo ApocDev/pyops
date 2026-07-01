@@ -23,11 +23,11 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    # Manifest mode prefixes per-package outputs with the path: app--tag_name, etc.
-    # `releases_created` is the top-level "did anything get released this run" flag.
+    # The one package is rooted at the repo (path "."), so the action emits
+    # unprefixed outputs. `releases_created` is the top-level "anything released" flag.
     outputs:
       release_created: ${{ steps.rp.outputs.releases_created }}
-      tag_name: ${{ steps.rp.outputs['app--tag_name'] }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: rp
