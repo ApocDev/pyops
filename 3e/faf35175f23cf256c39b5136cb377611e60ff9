@@ -1,0 +1,33 @@
+mod/info.json
+  s_ad8974a3b278d5::t_e90408bdb58a71 3
+version.txt
+  s_ad8974a3b278d5::t_579634081e5797 1
+.github/workflows/release.yml
+  s_ad8974a3b278d5::t_ca422432cc5f92 26-27,30
+.release-please-manifest.json
+  s_ad8974a3b278d5::t_f810b03e206d4d 2
+AGENTS.md
+  s_ad8974a3b278d5::t_852bbde151ea80 79-82
+app/vite.config.ts
+  s_ad8974a3b278d5::t_f4a0bee97aeb0c 90-92
+docs/desktop.md
+  s_ad8974a3b278d5::t_3f6ee062dc6e7b 71-74,86-89,91-93
+release-please-config.json
+  s_ad8974a3b278d5::t_a6eaf2db3447a8 5-6,8-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "3efaf35175f23cf256c39b5136cb377611e60ff9",
+  "prompts": {},
+  "sessions": {
+    "s_ad8974a3b278d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
