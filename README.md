@@ -214,15 +214,20 @@ New-Item -ItemType Junction -Path "$env:APPDATA\Factorio\mods\pyops" -Target "$P
 Or just copy the `mod` folder into the mods folder and rename the copy to `pyops`
 (you'll need to re-copy after updates).
 
-**2. Launch Factorio with `--enable-lua-udp 37657`** — PyOps' bridge transport.
-(Steam: right-click PyOps' game → Properties → Launch Options.)
+**2. Launch Factorio.** Easiest: hit **Launch Factorio** in PyOps' **Live bridge**
+card — it starts the game with `--enable-lua-udp` already set to a free port. For a
+Steam copy it launches through Steam (so cloud saves, overlay, and achievements keep
+working), falling back to a direct launch only if Steam isn't reachable. To start
+the game yourself, add `--enable-lua-udp 37658` (Steam: right-click PyOps' game →
+Properties → Launch Options). That port is the socket Factorio **binds for itself**,
+so it must be a _different_ free port than the app's bridge port (`37657`) — the two
+can't share one loopback UDP port, or Factorio fails to open its socket with
+"Address already in use". Leave the mod's **PyOps bridge UDP port** at the app's
+port (`37657`).
 
-**3. Enable the bridge in-game** in the **per-player mod settings**
-(Settings → Mod settings → Per player).
-
-With PyOps running, the in-game panel connects automatically. From there you get
-the production-block view, in-world locate, and live sync of your research, TURD
-picks, and placed machines back into the planner.
+With PyOps running, the in-game panel connects automatically — there's no bridge
+toggle to flip. From there you get the production-block view, in-world locate, and
+live sync of your research, TURD picks, and placed machines back into the planner.
 
 ---
 
@@ -236,7 +241,7 @@ Set these in `app/.env.local` (or the environment). All are optional.
 | `FACTORIO_DATA_DIR`  | `~/.factorio`                                      | Factorio user data (mods, `script-output`).                                                           |
 | `OPENROUTER_API_KEY` | —                                                  | AI **Assistant** key. Optional — set it here _or_ in **Settings → Assistant** (env wins).             |
 | `PYOPS_AGENT_MODEL`  | `~anthropic/claude-sonnet-latest`                  | Any OpenRouter model id. Optional — set it here, per chat, or in **Settings → Assistant** (env wins). |
-| `PYOPS_BRIDGE_PORT`  | `37657`                                            | UDP port for the Factorio bridge (must match the `--enable-lua-udp` port).                            |
+| `PYOPS_BRIDGE_PORT`  | `37657`                                            | UDP port the app's bridge listens on (mod's send target). Use a _different_ port for `--enable-lua-udp`. |
 | `DATABASE_URL`       | active project's file (else `projects/default.db`) | Override the local SQLite file.                                                                       |
 
 ---

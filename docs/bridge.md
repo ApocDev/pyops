@@ -61,10 +61,20 @@ on any page. The same tab hosts the companion-mod installer (see below).
 ## Transport requirements
 
 The mod uses Factorio's `helpers.send_udp` / `recv_udp`, which the engine only
-exposes when the game is launched with `--enable-lua-udp <port>` (default 37657).
-The bridge also has to be enabled per-player in the mod settings
-(`pyops-bridge-enabled`). The loopback-only socket means the game and the app must
-run on the same machine.
+exposes when the game is launched with `--enable-lua-udp <port>`. That `<port>` is
+the socket **Factorio binds for itself**, so it must be a _different_ free port
+than the app's bridge port (`PYOPS_BRIDGE_PORT`, default `37657`) — two processes
+can't bind the same loopback UDP port, and Factorio otherwise fails at startup with
+`Opening Lua UDP Socket failed: Binding IPv4 socket failed: Address already in use`.
+Use e.g. `--enable-lua-udp 37658` and leave the mod's `pyops-bridge-port` setting at
+the app's port; the mod always sends to that app port, and the app replies to
+whatever source port Factorio's socket used. The app's **Live bridge** card has a
+**Launch Factorio** button that sets this flag automatically (picking a free port
+next to the app's), so users normally don't touch it by hand. There's no enable
+toggle — the mod runs the bridge automatically whenever the game was launched with
+the flag, and disables itself for the session (with an in-panel hint) if the flag is
+absent. The loopback-only socket means the game and the app must run on the same
+machine.
 
 ## The wire contract
 
@@ -94,8 +104,7 @@ shapes change. Each side reports its version and warns when the other disagrees.
   toggles (so it renders just belts, just inserters, or both), and reusing the web
   Logistics math and picks rather than recomputing in Lua.
 - `combinator.lua` — the in-game request-combinator planner.
-- `data.lua`, `settings.lua` — prototypes and the per-player settings (bridge
-  enabled, port, debug logging).
+- `data.lua`, `settings.lua` — prototypes and the per-player bridge port setting.
 
 It's verified hands-on in-game; there's no automated test harness for the Lua side.
 After editing anything under `mod/`, reload it in-game. Once a save is already
