@@ -46,8 +46,9 @@ import {
 import { bridgeLocateFn } from "../server/bridge/fns";
 import { tasksForBlockFn } from "../server/tasks.ts";
 import type { Disposition } from "../solver/block";
-import type { Goal } from "../db/schema";
+import type { Goal, RateUnit } from "../db/schema";
 import { normalizeBlockData } from "../lib/goals";
+import { formatQty } from "../lib/format";
 import {
   groupMembers,
   groupNet,
@@ -191,62 +192,88 @@ function BlockTasks({ blockId }: { blockId: number }) {
 }
 const rowBtn = "flex w-full items-center gap-1.5 rounded px-2 py-1 text-left hover:bg-muted";
 const craftableStyle = "border border-dashed border-amber-400/60 bg-amber-500/10 text-amber-200";
-const num = (n: number) => (Math.abs(n) >= 100 ? n.toFixed(0) : n.toFixed(2));
+const num = formatQty; // adaptive precision (#74) — shared with every other table
 // goal-rate display: enough precision to be exact, trailing zeros trimmed
 const fmtRate = (n: number) => {
   if (!Number.isFinite(n) || n === 0) return "0";
+  if (Math.abs(n) < 0.0001) return formatQty(n); // below toFixed(4) — sig-figs, never "0"
   const s = Math.abs(n) >= 1000 ? n.toFixed(0) : n.toFixed(4);
   return s.replace(/\.?0+$/, "");
 };
 
 /** A rate shown as plain text ("1.0623/s") that turns into an input on click;
  * commits on blur/Enter, reverts on Escape. Read-only mode just renders the text. */
+/** Rate windows (#10): the display/input unit of a goal. The STORED rate stays
+ * per-second (the solver's canonical unit) — these only convert at the UI edge. */
+const RATE_UNITS: RateUnit[] = ["s", "min", "h"];
+const UNIT_FACTOR: Record<RateUnit, number> = { s: 1, min: 60, h: 3600 };
+
 function EditableRate({
   value,
+  unit = "s",
   readOnly,
   onChange,
+  onUnitChange,
 }: {
+  /** per-second rate (canonical) */
   value: number;
+  /** display/input window — the value shown is `value × factor` ("60/min" = 1/s) */
+  unit?: RateUnit;
   readOnly?: boolean;
   onChange: (v: number) => void;
+  onUnitChange?: (u: RateUnit) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const factor = UNIT_FACTOR[unit];
+  const cycleUnit = () =>
+    onUnitChange?.(RATE_UNITS[(RATE_UNITS.indexOf(unit) + 1) % RATE_UNITS.length]);
   if (!editing) {
     return (
-      <button
-        onClick={() => {
-          if (readOnly) return;
-          setDraft(String(value));
-          setEditing(true);
-        }}
-        title={readOnly ? "sized by a locked input" : "click to edit the goal rate"}
-        className={`tabular-nums ${readOnly ? "text-muted-foreground" : "hover:text-sky-300"}`}
-      >
-        {fmtRate(value)}
-        <span className="text-muted-foreground">/s</span>
-      </button>
+      <span className="tabular-nums">
+        <button
+          onClick={() => {
+            if (readOnly) return;
+            setDraft(fmtRate(value * factor));
+            setEditing(true);
+          }}
+          title={readOnly ? "sized by a locked input" : "click to edit the goal rate"}
+          className={readOnly ? "text-muted-foreground" : "hover:text-sky-300"}
+        >
+          {fmtRate(value * factor)}
+        </button>
+        <button
+          onClick={cycleUnit}
+          title="rate window — click to cycle per second / minute / hour"
+          className="text-muted-foreground hover:text-sky-300"
+        >
+          /{unit}
+        </button>
+      </span>
     );
   }
   const commit = () => {
     const n = Number(draft);
-    if (Number.isFinite(n) && n >= 0) onChange(n);
+    if (Number.isFinite(n) && n >= 0) onChange(n / factor);
     setEditing(false);
   };
   return (
-    <input
-      autoFocus
-      type="text"
-      inputMode="decimal"
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") commit();
-        if (e.key === "Escape") setEditing(false);
-      }}
-      className="w-16 rounded border border-sky-400/60 bg-muted px-1 py-0.5 text-center text-sm"
-    />
+    <span className="inline-flex items-center gap-0.5">
+      <input
+        autoFocus
+        type="text"
+        inputMode="decimal"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") setEditing(false);
+        }}
+        className="w-16 rounded border border-sky-400/60 bg-muted px-1 py-0.5 text-center text-sm"
+      />
+      <span className="text-sm text-muted-foreground">/{unit}</span>
+    </span>
   );
 }
 const fmtW = (w: number) =>
@@ -795,6 +822,15 @@ function Block({ blockId }: { blockId: number }) {
   const setGoalRate = (name: string, r: number) => {
     markEdited();
     setGoals((gs) => gs.map((g) => (g.name === name ? { ...g, rate: r } : g)));
+  };
+  // Rate window (#10): a display/input unit per goal — the stored rate stays /s.
+  const setGoalUnit = (name: string, unit: RateUnit) => {
+    markEdited();
+    setGoals((gs) =>
+      gs.map((g) =>
+        g.name === name ? { ...g, ...(unit === "s" ? { unit: undefined } : { unit }) } : g,
+      ),
+    );
   };
   // Spin up a fresh block that produces `name` (e.g. to supply an import), sized
   // to the rate this block needs, and open it. Recipes are left for the user to
@@ -1484,13 +1520,16 @@ function Block({ blockId }: { blockId: number }) {
             <p className="mt-1">
               A block can target several products at once — each goal has a{" "}
               <span className="text-foreground">target rate</span> and the block is sized so that
-              good comes out at exactly that rate. Click a goal&apos;s rate to edit it. So a single
-              &quot;logistics&quot; block can make belts @10/s, undergrounds @4/s and splitters @2/s
-              side by side. The first goal <span className="text-blue-300">names the block</span>,
-              anchors the scale tools, and is the default icon;{" "}
-              <Star className="inline size-3.5 text-foreground" /> moves a goal to the front. Click
-              the icon next to the block&apos;s name to pick any item or fluid as its icon instead.
-              A good you don&apos;t target isn&apos;t a goal — it falls out as a byproduct (export).
+              good comes out at exactly that rate. Click a goal&apos;s rate to edit it, and click
+              its unit to cycle <span className="text-foreground">/s → /min → /h</span> — enter
+              science as 10/min or a slow bootstrap as 0.5/h; the unit sticks per goal while the
+              solver works in per-second underneath. So a single &quot;logistics&quot; block can
+              make belts @10/s, undergrounds @4/s and splitters @2/s side by side. The first goal{" "}
+              <span className="text-blue-300">names the block</span>, anchors the scale tools, and
+              is the default icon; <Star className="inline size-3.5 text-foreground" /> moves a goal
+              to the front. Click the icon next to the block&apos;s name to pick any item or fluid
+              as its icon instead. A good you don&apos;t target isn&apos;t a goal — it falls out as
+              a byproduct (export).
             </p>
             <p className="mt-1">
               If your goals can&apos;t all be met at once (e.g. two goods locked to a fixed ratio by
@@ -1675,14 +1714,27 @@ function Block({ blockId }: { blockId: number }) {
                       <span className="text-sm">
                         <EditableRate
                           value={goal.rate}
+                          unit={goal.unit ?? "s"}
                           readOnly={isFirst && !!lockedInput}
                           onChange={(v) => setGoalRate(g, v)}
+                          onUnitChange={(u) => setGoalUnit(g, u)}
                         />
                       </span>
                     )}
                     {goalUnmade && (
                       <span className="flex items-center gap-0.5 text-xs font-semibold text-amber-400">
                         <AlertTriangle className="size-3" /> no recipe
+                      </span>
+                    )}
+                    {/* Rates near the solver's noise floor (flows under 1e-6/s read as
+                        zero) solve unreliably — and are usually a proxy for "just keep
+                        some around", which is a stock goal's job (#38), not a rate's. */}
+                    {!goalMissing && goal.rate !== 0 && Math.abs(goal.rate) < 1e-4 && (
+                      <span
+                        className="flex cursor-help items-center gap-0.5 text-xs font-semibold text-amber-400"
+                        title="rates this small can fall below the solver's noise floor — flows may read as zero. If the intent is 'just make/keep some', a keep-in-stock goal (planned) will express that better than a tiny rate."
+                      >
+                        <AlertTriangle className="size-3" /> very low rate
                       </span>
                     )}
                     {logiResolved && kind === "item" && !goalMissing && (
