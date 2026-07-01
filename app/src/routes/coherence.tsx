@@ -20,7 +20,7 @@ export const Route = createFileRoute("/coherence")({
   ),
 });
 
-const num = (n: number) => (Math.abs(n) >= 100 ? n.toFixed(0) : n.toFixed(2));
+import { formatQty as num } from "../lib/format";
 
 type End = { blockId: number; blockName: string; rate: number; role: string };
 type Link = {

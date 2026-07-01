@@ -28,7 +28,7 @@ export const Route = createFileRoute("/factory")({
   ),
 });
 
-const num = (n: number) => (Math.abs(n) >= 100 ? n.toFixed(0) : n.toFixed(2));
+import { formatQty as num } from "../lib/format";
 function timeAgo(iso: string): string {
   const sec = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
   if (sec < 60) return `${sec}s ago`;

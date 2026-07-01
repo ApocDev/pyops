@@ -27,6 +27,7 @@ import remarkGfm from "remark-gfm";
 import { Icon, IconProvider } from "#/lib/icons";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { ItemHover, RecipeHover } from "#/lib/recipe-card";
+import { formatRate } from "#/lib/format";
 import {
   aiConfigFn,
   classifyRefFn,
@@ -1210,7 +1211,7 @@ type PlanDraftData = {
   invalid?: string[];
 };
 
-const fmtRate = (r?: number | null) => (r != null ? `${+r.toFixed(r < 10 ? 2 : 1)}/s` : "");
+const fmtRate = (r?: number | null) => (r != null ? formatRate(r) : "");
 
 function refRow(label: ReactNode, items: string[] | undefined, prefer?: "recipe", warn?: boolean) {
   return items && items.length ? (

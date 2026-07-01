@@ -16,7 +16,7 @@ export const Route = createFileRoute("/whatif")({
   ),
 });
 
-const num = (n: number) => (Math.abs(n) >= 100 ? n.toFixed(0) : n.toFixed(2));
+import { formatQty as num } from "../lib/format";
 
 /** Factory what-if: the whole factory solved as one block. Set a final
  * product's rate and see the per-block scale changes needed to satisfy every

@@ -6,6 +6,7 @@ import { entityDetailFn, itemDetailFn, recipeDetailFn, techDetailFn } from "../s
 // hover cards. The rich hover is the wrapper `Icon` adds around a RawIcon.
 import { RawIcon as Icon, fmtSpoilTime } from "./icons";
 import { CursorCard, CursorHover } from "./hover";
+import { formatQty, formatRate } from "./format";
 
 /** One ingredient/product line: icon + amount + name (+ temps / probability). */
 function Comp(c: {
@@ -360,10 +361,9 @@ type RateBonus = { speed: number; prod: number };
 const compAmount = (c: RecipeComp) =>
   c.amount ?? (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0);
 
-const fmtAmount = (n: number) =>
-  Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, "");
+const fmtAmount = formatQty; // adaptive precision (#74)
 
-const fmtRate = (n: number) => `${n >= 10 ? n.toFixed(1) : n >= 1 ? n.toFixed(2) : n.toFixed(3)}/s`;
+const fmtRate = formatRate;
 
 type DiffCell = {
   kind: string;
@@ -651,8 +651,8 @@ export function ItemHover({
 
 const fmtW = (w: number) =>
   w >= 1e6 ? `${(w / 1e6).toFixed(1)} MW` : w >= 1e3 ? `${(w / 1e3).toFixed(0)} kW` : `${w} W`;
-// compact number for speeds: trim to a few significant places, no trailing zeros
-const fmtNum = (n: number) => (n >= 1 ? n.toFixed(2) : n.toFixed(3)).replace(/\.?0+$/, "");
+// compact number for speeds — the shared adaptive formatter (#74)
+const fmtNum = formatQty;
 
 /** Hover card for a placeable entity — crafting machine, mining drill, or beacon:
  * its throughput (crafting/mining speed or beacon effectivity), module slots,

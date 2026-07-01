@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Check, Copy, Star } from "lucide-react";
 import {
   aiConfigFn,
@@ -22,6 +22,13 @@ import { driftModal } from "../lib/drift-store";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { Switch } from "#/components/ui/switch.tsx";
+import {
+  formatQty,
+  getCompactNumbers,
+  setCompactNumbers,
+  subscribeNumberFormat,
+} from "../lib/format";
 
 const TABS = [
   { id: "planning", label: "Planning" },
@@ -72,6 +79,7 @@ function SettingsPage() {
         {tab === "planning" && (
           <div className={cols}>
             <PlannerCard />
+            <DisplayCard />
             <AssistantCard />
             <HorizonCard />
             <ExclusionsCard />
@@ -353,6 +361,40 @@ const PAYBACK_PRESETS = [
 /** Module auto-fill settings (YAFC's "fill modules with payback time"): rows
  * without a manual module config get the most economical module, judged by
  * the cost analysis. Short payback favors speed, long favors productivity. */
+/** Display preferences (#74): how numbers render. Per-browser (localStorage),
+ * not project data — it changes nothing about the plan, only how it reads. */
+function DisplayCard() {
+  const compact = useSyncExternalStore(subscribeNumberFormat, getCompactNumbers, () => true);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Display</CardTitle>
+      </CardHeader>
+      <div className="space-y-3 px-3 pb-3">
+        <label className="flex items-center justify-between gap-3">
+          <span>
+            Compact large numbers
+            <span className="block text-xs text-muted-foreground">
+              {compact ? (
+                <>
+                  showing {formatQty(200_000)} — toggle off for {(200_000).toLocaleString("en-US")}
+                </>
+              ) : (
+                <>showing {(200_000).toLocaleString("en-US")} — toggle on for 200K</>
+              )}
+            </span>
+          </span>
+          <Switch checked={compact} onCheckedChange={(v) => setCompactNumbers(v)} />
+        </label>
+        <p className="text-sm text-muted-foreground">
+          Rates and quantities everywhere scale their precision to the value — a 0.001/s trickle
+          shows as 0.001, never a rounded-down 0.00, and only a true zero reads as 0.
+        </p>
+      </div>
+    </Card>
+  );
+}
+
 function PlannerCard() {
   const qc = useQueryClient();
   const settings = useQuery({ queryKey: ["plannerSettings"], queryFn: () => plannerSettingsFn() });

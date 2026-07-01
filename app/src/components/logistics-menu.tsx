@@ -10,6 +10,7 @@ import {
   resolveLogistics,
 } from "../lib/logistics";
 import { X } from "lucide-react";
+import { formatQty } from "../lib/format";
 import { Icon, IconProvider } from "../lib/icons";
 import { Switch } from "#/components/ui/switch.tsx";
 import { Input } from "#/components/ui/input.tsx";
@@ -98,7 +99,7 @@ export function LogisticsPicker() {
   const resolved = resolveLogistics(d);
   const handStack = resolved.moverKind === "inserter" ? resolved.handStack : null;
   // throughput-per-option for the hover tooltips, at the current stacking
-  const fmt = (n: number) => (n >= 10 ? n.toFixed(0) : n.toFixed(1));
+  const fmt = formatQty; // adaptive precision (#74)
   const effBonuses = d.prefs.stacking ? d.bonuses : { belt: 0, inserter: 0, bulkInserter: 0 };
   const beltTip = (name: string, disp: string | null, speed: number) =>
     `${disp ?? name} (${name}) · ${fmt(beltItemsPerSecond(speed, resolved.placedStack))}/s on a full belt`;
