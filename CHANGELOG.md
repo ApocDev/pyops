@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/ApocDev/pyops/compare/v0.4.2...v0.4.3) (2026-07-01)
+
+
+### Bug Fixes
+
+* **desktop:** kill the node sidecar before self-update restart ([#61](https://github.com/ApocDev/pyops/issues/61)) ([5b502e5](https://github.com/ApocDev/pyops/commit/5b502e50e9e878e5c7c5ed879b07c139d7fe9c49))
+
 ## [0.4.2](https://github.com/ApocDev/pyops/compare/v0.4.1...v0.4.2) (2026-07-01)
 
 
