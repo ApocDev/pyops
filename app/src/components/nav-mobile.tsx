@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
-import { NAV_LINKS, SETTINGS_LINK } from "./nav-links";
+import { SETTINGS_LINK, visibleNavLinks } from "./nav-links";
 import { HorizonMenu } from "./horizon-menu";
 import { LogisticsMenu } from "./logistics-menu";
 import { BridgeIndicator } from "./bridge-indicator";
 import { ProjectSwitcher } from "./project-switcher";
+import { dataCapabilitiesFn } from "../server/factorio";
 
 // Touch-sized rows (h-12 = 48px) — comfortably tappable, unlike the dense h-10
 // desktop bar that's tuned for a mouse pointer.
@@ -19,7 +21,8 @@ const rowActive = "!text-foreground bg-muted/40 border-l-2 border-primary";
  * Rendered alongside the desktop bar in app-nav; each is gated at the same width. */
 export function NavMobile() {
   const [open, setOpen] = useState(false);
-  const links = [...NAV_LINKS, SETTINGS_LINK];
+  const caps = useQuery({ queryKey: ["dataCapabilities"], queryFn: () => dataCapabilitiesFn() });
+  const links = [...visibleNavLinks(caps.data), SETTINGS_LINK];
 
   return (
     <div className="flex flex-1 items-stretch justify-end min-[1400px]:hidden">

@@ -6,9 +6,9 @@ import { BridgeIndicator } from "./bridge-indicator";
 import { HorizonMenu } from "./horizon-menu";
 import { LogisticsMenu } from "./logistics-menu";
 import { NavMobile } from "./nav-mobile";
-import { NAV_LINKS, SETTINGS_LINK } from "./nav-links";
+import { SETTINGS_LINK, visibleNavLinks } from "./nav-links";
 import { activeRunCount, subscribeRuns } from "../lib/chat-store";
-import { modDriftFn } from "../server/factorio";
+import { dataCapabilitiesFn, modDriftFn } from "../server/factorio";
 import { driftModal } from "../lib/drift-store";
 
 /** Persistent re-entry point for the data-sync modal: a small amber chip in the
@@ -54,6 +54,7 @@ const active = "!text-foreground border-b-2 border-primary bg-muted/30";
  * bar shows from `xl` up (desktop/Steam Deck); below that it collapses to a
  * hamburger drawer (NavMobile) so it never forces the page wider than the screen. */
 export function AppNav() {
+  const caps = useQuery({ queryKey: ["dataCapabilities"], queryFn: () => dataCapabilitiesFn() });
   return (
     <nav className="flex h-10 shrink-0 items-stretch border-b border-border bg-card font-mono">
       <Link to="/" className="flex items-center gap-2 px-3 font-bold text-primary">
@@ -65,7 +66,7 @@ export function AppNav() {
           overflow and scroll sideways (notably at the 1280 Steam Deck width), so the
           hamburger drawer takes over. */}
       <div className="hidden flex-1 items-stretch min-[1400px]:flex">
-        {NAV_LINKS.map(({ to, label, icon: Icon }) => (
+        {visibleNavLinks(caps.data).map(({ to, label, icon: Icon }) => (
           <Link key={to} to={to} className={item} activeProps={{ className: `${item} ${active}` }}>
             <Icon className="size-4" /> {label}
           </Link>
