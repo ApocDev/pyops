@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/ApocDev/pyops/compare/v0.3.0...v0.4.0) (2026-07-01)
+
+
+### Features
+
+* **desktop:** show the release date in the update dialog ([#55](https://github.com/ApocDev/pyops/issues/55)) ([63135f7](https://github.com/ApocDev/pyops/commit/63135f7e2b8dae30a441b0043458b5db7cbcf174))
+
 ## [0.3.0](https://github.com/ApocDev/pyops/compare/v0.2.0...v0.3.0) (2026-07-01)
 
 
