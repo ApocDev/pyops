@@ -1,0 +1,23 @@
+mod/control.lua
+  s_b357aaf79aad49::t_f7baf66bdd014c 6-9,102-124,128,142,155,166,939,953-956,961-963,965,979-981,984-988,999-1001,1003,1009
+mod/locale/en/pyops.cfg
+  s_b357aaf79aad49::t_40825596f3072b 11,18,24
+mod/settings.lua
+  s_b357aaf79aad49::t_2704372fa662b4 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "37193d39bc38eadb770e61dee4f0accab82339ff",
+  "prompts": {},
+  "sessions": {
+    "s_b357aaf79aad49": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08799167-fce8-401e-95ad-430c2161072b",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
