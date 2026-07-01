@@ -7,6 +7,11 @@ the **Pyanodons (Py)** overhaul — like [YAFC](https://github.com/Yafc-CE/yafc-
 but in the browser, simpler, with deep in-game integration and an AI-assisted
 planner that actually understands Py's tangled recipe graph.
 
+**Just want to run it?** PyOps ships as a **cross-platform desktop app** — Linux,
+macOS, and Windows — that bundles its own runtime and self-updates, so it needs no
+toolchain. [**Download the latest release ↓**](#desktop-app) — or [run it from
+source](#setup) to hack on it.
+
 ---
 
 ## What it does
@@ -61,6 +66,25 @@ the recipe data straight from the game and (optionally) talks to a running sessi
 
 ---
 
+## Desktop app
+
+The easiest way to run PyOps is the self-contained **desktop app** — a
+[Tauri](https://tauri.app) window around the same server, bundling its own Node
+runtime so it needs no toolchain. It runs on **Linux, macOS, and Windows**, and
+**checks for updates on launch** (self-updating in place). Grab the build for your OS
+from the [Releases](https://github.com/ApocDev/pyops/releases) page:
+
+- **Linux** — `.AppImage` (`chmod +x` it and run; self-updates) or `.deb`
+- **macOS** — `.dmg`
+- **Windows** — the `-setup.exe` installer
+
+It still needs **Factorio + the Py mods** installed locally (it reads your recipe
+data via a data sync), and a fresh install starts empty — open **⚙ Settings › Game
+data** and run a sync on first launch, same as [from source](#setup) below. For how
+it's built and released, see [`docs/desktop.md`](docs/desktop.md).
+
+---
+
 ## Screenshots
 
 The **Factory** view rolls every block's imports/exports into one ledger — deficits,
@@ -88,25 +112,6 @@ and TURD upgrades.
 set, with produced-by / used-in (here: Iron plate — 14 producers, 160 consumers).
 
 ![Browse — Iron plate with its producers and consumers](docs/images/browse.png)
-
----
-
-## Desktop app
-
-PyOps also ships as a self-contained **desktop app** — a [Tauri](https://tauri.app)
-window around the same server, bundling its own Node runtime so it needs no toolchain
-to run. Grab the build for your OS from the
-[Releases](https://github.com/ApocDev/pyops/releases) page:
-
-- **Linux** — `.AppImage` (`chmod +x` it and run; self-updates) or `.deb`
-- **macOS** — `.dmg`
-- **Windows** — the `-setup.exe` installer
-
-It still needs **Factorio + the Py mods** installed locally (it reads your recipe
-data via a data sync), and a fresh install starts empty — open **⚙ Settings › Game
-data** and run a sync on first launch, same as below. Bundled builds **check for
-updates on launch** and prompt to install. For how it's built and released, see
-[`docs/desktop.md`](docs/desktop.md).
 
 ---
 

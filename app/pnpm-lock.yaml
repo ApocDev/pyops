@@ -77,9 +77,6 @@ importers:
       '@tanstack/router-plugin':
         specifier: ^1.132.0
         version: 1.168.18(@tanstack/react-router@1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@voidzero-dev/vite-plus-core@0.2.1(@types/node@22.19.21)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(typescript@6.0.3))
-      '@tauri-apps/api':
-        specifier: ^2.11.1
-        version: 2.11.1
       '@tauri-apps/plugin-process':
         specifier: ^2.3.1
         version: 2.3.1

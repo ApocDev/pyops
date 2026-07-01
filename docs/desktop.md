@@ -58,7 +58,7 @@ cd .. && vp run tauri build --bundles deb,appimage   # or dmg / nsis on mac / wi
 ### Plugins in the shell
 
 `single-instance`, `window-state` (remembers size/position), `opener` (external
-links open in the system browser), `dialog` (the update prompt), `updater`, and
+links open in the system browser), `updater` + `process` (the self-update flow), and
 `shell` (the node sidecar).
 
 ## Releases
@@ -104,15 +104,21 @@ The app updates itself from GitHub Releases.
   The updater artifact is picked explicitly per platform (AppImage / `.app.tar.gz` /
   `-setup.exe`), and the macOS `.app.tar.gz` is arch-suffixed so the two Mac builds
   don't collide.
-- On launch the desktop shell checks `releases/latest/download/latest.json` (the
-  `updater_check` command). If a newer version exists, the **web UI** pins a small
+- On launch the **web UI** checks `releases/latest/download/latest.json` via
+  `@tauri-apps/plugin-updater`'s `check()`. If a newer version exists it pins a small
   toast bottom-right that opens a changelog dialog (rendered markdown, scrollable);
-  **Install & Restart** runs `updater_install` — download with streaming progress,
-  signature-verify against the baked-in public key, install, then `app.restart()`.
-  The updater logic is Rust (`tauri-plugin-updater`); only these two commands cross
-  into JS, guarded by `window.isTauri` so the web app stays Tauri-agnostic (a
-  `?mockUpdate=` dev switch previews the toast + dialog in `vp dev`). No JS
-  `plugin-updater`/`plugin-process` — just a lazy `@tauri-apps/api` for `invoke`.
+  **Install & Restart** calls the update's `downloadAndInstall()` (streaming progress,
+  signature-verify against the baked-in public key) then `relaunch()` from
+  `@tauri-apps/plugin-process`. The plugin JS is imported **lazily behind
+  `window.isTauri`**, so the browser build never loads it and the web app stays
+  Tauri-agnostic (a `?mockUpdate=` dev switch previews the toast + dialog in `vp dev`).
+- **Why the built-in plugins, not custom commands:** the window loads the app over
+  HTTP, so Tauri treats that content as *remote* and won't let it call a command
+  without an explicit ACL grant. Custom app commands have no permission you can
+  grant to remote content — but plugin commands do, so `capabilities/default.json`
+  lists `updater:default` + `process:default` alongside the `remote.urls` rule for
+  `http://localhost:*/**`. (Hand-rolled `invoke` commands were silently ACL-denied;
+  this is the fix.)
 - Self-update rides the **AppImage / NSIS / .app** artifacts — the `.deb` does not
   self-update (use the AppImage on Linux for updates).
 
