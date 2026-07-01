@@ -458,7 +458,15 @@ function Shell() {
         onClick={() => open(b.id)}
       >
         {b.iconName && (
-          <Icon kind={(b.iconKind ?? "item") as IconKind} name={b.iconName} size="sm" noTitle />
+          // noHover: the icon just badges the block's name here — an item hover
+          // card in the nav list is noise, not information.
+          <Icon
+            kind={(b.iconKind ?? "item") as IconKind}
+            name={b.iconName}
+            size="sm"
+            noTitle
+            noHover
+          />
         )}
         <span
           className={`truncate text-sm ${b.enabled === false ? "line-through" : ""} ${healthText(b.health)}`}
@@ -563,7 +571,13 @@ function Shell() {
       return b ? (
         <div className="flex items-center gap-2 rounded border border-border bg-card px-2 py-1 text-sm shadow-lg">
           {b.iconName && (
-            <Icon kind={(b.iconKind ?? "item") as IconKind} name={b.iconName} size="sm" noTitle />
+            <Icon
+              kind={(b.iconKind ?? "item") as IconKind}
+              name={b.iconName}
+              size="sm"
+              noTitle
+              noHover
+            />
           )}
           <span className="truncate">{b.name}</span>
         </div>
@@ -689,6 +703,7 @@ function Shell() {
                   name={b.iconName}
                   size="sm"
                   noTitle
+                  noHover
                 />
               )}
               <span className={`max-w-[10rem] truncate ${b ? healthText(b.health) : ""}`}>
