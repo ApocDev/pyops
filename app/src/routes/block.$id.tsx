@@ -31,6 +31,7 @@ import {
   recipeDefaultsFn,
   saveBlockFn,
   searchAllFn,
+  setBlockEnabledFn,
   setFavoriteFuelFn,
   setFavoriteMachineFn,
   solveBlockFn,
@@ -63,6 +64,7 @@ import {
   MapPin,
   Pencil,
   Plus,
+  Power,
   Rocket,
   Star,
   Unlock,
@@ -537,6 +539,9 @@ function Block({ blockId }: { blockId: number }) {
     });
   };
   const [disp, setDisp] = useState<Record<string, Disposition>>({});
+  // Recipes toggled off (#73): kept in `recipes` but excluded from the solve. A
+  // Set for O(1) row lookups; persisted/solved as a sorted array via solveInput.
+  const [disabled, setDisabled] = useState<Set<string>>(new Set());
   const [machineSel, setMachineSel] = useState<Record<string, string>>({}); // recipe → machine
   const [fuelSel, setFuelSel] = useState<Record<string, string>>({}); // recipe → fuel
   const [moduleSel, setModuleSel] = useState<Record<string, string[]>>({}); // recipe → modules
@@ -549,12 +554,32 @@ function Block({ blockId }: { blockId: number }) {
   const [pickFuelFor, setPickFuelFor] = useState<string | null>(null); // recipe whose fuel we're choosing
   const [pickModulesFor, setPickModulesFor] = useState<string | null>(null); // recipe whose modules we're editing
   const [blockName, setBlockName] = useState("");
+  // Whole-block on/off (#73). Persisted immediately on toggle (not via the block's
+  // auto-save), like group/order changes; disabled = excluded from factory rollups.
+  const [blockEnabled, setBlockEnabled] = useState(true);
   // Until the user names a block themselves, its name tracks the primary goal's
   // display. `nameCustom` flips true once they type a name (back to false if they
   // clear it); `customDecided` makes the post-hydrate decision run only once.
   const [nameCustom, setNameCustom] = useState(false);
   const customDecided = useRef(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  // Recipe removal is a click-to-confirm: the first click on × arms the row (× →
+  // "remove?"), the second removes it. Removing loses the row's machine/fuel/module
+  // picks and it sits next to the disable toggle, so a lone misclick shouldn't destroy
+  // it. Auto-disarms after a few seconds. Holds the recipe name pending confirmation.
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const removeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestRemove = (name: string) => {
+    if (removeTimer.current) clearTimeout(removeTimer.current);
+    if (confirmRemove === name) {
+      setConfirmRemove(null);
+      drop(name);
+      return;
+    }
+    setConfirmRemove(name);
+    removeTimer.current = setTimeout(() => setConfirmRemove(null), 3000);
+  };
+  useEffect(() => () => void (removeTimer.current && clearTimeout(removeTimer.current)), []);
 
   // Load this block on mount (the editor is keyed by id, so this runs once per
   // block). Auto-save stays suppressed until `hydrated` flips.
@@ -582,11 +607,13 @@ function Block({ blockId }: { blockId: number }) {
     setGoals(normalizeBlockData(d).goals);
     setRecipes(d.recipes ?? []);
     setDisp((d.dispositions ?? {}) as Record<string, Disposition>);
+    setDisabled(new Set(d.disabledRecipes ?? []));
     setMachineSel(d.machines ?? {});
     setFuelSel(d.fuels ?? {});
     setModuleSel(d.modules ?? {});
     setBeaconSel((d.beacons ?? {}) as Record<string, BeaconConfig[]>);
     setBlockName(loaded.data.name);
+    setBlockEnabled(loaded.data.enabled ?? true);
   }, [loaded.data]);
 
   const copySetup = () => {
@@ -602,6 +629,16 @@ function Block({ blockId }: { blockId: number }) {
       return bridgeShowBlockFn({ data: blockId });
     },
   });
+  // Toggle the whole block on/off (#73). Optimistic; refreshes the sidebar + factory
+  // views (which now exclude disabled blocks). Not a block-data edit, so no markEdited.
+  const toggleBlockEnabled = () => {
+    const next = !blockEnabled;
+    setBlockEnabled(next);
+    void setBlockEnabledFn({ data: { blockId, enabled: next } }).then(() => {
+      void qc.invalidateQueries({ queryKey: ["blocks"] });
+      void qc.invalidateQueries({ queryKey: ["factory"] });
+    });
+  };
   const pickMachine = (recipe: string, m: string) => {
     markEdited();
     setMachineSel((s) => ({ ...s, [recipe]: m }));
@@ -634,6 +671,17 @@ function Block({ blockId }: { blockId: number }) {
   const cycleDispFor = (name: string) => {
     const i = DISP_CYCLE.indexOf(disp[name] ?? "auto");
     setDispFor(name, DISP_CYCLE[(i + 1) % DISP_CYCLE.length]);
+  };
+  // Toggle a recipe off/on (#73): a disabled recipe stays in the block but drops
+  // out of the solve, so its rate/machines/flows vanish until re-enabled.
+  const toggleDisabled = (name: string) => {
+    markEdited();
+    setDisabled((s) => {
+      const next = new Set(s);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
   };
   // Goals: an ordered list, primary first (goals[0] = the sizing anchor). A new
   // block's first goal is pinned to 1/s; further goals start unpinned (co-products)
@@ -692,9 +740,13 @@ function Block({ blockId }: { blockId: number }) {
   // and suppresses auto-fill for that row ("reset to auto" deletes the key)
   const modulesUsed = moduleSel;
   const beaconsUsed = Object.fromEntries(Object.entries(beaconSel).filter(([, v]) => v.length));
+  // persist disabled recipes as a sorted array, and only when non-empty, so the
+  // saved doc stays minimal and stable (no key churn from Set iteration order).
+  const disabledRecipes = [...disabled].sort();
   const solveInput = {
     goals,
     recipes,
+    ...(disabledRecipes.length ? { disabledRecipes } : {}),
     ...(hasDisp ? { dispositions: disp } : {}),
     ...(Object.keys(machineSel).length ? { machines: machineSel } : {}),
     ...(Object.keys(fuelSel).length ? { fuels: fuelSel } : {}),
@@ -737,7 +789,17 @@ function Block({ blockId }: { blockId: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, goalInfo.data, nameCustom, blockName]);
   const solve = useQuery({
-    queryKey: ["solve", goals, recipes, disp, machineSel, fuelSel, moduleSel, beaconSel],
+    queryKey: [
+      "solve",
+      goals,
+      recipes,
+      disabledRecipes,
+      disp,
+      machineSel,
+      fuelSel,
+      moduleSel,
+      beaconSel,
+    ],
     queryFn: () => solveBlockFn({ data: solveInput }),
     enabled: goals.length > 0,
     // keep the last result while a re-solve is in flight — otherwise every edit
@@ -853,6 +915,12 @@ function Block({ blockId }: { blockId: number }) {
     setFuelSel((s) => without(s) as Record<string, string>);
     setModuleSel((s) => without(s) as Record<string, string[]>);
     setBeaconSel((s) => without(s) as Record<string, BeaconConfig[]>);
+    setDisabled((s) => {
+      if (!s.has(name)) return s;
+      const next = new Set(s);
+      next.delete(name);
+      return next;
+    });
   };
 
   // When a flow has exactly one craftable recipe, skip the picker dialog and add
@@ -1031,6 +1099,22 @@ function Block({ blockId }: { blockId: number }) {
         >
           <Gamepad2 className={`size-4 ${showInGame.isPending ? "animate-pulse" : ""}`} />
         </button>
+        <button
+          onClick={toggleBlockEnabled}
+          title={
+            blockEnabled
+              ? "Disable block — keep it here but exclude it from every factory-wide total"
+              : "Enable block — count this block in the factory totals again"
+          }
+          className={`flex size-7 items-center justify-center rounded border ${blockEnabled ? "border-border text-muted-foreground hover:bg-muted hover:text-foreground" : "border-amber-500/60 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"}`}
+        >
+          <Power className="size-4" />
+        </button>
+        {!blockEnabled && (
+          <span className="rounded bg-amber-500/15 px-2 py-1 text-xs font-semibold text-amber-400">
+            disabled — excluded from factory totals
+          </span>
+        )}
         {res?.buildCost && res.buildCost.buildings.length > 0 && (
           <Sheet>
             <SheetTrigger asChild>
@@ -1677,9 +1761,10 @@ function Block({ blockId }: { blockId: number }) {
         >
           <SortableContext items={recipes} strategy={verticalListSortingStrategy}>
             {recipes.map((name) => {
+              const off = disabled.has(name); // toggled out of the solve (#73)
               const row = res?.rows?.find((r) => r.recipe === name);
               const neg = (row?.rate ?? 0) < -1e-6; // running backward — can't physically happen
-              const isUnused = unused.has(name); // pinned to 0 — nothing in the block needs it
+              const isUnused = !off && unused.has(name); // pinned to 0 — nothing in the block needs it
               // a recipe that no longer exists in the data: show it as a labelled
               // placeholder row (preserved, not silently dropped) rather than solving.
               const missingRecipe = res?.missing?.recipes.includes(name) ?? false;
@@ -1719,7 +1804,7 @@ function Block({ blockId }: { blockId: number }) {
                 <SortableRow key={name} id={name}>
                   {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
                     <div
-                      className={`${GRID} relative border-t border-border ${neg || isUnused ? "bg-destructive/10" : ""} ${isDragging ? "bg-card shadow-lg" : ""}`}
+                      className={`${GRID} relative border-t border-border ${neg || isUnused ? "bg-destructive/10" : ""} ${off ? "bg-muted/30" : ""} ${isDragging ? "bg-card shadow-lg" : ""}`}
                     >
                       <RecipeHover name={name} className="flex min-w-0 items-center gap-2">
                         <span
@@ -1731,12 +1816,21 @@ function Block({ blockId }: { blockId: number }) {
                         >
                           <GripVertical className="size-4" />
                         </span>
-                        <Icon kind="recipe" name={name} size="md" noHover />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate" title={res?.display?.[name] ?? name}>
+                        <span className={off ? "opacity-40" : undefined}>
+                          <Icon kind="recipe" name={name} size="md" noHover />
+                        </span>
+                        <span className={`min-w-0 flex-1 ${off ? "opacity-60" : ""}`}>
+                          <span
+                            className={`block truncate ${off ? "line-through" : ""}`}
+                            title={res?.display?.[name] ?? name}
+                          >
                             {res?.display?.[name] ?? name}
                           </span>
-                          {isUnused ? (
+                          {off ? (
+                            <span className="text-xs font-semibold text-muted-foreground">
+                              disabled — excluded from the solve
+                            </span>
+                          ) : isUnused ? (
                             <span className="flex items-center gap-1 text-xs font-semibold text-destructive">
                               <AlertTriangle className="size-3 shrink-0" /> not made — nothing here
                               needs it
@@ -1754,11 +1848,30 @@ function Block({ blockId }: { blockId: number }) {
                           ) : null}
                         </span>
                         <button
-                          className="text-muted-foreground hover:text-destructive"
-                          onClick={() => drop(name)}
-                          title="remove"
+                          className={
+                            off
+                              ? "text-muted-foreground/60 hover:text-foreground"
+                              : "text-muted-foreground hover:text-foreground"
+                          }
+                          onClick={() => toggleDisabled(name)}
+                          title={
+                            off
+                              ? "enable — include this recipe in the solve"
+                              : "disable — keep the recipe but exclude it from the solve"
+                          }
                         >
-                          <X className="size-3.5" />
+                          <Power className="size-3.5" />
+                        </button>
+                        <button
+                          className={`shrink-0 hover:text-destructive ${confirmRemove === name ? "font-semibold text-destructive" : "text-muted-foreground"}`}
+                          onClick={() => requestRemove(name)}
+                          title={confirmRemove === name ? "click again to remove" : "remove"}
+                        >
+                          {confirmRemove === name ? (
+                            <span className="text-xs whitespace-nowrap">remove?</span>
+                          ) : (
+                            <X className="size-3.5" />
+                          )}
                         </button>
                       </RecipeHover>
                       <div className="flex flex-wrap items-center gap-2">

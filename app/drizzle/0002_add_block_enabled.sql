@@ -1,0 +1,1 @@
+ALTER TABLE `blocks` ADD `enabled` integer DEFAULT true NOT NULL;

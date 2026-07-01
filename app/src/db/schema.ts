@@ -345,6 +345,11 @@ export type BlockData = {
   // { target, rate, extraGoals } shape.
   goals: Goal[];
   recipes: string[];
+  // Recipes present in the block but toggled off (#73): kept in `recipes` (so
+  // their machine/fuel/module choices survive) but excluded from the solve, so
+  // they contribute no flows or machine counts. Used to A/B two recipes or to
+  // stage future rows without deleting them.
+  disabledRecipes?: string[];
   dispositions?: Record<string, string>;
   machines?: Record<string, string>; // recipe → chosen machine
   fuels?: Record<string, string>; // recipe → chosen fuel
@@ -358,6 +363,10 @@ export const blocks = sqliteTable("blocks", {
   iconKind: text("icon_kind"), // item | fluid | recipe — defaults to first product
   iconName: text("icon_name"),
   data: text({ mode: "json" }).$type<BlockData>().notNull(),
+  // Whole-block on/off (#73): a disabled block still opens and solves for editing,
+  // but is excluded from every factory-wide rollup (totals, coherence, suppliers)
+  // and dimmed in the sidebar. Used to stage future blocks or park alternatives.
+  enabled: bool("enabled").notNull().default(true),
   electricityW: real("electricity_w"),
   // last solve's status (solved | relaxed | underdetermined | infeasible) so the
   // sidebar/tabs can flag a block's health without re-solving it; null until solved

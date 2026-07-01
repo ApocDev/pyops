@@ -1064,6 +1064,7 @@ export function listBlocks() {
       iconName: blocks.iconName,
       electricityW: blocks.electricityW,
       solveStatus: blocks.solveStatus,
+      enabled: blocks.enabled, // whole-block toggle (#73) — for sidebar dimming
       groupId: blocks.groupId,
       updatedAt: blocks.updatedAt,
       data: blocks.data,
@@ -1216,6 +1217,11 @@ export function deleteGroup(id: number) {
 }
 export function setBlockGroup(blockId: number, groupId: number | null) {
   db.update(blocks).set({ groupId }).where(eq(blocks.id, blockId)).run();
+}
+/** Toggle a whole block on/off (#73). Disabled blocks still open and solve for
+ * editing but are excluded from every factory-wide rollup and dimmed in the sidebar. */
+export function setBlockEnabled(blockId: number, enabled: boolean) {
+  db.update(blocks).set({ enabled }).where(eq(blocks.id, blockId)).run();
 }
 /** Persist a manual block order: write sort_order = position for each id (pass a
  * group's blocks in the desired order). listBlocks reads sort_order first. */
@@ -1416,6 +1422,7 @@ export function blocksWithFlows() {
   return db
     .select()
     .from(blocks)
+    .where(eq(blocks.enabled, true)) // disabled blocks (#73) sit out the factory what-if
     .orderBy(blocks.sortOrder, blocks.name)
     .all()
     .map((b) => ({
@@ -1442,6 +1449,7 @@ export function factoryBlocks() {
   const bs = db
     .select({ id: blocks.id, name: blocks.name })
     .from(blocks)
+    .where(eq(blocks.enabled, true)) // disabled blocks (#73) don't count factory-wide
     .orderBy(blocks.sortOrder, blocks.name)
     .all();
   return bs.map((b) => {
@@ -1498,7 +1506,7 @@ export function blockImporters(good: string): { blockId: number; blockName: stri
     .select({ blockId: blockFlows.blockId, name: blocks.name })
     .from(blockFlows)
     .innerJoin(blocks, eq(blocks.id, blockFlows.blockId))
-    .where(and(eq(blockFlows.item, good), eq(blockFlows.role, "import")))
+    .where(and(eq(blockFlows.item, good), eq(blockFlows.role, "import"), eq(blocks.enabled, true)))
     .all()
     .map((r) => ({ blockId: r.blockId, blockName: r.name }));
 }
@@ -1518,7 +1526,7 @@ export function blocksForGood(good: string) {
     })
     .from(blockFlows)
     .innerJoin(blocks, eq(blocks.id, blockFlows.blockId))
-    .where(eq(blockFlows.item, good))
+    .where(and(eq(blockFlows.item, good), eq(blocks.enabled, true)))
     .all();
   const shape = (r: (typeof rows)[number]) => ({
     blockId: r.blockId,
@@ -1554,6 +1562,7 @@ export function factoryCoherence() {
     })
     .from(blockFlows)
     .innerJoin(blocks, eq(blocks.id, blockFlows.blockId))
+    .where(eq(blocks.enabled, true)) // disabled blocks (#73) don't wire into coherence
     .all();
 
   type End = { blockId: number; blockName: string; rate: number; role: string };
@@ -1623,7 +1632,7 @@ export function goodSuppliers(): Map<
     })
     .from(blockFlows)
     .innerJoin(blocks, eq(blocks.id, blockFlows.blockId))
-    .where(inArray(blockFlows.role, ["primary", "byproduct"]))
+    .where(and(inArray(blockFlows.role, ["primary", "byproduct"]), eq(blocks.enabled, true)))
     .all();
   const m = new Map<string, { blockId: number; blockName: string; role: string }[]>();
   for (const r of rows) {
@@ -1644,6 +1653,7 @@ export function factoryTotals() {
     })
     .from(blockFlows)
     .innerJoin(blocks, eq(blocks.id, blockFlows.blockId)) // ignore orphans from deleted blocks
+    .where(eq(blocks.enabled, true)) // disabled blocks (#73) don't count factory-wide
     .groupBy(blockFlows.item, blockFlows.role)
     .all()
     .map((r) => ({ ...r, display: compDisplay(r.kind, r.item) }));
@@ -1717,6 +1727,7 @@ export function machineSufficiency() {
     })
     .from(blockMachines)
     .innerJoin(blocks, eq(blocks.id, blockMachines.blockId)) // ignore orphans
+    .where(eq(blocks.enabled, true)) // disabled blocks (#73) require no machines
     .groupBy(blockMachines.machine, blockMachines.recipe)
     .all();
   const builtRows = db.select().from(builtMachines).all();

@@ -15,6 +15,13 @@
       "when": 1782914917684,
       "tag": "0001_add_tech_description",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782933258965,
+      "tag": "0002_add_block_enabled",
+      "breakpoints": true
     }
   ]
 }

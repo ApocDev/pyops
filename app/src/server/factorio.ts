@@ -279,6 +279,7 @@ export type SolveInput = {
   // from a surplus export. goals[0] anchors naming/icon and the rate-scaling tools.
   goals: Goal[];
   recipes: string[];
+  disabledRecipes?: string[]; // recipes kept in the block but excluded from the solve (#73)
   dispositions?: Record<string, Disposition>;
   machines?: Record<string, string>; // recipe → chosen machine (else fastest)
   fuels?: Record<string, string>; // recipe → chosen fuel (else cheapest available)
@@ -302,9 +303,14 @@ export async function computeBlock(rawData: SolveInput) {
   const missing = q.blockMissingRefs(data);
   const broken = missing.recipes.length > 0 || missing.goods.length > 0;
 
+  // Disabled recipes (#73) stay in `data.recipes` but drop out of the solve, so
+  // they add no equations, boundary flows, or machine counts. A/B two recipes by
+  // disabling one; stage future rows by keeping them off until enabled.
+  const disabled = new Set(data.disabledRecipes ?? []);
   const fetched = broken
     ? ([] as NonNullable<ReturnType<typeof q.getRecipe>>[])
     : data.recipes
+        .filter((name) => !disabled.has(name))
         .map((name) => q.getRecipe(name))
         .filter((r): r is NonNullable<ReturnType<typeof q.getRecipe>> => !!r);
 
@@ -815,6 +821,12 @@ export async function computeBlock(rawData: SolveInput) {
   // display-name map for the names that appear in the result (target, recipes, flows)
   const display: Record<string, string> = {};
   for (const r of fetched) if (r.display) display[r.name] = r.display;
+  // Disabled recipes (#73) aren't in the solve, but their rows still render — map
+  // their display names too so the UI never falls back to the raw recipe id.
+  for (const name of disabled) {
+    const d = q.getRecipe(name)?.display;
+    if (d) display[name] = d;
+  }
   const itemDisp = (name: string) => q.getItem(name)?.display ?? q.getFluid(name)?.display ?? null;
   for (const name of [
     ...goalNames(data),
@@ -1850,6 +1862,13 @@ export const setBlockGroupFn = createServerFn({ method: "POST" })
   .validator((d: { blockId: number; groupId: number | null }) => d)
   .handler(async ({ data }) => {
     (await lib()).setBlockGroup(data.blockId, data.groupId);
+    return { ok: true };
+  });
+
+export const setBlockEnabledFn = createServerFn({ method: "POST" })
+  .validator((d: { blockId: number; enabled: boolean }) => d)
+  .handler(async ({ data }) => {
+    (await lib()).setBlockEnabled(data.blockId, data.enabled);
     return { ok: true };
   });
 

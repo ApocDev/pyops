@@ -37,7 +37,7 @@ import {
   setGroupOrderFn,
   setGroupParentFn,
 } from "../server/factorio";
-import { AlertTriangle, ChevronDown, ChevronRight, FolderPlus, Plus, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, FolderPlus, Plus, Power, X } from "lucide-react";
 import { Icon, IconProvider } from "../lib/icons";
 import { Input } from "#/components/ui/input.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
@@ -454,13 +454,20 @@ function Shell() {
         />
       )}
       <button
-        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        className={`flex min-w-0 flex-1 items-center gap-2 text-left ${b.enabled === false ? "opacity-45" : ""}`}
         onClick={() => open(b.id)}
       >
         {b.iconName && (
           <Icon kind={(b.iconKind ?? "item") as IconKind} name={b.iconName} size="sm" noTitle />
         )}
-        <span className={`truncate text-sm ${healthText(b.health)}`}>{b.name}</span>
+        <span
+          className={`truncate text-sm ${b.enabled === false ? "line-through" : ""} ${healthText(b.health)}`}
+        >
+          {b.name}
+        </span>
+        {b.enabled === false && (
+          <Power className="size-3 shrink-0 text-amber-400" aria-label="disabled" />
+        )}
         {healthBadge(b.health, blockHealthTip(b))}
       </button>
       <button
