@@ -340,10 +340,14 @@ export type BeaconConfig = { beacon: string; modules: string[]; count: number };
 export type Goal = { name: string; rate: number };
 
 export type BlockData = {
-  // Output goals, each a solver target. goals[0] names the block/icon and anchors the
-  // rate-scaling tools. See lib/goals.ts for the migration from the legacy
-  // { target, rate, extraGoals } shape.
+  // Output goals, each a solver target. goals[0] names the block and anchors the
+  // rate-scaling tools; it's also the DEFAULT icon source. See lib/goals.ts for the
+  // migration from the legacy { target, rate, extraGoals } shape.
   goals: Goal[];
+  // Explicit block icon (#40): any item/fluid the user picked, independent of the
+  // goals. Unset = the icon follows the first goal (the pre-#40 behavior). The
+  // resolved choice is cached in the blocks.icon_kind/icon_name columns on save.
+  icon?: { kind: string; name: string };
   recipes: string[];
   // Recipes present in the block but toggled off (#73): kept in `recipes` (so
   // their machine/fuel/module choices survive) but excluded from the solve, so

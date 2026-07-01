@@ -490,13 +490,17 @@ function CtxBtn({
 function Block({ blockId }: { blockId: number }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  // Output goals, primary first. goals[0] anchors naming/icon/sizing. A goal with a
-  // numeric rate is pinned (a solver target); rate null is an unpinned co-product.
+  // Output goals, first-listed anchors naming/sizing and is the DEFAULT icon. A goal
+  // with a numeric rate is pinned (a solver target); rate null is an unpinned co-product.
   const [goals, setGoals] = useState<Goal[]>([]);
-  const target = goals[0]?.name ?? ""; // the primary goal's good (sizing anchor)
-  const rate = goals[0]?.rate ?? 1; // the primary goal's pinned rate
+  const target = goals[0]?.name ?? ""; // the first goal's good (sizing anchor)
+  const rate = goals[0]?.rate ?? 1; // the first goal's pinned rate
   // goal-item picker dialog: null = closed, {} = adding a new goal, {replace} = changing that goal's item
   const [goalPicker, setGoalPicker] = useState<null | { replace?: string }>(null);
+  // Explicit block icon (#40): null = follow the first goal. Persisted in the block
+  // doc; the picker dialog searches items+fluids like the goal picker.
+  const [customIcon, setCustomIcon] = useState<{ kind: string; name: string } | null>(null);
+  const [iconPicker, setIconPicker] = useState(false);
   // right-click menu on a goal cell (change item / move to front / remove)
   const [goalMenu, setGoalMenu] = useState<{ x: number; y: number; name: string } | null>(null);
   // right-click context menu on a good chip (explicit actions instead of cycling)
@@ -614,6 +618,7 @@ function Block({ blockId }: { blockId: number }) {
     setBeaconSel((d.beacons ?? {}) as Record<string, BeaconConfig[]>);
     setBlockName(loaded.data.name);
     setBlockEnabled(loaded.data.enabled ?? true);
+    setCustomIcon(d.icon ?? null);
   }, [loaded.data]);
 
   const copySetup = () => {
@@ -725,6 +730,19 @@ function Block({ blockId }: { blockId: number }) {
     setSearch("");
     setGoalPicker(null);
   };
+  // Block icon (#40): pick an explicit item/fluid, or reset to follow the first goal.
+  const pickIcon = (kind: string, name: string) => {
+    markEdited();
+    setCustomIcon({ kind, name });
+    setIconPicker(false);
+    setSearch("");
+  };
+  const resetIcon = () => {
+    markEdited();
+    setCustomIcon(null);
+    setIconPicker(false);
+    setSearch("");
+  };
   // Move a goal to the front, so it names the block + anchors the rate-scaling tools.
   const makePrimary = (name: string) => {
     markEdited();
@@ -745,6 +763,7 @@ function Block({ blockId }: { blockId: number }) {
   const disabledRecipes = [...disabled].sort();
   const solveInput = {
     goals,
+    ...(customIcon ? { icon: customIcon } : {}),
     recipes,
     ...(disabledRecipes.length ? { disabledRecipes } : {}),
     ...(hasDisp ? { dispositions: disp } : {}),
@@ -837,7 +856,18 @@ function Block({ blockId }: { blockId: number }) {
     if (!hydrated.current || !dirty.current) return;
     const t = setTimeout(persist, 700);
     return () => clearTimeout(t);
-  }, [goals, recipes, disp, machineSel, fuelSel, moduleSel, beaconSel, blockName]);
+  }, [
+    goals,
+    customIcon,
+    recipes,
+    disabled,
+    disp,
+    machineSel,
+    fuelSel,
+    moduleSel,
+    beaconSel,
+    blockName,
+  ]);
   useEffect(
     () => () => {
       if (hydrated.current && dirty.current) void persist();
@@ -1057,9 +1087,34 @@ function Block({ blockId }: { blockId: number }) {
   const GRID = `flex flex-col gap-2.5 px-3 py-3 md:grid md:items-center md:gap-4 md:py-3.5 ${TPL}`;
   const HEAD = `${head} hidden md:grid md:items-center md:gap-4 ${TPL}`;
 
+  // The block's face (#40): the explicit pick when set, else the first goal's icon.
+  const blockIcon =
+    customIcon ?? (target ? { kind: goalInfo.data?.[target]?.kind ?? "item", name: target } : null);
+
   return (
     <div className="p-4 font-mono text-base text-foreground">
       <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setIconPicker(true)}
+          title={
+            customIcon
+              ? "block icon (custom) — click to change or reset to auto"
+              : "block icon — follows the first goal; click to pick your own"
+          }
+          className={`flex size-9 shrink-0 items-center justify-center rounded border hover:bg-muted ${customIcon ? "border-primary/60" : "border-border"}`}
+        >
+          {blockIcon ? (
+            <Icon
+              kind={blockIcon.kind as "item" | "fluid"}
+              name={blockIcon.name}
+              size="md"
+              noHover
+              noTitle
+            />
+          ) : (
+            <Grid2x2 className="size-4 text-muted-foreground" />
+          )}
+        </button>
         <Input
           value={blockName}
           onChange={(e) => {
@@ -1204,10 +1259,11 @@ function Block({ blockId }: { blockId: number }) {
               <span className="text-foreground">target rate</span> and the block is sized so that
               good comes out at exactly that rate. Click a goal&apos;s rate to edit it. So a single
               &quot;logistics&quot; block can make belts @10/s, undergrounds @4/s and splitters @2/s
-              side by side. The first goal <span className="text-blue-300">names the block</span>{" "}
-              and anchors the scale tools; <Star className="inline size-3.5 text-foreground" />{" "}
-              moves a goal to the front. A good you don&apos;t target isn&apos;t a goal — it falls
-              out as a byproduct (export).
+              side by side. The first goal <span className="text-blue-300">names the block</span>,
+              anchors the scale tools, and is the default icon;{" "}
+              <Star className="inline size-3.5 text-foreground" /> moves a goal to the front. Click
+              the icon next to the block&apos;s name to pick any item or fluid as its icon instead.
+              A good you don&apos;t target isn&apos;t a goal — it falls out as a byproduct (export).
             </p>
             <p className="mt-1">
               If your goals can&apos;t all be met at once (e.g. two goods locked to a fixed ratio by
@@ -2082,6 +2138,86 @@ function Block({ blockId }: { blockId: number }) {
                     >
                       <Icon kind={it.kind as "item" | "fluid"} name={it.name} size="md" noTitle />
                       <span className="truncate">{it.display ?? it.name}</span>
+                    </button>
+                  ))
+                ) : (
+                  !items.isLoading && (
+                    <div className="px-3 py-2 text-muted-foreground">no matches</div>
+                  )
+                )}
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Block-icon picker (#40) — choose any item/fluid as the block's icon, or
+          reset to auto (follow the first goal). */}
+      {iconPicker && (
+        <div
+          className="fixed inset-0 z-40 flex items-start justify-center bg-black/55 p-10"
+          onClick={() => {
+            setIconPicker(false);
+            setSearch("");
+          }}
+        >
+          <Card className="w-[34rem] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <CardHeader className="justify-between">
+              <CardTitle className="normal-case">Block icon</CardTitle>
+              <button
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setIconPicker(false);
+                  setSearch("");
+                }}
+              >
+                <X className="size-4" />
+              </button>
+            </CardHeader>
+            <div className="space-y-2 p-3">
+              <button className={rowBtn} onClick={resetIcon}>
+                {target ? (
+                  <Icon
+                    kind={goalInfo.data?.[target]?.kind ?? "item"}
+                    name={target}
+                    size="md"
+                    noHover
+                    noTitle
+                  />
+                ) : (
+                  <Grid2x2 className="size-5 text-muted-foreground" />
+                )}
+                <span>
+                  auto — follow the first goal
+                  {!customIcon && <span className="ml-2 text-xs text-primary">current</span>}
+                </span>
+              </button>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                autoFocus
+                placeholder="search an item or fluid…"
+                className="w-full rounded border border-input bg-muted px-2 py-1.5 text-sm placeholder:text-muted-foreground"
+              />
+              <div className="max-h-[55vh] overflow-auto rounded border border-border">
+                {items.isLoading && <div className="px-3 py-2 text-muted-foreground">…</div>}
+                {!search.trim() ? (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    type to search for an item or fluid…
+                  </div>
+                ) : items.data?.length ? (
+                  items.data.map((it) => (
+                    <button
+                      key={`${it.kind}:${it.name}`}
+                      className={rowBtn}
+                      onClick={() => pickIcon(it.kind, it.name)}
+                      title={it.display ?? it.name}
+                    >
+                      <Icon kind={it.kind as "item" | "fluid"} name={it.name} size="md" noTitle />
+                      <span className="truncate">{it.display ?? it.name}</span>
+                      {customIcon?.kind === it.kind && customIcon?.name === it.name && (
+                        <span className="text-xs text-primary">current</span>
+                      )}
                     </button>
                   ))
                 ) : (

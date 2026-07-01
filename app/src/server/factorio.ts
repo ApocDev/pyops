@@ -278,6 +278,7 @@ export type SolveInput = {
   // becomes a solver target; an unpinned goal (null rate) is a co-product relabeled
   // from a surplus export. goals[0] anchors naming/icon and the rate-scaling tools.
   goals: Goal[];
+  icon?: { kind: string; name: string }; // explicit block icon (#40); unset = first goal's
   recipes: string[];
   disabledRecipes?: string[]; // recipes kept in the block but excluded from the solve (#73)
   dispositions?: Record<string, Disposition>;
@@ -1037,31 +1038,21 @@ export const bridgeShowBlockFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => showBlockInGame(data));
 
 /** Save a block: solve once, persist the input + its cached I/O flows + power.
- * Name/icon default to the target product. Returns the (new or existing) id. */
+ * The name defaults to the target product; the icon columns cache the resolved
+ * icon — the doc's explicit `icon` pick (#40) when set, else the first goal. */
 export const saveBlockFn = createServerFn({ method: "POST" })
-  .validator(
-    (d: {
-      id?: number | null;
-      name?: string;
-      iconKind?: string;
-      iconName?: string;
-      data: SolveInput;
-    }) => d,
-  )
+  .validator((d: { id?: number | null; name?: string; data: SolveInput }) => d)
   .handler(async ({ data }) => {
     const q = await lib();
     const r = await computeBlock(data.data);
-    const primary = primaryGoal(normalizeBlockData(data.data))?.name ?? "";
+    const doc = normalizeBlockData(data.data) as SolveInput;
+    const primary = primaryGoal(doc)?.name ?? "";
     const targetKind = q.getFluid(primary) ? "fluid" : "item";
     const name = data.name?.trim() || r.display[primary] || primary || "New block";
+    const icon = doc.icon ?? { kind: targetKind, name: primary };
     const id = await persistBlock(
       q,
-      {
-        id: data.id,
-        name,
-        iconKind: data.iconKind ?? targetKind,
-        iconName: data.iconName ?? primary,
-      },
+      { id: data.id, name, iconKind: icon.kind, iconName: icon.name },
       data.data,
       r,
     );
