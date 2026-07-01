@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/ApocDev/pyops/compare/v0.2.0...v0.3.0) (2026-07-01)
+
+
+### Features
+
+* **desktop:** in-app self-update prompt (toast + changelog dialog) ([#50](https://github.com/ApocDev/pyops/issues/50)) ([a0b221b](https://github.com/ApocDev/pyops/commit/a0b221bb764cba1a0b0c9e48bffaec1cd39e82da))
+
 ## [0.2.0](https://github.com/ApocDev/pyops/compare/v0.1.0...v0.2.0) (2026-06-30)
 
 
