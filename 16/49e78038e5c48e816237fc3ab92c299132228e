@@ -1,0 +1,21 @@
+README.md
+  s_b92d5ef9e1806e::t_108901cdee731e 110-112
+docs/solver.md
+  s_b92d5ef9e1806e::t_55c8f384fa79fc 12-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "1649e78038e5c48e816237fc3ab92c299132228e",
+  "prompts": {},
+  "sessions": {
+    "s_b92d5ef9e1806e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a7099cb-0e25-4285-9a43-6f6e104a2ec9",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
