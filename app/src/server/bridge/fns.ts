@@ -6,6 +6,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 const bridge = () => import("./server.ts");
+const launch = () => import("../factorio-launch.ts");
 
 /** Ensure the bridge is listening and return its status. Calling this from the
  * UI (polled) is what starts the socket — idempotent and HMR-safe. */
@@ -35,3 +36,19 @@ export const bridgeLocateFn = createServerFn({ method: "POST" })
       sent: b.sendToPeer({ type: "cmd.locate", payload: { name: data.name, kind: data.kind } }),
     };
   });
+
+/** State for the "Launch Factorio" button: binary path, Steam-vs-standalone, and
+ * whether a game is already running. */
+export const factorioLaunchInfoFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { factorioLaunchInfo } = await launch();
+  return factorioLaunchInfo();
+});
+
+/** Launch Factorio with `--enable-lua-udp` on a free port distinct from the app's
+ * bridge port, so the bridge connects with no manual flag wrangling. */
+export const launchFactorioFn = createServerFn({ method: "POST" }).handler(async () => {
+  const b = await bridge();
+  b.ensureBridge();
+  const { launchFactorio } = await launch();
+  return launchFactorio(b.bridgeStatus().port);
+});

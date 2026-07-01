@@ -81,12 +81,12 @@ export function CompanionModCard() {
             {s.method === "symlink" ? (
               s.linkedToSource ? (
                 <>
-                  Linked to the repo —{" "}
-                  <span className="text-foreground">auto-updates when you pull</span>.
+                  Linked to PyOps&apos; mod —{" "}
+                  <span className="text-foreground">stays in sync as PyOps updates</span>.
                 </>
               ) : (
                 <span className="text-destructive">
-                  The link doesn&apos;t point at this repo&apos;s mod/ — re-link to fix it.
+                  The link doesn&apos;t point at PyOps&apos; mod folder — re-link to fix it.
                 </span>
               )
             ) : s.upToDate ? (
@@ -96,7 +96,7 @@ export function CompanionModCard() {
               </>
             ) : (
               <span className="text-destructive">
-                Copied v{s.installedVersion ?? "?"}, repo is v{s.sourceVersion ?? "?"} — re-copy to
+                Copied v{s.installedVersion ?? "?"}, PyOps is v{s.sourceVersion ?? "?"} — re-copy to
                 update.
               </span>
             )}
@@ -109,8 +109,8 @@ export function CompanionModCard() {
             disabled={busy}
             title={
               s?.symlinkIsJunction
-                ? "Create a directory junction (no admin needed) so the mod tracks the repo"
-                : "Symlink the repo's mod/ so it tracks your changes"
+                ? "Create a directory junction (no admin needed) so the mod stays in sync with PyOps"
+                : "Symlink PyOps' mod so it stays in sync"
             }
             className="rounded bg-primary px-3 py-1.5 font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-50"
           >
@@ -138,13 +138,16 @@ export function CompanionModCard() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          {s?.symlinkIsJunction
-            ? "On Windows the link is a directory junction — no admin or Developer Mode required."
-            : "The link tracks the repo, so pulling updates the installed mod automatically."}{" "}
-          After installing, launch Factorio with{" "}
-          <span className="font-mono text-foreground">--enable-lua-udp</span> and enable the bridge
-          in the mod&apos;s per-player settings (see{" "}
-          <span className="text-foreground">Live bridge</span>).
+          {s?.method === "copy"
+            ? "Installed as a copy — re-copy after PyOps updates to keep it in sync."
+            : s?.symlinkIsJunction
+              ? "On Windows the link is a directory junction (no admin or Developer Mode needed); it stays in sync as PyOps updates."
+              : "The link points at PyOps' bundled mod, so it stays in sync as PyOps updates."}{" "}
+          Then start the game from <span className="text-foreground">Live bridge</span> — the{" "}
+          <span className="text-foreground">Launch Factorio</span> button sets the{" "}
+          <span className="font-mono text-foreground">--enable-lua-udp</span> flag for you (or
+          launch it yourself on a port other than the app&apos;s bridge port). The mod connects
+          automatically — no in-game toggle.
         </p>
 
         {err && (

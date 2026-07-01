@@ -32,7 +32,7 @@ import { buildIconAtlas } from "./icon-atlas.ts";
 import { applyRenames, readModMigrations } from "./migrations.ts";
 import { ICON_DATA_DIR } from "./paths.ts";
 
-const FACTORIO_BIN =
+export const FACTORIO_BIN =
   process.env.FACTORIO_BIN ??
   join(homedir(), ".local/share/Steam/steamapps/common/Factorio/bin/x64/factorio");
 const FACTORIO_DATA = process.env.FACTORIO_DATA_DIR ?? join(homedir(), ".factorio");
