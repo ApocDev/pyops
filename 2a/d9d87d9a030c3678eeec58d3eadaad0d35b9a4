@@ -1,0 +1,23 @@
+app/src/routes/block.$id.tsx
+  s_b92d5ef9e1806e::t_7397d3e5318af2 493-494,496-497,500-503,621,733-745,766,859-870,1090-1093,1097-1117,1262-1266,2146-2225
+app/src/db/schema.ts
+  s_b92d5ef9e1806e::t_7653f873ba4b66 343-345,347-350
+app/src/server/factorio.ts
+  s_b92d5ef9e1806e::t_8edc80d1626ab6 281,1041-1042,1044,1048-1049,1052,1055
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "2ad9d87d9a030c3678eeec58d3eadaad0d35b9a4",
+  "prompts": {},
+  "sessions": {
+    "s_b92d5ef9e1806e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a7099cb-0e25-4285-9a43-6f6e104a2ec9",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
