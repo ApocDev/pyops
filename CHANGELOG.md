@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.5](https://github.com/ApocDev/pyops/compare/v0.4.4...v0.4.5) (2026-07-01)
+
+
+### Bug Fixes
+
+* **app:** return an empty icon manifest before the first data sync ([#65](https://github.com/ApocDev/pyops/issues/65)) ([b34cc42](https://github.com/ApocDev/pyops/commit/b34cc4226f37f9c1f9e32e5c84dcb4f6592f90bf))
+
 ## [0.4.4](https://github.com/ApocDev/pyops/compare/v0.4.3...v0.4.4) (2026-07-01)
 
 
