@@ -107,7 +107,9 @@ researched — existing blocks keep their picks. **Toggle a recipe off** to keep
 the block but drop it from the solve — flip between two recipes for the same output to
 compare them, or park future rows (T1 now, T2–T4 later) until you enable them. **Toggle
 a whole block off** the same way: it stays in the sidebar (dimmed) and still opens for
-editing, but contributes nothing to the factory-wide totals until re-enabled.
+editing, but contributes nothing to the factory-wide totals until re-enabled. A block's
+icon follows its first goal by default — click the icon next to the block's name to
+pick any item or fluid instead (with a one-click reset back to auto).
 
 ![Block editor — the Basic substrate bio-chain, solved with byproducts](docs/images/block-editor.png)
 

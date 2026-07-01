@@ -9,7 +9,9 @@ Code: `app/src/solver/` (`block.ts`, `linalg.ts`), with effect aggregation in
 A block is a set of declared output **goals** + a set of chosen recipes + per-item
 dispositions. Each goal has a **target rate** and becomes a solver equation — the
 block is sized so that good comes out at exactly that rate; `goals[0]` names the
-block/icon and anchors the rate-scaling tools. A good you don't target isn't a goal —
+block, anchors the rate-scaling tools, and is the default icon (the block editor can
+override the icon with any item/fluid, stored as `icon` in the block doc). A good you
+don't target isn't a goal —
 it falls out as a byproduct (export) or import. If the goals can't be jointly
 satisfied (e.g. two goods locked to a fixed ratio by one recipe) the block is
 **infeasible** and says so. See `app/src/lib/goals.ts` for the model and the
