@@ -1,0 +1,19 @@
+app/src/routes/block.tsx
+  s_b92d5ef9e1806e::t_10dd04630e9295 461-469,574-580,706
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "8eac33f3a5979ac523504d35bc5465c9ec2165cf",
+  "prompts": {},
+  "sessions": {
+    "s_b92d5ef9e1806e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a7099cb-0e25-4285-9a43-6f6e104a2ec9",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
