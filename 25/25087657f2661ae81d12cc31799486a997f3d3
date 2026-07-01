@@ -1,0 +1,19 @@
+app/src/server/factorio.ts
+  s_ad8974a3b278d5::t_d254196316f067 1878-1885
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "2525087657f2661ae81d12cc31799486a997f3d3",
+  "prompts": {},
+  "sessions": {
+    "s_ad8974a3b278d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
