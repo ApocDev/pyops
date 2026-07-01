@@ -16,6 +16,17 @@ function changelogBody(notes: string | null): string {
     .trim();
 }
 
+/** Pull the release date (YYYY-MM-DD) out of release-please's "## [version] (date)"
+ * heading and format it friendly, or null if it isn't there. */
+function releaseDate(notes: string | null): string | null {
+  const match = notes?.match(/^##\s.*\((\d{4}-\d{2}-\d{2})\)/m);
+  if (!match) return null;
+  const date = new Date(`${match[1]}T00:00:00`);
+  return Number.isNaN(date.getTime())
+    ? null
+    : date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
 /** Self-update prompt for the desktop shell. Checks once on launch (via the Tauri
  * command, or a `?mockUpdate=` dev switch in the browser); if an update exists it pins
  * a small toast bottom-right that opens a changelog dialog with Install & Restart.
@@ -56,6 +67,7 @@ export function UpdatePrompt() {
   };
 
   const pct = progress == null ? null : Math.round(progress * 100);
+  const released = releaseDate(update.notes);
 
   return (
     <>
@@ -102,6 +114,7 @@ export function UpdatePrompt() {
                 <h2 className="text-lg font-semibold">Update available</h2>
                 <p className="text-sm text-muted-foreground">
                   PyOps {update.version} — you have {update.currentVersion}
+                  {released && <> · released {released}</>}
                 </p>
               </div>
               {!installing && (
