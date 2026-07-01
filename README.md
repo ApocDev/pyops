@@ -78,10 +78,12 @@ from the [Releases](https://github.com/ApocDev/pyops/releases) page:
 - **macOS** — `.dmg`
 - **Windows** — the `-setup.exe` installer
 
-It still needs **Factorio + the Py mods** installed locally (it reads your recipe
-data via a data sync), and a fresh install starts empty — open **⚙ Settings › Game
-data** and run a sync on first launch, same as [from source](#setup) below. For how
-it's built and released, see [`docs/desktop.md`](docs/desktop.md).
+It still needs **Factorio** installed locally to read your recipe data via a data
+sync — PyOps is built for the **Py** mods (and Py-specific views like TURD only
+appear when that data is present), but it'll load whatever mod set you sync. A fresh
+install starts empty — open **⚙ Settings › Game data** and run a sync on first
+launch, same as [from source](#setup) below. For how it's built and released, see
+[`docs/desktop.md`](docs/desktop.md).
 
 ---
 
