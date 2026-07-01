@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/ApocDev/pyops/compare/v0.4.1...v0.4.2) (2026-07-01)
+
+
+### Bug Fixes
+
+* **desktop:** correct the updater capability URL pattern ([#59](https://github.com/ApocDev/pyops/issues/59)) ([1680dc1](https://github.com/ApocDev/pyops/commit/1680dc1dd9245d40161f6a7690c783c08ab87153))
+
 ## [0.4.1](https://github.com/ApocDev/pyops/compare/v0.4.0...v0.4.1) (2026-07-01)
 
 
