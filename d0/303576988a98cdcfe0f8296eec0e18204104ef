@@ -1,0 +1,43 @@
+app/drizzle/0001_add_tech_description.sql
+  s_7f9612f89e696e::t_704bc48e8ae99c 1
+app/drizzle/meta/0001_snapshot.json
+  s_7f9612f89e696e::t_9c667ff3c11f56 1-2284
+app/drizzle/meta/_journal.json
+  s_7f9612f89e696e::t_f6ed44a462ed41 11-17
+README.md
+  s_7f9612f89e696e::t_f7df327513da47 37-40
+app/src/db/import-factorio.ts
+  s_7f9612f89e696e::t_a05b6a7dbb1b84 213,459
+app/src/db/queries.ts
+  s_7f9612f89e696e::t_955389f39a473e 46,474-486,490-644
+app/src/db/schema.ts
+  s_7f9612f89e696e::t_05589ffcdade44 259
+app/src/lib/factorio-text.ts
+  s_7f9612f89e696e::t_090f25535c3132 1-16
+app/src/lib/recipe-card.tsx
+  s_7f9612f89e696e::t_f901b0c18af258 405-678
+app/src/routes/turd.tsx
+  s_7f9612f89e696e::t_eab9e63c6e0c34 3,6,30-43,45-52,54,56-70,75-133,237,246-248,253,255-256,259-287,289-292
+app/src/server/agent-tools.ts
+  s_7f9612f89e696e::t_023b782485fde1 284,331-332,511-531,1148
+app/src/server/agent.ts
+  s_7f9612f89e696e::t_6cc053dff1862d 59
+docs/ai-assistant.md
+  s_7f9612f89e696e::t_a90e13f0d5efd8 118-125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "d0303576988a98cdcfe0f8296eec0e18204104ef",
+  "prompts": {},
+  "sessions": {
+    "s_7f9612f89e696e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "840926b8-141b-420a-828c-cac3538f4296",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
