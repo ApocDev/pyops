@@ -1,0 +1,19 @@
+README.md
+  s_ad8974a3b278d5::t_ddc3e64e8eb12e 81-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "fc4e28250bb881af50bf9e45e2518c77f9ef98f0",
+  "prompts": {},
+  "sessions": {
+    "s_ad8974a3b278d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
