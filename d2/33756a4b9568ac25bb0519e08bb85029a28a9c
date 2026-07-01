@@ -1,0 +1,33 @@
+app/package.json
+  s_ad8974a3b278d5::t_5b0e6c65b9ae3b 43
+app/pnpm-lock.yaml
+  s_ad8974a3b278d5::t_743f33d58ce27b 80-82,2885-2887,8071-8072
+app/src-tauri/Cargo.lock
+  s_ad8974a3b278d5::t_f5c07d0b0a75dd 80
+app/src-tauri/src/lib.rs
+  s_ad8974a3b278d5::t_78020179bd4cbc 30,95-172,205-206,243-245
+app/src/components/update-prompt.tsx
+  s_ad8974a3b278d5::t_6350fbc0cc7ebb 1-154
+app/src/lib/updater.ts
+  s_ad8974a3b278d5::t_69abf8aa4c28da 1-111
+app/src/routes/__root.tsx
+  s_ad8974a3b278d5::t_79238d4961ba74 9,63
+docs/desktop.md
+  s_ad8974a3b278d5::t_e60b1b05bd7e07 104-112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "d233756a4b9568ac25bb0519e08bb85029a28a9c",
+  "prompts": {},
+  "sessions": {
+    "s_ad8974a3b278d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
