@@ -1,0 +1,27 @@
+app/drizzle/0002_add_block_enabled.sql
+  s_b92d5ef9e1806e::t_a4c46f6fd8a350 1
+app/drizzle/meta/0002_snapshot.json
+  s_b92d5ef9e1806e::t_7db7a345835849 1-2292
+app/drizzle/meta/_journal.json
+  s_b92d5ef9e1806e::t_020cd62a45afa6 18-24
+app/src/routes/block.tsx
+  s_b92d5ef9e1806e::t_cdc07574bf79b3 40,457,463-470
+app/src/db/schema.ts
+  s_b92d5ef9e1806e::t_ebe11d2f149601 348-352,366-369
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "86120e98a240056936d94637a659ba4e7492e490",
+  "prompts": {},
+  "sessions": {
+    "s_b92d5ef9e1806e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a7099cb-0e25-4285-9a43-6f6e104a2ec9",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
