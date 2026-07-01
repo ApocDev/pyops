@@ -4,7 +4,7 @@
   "description": "Default permissions, plus IPC access for the local server the window loads (http://localhost:34115). The shell serves the whole app over HTTP, so to Tauri its content is 'remote' and needs an explicit grant to call commands (e.g. the updater).",
   "windows": ["main"],
   "remote": {
-    "urls": ["http://localhost:34115", "http://localhost:34115/*"]
+    "urls": ["http://localhost:*/**"]
   },
   "permissions": [
     "core:default",
