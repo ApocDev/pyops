@@ -50,6 +50,10 @@ export type BlockResult = {
    * so the rest of the block still solves; the UI flags just these goals with a
    * "no recipe — add one" hint. */
   unmadeTargets?: string[];
+  /** recipes that can't reach any goal through the producer graph — nothing the
+   * block makes depends on them. They're pinned to 0 (so they don't leave the
+   * system underdetermined) and flagged so the user can remove or connect them. */
+  unusedRecipes?: string[];
 };
 
 const EPS = 1e-6;
@@ -94,16 +98,58 @@ export function solveBlock(input: BlockInput): BlockResult {
     };
   }
 
+  // Recipes that can't reach any goal through the producer graph contribute nothing
+  // the block makes; their run-rate is a free variable that would leave the whole
+  // solve underdetermined. We pin each to 0 below and flag it. A recipe the user
+  // tied in via an explicit `balance` is kept even if no goal reaches it.
+  //
+  // Only meaningful once a goal is actually produced in-block to measure "reaches"
+  // against — a no-target or all-unmade block has nothing to reach from, so every
+  // recipe counts as used and we fall through to the ordinary determined path.
+  const hasGoalToReach = targets.some((t) => produced[t.name]);
+  const used = hasGoalToReach
+    ? relevantRecipes(
+        recipes,
+        targets.map((t) => t.name),
+      )
+    : new Set(recipes.map((_, i) => i));
+  if (hasGoalToReach) {
+    const balanced = new Set(
+      Object.entries(dispositions).flatMap(([k, d]) => (d === "balance" ? [k] : [])),
+    );
+    if (balanced.size) {
+      recipes.forEach((r, i) => {
+        if (used.has(i)) return;
+        const touches = (c: Component) => balanced.has(c.name);
+        if (r.ingredients.some(touches) || r.products.some(touches)) used.add(i);
+      });
+    }
+  }
+  // produced/consumed restricted to *used* recipes: a byproduct whose only consumer
+  // is an unused (pinned-off) recipe must read as produced-only → export, not get an
+  // auto-balance row that would force its producer to 0 against the dead consumer.
+  const uProduced: Record<string, boolean> = {};
+  const uConsumed: Record<string, boolean> = {};
+  recipes.forEach((r, i) => {
+    if (!used.has(i)) return;
+    for (const ing of r.ingredients) uConsumed[ing.name] = true;
+    for (const p of r.products) uProduced[p.name] = true;
+  });
+
   // Equations split into two tiers:
   //  - forced: targets (pinned outputs) and items the player explicitly marked
   //    "balance". These must hold; if they conflict it's a real infeasibility.
-  //  - candidates: items auto-balanced because they're produced AND consumed
-  //    in-block. In a recycle loop these can be linearly dependent and, if the
-  //    loop doesn't self-close, inconsistent. We add them greedily and drop
-  //    (auto-free to the boundary) any that would break consistency.
-  type Eq = { item: string; b: number };
+  //  - candidates: items auto-balanced because they're produced AND consumed by used
+  //    recipes. In a recycle loop these can be linearly dependent and, if the loop
+  //    doesn't self-close, inconsistent. We add them greedily and drop (auto-free to
+  //    the boundary) any that would break consistency.
+  // Most equations come from an item's balance row (coeff[item]); a `row` override
+  // lets us also pin a specific recipe (unit vector) to 0 — see the unused-recipe
+  // handling below.
+  type Eq = { item?: string; row?: number[]; b: number };
+  type ItemEq = { item: string; b: number }; // an item-balance row (always named)
   const forced: Eq[] = [];
-  const candidates: Eq[] = [];
+  const candidates: ItemEq[] = [];
   // Goals that no recipe in the block produces (an unfinished or over-migrated
   // block). We deliberately do NOT pin these: a goal with no producer has an
   // all-zero coefficient row, so forcing it to a nonzero rate makes the whole
@@ -120,13 +166,28 @@ export function solveBlock(input: BlockInput): BlockResult {
     const d = dispositions[item];
     if (d === "import" || d === "export") continue; // free boundary flow
     if (d === "balance") forced.push({ item, b: 0 });
-    else if (produced[item] && consumed[item]) candidates.push({ item, b: 0 });
+    else if (uProduced[item] && uConsumed[item]) candidates.push({ item, b: 0 });
   }
   // a target no recipe references at all (absent from `coeff`) is unmade too
   for (const t of targets) if (!(t.name in coeff)) unmadeTargets.push(t.name);
   const unmade = unmadeTargets.length ? { unmadeTargets } : {};
 
-  const rowsOf = (eqs: Eq[]) => eqs.map((e) => coeff[e.item] ?? Array.from({ length: n }, () => 0));
+  // Pin the unused recipes to 0 (a rate = 0 equation) and flag them for the UI.
+  const unusedRecipes: string[] = [];
+  const zeroEqs: Eq[] = [];
+  recipes.forEach((r, i) => {
+    if (used.has(i)) return;
+    unusedRecipes.push(r.name);
+    const unit = Array.from({ length: n }, () => 0);
+    unit[i] = 1;
+    zeroEqs.push({ row: unit, b: 0 });
+  });
+  forced.push(...zeroEqs);
+  const usedExtra = unusedRecipes.length ? { unusedRecipes } : {};
+
+  const zeros = () => Array.from({ length: n }, () => 0);
+  const rowsOf = (eqs: Eq[]) =>
+    eqs.map((e) => e.row ?? (e.item ? coeff[e.item] : undefined) ?? zeros());
   const solveOf = (eqs: Eq[]) =>
     solveLeastSquares(
       rowsOf(eqs),
@@ -163,8 +224,9 @@ export function solveBlock(input: BlockInput): BlockResult {
   if (!ls) {
     return {
       status: "underdetermined",
-      message: `${n} recipes vs ${kept.length} constraints — add a target/recipe or balance an item to pin the rates.`,
+      message: `${n - unusedRecipes.length} recipe(s) vs ${kept.length - zeroEqs.length} constraint(s) — add a target/recipe or balance an item to pin the rates.`,
       ...unmade,
+      ...usedExtra,
       ...empty,
     };
   }
@@ -175,6 +237,7 @@ export function solveBlock(input: BlockInput): BlockResult {
       message:
         "Pinned targets or balanced items conflict — no exact solution. Adjust a target or free a balanced item.",
       ...unmade,
+      ...usedExtra,
       ...empty,
     };
   }
@@ -210,6 +273,7 @@ export function solveBlock(input: BlockInput): BlockResult {
       exports: [],
       negativeRecipes,
       ...unmade,
+      ...usedExtra,
       ...(autoFreed.length ? { autoFreed } : {}),
     };
   }
@@ -223,8 +287,41 @@ export function solveBlock(input: BlockInput): BlockResult {
     imports: imports.sort(byName),
     exports: exports.sort(byName),
     ...unmade,
+    ...usedExtra,
     ...(autoFreed.length ? { autoFreed } : {}),
   };
+}
+
+/**
+ * Recipe indices that can contribute to the goals: backward reachability from the
+ * goal items through the producer graph. A needed item pulls in every recipe that
+ * lists it as a product; each such recipe's ingredients then become needed too.
+ * Cheap BFS with a visited set, so recycle loops terminate. Recipes never reached
+ * can't affect any goal — their rate is a free variable safe to pin to 0.
+ */
+export function relevantRecipes(recipes: RecipeDef[], goals: string[]): Set<number> {
+  const producers: Record<string, number[]> = {};
+  recipes.forEach((r, i) => {
+    for (const p of r.products) (producers[p.name] ??= []).push(i);
+  });
+
+  const needed = new Set<string>(goals);
+  const queue = [...needed];
+  const relevant = new Set<number>();
+  while (queue.length) {
+    const item = queue.shift()!;
+    for (const i of producers[item] ?? []) {
+      if (relevant.has(i)) continue;
+      relevant.add(i);
+      for (const ing of recipes[i].ingredients) {
+        if (!needed.has(ing.name)) {
+          needed.add(ing.name);
+          queue.push(ing.name);
+        }
+      }
+    }
+  }
+  return relevant;
 }
 
 /**

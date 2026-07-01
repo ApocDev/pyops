@@ -112,6 +112,62 @@ test("a target with no producing recipe is reported as unmade, not solved", () =
   expect(r.unmadeTargets).toEqual(["gear"]);
 });
 
+test("a recipe that can't reach the goal is pinned to 0 and flagged, not underdetermined", () => {
+  // widget is unrelated to the plate goal. Before, its free run-rate left the block
+  // underdetermined; now it pins to 0, is flagged, and the block solves.
+  const widget: RecipeDef = {
+    name: "widget",
+    energyRequired: 1,
+    ingredients: [{ kind: "item", name: "scrap", amount: 1 }],
+    products: [{ kind: "item", name: "widget", amount: 1 }],
+  };
+  const r = solveBlock({ targets: [{ name: "plate", rate: 1 }], recipes: [plate, widget] });
+  expect(r.status).toBe("solved");
+  expect(rate(r).plate).toBeCloseTo(1);
+  expect(rate(r).widget).toBe(0);
+  expect(r.unusedRecipes).toEqual(["widget"]);
+  // the unused recipe's boundary items (scrap/widget) don't leak into the flows
+  expect(flows(r.imports)).toEqual([{ name: "ore", kind: "item", rate: 8 }]);
+  expect(r.exports).toEqual([]);
+});
+
+test("recipes on the goal chain are never flagged unused", () => {
+  const r = solveBlock({ targets: [{ name: "gear", rate: 1 }], recipes: [gear, plate] });
+  expect(r.status).toBe("solved");
+  expect(r.unusedRecipes).toBeUndefined();
+});
+
+test("a byproduct sink the goal doesn't need is flagged, and the byproduct exports", () => {
+  // ab makes the goal `a` plus byproduct `b`; bsink consumes b but makes nothing the
+  // goal needs. Pinning bsink to 0 must NOT force b to balance (which would zero ab
+  // and break the goal) — b should simply export.
+  const r = solveBlock({
+    targets: [{ name: "a", rate: 1 }],
+    recipes: [
+      {
+        name: "ab",
+        energyRequired: 1,
+        ingredients: [{ kind: "item", name: "x", amount: 1 }],
+        products: [
+          { kind: "item", name: "a", amount: 1 },
+          { kind: "item", name: "b", amount: 1 },
+        ],
+      },
+      {
+        name: "bsink",
+        energyRequired: 1,
+        ingredients: [{ kind: "item", name: "b", amount: 1 }],
+        products: [{ kind: "item", name: "waste", amount: 1 }],
+      },
+    ],
+  });
+  expect(r.status).toBe("solved");
+  expect(r.unusedRecipes).toEqual(["bsink"]);
+  expect(rate(r).ab).toBeCloseTo(1);
+  expect(rate(r).bsink).toBe(0);
+  expect(flows(r.exports)).toEqual([{ name: "b", kind: "item", rate: 1 }]);
+});
+
 test("an unmade goal does not poison an otherwise-solvable block", () => {
   // plate is makeable (the plate recipe), gear is not — the block must still solve
   // for plate and merely flag gear as unmade, never going infeasible.
