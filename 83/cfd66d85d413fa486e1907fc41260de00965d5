@@ -1,0 +1,21 @@
+app/src/server/agent-tools.ts
+  s_7f9612f89e696e::t_bf6801d5715c78 284,301,309-317,347-380,1188
+app/src/server/agent.ts
+  s_7f9612f89e696e::t_204f8f532e231e 54-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "83cfd66d85d413fa486e1907fc41260de00965d5",
+  "prompts": {},
+  "sessions": {
+    "s_7f9612f89e696e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "840926b8-141b-420a-828c-cac3538f4296",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
