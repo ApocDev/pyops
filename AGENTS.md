@@ -76,9 +76,10 @@ from inside `app/`:
   through the in-app data sync.
 - Desktop shell: `vp run tauri dev` runs the app in a native window; `vp run tauri
   build` packages a bundle (run `src-tauri/vendor-node.sh` first). Releases are
-  automated by **release-please** — **don't hand-edit the version** in
-  `package.json` / `Cargo.toml` / `tauri.conf.json`; it bumps all three from
-  conventional commits. See [`docs/desktop.md`](docs/desktop.md).
+  automated by **release-please** (one product version) — **don't hand-edit the
+  version** in `version.txt` / `app/package.json` / `Cargo.toml` / `tauri.conf.json` /
+  `mod/info.json`; it bumps them all in lockstep from conventional commits. See
+  [`docs/desktop.md`](docs/desktop.md).
 
 If setup/runtime/package-manager behavior looks wrong, run `vp env doctor`.
 
