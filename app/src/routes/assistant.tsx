@@ -1,6 +1,6 @@
 import { useChat } from "@ai-sdk/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangle,
   ArrowUp,
@@ -27,7 +27,13 @@ import remarkGfm from "remark-gfm";
 import { Icon, IconProvider } from "#/lib/icons";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { ItemHover, RecipeHover } from "#/lib/recipe-card";
-import { classifyRefFn, saveBlockFn, setAiConfigFn, setBlockRateFn } from "#/server/factorio";
+import {
+  aiConfigFn,
+  classifyRefFn,
+  saveBlockFn,
+  setAiConfigFn,
+  setBlockRateFn,
+} from "#/server/factorio";
 import {
   activeAssistantRunsFn,
   conversationModelFn,
@@ -243,8 +249,11 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
   // Bind to the store-owned Chat. Persistence + titling live in the store (wired to
   // the Chat's onFinish), so a run that finishes while this view is unmounted still
   // saves. We only render + send here.
-  const { messages, status } = useChat({ chat, resume: true });
+  const { messages, status, error } = useChat({ chat, resume: true });
   const qc = useQueryClient();
+  // Surface a missing OpenRouter key up front — otherwise a send just fails silently.
+  const aiConfig = useQuery({ queryKey: ["aiConfig"], queryFn: () => aiConfigFn() });
+  const noKey = aiConfig.data ? !aiConfig.data.keyStored && !aiConfig.data.keyFromEnv : false;
   const [input, setInput] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const busy = status === "submitted" || status === "streaming";
@@ -407,6 +416,26 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
         className="flex shrink-0 items-end gap-2 border-t border-border bg-card px-6 py-3"
       >
         <div className="mx-auto w-full max-w-6xl">
+          {noKey && (
+            <div className="mb-1.5 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <span>
+                No OpenRouter API key set — the assistant can&apos;t respond. Add one in{" "}
+                <Link to="/settings" className="font-medium underline">
+                  Settings → Assistant
+                </Link>
+                , or set the <code className="font-mono">OPENROUTER_API_KEY</code> env var.
+              </span>
+            </div>
+          )}
+          {error && (
+            <div className="mb-1.5 flex items-start gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <span>
+                {error.message?.trim() || "The assistant request failed. See the server log."}
+              </span>
+            </div>
+          )}
           {editingId && (
             <div className="mb-1.5 flex items-center gap-2 text-sm text-amber-300">
               <span>Editing an earlier message; sending will replace it and retry from there.</span>
