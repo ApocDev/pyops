@@ -60,7 +60,7 @@ import {
   type GroupAssign,
   type RowGroup,
 } from "../lib/row-groups";
-import { Icon, IconProvider } from "../lib/icons";
+import { fmtSpoilTime, Icon, IconProvider } from "../lib/icons";
 import { ModulesChip, ModulesModal } from "../lib/modules-modal";
 import {
   AlertTriangle,
@@ -83,6 +83,7 @@ import {
   Power,
   Rocket,
   Star,
+  Timer,
   Unlock,
   X,
   Zap,
@@ -2313,6 +2314,23 @@ function Block({ blockId }: { blockId: number }) {
                               </Link>
                             )}
                           </>
+                        ) : row?.spoil ? (
+                          // Spoil-buffer sizing (#19): no machine — the "cost" of a
+                          // spoiling step is the storage holding items mid-spoil.
+                          <span
+                            title={`spoils in ${fmtSpoilTime(row.spoil.seconds * 60)} — at ${num(row.rate)}/s, ≈${num(row.spoil.buffer)} items sit in storage mid-spoil${row.spoil.stacks != null ? ` (≈${Math.ceil(row.spoil.stacks)} stacks @ ${row.spoil.stackSize}/stack)` : ""}`}
+                            className="flex items-center gap-1.5 rounded bg-muted/50 px-1.5 py-1 text-sm text-amber-200"
+                          >
+                            <Timer className="size-3.5 shrink-0" />
+                            {fmtSpoilTime(row.spoil.seconds * 60)} · buffer{" "}
+                            {num(Math.ceil(row.spoil.buffer))}
+                            {row.spoil.stacks != null && (
+                              <span className="text-muted-foreground">
+                                ≈ {num(Math.ceil(row.spoil.stacks))} stack
+                                {Math.ceil(row.spoil.stacks) === 1 ? "" : "s"}
+                              </span>
+                            )}
+                          </span>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}

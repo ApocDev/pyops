@@ -666,10 +666,30 @@ export async function computeBlock(rawData: SolveInput) {
       totalHeatW += powerW;
     }
 
+    // Spoil-buffer sizing (#19): a spoiling step is passive — items sit in
+    // storage until they rot, so the chest space needed is throughput × spoil
+    // time (rr.rate items/s enter; each occupies a slot for energyRequired s).
+    const spoilSeconds = def.kind === "spoiling" ? (def.energyRequired ?? 0) : null;
+    const spoil =
+      spoilSeconds != null
+        ? (() => {
+            const input = def.ingredients[0]?.name;
+            const stackSize = (input && q.getItem(input)?.stackSize) || null;
+            const buffer = rr.rate * spoilSeconds;
+            return {
+              seconds: spoilSeconds,
+              buffer, // items resident mid-spoil at steady state
+              stackSize,
+              stacks: stackSize ? buffer / stackSize : null,
+            };
+          })()
+        : null;
+
     return {
       recipe: rr.recipe,
       display: def.display ?? rr.recipe,
       rate: rr.rate,
+      spoil,
       machine: chosen && {
         name: chosen.name,
         display: chosen.display,
