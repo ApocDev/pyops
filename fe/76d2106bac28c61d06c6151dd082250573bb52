@@ -1,0 +1,23 @@
+app/pnpm-lock.yaml
+  s_b92d5ef9e1806e::t_5ec99e4e9fa3dd 46,49,2587-2588,2652-2653,2661-2662,7700,7781,7784,7790,7792
+app/src/components/goods-table.tsx
+  s_b92d5ef9e1806e::t_8f354c8c099ed9 1-256
+app/src/routes/factory.tsx
+  s_b92d5ef9e1806e::t_9db64470459e61 22,144-145,148,226-233,291-292,295-302,304-305,308-320,324-325,328-331
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "fe76d2106bac28c61d06c6151dd082250573bb52",
+  "prompts": {},
+  "sessions": {
+    "s_b92d5ef9e1806e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a7099cb-0e25-4285-9a43-6f6e104a2ec9",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
