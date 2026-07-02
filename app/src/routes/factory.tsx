@@ -19,6 +19,7 @@ import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
+import { GoodsSection } from "#/components/goods-table.tsx";
 
 export const Route = createFileRoute("/factory")({
   component: () => (
@@ -140,10 +141,11 @@ function FactoryPage() {
       item,
       ...e,
       net: e.produced - e.consumed,
+      // the deficit list's severity axis: fraction of demand met (null = no demand)
+      pctMet: e.consumed > 1e-9 ? e.produced / e.consumed : null,
       actualProduced: actualByItem.get(item)?.produced ?? null,
     }))
-    .filter((r) => (r.display ?? r.item).toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => a.net - b.net); // deficits first — that's the work list
+    .filter((r) => (r.display ?? r.item).toLowerCase().includes(search.toLowerCase()));
 
   const totalPowerW = (blocks.data ?? []).reduce((s, b) => s + (b.electricityW ?? 0), 0);
   // A good produced ONLY by keep-in-stock goals isn't surplus to route — a mall
@@ -154,81 +156,6 @@ function FactoryPage() {
   const stockBuffers = rows.filter((r) => r.net >= -1e-6 && stockOnly(r));
   const surpluses = rows.filter((r) => r.net > 1e-6 && !stockOnly(r));
   const balanced = rows.filter((r) => Math.abs(r.net) <= 1e-6 && !stockOnly(r));
-
-  const Row = ({ r }: { r: (typeof rows)[number] }) => (
-    <button
-      onClick={() => setSelected({ item: r.item, kind: r.kind })}
-      className={`flex w-full flex-col gap-1 border-t border-border px-3 py-2 text-left text-sm hover:bg-muted md:flex-row md:items-center md:gap-2 md:py-1.5 ${selected?.item === r.item ? "bg-accent" : ""}`}
-    >
-      <span className="flex min-w-0 items-center gap-2 md:flex-1">
-        <Icon
-          kind={r.kind as "item" | "fluid"}
-          name={r.item}
-          size="sm"
-          title={r.display ?? r.item}
-        />
-        <span className="min-w-0 flex-1 truncate" title={r.display ?? r.item}>
-          {r.display ?? r.item}
-        </span>
-        {r.stock && (
-          <span
-            title="some of this production is a stock-refill demand (a 'keep N on hand' goal), not continuous throughput"
-            className="flex shrink-0 items-center gap-0.5 rounded bg-sky-500/15 px-1 text-xs text-sky-300"
-          >
-            <RefreshCw className="size-3" /> stock
-          </span>
-        )}
-      </span>
-      <span className="grid grid-cols-2 gap-x-4 gap-y-0.5 pl-7 md:flex md:gap-2 md:pl-0">
-        <StatCell label="produced/s" layout="row" w="md:w-24" className="text-emerald-300">
-          {num(r.produced)}
-        </StatCell>
-        <StatCell label="consumed/s" layout="row" w="md:w-24" className="text-amber-300">
-          {num(r.consumed)}
-        </StatCell>
-        <StatCell
-          label="net/s"
-          layout="row"
-          w="md:w-24"
-          className={`font-semibold ${
-            r.net < -1e-6
-              ? "text-destructive"
-              : r.net > 1e-6
-                ? "text-violet-300"
-                : "text-muted-foreground"
-          }`}
-        >
-          {r.net > 0 ? "+" : ""}
-          {num(r.net)}
-        </StatCell>
-        <StatCell label="actual/s" layout="row" w="md:w-24">
-          <ActualCell planned={r.produced} actual={r.actualProduced} />
-        </StatCell>
-      </span>
-    </button>
-  );
-
-  const Section = ({ title, items, hint }: { title: string; items: typeof rows; hint: string }) =>
-    items.length > 0 && (
-      <Card>
-        <CardHeader className="justify-between">
-          <CardTitle className="normal-case">
-            {title} ({items.length})
-          </CardTitle>
-          <span className="text-xs text-muted-foreground">{hint}</span>
-        </CardHeader>
-        <div className="hidden px-3 pb-1 text-xs text-muted-foreground md:flex">
-          <span className="flex-1">item</span>
-          <span className="w-24 text-right">produced/s</span>
-          <span className="w-24 text-right">consumed/s</span>
-          <span className="w-24 text-right">net/s</span>
-          <span className="w-24 text-right">actual/s</span>
-        </div>
-        {items.map((r) => (
-          <Row key={r.item} r={r} />
-        ))}
-      </Card>
-    );
 
   return (
     <div className="p-4 font-mono text-foreground">
@@ -296,7 +223,14 @@ function FactoryPage() {
               <ul className="mt-1 list-disc space-y-1 pl-5">
                 <li>
                   <span className="text-foreground">Deficits</span> — a negative net (consumed more
-                  than produced across blocks) is what to build or scale next.
+                  than produced across blocks) is what to build or scale next. Ranked by{" "}
+                  <span className="text-foreground">% of demand met</span> — a fully-starved
+                  intermediate outranks a half-fed bulk fluid, whatever their raw rates.
+                </li>
+                <li>
+                  <span className="text-foreground">Sort &amp; fold</span> — click any column header
+                  to sort a section (the choice sticks); click a section&apos;s title to collapse it
+                  out of the way.
                 </li>
                 <li>
                   <span className="text-foreground">Stock buffers</span> — goods made only by
@@ -354,23 +288,47 @@ function FactoryPage() {
       )}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Section
+        <GoodsSection
+          id="deficits"
           title="Deficits"
-          items={deficits}
           hint="consumed across blocks but not produced enough — build these next"
+          rows={deficits}
+          defaultSorting={[
+            { id: "met", desc: false },
+            { id: "consumed", desc: true },
+          ]}
+          showMet
+          selectedItem={selected?.item ?? null}
+          onSelect={(r) => setSelected({ item: r.item, kind: r.kind })}
         />
-        <Section
+        <GoodsSection
+          id="surpluses"
           title="Surpluses"
-          items={surpluses}
           hint="net production available to new blocks"
+          rows={surpluses}
+          defaultSorting={[{ id: "net", desc: true }]}
+          selectedItem={selected?.item ?? null}
+          onSelect={(r) => setSelected({ item: r.item, kind: r.kind })}
         />
-        <Section title="Balanced" items={balanced} hint="block-to-block flows that match exactly" />
+        <GoodsSection
+          id="balanced"
+          title="Balanced"
+          hint="block-to-block flows that match exactly"
+          rows={balanced}
+          defaultSorting={[{ id: "item", desc: false }]}
+          selectedItem={selected?.item ?? null}
+          onSelect={(r) => setSelected({ item: r.item, kind: r.kind })}
+        />
         {/* least actionable of the goods lists — a healthy mall parks here, so it
             takes the last cell rather than crowding the deficit/surplus work lists */}
-        <Section
+        <GoodsSection
+          id="stock"
           title="Stock buffers"
-          items={stockBuffers}
           hint="keep-on-hand goals — refill demand, not surplus to route"
+          rows={stockBuffers}
+          defaultSorting={[{ id: "item", desc: false }]}
+          selectedItem={selected?.item ?? null}
+          onSelect={(r) => setSelected({ item: r.item, kind: r.kind })}
         />
       </div>
 
@@ -518,20 +476,6 @@ const ceil = (n: number) => Math.ceil(n - 1e-6);
 /** Live actual production rate for an item, colored against what's planned: red
  * when the game is making far less than planned (starved), amber when behind,
  * green when on target. "—" when no live stats exist for the good. */
-function ActualCell({ planned, actual }: { planned: number; actual: number | null }) {
-  if (actual == null) return <span className="text-muted-foreground/50">—</span>;
-  let color = "text-muted-foreground";
-  if (planned > 1e-6) {
-    const ratio = actual / planned;
-    color = ratio < 0.5 ? "text-destructive" : ratio < 0.9 ? "text-amber-300" : "text-emerald-300";
-  }
-  return (
-    <span className={color} title={`making ${num(actual)}/s · planned ${num(planned)}/s`}>
-      {num(actual)}
-    </span>
-  );
-}
-
 /** Required-vs-built per machine, broken down by the recipe each runs. The blocks
  * say how many machines they need per recipe; the game says how many are placed
  * and (for assemblers / active furnaces) what they're set to craft. So a machine
