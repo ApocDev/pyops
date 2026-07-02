@@ -1,0 +1,115 @@
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_bcd3f884028dbe 1-944
+AGENTS.md
+  s_9be9645d11a3e7::t_66c9843ebd5434 29,37-39,116-131
+app/src/components/companion-mod-card.tsx
+  s_9be9645d11a3e7::t_e1a9bb94bbedb7 8
+app/src/components/drift-changes.tsx
+  s_9be9645d11a3e7::t_b796cb7fedd363 3
+app/src/db/conversations.server.ts
+  s_9be9645d11a3e7::t_95e2e9266b182f 8
+app/src/db/import-factorio.ts
+  s_9be9645d11a3e7::t_512866e5302868 17
+app/src/db/projects-fs.ts
+  s_9be9645d11a3e7::t_5d2da00943e754 11-12
+app/src/db/queries.server.ts
+  s_9be9645d11a3e7::t_ee36fb433d08b8 12
+app/src/db/queries.test.ts
+  s_9be9645d11a3e7::t_098c643c9899cf 3,21
+app/src/db/tasks.server.ts
+  s_9be9645d11a3e7::t_e683d7d4c94618 14-15
+app/src/lib/sync-steps.ts
+  s_9be9645d11a3e7::t_647ad592e34139 1
+app/src/routes/api.chat.ts
+  s_9be9645d11a3e7::t_b6289da2a2a97a 11-14
+app/src/routes/icons.$.ts
+  s_9be9645d11a3e7::t_739dc24a16fae6 9-11
+app/src/routes/mcp.ts
+  s_9be9645d11a3e7::t_2b9823dfdfc006 15
+app/src/routes/tasks.tsx
+  s_9be9645d11a3e7::t_e5bdf700393697 58
+app/src/server/agent-tools.server.ts
+  s_9be9645d11a3e7::t_ca08b172c19a39 20-24,56,170,250,432,804,818,845,863,871,886,901,920,938,954,972,1028,1120,1136,1151
+app/src/server/agent.ts
+  s_9be9645d11a3e7::t_f176a2cbe41bcb 9-11
+app/src/server/app-config.server.ts
+  s_9be9645d11a3e7::t_78db736755f004 14
+app/src/server/assistant-run-store.ts
+  s_9be9645d11a3e7::t_ae8d187435e697 2,104-114
+app/src/server/bridge/fns.ts
+  s_9be9645d11a3e7::t_19e1c8b33674b5 3-4,8-9
+app/src/server/bridge/handlers/built.ts
+  s_9be9645d11a3e7::t_5a8cefd7862c3c 10
+app/src/server/bridge/handlers/handlers.test.ts
+  s_9be9645d11a3e7::t_4afabac59cb690 13,25-26,32-34
+app/src/server/bridge/handlers/research.ts
+  s_9be9645d11a3e7::t_6faaada8ddd961 8
+app/src/server/bridge/handlers/stats.ts
+  s_9be9645d11a3e7::t_2aebd298ca4fc5 8
+app/src/server/bridge/handlers/tasks.ts
+  s_9be9645d11a3e7::t_f4ed330cae448f 11-12
+app/src/server/bridge/handlers/turd.ts
+  s_9be9645d11a3e7::t_bbed12ef9e03f8 9-10
+app/src/server/companion-mod-fns.ts
+  s_9be9645d11a3e7::t_e23133c5f62979 3-5,8,10,13,18,21
+app/src/server/companion-mod.server.ts
+  s_9be9645d11a3e7::t_361e9c7c72d798 21
+app/src/server/conversation-compaction.ts
+  s_9be9645d11a3e7::t_b66bcd4a10f609 3,6
+app/src/server/conversation-title.server.ts
+  s_9be9645d11a3e7::t_a0efbbcb234d4f 1-64
+app/src/server/conversations.ts
+  s_9be9645d11a3e7::t_14dbd1dbddda32 7,15-21,24,29,34,41,48,53,60,81,86,106,109,129,136
+app/src/server/cost-analysis.test.ts
+  s_9be9645d11a3e7::t_d61ccf8b102b5d 4
+app/src/server/dump.server.ts
+  s_9be9645d11a3e7::t_5aa50bc6afa162 26,28,30,33
+app/src/server/dump.test.ts
+  s_9be9645d11a3e7::t_ebbfe649d2313d 2
+app/src/server/factorio-launch.server.ts
+  s_9be9645d11a3e7::t_3f18c46b78c769 18
+app/src/server/factorio.ts
+  s_9be9645d11a3e7::t_ba34632d9bad56 2-4,14-19,21-41,49,51,56,61,66,87,101,105,121,143,147,153,160,164,170,176,211,215,220,239,311,315,423,428,432,437,556,562,596,601,640,666,674,679,682,687,698,704,711,719,754,762,764,772-773,780,786,854,920,926,930,935,942,949,956,962,967,974
+app/src/server/factory-solve.test.ts
+  s_9be9645d11a3e7::t_e372c217147387 2
+app/src/server/migrations.ts
+  s_9be9645d11a3e7::t_d96b313df3e7c9 25
+app/src/server/module-fill.server.ts
+  s_9be9645d11a3e7::t_f6c3ad7acff133 19-20
+app/src/server/module-fill.test.ts
+  s_9be9645d11a3e7::t_f33c7df19dd28c 2,6,10
+app/src/server/projects.server.ts
+  s_9be9645d11a3e7::t_28e1ef9d21cbdc 9,17
+app/src/server/provision.ts
+  s_9be9645d11a3e7::t_d1ae54247972f9 18
+app/src/server/tasks.ts
+  s_9be9645d11a3e7::t_d6a574c6a001f1 3-4,8,10-15,19,23,27,42,49,57,93,108,138,159,165,172,180,185,191,198,202,206,212,219
+docs/ai-assistant.md
+  s_9be9645d11a3e7::t_9fe5fc88c0c74c 4,99,221
+docs/architecture.md
+  s_9be9645d11a3e7::t_397ad6136300dd 87,94
+docs/bridge.md
+  s_9be9645d11a3e7::t_cc3c94b1f53a60 119
+docs/data-pipeline.md
+  s_9be9645d11a3e7::t_748b4294933f18 6,29,37,43,59,94
+docs/desktop.md
+  s_9be9645d11a3e7::t_50b2bf92707ef8 29
+docs/solver.md
+  s_9be9645d11a3e7::t_0d331168934f5b 5,81,103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "d68cea748d0d09579821727033978081bba76538",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
