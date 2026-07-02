@@ -32,5 +32,6 @@ contract. The hard rules, as a checklist:
 - **Localized `display` names only**; internal names are keys/tooltips.
 - New recurring pattern → add a shared component, don't inline it twice.
 
-Legacy code still violates these (migration is incremental, issue #17) — don't
-copy the file you're editing; follow the spec.
+The whole app complies as of the #17 migration — the file you're editing is
+the example to match. Don't reintroduce raw palette classes, `rounded`, or
+hand-rolled controls; lint enforcement is tracked in issue #103.

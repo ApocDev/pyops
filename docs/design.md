@@ -108,6 +108,7 @@ Reach for these before writing markup:
 | "Nothing here yet" | `EmptyState` (`components/empty-state.tsx`). |
 | Loading placeholder | `Skeleton` (`ui/skeleton.tsx`). |
 | Hover detail | `CursorHover`/`CursorCard` (`lib/hover.tsx`) — the app's one tooltip system. |
+| Right-click menu | `ContextMenu`/`ContextMenuItem` (`components/context-menu.tsx`) — anchored panel + backdrop; items are icon+label rows. |
 | Tabular goods/rates/stats | `GoodsSection` (`components/goods-table.tsx`) + `StatCell`. The app's one data-table anatomy: a muted `hidden md:flex` header row, then rows with a lead cell (icon + truncating name, `flex-1`) and fixed-width right-aligned `StatCell` columns that collapse to a labeled grid on mobile. New tables follow it; prose tables in assistant markdown are the one exception. |
 
 ## Page anatomy
@@ -174,11 +175,10 @@ and focus (`focus-visible:ring-1 ring-ring/50` — baked into the primitives)
 states. Transitions are short (`transition-colors`) and only where they aid
 comprehension; nothing decorative.
 
-## Migration status
+## Status
 
-The base layer (tokens, square radius, `text-sm` primitives, the three shared
-components above) already enforces the defaults. Existing routes are being
-brought onto the system incrementally, per surface (issue #17). Until a route is
-migrated you'll still find legacy patterns in it — hand-rolled buttons, raw
-palette colors, `rounded`, `text-xs` body copy. Don't copy them; any code you
-touch follows this document.
+Every route and shared component follows this system (the #17 migration is
+complete): zero raw palette classes, zero stray `rounded`, primitives
+everywhere, and all modals ride the responsive `Dialog`. Keep it that way —
+new code follows this document, and mechanical lint enforcement is tracked in
+issue #103.
