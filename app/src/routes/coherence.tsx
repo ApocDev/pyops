@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Flame, Recycle, RefreshCw, X, Zap } from "lucide-react";
+import { Check, Flame, Recycle, RefreshCw, Zap } from "lucide-react";
 import { useState } from "react";
 import {
   factoryCoherenceFn,
@@ -16,6 +16,7 @@ import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "#/components/ui/sheet.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
@@ -495,13 +496,9 @@ function ScalePlanDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40" />
-      <aside
-        onClick={(e) => e.stopPropagation()}
-        className="relative flex w-[30rem] max-w-[92vw] flex-col border-l border-border bg-background shadow-xl"
-      >
-        <div className="flex items-center gap-2 border-b border-border px-3 py-3">
+    <Sheet open onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="right" aria-describedby={undefined} className="w-[30rem] max-w-[92vw]">
+        <SheetHeader className="h-auto gap-2 py-3 pr-12">
           <Icon
             kind={link.kind as "item" | "fluid"}
             name={link.good}
@@ -509,17 +506,14 @@ function ScalePlanDrawer({
             title={link.display ?? link.good}
           />
           <div className="min-w-0 flex-1">
-            <div className="truncate font-semibold">Scale up to demand</div>
+            <SheetTitle className="truncate">Scale up to demand</SheetTitle>
             <div className="truncate text-sm text-muted-foreground">
               {link.display ?? link.good} · short {num(shortfall)}/s · demand {num(link.consumed)}/s
             </div>
           </div>
-          <Button variant="ghost" size="icon-sm" onClick={onClose}>
-            <X />
-          </Button>
-        </div>
+        </SheetHeader>
 
-        <div className="flex-1 overflow-auto p-3">
+        <div className="min-h-0 flex-1 overflow-auto p-3">
           {/* pick which producer block grows */}
           <FieldLabel className="mb-1">Which block grows?</FieldLabel>
           {producers.length === 0 ? (
@@ -660,8 +654,8 @@ function ScalePlanDrawer({
             {applying ? "applying…" : `Apply — set to ${num(rate)}/s`}
           </Button>
         </div>
-      </aside>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
