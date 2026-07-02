@@ -10,7 +10,10 @@ import {
   type BeaconConfig,
 } from "../server/factorio";
 import { Badge } from "#/components/ui/badge.tsx";
-import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
+import { Button } from "#/components/ui/button.tsx";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "#/components/ui/dialog.tsx";
+import { FieldLabel } from "#/components/ui/label.tsx";
+import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { CursorHover } from "./hover";
 import { Icon } from "./icons";
 
@@ -90,14 +93,16 @@ export function ModulesChip({
             : "no modules — click to configure"
           : undefined
       }
-      className={`flex items-center gap-1 rounded px-1.5 py-1 text-sm hover:bg-accent ${
+      // Raw button on purpose: a compact icon-tile chip living inside a dense
+      // grid cell — the Button primitive's h-8 box would break the row density.
+      className={`flex items-center gap-1 px-1.5 py-1 text-sm hover:bg-accent ${
         empty
           ? "border border-dashed border-border text-muted-foreground"
-          : "bg-muted/50 text-emerald-300"
+          : "bg-muted/50 text-success"
       }`}
     >
       {empty && <SquarePlus className="size-4" />}
-      {auto && <span className="text-sm text-sky-300">A</span>}
+      {auto && <span className="text-sm text-info">A</span>}
       {grouped.map(([n, c]) => (
         <span key={n} className="flex items-center">
           <Icon kind="item" name={n} size="sm" noHover />
@@ -170,12 +175,10 @@ function ModuleLoadoutCard({
   if (effects?.productivity) total.push(`${pct(effects.productivity)} prod`);
   if (effects?.consumption) total.push(`${pct(effects.consumption)} energy`);
   return (
-    <div className="w-72 rounded border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
+    <div className="w-72 border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
       <div className="flex items-center gap-2 font-semibold">
         Module loadout
-        {auto && (
-          <span className="rounded bg-sky-500/15 px-1 text-xs font-normal text-sky-300">auto</span>
-        )}
+        {auto && <span className="bg-info/15 px-1 text-xs font-normal text-info">auto</span>}
       </div>
       {total.length > 0 && (
         <div className="mt-0.5 flex flex-wrap gap-x-3 text-muted-foreground">
@@ -196,16 +199,14 @@ function ModuleLoadoutCard({
                 {c > 1 ? `${c}× ` : ""}
                 {m?.display ?? n}
               </span>
-              {fx && <span className="ml-auto shrink-0 text-xs text-emerald-300/90">{fx}</span>}
+              {fx && <span className="ml-auto shrink-0 text-xs text-success/90">{fx}</span>}
             </div>
           );
         })}
       </div>
       {beacons.length > 0 && (
         <div className="mt-2 border-t border-border pt-1.5">
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-            beacons
-          </div>
+          <FieldLabel className="mb-1 text-muted-foreground/70">beacons</FieldLabel>
           {beacons.map((b, i) => (
             <div key={i} className="flex items-center gap-1.5">
               <Icon kind="entity" name={b.beacon} size="sm" noHover />
@@ -245,18 +246,20 @@ function SlotRow({
       {Array.from({ length: slots }, (_, i) => {
         const name = modules[i];
         return name ? (
+          // Raw button on purpose: a sprite-sized slot tile — the Button
+          // primitive's fixed heights don't fit the icon-grid density.
           <button
             key={i}
             onClick={() => onRemoveAt(i)}
             title={`${byName.get(name) ? moduleTitle(byName.get(name)!) : name} · click to remove`}
-            className="rounded border border-border bg-muted/50 p-0.5 hover:bg-destructive/20"
+            className="border border-border bg-muted/50 p-0.5 hover:bg-destructive/20"
           >
             <Icon kind="item" name={name} size="md" noTitle />
           </button>
         ) : (
           <span
             key={i}
-            className="inline-block rounded border border-dashed border-border p-0.5"
+            className="inline-block border border-dashed border-border p-0.5"
             title="empty slot"
           >
             <span className="block" style={{ width: "var(--icon-md)", height: "var(--icon-md)" }} />
@@ -306,11 +309,12 @@ function Palette({
             {cat}
           </span>
           {mods.map((m) => (
+            // Raw button on purpose: sprite-sized palette tile (see SlotRow).
             <button
               key={m.name}
               onClick={(e) => click(m, e)}
               title={`${moduleTitle(m)}\nclick: add · shift: fill · ctrl: clear`}
-              className="rounded border border-border bg-muted/30 p-0.5 hover:bg-accent"
+              className="border border-border bg-muted/30 p-0.5 hover:bg-accent"
             >
               <Icon kind="item" name={m.name} size="md" noTitle />
             </button>
@@ -377,9 +381,12 @@ function BeaconMatrix({
                   if (!c) return <span key={f} />;
                   const cur = c.name === current;
                   return (
+                    // Raw button on purpose: a 5×5 matrix cell — the Button
+                    // primitive's box would blow up the grid density.
                     <button
                       key={f}
                       onClick={() => onPick(c.name)}
+                      aria-pressed={cur}
                       title={`${c.display ?? c.name} · ${mult(c.de)} effect · ${c.w != null ? fmtW(c.w) : "?"}`}
                       className={`px-1 py-1 ${
                         cur ? "bg-primary text-primary-foreground" : "bg-muted/40 hover:bg-accent"
@@ -395,14 +402,17 @@ function BeaconMatrix({
         </div>
       ))}
       {families.flat.map((b) => (
-        <button
+        <Button
           key={b.name}
+          variant="toggle"
+          size="sm"
           onClick={() => onPick(b.name)}
-          className={`mr-1 rounded border border-border px-2 py-1 text-sm ${b.name === current ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+          aria-pressed={b.name === current}
+          className="mr-1"
           title={`${b.display ?? b.name} · ${mult(b.distributionEffectivity)} effect · ${b.energyUsageW != null ? fmtW(b.energyUsageW) : "?"}`}
         >
           {b.display ?? b.name}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -478,29 +488,33 @@ export function ModulesModal({
   if (effects?.consumption) fx.push(`${pct(effects.consumption)} energy`);
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-start justify-center bg-black/55 p-10"
-      onClick={onClose}
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
     >
-      <Card
-        className="max-h-[85vh] w-[42rem] overflow-auto shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <CardHeader className="justify-between">
-          <CardTitle className="normal-case">Modules — {recipeDisplay}</CardTitle>
-          <button className="text-muted-foreground hover:text-foreground" onClick={onClose}>
-            <X className="size-4" />
-          </button>
-        </CardHeader>
-        <div className="space-y-4 p-3">
-          {picker.isLoading && <div className="text-muted-foreground">…</div>}
+      <DialogContent className="md:max-w-[42rem]">
+        <DialogHeader className="pr-10">
+          <DialogTitle className="truncate">Modules — {recipeDisplay}</DialogTitle>
+        </DialogHeader>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+          {picker.isLoading && (
+            // approximate the loaded layout: effect badges, slot row, palette rows
+            <div className="space-y-4">
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          )}
           {data && (
             <>
               {/* live effect summary */}
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 {fx.length ? (
                   fx.map((s) => (
-                    <Badge key={s} variant="secondary" className="text-emerald-300">
+                    <Badge key={s} variant="secondary" className="text-success">
                       {s}
                     </Badge>
                   ))
@@ -521,19 +535,21 @@ export function ModulesModal({
               {(auto || onReset) && (
                 <div className="flex items-center gap-2 text-sm">
                   {auto ? (
-                    <span className="text-sky-300" title="chosen by the payback-economy auto-fill">
+                    <span className="text-info" title="chosen by the payback-economy auto-fill">
                       A auto-managed{modules.length === 0 ? " — no module pays back here" : ""} —
                       any edit takes manual control
                     </span>
                   ) : (
                     onReset && (
-                      <button
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={onReset}
-                        className="flex items-center gap-1 rounded border border-dashed border-border px-1.5 py-0.5 text-muted-foreground hover:bg-accent"
+                        className="border-dashed text-muted-foreground"
                         title="drop the manual config and let auto-fill choose again"
                       >
                         <RotateCcw className="size-3.5" /> reset to auto
-                      </button>
+                      </Button>
                     )
                   )}
                 </div>
@@ -545,10 +561,12 @@ export function ModulesModal({
                   Presets
                 </span>
                 {presets.data?.map((p) => (
-                  <button
+                  <Button
                     key={p.id}
+                    variant="outline"
+                    size="sm"
                     onClick={() => onChange(p.modules.slice(0, slots), p.beacons)}
-                    className="group flex items-center gap-1 rounded border border-border bg-muted/30 px-1.5 py-0.5 text-sm hover:bg-accent"
+                    className="group"
                     title={`${p.modules.length} modules · ${p.beacons.length} beacon(s) — click to apply`}
                   >
                     {p.name}
@@ -560,15 +578,17 @@ export function ModulesModal({
                     >
                       <X className="size-3.5" />
                     </span>
-                  </button>
+                  </Button>
                 ))}
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={savePreset}
-                  className="rounded border border-dashed border-border px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-accent"
+                  className="border-dashed text-muted-foreground"
                   title="save the current loadout as a preset"
                 >
                   + save
-                </button>
+                </Button>
               </div>
 
               {/* machine slots */}
@@ -582,12 +602,14 @@ export function ModulesModal({
                   />
                   {data.machine.display ?? data.machine.name} · {modules.length}/{slots} slots
                   {modules.length > 0 && (
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="xs"
                       onClick={() => setModules([])}
-                      className="text-muted-foreground normal-case hover:text-destructive"
+                      className="font-normal text-muted-foreground normal-case hover:text-destructive"
                     >
                       clear
-                    </button>
+                    </Button>
                   )}
                 </div>
                 <SlotRow
@@ -610,17 +632,19 @@ export function ModulesModal({
               <div>
                 <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
                   Beacons
-                  <button
+                  <Button
+                    variant="outline"
+                    size="xs"
                     onClick={() => {
                       const first = data.beacons[0]?.name;
                       if (!first) return;
                       setBeacons([...beacons, { beacon: first, modules: [], count: 1 }]);
                       setVariantFor(beacons.length);
                     }}
-                    className="rounded border border-dashed border-border px-1.5 normal-case text-muted-foreground hover:bg-accent"
+                    className="border-dashed font-normal text-muted-foreground normal-case"
                   >
                     + add
-                  </button>
+                  </Button>
                 </div>
                 {beacons.length === 0 && (
                   <div className="text-sm text-muted-foreground">
@@ -635,11 +659,14 @@ export function ModulesModal({
                       .map((n) => byName.get(n))
                       .filter((x): x is ModuleInfo => !!x);
                     return (
-                      <div key={i} className="rounded border border-border p-2">
+                      <div key={i} className="border border-border p-2">
                         <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                          {/* Raw button on purpose: an icon-tile chip (md sprite +
+                              stats) — Button's fixed height doesn't fit it. */}
                           <button
                             onClick={() => setVariantFor(variantFor === i ? null : i)}
-                            className="flex items-center gap-1.5 rounded bg-muted/50 px-1.5 py-1 text-sm hover:bg-accent"
+                            aria-expanded={variantFor === i}
+                            className="flex items-center gap-1.5 bg-muted/50 px-1.5 py-1 text-sm hover:bg-accent"
                             title="click to change beacon variant"
                           >
                             <Icon kind="entity" name={cfg.beacon} size="md" noTitle />
@@ -651,23 +678,27 @@ export function ModulesModal({
                           </button>
                           {/* per-machine beacon count stepper */}
                           <span className="flex items-center gap-1 text-sm">
-                            <button
+                            <Button
+                              variant="outline"
+                              size="icon-xs"
                               onClick={() =>
                                 setBeaconAt(i, { ...cfg, count: Math.max(1, cfg.count - 1) })
                               }
-                              className="flex items-center rounded border border-border px-1.5 py-1 hover:bg-accent"
                             >
                               <Minus className="size-3.5" />
-                            </button>
+                            </Button>
                             <span title="beacons affecting each machine">{cfg.count}</span>
-                            <button
+                            <Button
+                              variant="outline"
+                              size="icon-xs"
                               onClick={() => setBeaconAt(i, { ...cfg, count: cfg.count + 1 })}
-                              className="flex items-center rounded border border-border px-1.5 py-1 hover:bg-accent"
                             >
                               <Plus className="size-3.5" />
-                            </button>
+                            </Button>
                           </span>
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => {
                               setBeacons(beacons.filter((_, j) => j !== i));
                               setVariantFor(null);
@@ -676,10 +707,10 @@ export function ModulesModal({
                             title="remove beacon"
                           >
                             <X className="size-3.5" />
-                          </button>
+                          </Button>
                         </div>
                         {variantFor === i && (
-                          <div className="mb-2 rounded bg-muted/20 p-2">
+                          <div className="mb-2 bg-muted/20 p-2">
                             <BeaconMatrix
                               beacons={data.beacons}
                               current={cfg.beacon}
@@ -719,7 +750,7 @@ export function ModulesModal({
             </>
           )}
         </div>
-      </Card>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

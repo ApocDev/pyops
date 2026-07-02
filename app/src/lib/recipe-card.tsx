@@ -7,6 +7,8 @@ import { entityDetailFn, itemDetailFn, recipeDetailFn, techDetailFn } from "../s
 import { RawIcon as Icon, fmtSpoilTime } from "./icons";
 import { CursorCard, CursorHover } from "./hover";
 import { formatQty, formatRate } from "./format";
+import { FieldLabel } from "#/components/ui/label.tsx";
+import { Skeleton } from "#/components/ui/skeleton.tsx";
 
 /** One ingredient/product line: icon + amount + name (+ temps / probability). */
 function Comp(c: {
@@ -26,15 +28,15 @@ function Comp(c: {
       <Icon kind={c.kind as "item" | "fluid"} name={c.name} size="md" />
       <span className="truncate">
         {c.amount ?? `${c.amountMin}–${c.amountMax}`}× {c.display ?? c.name}
-        {c.temperature != null && <span className="text-sky-400"> @{c.temperature}°</span>}
+        {c.temperature != null && <span className="text-info"> @{c.temperature}°</span>}
         {c.kind === "fluid" && (c.minTemp != null || c.maxTemp != null) && (
-          <span className="text-sky-400">
+          <span className="text-info">
             {" "}
             [{c.minTemp ?? ""}…{c.maxTemp ?? ""}°]
           </span>
         )}
         {c.probability != null && c.probability < 1 && (
-          <span className="text-amber-400"> p={c.probability}</span>
+          <span className="text-warning"> p={c.probability}</span>
         )}
       </span>
     </div>
@@ -49,14 +51,20 @@ export function RecipeCard({ name }: { name: string }) {
   });
   const r = data?.recipe;
   return (
-    <div className="w-[26rem] rounded border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
+    <div className="w-[26rem] border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
       <div className="flex items-center gap-2 text-base font-semibold">
         <Icon kind="recipe" name={name} size="md" />
         <span className="truncate">{r?.display ?? name}</span>
       </div>
       <div className="mb-2 truncate text-sm text-muted-foreground">{name}</div>
       {!r ? (
-        <div className="text-muted-foreground">…</div>
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-56" />
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton className="h-14" />
+            <Skeleton className="h-14" />
+          </div>
+        </div>
       ) : (
         <>
           <div className="mb-2 text-muted-foreground">
@@ -120,13 +128,17 @@ export function TechCard({ name }: { name: string }) {
     staleTime: 60_000,
   });
   return (
-    <div className="w-[26rem] rounded border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
+    <div className="w-[26rem] border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
       <div className="flex items-center gap-2 text-base font-semibold">
         <Icon kind="technology" name={name} size="md" />
         <span className="truncate">{data?.display ?? name}</span>
       </div>
       {!data ? (
-        <div className="text-muted-foreground">…</div>
+        <div className="mt-1.5 space-y-1.5">
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-4 w-64" />
+          <Skeleton className="h-4 w-40" />
+        </div>
       ) : (
         <>
           {data.science.length > 0 && (
@@ -258,7 +270,7 @@ export function ItemCard({ name, kind }: { name: string; kind: "item" | "fluid" 
   });
   const display = data?.item?.display ?? data?.fluid?.display ?? name;
   return (
-    <div className="w-96 rounded border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
+    <div className="w-96 border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
       <div className="flex items-center gap-2 text-base font-semibold">
         <Icon kind={kind} name={name} size="md" noTitle />
         <span className="truncate">{display}</span>
@@ -272,7 +284,11 @@ export function ItemCard({ name, kind }: { name: string; kind: "item" | "fluid" 
         {name} · {kind}
       </div>
       {!data ? (
-        <div className="text-muted-foreground">…</div>
+        <div className="mt-1.5 space-y-1.5">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-56" />
+          <Skeleton className="h-4 w-44" />
+        </div>
       ) : (
         <div className="mt-1.5 space-y-0.5 text-muted-foreground">
           {data.item?.stackSize != null && <div>stack {data.item.stackSize}</div>}
@@ -292,7 +308,7 @@ export function ItemCard({ name, kind }: { name: string; kind: "item" | "fluid" 
           )}
           {data.item?.spoilResult && (
             <div className="flex items-center gap-1">
-              <Timer className="size-3.5 text-amber-400" />
+              <Timer className="size-3.5 text-warning" />
               spoils
               {data.item.spoilTicks != null ? ` in ${fmtSpoilTime(data.item.spoilTicks)}` : ""} →{" "}
               {data.spoilResultDisplay ?? data.item.spoilResult}
@@ -324,11 +340,11 @@ function RecipeList({
   const CAP = 7;
   return (
     <div className="mt-1.5">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+      <FieldLabel className="text-muted-foreground/70">
         {label} {recipes.length > 0 && `(${recipes.length})`}
-      </div>
+      </FieldLabel>
       {recipes.length === 0 ? (
-        <div className="text-xs italic text-muted-foreground/60">{empty}</div>
+        <div className="text-sm italic text-muted-foreground/60">{empty}</div>
       ) : (
         <div className="mt-0.5 flex flex-col gap-0.5">
           {recipes.slice(0, CAP).map((r) => (
@@ -401,9 +417,9 @@ function ioByName(
 // green, removed is red, a resized amount is amber. (Whether a change is *good* is
 // conveyed separately by the output-rate line, which greens/reds by direction.)
 const DIFF_TONE = {
-  added: "text-emerald-400",
-  removed: "text-rose-400",
-  changed: "text-amber-400",
+  added: "text-success",
+  removed: "text-destructive",
+  changed: "text-warning",
   same: "text-muted-foreground",
 };
 
@@ -436,7 +452,7 @@ function DiffRow({ before, after }: { before: DiffCell | null; after: DiffCell |
   const hasRate = rb != null || ra != null;
   const rateUp = rb != null && ra != null ? (ra > rb ? 1 : ra < rb ? -1 : 0) : ra != null ? 1 : -1;
   const rateTone =
-    rateUp > 0 ? "text-emerald-400" : rateUp < 0 ? "text-rose-400" : "text-muted-foreground";
+    rateUp > 0 ? "text-success" : rateUp < 0 ? "text-destructive" : "text-muted-foreground";
   // % change in throughput when both sides have a rate (e.g. same yield but faster)
   const pctStr =
     rb != null && ra != null && rb > 0 && ra !== rb
@@ -521,7 +537,7 @@ export function RecipeDiffCard({ a, b, bonus }: { a: string; b: string; bonus?: 
   const ra = qa.data?.recipe;
   const rb = qb.data?.recipe;
   return (
-    <div className="w-[32rem] rounded border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
+    <div className="w-[32rem] border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
       <div className="flex items-center gap-1.5 text-sm font-semibold">
         <Icon kind="recipe" name={a} size="sm" />
         <span className="min-w-0 truncate">{ra?.display ?? a}</span>
@@ -530,7 +546,10 @@ export function RecipeDiffCard({ a, b, bonus }: { a: string; b: string; bonus?: 
         <span className="min-w-0 truncate">{rb?.display ?? b}</span>
       </div>
       {!ra || !rb ? (
-        <div className="mt-2 text-muted-foreground">…</div>
+        <div className="mt-2 grid grid-cols-2 gap-3">
+          <Skeleton className="h-14" />
+          <Skeleton className="h-14" />
+        </div>
       ) : (
         (() => {
           const ta = ra.energyRequired ?? 0;
@@ -548,7 +567,7 @@ export function RecipeDiffCard({ a, b, bonus }: { a: string; b: string; bonus?: 
                   <Timer className="size-3.5 text-muted-foreground" />
                   <span className="text-muted-foreground">{ta}s</span>
                   <span className="text-muted-foreground">→</span>
-                  <span className={tb < ta ? "text-emerald-400" : "text-rose-400"}>{tb}s</span>
+                  <span className={tb < ta ? "text-success" : "text-destructive"}>{tb}s</span>
                   <span className="text-xs text-muted-foreground">
                     ({tb < ta ? "faster" : "slower"})
                   </span>
@@ -574,7 +593,7 @@ export function RecipeDiffCard({ a, b, bonus }: { a: string; b: string; bonus?: 
                 />
               </div>
               {bonusParts.length > 0 && (
-                <div className="mt-1.5 text-xs text-muted-foreground">
+                <div className="mt-1.5 text-sm text-muted-foreground">
                   out /s includes this choice&apos;s module ({bonusParts.join(", ")}); productivity
                   skips barrels &amp; catalysts
                 </div>
@@ -673,14 +692,14 @@ export function EntityCard({ name }: { name: string }) {
     if (mc.energyUsageW != null)
       rows.push(
         <div key="power" className="flex items-center gap-1">
-          <Zap className="size-3.5 shrink-0 text-amber-400" />
+          <Zap className="size-3.5 shrink-0 text-warning" />
           {fmtW(mc.energyUsageW)}
           {mc.energySource ? ` · ${mc.energySource}` : ""}
         </div>,
       );
     if (mc.categories.length)
       rows.push(
-        <div key="cats" className="text-xs">
+        <div key="cats" className="text-sm">
           crafts: {mc.categories.join(", ")}
         </div>,
       );
@@ -692,7 +711,7 @@ export function EntityCard({ name }: { name: string }) {
     if (d.energyUsageW != null)
       rows.push(
         <div key="dpower" className="flex items-center gap-1">
-          <Zap className="size-3.5 shrink-0 text-amber-400" />
+          <Zap className="size-3.5 shrink-0 text-warning" />
           {fmtW(d.energyUsageW)}
           {d.energySource ? ` · ${d.energySource}` : ""}
         </div>,
@@ -703,7 +722,7 @@ export function EntityCard({ name }: { name: string }) {
     if (b.distributionEffectivity != null)
       rows.push(
         <div key="eff" className="flex items-center gap-1">
-          <Bolt className="size-3.5 shrink-0 text-sky-400" />
+          <Bolt className="size-3.5 shrink-0 text-info" />
           {Math.round(b.distributionEffectivity * 100)}% module effect
         </div>,
       );
@@ -711,7 +730,7 @@ export function EntityCard({ name }: { name: string }) {
     if (b.energyUsageW != null)
       rows.push(
         <div key="bpower" className="flex items-center gap-1">
-          <Zap className="size-3.5 shrink-0 text-amber-400" />
+          <Zap className="size-3.5 shrink-0 text-warning" />
           {fmtW(b.energyUsageW)}
         </div>,
       );
@@ -725,7 +744,7 @@ export function EntityCard({ name }: { name: string }) {
     );
   if (data?.item?.stackSize != null) rows.push(<div key="stack">stack {data.item.stackSize}</div>);
   return (
-    <div className="w-80 rounded border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
+    <div className="w-80 border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
       <div className="flex items-center gap-2 text-base font-semibold">
         <Icon kind="entity" name={name} size="md" noTitle />
         <span className="truncate">{display}</span>
@@ -740,11 +759,14 @@ export function EntityCard({ name }: { name: string }) {
         {data?.machine?.kind ?? (data?.drill ? "mining-drill" : data?.beacon ? "beacon" : "entity")}
       </div>
       {!data ? (
-        <div className="mt-1.5 text-muted-foreground">…</div>
+        <div className="mt-1.5 space-y-1.5">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-4 w-52" />
+        </div>
       ) : rows.length ? (
         <div className="mt-1.5 space-y-0.5 text-muted-foreground">{rows}</div>
       ) : (
-        <div className="mt-1.5 text-xs italic text-muted-foreground/60">no extra detail</div>
+        <div className="mt-1.5 text-sm italic text-muted-foreground/60">no extra detail</div>
       )}
     </div>
   );
@@ -823,7 +845,7 @@ export function TechLine({
 }) {
   return (
     <span
-      className={`flex flex-wrap items-center gap-1.5 text-sm ${researched ? "text-emerald-300" : "text-red-400/90"}`}
+      className={`flex flex-wrap items-center gap-1.5 text-sm ${researched ? "text-success" : "text-destructive/90"}`}
       title={
         (researched ? "researched: " : "requires research: ") +
         (unlock.display ?? unlock.tech) +

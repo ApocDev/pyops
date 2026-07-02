@@ -1,10 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { Boxes, Plus } from "lucide-react";
+import { EmptyState } from "#/components/empty-state.tsx";
 
 export const Route = createFileRoute("/block/")({
   component: () => (
-    <div className="flex h-full items-center justify-center gap-1 p-8 text-center text-muted-foreground">
-      Select a block from the sidebar, or <Plus className="inline size-4" /> to create one.
-    </div>
+    <EmptyState
+      className="h-full"
+      icon={Boxes}
+      title="No block selected"
+      description={
+        <>
+          Pick a block from the sidebar, or use the{" "}
+          <Plus className="inline size-3.5" aria-label="new block" /> button to create one.
+        </>
+      }
+    />
   ),
 });

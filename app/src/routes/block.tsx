@@ -37,9 +37,22 @@ import {
   setGroupOrderFn,
   setGroupParentFn,
 } from "../server/factorio";
-import { AlertTriangle, ChevronDown, ChevronRight, FolderPlus, Plus, Power, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Boxes,
+  ChevronDown,
+  ChevronRight,
+  FolderPlus,
+  Plus,
+  Power,
+  X,
+} from "lucide-react";
 import { Icon, IconProvider } from "../lib/icons";
+import { Button } from "#/components/ui/button.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { FieldLabel } from "#/components/ui/label.tsx";
+import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { EmptyState } from "#/components/empty-state.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 
 export const Route = createFileRoute("/block")({
@@ -409,11 +422,11 @@ function Shell() {
   const healthRank: Record<Health, number> = { ok: 0, warn: 1, error: 2 };
   // tint the block/folder NAME (not just the icon) so a problem reads at a glance
   const healthText = (h: Health) =>
-    h === "error" ? "text-destructive" : h === "warn" ? "text-amber-400" : "";
+    h === "error" ? "text-destructive" : h === "warn" ? "text-warning" : "";
   const healthBadge = (h: Health, tip: string) =>
     h === "ok" ? null : (
       <span
-        className={`shrink-0 ${h === "error" ? "text-destructive" : "text-amber-400"}`}
+        className={`shrink-0 ${h === "error" ? "text-destructive" : "text-warning"}`}
         title={tip}
       >
         <AlertTriangle className="size-3.5" />
@@ -446,11 +459,11 @@ function Shell() {
       key={b.id}
       id={`b${b.id}`}
       style={{ marginLeft: 8 + depth * 12 }}
-      className={`group relative flex cursor-grab items-center gap-2 rounded px-2 py-1 select-none hover:bg-muted active:cursor-grabbing ${activeId === b.id ? "bg-accent" : ""}`}
+      className={`group relative flex cursor-grab items-center gap-2 px-2 py-1 select-none hover:bg-muted active:cursor-grabbing ${activeId === b.id ? "bg-accent" : ""}`}
     >
       {dropBlock?.id === b.id && (
         <div
-          className={`pointer-events-none absolute inset-x-1 z-10 h-0.5 rounded-full bg-primary ${dropBlock.after ? "-bottom-px" : "-top-px"}`}
+          className={`pointer-events-none absolute inset-x-1 z-10 h-0.5 bg-primary ${dropBlock.after ? "-bottom-px" : "-top-px"}`}
         />
       )}
       <button
@@ -474,10 +487,12 @@ function Shell() {
           {b.name}
         </span>
         {b.enabled === false && (
-          <Power className="size-3 shrink-0 text-amber-400" aria-label="disabled" />
+          <Power className="size-3 shrink-0 text-warning" aria-label="disabled" />
         )}
         {healthBadge(b.health, blockHealthTip(b))}
       </button>
+      {/* Raw button on purpose: hover-revealed glyph inside a drag row — a
+          Button box would change the row's density/hit-testing. */}
       <button
         className="px-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
         title="delete"
@@ -503,10 +518,10 @@ function Shell() {
         <DndRow
           id={key}
           style={{ marginLeft: depth * 12 }}
-          className={`group relative flex cursor-grab items-center gap-1 rounded px-1 py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase select-none hover:bg-muted/50 active:cursor-grabbing ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
+          className={`group relative flex cursor-grab items-center gap-1 px-1 py-1 text-sm font-semibold tracking-wide text-muted-foreground uppercase select-none hover:bg-muted/50 active:cursor-grabbing ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
         >
           {showLine && (
-            <div className="pointer-events-none absolute inset-x-1 -top-px z-10 h-0.5 rounded-full bg-primary" />
+            <div className="pointer-events-none absolute inset-x-1 -top-px z-10 h-0.5 bg-primary" />
           )}
           <button className="flex w-4 shrink-0 justify-center" onClick={() => toggle(key)}>
             {isCol ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
@@ -551,7 +566,7 @@ function Shell() {
       <div key={key}>
         <DropZone
           id={key}
-          className={`group flex items-center gap-1 rounded px-1 py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted/50 ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
+          className={`group flex items-center gap-1 px-1 py-1 text-sm font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted/50 ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
         >
           <button className="flex w-4 shrink-0 justify-center" onClick={() => toggle(key)}>
             {isCol ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
@@ -569,7 +584,7 @@ function Shell() {
     if (dragKey.startsWith("b")) {
       const b = byId.get(Number(dragKey.slice(1)));
       return b ? (
-        <div className="flex items-center gap-2 rounded border border-border bg-card px-2 py-1 text-sm shadow-lg">
+        <div className="flex items-center gap-2 border border-border bg-card px-2 py-1 text-sm shadow-lg">
           {b.iconName && (
             <Icon
               kind={(b.iconKind ?? "item") as IconKind}
@@ -585,7 +600,7 @@ function Shell() {
     }
     const g = (groups.data ?? []).find((x) => `g${x.id}` === dragKey);
     return g ? (
-      <div className="rounded border border-border bg-card px-2 py-1 text-xs font-semibold tracking-wide uppercase shadow-lg">
+      <div className="border border-border bg-card px-2 py-1 text-sm font-semibold tracking-wide uppercase shadow-lg">
         {g.name}
       </div>
     ) : null;
@@ -599,23 +614,19 @@ function Shell() {
       sidebar={
         <>
           <div className="flex items-center gap-2 border-b border-border px-2 py-2">
-            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Blocks ({blocks.data?.length ?? 0})
-            </span>
-            <button
+            <FieldLabel className="font-semibold">Blocks ({blocks.data?.length ?? 0})</FieldLabel>
+            <Button
+              variant="outline"
+              size="icon-sm"
               onClick={newFolder}
               title="new folder"
-              className="ml-auto flex items-center rounded border border-border px-1.5 py-1 hover:bg-muted"
+              className="ml-auto"
             >
               <FolderPlus className="size-4" />
-            </button>
-            <button
-              onClick={newBlock}
-              title="new block"
-              className="flex items-center rounded bg-primary px-1.5 py-1 text-primary-foreground hover:bg-primary/80"
-            >
+            </Button>
+            <Button size="icon-sm" onClick={() => void newBlock()} title="new block">
               <Plus className="size-4" />
-            </button>
+            </Button>
           </div>
           <Input
             value={search}
@@ -632,16 +643,45 @@ function Shell() {
             onDragCancel={endDrag}
           >
             <div className="flex-1 overflow-auto px-1 pb-2">
-              {(blocks.data?.length ?? 0) === 0 ? (
-                <div className="flex items-center gap-1 px-2 py-2 text-xs text-muted-foreground">
-                  no blocks yet — <Plus className="inline size-3" /> to add one
+              {blocks.isPending ? (
+                <div className="space-y-1.5 px-2 py-2">
+                  <Skeleton className="h-6 w-full" />
+                  <Skeleton className="h-6 w-full" />
+                  <Skeleton className="h-6 w-4/5" />
+                  <Skeleton className="h-6 w-full" />
                 </div>
+              ) : (blocks.data?.length ?? 0) === 0 ? (
+                <EmptyState
+                  className="p-4"
+                  icon={Boxes}
+                  title="No blocks yet"
+                  description={
+                    <>
+                      Create your first block with the{" "}
+                      <Plus className="inline size-3.5" aria-label="new block" /> button above.
+                    </>
+                  }
+                  action={
+                    <Button size="sm" onClick={() => void newBlock()}>
+                      <Plus /> New block
+                    </Button>
+                  }
+                />
               ) : (
                 <>
                   {childrenOf(null).map((g) => renderFolder(g, 0))}
                   {renderUngrouped()}
                   {filtered.length === 0 && (
-                    <div className="px-2 py-2 text-xs text-muted-foreground">no matches</div>
+                    <EmptyState
+                      className="p-4"
+                      title="No matching blocks"
+                      description="Nothing matches this search."
+                      action={
+                        <Button variant="outline" size="sm" onClick={() => setSearch("")}>
+                          Clear search
+                        </Button>
+                      }
+                    />
                   )}
                 </>
               )}
@@ -714,7 +754,7 @@ function Shell() {
                 role="button"
                 tabIndex={-1}
                 onClick={(e) => closeTab(id, e)}
-                className="flex items-center rounded px-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="flex items-center px-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <X className="size-3.5" />
               </span>

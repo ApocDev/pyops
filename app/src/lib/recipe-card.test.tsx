@@ -56,12 +56,12 @@ describe("TechLine", () => {
     const req = withProviders(<TechLine unlock={unlock} />);
     const reqSpan = within(req.container).getByText("Automation 2").closest("span[title]")!;
     expect(reqSpan.getAttribute("title")).toContain("requires research:");
-    expect((reqSpan as HTMLElement).className).toContain("text-red-400/90");
+    expect((reqSpan as HTMLElement).className).toContain("text-destructive/90");
 
     const done = withProviders(<TechLine unlock={unlock} researched />);
     const doneSpan = within(done.container).getByText("Automation 2").closest("span[title]")!;
     expect(doneSpan.getAttribute("title")).toContain("researched:");
-    expect((doneSpan as HTMLElement).className).toContain("text-emerald-300");
+    expect((doneSpan as HTMLElement).className).toContain("text-success");
   });
 });
 
