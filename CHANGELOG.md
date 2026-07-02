@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.5.0](https://github.com/ApocDev/pyops/compare/v0.4.5...v0.5.0) (2026-07-02)
+
+
+### Features
+
+* **agent:** expose module-slot rules and add a what-if recipe calculator ([83cfd66](https://github.com/ApocDev/pyops/commit/83cfd66d85d413fa486e1907fc41260de00965d5))
+* **app:** adaptive number precision with a compact-numbers toggle ([c0fcb87](https://github.com/ApocDev/pyops/commit/c0fcb87746ca6ced0b34ecabb03d19e10a15f88a)), closes [#74](https://github.com/ApocDev/pyops/issues/74)
+* **app:** add a Launch Factorio button to the Live bridge card ([40b4c9f](https://github.com/ApocDev/pyops/commit/40b4c9f576d603e5ecaea66135266d4ff18c020a))
+* **app:** add Callout, Button toggle variant, FieldLabel ([d00af1b](https://github.com/ApocDev/pyops/commit/d00af1bfc382e60e33f75b8387c2166aaa8dbedf)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** add Checkbox and DropdownMenu primitives ([45158de](https://github.com/ApocDev/pyops/commit/45158de7683bc703cec59cbc14154d9ffed52a19)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** add responsive Dialog primitive ([deee6d3](https://github.com/ApocDev/pyops/commit/deee6d3cc0e511276a14987a803a8ba22ff7385e)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** custom block icons; first goal is just the default icon ([2ad9d87](https://github.com/ApocDev/pyops/commit/2ad9d87d9a030c3678eeec58d3eadaad0d35b9a4)), closes [#40](https://github.com/ApocDev/pyops/issues/40)
+* **app:** enable/disable recipes in a block and whole blocks ([86120e9](https://github.com/ApocDev/pyops/commit/86120e98a240056936d94637a659ba4e7492e490)), closes [#73](https://github.com/ApocDev/pyops/issues/73)
+* **app:** enforce design-system defaults in the base layer ([dadca09](https://github.com/ApocDev/pyops/commit/dadca0933efac9616b2730bd578ae7dfb76c1e72)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** flag recipes not used by a block's goal ([1ece93f](https://github.com/ApocDev/pyops/commit/1ece93f6246a9ff211731fcac8aea6658f48ded0))
+* **app:** give every icon a rich hover card instead of a native title ([9a0e9a5](https://github.com/ApocDev/pyops/commit/9a0e9a5088defec5e83ad7d25ded59df8c75da62))
+* **app:** migrate Assistant page to the design system ([9d50b54](https://github.com/ApocDev/pyops/commit/9d50b546fa6cd98525fde150cde59a07397da682)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** migrate block editor to the design system ([ad6acb3](https://github.com/ApocDev/pyops/commit/ad6acb3fca1b8048aaedb4f09bab52604b022266)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** migrate block rail, landing, recipe card and modules modal ([2c61ff5](https://github.com/ApocDev/pyops/commit/2c61ff58088fddcda24217148eb34a9db594a2d8)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** migrate Browse page to the design system ([8a2cbbe](https://github.com/ApocDev/pyops/commit/8a2cbbead4c37d16a5a67cd02ba2505dd3110aeb)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** migrate Coherence page to the design system ([2feeda0](https://github.com/ApocDev/pyops/commit/2feeda029661704fba1f05dd026d51fd471ed8a9)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** migrate Factory page to the design system ([b40516b](https://github.com/ApocDev/pyops/commit/b40516b021c093923d225e1b7446edf2217466fd)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** migrate home page to the design system ([e985018](https://github.com/ApocDev/pyops/commit/e985018b3dac989dfc9cdbcd0bbafc8053c73b2a)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** migrate nav shell and shared widgets to the design system ([c50666f](https://github.com/ApocDev/pyops/commit/c50666f3d338b4052b416ee86ab54041a2eb7861)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** migrate Settings page to the design system ([20a7b43](https://github.com/ApocDev/pyops/commit/20a7b431273ae12ba1c07879d7b4ad6363ebea7f)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** migrate Tasks page to the design system ([5cbfa7b](https://github.com/ApocDev/pyops/commit/5cbfa7bce317cbab7a35e53f4adb26ff20af9308)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** migrate TURD page to the design system ([356382f](https://github.com/ApocDev/pyops/commit/356382f11f7b477e61e20cd035a414f08fff2fa5)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** migrate What-if page to the design system ([0d85cfd](https://github.com/ApocDev/pyops/commit/0d85cfdf4d0ec2982c20b1a58a96b35fbf6d6963)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **app:** per-goal rate windows (/s, /min, /h) and a very-low-rate warning ([8f8551a](https://github.com/ApocDev/pyops/commit/8f8551ada96873c6b817e387cdc0a7abd4fc2e11)), closes [#10](https://github.com/ApocDev/pyops/issues/10) [#38](https://github.com/ApocDev/pyops/issues/38)
+* **app:** sortable, collapsible factory sections with %-met severity ([fe76d21](https://github.com/ApocDev/pyops/commit/fe76d2106bac28c61d06c6151dd082250573bb52)), closes [#77](https://github.com/ApocDev/pyops/issues/77)
+* **app:** sub-blocks — collapse a recipe chain into a named group ([3d1a509](https://github.com/ApocDev/pyops/commit/3d1a509455f477ad56cfeeadb83829c0b0d17439)), closes [#7](https://github.com/ApocDev/pyops/issues/7)
+* gate the TURD tab on data presence (mod-agnostic step 1) ([#69](https://github.com/ApocDev/pyops/issues/69)) ([a531dc7](https://github.com/ApocDev/pyops/commit/a531dc766116d3bed8c7db664b41c7c93915cfcd)), closes [#68](https://github.com/ApocDev/pyops/issues/68)
+* **mod:** auto-detect the udp bridge and drop the enable toggle ([37193d3](https://github.com/ApocDev/pyops/commit/37193d39bc38eadb770e61dee4f0accab82339ff))
+* **planner:** incidental-spoil risk flag and planned spoil losses ([bd5aa05](https://github.com/ApocDev/pyops/commit/bd5aa0556b119583751b779a9fc230d0fdc47fa0)), closes [#20](https://github.com/ApocDev/pyops/issues/20)
+* **planner:** keep-in-stock goals with a refill window ([5e5300d](https://github.com/ApocDev/pyops/commit/5e5300ddffccddc30d9493f3c1b63042cf674d6d)), closes [#38](https://github.com/ApocDev/pyops/issues/38)
+* **planner:** pollution budget per block, rolled up factory-wide ([d51aaa1](https://github.com/ApocDev/pyops/commit/d51aaa110f61cbcafc7375c9cfbc6783dbf0c852)), closes [#23](https://github.com/ApocDev/pyops/issues/23)
+* **planner:** show the storage buffer a spoiling step needs ([79514b0](https://github.com/ApocDev/pyops/commit/79514b0c4f421a7c7516ec301d4d965d5f7b6d90)), closes [#19](https://github.com/ApocDev/pyops/issues/19)
+* **solver:** pin goal-unreachable recipes to 0 instead of failing the block ([3e7438d](https://github.com/ApocDev/pyops/commit/3e7438dfc59e2ac84229d1d2b6fc32ff81b5c344))
+* **turd:** show what each choice changes + recipe-comparison diffs ([#70](https://github.com/ApocDev/pyops/issues/70)) ([88e4fec](https://github.com/ApocDev/pyops/commit/88e4fece4d0e3ff74fe812902fde9f6502bb891a))
+
+
+### Bug Fixes
+
+* **agent:** report the real context window instead of the 128k fallback ([870df25](https://github.com/ApocDev/pyops/commit/870df25b4cbd25fddf2a4465618384dfb17be239))
+* **app:** drop item hover cards from block nav icons ([8eac33f](https://github.com/ApocDev/pyops/commit/8eac33f3a5979ac523504d35bc5465c9ec2165cf))
+* **app:** give context-menu icons room to breathe ([891dc4b](https://github.com/ApocDev/pyops/commit/891dc4b710d53b79bd4801c66b171dba3e481d12))
+* **app:** navigate outside the setState updater when closing a block tab ([e14d82a](https://github.com/ApocDev/pyops/commit/e14d82a7a526c87b08d295393f76d6ff491e80ce))
+* **app:** theme the scrollbars ([1eab688](https://github.com/ApocDev/pyops/commit/1eab688f7cd64bc37b8c14493d704ccf4100f324))
+* **app:** tokenize the last palette stragglers ([8c5136e](https://github.com/ApocDev/pyops/commit/8c5136eab8516ff004581bf72e307dbf46cea067)), closes [#17](https://github.com/ApocDev/pyops/issues/17)
+* **assistant:** pin the sidebar and composer, scroll only the messages ([5f13063](https://github.com/ApocDev/pyops/commit/5f13063c1d1359050a492baa08144179f79657df))
+
 ## [0.4.5](https://github.com/ApocDev/pyops/compare/v0.4.4...v0.4.5) (2026-07-01)
 
 
