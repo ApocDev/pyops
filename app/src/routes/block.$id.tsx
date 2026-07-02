@@ -592,7 +592,7 @@ function CtxBtn({
   return (
     <button
       onClick={onClick}
-      className={`flex w-full items-center px-3 py-1 text-left text-sm hover:bg-muted ${active ? "text-sky-300" : ""} ${className}`}
+      className={`flex w-full items-center gap-2 px-3 py-1 text-left text-sm hover:bg-muted ${active ? "text-sky-300" : ""} ${className}`}
     >
       {children}
     </button>
