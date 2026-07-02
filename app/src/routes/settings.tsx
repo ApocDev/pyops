@@ -20,9 +20,13 @@ import { CompanionModCard } from "../components/companion-mod-card";
 import { DriftChanges } from "../components/drift-changes";
 import { driftModal } from "../lib/drift-store";
 import { Badge } from "#/components/ui/badge.tsx";
+import { Button } from "#/components/ui/button.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { FieldLabel } from "#/components/ui/label.tsx";
+import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Switch } from "#/components/ui/switch.tsx";
+import { PageHeader } from "#/components/page-header.tsx";
 import {
   formatQty,
   getCompactNumbers,
@@ -57,25 +61,25 @@ function SettingsPage() {
   return (
     <div className="flex h-full flex-col font-mono text-sm text-foreground md:flex-row">
       <aside className="w-full shrink-0 border-b border-border p-2 md:w-40 md:border-r md:border-b-0">
-        <h1 className="mb-2 px-2 py-1 text-base font-bold">Settings</h1>
         <nav className="flex gap-1 overflow-x-auto md:block md:space-y-0.5 md:overflow-visible">
           {TABS.map((t) => (
-            <button
+            <Button
               key={t.id}
+              variant="ghost"
               onClick={() => select(t.id)}
-              className={`shrink-0 rounded px-2 py-1.5 text-left whitespace-nowrap md:block md:w-full ${
-                tab === t.id
-                  ? "bg-muted font-semibold text-foreground"
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+              aria-pressed={tab === t.id}
+              className={`shrink-0 justify-start md:w-full ${
+                tab === t.id ? "bg-muted font-semibold text-foreground" : "text-muted-foreground"
               }`}
             >
               {t.label}
-            </button>
+            </Button>
           ))}
         </nav>
       </aside>
 
       <div className="min-w-0 flex-1 overflow-auto p-4">
+        <PageHeader title="Settings" />
         {tab === "planning" && (
           <div className={cols}>
             <PlannerCard />
@@ -138,13 +142,10 @@ function GameDataTab() {
               </div>
             </>
           )}
-          <button
-            onClick={() => driftModal.open()}
-            className="mt-1 rounded bg-primary px-3 py-1.5 font-semibold text-primary-foreground hover:bg-primary/80"
-          >
+          <Button onClick={() => driftModal.open()} className="mt-1">
             {drift.data?.needsRedump ? "Review & re-sync…" : "Sync game data…"}
-          </button>
-          <p className="text-xs text-muted-foreground">
+          </Button>
+          <p className="text-sm text-muted-foreground">
             Runs <span className="text-foreground">factorio --dump-data</span> with the pyops-dump
             helper, imports into sqlite, applies mod renames, and records the mod list — guided
             step-by-step in the dialog.
@@ -191,33 +192,43 @@ function StorageCard() {
           Project databases, the icon atlas, and config live here. Useful when sharing a database or
           filing a bug report.
         </p>
-        <dl className="space-y-1.5">
-          {rows.map((r) => (
-            <div key={r.label}>
-              <dt className="text-xs text-muted-foreground">{r.label}</dt>
-              <dd className="flex items-center gap-1.5">
-                <code
-                  className="min-w-0 flex-1 truncate rounded bg-muted px-1.5 py-0.5 text-sm"
-                  title={r.value}
-                >
-                  {r.value}
-                </code>
-                <button
-                  onClick={() => copy(r.value)}
-                  className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  title="Copy path"
-                  aria-label={`Copy ${r.label} path`}
-                >
-                  {copied === r.value ? (
-                    <Check className="size-3.5 text-green-500" />
-                  ) : (
-                    <Copy className="size-3.5" />
-                  )}
-                </button>
-              </dd>
-            </div>
-          ))}
-        </dl>
+        {paths.isPending ? (
+          <div className="space-y-1.5">
+            {["Data folder", "Projects (databases)", "Icon atlas", "App config"].map((label) => (
+              <Skeleton key={label} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {rows.map((r) => (
+              <div key={r.label}>
+                <FieldLabel>{r.label}</FieldLabel>
+                <div className="flex items-center gap-1.5">
+                  <code
+                    className="min-w-0 flex-1 truncate bg-muted px-1.5 py-0.5 text-sm"
+                    title={r.value}
+                  >
+                    {r.value}
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => copy(r.value)}
+                    className="shrink-0 text-muted-foreground"
+                    title="Copy path"
+                    aria-label={`Copy ${r.label} path`}
+                  >
+                    {copied === r.value ? (
+                      <Check className="size-3.5 text-success" />
+                    ) : (
+                      <Copy className="size-3.5" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </Card>
   );
@@ -227,14 +238,26 @@ function StorageCard() {
  * dumped from (#28), by name and version. Spells out exactly what changed and
  * whether a re-dump is due, so the re-sync below isn't a black box. */
 function ModDriftCard({ data }: { data: Awaited<ReturnType<typeof modDriftFn>> | undefined }) {
-  if (!data) return null;
+  if (!data) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Mod drift</CardTitle>
+        </CardHeader>
+        <div className="space-y-2 px-3 pb-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+      </Card>
+    );
+  }
   if (!data.haveBaseline) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Mod drift</CardTitle>
         </CardHeader>
-        <div className="px-3 pb-3 text-xs text-muted-foreground">
+        <div className="px-3 pb-3 text-sm text-muted-foreground">
           No mod baseline recorded yet — run a sync below so PyOps can tell when the game&apos;s
           mods drift from your reference data.
         </div>
@@ -247,11 +270,11 @@ function ModDriftCard({ data }: { data: Awaited<ReturnType<typeof modDriftFn>> |
       <Card>
         <CardHeader className="justify-between">
           <CardTitle>Mod drift</CardTitle>
-          <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-300">
+          <Badge className="border-transparent bg-success/15 text-success">
             <Check className="size-3.5" /> matches the game
-          </span>
+          </Badge>
         </CardHeader>
-        <div className="px-3 pb-3 text-xs text-muted-foreground">
+        <div className="px-3 pb-3 text-sm text-muted-foreground">
           The enabled mods and their versions match what your data was dumped from.
         </div>
       </Card>
@@ -263,12 +286,12 @@ function ModDriftCard({ data }: { data: Awaited<ReturnType<typeof modDriftFn>> |
         <CardTitle>Mod drift</CardTitle>
         <Badge variant="destructive">re-dump needed</Badge>
       </CardHeader>
-      <div className="space-y-2 px-3 pb-3 text-xs">
+      <div className="space-y-2 px-3 pb-3 text-sm">
         <p className="text-muted-foreground">
           The game&apos;s mods changed since your last sync, so the reference data no longer
           matches. Re-sync to update it.
         </p>
-        <div className="max-h-56 overflow-y-auto rounded border border-border bg-muted/20 p-2">
+        <div className="max-h-56 overflow-y-auto border border-border bg-muted/20 p-2">
           <DriftChanges drift={d} />
         </div>
       </div>
@@ -291,7 +314,7 @@ function ModsCard({
         <CardHeader>
           <CardTitle>Mods</CardTitle>
         </CardHeader>
-        <div className="px-3 pb-3 text-xs text-muted-foreground">
+        <div className="px-3 pb-3 text-sm text-muted-foreground">
           No mod list recorded yet — run a sync to capture the mods (and versions) your reference
           data was built from.
         </div>
@@ -312,7 +335,7 @@ function ModsCard({
         </CardTitle>
       </CardHeader>
       <div className="space-y-2 px-3 pb-3">
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           What this project&apos;s reference data was dumped from — its provenance. Recorded on each
           sync.
         </p>
@@ -322,11 +345,11 @@ function ModsCard({
           placeholder="filter mods…"
           className="w-full"
         />
-        <div className="max-h-80 overflow-auto rounded border border-border">
+        <div className="max-h-80 overflow-auto border border-border">
           {shown.map((m) => (
             <div
               key={m.name}
-              className={`flex items-center gap-2 border-b border-border/50 px-2 py-1 text-xs last:border-0 ${
+              className={`flex items-center gap-2 border-b border-border/50 px-2 py-1 text-sm last:border-0 ${
                 m.enabled ? "" : "opacity-50"
               }`}
             >
@@ -336,11 +359,7 @@ function ModsCard({
               <span className="shrink-0 tabular-nums text-muted-foreground">
                 {m.version ?? "—"}
               </span>
-              {!m.enabled && (
-                <span className="shrink-0 rounded bg-muted px-1 text-[10px] text-muted-foreground">
-                  off
-                </span>
-              )}
+              {!m.enabled && <Badge className="shrink-0 px-1 py-0 text-xs">off</Badge>}
             </div>
           ))}
           {shown.length === 0 && <div className="px-2 py-2 text-muted-foreground">no matches</div>}
@@ -374,7 +393,7 @@ function DisplayCard() {
         <label className="flex items-center justify-between gap-3">
           <span>
             Compact large numbers
-            <span className="block text-xs text-muted-foreground">
+            <span className="block text-sm text-muted-foreground">
               {compact ? (
                 <>
                   showing {formatQty(200_000)} — toggle off for {(200_000).toLocaleString("en-US")}
@@ -415,20 +434,34 @@ function PlannerCard() {
     onSuccess: () => void qc.invalidateQueries(),
   });
   const s = settings.data;
-  if (!s) return null;
+  if (!s) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Module auto-fill</CardTitle>
+        </CardHeader>
+        <div className="space-y-2 px-3 pb-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-8 w-full" />
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card>
       <CardHeader className="justify-between">
         <CardTitle>Module auto-fill</CardTitle>
         {!s.costsComputed && (
-          <button
+          <Button
+            variant="link"
             onClick={() => recompute.mutate()}
             disabled={recompute.isPending}
-            className="text-sm text-sky-400 underline"
+            className="h-auto p-0 text-info underline"
           >
             {recompute.isPending ? "computing cost analysis…" : "compute cost analysis first"}
-          </button>
+          </Button>
         )}
       </CardHeader>
       <div className="space-y-3 px-3 pb-3">
@@ -454,17 +487,15 @@ function PlannerCard() {
           />
           <span className="text-muted-foreground">s</span>
           {PAYBACK_PRESETS.map((p) => (
-            <button
+            <Button
               key={p.label}
+              variant="toggle"
+              size="sm"
+              aria-pressed={s.autofillPayback === p.value}
               onClick={() => save.mutate({ autofillPayback: p.value, fillMiners: s.fillMiners })}
-              className={`rounded border px-2 py-0.5 text-sm ${
-                s.autofillPayback === p.value
-                  ? "border-primary text-primary"
-                  : "border-border text-muted-foreground hover:bg-muted"
-              }`}
             >
               {p.label}
-            </button>
+            </Button>
           ))}
         </div>
         <label className="flex items-center gap-2">
@@ -477,6 +508,14 @@ function PlannerCard() {
           />
           also fill mining drills
         </label>
+        {save.isError && (
+          <p className="text-sm text-destructive">save failed: {save.error.message}</p>
+        )}
+        {recompute.isError && (
+          <p className="text-sm text-destructive">
+            cost analysis failed: {recompute.error.message}
+          </p>
+        )}
 
         <div className="border-t border-border pt-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -532,7 +571,20 @@ function AssistantCard() {
   const [model, setModel] = useState("");
   const [modelDirty, setModelDirty] = useState(false);
   const d = cfg.data;
-  if (!d) return null;
+  if (!d) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Assistant (AI)</CardTitle>
+        </CardHeader>
+        <div className="space-y-2 px-3 pb-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-8 w-72" />
+          <Skeleton className="h-8 w-72" />
+        </div>
+      </Card>
+    );
+  }
   const modelValue = modelDirty ? model : d.model;
 
   return (
@@ -542,18 +594,15 @@ function AssistantCard() {
       </CardHeader>
       <div className="space-y-3 px-3 pb-3 text-sm">
         <p className="text-muted-foreground">
-          Your OpenRouter account, shared across all projects. The{" "}
-          <code className="text-xs">OPENROUTER_API_KEY</code> /{" "}
-          <code className="text-xs">PYOPS_AGENT_MODEL</code> env vars take priority when set; these
-          stored values are the fallback.
+          Your OpenRouter account, shared across all projects. The <code>OPENROUTER_API_KEY</code> /{" "}
+          <code>PYOPS_AGENT_MODEL</code> env vars take priority when set; these stored values are
+          the fallback.
         </p>
 
         <div>
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-            OpenRouter API key
-          </div>
+          <FieldLabel>OpenRouter API key</FieldLabel>
           {d.keyFromEnv ? (
-            <div className="mt-1 flex items-center gap-1 text-xs text-emerald-300">
+            <div className="mt-1 flex items-center gap-1 text-sm text-success">
               <Check className="size-3.5" /> set via OPENROUTER_API_KEY env (wins)
             </div>
           ) : (
@@ -565,32 +614,35 @@ function AssistantCard() {
                 onChange={(e) => setKey(e.target.value)}
                 className="w-72"
               />
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   save.mutate({ openrouterApiKey: key });
                   setKey("");
                 }}
                 disabled={!key.trim()}
-                className="rounded border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
               >
                 Save
-              </button>
+              </Button>
               {d.keyStored && (
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => save.mutate({ openrouterApiKey: "" })}
-                  className="text-xs text-muted-foreground hover:text-destructive"
+                  className="text-muted-foreground hover:text-destructive"
                 >
                   clear
-                </button>
+                </Button>
               )}
             </div>
           )}
         </div>
 
         <div>
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">model</div>
+          <FieldLabel>model</FieldLabel>
           {d.modelFromEnv ? (
-            <div className="mt-1 flex items-center gap-1 text-xs text-emerald-300">
+            <div className="mt-1 flex items-center gap-1 text-sm text-success">
               <Check className="size-3.5" /> set via PYOPS_AGENT_MODEL env (wins): {d.resolvedModel}
             </div>
           ) : (
@@ -604,22 +656,26 @@ function AssistantCard() {
                 }}
                 className="w-72"
               />
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   save.mutate({ model: modelValue });
                   setModelDirty(false);
                 }}
-                className="rounded border border-border px-2 py-1 text-xs hover:bg-muted"
               >
                 Save
-              </button>
-              <span className="text-xs text-muted-foreground">
+              </Button>
+              <span className="text-sm text-muted-foreground">
                 in use: {d.resolvedModel}
                 {!d.model && " (default)"}
               </span>
             </div>
           )}
         </div>
+        {save.isError && (
+          <p className="text-sm text-destructive">save failed: {save.error.message}</p>
+        )}
       </div>
     </Card>
   );
@@ -689,34 +745,32 @@ function ExclusionsCard() {
             }}
             className="w-64 font-mono"
           />
-          <button
-            onClick={add}
-            disabled={!draft.trim()}
-            className="rounded border border-border px-3 py-1 text-sm hover:bg-muted disabled:opacity-40"
-          >
+          <Button variant="outline" onClick={add} disabled={!draft.trim()}>
             Add
-          </button>
+          </Button>
         </div>
         {globs.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {globs.map((g) => (
-              <span
-                key={g}
-                className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 font-mono text-sm"
-              >
+              <Badge key={g} className="gap-1 font-mono text-foreground">
                 {g}
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() => remove(g)}
-                  className="text-muted-foreground hover:text-destructive"
+                  className="size-4 text-muted-foreground hover:text-destructive"
                   title="remove"
                 >
                   ×
-                </button>
-              </span>
+                </Button>
+              </Badge>
             ))}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">No custom exclusions.</p>
+        )}
+        {save.isError && (
+          <p className="text-sm text-destructive">save failed: {save.error.message}</p>
         )}
       </div>
     </Card>
