@@ -99,12 +99,13 @@ Reach for these before writing markup:
 | Choose-one | `Select` (Radix). |
 | Status chip / count | `Badge` — semantic tint via `className` (e.g. `bg-warning/15 text-warning border-transparent`). |
 | Panel with a title | `Card` + `CardHeader`/`CardTitle`/`CardContent`. |
-| Slide-over / drawer | `Sheet`. |
+| Confirmation / focused edit | `Dialog` (`ui/dialog.tsx`) — centered modal at `md+`, docks to the bottom as a sheet below. Never a bare centered modal on phones. |
+| Slide-over / drawer / collapsed rail | `Sheet`. |
 | Page title row + toolbar | `PageHeader` (`components/page-header.tsx`). |
 | "Nothing here yet" | `EmptyState` (`components/empty-state.tsx`). |
 | Loading placeholder | `Skeleton` (`ui/skeleton.tsx`). |
 | Hover detail | `CursorHover`/`CursorCard` (`lib/hover.tsx`) — the app's one tooltip system. |
-| Tabular goods/rates | `GoodsSection` (`components/goods-table.tsx`) + `StatCell`; match its row anatomy for new tables. |
+| Tabular goods/rates/stats | `GoodsSection` (`components/goods-table.tsx`) + `StatCell`. The app's one data-table anatomy: a muted `hidden md:flex` header row, then rows with a lead cell (icon + truncating name, `flex-1`) and fixed-width right-aligned `StatCell` columns that collapse to a labeled grid on mobile. New tables follow it; prose tables in assistant markdown are the one exception. |
 
 ## Page anatomy
 
@@ -115,10 +116,42 @@ Reach for these before writing markup:
 - Every route starts with one `PageHeader` (title, optional description,
   right-aligned actions, toolbar as children). No per-page heading styles.
 - List-plus-detail pages use `SidebarShell` (rail on desktop, drawer on mobile).
-- **Responsive**: dense tables collapse to stacked cards with full labels on
-  narrow widths (`StatCell` does this); nothing scrolls sideways at tablet/phone
-  widths (enforced by `responsive.e2e.ts`); readability on mobile means readable
-  — full names and `text-sm`+, not just reflowed.
+
+## Form factors
+
+The app runs on phones, tablets, desktops, and the Steam Deck, and the Tauri
+window resizes to anything in between. Design for a **continuous width range,
+not device classes** — every layout must be sane at every width from ~360px to
+ultrawide, including the transitions.
+
+- **Breakpoint semantics.** Base styles are the narrow layout: single column,
+  stacked labeled cards (`StatCell` collapses to this), bottom-sheet dialogs,
+  nav in a drawer. `md` (768px) is *the* anatomy switch: table header rows
+  appear, dialogs center, drawers become rails. `lg`+ only adds columns and
+  width — never new capabilities.
+- **Capability parity at every width.** Controls may relocate (into a `Sheet`,
+  a menu, an overflow) but never disappear. Anything doable at 1920px is doable
+  at 390px.
+- **No sideways scroll, ever.** Names truncate (with `title`/hover for the full
+  text), tables collapse to stacked cards; wide content never pushes the page.
+  Enforced at tablet/phone widths by `app/e2e/responsive.e2e.ts`.
+- **Readability doesn't shrink with the window.** The `text-sm` floor and full
+  localized names hold at all widths; density comes from stacking and
+  collapsing layout, not smaller type.
+- **Touch is orthogonal to width.** Tablets and the Deck are touch *at desktop
+  widths*, so never gate touch affordances on breakpoint. Interactive targets
+  are at least the `h-8` button with `gap-2` between neighbors; hover (cursor
+  cards, hover-revealed buttons) is an enhancement layer — every hover
+  affordance needs a click/tap path, or its content must be supplementary.
+- **Height matters too.** The Deck is 1280×800: desktop width, short. Keep
+  fixed chrome to lean single rows, scroll content in its inner container, and
+  don't stack tall sticky regions.
+- **Ultrawide**: cap prose and forms with `max-w-*`; let data grids grow
+  columns (the `2xl:grid-cols-3` pattern) rather than stretching rows.
+
+The e2e matrix (`responsive.e2e.ts`) screenshots every route at 1920×1080,
+1280×800 (= Steam Deck), 834 and 390 wide, and asserts no sideways scroll at
+tablet/phone widths — layout work keeps that suite green.
 
 ## Interaction states
 
