@@ -1,0 +1,23 @@
+AGENTS.md
+  s_52a96ee17745bd::t_f163a76d90326e 113-116,132
+docs/README.md
+  s_52a96ee17745bd::t_77e4fc3a86b7aa 16-17
+docs/design.md
+  s_52a96ee17745bd::t_a8a760cdc3e566 1-148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "ffb223cb7f78c93d3c1c61332834208cb844eddd",
+  "prompts": {},
+  "sessions": {
+    "s_52a96ee17745bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d11f1513-7c74-4dfd-bf22-726492f6cc19",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
