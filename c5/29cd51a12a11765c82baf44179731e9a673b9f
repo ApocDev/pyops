@@ -1,0 +1,21 @@
+.claude/skills/design-system/SKILL.md
+  s_52a96ee17745bd::t_3a3b286bb72b27 35-37
+docs/design.md
+  s_52a96ee17745bd::t_38beb2e3dfce35 111,178,180-184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "c529cd51a12a11765c82baf44179731e9a673b9f",
+  "prompts": {},
+  "sessions": {
+    "s_52a96ee17745bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d11f1513-7c74-4dfd-bf22-726492f6cc19",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
