@@ -97,6 +97,8 @@ Reach for these before writing markup:
 | Any clickable action | `Button` (`ui/button.tsx`) — variants `default`/`outline`/`secondary`/`ghost`/`destructive`/`link`, sizes down to `icon-xs`. No hand-rolled `<button className=…>`. |
 | Text/number entry | `Input`, `Textarea` (`text-base` on mobile so iOS doesn't zoom, `md:text-sm` on desktop). |
 | Choose-one | `Select` (Radix). |
+| Yes/no tick | `Checkbox` (`ui/checkbox.tsx`) — pairs with `Label`; `Switch` stays the on/off setting control. |
+| Action menu on a trigger | `DropdownMenu` (`ui/dropdown-menu.tsx`) — Radix; keyboard nav and outside-dismiss built in. |
 | Status chip / count | `Badge` — semantic tint via `className` (e.g. `bg-warning/15 text-warning border-transparent`). |
 | Status message / banner | `Callout` (`ui/callout.tsx`) — `tone` success/warning/info/destructive/primary, default icon per tone, optional `title`/`action`; `variant="strip"` for full-bleed rows inside cards. |
 | Segmented choice / on-off toggle | `Button variant="toggle"` with `aria-pressed` — active state styles itself from the aria attribute. |
@@ -109,7 +111,7 @@ Reach for these before writing markup:
 | Loading placeholder | `Skeleton` (`ui/skeleton.tsx`). |
 | Hover detail | `CursorHover`/`CursorCard` (`lib/hover.tsx`) — the app's one tooltip system. |
 | Right-click menu | `ContextMenu`/`ContextMenuItem` (`components/context-menu.tsx`) — anchored panel + backdrop; items are icon+label rows. |
-| Tabular goods/rates/stats | `GoodsSection` (`components/goods-table.tsx`) + `StatCell`. The app's one data-table anatomy: a muted `hidden md:flex` header row, then rows with a lead cell (icon + truncating name, `flex-1`) and fixed-width right-aligned `StatCell` columns that collapse to a labeled grid on mobile. New tables follow it; prose tables in assistant markdown are the one exception. |
+| Tabular goods/rates/stats | `GoodsSection` (`components/goods-table.tsx`) + `StatCell`, with `StatTableHeader` (`components/stat-table.tsx`) for the static header row. The app's one data-table anatomy: a muted `hidden md:flex` header row, then rows with a lead cell (icon + truncating name, `flex-1`) and fixed-width right-aligned `StatCell` columns that collapse to a labeled grid on mobile. New tables follow it; prose tables in assistant markdown are the one exception. |
 
 ## Page anatomy
 
