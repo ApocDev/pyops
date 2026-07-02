@@ -16,6 +16,7 @@ import {
   type Updater,
 } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
+import { Badge } from "#/components/ui/badge.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
 import { Icon } from "../lib/icons";
@@ -66,7 +67,7 @@ function ActualCell({ planned, actual }: { planned: number; actual: number | nul
   let color = "text-muted-foreground";
   if (planned > 1e-6) {
     const ratio = actual / planned;
-    color = ratio < 0.5 ? "text-destructive" : ratio < 0.9 ? "text-amber-300" : "text-emerald-300";
+    color = ratio < 0.5 ? "text-destructive" : ratio < 0.9 ? "text-warning" : "text-success";
   }
   return (
     <span className={color} title={`making ${num(actual)}/s · planned ${num(planned)}/s`}>
@@ -80,8 +81,7 @@ function ActualCell({ planned, actual }: { planned: number; actual: number | nul
 function MetCell({ pct }: { pct: number | null }) {
   if (pct == null) return <span className="text-muted-foreground/50">—</span>;
   const shown = Math.round(pct * 100);
-  const color =
-    pct < 0.25 ? "text-destructive" : pct < 0.75 ? "text-amber-300" : "text-emerald-300";
+  const color = pct < 0.25 ? "text-destructive" : pct < 0.75 ? "text-warning" : "text-success";
   return (
     <span className={`font-semibold ${color}`} title="produced ÷ consumed across all blocks">
       {shown}%
@@ -167,14 +167,14 @@ export function GoodsSection({
             {title} ({rows.length})
           </CardTitle>
         </button>
-        <span className="text-xs text-muted-foreground">{hint}</span>
+        <span className="text-sm text-muted-foreground">{hint}</span>
       </CardHeader>
       {!folded && (
         // capped so a late-game 200-row section scrolls internally instead of
         // pushing its siblings off-page — the sorted top IS the work list.
         // (Also the fixed-height container react-virtual would want, if ever.)
         <div className="max-h-[60vh] overflow-y-auto overscroll-contain">
-          <div className="sticky top-0 z-10 hidden bg-card px-3 pb-1 text-xs text-muted-foreground md:flex">
+          <div className="sticky top-0 z-10 hidden gap-2 bg-card px-3 pb-1 text-sm text-muted-foreground md:flex">
             {table.getFlatHeaders().map((h) => {
               const dir = h.column.getIsSorted();
               return (
@@ -208,19 +208,19 @@ export function GoodsSection({
                   {r.display ?? r.item}
                 </span>
                 {r.stock && (
-                  <span
+                  <Badge
                     title="some of this production is a stock-refill demand (a 'keep N on hand' goal), not continuous throughput"
-                    className="flex shrink-0 items-center gap-0.5 rounded bg-sky-500/15 px-1 text-xs text-sky-300"
+                    className="shrink-0 border-transparent bg-info/15 px-1 py-0 text-info"
                   >
                     <RefreshCw className="size-3" /> stock
-                  </span>
+                  </Badge>
                 )}
               </span>
               <span className="grid grid-cols-2 gap-x-4 gap-y-0.5 pl-7 md:flex md:gap-2 md:pl-0">
-                <StatCell label="produced/s" layout="row" w="md:w-24" className="text-emerald-300">
+                <StatCell label="produced/s" layout="row" w="md:w-24" className="text-success">
                   {num(r.produced)}
                 </StatCell>
-                <StatCell label="consumed/s" layout="row" w="md:w-24" className="text-amber-300">
+                <StatCell label="consumed/s" layout="row" w="md:w-24" className="text-warning">
                   {num(r.consumed)}
                 </StatCell>
                 <StatCell
@@ -231,7 +231,7 @@ export function GoodsSection({
                     r.net < -1e-6
                       ? "text-destructive"
                       : r.net > 1e-6
-                        ? "text-violet-300"
+                        ? "text-surplus"
                         : "text-muted-foreground"
                   }`}
                 >
