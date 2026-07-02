@@ -1,0 +1,23 @@
+AGENTS.md
+  s_52a96ee17745bd::t_f7261f767b3e59 62-65
+app/.vite-hooks/pre-commit
+  s_52a96ee17745bd::t_c2d297679ad2a0 1
+app/vite.config.ts
+  s_52a96ee17745bd::t_a6d91de75bcf1f 88-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "201db88d26adbb79d33e7beea7e5fc6948c44b83",
+  "prompts": {},
+  "sessions": {
+    "s_52a96ee17745bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d11f1513-7c74-4dfd-bf22-726492f6cc19",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
