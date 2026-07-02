@@ -363,16 +363,16 @@ function Shell() {
   };
   const closeTab = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    setOpenTabs((t) => {
-      const next = t.filter((x) => x !== id);
-      if (activeId === id) {
-        const nb = next[next.length - 1];
-        void navigate(
-          nb != null ? { to: "/block/$id", params: { id: String(nb) } } : { to: "/block" },
-        );
-      }
-      return next;
-    });
+    // navigate OUTSIDE the state updater — updaters run during render, and
+    // navigating there sets router state mid-render (React warns on it)
+    const next = openTabs.filter((x) => x !== id);
+    setOpenTabs(next);
+    if (activeId === id) {
+      const nb = next[next.length - 1];
+      void navigate(
+        nb != null ? { to: "/block/$id", params: { id: String(nb) } } : { to: "/block" },
+      );
+    }
     // Closing an untouched "New block" (no goal/recipes) discards it instead of
     // leaving an empty block behind. For the active tab we trust the editor's live
     // state (it may have unsaved edits the DB hasn't seen yet); for a background
