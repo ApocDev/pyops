@@ -188,7 +188,7 @@ export function importFactorioDump(
     ),
     recipeCat: db.prepare(`INSERT OR IGNORE INTO recipe_categories (name) VALUES (?)`),
     machine: db.prepare(
-      `INSERT INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,allowed_effects,allowed_module_categories) VALUES (@name,@display,@kind,@crafting_speed,@module_slots,@energy_usage_w,@energy_source,@allowed_effects,@allowed_module_categories)`,
+      `INSERT INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories) VALUES (@name,@display,@kind,@crafting_speed,@module_slots,@energy_usage_w,@energy_source,@pollution_per_min,@allowed_effects,@allowed_module_categories)`,
     ),
     machineCat: db.prepare(
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
@@ -347,6 +347,7 @@ export function importFactorioDump(
           module_slots: m.module_slots ?? 0,
           energy_usage_w: parseSI(m.energy_usage),
           energy_source: m.energy_source?.type ?? null,
+          pollution_per_min: m.energy_source?.emissions_per_minute?.pollution ?? 0,
           allowed_effects: jsonList(m.allowed_effects),
           allowed_module_categories: jsonList(m.allowed_module_categories),
         });

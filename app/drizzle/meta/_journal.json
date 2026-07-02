@@ -22,6 +22,13 @@
       "when": 1782933258965,
       "tag": "0002_add_block_enabled",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1782960053112,
+      "tag": "0003_add_pollution",
+      "breakpoints": true
     }
   ]
 }

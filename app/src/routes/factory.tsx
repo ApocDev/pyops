@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Check, MapPin, Plus, RefreshCw, X, Zap } from "lucide-react";
+import { AlertTriangle, Check, Cloud, MapPin, Plus, RefreshCw, X, Zap } from "lucide-react";
 import { useState } from "react";
 import {
   blockChangeReportFn,
@@ -148,6 +148,7 @@ function FactoryPage() {
     .filter((r) => (r.display ?? r.item).toLowerCase().includes(search.toLowerCase()));
 
   const totalPowerW = (blocks.data ?? []).reduce((s, b) => s + (b.electricityW ?? 0), 0);
+  const totalPollution = (blocks.data ?? []).reduce((s, b) => s + (b.pollutionPerMin ?? 0), 0);
   // A good produced ONLY by keep-in-stock goals isn't surplus to route — a mall
   // of stock goals would otherwise flood the surplus list. Own section below.
   // (A stock good that's also genuinely consumed can still show as a deficit.)
@@ -163,6 +164,15 @@ function FactoryPage() {
         <h1 className="text-lg font-bold">Factory</h1>
         <span className="flex items-center gap-1 text-sm text-muted-foreground">
           {blocks.data?.length ?? 0} block(s) · <Zap className="size-3.5" /> {fmtW(totalPowerW)}
+          {Math.abs(totalPollution) > 0.005 && (
+            <span
+              className={`flex items-center gap-1 ${totalPollution < 0 ? "text-emerald-300" : ""}`}
+              title="net pollution per minute across all enabled blocks — negative means your forestry/plantations absorb more than the machines emit"
+            >
+              · <Cloud className="size-3.5" /> {totalPollution < 0 ? "−" : ""}
+              {num(Math.abs(totalPollution))}/min
+            </span>
+          )}
         </span>
         <Link
           to="/whatif"

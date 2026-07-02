@@ -174,6 +174,7 @@ export function machinesForRecipe(recipeName: string) {
       moduleSlots: craftingMachines.moduleSlots,
       energyUsageW: craftingMachines.energyUsageW,
       energySource: craftingMachines.energySource,
+      pollutionPerMin: craftingMachines.pollutionPerMin,
       allowedEffects: craftingMachines.allowedEffects,
       allowedModuleCategories: craftingMachines.allowedModuleCategories,
     })
@@ -1063,6 +1064,7 @@ export function listBlocks() {
       iconKind: blocks.iconKind,
       iconName: blocks.iconName,
       electricityW: blocks.electricityW,
+      pollutionPerMin: blocks.pollutionPerMin,
       solveStatus: blocks.solveStatus,
       enabled: blocks.enabled, // whole-block toggle (#73) — for sidebar dimming
       groupId: blocks.groupId,
@@ -1371,6 +1373,7 @@ export function saveBlockRow(
     iconName: string | null;
     data: BlockData;
     electricityW: number | null;
+    pollutionPerMin?: number | null;
     dataFingerprint: string | null;
     solveStatus?: string | null;
   },
@@ -1386,6 +1389,7 @@ export function saveBlockRow(
       data: input.data,
       // null = keep the current electricity figure (broken block, cache preserved)
       ...(input.electricityW != null ? { electricityW: input.electricityW } : {}),
+      ...(input.pollutionPerMin != null ? { pollutionPerMin: input.pollutionPerMin } : {}),
       // undefined = leave the stored status untouched (broken block); null clears it
       ...(input.solveStatus !== undefined ? { solveStatus: input.solveStatus } : {}),
       dataFingerprint: input.dataFingerprint,

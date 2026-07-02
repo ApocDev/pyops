@@ -590,6 +590,10 @@ export async function computeBlock(rawData: SolveInput) {
   const defByName = new Map(defs.map((d) => [d.name, d])); // products already productivity-scaled
   let totalPowerW = 0;
   let totalHeatW = 0; // Py hard-mode "heat" machines — must be produced locally
+  // Pollution rollup (#23): base emissions/min × count × energy-consumption
+  // multiplier × pollution-module multiplier — the Factorio formula, minus the
+  // per-fuel emissions multiplier (a fuel-choice nuance we approximate as 1).
+  let totalPollutionPerMin = 0;
   const fuelTotals = new Map<string, { display: string | null; kind: string; perSec: number }>();
   const burntTotals = new Map<string, { display: string | null; perSec: number }>(); // burnt result (ash, …)
   const rows = result.recipes.map((rr) => {
@@ -607,6 +611,9 @@ export async function computeBlock(rawData: SolveInput) {
     const speed = (chosen?.craftingSpeed ?? 1) * fx.speedMult;
     const count = rr.machines1x / speed;
     const powerW = (chosen?.energyUsageW ?? 0) * count * fx.consMult;
+    const pollutionPerMin =
+      (chosen?.pollutionPerMin ?? 0) * Math.max(0, count) * fx.consMult * fx.pollutionMult;
+    totalPollutionPerMin += pollutionPerMin;
     const beaconPowerW = fx.beaconPowerPerMachineW * count;
     if (count > 0) totalPowerW += beaconPowerW; // beacons are always electric
 
@@ -751,6 +758,7 @@ export async function computeBlock(rawData: SolveInput) {
   });
   const power = {
     totalW: totalPowerW,
+    pollutionPerMin: totalPollutionPerMin,
     heatW: totalHeatW, // requires a local heat source (heat doesn't travel far)
     fuel: [...fuelTotals.entries()]
       .map(([name, t]) => ({ name, ...t }))
@@ -928,6 +936,7 @@ async function persistBlock(
       ...meta,
       data,
       electricityW: r.broken ? null : r.power.totalW,
+      pollutionPerMin: r.broken ? null : r.power.pollutionPerMin,
       // leave the stored status untouched on a broken solve (cache preserved)
       solveStatus: r.broken ? undefined : r.status,
       dataFingerprint: q.blockReferenceFingerprint(data),

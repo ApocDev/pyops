@@ -68,6 +68,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Cloud,
   Copy,
   Flame,
   FlaskConical,
@@ -2086,12 +2087,25 @@ function Block({ blockId }: { blockId: number }) {
                 </div>
               )}
               {res &&
-                (res.power.totalW > 0 || res.power.heatW > 0) && (
+                (res.power.totalW > 0 ||
+                  res.power.heatW > 0 ||
+                  Math.abs(res.power.pollutionPerMin) > 0.005) && (
                   <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-border px-3 py-2 text-sm">
                     {res.power.totalW > 0 && (
                       <span className="flex items-center gap-1 text-sky-300">
                         <Zap className="size-3.5" /> {fmtW(res.power.totalW)}{" "}
                         <span className="text-muted-foreground">electric</span>
+                      </span>
+                    )}
+                    {Math.abs(res.power.pollutionPerMin) > 0.005 && (
+                      <span
+                        className={`flex items-center gap-1 ${res.power.pollutionPerMin < 0 ? "text-emerald-300" : "text-lime-300/80"}`}
+                        title="pollution per minute from this block's machines (base emissions × energy-consumption × pollution module effects; fuel-type multipliers not modelled). Negative = net absorption — Py forestry and plantations soak pollution like trees."
+                      >
+                        <Cloud className="size-3.5" /> {num(Math.abs(res.power.pollutionPerMin))}
+                        <span className="text-muted-foreground">
+                          pollution/min{res.power.pollutionPerMin < 0 ? " absorbed" : ""}
+                        </span>
                       </span>
                     )}
                     {res.power.heatW > 0 && (

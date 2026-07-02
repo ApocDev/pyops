@@ -114,6 +114,7 @@ export const craftingMachines = sqliteTable("crafting_machines", {
   moduleSlots: integer("module_slots").notNull().default(0),
   energyUsageW: real("energy_usage_w"),
   energySource: text("energy_source"), // electric | burner | ...
+  pollutionPerMin: real("pollution_per_min"), // emissions_per_minute.pollution at base speed (#23)
   // module eligibility (empty/null = no restriction): which effect kinds the
   // machine accepts, and which module categories fit its slots (Py creature
   // buildings only take their own creature modules)
@@ -395,6 +396,9 @@ export const blocks = sqliteTable("blocks", {
   // and dimmed in the sidebar. Used to stage future blocks or park alternatives.
   enabled: bool("enabled").notNull().default(true),
   electricityW: real("electricity_w"),
+  // cached last-solve pollution rollup (#23), like electricity_w — the factory
+  // header sums it with zero solving; null until solved with pollution data
+  pollutionPerMin: real("pollution_per_min"),
   // last solve's status (solved | relaxed | underdetermined | infeasible) so the
   // sidebar/tabs can flag a block's health without re-solving it; null until solved
   solveStatus: text("solve_status"),

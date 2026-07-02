@@ -16,10 +16,17 @@ export type Effects = {
   speedMult: number;
   prodMult: number;
   consMult: number;
+  /** pollution effect multiplier (#23) — clamps at 0.2 like consumption */
+  pollutionMult: number;
   beaconPowerPerMachineW: number;
 };
 
-export type ModuleEff = { effSpeed: number; effProductivity: number; effConsumption: number };
+export type ModuleEff = {
+  effSpeed: number;
+  effProductivity: number;
+  effConsumption: number;
+  effPollution?: number;
+};
 export type BeaconEff = {
   distributionEffectivity: number | null;
   moduleSlots: number;
@@ -28,13 +35,14 @@ export type BeaconEff = {
 };
 
 function sumEffects(names: string[], moduleDb: Map<string, ModuleEff>) {
-  const s = { speed: 0, prod: 0, cons: 0 };
+  const s = { speed: 0, prod: 0, cons: 0, poll: 0 };
   for (const n of names) {
     const m = moduleDb.get(n);
     if (!m) continue;
     s.speed += m.effSpeed;
     s.prod += m.effProductivity;
     s.cons += m.effConsumption;
+    s.poll += m.effPollution ?? 0;
   }
   return s;
 }
@@ -49,11 +57,12 @@ export function computeEffects(
   extraModules: ModuleEff[] = [],
 ): Effects {
   const own = sumEffects(machineModules, moduleDb);
-  let { speed, prod, cons } = own;
+  let { speed, prod, cons, poll } = own;
   for (const m of extraModules) {
     speed += m.effSpeed;
     prod += m.effProductivity;
     cons += m.effConsumption;
+    poll += m.effPollution ?? 0;
   }
   let beaconPowerPerMachineW = 0;
   for (const cfg of beaconCfgs) {
@@ -66,6 +75,7 @@ export function computeEffects(
     speed += inBeacon.speed * mult;
     prod += inBeacon.prod * mult;
     cons += inBeacon.cons * mult;
+    poll += inBeacon.poll * mult;
     beaconPowerPerMachineW += (b.energyUsageW ?? 0) * cfg.count;
   }
   if (!allowProductivity) prod = 0;
@@ -77,6 +87,7 @@ export function computeEffects(
     speedMult: Math.max(0.2, 1 + speed),
     prodMult: 1 + prod,
     consMult: Math.max(0.2, 1 + cons),
+    pollutionMult: Math.max(0.2, 1 + poll),
     beaconPowerPerMachineW,
   };
 }

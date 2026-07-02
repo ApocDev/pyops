@@ -47,7 +47,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       `INSERT OR IGNORE INTO fluids (name,display,default_temperature,heat_capacity_j) VALUES (?,?,NULL,NULL)`,
     ),
     machine: db.prepare(
-      `INSERT OR REPLACE INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,allowed_effects,allowed_module_categories) VALUES (?,?,?,?,?,?,?,?,?)`,
+      `INSERT OR REPLACE INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories) VALUES (?,?,?,?,?,?,?,?,?,?)`,
     ),
     machineCat: db.prepare(
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
@@ -110,6 +110,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
     fuelCategories?: string[];
     allowedModuleCategories?: string[] | null;
     category: string;
+    pollutionPerMin?: number | null;
   }) => {
     ins.machine.run(
       m.name,
@@ -119,6 +120,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       m.moduleSlots ?? 0,
       m.energyUsageW ?? null,
       m.energySource ?? null,
+      m.pollutionPerMin ?? 0,
       null,
       m.allowedModuleCategories?.length ? JSON.stringify(m.allowedModuleCategories) : null,
     );
@@ -146,6 +148,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
           fuelCategories: arr<string>(d.energy_source?.fuel_categories),
           allowedModuleCategories: arr<string>(d.allowed_module_categories),
           category: `mine:${rc}`,
+          pollutionPerMin: d.energy_source?.emissions_per_minute?.pollution ?? 0,
         });
       }
     }
@@ -226,6 +229,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
         energySource: src.type === "void" ? null : (src.type ?? null),
         fuelCategories: arr<string>(src.fuel_categories),
         category: cat,
+        pollutionPerMin: src.emissions_per_minute?.pollution ?? 0,
       });
       recipe({
         name: `boil-${outFluid}-${target}`,
