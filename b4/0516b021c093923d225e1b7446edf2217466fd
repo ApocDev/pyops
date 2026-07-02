@@ -1,0 +1,21 @@
+app/src/routes/factory.tsx
+  s_52a96ee17745bd::t_75289b27d64129 20-22,24-27,170-181,185-304,308-313,316-342,445-447,452,454,469-470,472-474,477-478,553,555,564,589,595,606,624,632,697,701,709,714,718,720,722,739-741,743,746-748,751-753,755-757,760-761,764,766,769,771,776-790,796,802,810,813,815,817,819,826
+app/src/components/goods-table.tsx
+  s_52a96ee17745bd::t_2b59ebe6ffde83 19,70,84,170,177,211,213,216,220,223,234
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "b40516b021c093923d225e1b7446edf2217466fd",
+  "prompts": {},
+  "sessions": {
+    "s_52a96ee17745bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d11f1513-7c74-4dfd-bf22-726492f6cc19",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
