@@ -3,6 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Blocks, Factory, FlaskConical, Github, Search, Settings } from "lucide-react";
 import { factoryTotalsFn, listBlocksFn, statsFn } from "../server/factorio";
 import { Card } from "#/components/ui/card.tsx";
+import { Button } from "#/components/ui/button.tsx";
+import { EmptyState } from "#/components/empty-state.tsx";
+import { PageHeader } from "#/components/page-header.tsx";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -22,25 +25,30 @@ function Home() {
   })();
 
   return (
-    <div className="mx-auto max-w-4xl p-8 font-mono text-foreground">
-      <div className="flex items-center gap-4">
-        <img src="/logo.svg" alt="" className="size-16 shrink-0" />
-        <h1 className="text-3xl font-bold">PyOps</h1>
-        <a
-          href="https://github.com/ApocDev/pyops"
-          target="_blank"
-          rel="noreferrer"
-          title="View PyOps on GitHub"
-          className="ml-auto inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <Github className="size-5" /> GitHub
-        </a>
-      </div>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Pyanodons factory planner — blocks, TURD, modules, the lot.
-      </p>
+    <div className="mx-auto max-w-4xl p-4 font-mono text-foreground">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <img src="/logo.svg" alt="" className="size-8 shrink-0" />
+            PyOps
+          </span>
+        }
+        description="Pyanodons factory planner — blocks, TURD, modules, the lot."
+        actions={
+          <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+            <a
+              href="https://github.com/ApocDev/pyops"
+              target="_blank"
+              rel="noreferrer"
+              title="View PyOps on GitHub"
+            >
+              <Github className="size-4" /> GitHub
+            </a>
+          </Button>
+        }
+      />
 
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Link to="/block" className={tile}>
           <span className="flex items-center gap-1.5 font-semibold">
             <Blocks className="size-4" /> Blocks
@@ -78,7 +86,21 @@ function Home() {
         </Link>
       </div>
 
-      <Card className="mt-6 p-3 text-xs text-muted-foreground">
+      {blocks.data?.length === 0 && (
+        <EmptyState
+          icon={Blocks}
+          title="No production blocks yet"
+          description="Blocks are the unit of planning — each one turns a target output into sized machines, modules, and flows. Head to Blocks and press the + button in the sidebar to create your first."
+          action={
+            <Button asChild>
+              <Link to="/block">Create your first block</Link>
+            </Button>
+          }
+          className="mt-4 border border-border bg-card"
+        />
+      )}
+
+      <Card className="mt-4 p-3 text-sm text-muted-foreground">
         New machine? Mod update? Head to{" "}
         <Link
           to="/settings"
