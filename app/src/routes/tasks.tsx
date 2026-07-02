@@ -18,8 +18,15 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { EmptyState } from "#/components/empty-state.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
+import { Button } from "#/components/ui/button.tsx";
+import { Callout } from "#/components/ui/callout.tsx";
+import { Input } from "#/components/ui/input.tsx";
+import { FieldLabel } from "#/components/ui/label.tsx";
+import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { Textarea } from "#/components/ui/textarea.tsx";
 import { Icon, IconProvider } from "#/lib/icons";
 import {
   addLinkFn,
@@ -51,17 +58,17 @@ import type {
 
 /** Advisory-priority badge styling, lowest→highest. */
 const PRIORITY_META: Record<TaskPriority, { label: string; cls: string }> = {
-  low: { label: "low", cls: "border-slate-500/40 text-slate-400" },
-  medium: { label: "med", cls: "border-sky-500/50 text-sky-400" },
-  high: { label: "high", cls: "border-orange-500/50 text-orange-400" },
-  critical: { label: "crit", cls: "border-red-500/60 bg-red-500/10 text-red-400" },
+  low: { label: "low", cls: "border-border text-muted-foreground" },
+  medium: { label: "med", cls: "border-info/50 text-info" },
+  high: { label: "high", cls: "border-warning/50 text-warning" },
+  critical: { label: "crit", cls: "border-destructive/60 bg-destructive/10 text-destructive" },
 };
 
 function PriorityBadge({ priority, reason }: { priority: TaskPriority; reason: string | null }) {
   const m = PRIORITY_META[priority];
   return (
     <span
-      className={`shrink-0 rounded border px-1 text-[0.7rem] leading-tight font-medium ${m.cls}`}
+      className={`shrink-0 border px-1 text-xs leading-tight font-medium ${m.cls}`}
       title={reason ?? `priority: ${priority}`}
     >
       {m.label}
@@ -72,9 +79,9 @@ function PriorityBadge({ priority, reason }: { priority: TaskPriority; reason: s
 /** Workflow-status presentation: dot colour + whether to mute/strike the title. */
 const STATUS_META: Record<TaskStatus, { label: string; dot: string; muted: boolean }> = {
   open: { label: "Open", dot: "bg-muted-foreground/40", muted: false },
-  in_progress: { label: "In progress", dot: "bg-amber-400", muted: false },
-  done: { label: "Done", dot: "bg-emerald-500", muted: true },
-  closed: { label: "Closed", dot: "bg-slate-500", muted: true },
+  in_progress: { label: "In progress", dot: "bg-warning", muted: false },
+  done: { label: "Done", dot: "bg-success", muted: true },
+  closed: { label: "Closed", dot: "bg-muted-foreground", muted: true },
 };
 const STATUS_ORDER: TaskStatus[] = ["open", "in_progress", "done", "closed"];
 const titleMuted = (s: TaskStatus) =>
@@ -224,29 +231,21 @@ function TasksShell() {
           {tab === "tasks" ? (
             <>
               <div className="flex items-center justify-between gap-1 px-3 py-2">
-                <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  Task tree
-                </span>
+                <FieldLabel>Task tree</FieldLabel>
                 <div className="flex items-center gap-1">
-                  <button
+                  <Button
+                    variant="outline"
+                    size="xs"
                     onClick={() => prioritize.mutate()}
                     disabled={prioritize.isPending}
                     title="Ask the assistant to prioritise open tasks"
-                    className="flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-sm hover:bg-muted disabled:opacity-60"
                   >
-                    {prioritize.isPending ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="size-3.5" />
-                    )}
+                    {prioritize.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
                     Prioritise
-                  </button>
-                  <button
-                    onClick={() => newTask.mutate(null)}
-                    className="flex items-center gap-1 rounded bg-primary px-1.5 py-0.5 text-sm font-bold text-primary-foreground hover:bg-primary/80"
-                  >
-                    <Plus className="size-3.5" /> Task
-                  </button>
+                  </Button>
+                  <Button size="xs" onClick={() => newTask.mutate(null)}>
+                    <Plus /> Task
+                  </Button>
                 </div>
               </div>
               <div className="flex flex-wrap gap-1 px-2 pb-2">
@@ -254,25 +253,25 @@ function TasksShell() {
                   const on = filter.has(s);
                   const count = nodes.filter((n) => n.status === s).length;
                   return (
-                    <button
+                    <Button
                       key={s}
+                      variant="toggle"
+                      size="xs"
+                      aria-pressed={on}
                       onClick={() => toggleStatus(s)}
-                      className={`flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs ${
-                        on
-                          ? "border-border bg-muted text-foreground"
-                          : "border-transparent text-muted-foreground/60 hover:text-muted-foreground"
-                      }`}
                       title={on ? `hide ${STATUS_META[s].label}` : `show ${STATUS_META[s].label}`}
                     >
                       <span className={`size-1.5 rounded-full ${STATUS_META[s].dot}`} />
-                      {STATUS_META[s].label}{" "}
+                      {STATUS_META[s].label}
                       {count > 0 && <span className="tabular-nums">{count}</span>}
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
               {actionError && (
-                <div className="px-2 pb-1 text-xs text-destructive">{actionError}</div>
+                <Callout tone="destructive" variant="strip" className="mb-1">
+                  {actionError}
+                </Callout>
               )}
               <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
                 <TaskTree
@@ -285,47 +284,49 @@ function TasksShell() {
                   }}
                 />
                 {nodes.length === 0 && (
-                  <div className="px-2 py-2 text-xs text-muted-foreground">
-                    no tasks yet — add one to start a tree
-                  </div>
+                  <EmptyState
+                    className="px-2 py-3"
+                    title="No tasks yet"
+                    description="Add one to start a tree."
+                  />
                 )}
               </div>
             </>
           ) : (
             <>
               <div className="flex items-center justify-between px-3 py-2">
-                <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  Scratch notes
-                </span>
-                <button
-                  onClick={() => newNote.mutate()}
-                  className="flex items-center gap-1 rounded bg-primary px-1.5 py-0.5 text-sm font-bold text-primary-foreground hover:bg-primary/80"
-                >
-                  <Plus className="size-3.5" /> Note
-                </button>
+                <FieldLabel>Scratch notes</FieldLabel>
+                <Button size="xs" onClick={() => newNote.mutate()}>
+                  <Plus /> Note
+                </Button>
               </div>
               <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
                 {(noteList.data ?? []).map((note) => (
-                  <button
+                  <Button
                     key={note.id}
+                    variant="ghost"
                     onClick={() => {
                       openNote(note.id);
                       close();
                     }}
-                    className={`block w-full truncate rounded px-2 py-1.5 text-left text-sm hover:bg-muted ${
+                    className={`h-auto w-full justify-start px-2 py-1.5 font-normal ${
                       note.id === search.n ? "bg-accent" : ""
                     }`}
                     title={note.title ?? "Untitled note"}
                   >
-                    {note.title || (
-                      <span className="text-muted-foreground italic">Untitled note</span>
-                    )}
-                  </button>
+                    <span className="min-w-0 flex-1 truncate text-left">
+                      {note.title || (
+                        <span className="text-muted-foreground italic">Untitled note</span>
+                      )}
+                    </span>
+                  </Button>
                 ))}
                 {(noteList.data?.length ?? 0) === 0 && (
-                  <div className="px-2 py-2 text-xs text-muted-foreground">
-                    no notes — a scratch space for calcs &amp; reminders
-                  </div>
+                  <EmptyState
+                    className="px-2 py-3"
+                    title="No notes"
+                    description="A scratch space for calcs & reminders."
+                  />
                 )}
               </div>
             </>
@@ -344,7 +345,17 @@ function TasksShell() {
               onChanged={refresh}
             />
           ) : (
-            <Empty>select a task, or add one</Empty>
+            <EmptyState
+              className="h-full"
+              icon={ListTodo}
+              title="No task selected"
+              description="Pick a task from the list, or create a new one."
+              action={
+                <Button size="sm" onClick={() => newTask.mutate(null)}>
+                  <Plus /> New task
+                </Button>
+              }
+            />
           )
         ) : currentNote ? (
           <NoteDetail
@@ -354,7 +365,17 @@ function TasksShell() {
             onDeleted={() => showTab("notes")}
           />
         ) : (
-          <Empty>select a note, or jot a new one</Empty>
+          <EmptyState
+            className="h-full"
+            icon={StickyNote}
+            title="No note selected"
+            description="Pick a note from the list, or jot a new one."
+            action={
+              <Button size="sm" onClick={() => newNote.mutate()}>
+                <Plus /> New note
+              </Button>
+            }
+          />
         )}
       </div>
     </SidebarShell>
@@ -371,24 +392,16 @@ function TabButton({
   children: ReactNode;
 }) {
   return (
-    <button
+    <Button
+      variant="ghost"
       onClick={onClick}
-      className={`flex flex-1 items-center justify-center gap-1.5 py-2 font-medium ${
-        active
-          ? "border-b-2 border-primary text-foreground"
-          : "text-muted-foreground hover:text-foreground"
+      aria-pressed={active}
+      className={`h-auto flex-1 justify-center gap-1.5 border-0 border-b-2 py-2 ${
+        active ? "border-b-primary text-foreground" : "border-b-transparent text-muted-foreground"
       }`}
     >
       {children}
-    </button>
-  );
-}
-
-function Empty({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-      {children}
-    </div>
+    </Button>
   );
 }
 
@@ -406,20 +419,18 @@ function StatusPills({
   onChange: (s: TaskStatus) => void;
 }) {
   return (
-    <div className="inline-flex w-fit overflow-hidden rounded border border-border text-sm">
+    <div className="inline-flex w-fit flex-wrap items-center gap-1">
       {STATUS_ORDER.map((s) => (
-        <button
+        <Button
           key={s}
+          variant="toggle"
+          size="sm"
+          aria-pressed={status === s}
           onClick={() => onChange(s)}
-          className={`flex items-center gap-1.5 px-2.5 py-1 ${
-            status === s
-              ? "bg-muted font-medium text-foreground"
-              : "text-muted-foreground hover:bg-muted/50"
-          }`}
         >
           <span className={`size-2 rounded-full ${STATUS_META[s].dot}`} />
           {STATUS_META[s].label}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -468,13 +479,15 @@ function TaskTree({
     return (
       <div key={node.id}>
         <div
-          className={`group flex items-center gap-1 rounded px-1 py-1 text-sm hover:bg-muted ${
+          className={`group flex items-center gap-1 px-1 py-1 text-sm hover:bg-muted ${
             node.id === selected ? "bg-accent" : ""
           }`}
           style={{ paddingLeft: depth * 14 + 4 }}
         >
           {children.length > 0 ? (
-            <button
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={() =>
                 setCollapsed((s) => {
                   const next = new Set(s);
@@ -491,9 +504,9 @@ function TaskTree({
               ) : (
                 <ChevronDown className="size-3.5" />
               )}
-            </button>
+            </Button>
           ) : (
-            <span className="inline-block size-3.5 shrink-0" />
+            <span className="inline-block size-6 shrink-0" />
           )}
           <span
             className={`size-2 shrink-0 rounded-full ${STATUS_META[node.status].dot}`}
@@ -508,7 +521,7 @@ function TaskTree({
           </button>
           {node.priority && <PriorityBadge priority={node.priority} reason={node.priorityReason} />}
           {r.total > 0 && (
-            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+            <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
               {r.done}/{r.total}
             </span>
           )}
@@ -594,7 +607,16 @@ function TaskDetail({
     if (task.data) setTitle(task.data.title ?? "");
   }, [task.data]);
 
-  if (!task.data) return <Empty>loading…</Empty>;
+  if (!task.data)
+    return (
+      <div className="mx-auto flex max-w-2xl flex-col gap-5 p-6">
+        <Skeleton className="h-7 w-2/3" />
+        <Skeleton className="h-7 w-64" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-16 w-full" />
+      </div>
+    );
   const t = task.data;
   const parent = t.parentId != null ? nodes.find((n) => n.id === t.parentId) : null;
 
@@ -614,45 +636,47 @@ function TaskDetail({
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 p-6">
       {parent && (
-        <button
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={() => onOpen(parent.id)}
-          className="-mb-2 self-start text-xs text-muted-foreground hover:text-foreground"
+          className="-mb-2 self-start px-1 font-normal text-muted-foreground hover:text-foreground"
         >
           ↑ {parent.title || "Untitled task"}
-        </button>
+        </Button>
       )}
 
       <div className="flex items-start gap-3">
-        <input
+        <Input
           value={title}
           onChange={(ev) => setTitle(ev.target.value)}
           onBlur={() => title !== (t.title ?? "") && save.mutate({ title })}
           placeholder="Task title"
-          className={`min-w-0 flex-1 border-0 bg-transparent text-lg font-semibold outline-none placeholder:text-muted-foreground/60 ${titleMuted(
+          className={`h-auto min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-lg font-semibold tracking-tight placeholder:text-muted-foreground/60 focus-visible:ring-0 md:text-lg dark:bg-transparent ${titleMuted(
             t.status,
           )}`}
         />
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => enrich.mutate()}
           disabled={enrich.isPending}
           title="Enhance: let the assistant sharpen this task's title & description"
-          className="mt-1.5 shrink-0 text-muted-foreground hover:text-foreground disabled:opacity-50"
+          className="shrink-0 text-muted-foreground hover:text-foreground"
         >
-          {enrich.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Wand2 className="size-4" />
-          )}
-        </button>
-        <button
+          {enrich.isPending ? <Loader2 className="animate-spin" /> : <Wand2 />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() =>
             window.confirm("Delete this task and all its subtasks?") && removeTask.mutate()
           }
           title="delete task"
-          className="mt-1.5 shrink-0 text-muted-foreground hover:text-destructive"
+          className="shrink-0 text-muted-foreground hover:text-destructive"
         >
-          <Trash2 className="size-4" />
-        </button>
+          <Trash2 />
+        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -665,7 +689,9 @@ function TaskDetail({
         )}
       </div>
       {enrichError && (
-        <div className="-mt-2 text-xs text-destructive">Enhance failed: {enrichError}</div>
+        <Callout tone="destructive" className="-mt-2">
+          Enhance failed: {enrichError}
+        </Callout>
       )}
 
       <MarkdownField
@@ -724,20 +750,22 @@ function TaskDetail({
                 {c.title || <span className="text-muted-foreground italic">Untitled task</span>}
               </button>
               {r.total > 0 && (
-                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
                   {r.done}/{r.total}
                 </span>
               )}
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() =>
                   window.confirm("Delete this subtask and its subtasks?") &&
                   removeChild.mutate(c.id)
                 }
                 title="delete subtask"
-                className="hidden px-0.5 text-muted-foreground group-hover:inline hover:text-destructive"
+                className="hidden shrink-0 text-muted-foreground group-hover:inline-flex hover:text-destructive"
               >
                 <Trash2 className="size-3.5" />
-              </button>
+              </Button>
             </div>
           );
         })}
@@ -755,9 +783,7 @@ function TaskDetail({
 function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-        {label}
-      </span>
+      <FieldLabel>{label}</FieldLabel>
       {children}
     </div>
   );
@@ -777,7 +803,7 @@ function AddRow({
   return (
     <div className="flex items-center gap-2">
       <Plus className="size-3.5 shrink-0 text-muted-foreground" />
-      <input
+      <Input
         value={value}
         onChange={(ev) => onChange(ev.target.value)}
         onKeyDown={(ev) => {
@@ -788,7 +814,7 @@ function AddRow({
         }}
         onBlur={onSubmit}
         placeholder={placeholder}
-        className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+        className="h-auto min-w-0 flex-1 border-0 bg-transparent px-0 py-0 placeholder:text-muted-foreground/60 focus-visible:ring-0 dark:bg-transparent"
       />
     </div>
   );
@@ -820,21 +846,23 @@ function CheckRow({
         onChange={onToggle}
         className="size-4 shrink-0 accent-primary"
       />
-      <input
+      <Input
         value={value}
         onChange={(ev) => setValue(ev.target.value)}
         onBlur={() => value.trim() && value.trim() !== ref.current && onEdit(value.trim())}
-        className={`min-w-0 flex-1 border-0 bg-transparent text-sm outline-none ${
+        className={`h-auto min-w-0 flex-1 border-0 bg-transparent px-0 py-0 focus-visible:ring-0 dark:bg-transparent ${
           done ? "text-muted-foreground line-through" : ""
         }`}
       />
-      <button
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={onDelete}
         title="remove"
-        className="hidden px-0.5 text-muted-foreground group-hover:inline hover:text-destructive"
+        className="hidden shrink-0 text-muted-foreground group-hover:inline-flex hover:text-destructive"
       >
         <Trash2 className="size-3.5" />
-      </button>
+      </Button>
     </div>
   );
 }
@@ -855,7 +883,7 @@ function MarkdownField({
 
   if (editing) {
     return (
-      <textarea
+      <Textarea
         autoFocus
         value={draft}
         onChange={(ev) => setDraft(ev.target.value)}
@@ -865,14 +893,14 @@ function MarkdownField({
         }}
         placeholder={placeholder}
         rows={Math.max(4, draft.split("\n").length + 1)}
-        className="w-full resize-y rounded border border-border bg-background p-3 font-mono text-sm leading-relaxed outline-none focus:border-primary"
+        className="w-full resize-y bg-background p-3 font-mono leading-relaxed"
       />
     );
   }
   return (
     <button
       onClick={() => setEditing(true)}
-      className="w-full rounded border border-transparent p-3 text-left hover:border-border"
+      className="w-full border border-transparent p-3 text-left hover:border-border"
       title="click to edit"
     >
       {value.trim() ? (
@@ -894,7 +922,7 @@ const ICON_KINDS = new Set(["item", "fluid", "recipe", "entity", "technology"]);
  * block carries its product's icon). Falls back to a neutral square. */
 function ChipIcon({ kind, name }: { kind: string | null; name: string | null }) {
   if (kind === "location") return <MapPin className="size-3.5 text-muted-foreground" />;
-  if (!name) return <span className="inline-block size-4 rounded-sm bg-muted" />;
+  if (!name) return <span className="inline-block size-4 bg-muted" />;
   const k = (kind && ICON_KINDS.has(kind) ? kind : "item") as
     | "item"
     | "fluid"
@@ -953,7 +981,7 @@ function LinkChip({
   );
   const clickable = link.kind === "block" && link.blockId != null;
   return (
-    <span className="group inline-flex items-center gap-1 rounded border border-border bg-muted/40 py-0.5 pr-0.5 pl-1 text-sm">
+    <span className="group inline-flex items-center gap-1 border border-border bg-muted/40 py-0.5 pr-0.5 pl-1 text-sm">
       {clickable ? (
         <button
           onClick={() => onOpenBlock(link.blockId!)}
@@ -965,13 +993,15 @@ function LinkChip({
       ) : (
         <span title={link.refName}>{inner}</span>
       )}
-      <button
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={onRemove}
         title="remove link"
         className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
       >
         <X className="size-3" />
-      </button>
+      </Button>
     </span>
   );
 }
@@ -1003,44 +1033,47 @@ function LinkPicker({
 
   if (!open)
     return (
-      <button
+      <Button
+        variant="outline"
+        size="xs"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1 rounded border border-dashed border-border px-1.5 py-0.5 text-sm text-muted-foreground hover:border-solid hover:text-foreground"
+        className="border-dashed font-normal text-muted-foreground hover:border-solid hover:text-foreground"
       >
         <Link2 className="size-3.5" /> link
-      </button>
+      </Button>
     );
 
   return (
     <div className="relative">
-      <input
+      <Input
         autoFocus
         value={q}
         onChange={(ev) => setQ(ev.target.value)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={(ev) => ev.key === "Escape" && setOpen(false)}
         placeholder="search item / recipe / tech / block…"
-        className="w-64 rounded border border-border bg-background px-2 py-0.5 text-sm outline-none focus:border-primary"
+        className="w-64"
       />
       {(results.data?.length ?? 0) > 0 && (
-        <div className="absolute z-10 mt-1 max-h-72 w-72 overflow-auto rounded border border-border bg-card shadow-lg">
+        <div className="absolute z-10 mt-1 max-h-72 w-72 overflow-auto border border-border bg-card shadow-lg">
           {results.data!.map((r) => {
             const already = linked.has(`${r.kind}:${r.refName}`);
             return (
-              <button
+              <Button
                 key={`${r.kind}:${r.refName}`}
+                variant="ghost"
                 disabled={already}
                 onMouseDown={(ev) => {
                   ev.preventDefault();
                   add.mutate(r);
                   setQ("");
                 }}
-                className="flex w-full items-center gap-2 px-2 py-1 text-left text-sm hover:bg-muted disabled:opacity-40"
+                className="h-auto w-full justify-start gap-2 px-2 py-1 font-normal"
               >
                 <ChipIcon kind={r.iconKind} name={r.iconName} />
-                <span className="min-w-0 flex-1 truncate">{r.display}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{r.kind}</span>
-              </button>
+                <span className="min-w-0 flex-1 truncate text-left">{r.display}</span>
+                <span className="shrink-0 text-sm text-muted-foreground">{r.kind}</span>
+              </Button>
             );
           })}
         </div>
@@ -1078,27 +1111,29 @@ function NoteDetail({
   return (
     <div className="mx-auto flex h-full max-w-2xl flex-col gap-3 p-6">
       <div className="flex items-center gap-3">
-        <input
+        <Input
           value={title}
           onChange={(ev) => setTitle(ev.target.value)}
           onBlur={() => title !== (note.title ?? "") && save.mutate({ title })}
           placeholder="Note title"
-          className="min-w-0 flex-1 border-0 bg-transparent text-lg font-semibold outline-none placeholder:text-muted-foreground/60"
+          className="h-auto min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-lg font-semibold tracking-tight placeholder:text-muted-foreground/60 focus-visible:ring-0 md:text-lg dark:bg-transparent"
         />
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => window.confirm("Delete this note?") && remove.mutate()}
           title="delete note"
           className="shrink-0 text-muted-foreground hover:text-destructive"
         >
-          <X className="size-4" />
-        </button>
+          <X />
+        </Button>
       </div>
-      <textarea
+      <Textarea
         value={body}
         onChange={(ev) => setBody(ev.target.value)}
         onBlur={() => body !== (note.body ?? "") && save.mutate({ body })}
         placeholder="Jot anything — quick calcs, reminders, ratios…"
-        className="min-h-0 w-full flex-1 resize-none rounded border border-border bg-background p-3 font-mono text-sm leading-relaxed outline-none focus:border-primary"
+        className="min-h-0 w-full flex-1 resize-none bg-background p-3 font-mono leading-relaxed"
       />
     </div>
   );
