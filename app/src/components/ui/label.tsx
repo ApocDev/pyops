@@ -16,4 +16,18 @@ function Label({ className, ...props }: React.ComponentProps<typeof LabelPrimiti
   );
 }
 
-export { Label };
+/**
+ * Micro caption above a field group or stat cluster — the uppercase muted
+ * eyebrow. True fine print, so text-xs is allowed here (docs/design.md).
+ */
+function FieldLabel({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="field-label"
+      className={cn("text-xs font-medium tracking-wide text-muted-foreground uppercase", className)}
+      {...props}
+    />
+  );
+}
+
+export { Label, FieldLabel };
