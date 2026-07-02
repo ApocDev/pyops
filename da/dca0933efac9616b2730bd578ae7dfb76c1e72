@@ -1,0 +1,39 @@
+app/src/components/empty-state.tsx
+  s_52a96ee17745bd::t_52c8c1c9872672 1-33
+app/src/components/page-header.tsx
+  s_52a96ee17745bd::t_3aa638059f586d 1-35
+app/src/components/ui/badge.tsx
+  s_52a96ee17745bd::t_e8ba335fc52d93 8
+app/src/components/ui/button.tsx
+  s_52a96ee17745bd::t_c8fccdc530894c 8,26
+app/src/components/ui/card.tsx
+  s_52a96ee17745bd::t_2b4cfbb03d3e4d 33
+app/src/components/ui/input.tsx
+  s_52a96ee17745bd::t_69a647fea489e7 11
+app/src/components/ui/label.tsx
+  s_52a96ee17745bd::t_712555bbb84b1e 11
+app/src/components/ui/select.tsx
+  s_52a96ee17745bd::t_dec1fd1d0a70e2 40,95,110
+app/src/components/ui/skeleton.tsx
+  s_52a96ee17745bd::t_b594dcd9f49aaf 1-15
+app/src/components/ui/textarea.tsx
+  s_52a96ee17745bd::t_3f1d58d777fede 10
+app/src/styles.css
+  s_52a96ee17745bd::t_9c15e5b1f38a00 36-42,51-53,81-84,121-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "dadca0933efac9616b2730bd578ae7dfb76c1e72",
+  "prompts": {},
+  "sessions": {
+    "s_52a96ee17745bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d11f1513-7c74-4dfd-bf22-726492f6cc19",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
