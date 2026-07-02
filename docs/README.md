@@ -13,6 +13,8 @@ PyOps, see the [top-level README](../README.md).
   companion mod, and what flows across it.
 - [AI assistant](ai-assistant.md) — the planning agent, its tools, and the MCP
   surface.
+- [Design system](design.md) — the web app's shared visual/interaction spec:
+  tokens, type scale, primitives, page anatomy, and required interaction states.
 - [Desktop app & releases](desktop.md) — the Tauri shell, packaging into a
   self-contained bundle, the release-please pipeline, and self-update.
 

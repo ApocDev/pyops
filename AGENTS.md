@@ -110,6 +110,10 @@ bridge + live-state sync), `summary.lua` (production-block view), `combinator.lu
   asked.** Writing/saving files is fine; committing is not.
 - Keep features as focused modules. Prefer adding new files over growing
   `factorio.ts`/`queries.ts` into catch-alls.
+- **UI work follows the design system** — [`docs/design.md`](docs/design.md): theme
+  tokens (never raw palette colors), the `components/ui` primitives (never
+  hand-rolled buttons/inputs/badges), square corners, `PageHeader`/`EmptyState`/
+  `Skeleton`, and loading/empty/error states on every async surface.
 - Readable text sizes in UI: floor at `text-sm`; `text-xs` only for true fine print.
 - **Always display localized names, never internal names.** User-facing UI shows the
   `display` (localized) name of an item/fluid/recipe/tech. Internal names (e.g.
@@ -125,7 +129,7 @@ bridge + live-state sync), `summary.lua` (production-block view), `combinator.lu
   the same pass:
   - User-facing behavior, setup, config → [`README.md`](README.md).
   - How a subsystem works → the matching file in [`docs/`](docs/) (architecture,
-    data-pipeline, solver, bridge, ai-assistant).
+    data-pipeline, solver, bridge, ai-assistant, design).
   - A structural or workflow change (new top-level dir, build/verify step,
     convention) → this `AGENTS.md`.
 
