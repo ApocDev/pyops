@@ -1,0 +1,35 @@
+app/src/components/block/balance-card.tsx
+  s_9be9645d11a3e7::t_63509227c81f2b 1-403
+app/src/components/block/block-toolbar.tsx
+  s_9be9645d11a3e7::t_22526584a7df73 1-310
+app/src/components/block/goal-card.tsx
+  s_9be9645d11a3e7::t_7061debc9dcddd 1-187
+app/src/components/block/group-header-row.tsx
+  s_9be9645d11a3e7::t_cdb3b605fc7158 1-128
+app/src/components/block/recipe-grid.tsx
+  s_9be9645d11a3e7::t_0eb68d48a48a68 1-231
+app/src/components/block/recipe-row.tsx
+  s_9be9645d11a3e7::t_5e080123473da8 1-324
+app/src/routes/block.$id.tsx
+  s_9be9645d11a3e7::t_e6ef3cd747bb57 1,20-21,25,35-39,106,479-489,497-516,557-585,590-609
+app/src/components/block/missing-recipe-row.tsx
+  s_9be9645d11a3e7::t_a50d63c146d7de 1-49
+app/src/components/block/solve-view.ts
+  s_9be9645d11a3e7::t_e5dd49ba90c2c2 1-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "c3dea9f69851b46f7fa61d6ee67ae532e2dc2ea2",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
