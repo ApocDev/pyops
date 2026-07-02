@@ -1,0 +1,19 @@
+app/src/routes/whatif.tsx
+  s_84b400434adc8c::t_768338f104ad9f 6-7,9-11,13,40-90,112,120,126-130,133-138,146,148,150-152,154-158,160-163,174,179-180,184,200,207,212-214,228,234,241,277,283
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "0d85cfdf4d0ec2982c20b1a58a96b35fbf6d6963",
+  "prompts": {},
+  "sessions": {
+    "s_84b400434adc8c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ab572be66744777a4",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
