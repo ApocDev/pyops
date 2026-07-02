@@ -1,0 +1,19 @@
+docs/design.md
+  s_52a96ee17745bd::t_28b7fa99eeda94 102-103,108,119-154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "57614400fdc06fba3f4f8968c05ecfb54db3799b",
+  "prompts": {},
+  "sessions": {
+    "s_52a96ee17745bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d11f1513-7c74-4dfd-bf22-726492f6cc19",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
