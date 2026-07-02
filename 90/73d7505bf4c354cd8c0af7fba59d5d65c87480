@@ -1,0 +1,23 @@
+app/src/components/stat-table.tsx
+  s_6404a9072b32e6::t_e3f18580e51a38 1-35
+app/src/routes/factory.tsx
+  s_6404a9072b32e6::t_138cc55301ad38 29,565-572
+app/src/routes/whatif.tsx
+  s_6404a9072b32e6::t_c6a5e027aea67d 15,149-156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "9073d7505bf4c354cd8c0af7fba59d5d65c87480",
+  "prompts": {},
+  "sessions": {
+    "s_6404a9072b32e6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a09ed6a7c097cc16b",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
