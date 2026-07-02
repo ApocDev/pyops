@@ -26,6 +26,7 @@ import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
+import { StatTableHeader } from "#/components/stat-table.tsx";
 import { GoodsSection } from "#/components/goods-table.tsx";
 
 export const Route = createFileRoute("/factory")({
@@ -561,12 +562,14 @@ function MachinesCard({ data }: { data: MachineSufficiency | undefined }) {
           )}
         </span>
       </CardHeader>
-      <div className="hidden px-3 pb-1 text-sm text-muted-foreground md:flex">
-        <span className="flex-1">machine · recipe</span>
-        <span className="w-20 text-right">built</span>
-        <span className="w-20 text-right">required</span>
-        <span className="w-24 text-right">short</span>
-      </div>
+      <StatTableHeader
+        lead="machine · recipe"
+        cols={[
+          { label: "built", w: "w-20" },
+          { label: "required", w: "w-20" },
+          { label: "short", w: "w-24" },
+        ]}
+      />
       {rows.map((m) => (
         <div key={m.machine} className="border-t border-border">
           {/* machine summary */}

@@ -12,6 +12,7 @@ import { EmptyState } from "#/components/empty-state.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
+import { StatTableHeader } from "#/components/stat-table.tsx";
 
 export const Route = createFileRoute("/whatif")({
   component: () => (
@@ -145,12 +146,14 @@ function WhatIf() {
             <CardTitle className="normal-case">Block changes ({changed.length})</CardTitle>
             <span className="text-sm text-muted-foreground">scale each block to rebalance</span>
           </CardHeader>
-          <div className="hidden px-3 pb-1 text-sm text-muted-foreground md:flex">
-            <span className="flex-1">block</span>
-            <span className="w-24 text-right">current/s</span>
-            <span className="w-24 text-right">required/s</span>
-            <span className="w-20 text-right">×scale</span>
-          </div>
+          <StatTableHeader
+            lead="block"
+            cols={[
+              { label: "current/s", w: "w-24" },
+              { label: "required/s", w: "w-24" },
+              { label: "×scale", w: "w-20" },
+            ]}
+          />
           {wf.isLoading ? (
             <div className="space-y-2 p-3">
               <Skeleton className="h-5 w-full" />
