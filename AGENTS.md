@@ -59,6 +59,10 @@ The app uses **Vite+** (the `vp` CLI), not plain Vite/pnpm scripts. Run commands
 from inside `app/`:
 
 - `vp install` — install deps (after pulling).
+- `vp config --no-agent` — one-time per clone: installs the git pre-commit hook
+  (runs `vp staged` from `app/`, applying the `staged` checks in `vite.config.ts`
+  — format/lint/typecheck plus the design-system guard — to staged files). Hook
+  wiring is local git config, so each clone runs this once.
 - `vp check` — format + lint + typecheck. **End state of any change must be a clean
   `vp check`**, including pre-existing lint in files you touch.
 - `vp test` — run the Vitest suite (e.g. `block.test.ts`, `effects.test.ts`,

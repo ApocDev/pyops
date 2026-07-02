@@ -85,6 +85,14 @@ function serveIconsDev() {
 }
 
 const config = defineConfig({
+  // Pre-commit checks: `vp config` installs the git hook (see AGENTS.md); the hook
+  // runs `vp staged`, which applies these to the staged files only. The design
+  // guard (design-system.test.ts) runs too — it's fast and file-scoped rules
+  // can't catch its violations.
+  staged: {
+    "*.{ts,tsx,css,md,json}": "vp check --fix",
+    "src/**/*.{ts,tsx}": "vp test run src/design-system.test.ts",
+  },
   // generated/data files: TanStack Router output, sqlite db, icon atlas + manifest.
   // `e2e/**` is a standalone Playwright package (own deps + tooling) — not ours.
   // release-please re-serializes `src-tauri/tauri.conf.json` its own way each release,
