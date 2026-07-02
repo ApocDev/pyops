@@ -1,0 +1,25 @@
+app/e2e/bridge-requests.e2e.ts
+  s_52a96ee17745bd::t_173a72a1ad4f83 3,51,54-58
+app/e2e/bridge.e2e.ts
+  s_52a96ee17745bd::t_5e4a0adc5f4dcd 3,46,57
+app/e2e/playwright.config.ts
+  s_52a96ee17745bd::t_a0ff45f2239c2b 28-36
+app/e2e/versions.ts
+  s_52a96ee17745bd::t_ed6a51d0128f71 1-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "2a306d688e1c2bd0d273153e613636939155c4e7",
+  "prompts": {},
+  "sessions": {
+    "s_52a96ee17745bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d11f1513-7c74-4dfd-bf22-726492f6cc19",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
