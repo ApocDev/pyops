@@ -6,8 +6,10 @@ import {
   uninstallCompanionFn,
 } from "../server/companion-mod-fns";
 import type { CompanionPlatform, InstallMethod } from "../server/companion-mod";
-import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { Badge } from "#/components/ui/badge.tsx";
+import { Button } from "#/components/ui/button.tsx";
+import { Callout } from "#/components/ui/callout.tsx";
+import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 
 const PLATFORM_LABEL: Record<CompanionPlatform, string> = {
   linux: "Linux",
@@ -47,7 +49,7 @@ export function CompanionModCard() {
   const badge = !s ? null : !s.installed ? (
     <Badge variant="outline">not installed</Badge>
   ) : s.upToDate ? (
-    <Badge className="bg-emerald-500/15 text-emerald-300">
+    <Badge className="border-transparent bg-success/15 text-success">
       {s.method === "symlink" ? "linked" : "copied"}
     </Badge>
   ) : (
@@ -71,13 +73,13 @@ export function CompanionModCard() {
         </p>
 
         {s && (
-          <div className="text-xs text-muted-foreground">
+          <div className="text-sm text-muted-foreground">
             mods folder: <span className="font-mono text-foreground">{s.modsDir}</span>
           </div>
         )}
 
         {s?.installed && (
-          <div className="text-xs text-muted-foreground">
+          <div className="text-sm text-muted-foreground">
             {s.method === "symlink" ? (
               s.linkedToSource ? (
                 <>
@@ -104,7 +106,7 @@ export function CompanionModCard() {
         )}
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
-          <button
+          <Button
             onClick={() => install.mutate("symlink")}
             disabled={busy}
             title={
@@ -112,32 +114,32 @@ export function CompanionModCard() {
                 ? "Create a directory junction (no admin needed) so the mod stays in sync with PyOps"
                 : "Symlink PyOps' mod so it stays in sync"
             }
-            className="rounded bg-primary px-3 py-1.5 font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-50"
           >
             {install.isPending && install.variables === "symlink"
               ? "linking…"
               : `${symlinkLabel} (recommended)`}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => install.mutate("copy")}
             disabled={busy}
             title="Copy mod/ into the mods folder (a snapshot; re-copy after updates)"
-            className="rounded border border-border px-3 py-1.5 hover:bg-muted disabled:opacity-50"
           >
             {install.isPending && install.variables === "copy" ? "copying…" : copyLabel}
-          </button>
+          </Button>
           {s?.installed && (
-            <button
+            <Button
+              variant="outline"
               onClick={() => remove.mutate()}
               disabled={busy}
-              className="rounded border border-border px-3 py-1.5 text-muted-foreground hover:bg-muted hover:text-destructive disabled:opacity-50"
+              className="text-muted-foreground hover:text-destructive"
             >
               {remove.isPending ? "removing…" : "Remove"}
-            </button>
+            </Button>
           )}
         </div>
 
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {s?.method === "copy"
             ? "Installed as a copy — re-copy after PyOps updates to keep it in sync."
             : s?.symlinkIsJunction
@@ -150,9 +152,7 @@ export function CompanionModCard() {
           automatically — no in-game toggle.
         </p>
 
-        {err && (
-          <p className="rounded bg-destructive/15 px-2 py-1 text-xs text-destructive">{err}</p>
-        )}
+        {err && <Callout tone="destructive">{err}</Callout>}
       </div>
     </Card>
   );

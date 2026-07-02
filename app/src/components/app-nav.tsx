@@ -10,22 +10,24 @@ import { SETTINGS_LINK, visibleNavLinks } from "./nav-links";
 import { activeRunCount, subscribeRuns } from "../lib/chat-store";
 import { dataCapabilitiesFn, modDriftFn } from "../server/factorio";
 import { driftModal } from "../lib/drift-store";
+import { Button } from "#/components/ui/button.tsx";
 
-/** Persistent re-entry point for the data-sync modal: a small amber chip in the
+/** Persistent re-entry point for the data-sync modal: a small warning-toned chip in the
  * nav whenever the game's mods have drifted from the project's reference data
  * (so dismissing the popup doesn't strand it). Hidden when data is in sync. */
 function DataDriftIndicator() {
   const drift = useQuery({ queryKey: ["modDrift"], queryFn: () => modDriftFn() });
   if (!drift.data?.needsRedump) return null;
   return (
-    <button
+    <Button
+      variant="ghost"
       onClick={() => driftModal.open()}
       title="The game's mods changed since your last data sync — click to review and re-sync."
-      className="flex items-center gap-1.5 px-3 text-sm text-amber-300 hover:bg-muted/50"
+      className="h-full gap-1.5 px-3 font-normal text-warning hover:bg-muted/50 hover:text-warning"
     >
-      <span className="inline-block size-2 rounded-full bg-amber-400" />
+      <span className="inline-block size-2 rounded-full bg-warning" />
       <span className="hidden sm:inline">data stale</span>
-    </button>
+    </Button>
   );
 }
 

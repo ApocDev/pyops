@@ -3,6 +3,14 @@ import { ArrowUpCircle, Download, Loader2, X } from "lucide-react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "./ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import { checkForUpdate, installUpdate, type UpdateInfo } from "../lib/updater";
 
 /** Drop release-please's redundant "## [version] (date)" heading — the version is
@@ -75,7 +83,7 @@ export function UpdatePrompt() {
   return (
     <>
       {!dismissed && !open && (
-        <div className="fixed right-4 bottom-4 z-50 flex max-w-xs items-start gap-2 rounded-lg border bg-card p-3 text-card-foreground shadow-lg">
+        <div className="fixed right-4 bottom-4 z-50 flex max-w-xs items-start gap-2 border bg-card p-3 text-card-foreground shadow-lg">
           <button
             type="button"
             onClick={() => setOpen(true)}
@@ -89,82 +97,66 @@ export function UpdatePrompt() {
               <span className="block text-sm text-muted-foreground">Click to see what's new</span>
             </span>
           </button>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={dismiss}
             aria-label="Dismiss until next launch"
-            className="rounded-sm text-muted-foreground hover:text-foreground"
+            className="shrink-0 text-muted-foreground"
           >
             <X className="size-4" />
-          </button>
+          </Button>
         </div>
       )}
 
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          onClick={() => !installing && setOpen(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Update available"
-            className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-lg border bg-card text-card-foreground shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4 border-b p-4">
-              <div>
-                <h2 className="text-lg font-semibold">Update available</h2>
-                <p className="text-sm text-muted-foreground">
-                  PyOps {update.version} — you have {update.currentVersion}
-                  {released && <> · released {released}</>}
-                </p>
-              </div>
-              {!installing && (
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  aria-label="Close"
-                  className="rounded-sm text-muted-foreground hover:text-foreground"
-                >
-                  <X className="size-5" />
-                </button>
-              )}
-            </div>
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          if (!installing) setOpen(v);
+        }}
+      >
+        <DialogContent className="md:max-w-lg" showClose={!installing}>
+          <DialogHeader className="h-auto flex-col items-start gap-0.5 py-2.5 pr-10">
+            <DialogTitle>Update available</DialogTitle>
+            <DialogDescription>
+              PyOps {update.version} — you have {update.currentVersion}
+              {released && <> · released {released}</>}
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="min-h-0 flex-1 overflow-auto p-4 text-sm [&_a]:text-primary [&_a]:underline [&_h3]:mt-4 [&_h3]:mb-1 [&_h3]:font-semibold [&_h3:first-child]:mt-0 [&_li]:mt-1 [&_ul]:list-disc [&_ul]:pl-5">
-              <Markdown remarkPlugins={[remarkGfm]}>{changelogBody(update.notes)}</Markdown>
-            </div>
-
-            <div className="border-t p-4">
-              {installing ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="size-4 animate-spin" />
-                    {pct == null ? "Downloading…" : `Downloading… ${pct}%`}
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full bg-primary transition-[width] duration-150"
-                      style={{ width: `${pct ?? 15}%` }}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="flex justify-end gap-2">
-                  <Button variant="ghost" onClick={dismiss}>
-                    Later
-                  </Button>
-                  <Button onClick={install}>
-                    <Download className="size-4" />
-                    Install &amp; Restart
-                  </Button>
-                </div>
-              )}
-            </div>
+          <div className="min-h-0 flex-1 overflow-auto p-4 text-sm [&_a]:text-primary [&_a]:underline [&_h3]:mt-4 [&_h3]:mb-1 [&_h3]:font-semibold [&_h3:first-child]:mt-0 [&_li]:mt-1 [&_ul]:list-disc [&_ul]:pl-5">
+            <Markdown remarkPlugins={[remarkGfm]}>{changelogBody(update.notes)}</Markdown>
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            {installing ? (
+              <div className="w-full space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  {pct == null ? "Downloading…" : `Downloading… ${pct}%`}
+                </div>
+                <div className="h-2 w-full overflow-hidden bg-muted">
+                  <div
+                    className="h-full bg-primary transition-[width] duration-150"
+                    style={{ width: `${pct ?? 15}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={dismiss}>
+                  Later
+                </Button>
+                <Button onClick={install}>
+                  <Download className="size-4" />
+                  Install &amp; Restart
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

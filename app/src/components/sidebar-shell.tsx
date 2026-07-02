@@ -3,6 +3,7 @@ import { useLocation } from "@tanstack/react-router";
 import { PanelLeft } from "lucide-react";
 
 import { cn } from "#/lib/utils.ts";
+import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
 
 /**
@@ -64,13 +65,14 @@ export function SidebarShell({
       {/* main column, with a mobile-only toggle bar above it */}
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex h-10 shrink-0 items-center border-b border-border px-2 md:hidden">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => setOpen(true)}
-            className="flex h-8 items-center gap-1.5 rounded border border-border px-2.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="text-muted-foreground"
           >
             <PanelLeft className="size-4" /> {label}
-          </button>
+          </Button>
         </div>
         {children}
       </div>

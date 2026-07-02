@@ -7,6 +7,8 @@ import {
   factorioLaunchInfoFn,
   launchFactorioFn,
 } from "../server/bridge/fns";
+import { Button } from "#/components/ui/button.tsx";
+import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 
 /** Treat the mod as connected if we've heard from it within this window (its
@@ -74,8 +76,8 @@ export function BridgeCard() {
       ? versionMismatch
         ? "bg-destructive"
         : connected
-          ? "bg-emerald-400"
-          : "bg-amber-400"
+          ? "bg-success"
+          : "bg-warning"
       : s?.status === "error"
         ? "bg-destructive"
         : "bg-muted-foreground";
@@ -118,14 +120,11 @@ export function BridgeCard() {
           </div>
         )}
         {versionMismatch && peer && (
-          <p className="flex items-start gap-1.5 rounded bg-destructive/15 px-2 py-1 text-destructive">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            <span>
-              Version mismatch — this app expects protocol v{s?.appProtocolVersion}, the mod speaks
-              v{peer.protocolVersion}. Update whichever is older (re-pull the repo / reload the mod)
-              so the bridge stays in sync.
-            </span>
-          </p>
+          <Callout tone="destructive" icon={AlertTriangle}>
+            Version mismatch — this app expects protocol v{s?.appProtocolVersion}, the mod speaks v
+            {peer.protocolVersion}. Update whichever is older (re-pull the repo / reload the mod) so
+            the bridge stays in sync.
+          </Callout>
         )}
         {s && (s.packetsIn > 0 || s.packetsOut > 0) && (
           <div className="text-xs text-muted-foreground">
@@ -135,7 +134,9 @@ export function BridgeCard() {
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
           {!connected && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => launch.mutate()}
               disabled={gameRunning || launch.isPending}
               title={
@@ -143,7 +144,6 @@ export function BridgeCard() {
                   ? "Factorio is already running"
                   : "Launch Factorio with --enable-lua-udp already set to a free port"
               }
-              className="flex items-center gap-1.5 rounded border border-border px-2 py-1 text-sm hover:bg-muted disabled:opacity-50"
             >
               <Play className="size-3.5" />
               {launch.isPending
@@ -151,26 +151,27 @@ export function BridgeCard() {
                 : gameRunning
                   ? "Factorio running"
                   : "Launch Factorio"}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => pull.mutate()}
             disabled={!connected || pull.isPending}
             title="Ask the connected mod to push its current state now (research, …)"
-            className="flex items-center gap-1.5 rounded border border-border px-2 py-1 text-sm hover:bg-muted disabled:opacity-50"
           >
             <RefreshCw className={`size-3.5 ${pull.isPending ? "animate-spin" : ""}`} />
             {pull.isPending ? "requesting…" : "pull from game"}
-          </button>
-          {pullMsg && <span className="text-xs text-muted-foreground">{pullMsg}</span>}
+          </Button>
+          {pullMsg && <span className="text-sm text-muted-foreground">{pullMsg}</span>}
         </div>
-        {launchMsg && <p className="text-xs text-muted-foreground">{launchMsg}</p>}
-        <p className="text-xs text-muted-foreground">
+        {launchMsg && <p className="text-sm text-muted-foreground">{launchMsg}</p>}
+        <p className="text-sm text-muted-foreground">
           Or hit <span className="text-foreground">Sync now</span> in the in-game panel to push
           immediately — research only auto-syncs when a tech finishes.
         </p>
 
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Prefer to start it yourself? Launch Factorio with{" "}
           <span className="font-mono text-foreground">
             --enable-lua-udp {(s?.port ?? 37657) + 1}

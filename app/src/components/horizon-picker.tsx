@@ -11,7 +11,12 @@ import {
 } from "../server/factorio";
 import { Icon, IconProvider } from "../lib/icons";
 import { TechHover } from "../lib/recipe-card";
+import { Badge } from "#/components/ui/badge.tsx";
+import { Button } from "#/components/ui/button.tsx";
+import { Callout } from "#/components/ui/callout.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { FieldLabel } from "#/components/ui/label.tsx";
+import { Skeleton } from "#/components/ui/skeleton.tsx";
 
 /** Look up display names for a set of goods (science packs etc.) — memoised by key. */
 function useGoodDisplays(names: string[]) {
@@ -52,7 +57,14 @@ export function HorizonPicker() {
   });
   const packName = useGoodDisplays(h.data?.allPacks ?? []);
   const d = h.data;
-  if (!d) return null;
+  if (!d)
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
   const togglePack = (p: string) =>
     save.mutate({ packs: d.packs.includes(p) ? d.packs.filter((x) => x !== p) : [...d.packs, p] });
 
@@ -74,22 +86,19 @@ export function HorizonPicker() {
               ["target", "Up to target"],
             ] as const
           ).map(([m, label]) => (
-            <button
+            <Button
               key={m}
+              variant="toggle"
+              aria-pressed={d.mode === m}
               onClick={() => save.mutate({ mode: m })}
-              className={`rounded border px-3 py-1 text-sm ${
-                d.mode === m
-                  ? "border-primary text-primary"
-                  : "border-border text-muted-foreground hover:bg-muted"
-              }`}
             >
               {label}
-            </button>
+            </Button>
           ))}
         </div>
 
         {d.syncedAt && (
-          <div className="flex items-center gap-1.5 text-xs text-emerald-300">
+          <div className="flex items-center gap-1.5 text-sm text-success">
             <Check className="size-3.5 shrink-0" /> live: {d.syncedCount} techs synced from the game
             {d.mode !== "now" && (
               <span className="text-muted-foreground"> — switch to Now to plan against it</span>
@@ -100,9 +109,9 @@ export function HorizonPicker() {
         {d.mode === "now" && (
           <>
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              <FieldLabel>
                 science packs you produce (recipes needing only these count as available)
-              </div>
+              </FieldLabel>
               <div className="mt-1 grid grid-cols-2 gap-1 sm:grid-cols-3">
                 {d.allPacks.map((p) => (
                   <label key={p} className="flex items-center gap-2 text-sm" title={packName(p)}>
@@ -167,50 +176,49 @@ function TargetPicker({
   return (
     <div className="space-y-2">
       {target ? (
-        <div className="space-y-2 rounded border border-primary/40 bg-primary/5 p-2.5 text-sm">
-          <div className="flex items-center gap-2">
-            <Icon kind="item" name={target} size="lg" title={targetDisplay ?? target} />
-            <div className="truncate font-semibold text-foreground" title={targetDisplay ?? target}>
-              {targetDisplay ?? target}
+        <Callout tone="primary" icon={null} className="bg-primary/5 p-2.5">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Icon kind="item" name={target} size="lg" title={targetDisplay ?? target} />
+              <div
+                className="truncate font-semibold text-foreground"
+                title={targetDisplay ?? target}
+              >
+                {targetDisplay ?? target}
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className="text-muted-foreground">unlocked by</span>
-            {targetTech ? (
-              <TechHover name={targetTech} className="flex items-center gap-1.5">
-                <Icon kind="technology" name={targetTech} size="sm" noHover />
-                <span className="text-foreground underline decoration-dotted">
-                  {targetTechDisplay ?? targetTech}
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="text-muted-foreground">unlocked by</span>
+              {targetTech ? (
+                <TechHover name={targetTech} className="flex items-center gap-1.5">
+                  <Icon kind="technology" name={targetTech} size="sm" noHover />
+                  <span className="text-foreground underline decoration-dotted">
+                    {targetTechDisplay ?? targetTech}
+                  </span>
+                </TechHover>
+              ) : (
+                <span className="text-warning">
+                  no unlocking tech — start-craftable or unreachable
                 </span>
-              </TechHover>
-            ) : (
-              <span className="text-amber-300">
-                no unlocking tech — start-craftable or unreachable
-              </span>
+              )}
+            </div>
+            {packs.length > 0 && (
+              <div>
+                <FieldLabel>science packs allowed up to this tier ({packs.length})</FieldLabel>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  {packs.map((p) => (
+                    <Badge key={p} title={packName(p)}>
+                      <Icon kind="item" name={p} size="sm" title={packName(p)} />
+                      {packName(p)}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
-          {packs.length > 0 && (
-            <div>
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                science packs allowed up to this tier ({packs.length})
-              </div>
-              <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                {packs.map((p) => (
-                  <span
-                    key={p}
-                    className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-xs"
-                    title={packName(p)}
-                  >
-                    <Icon kind="item" name={p} size="sm" title={packName(p)} />
-                    {packName(p)}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        </Callout>
       ) : (
-        <div className="text-xs text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           Pick the good you're building toward — the planner allows tech up to (and including) what
           unlocks it.
         </div>
@@ -222,16 +230,17 @@ function TargetPicker({
         className="w-72"
       />
       {term.trim().length > 0 && results.data && results.data.length > 0 && (
-        <div className="max-h-52 overflow-auto rounded border border-border">
+        <div className="max-h-52 overflow-auto border border-border">
           {results.data.map((g) => (
-            <button
+            <Button
               key={`${g.kind}:${g.name}`}
+              variant="ghost"
               title={g.display ?? g.name}
               onClick={() => {
                 onPick(g.name);
                 setTerm("");
               }}
-              className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-muted"
+              className="h-auto w-full justify-start gap-2 px-2 py-1.5 font-normal"
             >
               <Icon
                 kind={g.kind === "fluid" ? "fluid" : "item"}
@@ -240,10 +249,10 @@ function TargetPicker({
                 title={g.display ?? g.name}
               />
               <span className="truncate">{g.display ?? g.name}</span>
-              <span className="ml-auto shrink-0 rounded bg-muted px-1 text-[10px] text-muted-foreground uppercase">
+              <span className="ml-auto shrink-0 bg-muted px-1 text-xs text-muted-foreground uppercase">
                 {g.kind}
               </span>
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -278,9 +287,7 @@ function ResearchedPicker({
 
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-        completed research (explicit — supplements the science-pack horizon)
-      </div>
+      <FieldLabel>completed research (explicit — supplements the science-pack horizon)</FieldLabel>
       <Input
         value={term}
         placeholder="search a tech to mark researched…"
@@ -288,41 +295,44 @@ function ResearchedPicker({
         className="mt-1 w-72"
       />
       {term.trim().length >= 2 && results.data && results.data.length > 0 && (
-        <div className="mt-1 max-h-44 overflow-auto rounded border border-border">
+        <div className="mt-1 max-h-44 overflow-auto border border-border">
           {results.data.map((t) => (
             <TechHover key={t.name} name={t.name} className="block">
-              <button
+              <Button
+                variant="ghost"
                 onClick={() => toggle(t.name)}
                 title={t.display ?? t.name}
-                className="flex w-full items-center gap-2 px-2 py-1 text-left text-sm hover:bg-muted"
+                className="h-auto w-full justify-start gap-2 px-2 py-1 font-normal"
               >
                 <input type="checkbox" readOnly checked={researched.includes(t.name)} />
                 <Icon kind="technology" name={t.name} size="sm" noHover />
                 <span>{t.display ?? t.name}</span>
-              </button>
+              </Button>
             </TechHover>
           ))}
         </div>
       )}
       {researched.length > 0 && (
-        <div className="mt-2 flex max-h-56 flex-wrap gap-1.5 overflow-auto rounded border border-border p-2">
+        <div className="mt-2 flex max-h-56 flex-wrap gap-1.5 overflow-auto border border-border p-2">
           {[...researched]
             .sort((a, b) => (dmap.get(a) ?? a).localeCompare(dmap.get(b) ?? b))
             .map((n) => (
               <TechHover
                 key={n}
                 name={n}
-                className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-sm"
+                className="inline-flex items-center gap-1 bg-muted px-2 py-0.5 text-sm"
               >
                 <Icon kind="technology" name={n} size="sm" noHover />
                 {dmap.get(n) ?? n}
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() => toggle(n)}
-                  className="text-muted-foreground hover:text-destructive"
+                  className="size-5 text-muted-foreground hover:bg-transparent hover:text-destructive"
                   title="remove"
                 >
                   ×
-                </button>
+                </Button>
               </TechHover>
             ))}
         </div>

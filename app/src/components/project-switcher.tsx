@@ -6,6 +6,7 @@ import {
   removeProjectFn,
   setActiveProjectFn,
 } from "../server/factorio";
+import { Button } from "#/components/ui/button.tsx";
 
 type Projects = Awaited<ReturnType<typeof listProjectsFn>>;
 
@@ -57,23 +58,25 @@ export function ProjectSwitcher() {
 
   return (
     <div ref={ref} className="relative flex items-stretch">
-      <button
+      <Button
+        variant="ghost"
         onClick={() => setOpen((o) => !o)}
         disabled={busy}
-        className="flex items-center gap-1.5 px-3 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+        className="h-full gap-1.5 px-3 font-normal text-muted-foreground hover:bg-muted/50"
         title={`project: ${active?.name ?? "…"} — click to switch`}
       >
         <Database className="size-4" /> {active?.name ?? "…"}
         <ChevronDown className="size-3" />
-      </button>
+      </Button>
       {open && data && (
         <div className="absolute top-full right-0 z-50 min-w-48 border border-border bg-popover py-1 shadow-2xl">
           {data.projects.map((p) => (
-            <button
+            <Button
               key={p.id}
+              variant="ghost"
               onClick={() => void switchTo(p.id)}
-              className={`group flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-muted ${
-                p.id === data.active ? "text-primary" : ""
+              className={`group h-auto w-full justify-start gap-2 px-3 py-1.5 font-normal ${
+                p.id === data.active ? "text-primary hover:text-primary" : ""
               }`}
             >
               <span className="min-w-0 flex-1 truncate">{p.name}</span>
@@ -89,14 +92,15 @@ export function ProjectSwitcher() {
                   <X className="size-3.5" />
                 </span>
               )}
-            </button>
+            </Button>
           ))}
-          <button
+          <Button
+            variant="ghost"
             onClick={() => void create()}
-            className="w-full border-t border-border px-3 py-1.5 text-left text-sm text-sky-400 hover:bg-muted"
+            className="h-auto w-full justify-start border-t-border px-3 py-1.5 font-normal text-info hover:text-info"
           >
             + new project…
-          </button>
+          </Button>
         </div>
       )}
     </div>

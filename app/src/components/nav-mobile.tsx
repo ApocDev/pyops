@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
+import { Button } from "./ui/button";
 import { SETTINGS_LINK, visibleNavLinks } from "./nav-links";
 import { HorizonMenu } from "./horizon-menu";
 import { LogisticsMenu } from "./logistics-menu";
@@ -27,9 +28,15 @@ export function NavMobile() {
   return (
     <div className="flex flex-1 items-stretch justify-end min-[1400px]:hidden">
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger className="flex size-10 items-center justify-center text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none">
-          <Menu className="size-5" />
-          <span className="sr-only">Open menu</span>
+        <SheetTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-10 text-muted-foreground hover:bg-muted/50"
+          >
+            <Menu className="size-5" />
+            <span className="sr-only">Open menu</span>
+          </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-72">
           <SheetHeader>

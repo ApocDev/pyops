@@ -9,14 +9,20 @@ import {
   inserterThroughput,
   resolveLogistics,
 } from "../lib/logistics";
-import { X } from "lucide-react";
 import { formatQty } from "../lib/format";
 import { Icon, IconProvider } from "../lib/icons";
+import { Button } from "#/components/ui/button.tsx";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "#/components/ui/dialog.tsx";
+import { FieldLabel } from "#/components/ui/label.tsx";
+import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Switch } from "#/components/ui/switch.tsx";
 import { Input } from "#/components/ui/input.tsx";
-
-const item =
-  "flex items-center gap-1.5 px-3 h-full text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50";
 
 /** Header control for the global logistics display: pick the belt + inserter/loader
  * to size against, toggle stacking, and turn the per-row belt/inserter readout on
@@ -36,51 +42,35 @@ export function LogisticsMenu() {
   const enabled = d ? d.prefs.showBelts || d.prefs.showInserters || d.prefs.showRockets : false;
 
   return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className={item}
-        title="Logistics — belts, inserters & rockets needed per row"
-      >
-        <IconProvider>
-          <span className="flex items-center gap-1.5">
-            {moverName && <Icon kind="entity" name={moverName} size="sm" noTitle />}
-            {beltName && <Icon kind="entity" name={beltName} size="sm" noTitle />}
-          </span>
-        </IconProvider>
-        <span className={enabled ? "text-foreground" : ""}>
-          Logistics{d && !enabled ? ": off" : ""}
-        </span>
-      </button>
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/55 p-10 font-mono"
-          onClick={() => setOpen(false)}
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          className="h-full gap-1.5 px-3 font-normal text-muted-foreground hover:bg-muted/50"
+          title="Logistics — belts, inserters & rockets needed per row"
         >
-          <div
-            className="w-[36rem] rounded-lg border border-border bg-card p-4 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-foreground">Logistics throughput</h2>
-              <button
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => setOpen(false)}
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-            <LogisticsPicker />
-          </div>
+          <IconProvider>
+            <span className="flex items-center gap-1.5">
+              {moverName && <Icon kind="entity" name={moverName} size="sm" noTitle />}
+              {beltName && <Icon kind="entity" name={beltName} size="sm" noTitle />}
+            </span>
+          </IconProvider>
+          <span className={enabled ? "text-foreground" : ""}>
+            Logistics{d && !enabled ? ": off" : ""}
+          </span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="md:max-w-[36rem]">
+        <DialogHeader>
+          <DialogTitle>Logistics throughput</DialogTitle>
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <LogisticsPicker />
         </div>
-      )}
-    </>
+      </DialogContent>
+    </Dialog>
   );
 }
-
-const tier = "flex items-center gap-1.5 rounded border px-2 py-1 text-sm transition-colors";
-const tierOn = "border-primary text-primary";
-const tierOff = "border-border text-muted-foreground hover:bg-muted";
 
 /** The logistics control body — belt/mover pickers + stacking. Reusable. */
 export function LogisticsPicker() {
@@ -95,7 +85,15 @@ export function LogisticsPicker() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["logisticsContext"] }),
   });
   const d = ctx.data;
-  if (!d) return null;
+  if (!d)
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-8 w-72" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-16 w-full" />
+      </div>
+    );
   const resolved = resolveLogistics(d);
   const handStack = resolved.moverKind === "inserter" ? resolved.handStack : null;
   // throughput-per-option for the hover tooltips, at the current stacking
@@ -114,9 +112,7 @@ export function LogisticsPicker() {
         </p>
 
         <div>
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-            Show on block rows
-          </div>
+          <FieldLabel>Show on block rows</FieldLabel>
           <div className="mt-1 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             <label className="flex items-center gap-2">
               <Switch
@@ -146,54 +142,51 @@ export function LogisticsPicker() {
         </div>
 
         <div>
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Belt</div>
+          <FieldLabel>Belt</FieldLabel>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {d.options.belts.map((b) => (
-              <button
+              <Button
                 key={b.name}
+                variant="toggle"
+                aria-pressed={d.prefs.belt === b.name}
                 onClick={() => save.mutate({ belt: b.name })}
-                className={`${tier} ${d.prefs.belt === b.name ? tierOn : tierOff}`}
                 title={beltTip(b.name, b.display, b.speed)}
               >
                 <Icon kind="entity" name={b.name} size="sm" noHover />
                 <span>{b.display ?? b.name}</span>
-              </button>
+              </Button>
             ))}
           </div>
         </div>
 
         <div>
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-            Inserter / loader (devices to feed a building)
-          </div>
+          <FieldLabel>Inserter / loader (devices to feed a building)</FieldLabel>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {d.options.inserters.map((i) => (
-              <button
+              <Button
                 key={i.name}
+                variant="toggle"
+                aria-pressed={d.prefs.moverKind === "inserter" && d.prefs.mover === i.name}
                 onClick={() => save.mutate({ mover: i.name, moverKind: "inserter" })}
-                className={`${tier} ${
-                  d.prefs.moverKind === "inserter" && d.prefs.mover === i.name ? tierOn : tierOff
-                }`}
                 title={`${i.display ?? i.name} (${i.name}) · ≈${fmt(
                   inserterThroughput(i, inserterHandStack(i, effBonuses)),
                 )}/s into a machine${i.bulk ? " · bulk" : ""}`}
               >
                 <Icon kind="entity" name={i.name} size="sm" noHover />
                 <span>{i.display ?? i.name}</span>
-              </button>
+              </Button>
             ))}
             {d.options.loaders.map((l) => (
-              <button
+              <Button
                 key={l.name}
+                variant="toggle"
+                aria-pressed={d.prefs.moverKind === "loader" && d.prefs.mover === l.name}
                 onClick={() => save.mutate({ mover: l.name, moverKind: "loader" })}
-                className={`${tier} ${
-                  d.prefs.moverKind === "loader" && d.prefs.mover === l.name ? tierOn : tierOff
-                }`}
                 title={beltTip(l.name, l.display, l.speed)}
               >
                 <Icon kind="entity" name={l.name} size="sm" noHover />
                 <span>{l.display ?? l.name}</span>
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -223,7 +216,7 @@ export function LogisticsPicker() {
           </label>
         </div>
 
-        <div className="rounded border border-border bg-muted/30 p-2 text-xs text-muted-foreground">
+        <div className="border border-border bg-muted/30 p-2 text-sm text-muted-foreground">
           Effective now: belt stack <b className="text-foreground">×{resolved.placedStack}</b>
           {d.prefs.overrideStack != null && <span> (override)</span>}
           {handStack != null && (
