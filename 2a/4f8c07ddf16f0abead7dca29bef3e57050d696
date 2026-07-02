@@ -1,0 +1,19 @@
+.claude/skills/design-system/SKILL.md
+  s_52a96ee17745bd::t_d49c5433d49541 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "2a4f8c07ddf16f0abead7dca29bef3e57050d696",
+  "prompts": {},
+  "sessions": {
+    "s_52a96ee17745bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d11f1513-7c74-4dfd-bf22-726492f6cc19",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
