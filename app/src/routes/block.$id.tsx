@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -14,41 +14,26 @@ import {
   SortableContext,
   arrayMove,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { ActiveEditorRefContext } from "./block";
 import {
-  blocksForGoodFn,
   bridgeShowBlockFn,
   goodInfoFn,
   itemWeightsFn,
   loadBlockFn,
   logisticsContextFn,
-  machineOptionsFn,
   recipeCandidatesFn,
   recipeDefaultsFn,
   saveBlockFn,
-  searchAllFn,
   setBlockEnabledFn,
-  setFavoriteFuelFn,
-  setFavoriteMachineFn,
   solveBlockFn,
 } from "../server/factorio";
 import type { BeaconConfig } from "../server/factorio";
-import {
-  type ResolvedLogistics,
-  launchesForRate,
-  resolveLogistics,
-  rowLogistics,
-} from "../lib/logistics";
-import { bridgeLocateFn } from "../server/bridge/fns";
-import { tasksForBlockFn } from "../server/tasks.ts";
+import { launchesForRate, resolveLogistics } from "../lib/logistics";
 import type { Disposition } from "../solver/block";
 import type { Goal, RateUnit } from "../db/schema";
 import { normalizeBlockData, STOCK_WINDOW_DEFAULT } from "../lib/goals";
-import { formatQty } from "../lib/format";
 import {
   groupMembers,
   groupNet,
@@ -78,24 +63,18 @@ import {
   Hammer,
   Layers,
   Lock,
-  MapPin,
-  Pencil,
   Plus,
   Power,
-  RefreshCw,
-  Rocket,
   Star,
   Timer,
-  Unlock,
   X,
   Zap,
 } from "lucide-react";
-import { ItemHover, RecipeHover, TechLine } from "../lib/recipe-card";
+import { RecipeHover } from "../lib/recipe-card";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card.tsx";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "#/components/ui/dialog.tsx";
 import {
   Sheet,
   SheetContent,
@@ -103,45 +82,37 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "#/components/ui/sheet.tsx";
-import { ContextMenu, ContextMenuItem } from "#/components/context-menu.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
-import { Skeleton } from "#/components/ui/skeleton.tsx";
+
+import { SortableRow } from "../components/block/sortable-row.tsx";
+import { BlockTasks } from "../components/block/block-tasks.tsx";
+import { EditableRate } from "../components/block/editable-rate.tsx";
+import { EditableStock } from "../components/block/editable-stock.tsx";
+import {
+  DISP_CYCLE,
+  ItemChip,
+  craftableStyle,
+  dispTag,
+  linkStyle,
+  type Link as ItemLink,
+} from "../components/block/item-chip.tsx";
+import { LogiTag } from "../components/block/logi-tag.tsx";
+import { Legend } from "../components/block/legend.tsx";
+import { GoalPickerDialog } from "../components/block/goal-picker-dialog.tsx";
+import { IconPickerDialog } from "../components/block/icon-picker-dialog.tsx";
+import { RecipePickerDialog } from "../components/block/recipe-picker-dialog.tsx";
+import { BuildingPickerDialog } from "../components/block/building-picker-dialog.tsx";
+import { FuelPickerDialog } from "../components/block/fuel-picker-dialog.tsx";
+import { SpoilRateDialog } from "../components/block/spoil-rate-dialog.tsx";
+import { GoalMenu } from "../components/block/goal-menu.tsx";
+import { RowMenu } from "../components/block/row-menu.tsx";
+import { GoodMenu } from "../components/block/good-menu.tsx";
+import { fmtAmt, fmtW, num } from "../components/block/format.ts";
+import { cellChip, head } from "../components/block/styles.ts";
 
 export const Route = createFileRoute("/block/$id")({ component: BlockRoute });
-
-/** One sortable recipe row. Provides the drag handle props to its child via render
- * prop so only the grip starts a drag; the outer wrapper carries the sort transform. */
-type RowHandle = Pick<
-  ReturnType<typeof useSortable>,
-  "setActivatorNodeRef" | "listeners" | "attributes" | "isDragging"
->;
-function SortableRow({ id, children }: { id: string; children: (handle: RowHandle) => ReactNode }) {
-  const {
-    setNodeRef,
-    setActivatorNodeRef,
-    listeners,
-    attributes,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-  return (
-    <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        position: isDragging ? "relative" : undefined,
-        zIndex: isDragging ? 20 : undefined,
-      }}
-      className={isDragging ? "opacity-90" : undefined}
-    >
-      {children({ setActivatorNodeRef, listeners, attributes, isDragging })}
-    </div>
-  );
-}
 
 // Remount the editor per id (key) so each block is a fresh instance: load on
 // mount, auto-save on edit, flush on unmount — no cross-block state to untangle.
@@ -151,440 +122,6 @@ function BlockRoute() {
     <IconProvider>
       <Block key={id} blockId={Number(id)} />
     </IconProvider>
-  );
-}
-const head =
-  "px-3 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground border-b border-border";
-
-/** Reverse view of task→block links: the planner tasks that reference this
- * block, each linking back to it on the tasks page. Hidden when none. */
-function BlockTasks({ blockId }: { blockId: number }) {
-  const tasks = useQuery({
-    queryKey: ["tasks-for-block", blockId],
-    queryFn: () => tasksForBlockFn({ data: blockId }),
-  });
-  const list = tasks.data ?? [];
-  if (list.length === 0) return null;
-  return (
-    <Card className="mb-4">
-      <div className={head}>Tasks ({list.length})</div>
-      <CardContent className="space-y-0.5 py-2">
-        {list.map((t) => {
-          const total = t.stepTotal + t.childTotal;
-          const done = t.stepDone + t.childDone;
-          return (
-            <Link
-              key={t.id}
-              to="/tasks"
-              search={{ tab: "tasks", t: t.id }}
-              className="flex items-center gap-2 px-1 py-0.5 text-sm hover:bg-muted"
-            >
-              <span
-                className={`size-2 shrink-0 rounded-full ${t.done ? "bg-success" : "bg-muted-foreground/40"}`}
-              />
-              <span
-                className={`min-w-0 flex-1 truncate ${t.done ? "text-muted-foreground line-through" : ""}`}
-              >
-                {t.title || "Untitled task"}
-              </span>
-              {total > 0 && (
-                <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
-                  {done}/{total}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-      </CardContent>
-    </Card>
-  );
-}
-// whole-row picker trigger — Button's fixed-height anatomy would fight the
-// icon+truncating-label row layout, so this stays a raw button with tokens
-const rowBtn = "flex w-full items-center gap-1.5 px-2 py-1 text-left hover:bg-muted";
-const craftableStyle = "border border-dashed border-warning/60 bg-warning/10 text-warning";
-const num = formatQty; // adaptive precision (#74) — shared with every other table
-// goal-rate display: enough precision to be exact, trailing zeros trimmed
-const fmtRate = (n: number) => {
-  if (!Number.isFinite(n) || n === 0) return "0";
-  if (Math.abs(n) < 0.0001) return formatQty(n); // below toFixed(4) — sig-figs, never "0"
-  const s = Math.abs(n) >= 1000 ? n.toFixed(0) : n.toFixed(4);
-  return s.replace(/\.?0+$/, "");
-};
-
-/** A rate shown as plain text ("1.0623/s") that turns into an input on click;
- * commits on blur/Enter, reverts on Escape. Read-only mode just renders the text. */
-/** Rate windows (#10): the display/input unit of a goal. The STORED rate stays
- * per-second (the solver's canonical unit) — these only convert at the UI edge. */
-const RATE_UNITS: RateUnit[] = ["s", "min", "h"];
-const UNIT_FACTOR: Record<RateUnit, number> = { s: 1, min: 60, h: 3600 };
-
-/** Stock-goal refill windows (#38): the machines are sized to rebuild the buffer
- * within the window (rate = stock / window). Click-to-cycle presets. */
-const STOCK_WINDOWS = [300, 600, 1800, 3600];
-const fmtWindow = (s: number) => (s >= 3600 ? `${s / 3600}h` : `${s / 60}m`);
-
-/** "keep N" editor for a stock goal (#38): click the count to edit it, click the
- * window to cycle how fast the buffer refills. The stored rate stays derived. */
-function EditableStock({
-  stock,
-  window: win,
-  onChange,
-  onWindowChange,
-}: {
-  stock: number;
-  window: number;
-  onChange: (n: number) => void;
-  onWindowChange: (secs: number) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const cycle = () =>
-    onWindowChange(STOCK_WINDOWS[(STOCK_WINDOWS.indexOf(win) + 1) % STOCK_WINDOWS.length]);
-  if (!editing) {
-    return (
-      <span className="flex items-center gap-1 tabular-nums">
-        <button
-          onClick={() => {
-            setDraft(String(stock));
-            setEditing(true);
-          }}
-          title="keep this many on hand — click to edit"
-          className="hover:text-info"
-        >
-          keep {formatQty(stock)}
-        </button>
-        <button
-          onClick={cycle}
-          title="refill window — machines are sized to rebuild the buffer within this time; click to cycle"
-          className="flex items-center gap-0.5 text-muted-foreground hover:text-info"
-        >
-          <RefreshCw className="size-3" />
-          {fmtWindow(win)}
-        </button>
-      </span>
-    );
-  }
-  const commit = () => {
-    const n = Number(draft);
-    if (Number.isFinite(n) && n > 0) onChange(n);
-    setEditing(false);
-  };
-  return (
-    <Input
-      autoFocus
-      type="text"
-      inputMode="numeric"
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") commit();
-        if (e.key === "Escape") setEditing(false);
-      }}
-      className="h-7 w-16 border-info/60 px-1 text-center"
-    />
-  );
-}
-
-function EditableRate({
-  value,
-  unit = "s",
-  readOnly,
-  onChange,
-  onUnitChange,
-}: {
-  /** per-second rate (canonical) */
-  value: number;
-  /** display/input window — the value shown is `value × factor` ("60/min" = 1/s) */
-  unit?: RateUnit;
-  readOnly?: boolean;
-  onChange: (v: number) => void;
-  onUnitChange?: (u: RateUnit) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const factor = UNIT_FACTOR[unit];
-  const cycleUnit = () =>
-    onUnitChange?.(RATE_UNITS[(RATE_UNITS.indexOf(unit) + 1) % RATE_UNITS.length]);
-  if (!editing) {
-    return (
-      <span className="tabular-nums">
-        <button
-          onClick={() => {
-            if (readOnly) return;
-            setDraft(fmtRate(value * factor));
-            setEditing(true);
-          }}
-          title={readOnly ? "sized by a locked input" : "click to edit the goal rate"}
-          className={readOnly ? "text-muted-foreground" : "hover:text-info"}
-        >
-          {fmtRate(value * factor)}
-        </button>
-        <button
-          onClick={cycleUnit}
-          title="rate window — click to cycle per second / minute / hour"
-          className="text-muted-foreground hover:text-info"
-        >
-          /{unit}
-        </button>
-      </span>
-    );
-  }
-  const commit = () => {
-    const n = Number(draft);
-    if (Number.isFinite(n) && n >= 0) onChange(n / factor);
-    setEditing(false);
-  };
-  return (
-    <span className="inline-flex items-center gap-0.5">
-      <Input
-        autoFocus
-        type="text"
-        inputMode="decimal"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
-          if (e.key === "Escape") setEditing(false);
-        }}
-        className="h-7 w-16 border-info/60 px-1 text-center"
-      />
-      <span className="text-sm text-muted-foreground">/{unit}</span>
-    </span>
-  );
-}
-const fmtW = (w: number) =>
-  w >= 1e9
-    ? `${(w / 1e9).toFixed(2)} GW`
-    : w >= 1e6
-      ? `${(w / 1e6).toFixed(2)} MW`
-      : w >= 1e3
-        ? `${(w / 1e3).toFixed(0)} kW`
-        : `${w.toFixed(0)} W`;
-const fmtJ = (j: number) =>
-  j >= 1e9
-    ? `${(j / 1e9).toFixed(1)} GJ`
-    : j >= 1e6
-      ? `${(j / 1e6).toFixed(1)} MJ`
-      : j >= 1e3
-        ? `${(j / 1e3).toFixed(0)} kJ`
-        : `${j.toFixed(0)} J`;
-// compact YAFC-style cell chip: icon + number, clickable — stays a raw
-// button/span shape (icon-in-flow trigger; Button's height/padding would fight
-// the dense grid rows)
-const cellChip = "flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm hover:bg-accent";
-// io amounts: integers stay clean ("50", "1000"), long numbers humanize ("1.2k")
-const fmtAmt = (n: number) => {
-  const r = Math.round(n * 100) / 100;
-  const plain = String(r);
-  if (plain.length <= 5) return plain;
-  for (const [div, suf] of [
-    [1e9, "B"],
-    [1e6, "M"],
-    [1e3, "k"],
-  ] as const) {
-    if (Math.abs(r) >= div) return `${Math.round((r / div) * 10) / 10}${suf}`;
-  }
-  return plain;
-};
-// cost-analysis values span 0.001 … 500k — compact but readable
-const fmtCost = (c: number) =>
-  c >= 1e6
-    ? `${(c / 1e6).toFixed(1)}M`
-    : c >= 1e3
-      ? `${(c / 1e3).toFixed(1)}k`
-      : c >= 10
-        ? c.toFixed(0)
-        : c.toFixed(2);
-
-/** A block item's role under the current solve — drives the chip colour so it's
- * obvious which flows are linked internally vs. need a recipe vs. spill out. */
-type Link = "target" | "import" | "export" | "linked";
-const linkStyle: Record<Link, string> = {
-  target: "bg-info/20 ring-1 ring-info/40 text-info",
-  import: "bg-warning/20 ring-1 ring-warning/40 text-warning", // nothing in-block makes it
-  export: "bg-surplus/20 ring-1 ring-surplus/40 text-surplus", // surplus, nothing consumes it
-  linked: "bg-success/15 ring-1 ring-success/30 text-success", // produced AND consumed in-block
-};
-
-/** Disposition override cycle (alt/right-click) + how the small tag reads. */
-const DISP_CYCLE = ["auto", "import", "export", "balance"] as const;
-const dispTag: Record<Disposition, { label: string; cls: string }> = {
-  import: { label: "→ import", cls: "bg-warning/30 text-warning" },
-  export: { label: "→ export", cls: "bg-surplus/30 text-surplus" },
-  balance: { label: "= balance", cls: "bg-success/30 text-success" },
-};
-
-/** Clickable ingredient/product pill: icon + rate, tinted by link state. Click
- * opens the recipe picker (produce for an input, consume for an output).
- * A craftable import (a recipe exists to make it) gets a dashed ring + "＋" so
- * it reads as "you could make this in-block"; a raw import is solid.
- * Alt-click / right-click cycles the solver disposition; when overridden, a
- * small tag shows the forced state (click the tag to clear back to auto). */
-function ItemChip({
-  name,
-  kind,
-  display,
-  rate,
-  link,
-  craftable,
-  fuel,
-  disp,
-  onClick,
-  onCycleDisp,
-  onClearDisp,
-  onContext,
-}: {
-  name: string;
-  kind: string;
-  display?: string | null;
-  rate?: number;
-  link: Link;
-  craftable?: boolean;
-  fuel?: boolean;
-  disp?: Disposition;
-  onClick: () => void;
-  onCycleDisp?: () => void;
-  onClearDisp?: () => void;
-  onContext?: (e: { clientX: number; clientY: number }) => void;
-}) {
-  const craftableImport = link === "import" && craftable;
-  const cls = craftableImport ? craftableStyle : linkStyle[link];
-  const why = craftableImport
-    ? "craftable — click to add a producer"
-    : link === "import"
-      ? "raw input — supply externally"
-      : link;
-  return (
-    <span className="inline-flex items-center gap-1">
-      <ItemHover
-        name={name}
-        kind={kind as "item" | "fluid"}
-        className="inline-flex"
-        // the rich card (cost, produced-by / used-in) replaces the old native title;
-        // role is the chip colour, rate is shown on the chip, alt-click hint is in the legend
-      >
-        <button
-          onClick={(e) => {
-            if (e.altKey && onCycleDisp) return onCycleDisp();
-            onClick();
-          }}
-          onContextMenu={(e) => {
-            if (!onContext) return;
-            e.preventDefault();
-            onContext(e);
-          }}
-          aria-label={`${display ?? name}${rate != null ? ` ${num(rate)}/s` : ""} · ${why}`}
-          className={`flex items-center gap-1 px-1.5 py-1 text-sm hover:brightness-95 ${cls} ${
-            disp ? "ring-2 ring-info/60" : ""
-          }`}
-        >
-          <span className="relative flex">
-            <Icon kind={kind as "item" | "fluid"} name={name} size="md" noHover />
-            {fuel && (
-              <Flame
-                aria-label="burned as fuel"
-                className="absolute -right-1 -bottom-1 size-3.5 rounded-full bg-background/90 p-px text-warning"
-                strokeWidth={2.5}
-              />
-            )}
-          </span>
-          {rate != null && <span>{num(rate)}</span>}
-          {craftableImport && <Plus className="size-3.5 text-warning" strokeWidth={3} />}
-        </button>
-      </ItemHover>
-      {disp && (
-        <button
-          onClick={onClearDisp}
-          title="forced disposition — click to clear back to auto"
-          className={`px-1 py-0.5 text-sm ${dispTag[disp].cls} hover:brightness-110`}
-        >
-          {dispTag[disp].label}
-        </button>
-      )}
-    </span>
-  );
-}
-
-const fmtCount = (n: number) =>
-  !Number.isFinite(n)
-    ? "∞"
-    : n === 0
-      ? "0"
-      : n < 0.01
-        ? "<0.01"
-        : n >= 10
-          ? n.toFixed(0)
-          : n >= 1
-            ? n.toFixed(1)
-            : n.toFixed(2);
-
-/** Compact per-item logistics readout under a chip: belts to carry the row's whole
- * flow of this item, devices (inserters/loaders) to move it in/out of ONE building,
- * and — when rockets are on — rocket launches/min. Devices are omitted on
- * building-less rows; `launch` is omitted unless the rocket toggle is on. */
-function LogiTag({
-  resolved,
-  rate,
-  machineCount,
-  showBelts,
-  showInserters,
-  launch,
-}: {
-  resolved: ResolvedLogistics;
-  rate: number;
-  machineCount: number;
-  showBelts: boolean;
-  showInserters: boolean;
-  launch?: { perMin: number; defaulted: boolean } | null;
-}) {
-  if (!(rate > 1e-9)) return null;
-  const r = rowLogistics(resolved, rate, machineCount);
-  if (!r) return null;
-  const beltOn = showBelts;
-  const insOn = showInserters && machineCount > 1e-9; // per-building → rows only
-  const rocketOn = !!launch;
-  if (!beltOn && !insOn && !rocketOn) return null;
-  const beltName = resolved.belt?.name;
-  const beltDisp = resolved.belt?.display ?? beltName;
-  const moverName =
-    resolved.moverKind === "loader" ? resolved.loader?.name : resolved.inserter?.name;
-  const moverDisp =
-    (resolved.moverKind === "loader" ? resolved.loader?.display : resolved.inserter?.display) ??
-    moverName;
-  const title = [
-    beltOn && `≈${fmtCount(r.belts)} × ${beltDisp}`,
-    insOn && `≈${fmtCount(r.devices)} × ${moverDisp} per building`,
-    rocketOn &&
-      `≈${fmtCount(launch.perMin)} rocket launches/min${launch.defaulted ? " (default item weight — not set in data)" : ""}`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  return (
-    <span className="flex items-center gap-2.5 pl-1 text-sm text-muted-foreground" title={title}>
-      {beltOn && beltName && (
-        <span className="inline-flex items-center gap-1.5">
-          <Icon kind="entity" name={beltName} size="sm" noHover />
-          <span className="tabular-nums">{fmtCount(r.belts)}</span>
-        </span>
-      )}
-      {insOn && moverName && (
-        <span className="inline-flex items-center gap-1.5">
-          <Icon kind="entity" name={moverName} size="sm" noHover />
-          <span className="tabular-nums">{fmtCount(r.devices)}</span>
-        </span>
-      )}
-      {rocketOn && (
-        <span
-          className={`inline-flex items-center gap-1.5 ${launch.defaulted ? "opacity-60" : ""}`}
-        >
-          <Rocket className="size-3.5" />
-          <span className="tabular-nums">{fmtCount(launch.perMin)}/m</span>
-        </span>
-      )}
-    </span>
   );
 }
 
@@ -611,19 +148,8 @@ function Block({ blockId }: { blockId: number }) {
     y: number;
     name: string;
     kind: string;
-    link: Link;
+    link: ItemLink;
   } | null>(null);
-  const locate = useMutation({
-    mutationFn: (d: { name: string; kind: "item" | "fluid" }) => bridgeLocateFn({ data: d }),
-  });
-  // Which other blocks already make the good under the context menu — so an import
-  // can jump to its producer, or spin up a new block to supply it.
-  const ctxProducers = useQuery({
-    queryKey: ["blocksForGood", ctxMenu?.name],
-    queryFn: () => blocksForGoodFn({ data: ctxMenu!.name }),
-    enabled: !!ctxMenu,
-    staleTime: 0,
-  });
   const [lockedInput, setLockedInput] = useState<string | null>(null); // import pinned to size the block
   const [lockedRate, setLockedRate] = useState(0); // the rate that import is pinned to
   const [recipes, setRecipes] = useState<string[]>([]);
@@ -644,7 +170,6 @@ function Block({ blockId }: { blockId: number }) {
   // pinned surplus. `spoilDialog` holds the item whose rate is being edited.
   const [spoilRates, setSpoilRates] = useState<Record<string, number>>({});
   const [spoilDialog, setSpoilDialog] = useState<string | null>(null);
-  const [spoilDraft, setSpoilDraft] = useState("");
   const [rowGroups, setRowGroups] = useState<RowGroup[]>([]);
   const [recipeGroups, setRecipeGroups] = useState<GroupAssign>({});
   const [foldedGroups, setFoldedGroups] = useState<Record<number, boolean>>({});
@@ -724,7 +249,6 @@ function Block({ blockId }: { blockId: number }) {
   const [fuelSel, setFuelSel] = useState<Record<string, string>>({}); // recipe → fuel
   const [moduleSel, setModuleSel] = useState<Record<string, string[]>>({}); // recipe → modules
   const [beaconSel, setBeaconSel] = useState<Record<string, BeaconConfig[]>>({}); // recipe → beacons
-  const [search, setSearch] = useState("");
   const [pickFor, setPickFor] = useState<{ name: string; mode: "produce" | "consume" } | null>(
     null,
   );
@@ -837,18 +361,6 @@ function Block({ blockId }: { blockId: number }) {
   const pickFuel = (recipe: string, f: string) => {
     markEdited();
     setFuelSel((s) => ({ ...s, [recipe]: f }));
-  };
-  // Favorites are app-level prefs (not a block edit): toggling one re-fetches the
-  // affected picker/solve so its ☆ updates, but leaves this block's stored picks.
-  const toggleFavoriteMachine = (recipe: string, machine: string, isFav: boolean) => {
-    void setFavoriteMachineFn({ data: { recipe, machine: isFav ? null : machine } }).then(() => {
-      void qc.invalidateQueries({ queryKey: ["machineOpts"] });
-    });
-  };
-  const toggleFavoriteFuel = (fuel: string, isFav: boolean) => {
-    void setFavoriteFuelFn({ data: { fuel, clear: isFav } }).then(() => {
-      void qc.invalidateQueries({ queryKey: ["solve"] });
-    });
   };
   const setDispFor = (name: string, d: Disposition | "auto") => {
     markEdited();
@@ -969,7 +481,6 @@ function Block({ blockId }: { blockId: number }) {
   const pickGoalItem = (name: string) => {
     if (goalPicker?.replace) changeGoalItem(goalPicker.replace, name);
     else addGoal(name);
-    setSearch("");
     setGoalPicker(null);
   };
   // Block icon (#40): pick an explicit item/fluid, or reset to follow the first goal.
@@ -977,13 +488,11 @@ function Block({ blockId }: { blockId: number }) {
     markEdited();
     setCustomIcon({ kind, name });
     setIconPicker(false);
-    setSearch("");
   };
   const resetIcon = () => {
     markEdited();
     setCustomIcon(null);
     setIconPicker(false);
-    setSearch("");
   };
   // Move a goal to the front, so it names the block + anchors the rate-scaling tools.
   const makePrimary = (name: string) => {
@@ -1016,11 +525,6 @@ function Block({ blockId }: { blockId: number }) {
     ...(Object.keys(modulesUsed).length ? { modules: modulesUsed } : {}),
     ...(Object.keys(beaconsUsed).length ? { beacons: beaconsUsed } : {}),
   };
-  const items = useQuery({
-    queryKey: ["bsearch", search],
-    queryFn: () => searchAllFn({ data: search }),
-    enabled: search.trim().length > 0,
-  });
   // kind + display for the goal cells, so a fluid goal (e.g. crude-oil) icons
   // correctly even before any recipe makes it appear in the solve's flows, and so
   // the block can auto-name itself from its primary goal pre-solve.
@@ -1143,11 +647,6 @@ function Block({ blockId }: { blockId: number }) {
     queryKey: ["pick", pickFor?.name, pickFor?.mode],
     queryFn: () => recipeCandidatesFn({ data: { name: pickFor!.name, mode: pickFor!.mode } }),
     enabled: !!pickFor,
-  });
-  const machineOpts = useQuery({
-    queryKey: ["machineOpts", pickMachineFor],
-    queryFn: () => machineOptionsFn({ data: pickMachineFor! }),
-    enabled: !!pickMachineFor,
   });
   // Per-row belts & inserters readout (#21). Fetched once; the math runs client-side
   // (resolveLogistics) so changing belt/inserter tier from the header is instant.
@@ -1322,7 +821,7 @@ function Block({ blockId }: { blockId: number }) {
 
   const producible = new Set(res?.producible ?? []); // imports a recipe could make in-block
   const fuelSet = new Set(res?.fuelItems ?? []); // items consumed as fuel (folded into the balance)
-  const linkOf = (name: string): Link =>
+  const linkOf = (name: string): ItemLink =>
     name === target
       ? "target"
       : importSet.has(name)
@@ -1892,10 +1391,7 @@ function Block({ blockId }: { blockId: number }) {
               })}
               {/* add a goal */}
               <button
-                onClick={() => {
-                  setSearch("");
-                  setGoalPicker({});
-                }}
+                onClick={() => setGoalPicker({})}
                 title="add a goal product"
                 className="flex min-w-16 flex-col items-center justify-center gap-0.5 border border-dashed border-border px-2 py-1 text-muted-foreground hover:text-foreground"
               >
@@ -1969,10 +1465,7 @@ function Block({ blockId }: { blockId: number }) {
               {Object.entries(spoilRates).map(([name, r]) => (
                 <button
                   key={name}
-                  onClick={() => {
-                    setSpoilDraft(String(r));
-                    setSpoilDialog(name);
-                  }}
+                  onClick={() => setSpoilDialog(name)}
                   title="production is sized to cover this rot rate — click to edit"
                   className="inline-flex items-center gap-1 bg-warning/20 px-1.5 py-0.5 text-warning hover:brightness-110"
                 >
@@ -2252,10 +1745,7 @@ function Block({ blockId }: { blockId: number }) {
                             {spoilables[f.name] != null && (
                               <button
                                 title={`spoils in ${fmtSpoilTime(spoilables[f.name])} — surplus sits in storage, so it WILL rot unless something consumes it. Click to plan the loss so production covers it.`}
-                                onClick={() => {
-                                  setSpoilDraft(String(spoilRates[f.name] ?? ""));
-                                  setSpoilDialog(f.name);
-                                }}
+                                onClick={() => setSpoilDialog(f.name)}
                                 className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
                               >
                                 <Timer className="size-3.5" /> rots in{" "}
@@ -2617,517 +2107,93 @@ function Block({ blockId }: { blockId: number }) {
         </DndContext>
       </Card>
 
-      {/* Goal-item picker — choose what product a goal is (add a new one, or change
-          an existing goal's item). Searches items AND fluids. */}
+      {/* Goal-item picker — add a new goal, or change an existing goal's item. */}
       {goalPicker && (
-        <Dialog
-          open
-          onOpenChange={(open) => {
-            if (!open) {
-              setGoalPicker(null);
-              setSearch("");
-            }
-          }}
-        >
-          <DialogContent className="md:max-w-[34rem]">
-            <DialogHeader>
-              <DialogTitle>
-                {goalPicker.replace
-                  ? `Change goal — ${res?.display?.[goalPicker.replace] ?? goalPicker.replace}`
-                  : "Add a goal product"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                autoFocus
-                placeholder="search an item or fluid…"
-              />
-              <div className="max-h-[55vh] overflow-auto border border-border">
-                {items.isLoading && (
-                  <div className="space-y-1.5 p-3">
-                    <Skeleton className="h-6 w-full" />
-                    <Skeleton className="h-6 w-4/5" />
-                    <Skeleton className="h-6 w-2/3" />
-                  </div>
-                )}
-                {!search.trim() ? (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">
-                    type to search for a product…
-                  </div>
-                ) : items.data?.length ? (
-                  items.data.map((it) => (
-                    <button
-                      key={`${it.kind}:${it.name}`}
-                      className={rowBtn}
-                      onClick={() => pickGoalItem(it.name)}
-                      title={it.display ?? it.name}
-                    >
-                      <Icon kind={it.kind as "item" | "fluid"} name={it.name} size="md" noTitle />
-                      <span className="truncate">{it.display ?? it.name}</span>
-                    </button>
-                  ))
-                ) : (
-                  !items.isLoading && (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">no matches</div>
-                  )
-                )}
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <GoalPickerDialog
+          replaceDisplay={
+            goalPicker.replace ? (res?.display?.[goalPicker.replace] ?? goalPicker.replace) : null
+          }
+          onPick={pickGoalItem}
+          onClose={() => setGoalPicker(null)}
+        />
       )}
 
-      {/* Block-icon picker (#40) — choose any item/fluid as the block's icon, or
-          reset to auto (follow the first goal). */}
+      {/* Block-icon picker (#40) — explicit item/fluid, or auto (first goal). */}
       {iconPicker && (
-        <Dialog
-          open
-          onOpenChange={(open) => {
-            if (!open) {
-              setIconPicker(false);
-              setSearch("");
-            }
-          }}
-        >
-          <DialogContent className="md:max-w-[34rem]">
-            <DialogHeader>
-              <DialogTitle>Block icon</DialogTitle>
-            </DialogHeader>
-            <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
-              <button className={rowBtn} onClick={resetIcon}>
-                {target ? (
-                  <Icon
-                    kind={goalInfo.data?.[target]?.kind ?? "item"}
-                    name={target}
-                    size="md"
-                    noHover
-                    noTitle
-                  />
-                ) : (
-                  <Grid2x2 className="size-5 text-muted-foreground" />
-                )}
-                <span>
-                  auto — follow the first goal
-                  {!customIcon && <span className="ml-2 text-sm text-primary">current</span>}
-                </span>
-              </button>
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                autoFocus
-                placeholder="search an item or fluid…"
-              />
-              <div className="max-h-[55vh] overflow-auto border border-border">
-                {items.isLoading && (
-                  <div className="space-y-1.5 p-3">
-                    <Skeleton className="h-6 w-full" />
-                    <Skeleton className="h-6 w-4/5" />
-                    <Skeleton className="h-6 w-2/3" />
-                  </div>
-                )}
-                {!search.trim() ? (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">
-                    type to search for an item or fluid…
-                  </div>
-                ) : items.data?.length ? (
-                  items.data.map((it) => (
-                    <button
-                      key={`${it.kind}:${it.name}`}
-                      className={rowBtn}
-                      onClick={() => pickIcon(it.kind, it.name)}
-                      title={it.display ?? it.name}
-                    >
-                      <Icon kind={it.kind as "item" | "fluid"} name={it.name} size="md" noTitle />
-                      <span className="truncate">{it.display ?? it.name}</span>
-                      {customIcon?.kind === it.kind && customIcon?.name === it.name && (
-                        <span className="text-sm text-primary">current</span>
-                      )}
-                    </button>
-                  ))
-                ) : (
-                  !items.isLoading && (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">no matches</div>
-                  )
-                )}
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <IconPickerDialog
+          target={target}
+          targetKind={goalInfo.data?.[target]?.kind ?? "item"}
+          customIcon={customIcon}
+          onPick={pickIcon}
+          onReset={resetIcon}
+          onClose={() => setIconPicker(false)}
+        />
       )}
 
-      {/* Goal context menu — right-click a goal cell: change item, make primary, remove */}
+      {/* Goal context menu — right-click a goal cell */}
       {goalMenu && (
-        <ContextMenu x={goalMenu.x} y={goalMenu.y} onClose={() => setGoalMenu(null)}>
-          <div className="flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-sm text-muted-foreground">
-            <Icon
-              kind={kindOf(goalMenu.name)}
-              name={goalMenu.name}
-              size="sm"
-              title={res?.display?.[goalMenu.name] ?? goalMenu.name}
-            />
-            <span className="truncate">{res?.display?.[goalMenu.name] ?? goalMenu.name}</span>
-          </div>
-          <ContextMenuItem
-            onClick={() => {
-              setSearch("");
-              setGoalPicker({ replace: goalMenu.name });
-              setGoalMenu(null);
-            }}
-          >
-            <Pencil className="size-3.5" /> Change item
-          </ContextMenuItem>
-          {goalMenu.name !== target && (
-            <ContextMenuItem
-              onClick={() => {
-                makePrimary(goalMenu.name);
-                setGoalMenu(null);
-              }}
-            >
-              <Star className="size-3.5" /> Move to front (names the block)
-            </ContextMenuItem>
-          )}
-          {goals.find((x) => x.name === goalMenu.name)?.stock == null ? (
-            <ContextMenuItem
-              onClick={() => {
-                makeStockGoal(goalMenu.name);
-                setGoalMenu(null);
-              }}
-            >
-              <RefreshCw className="size-3.5" /> Keep in stock instead (buffer, not throughput)
-            </ContextMenuItem>
-          ) : (
-            <ContextMenuItem
-              onClick={() => {
-                makeRateGoal(goalMenu.name);
-                setGoalMenu(null);
-              }}
-            >
-              <RefreshCw className="size-3.5" /> Track a rate instead
-            </ContextMenuItem>
-          )}
-          <div className="my-1 border-t border-border" />
-          <ContextMenuItem
-            onClick={() => {
-              removeGoal(goalMenu.name);
-              setGoalMenu(null);
-            }}
-          >
-            <X className="size-3.5" /> Remove goal
-          </ContextMenuItem>
-        </ContextMenu>
+        <GoalMenu
+          x={goalMenu.x}
+          y={goalMenu.y}
+          name={goalMenu.name}
+          display={res?.display?.[goalMenu.name] ?? goalMenu.name}
+          kind={kindOf(goalMenu.name)}
+          isPrimary={goalMenu.name === target}
+          isStock={goals.find((x) => x.name === goalMenu.name)?.stock != null}
+          onChangeItem={() => setGoalPicker({ replace: goalMenu.name })}
+          onMakePrimary={() => makePrimary(goalMenu.name)}
+          onMakeStock={() => makeStockGoal(goalMenu.name)}
+          onMakeRate={() => makeRateGoal(goalMenu.name)}
+          onRemove={() => removeGoal(goalMenu.name)}
+          onClose={() => setGoalMenu(null)}
+        />
       )}
 
-      {/* Recipe-row context menu — sub-block (#7) actions on the row's name */}
+      {/* Recipe-row context menu — sub-block (#7) actions */}
       {rowMenu && (
-        <ContextMenu x={rowMenu.x} y={rowMenu.y} onClose={() => setRowMenu(null)}>
-          <div className="flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-sm text-muted-foreground">
-            <Icon kind="recipe" name={rowMenu.name} size="sm" noTitle noHover />
-            <span className="truncate">{res?.display?.[rowMenu.name] ?? rowMenu.name}</span>
-          </div>
-          {recipeGroups[rowMenu.name] == null ? (
-            <>
-              <ContextMenuItem
-                onClick={() => {
-                  createGroupFromRow(rowMenu.name);
-                  setRowMenu(null);
-                }}
-              >
-                <Layers className="size-3.5" /> New sub-block from this row
-              </ContextMenuItem>
-              {rowGroups.map((g) => (
-                <ContextMenuItem
-                  key={g.id}
-                  onClick={() => {
-                    markEdited();
-                    const joined = joinGroup(recipes, recipeGroups, rowMenu.name, g.id);
-                    setRecipes(joined.recipes);
-                    setRecipeGroups(joined.assign);
-                    setRowMenu(null);
-                  }}
-                >
-                  <Layers className="size-3.5 text-primary/70" /> Add to “{g.name}”
-                </ContextMenuItem>
-              ))}
-            </>
-          ) : (
-            <ContextMenuItem
-              onClick={() => {
-                removeFromGroup(rowMenu.name);
-                setRowMenu(null);
-              }}
-            >
-              <X className="size-3.5" /> Remove from “
-              {rowGroups.find((g) => g.id === recipeGroups[rowMenu.name])?.name ?? "sub-block"}”
-            </ContextMenuItem>
-          )}
-        </ContextMenu>
+        <RowMenu
+          x={rowMenu.x}
+          y={rowMenu.y}
+          recipe={rowMenu.name}
+          display={res?.display?.[rowMenu.name] ?? rowMenu.name}
+          groups={rowGroups}
+          currentGroup={rowGroups.find((g) => g.id === recipeGroups[rowMenu.name]) ?? null}
+          onNewGroup={() => createGroupFromRow(rowMenu.name)}
+          onJoinGroup={(gid) => {
+            markEdited();
+            const joined = joinGroup(recipes, recipeGroups, rowMenu.name, gid);
+            setRecipes(joined.recipes);
+            setRecipeGroups(joined.assign);
+          }}
+          onLeaveGroup={() => removeFromGroup(rowMenu.name)}
+          onClose={() => setRowMenu(null)}
+        />
       )}
 
       {/* Recipe picker — floats over everything, dismissable */}
       {pickFor && !picker.isLoading && !autoAddRecipe && (
-        <Dialog
-          open
-          onOpenChange={(open) => {
-            if (!open) setPickFor(null);
-          }}
-        >
-          <DialogContent className="md:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="truncate">
-                {pickFor.mode === "consume" ? "Recipes that consume" : "Recipes that make"}{" "}
-                {res?.display?.[pickFor.name] ?? pickFor.name}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="min-h-0 flex-1 overflow-auto p-2">
-              {picker.data?.length
-                ? picker.data.map((r) => {
-                    const added = recipes.includes(r.name);
-                    return (
-                      <button
-                        key={r.name}
-                        className={`flex w-full items-start gap-3 px-3 py-2.5 text-left hover:bg-muted ${
-                          r.enabled || r.turd?.turdSelected ? "" : "opacity-70"
-                        }`}
-                        onClick={() => add(r.name)}
-                        disabled={added}
-                      >
-                        <Icon kind="recipe" name={r.name} size="lg" noTitle />
-                        <span className="min-w-0 flex-1 space-y-1">
-                          {/* full name — wraps instead of truncating */}
-                          <span className="flex items-baseline gap-3">
-                            <span className="text-base">{r.display ?? r.name}</span>
-                            <span className="ml-auto flex shrink-0 items-center gap-2">
-                              {r.cost != null && (
-                                <span
-                                  className="text-sm text-muted-foreground"
-                                  title="estimated cost per craft (cost analysis) — sorted cheapest first"
-                                >
-                                  ¥{fmtCost(r.cost)}
-                                </span>
-                              )}
-                              {added && (
-                                <span className="text-sm text-muted-foreground">added</span>
-                              )}
-                            </span>
-                          </span>
-                          {/* io at a glance — hover any icon for the item card */}
-                          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            {r.ingredients.map((c, i) => (
-                              <ItemHover
-                                key={`i${i}`}
-                                name={c.name}
-                                kind={c.kind as "item" | "fluid"}
-                                className="flex items-center gap-1"
-                              >
-                                <Icon
-                                  kind={c.kind as "item" | "fluid"}
-                                  name={c.name}
-                                  size="sm"
-                                  noHover
-                                />
-                                <span className="text-sm text-muted-foreground">
-                                  {fmtAmt(c.amount)}
-                                </span>
-                              </ItemHover>
-                            ))}
-                            <span className="text-muted-foreground">→</span>
-                            {r.products.map((c, i) => (
-                              <ItemHover
-                                key={`p${i}`}
-                                name={c.name}
-                                kind={c.kind as "item" | "fluid"}
-                                className="flex items-center gap-1"
-                              >
-                                <Icon
-                                  kind={c.kind as "item" | "fluid"}
-                                  name={c.name}
-                                  size="sm"
-                                  noHover
-                                />
-                                <span className="text-sm text-muted-foreground">
-                                  {fmtAmt(c.amount)}
-                                </span>
-                              </ItemHover>
-                            ))}
-                          </span>
-                          {/* availability: TURD choice / not-yet-researched tech (red) /
-                              nothing unlocks it (dark gray) */}
-                          {r.superseded ? (
-                            <span
-                              className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
-                              title={`your ${r.superseded.masterDisplay ?? "TURD"} choice "${r.superseded.subDisplay}" replaced this recipe with "${r.superseded.newDisplay}" — the base version no longer exists in-game`}
-                            >
-                              <Icon
-                                kind="technology"
-                                name={r.superseded.subTech}
-                                size="sm"
-                                noTitle
-                              />
-                              <FlaskConical className="size-3.5" /> replaced by{" "}
-                              {r.superseded.newDisplay}
-                              <span className="text-muted-foreground/70">
-                                ({r.superseded.masterDisplay ?? "TURD"} › {r.superseded.subDisplay})
-                              </span>
-                            </span>
-                          ) : (
-                            !r.enabled &&
-                            (r.turd ? (
-                              <span
-                                className={`flex flex-wrap items-center gap-1.5 text-sm ${r.turd.turdSelected ? "text-success" : "text-primary"}`}
-                                title={
-                                  r.turd.turdSelected
-                                    ? "granted by your selected TURD choice"
-                                    : `requires the "${r.turd.display}" choice under "${r.turd.masterDisplay ?? "TURD"}" — pick it on the TURD page (or in-game TURD explorer)`
-                                }
-                              >
-                                <Icon kind="technology" name={r.turd.tech} size="sm" noTitle />
-                                <FlaskConical className="size-3.5" />{" "}
-                                {r.turd.masterDisplay ? `${r.turd.masterDisplay} › ` : ""}
-                                {r.turd.display}
-                                {r.turd.turdSelected && <Check className="size-3.5" />}
-                              </span>
-                            ) : r.unlocks.length ? (
-                              <TechLine
-                                unlock={r.unlocks[0]}
-                                more={r.unlocks.length - 1}
-                                researched={r.avail.research === "available"}
-                              />
-                            ) : (
-                              <span
-                                className="flex items-center gap-1 text-sm text-muted-foreground"
-                                title="no technology unlocks this recipe"
-                              >
-                                <Lock className="size-3.5" /> locked
-                              </span>
-                            ))
-                          )}
-                        </span>
-                      </button>
-                    );
-                  })
-                : !picker.isLoading && (
-                    <div className="px-2 py-1 text-sm text-muted-foreground">
-                      {pickFor.mode === "consume"
-                        ? "nothing consumes this in the data"
-                        : "no recipes make this — it's a raw input"}
-                    </div>
-                  )}
-            </div>
-          </DialogContent>
-        </Dialog>
+        <RecipePickerDialog
+          mode={pickFor.mode}
+          goodDisplay={res?.display?.[pickFor.name] ?? pickFor.name}
+          candidates={picker.data}
+          added={recipes}
+          onAdd={add}
+          onClose={() => setPickFor(null)}
+        />
       )}
 
-      {/* Building picker — choose which machine runs a recipe (speed / power / tier) */}
+      {/* Building picker — choose which machine runs a recipe */}
       {pickMachineFor && (
-        <Dialog
-          open
-          onOpenChange={(open) => {
-            if (!open) setPickMachineFor(null);
+        <BuildingPickerDialog
+          recipe={pickMachineFor}
+          recipeDisplay={res?.display?.[pickMachineFor] ?? pickMachineFor}
+          current={res?.rows?.find((r) => r.recipe === pickMachineFor)?.machine?.name ?? null}
+          onPick={(m) => {
+            pickMachine(pickMachineFor, m);
+            setPickMachineFor(null);
           }}
-        >
-          <DialogContent className="md:max-w-[36rem]">
-            <DialogHeader>
-              <DialogTitle className="truncate">
-                Building for {res?.display?.[pickMachineFor] ?? pickMachineFor}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="min-h-0 flex-1 overflow-auto p-2">
-              {machineOpts.isLoading && (
-                <div className="space-y-1.5 p-2">
-                  <Skeleton className="h-9 w-full" />
-                  <Skeleton className="h-9 w-full" />
-                  <Skeleton className="h-9 w-3/4" />
-                </div>
-              )}
-              {machineOpts.data
-                ?.slice()
-                .sort((a, b) => (a.craftingSpeed ?? 0) - (b.craftingSpeed ?? 0))
-                .map((m) => {
-                  const cur =
-                    res?.rows?.find((r) => r.recipe === pickMachineFor)?.machine?.name === m.name;
-                  return (
-                    <button
-                      key={m.name}
-                      className={`${rowBtn} w-full items-start ${cur ? "bg-accent" : ""} ${m.availableNow ? "" : "opacity-55"}`}
-                      onClick={() => {
-                        pickMachine(pickMachineFor, m.name);
-                        setPickMachineFor(null);
-                      }}
-                    >
-                      <Icon kind="item" name={m.name} size="md" noTitle />
-                      <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-center gap-2">
-                          <span className="text-foreground">{m.display ?? m.name}</span>
-                          <Badge variant="secondary">{m.craftingSpeed}× speed</Badge>
-                          {m.energySource === "electric" && (
-                            <span className="flex items-center gap-1 text-sm text-info">
-                              <Zap className="size-3" /> {fmtW(m.energyUsageW ?? 0)}
-                            </span>
-                          )}
-                          {(m.energySource === "burner" || m.energySource === "fluid") && (
-                            <span className="flex items-center gap-1 text-sm text-warning">
-                              <Flame className="size-3" /> {fmtW(m.energyUsageW ?? 0)}
-                            </span>
-                          )}
-                          {m.energySource === "heat" && (
-                            <span className="flex items-center gap-1 text-sm">
-                              <Flame className="size-3" /> heat
-                            </span>
-                          )}
-                          {m.moduleSlots > 0 && (
-                            <span className="flex items-center gap-0.5 text-sm text-muted-foreground">
-                              {m.moduleSlots}
-                              <Grid2x2 className="size-3" />
-                            </span>
-                          )}
-                          {cur && <span className="text-sm text-primary">· current</span>}
-                          <span
-                            role="button"
-                            tabIndex={-1}
-                            title={
-                              m.favorite
-                                ? "Favorite building for this category — new recipes here use it. Click to clear."
-                                : "Set as the favorite building for this category (new recipes here will use it)"
-                            }
-                            className={`ml-auto cursor-pointer text-sm ${m.favorite ? "text-warning" : "text-muted-foreground hover:text-warning"}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleFavoriteMachine(pickMachineFor, m.name, m.favorite);
-                            }}
-                          >
-                            <Star className="size-4" fill={m.favorite ? "currentColor" : "none"} />
-                          </span>
-                        </span>
-                        <span className="block truncate text-sm">
-                          {m.availableNow ? (
-                            <span className="flex items-center gap-1 text-success/80">
-                              <Check className="size-3 shrink-0" />
-                              {m.startEnabled
-                                ? "available from start"
-                                : `unlocked${
-                                    m.unlockedBy.length
-                                      ? ` · ${m.unlockedBy.map((u) => u.display ?? u.tech).join(", ")}`
-                                      : ""
-                                  }`}
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-warning/90">
-                              <Lock className="size-3 shrink-0" /> needs{" "}
-                              {m.unlockedBy.length
-                                ? m.unlockedBy.map((u) => u.display ?? u.tech).join(", ")
-                                : "research"}
-                            </span>
-                          )}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-            </div>
-          </DialogContent>
-        </Dialog>
+          onClose={() => setPickMachineFor(null)}
+        />
       )}
 
       {/* Modules & beacons — per-recipe loadout, applied through the solver */}
@@ -3162,321 +2228,66 @@ function Block({ blockId }: { blockId: number }) {
           );
         })()}
 
-      {/* Fuel picker — choose what a burner burns (energy value shown to compare) */}
+      {/* Fuel picker — choose what a burner burns */}
       {pickFuelFor &&
         (() => {
           const fr = res?.rows?.find((r) => r.recipe === pickFuelFor);
           return (
-            <Dialog
-              open
-              onOpenChange={(open) => {
-                if (!open) setPickFuelFor(null);
+            <FuelPickerDialog
+              recipeDisplay={res?.display?.[pickFuelFor] ?? pickFuelFor}
+              fuels={fr?.availableFuels ?? []}
+              current={fr?.fuel?.chosen ?? null}
+              onPick={(f) => {
+                pickFuel(pickFuelFor, f);
+                setPickFuelFor(null);
               }}
-            >
-              <DialogContent className="md:max-w-[30rem]">
-                <DialogHeader>
-                  <DialogTitle className="truncate">
-                    Fuel for {res?.display?.[pickFuelFor] ?? pickFuelFor}
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="min-h-0 flex-1 overflow-auto p-2">
-                  {fr?.availableFuels.map((f) => {
-                    const cur = fr.fuel?.chosen === f.name;
-                    return (
-                      <button
-                        key={f.name}
-                        className={`${rowBtn} w-full ${cur ? "bg-accent" : ""}`}
-                        onClick={() => {
-                          pickFuel(pickFuelFor, f.name);
-                          setPickFuelFor(null);
-                        }}
-                      >
-                        <Icon kind={f.kind as "item" | "fluid"} name={f.name} size="md" noTitle />
-                        <span className="truncate text-foreground">{f.display ?? f.name}</span>
-                        {f.fuelValueJ != null && (
-                          <Badge variant="secondary">
-                            {fmtJ(f.fuelValueJ)}
-                            {f.kind === "fluid" ? "/unit" : ""}
-                          </Badge>
-                        )}
-                        {cur && <span className="text-sm text-primary">current</span>}
-                        {/* solid fuels favorite per fuel category; fluids have no
-                            category, so a fluid star sets the single preferred fluid fuel */}
-                        <span
-                          role="button"
-                          tabIndex={-1}
-                          title={
-                            f.kind === "fluid"
-                              ? f.favorite
-                                ? "Preferred fluid fuel — new fluid burners use it. Click to clear."
-                                : "Set as the preferred fluid fuel (new fluid burners will use it)"
-                              : f.favorite
-                                ? "Favorite fuel for this category — new burners here use it. Click to clear."
-                                : "Set as the favorite fuel for this category (new burners here will use it)"
-                          }
-                          className={`ml-auto cursor-pointer text-sm ${f.favorite ? "text-warning" : "text-muted-foreground hover:text-warning"}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleFavoriteFuel(f.name, f.favorite);
-                          }}
-                        >
-                          <Star className="size-4" fill={f.favorite ? "currentColor" : "none"} />
-                        </span>
-                      </button>
-                    );
-                  })}
-                  {!fr?.availableFuels.length && (
-                    <div className="px-2 py-1 text-sm text-muted-foreground">
-                      no fuels for this machine's categories
-                    </div>
-                  )}
-                </div>
-              </DialogContent>
-            </Dialog>
+              onClose={() => setPickFuelFor(null)}
+            />
           );
         })()}
 
-      {/* right-click context menu for a good — explicit actions (safer than cycling) */}
       {/* Planned-spoil-rate dialog (#20) */}
       {spoilDialog && (
-        <Dialog
-          open
-          onOpenChange={(open) => {
-            if (!open) setSpoilDialog(null);
+        <SpoilRateDialog
+          item={spoilDialog}
+          itemDisplay={res?.display?.[spoilDialog] ?? spoilDialog}
+          spoilTicks={spoilables[spoilDialog] ?? null}
+          current={spoilRates[spoilDialog] ?? null}
+          onSave={(r) => {
+            setSpoilRateFor(spoilDialog, r);
+            setSpoilDialog(null);
           }}
-        >
-          <DialogContent className="md:max-w-[26rem]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 truncate">
-                <Icon kind="item" name={spoilDialog} size="sm" noHover noTitle />
-                Planned spoil loss — {res?.display?.[spoilDialog] ?? spoilDialog}
-              </DialogTitle>
-            </DialogHeader>
-            <form
-              className="space-y-3 p-3 text-sm"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const n = Number(spoilDraft);
-                setSpoilRateFor(spoilDialog, Number.isFinite(n) && n > 0 ? n : null);
-                setSpoilDialog(null);
-              }}
-            >
-              <p className="text-muted-foreground">
-                Expected rot rate. Production is sized to cover the loss — it solves as extra pinned
-                surplus that spoils away in storage (it never exports).
-                {spoilables[spoilDialog] != null && (
-                  <> This item spoils in {fmtSpoilTime(spoilables[spoilDialog])}.</>
-                )}
-              </p>
-              <div className="flex items-center gap-2">
-                <Input
-                  autoFocus
-                  type="text"
-                  inputMode="decimal"
-                  value={spoilDraft}
-                  onChange={(e) => setSpoilDraft(e.target.value)}
-                  placeholder="0.5"
-                  className="w-28 text-center"
-                />
-                <span className="text-muted-foreground">/s</span>
-                <Button type="submit" variant="outline" size="sm" className="ml-auto">
-                  save
-                </Button>
-                {spoilRates[spoilDialog] != null && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSpoilRateFor(spoilDialog, null);
-                      setSpoilDialog(null);
-                    }}
-                    className="text-muted-foreground"
-                  >
-                    clear
-                  </Button>
-                )}
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+          onClose={() => setSpoilDialog(null)}
+        />
       )}
 
+      {/* Good context menu — explicit actions (safer than cycling) */}
       {ctxMenu && (
-        <ContextMenu
+        <GoodMenu
           x={ctxMenu.x}
           y={ctxMenu.y}
+          name={ctxMenu.name}
+          kind={ctxMenu.kind}
+          link={ctxMenu.link}
+          display={res?.display?.[ctxMenu.name] ?? ctxMenu.name}
+          blockId={blockId}
+          locked={lockedInput === ctxMenu.name}
+          importRate={res?.imports.find((f) => f.name === ctxMenu.name)?.rate ?? null}
+          currentDisp={disp[ctxMenu.name] ?? "auto"}
+          spoilRate={spoilRates[ctxMenu.name] ?? null}
+          onAddGoal={() => addGoal(ctxMenu.name)}
+          onLock={(r) => {
+            setLockedInput(ctxMenu.name);
+            setLockedRate(r);
+          }}
+          onUnlock={() => setLockedInput(null)}
+          onCreateSupplier={(r) => void createSupplier(ctxMenu.name, r)}
+          onSetDisp={(d) => setDispFor(ctxMenu.name, d)}
+          onEditSpoil={() => setSpoilDialog(ctxMenu.name)}
+          onClearSpoil={() => setSpoilRateFor(ctxMenu.name, null)}
           onClose={() => setCtxMenu(null)}
-          className="min-w-52"
-        >
-          <div className="flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-sm text-muted-foreground">
-            <Icon
-              kind={ctxMenu.kind as "item" | "fluid"}
-              name={ctxMenu.name}
-              size="sm"
-              title={res?.display?.[ctxMenu.name] ?? ctxMenu.name}
-            />
-            <span className="truncate">{res?.display?.[ctxMenu.name] ?? ctxMenu.name}</span>
-          </div>
-          {ctxMenu.link === "export" && (
-            <ContextMenuItem
-              onClick={() => {
-                addGoal(ctxMenu.name);
-                setCtxMenu(null);
-              }}
-            >
-              <Star className="size-3.5" /> Make a goal
-            </ContextMenuItem>
-          )}
-          {ctxMenu.link === "import" && (
-            <>
-              <ContextMenuItem
-                active={lockedInput === ctxMenu.name}
-                onClick={() => {
-                  if (lockedInput === ctxMenu.name) setLockedInput(null);
-                  else {
-                    const imp = res?.imports.find((f) => f.name === ctxMenu.name);
-                    setLockedInput(ctxMenu.name);
-                    setLockedRate(imp ? +imp.rate.toFixed(4) : 0);
-                  }
-                  setCtxMenu(null);
-                }}
-              >
-                {lockedInput === ctxMenu.name ? (
-                  <>
-                    <Unlock className="size-3.5" /> Unlock sizing
-                  </>
-                ) : (
-                  <>
-                    <Lock className="size-3.5" /> Size block by this input
-                  </>
-                )}
-              </ContextMenuItem>
-              <ContextMenuItem
-                onClick={() => {
-                  const imp = res?.imports.find((f) => f.name === ctxMenu.name);
-                  void createSupplier(ctxMenu.name, imp?.rate ?? 0);
-                  setCtxMenu(null);
-                }}
-              >
-                <Plus className="size-3.5" /> Create block to make this
-              </ContextMenuItem>
-            </>
-          )}
-          {/* Jump to other blocks that already produce this good (skip self). */}
-          {(() => {
-            const producers = (ctxProducers.data?.producers ?? []).filter(
-              (p) => p.blockId !== blockId,
-            );
-            if (!producers.length) return null;
-            return (
-              <>
-                <div className="my-1 border-t border-border" />
-                <FieldLabel className="px-3 pb-0.5 font-semibold">produced in</FieldLabel>
-                {producers.map((p) => (
-                  <ContextMenuItem
-                    key={p.blockId}
-                    className="gap-1.5"
-                    onClick={() => {
-                      void navigate({
-                        to: "/block/$id",
-                        params: { id: String(p.blockId) },
-                      });
-                      setCtxMenu(null);
-                    }}
-                  >
-                    {p.iconKind && p.iconName ? (
-                      <Icon
-                        kind={p.iconKind as "item" | "fluid" | "recipe"}
-                        name={p.iconName}
-                        size="sm"
-                      />
-                    ) : null}
-                    <span className="truncate">{p.blockName}</span>
-                    <span className="ml-auto text-muted-foreground">
-                      {p.role === "byproduct" ? "byproduct " : ""}
-                      {num(p.rate)}/s
-                    </span>
-                  </ContextMenuItem>
-                ))}
-              </>
-            );
-          })()}
-          <div className="my-1 border-t border-border" />
-          <FieldLabel className="px-3 pb-0.5 font-semibold">disposition</FieldLabel>
-          {(["auto", "import", "export", "balance"] as const).map((d) => {
-            const active = (disp[ctxMenu.name] ?? "auto") === d;
-            const labels = {
-              auto: "Auto (solver decides)",
-              import: "Force import",
-              export: "Force export",
-              balance: "Force balance",
-            };
-            return (
-              <ContextMenuItem
-                key={d}
-                active={active}
-                onClick={() => {
-                  setDispFor(ctxMenu.name, d);
-                  setCtxMenu(null);
-                }}
-              >
-                {active ? (
-                  <Check className="mr-1 inline size-3.5" />
-                ) : (
-                  <span className="mr-1 inline-block size-3.5" />
-                )}
-                {labels[d]}
-              </ContextMenuItem>
-            );
-          })}
-          {spoilables[ctxMenu.name] != null && (
-            <>
-              <div className="my-1 border-t border-border" />
-              <ContextMenuItem
-                onClick={() => {
-                  setSpoilDraft(String(spoilRates[ctxMenu.name] ?? ""));
-                  setSpoilDialog(ctxMenu.name);
-                  setCtxMenu(null);
-                }}
-              >
-                <Timer className="size-3.5" />
-                {spoilRates[ctxMenu.name] != null
-                  ? `Planned spoil ${num(spoilRates[ctxMenu.name])}/s — edit`
-                  : "Plan spoil loss…"}
-              </ContextMenuItem>
-              {spoilRates[ctxMenu.name] != null && (
-                <ContextMenuItem
-                  onClick={() => {
-                    setSpoilRateFor(ctxMenu.name, null);
-                    setCtxMenu(null);
-                  }}
-                >
-                  <X className="size-3.5" /> Clear planned spoil
-                </ContextMenuItem>
-              )}
-            </>
-          )}
-          <div className="my-1 border-t border-border" />
-          <ContextMenuItem
-            onClick={() => {
-              locate.mutate({ name: ctxMenu.name, kind: ctxMenu.kind as "item" | "fluid" });
-              setCtxMenu(null);
-            }}
-          >
-            <MapPin className="size-3.5" /> Locate in game
-          </ContextMenuItem>
-        </ContextMenu>
+        />
       )}
     </div>
-  );
-}
-
-function Legend({ cls, label }: { cls: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1">
-      <span className={`inline-block h-2.5 w-2.5 ${cls}`} />
-      {label}
-    </span>
   );
 }

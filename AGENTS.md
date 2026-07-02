@@ -114,6 +114,10 @@ bridge + live-state sync), `summary.lua` (production-block view), `combinator.lu
   asked.** Writing/saving files is fine; committing is not.
 - Keep features as focused modules. Prefer adding new files over growing
   `factorio.ts`/`queries.server.ts` into catch-alls.
+- **One React component per file.** Don't stack sibling components, dialogs, or
+  menus inside a page file — give each its own file (page-specific ones under
+  `components/<page>/`, e.g. `components/block/`). Tiny private helpers used only
+  by the file's one component are fine; a second exported component is not.
 - **Server-only code lives in `*.server.ts` modules** (the db layer, the data-dump
   pipeline, agent tools, anything touching node APIs). TanStack Start's import
   protection (on by default) fails the build if one is ever pulled into a client
