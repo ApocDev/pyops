@@ -374,6 +374,9 @@ export type BlockData = {
   // kept contiguous in `recipes` order (see lib/row-groups.ts).
   rowGroups?: { id: number; name: string }[];
   recipeGroups?: Record<string, number>;
+  // Planned spoil losses (#20): item → expected rot rate (/s). Fed to the solver
+  // as extra pinned surplus, so production is sized to cover what spoils away.
+  spoilRates?: Record<string, number>;
   dispositions?: Record<string, string>;
   machines?: Record<string, string>; // recipe → chosen machine
   fuels?: Record<string, string>; // recipe → chosen fuel

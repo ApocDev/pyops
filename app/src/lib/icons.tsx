@@ -74,6 +74,13 @@ function loadSpoilables(): Promise<Record<string, number>> {
   return spoilInflight;
 }
 
+/** Spoilable map (item name → spoil ticks) for spoil-risk UI beyond the icon
+ * overlay (#20) — e.g. flagging a block's SURPLUS spoilables, which are the
+ * ones that actually sit around long enough to rot. */
+export function useSpoilables(): Record<string, number> {
+  return useContext(IconCtx).spoil;
+}
+
 const IconCtx = createContext<{
   m?: IconManifest;
   itemIdx: Record<string, IconSlot>;

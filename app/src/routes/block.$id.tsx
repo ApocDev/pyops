@@ -60,7 +60,7 @@ import {
   type GroupAssign,
   type RowGroup,
 } from "../lib/row-groups";
-import { fmtSpoilTime, Icon, IconProvider } from "../lib/icons";
+import { fmtSpoilTime, Icon, IconProvider, useSpoilables } from "../lib/icons";
 import { ModulesChip, ModulesModal } from "../lib/modules-modal";
 import {
   AlertTriangle,
@@ -602,6 +602,7 @@ function CtxBtn({
 function Block({ blockId }: { blockId: number }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const spoilables = useSpoilables(); // item → spoil ticks, for spoil-risk UI (#20)
   // Output goals, first-listed anchors naming/sizing and is the DEFAULT icon. A goal
   // with a numeric rate is pinned (a solver target); rate null is an unpinned co-product.
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -650,6 +651,11 @@ function Block({ blockId }: { blockId: number }) {
   // Sub-blocks (#7): named groups of recipe rows, display-only. Members stay
   // contiguous in `recipes` order (lib/row-groups.ts). Fold state is a view
   // preference — localStorage, not the doc, so folding doesn't churn auto-save.
+  // Planned spoil losses (#20): item → expected rot rate /s, solved as extra
+  // pinned surplus. `spoilDialog` holds the item whose rate is being edited.
+  const [spoilRates, setSpoilRates] = useState<Record<string, number>>({});
+  const [spoilDialog, setSpoilDialog] = useState<string | null>(null);
+  const [spoilDraft, setSpoilDraft] = useState("");
   const [rowGroups, setRowGroups] = useState<RowGroup[]>([]);
   const [recipeGroups, setRecipeGroups] = useState<GroupAssign>({});
   const [foldedGroups, setFoldedGroups] = useState<Record<number, boolean>>({});
@@ -802,6 +808,7 @@ function Block({ blockId }: { blockId: number }) {
     }
     setDisp((d.dispositions ?? {}) as Record<string, Disposition>);
     setDisabled(new Set(d.disabledRecipes ?? []));
+    setSpoilRates(d.spoilRates ?? {});
     setMachineSel(d.machines ?? {});
     setFuelSel(d.fuels ?? {});
     setModuleSel(d.modules ?? {});
@@ -866,6 +873,16 @@ function Block({ blockId }: { blockId: number }) {
   const cycleDispFor = (name: string) => {
     const i = DISP_CYCLE.indexOf(disp[name] ?? "auto");
     setDispFor(name, DISP_CYCLE[(i + 1) % DISP_CYCLE.length]);
+  };
+  // Planned spoil loss (#20): r == null (or <= 0) clears the plan.
+  const setSpoilRateFor = (name: string, r: number | null) => {
+    markEdited();
+    setSpoilRates((m) => {
+      const next = { ...m };
+      if (r == null || !(r > 0)) delete next[name];
+      else next[name] = r;
+      return next;
+    });
   };
   // Toggle a recipe off/on (#73): a disabled recipe stays in the block but drops
   // out of the solve, so its rate/machines/flows vanish until re-enabled.
@@ -1003,6 +1020,7 @@ function Block({ blockId }: { blockId: number }) {
     recipes,
     ...(disabledRecipes.length ? { disabledRecipes } : {}),
     ...(rowGroups.length ? { rowGroups, recipeGroups } : {}),
+    ...(Object.keys(spoilRates).length ? { spoilRates } : {}),
     ...(hasDisp ? { dispositions: disp } : {}),
     ...(Object.keys(machineSel).length ? { machines: machineSel } : {}),
     ...(Object.keys(fuelSel).length ? { fuels: fuelSel } : {}),
@@ -1050,6 +1068,7 @@ function Block({ blockId }: { blockId: number }) {
       goals,
       recipes,
       disabledRecipes,
+      spoilRates,
       disp,
       machineSel,
       fuelSel,
@@ -1100,6 +1119,7 @@ function Block({ blockId }: { blockId: number }) {
     disabled,
     rowGroups,
     recipeGroups,
+    spoilRates,
     disp,
     machineSel,
     fuelSel,
@@ -1940,6 +1960,30 @@ function Block({ blockId }: { blockId: number }) {
               </button>
             </div>
           )}
+          {/* Planned spoil losses (#20) — always visible when set: the pinned
+              surplus never reaches the boundary flows (it rots), so without this
+              strip a planned loss would be invisible. */}
+          {Object.keys(spoilRates).length > 0 && (
+            <div className="mx-3 mt-2 flex flex-wrap items-center gap-2 rounded border border-amber-400/30 bg-amber-500/10 px-2 py-1.5 text-xs">
+              <span className="flex items-center gap-1 text-amber-300">
+                <Timer className="size-3" /> planned spoil losses:
+              </span>
+              {Object.entries(spoilRates).map(([name, r]) => (
+                <button
+                  key={name}
+                  onClick={() => {
+                    setSpoilDraft(String(r));
+                    setSpoilDialog(name);
+                  }}
+                  title="production is sized to cover this rot rate — click to edit"
+                  className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-amber-200 hover:brightness-110"
+                >
+                  <Icon kind="item" name={name} size="sm" title={res?.display?.[name] ?? name} />
+                  {res?.display?.[name] ?? name} {num(r)}/s
+                </button>
+              ))}
+            </div>
+          )}
           {res?.status === "infeasible" ? (
             <div className="m-3 rounded border border-destructive/30 bg-destructive/10 p-3 text-xs">
               {/* Only a genuine reverse-running cycle gets the "chain runs backward"
@@ -2041,25 +2085,26 @@ function Block({ blockId }: { blockId: number }) {
                   ))}
                 </div>
               )}
-              {res && (res.power.totalW > 0 || res.power.heatW > 0) && (
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-border px-3 py-2 text-sm">
-                  {res.power.totalW > 0 && (
-                    <span className="flex items-center gap-1 text-sky-300">
-                      <Zap className="size-3.5" /> {fmtW(res.power.totalW)}{" "}
-                      <span className="text-muted-foreground">electric</span>
-                    </span>
-                  )}
-                  {res.power.heatW > 0 && (
-                    <span
-                      className="flex items-center gap-1 text-orange-300"
-                      title="Heat-powered buildings (Py hard mode). Heat doesn't travel far (~15 tiles), so a heat source — e.g. a py-heat-exchanger — must be built LOCAL to this block."
-                    >
-                      <Flame className="size-3.5" /> {fmtW(res.power.heatW)}{" "}
-                      <span className="text-muted-foreground">heat · local source needed</span>
-                    </span>
-                  )}
-                </div>
-              )}
+              {res &&
+                (res.power.totalW > 0 || res.power.heatW > 0) && (
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-border px-3 py-2 text-sm">
+                    {res.power.totalW > 0 && (
+                      <span className="flex items-center gap-1 text-sky-300">
+                        <Zap className="size-3.5" /> {fmtW(res.power.totalW)}{" "}
+                        <span className="text-muted-foreground">electric</span>
+                      </span>
+                    )}
+                    {res.power.heatW > 0 && (
+                      <span
+                        className="flex items-center gap-1 text-orange-300"
+                        title="Heat-powered buildings (Py hard mode). Heat doesn't travel far (~15 tiles), so a heat source — e.g. a py-heat-exchanger — must be built LOCAL to this block."
+                      >
+                        <Flame className="size-3.5" /> {fmtW(res.power.heatW)}{" "}
+                        <span className="text-muted-foreground">heat · local source needed</span>
+                      </span>
+                    )}
+                  </div>
+                )}
               <div
                 className={`grid gap-4 p-3 ${res?.exports.length ? "grid-cols-2" : "grid-cols-1"}`}
               >
@@ -2185,6 +2230,21 @@ function Block({ blockId }: { blockId: number }) {
                                 className="rounded bg-amber-500/25 px-1.5 py-0.5 text-sm text-amber-200 hover:brightness-110"
                               >
                                 loop · pin export
+                              </button>
+                            )}
+                            {/* incidental-spoil risk (#20): a SURPLUS spoilable is the
+                                one that actually sits around long enough to rot */}
+                            {spoilables[f.name] != null && (
+                              <button
+                                title={`spoils in ${fmtSpoilTime(spoilables[f.name])} — surplus sits in storage, so it WILL rot unless something consumes it. Click to plan the loss so production covers it.`}
+                                onClick={() => {
+                                  setSpoilDraft(String(spoilRates[f.name] ?? ""));
+                                  setSpoilDialog(f.name);
+                                }}
+                                className="flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-sm text-amber-300 hover:brightness-110"
+                              >
+                                <Timer className="size-3.5" /> rots in{" "}
+                                {fmtSpoilTime(spoilables[f.name])}
                               </button>
                             )}
                           </span>
@@ -2475,6 +2535,15 @@ function Block({ blockId }: { blockId: number }) {
                               onClick={() => makeFor(c.name)}
                               onCycleDisp={() => cycleDispFor(c.name)}
                               onClearDisp={() => setDispFor(c.name, "auto")}
+                              onContext={(e) =>
+                                setCtxMenu({
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                  name: c.name,
+                                  kind: c.kind,
+                                  link: linkOf(c.name),
+                                })
+                              }
                             />
                             {logiResolved && c.kind === "item" && (
                               <LogiTag
@@ -2505,6 +2574,15 @@ function Block({ blockId }: { blockId: number }) {
                               onClick={() => useFor(c.name)}
                               onCycleDisp={() => cycleDispFor(c.name)}
                               onClearDisp={() => setDispFor(c.name, "auto")}
+                              onContext={(e) =>
+                                setCtxMenu({
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                  name: c.name,
+                                  kind: c.kind,
+                                  link: linkOf(c.name),
+                                })
+                              }
                             />
                             {logiResolved && c.kind === "item" && (
                               <LogiTag
@@ -3184,6 +3262,76 @@ function Block({ blockId }: { blockId: number }) {
         })()}
 
       {/* right-click context menu for a good — explicit actions (safer than cycling) */}
+      {/* Planned-spoil-rate dialog (#20) */}
+      {spoilDialog && (
+        <div
+          className="fixed inset-0 z-40 flex items-start justify-center bg-black/55 p-10"
+          onClick={() => setSpoilDialog(null)}
+        >
+          <Card className="w-[26rem] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <CardHeader className="justify-between">
+              <CardTitle className="flex items-center gap-2 normal-case">
+                <Icon kind="item" name={spoilDialog} size="sm" noHover noTitle />
+                Planned spoil loss — {res?.display?.[spoilDialog] ?? spoilDialog}
+              </CardTitle>
+              <button
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => setSpoilDialog(null)}
+              >
+                <X className="size-4" />
+              </button>
+            </CardHeader>
+            <form
+              className="space-y-3 p-3 text-sm"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const n = Number(spoilDraft);
+                setSpoilRateFor(spoilDialog, Number.isFinite(n) && n > 0 ? n : null);
+                setSpoilDialog(null);
+              }}
+            >
+              <p className="text-muted-foreground">
+                Expected rot rate. Production is sized to cover the loss — it solves as extra pinned
+                surplus that spoils away in storage (it never exports).
+                {spoilables[spoilDialog] != null && (
+                  <> This item spoils in {fmtSpoilTime(spoilables[spoilDialog])}.</>
+                )}
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  autoFocus
+                  type="text"
+                  inputMode="decimal"
+                  value={spoilDraft}
+                  onChange={(e) => setSpoilDraft(e.target.value)}
+                  placeholder="0.5"
+                  className="w-28 rounded border border-input bg-muted px-2 py-1 text-center"
+                />
+                <span className="text-muted-foreground">/s</span>
+                <button
+                  type="submit"
+                  className="ml-auto rounded border border-border px-3 py-1 hover:bg-muted"
+                >
+                  save
+                </button>
+                {spoilRates[spoilDialog] != null && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSpoilRateFor(spoilDialog, null);
+                      setSpoilDialog(null);
+                    }}
+                    className="rounded border border-border px-3 py-1 text-muted-foreground hover:bg-muted"
+                  >
+                    clear
+                  </button>
+                )}
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
       {ctxMenu && (
         <>
           <div
@@ -3323,6 +3471,33 @@ function Block({ blockId }: { blockId: number }) {
                 </CtxBtn>
               );
             })}
+            {spoilables[ctxMenu.name] != null && (
+              <>
+                <div className="my-1 border-t border-border" />
+                <CtxBtn
+                  onClick={() => {
+                    setSpoilDraft(String(spoilRates[ctxMenu.name] ?? ""));
+                    setSpoilDialog(ctxMenu.name);
+                    setCtxMenu(null);
+                  }}
+                >
+                  <Timer className="size-3.5" />
+                  {spoilRates[ctxMenu.name] != null
+                    ? `Planned spoil ${num(spoilRates[ctxMenu.name])}/s — edit`
+                    : "Plan spoil loss…"}
+                </CtxBtn>
+                {spoilRates[ctxMenu.name] != null && (
+                  <CtxBtn
+                    onClick={() => {
+                      setSpoilRateFor(ctxMenu.name, null);
+                      setCtxMenu(null);
+                    }}
+                  >
+                    <X className="size-3.5" /> Clear planned spoil
+                  </CtxBtn>
+                )}
+              </>
+            )}
             <div className="my-1 border-t border-border" />
             <CtxBtn
               onClick={() => {

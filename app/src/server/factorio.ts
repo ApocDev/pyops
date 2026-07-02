@@ -286,6 +286,7 @@ export type SolveInput = {
   disabledRecipes?: string[]; // recipes kept in the block but excluded from the solve (#73)
   rowGroups?: { id: number; name: string }[]; // sub-block groups (#7), display-only
   recipeGroups?: Record<string, number>; // recipe → sub-block group id (#7)
+  spoilRates?: Record<string, number>; // item → planned rot rate /s (#20), extra pinned surplus
   dispositions?: Record<string, Disposition>;
   machines?: Record<string, string>; // recipe → chosen machine (else fastest)
   fuels?: Record<string, string>; // recipe → chosen fuel (else cheapest available)
@@ -558,8 +559,24 @@ export async function computeBlock(rawData: SolveInput) {
       ],
     };
   });
+  // Planned spoil losses (#20): each entry pins EXTRA net production of the item
+  // (surplus that rots away), on top of any goal it may also have. The rotted
+  // surplus never reaches the boundary flows — the solver excludes pinned items
+  // from exports — which is right: spoiled goods aren't available to other blocks.
+  const spoilTargets = Object.entries(data.spoilRates ?? {}).filter(([, r]) => r > 0);
+  const targets = spoilTargets.length
+    ? (() => {
+        const merged = new Map(data.goals.map((g) => [g.name, { ...g }]));
+        for (const [name, r] of spoilTargets) {
+          const g = merged.get(name);
+          if (g) g.rate += r;
+          else merged.set(name, { name, rate: r });
+        }
+        return [...merged.values()];
+      })()
+    : data.goals;
   const result = solveBlock({
-    targets: data.goals,
+    targets,
     recipes: defs,
     dispositions: data.dispositions,
   });
