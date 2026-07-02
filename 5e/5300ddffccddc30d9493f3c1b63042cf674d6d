@@ -1,0 +1,33 @@
+app/src/db/queries.ts
+  s_b92d5ef9e1806e::t_a99b07bd18ddb1 1466,1468-1475,1479-1481,1548-1550,1643-1645
+app/src/db/schema.ts
+  s_b92d5ef9e1806e::t_c97748e6b12b37 341-347,349-355
+app/src/lib/goals.ts
+  s_b92d5ef9e1806e::t_19cbd185deaf17 46-48,70-72,74-82
+app/src/routes/block.$id.tsx
+  s_b92d5ef9e1806e::t_922ddb6b1fae27 50,84,213-280,905-941,1633-1639,1825-1833,1853-1863,2718-2736
+app/src/routes/coherence.tsx
+  s_b92d5ef9e1806e::t_b6f74867ebecad 413
+app/src/routes/factory.tsx
+  s_b92d5ef9e1806e::t_d508db98f2b865 105-113,122-123,129-134,149-152,154-156,173-180,301-305,368-374
+app/src/server/factorio.ts
+  s_b92d5ef9e1806e::t_29c7b5b130fbf8 219-222,224,233,240,251,256
+app/src/server/factory-solve.ts
+  s_b92d5ef9e1806e::t_b47321391ca999 61,93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "5e5300ddffccddc30d9493f3c1b63042cf674d6d",
+  "prompts": {},
+  "sessions": {
+    "s_b92d5ef9e1806e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a7099cb-0e25-4285-9a43-6f6e104a2ec9",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
