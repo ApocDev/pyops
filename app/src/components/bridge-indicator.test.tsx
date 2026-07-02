@@ -52,7 +52,7 @@ describe("BridgeIndicator", () => {
     });
     const { findByText, getByTestId } = renderIndicator();
     expect(await findByText("game linked")).toBeTruthy();
-    expect(dot(getByTestId("bridge-link")).className).toContain("bg-emerald-400");
+    expect(dot(getByTestId("bridge-link")).className).toContain("bg-success");
     expect(getByTestId("bridge-link").getAttribute("title")).toContain("jim");
   });
 
@@ -79,7 +79,7 @@ describe("BridgeIndicator", () => {
     });
     const { findByText, getByTestId } = renderIndicator();
     expect(await findByText("no game")).toBeTruthy();
-    expect(dot(getByTestId("bridge-link")).className).toContain("bg-amber-400");
+    expect(dot(getByTestId("bridge-link")).className).toContain("bg-warning");
   });
 
   it("treats a stale peer (older than the freshness window) as disconnected", async () => {

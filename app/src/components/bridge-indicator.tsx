@@ -40,13 +40,13 @@ export function BridgeIndicator() {
       };
     if (connected)
       return {
-        color: "bg-emerald-400",
+        color: "bg-success",
         label: "game linked",
         title: `PyOps companion mod connected${peer?.player ? ` (${peer.player})` : ""}. Live research / TURD / machine sync is active. Click to manage.`,
       };
     if (s?.status === "listening")
       return {
-        color: "bg-amber-400",
+        color: "bg-warning",
         label: "no game",
         title: `Listening on ${s.host}:${s.port} — no companion mod connected yet. Launch Factorio with the bridge enabled. Click to set it up.`,
       };

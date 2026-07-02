@@ -194,7 +194,7 @@ export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: Ico
           }}
         >
           <Timer
-            color="#fbbf24"
+            color="var(--warning)"
             strokeWidth={2.75}
             style={{ width: `calc(${v} * 0.5)`, height: `calc(${v} * 0.5)` }}
           />
@@ -211,7 +211,7 @@ export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: Ico
         style={{ ...base, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
       >
         <Glyph
-          color={heat ? "#f87171" : "#fbbf24"}
+          color={heat ? "var(--destructive)" : "var(--warning)"}
           style={{ width: `calc(${v} * 0.85)`, height: `calc(${v} * 0.85)` }}
         />
       </span>
@@ -247,7 +247,7 @@ export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: Ico
     return withSpoil(
       <span
         title={noTitle ? undefined : `${title ?? name}${spoilSuffix} — no icon`}
-        style={{ ...base, background: "#3f3f46", borderRadius: 2 }}
+        style={{ ...base, background: "var(--muted)" }}
       />,
     );
   }
