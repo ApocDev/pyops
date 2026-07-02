@@ -25,7 +25,15 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: "on-first-retry",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      // Desktop Chrome defaults to 1280×720, but the global nav only shows its
+      // full link bar from 1400px up (3b8d143) — pin a width where the smoke
+      // tests' nav assertions hold. responsive.e2e.ts overrides per-viewport.
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+    },
+  ],
   webServer: {
     command: `vp dev --port ${PORT}`,
     cwd: "..", // run the dev server from the app root

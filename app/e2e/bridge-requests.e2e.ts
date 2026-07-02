@@ -1,5 +1,6 @@
 import dgram from "node:dgram";
 import { expect, test } from "@playwright/test";
+import { PROTOCOL_VERSION } from "./versions";
 
 /**
  * The app→mod direction: a UI action should put the right datagram on the wire.
@@ -47,11 +48,14 @@ function fakeMod(fields: { protocol_version: number; player?: string }) {
 
 test("clicking 'pull from game' puts a request.sync datagram on the wire", async ({ page }) => {
   await page.goto("/settings?tab=link");
-  const mod = fakeMod({ protocol_version: 4, player: "jim" });
+  const mod = fakeMod({ protocol_version: PROTOCOL_VERSION, player: "jim" });
   try {
     const pull = page.getByRole("button", { name: /pull from game/i });
-    // the button is disabled until the bridge sees our heartbeat → connected
-    await expect(pull).toBeEnabled();
+    // the button is disabled until the bridge sees our heartbeat → connected.
+    // Generous timeout: this spec sorts first in the suite, so it pays the cold
+    // dev-server cost — first compile of /settings AND the lazy bridge bind
+    // (the listener only starts with the first bridgeStatusFn poll).
+    await expect(pull).toBeEnabled({ timeout: 20_000 });
     await pull.click();
     // the app should have emitted a request.sync to us
     await expect

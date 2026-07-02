@@ -1,5 +1,6 @@
 import dgram from "node:dgram";
 import { expect, test } from "@playwright/test";
+import { APP_VERSION, PROTOCOL_VERSION } from "./versions";
 
 /**
  * Bridge-fed UI without a running game — by being the mod.
@@ -42,7 +43,7 @@ const label = (page: import("@playwright/test").Page) => page.locator("nav a[hre
 
 test("shows 'game linked' for a fresh, protocol-matched peer", async ({ page }) => {
   await page.goto("/");
-  const mod = fakeMod({ protocol_version: 4, player: "jim", mod_version: "0.1.0" });
+  const mod = fakeMod({ protocol_version: PROTOCOL_VERSION, player: "jim", mod_version: APP_VERSION });
   try {
     await expect(label(page)).toContainText("game linked");
     await expect(label(page)).toHaveAttribute("title", /jim/);
@@ -53,7 +54,7 @@ test("shows 'game linked' for a fresh, protocol-matched peer", async ({ page }) 
 
 test("flags a protocol mismatch when the mod speaks a different version", async ({ page }) => {
   await page.goto("/");
-  const mod = fakeMod({ protocol_version: 3, player: "jim" });
+  const mod = fakeMod({ protocol_version: PROTOCOL_VERSION - 1, player: "jim" });
   try {
     await expect(label(page)).toContainText("mod mismatch");
   } finally {
