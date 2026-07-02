@@ -1,21 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
 import { useStore } from "@tanstack/react-store";
 import { ActiveEditorRefContext } from "./block";
 import { createBlockDocStore, solveInputOf } from "../components/block/doc-store.ts";
@@ -32,68 +17,12 @@ import {
   solveBlockFn,
 } from "../server/factorio";
 import { launchesForRate, resolveLogistics } from "../lib/logistics";
-import { STOCK_WINDOW_DEFAULT } from "../lib/goals";
-import {
-  groupMembers,
-  groupNet,
-  moveGroupSpan,
-  resolveGroupAfterMove,
-  type RowGroup,
-} from "../lib/row-groups";
-import { fmtSpoilTime, Icon, IconProvider, useSpoilables } from "../lib/icons";
-import { ModulesChip, ModulesModal } from "../lib/modules-modal";
-import {
-  AlertTriangle,
-  ArrowRight,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Cloud,
-  Copy,
-  Flame,
-  FlaskConical,
-  Gamepad2,
-  Grid2x2,
-  GripVertical,
-  Hammer,
-  Layers,
-  Lock,
-  Plus,
-  Power,
-  Star,
-  Timer,
-  X,
-  Zap,
-} from "lucide-react";
-import { RecipeHover } from "../lib/recipe-card";
-import { Badge } from "#/components/ui/badge.tsx";
-import { Button } from "#/components/ui/button.tsx";
+import { IconProvider, useSpoilables } from "../lib/icons";
+import { ModulesModal } from "../lib/modules-modal";
 import { Callout } from "#/components/ui/callout.tsx";
-import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card.tsx";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "#/components/ui/sheet.tsx";
-import { HelpButton } from "#/components/help-drawer.tsx";
-import { Input } from "#/components/ui/input.tsx";
-import { FieldLabel } from "#/components/ui/label.tsx";
 
-import { SortableRow } from "../components/block/sortable-row.tsx";
 import { BlockTasks } from "../components/block/block-tasks.tsx";
-import { EditableRate } from "../components/block/editable-rate.tsx";
-import { EditableStock } from "../components/block/editable-stock.tsx";
-import {
-  ItemChip,
-  craftableStyle,
-  dispTag,
-  linkStyle,
-  type Link as ItemLink,
-} from "../components/block/item-chip.tsx";
-import { LogiTag } from "../components/block/logi-tag.tsx";
-import { Legend } from "../components/block/legend.tsx";
+import { type Link as ItemLink } from "../components/block/item-chip.tsx";
 import { GoalPickerDialog } from "../components/block/goal-picker-dialog.tsx";
 import { IconPickerDialog } from "../components/block/icon-picker-dialog.tsx";
 import { RecipePickerDialog } from "../components/block/recipe-picker-dialog.tsx";
@@ -103,8 +32,11 @@ import { SpoilRateDialog } from "../components/block/spoil-rate-dialog.tsx";
 import { GoalMenu } from "../components/block/goal-menu.tsx";
 import { RowMenu } from "../components/block/row-menu.tsx";
 import { GoodMenu } from "../components/block/good-menu.tsx";
-import { fmtAmt, fmtW, num } from "../components/block/format.ts";
-import { cellChip, head } from "../components/block/styles.ts";
+import { BlockToolbar } from "../components/block/block-toolbar.tsx";
+import { GoalCard } from "../components/block/goal-card.tsx";
+import { BalanceCard } from "../components/block/balance-card.tsx";
+import { RecipeGrid } from "../components/block/recipe-grid.tsx";
+import type { LogiView } from "../components/block/solve-view.ts";
 
 export const Route = createFileRoute("/block/$id")({ component: BlockRoute });
 
@@ -134,7 +66,6 @@ function Block({ blockId }: { blockId: number }) {
     goals,
     customIcon,
     recipes,
-    disabled,
     dispositions: disp,
     spoilRates,
     rowGroups,
@@ -162,62 +93,18 @@ function Block({ blockId }: { blockId: number }) {
   } | null>(null);
   const [lockedInput, setLockedInput] = useState<string | null>(null); // import pinned to size the block
   const [lockedRate, setLockedRate] = useState(0); // the rate that import is pinned to
-  // Drag-reorder of recipe rows via dnd-kit. PointerSensor covers mouse + touch; the
-  // small activation distance keeps a tap/click on the grip from registering as a drag.
-  const recipeSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
   // Sub-blocks (#7): named groups of recipe rows, display-only. Members stay
   // contiguous in `recipes` order (lib/row-groups.ts). Fold state is a view
   // preference — localStorage, not the doc, so folding doesn't churn auto-save.
   // Planned spoil losses (#20): item → expected rot rate /s, solved as extra
   // pinned surplus. `spoilDialog` holds the item whose rate is being edited.
   const [spoilDialog, setSpoilDialog] = useState<string | null>(null);
-  const [foldedGroups, setFoldedGroups] = useState<Record<number, boolean>>({});
   // rename-in-place on a group header (holds the group id being edited)
   const [renamingGroup, setRenamingGroup] = useState<number | null>(null);
   // right-click menu on a recipe row (sub-block actions)
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; name: string } | null>(null);
-  // Reorder is display/authoring only — the solver is order-independent, so this just
-  // changes how the rows are listed (and persists `recipes`). Sub-blocks (#7) make
-  // it three cases: drag a group header to move the whole span; drop a row on a
-  // header to join that group; drop a row between two members to adopt their group.
-  const onRecipeDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!over || active.id === over.id) return;
-    const aid = String(active.id);
-    const oid = String(over.id);
-    if (aid.startsWith("grp:")) {
-      const gid = Number(aid.slice(4));
-      const rest = recipes.filter((r) => recipeGroups[r] !== gid);
-      const at = oid.startsWith("grp:")
-        ? rest.findIndex((r) => recipeGroups[r] === Number(oid.slice(4)))
-        : rest.indexOf(oid);
-      doc.applyReorder(
-        moveGroupSpan(recipes, recipeGroups, gid, at < 0 ? rest.length : at),
-        recipeGroups,
-      );
-      return;
-    }
-    if (oid.startsWith("grp:")) {
-      doc.joinRecipeToGroup(aid, Number(oid.slice(4)));
-      return;
-    }
-    const from = recipes.indexOf(aid);
-    const to = recipes.indexOf(oid);
-    if (from < 0 || to < 0) return;
-    const moved = arrayMove(recipes, from, to);
-    doc.applyReorder(moved, resolveGroupAfterMove(moved, recipeGroups, aid));
-  };
-  const toggleFold = (id: number) =>
-    setFoldedGroups((f) => {
-      const next = { ...f, [id]: !f[id] };
-      localStorage.setItem(`pyops.groupFold.${blockId}`, JSON.stringify(next));
-      return next;
-    });
+
   const createGroupFromRow = (recipe: string) => setRenamingGroup(doc.createGroupFromRow(recipe)); // name it right away
-  const renameGroup = doc.renameGroup;
-  const ungroupRows = doc.ungroupRows;
   const removeFromGroup = doc.removeFromGroup;
   const [pickFor, setPickFor] = useState<{ name: string; mode: "produce" | "consume" } | null>(
     null,
@@ -238,19 +125,6 @@ function Block({ blockId }: { blockId: number }) {
   // "remove?"), the second removes it. Removing loses the row's machine/fuel/module
   // picks and it sits next to the disable toggle, so a lone misclick shouldn't destroy
   // it. Auto-disarms after a few seconds. Holds the recipe name pending confirmation.
-  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
-  const removeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const requestRemove = (name: string) => {
-    if (removeTimer.current) clearTimeout(removeTimer.current);
-    if (confirmRemove === name) {
-      setConfirmRemove(null);
-      drop(name);
-      return;
-    }
-    setConfirmRemove(name);
-    removeTimer.current = setTimeout(() => setConfirmRemove(null), 3000);
-  };
-  useEffect(() => () => void (removeTimer.current && clearTimeout(removeTimer.current)), []);
 
   // Load this block on mount (the editor is keyed by id, so this runs once per
   // block). Auto-save stays suppressed until `hydrated` flips.
@@ -268,12 +142,6 @@ function Block({ blockId }: { blockId: number }) {
     if (s.hydrated || !loaded.data) return;
     // the store normalizes legacy doc shapes + drifted groups on hydrate
     doc.hydrate(loaded.data.data, loaded.data.name);
-    try {
-      const f = JSON.parse(localStorage.getItem(`pyops.groupFold.${blockId}`) || "{}");
-      if (f && typeof f === "object") setFoldedGroups(f);
-    } catch {
-      /* ignore */
-    }
     setBlockEnabled(loaded.data.enabled ?? true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded.data]);
@@ -304,20 +172,14 @@ function Block({ blockId }: { blockId: number }) {
   const pickMachine = doc.pickMachine;
   const pickFuel = doc.pickFuel;
   const setDispFor = doc.setDisposition;
-  const cycleDispFor = doc.cycleDisposition;
   const setSpoilRateFor = doc.setSpoilRate;
-  const toggleDisabled = doc.toggleDisabled;
   // Goals: an ordered list, primary first (goals[0] = the sizing anchor). A new
   // block's first goal is pinned to 1/s; further goals start unpinned (co-products)
   // and can be pinned to their own target rate.
   const addGoal = doc.addGoal;
   const removeGoal = doc.removeGoal;
-  const setGoalRate = doc.setGoalRate;
-  const setGoalUnit = doc.setGoalUnit;
   const makeStockGoal = doc.makeStockGoal;
   const makeRateGoal = doc.makeRateGoal;
-  const setGoalStock = doc.setGoalStock;
-  const setGoalWindow = doc.setGoalWindow;
   // Spin up a fresh block that produces `name` (e.g. to supply an import), sized
   // to the rate this block needs, and open it. Recipes are left for the user to
   // pick — same starting point as "New block", but pre-seeded with the goal.
@@ -349,7 +211,6 @@ function Block({ blockId }: { blockId: number }) {
   // Move a goal to the front, so it names the block + anchors the rate-scaling tools.
   const makePrimary = doc.makePrimary;
 
-  const hasDisp = Object.keys(disp).length > 0;
   // the solver/save doc, assembled by the store (empty maps omitted, disabled
   // recipes as a sorted array — see solveInputOf)
   const solveInput = useMemo(() => solveInputOf(s), [s]);
@@ -494,7 +355,6 @@ function Block({ blockId }: { blockId: number }) {
       if (d) doc.applyRecipeDefaults(name, d);
     });
   };
-  const drop = doc.dropRecipe;
 
   // When a flow has exactly one craftable recipe, skip the picker dialog and add
   // it directly. A superseded recipe (its base no longer exists in-game) or one
@@ -616,396 +476,44 @@ function Block({ blockId }: { blockId: number }) {
           : "linked";
   const makeFor = (name: string) => setPickFor({ name, mode: "produce" });
   const useFor = (name: string) => setPickFor({ name, mode: "consume" });
-
-  // Recipe-grid layout. Desktop (md+): a 4-column grid — recipe | machines |
-  // ingredients | products. Mobile: the columns can't fit (the first two alone need
-  // 410px), so each row stacks vertically with per-section labels and the column
-  // header is hidden.
-  const TPL = "md:[grid-template-columns:minmax(170px,1.1fr)_minmax(240px,1.2fr)_1.4fr_1.4fr]";
-  const GRID = `flex flex-col gap-2.5 px-3 py-3 md:grid md:items-center md:gap-4 md:py-3.5 ${TPL}`;
-  const HEAD = `${head} hidden md:grid md:items-center md:gap-4 ${TPL}`;
+  const openCtxMenu = (
+    e: { clientX: number; clientY: number },
+    d: { name: string; kind: string; link: ItemLink },
+  ) => setCtxMenu({ x: e.clientX, y: e.clientY, ...d });
+  // logistics readout bundle (#21/#22) threaded to every chip row
+  const logi: LogiView = {
+    resolved: logiResolved,
+    showBelts,
+    showInserters,
+    launchInfo,
+  };
 
   // The block's face (#40): the explicit pick when set, else the first goal's icon.
   const blockIcon =
     customIcon ?? (target ? { kind: goalInfo.data?.[target]?.kind ?? "item", name: target } : null);
 
-  // Sub-blocks (#7): flatten recipes+groups into the render sequence. A group
-  // renders a header at its first member's position; members follow (contiguous
-  // by invariant) unless the group is folded, in which case they're skipped and
-  // the header shows the chain's net flows instead.
-  type RowEntry = { type: "group"; group: RowGroup } | { type: "recipe"; name: string };
-  const rowSeq: RowEntry[] = [];
-  {
-    const byId = new Map(rowGroups.map((g) => [g.id, g]));
-    const seen = new Set<number>();
-    for (const name of recipes) {
-      const g = recipeGroups[name] != null ? byId.get(recipeGroups[name]) : undefined;
-      if (g) {
-        if (!seen.has(g.id)) {
-          seen.add(g.id);
-          rowSeq.push({ type: "group", group: g });
-        }
-        if (!foldedGroups[g.id]) rowSeq.push({ type: "recipe", name });
-      } else rowSeq.push({ type: "recipe", name });
-    }
-  }
-  const sortableIds = rowSeq.map((e) => (e.type === "group" ? `grp:${e.group.id}` : e.name));
-
-  /** A sub-block's header row: fold chevron, rename-in-place name, and — when
-   * folded — the chain's net I/O ("ore in → plates out"), machines and power. */
-  const renderGroupHeader = (g: RowGroup) => {
-    const members = groupMembers(recipes, recipeGroups, g.id);
-    const folded = !!foldedGroups[g.id];
-    // disabled rows (#73) contribute nothing to the solve, so keep them out of
-    // the net too — the header should read what the chain actually does
-    const net =
-      folded && res?.rows
-        ? groupNet(res.rows, new Set(members.filter((m) => !disabled.has(m))))
-        : null;
-    return (
-      <SortableRow key={`grp:${g.id}`} id={`grp:${g.id}`}>
-        {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
-          <div
-            className={`relative flex flex-wrap items-center gap-2 border-t border-border border-l-2 border-l-primary/50 bg-muted/40 px-2 py-2 ${isDragging ? "bg-card shadow-lg" : ""}`}
-          >
-            <span
-              ref={setActivatorNodeRef}
-              {...attributes}
-              {...listeners}
-              title="drag to move this sub-block (its rows move with it)"
-              className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground select-none hover:text-foreground active:cursor-grabbing"
-            >
-              <GripVertical className="size-4" />
-            </span>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={() => toggleFold(g.id)}
-              title={folded ? "expand this sub-block" : "collapse this sub-block to one line"}
-              className="text-muted-foreground"
-            >
-              {folded ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
-            </Button>
-            <Layers className="size-4 shrink-0 text-primary/70" />
-            {renamingGroup === g.id ? (
-              <Input
-                autoFocus
-                defaultValue={g.name}
-                onFocus={(e) => e.target.select()}
-                onBlur={(e) => {
-                  renameGroup(g.id, e.target.value.trim() || g.name);
-                  setRenamingGroup(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") e.currentTarget.blur();
-                  if (e.key === "Escape") setRenamingGroup(null);
-                }}
-                className="h-7 w-44 px-1.5"
-              />
-            ) : (
-              <span
-                className="cursor-default font-semibold select-none"
-                onDoubleClick={() => setRenamingGroup(g.id)}
-                title="double-click to rename"
-              >
-                {g.name}
-              </span>
-            )}
-            <span className="text-sm text-muted-foreground">
-              {members.length} recipe{members.length === 1 ? "" : "s"}
-            </span>
-            {net && (
-              <span className="flex flex-wrap items-center gap-1.5 text-sm">
-                {net.inputs.map((f) => (
-                  <span key={f.name} className="flex items-center gap-1 bg-muted/50 px-1.5 py-0.5">
-                    <Icon kind={f.kind as "item" | "fluid"} name={f.name} size="sm" />
-                    <span className="tabular-nums">{num(f.rate)}</span>
-                  </span>
-                ))}
-                <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
-                {net.outputs.map((f) => (
-                  <span key={f.name} className="flex items-center gap-1 bg-muted/50 px-1.5 py-0.5">
-                    <Icon kind={f.kind as "item" | "fluid"} name={f.name} size="sm" />
-                    <span className="tabular-nums">{num(f.rate)}</span>
-                  </span>
-                ))}
-                {net.machines > 0 && (
-                  <span className="text-sm text-muted-foreground">
-                    · {num(net.machines)} machines
-                  </span>
-                )}
-                {net.powerW > 0 && <span className="text-sm text-info">{fmtW(net.powerW)}</span>}
-              </span>
-            )}
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="ml-auto text-muted-foreground hover:text-destructive"
-              onClick={() => ungroupRows(g.id)}
-              title="ungroup — dissolve the sub-block, its rows stay"
-            >
-              <X className="size-3.5" />
-            </Button>
-          </div>
-        )}
-      </SortableRow>
-    );
-  };
-
   return (
     <div className="p-4 font-mono text-base text-foreground">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Button
-          variant="outline"
-          size="icon-lg"
-          onClick={() => setIconPicker(true)}
-          title={
-            customIcon
-              ? "block icon (custom) — click to change or reset to auto"
-              : "block icon — follows the first goal; click to pick your own"
-          }
-          className={customIcon ? "border-primary/60" : ""}
-        >
-          {blockIcon ? (
-            <Icon
-              kind={blockIcon.kind as "item" | "fluid"}
-              name={blockIcon.name}
-              size="md"
-              noHover
-              noTitle
-            />
-          ) : (
-            <Grid2x2 className="size-4 text-muted-foreground" />
-          )}
-        </Button>
-        <Input
-          value={blockName}
-          onChange={(e) => {
-            const v = e.target.value;
-            doc.setBlockName(v);
-            // typing a name pins it; clearing it resumes auto-naming from the goal
-            customDecided.current = true;
-            setNameCustom(v.trim().length > 0);
-          }}
-          placeholder="auto-named from goal…"
-          className={`w-56 font-semibold ${titleHealthCls}`}
-        />
-        <span className="flex w-14 items-center gap-1 text-xs text-muted-foreground">
-          {saveState === "saving" ? (
-            "saving…"
-          ) : saveState === "saved" ? (
-            <>
-              saved <Check className="size-3" />
-            </>
-          ) : (
-            ""
-          )}
-        </span>
-        <Button
-          variant="outline"
-          size="icon-sm"
-          onClick={copySetup}
-          title="Copy setup — copy this block's recipe/module setup to the clipboard"
-          className="text-muted-foreground"
-        >
-          <Copy className="size-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon-sm"
-          onClick={() => showInGame.mutate()}
-          disabled={showInGame.isPending}
-          title="Open in game — show this block as an in-game build sheet; click a building there for a configured blueprint (needs the bridge)"
-          className="text-muted-foreground"
-        >
-          <Gamepad2 className={`size-4 ${showInGame.isPending ? "animate-pulse" : ""}`} />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon-sm"
-          onClick={toggleBlockEnabled}
-          title={
-            blockEnabled
-              ? "Disable block — keep it here but exclude it from every factory-wide total"
-              : "Enable block — count this block in the factory totals again"
-          }
-          className={
-            !blockEnabled
-              ? "border-warning/60 bg-warning/10 text-warning hover:bg-warning/20"
-              : "text-muted-foreground"
-          }
-        >
-          <Power className="size-4" />
-        </Button>
-        {!blockEnabled && (
-          <Badge className="border-transparent bg-warning/15 font-semibold text-warning">
-            disabled — excluded from factory totals
-          </Badge>
-        )}
-        {res?.buildCost && res.buildCost.buildings.length > 0 && (
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                title="Building summary — the buildings + one-time materials to construct this block"
-                className="text-muted-foreground"
-              >
-                <Hammer className="size-4" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-96 max-w-[92vw] font-mono">
-              <SheetHeader>
-                <SheetTitle>Building summary</SheetTitle>
-              </SheetHeader>
-              <div className="min-h-0 flex-1 space-y-4 overflow-auto p-3">
-                <p className="text-sm text-muted-foreground">
-                  The buildings to construct this block, and the one-time materials to build them —
-                  a shopping list, separate from the per-second flows.
-                </p>
-                <div>
-                  <FieldLabel className="mb-1.5">Buildings</FieldLabel>
-                  <div className="flex flex-wrap gap-2">
-                    {res.buildCost.buildings.map((b) => (
-                      <span key={b.name} className={cellChip} title={b.display}>
-                        <Icon kind="item" name={b.name} size="sm" />
-                        <span className="tabular-nums">×{b.count}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <FieldLabel className="mb-1.5">Materials to build them</FieldLabel>
-                  {res.buildCost.materials.length === 0 ? (
-                    <span className="text-sm text-muted-foreground">
-                      — (no build recipe found for these buildings)
-                    </span>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {res.buildCost.materials.map((m) => (
-                        <span key={m.name} className={cellChip} title={m.display}>
-                          <Icon kind={m.kind as "item" | "fluid"} name={m.name} size="sm" />
-                          <span className="tabular-nums">{fmtAmt(m.amount)}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
-        )}
-        {showInGame.data && !showInGame.data.sent && (
-          <span className="text-sm text-warning">game not connected</span>
-        )}
-        {showInGame.data?.sent && (
-          <span className="flex items-center gap-1 text-sm text-success">
-            opened in game <Check className="size-3" />
-          </span>
-        )}
-        <span className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
-          <Legend cls={linkStyle.target} label="goal" />
-          <Legend cls={linkStyle.linked} label="linked" />
-          <Legend cls={linkStyle.import} label="raw in" />
-          <Legend cls={craftableStyle} label="craftable" />
-          <Legend cls={linkStyle.export} label="export" />
-          <span
-            className="text-muted-foreground/70"
-            title="right-click any item for actions (make a goal, lock as sizing input, force import/export/balance, locate in game). Alt-click quick-cycles the disposition."
-          >
-            · right-click = menu
-          </span>
-        </span>
-        <HelpButton title="What is a block?">
-          <p>
-            A block is <span className="text-foreground">one production unit you design</span>: pick
-            the recipes to make one or more goal goods, and the solver works out how many of each
-            building you need (fractional counts and all).
-          </p>
-          <div>
-            <div className="font-semibold text-foreground">Goals</div>
-            <p className="mt-1">
-              A block can target several products at once — each goal has a{" "}
-              <span className="text-foreground">target rate</span> and the block is sized so that
-              good comes out at exactly that rate. Click a goal&apos;s rate to edit it, and click
-              its unit to cycle <span className="text-foreground">/s → /min → /h</span> — enter
-              science as 10/min or a slow bootstrap as 0.5/h; the unit sticks per goal while the
-              solver works in per-second underneath. Not everything is throughput:{" "}
-              <span className="text-foreground">right-click a goal → Keep in stock</span> turns it
-              into a buffer goal (&quot;keep 100 on hand&quot;) with a refill window (default 10m,
-              click to cycle) — machines are sized to rebuild the buffer within the window, and the
-              factory ledger badges the flow <span className="text-info">↻ stock</span>. So a single
-              &quot;logistics&quot; block can make belts @10/s, undergrounds @4/s and splitters @2/s
-              side by side. The first goal <span className="text-info">names the block</span>,
-              anchors the scale tools, and is the default icon;{" "}
-              <Star className="inline size-3.5 text-foreground" /> moves a goal to the front. Click
-              the icon next to the block&apos;s name to pick any item or fluid as its icon instead.
-              A good you don&apos;t target isn&apos;t a goal — it falls out as a byproduct (export).
-            </p>
-            <p className="mt-1">
-              If your goals can&apos;t all be met at once (e.g. two goods locked to a fixed ratio by
-              one recipe), the block is <span className="text-destructive">infeasible</span> and
-              says so — add a recipe to make more of the short good, or change a rate.
-            </p>
-          </div>
-          <p>
-            <span className="text-foreground">How it solves.</span> Given the goals, every other
-            good in the block is one of: <span className="text-foreground">balanced</span> (made and
-            used inside the block), <span className="text-foreground">imported</span> (brought in
-            from outside or another block), or <span className="text-foreground">exported</span>{" "}
-            (surplus that leaves). The solver sets each recipe&apos;s run-rate to satisfy that —
-            it&apos;s a linear system, and it handles Py&apos;s cyclic recipe chains.
-          </p>
-          <p>
-            <span className="text-foreground">You drive it, not an optimizer.</span> You choose the
-            recipes and how to split a good between competing ones; PyOps just solves the system you
-            describe. <span className="text-foreground">Right-click</span> any item to make it a
-            goal, lock it as a sizing input, or force import / export / balance — the colored legend
-            shows each item&apos;s current disposition.
-          </p>
-          <div>
-            <div className="font-semibold text-foreground">Sub-blocks</div>
-            <p className="mt-1">
-              <span className="text-foreground">Right-click a recipe&apos;s name</span> to start a
-              sub-block — a named, collapsible group of rows. Add more rows from the same menu or by
-              dragging them onto the header; collapse it and the whole chain reads as one line
-              showing its <span className="text-foreground">net flows</span> (what goes in, what
-              comes out — intermediates cancel), machines and power. Display-only: the solve is
-              exactly the same expanded, collapsed, or dissolved. Drag the header to move the whole
-              chain; double-click its name to rename; × ungroups (the rows stay).
-            </p>
-          </div>
-          <div>
-            <div className="font-semibold text-foreground">Toolbar (next to the name)</div>
-            <ul className="mt-1 space-y-1.5">
-              <li className="flex items-start gap-2">
-                <Copy className="mt-0.5 size-4 shrink-0 text-foreground" />
-                <span>copies this block&apos;s recipe/module setup to the clipboard;</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Gamepad2 className="mt-0.5 size-4 shrink-0 text-foreground" />
-                <span>
-                  shows this block as an in-game build sheet — click a building there for a
-                  configured blueprint;
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Hammer className="mt-0.5 size-4 shrink-0 text-foreground" />
-                <span>
-                  <span className="text-foreground">Building summary</span> — opens a drawer listing
-                  the buildings and the one-time materials to construct this block (a shopping list,
-                  kept out of the way of the per-second flows).
-                </span>
-              </li>
-            </ul>
-          </div>
-          <p>
-            Per-machine <span className="text-foreground">modules / beacons</span> are tuned in the
-            block body to cut building count. The Cybersyn request-combinator generator now lives in
-            the in-game mod panel.
-          </p>
-        </HelpButton>
-      </div>
+      <BlockToolbar
+        doc={doc}
+        blockIcon={blockIcon}
+        titleHealthCls={titleHealthCls}
+        saveState={saveState}
+        onNamePinned={(pinned) => {
+          customDecided.current = true;
+          setNameCustom(pinned);
+        }}
+        blockEnabled={blockEnabled}
+        onToggleEnabled={toggleBlockEnabled}
+        onCopySetup={copySetup}
+        showInGame={{
+          pending: showInGame.isPending,
+          sent: showInGame.data ? showInGame.data.sent : null,
+          onShow: () => showInGame.mutate(),
+        }}
+        buildCost={res?.buildCost}
+        onOpenIconPicker={() => setIconPicker(true)}
+      />
 
       {/* Broken-block banner: a referenced recipe/good no longer exists in the
           current data, so the block is NOT solved (showing wrong numbers would be
@@ -1046,847 +554,59 @@ function Block({ blockId }: { blockId: number }) {
 
       {/* Goal + block summary */}
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Goal</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {/* Goals as compact stacked cells (icon over rate) so many fit — a block can
-                target several products at once (e.g. belts, undergrounds, splitters). Each
-                goal has a target rate (a solver target); click the rate to edit it. Click a
-                goal's icon to add a recipe that makes it. goals[0] names the block + anchors
-                the rate-scaling tools; ★ moves a goal to the front. A good you don't target
-                shows up as a byproduct, not here. */}
-            <div className="flex flex-wrap gap-2">
-              {goals.map((goal, i) => {
-                const g = goal.name;
-                const isFirst = i === 0;
-                const kind = kindOf(g);
-                const goalMissing = res?.missing?.goods.includes(g) ?? false;
-                // declared but no recipe in the block makes it — fixable, not broken.
-                // Suppressed on a broken block: the missing-refs banner already
-                // explains why nothing's being made there.
-                const goalUnmade =
-                  !goalMissing && !res?.broken && (res?.unmadeTargets?.includes(g) ?? false);
-                return (
-                  <div
-                    key={g}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setGoalMenu({ x: e.clientX, y: e.clientY, name: g });
-                    }}
-                    className={`group relative flex min-w-16 flex-col items-center gap-0.5 px-2 py-1 ${
-                      goalMissing
-                        ? "bg-destructive/10 ring-1 ring-destructive/40"
-                        : goalUnmade
-                          ? "bg-warning/10 ring-1 ring-warning/40"
-                          : isFirst
-                            ? "bg-info/10 ring-1 ring-info/30"
-                            : "bg-info/5 ring-1 ring-info/20"
-                    }`}
-                    title={
-                      goalMissing
-                        ? `${g} — no longer exists in the current data`
-                        : goalUnmade
-                          ? `${res?.display?.[g] ?? g} — no recipe in this block makes it. Click the icon to add one.`
-                          : `${res?.display?.[g] ?? g}${isFirst ? " — names the block" : ""} · right-click for options`
-                    }
-                  >
-                    {/* move-to-front (not on the first goal) · remove — on hover */}
-                    <div className="absolute -top-2 -right-1.5 flex gap-1 opacity-0 group-hover:opacity-100">
-                      {!isFirst && (
-                        <button
-                          onClick={() => makePrimary(g)}
-                          title="move to front — name the block after this goal"
-                          className="flex size-5 items-center justify-center bg-background text-info shadow ring-1 ring-border hover:brightness-125"
-                        >
-                          <Star className="size-3" />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => removeGoal(g)}
-                        title="remove this goal"
-                        className="flex size-5 items-center justify-center bg-background text-muted-foreground shadow ring-1 ring-border hover:text-destructive"
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </div>
-                    <button
-                      onClick={() => (isFirst && goal.rate < 0 ? useFor(g) : makeFor(g))}
-                      title="click to add a recipe that makes this goal (right-click to change the item)"
-                    >
-                      <Icon kind={kind} name={g} size="lg" title={res?.display?.[g] ?? g} />
-                    </button>
-                    {goalMissing ? (
-                      <span className="flex items-center gap-0.5 text-sm font-semibold text-destructive">
-                        <AlertTriangle className="size-3" /> gone
-                      </span>
-                    ) : goal.stock != null ? (
-                      <span className="text-sm">
-                        <EditableStock
-                          stock={goal.stock}
-                          window={goal.window ?? STOCK_WINDOW_DEFAULT}
-                          onChange={(n) => setGoalStock(g, n)}
-                          onWindowChange={(w) => setGoalWindow(g, w)}
-                        />
-                      </span>
-                    ) : (
-                      <span className="text-sm">
-                        <EditableRate
-                          value={goal.rate}
-                          unit={goal.unit ?? "s"}
-                          readOnly={isFirst && !!lockedInput}
-                          onChange={(v) => setGoalRate(g, v)}
-                          onUnitChange={(u) => setGoalUnit(g, u)}
-                        />
-                      </span>
-                    )}
-                    {goalUnmade && (
-                      <span className="flex items-center gap-0.5 text-sm font-semibold text-warning">
-                        <AlertTriangle className="size-3" /> no recipe
-                      </span>
-                    )}
-                    {/* Rates near the solver's noise floor (flows under 1e-6/s read as
-                        zero) solve unreliably — and are usually a proxy for "just keep
-                        some around", which is a stock goal's job (#38), not a rate's. */}
-                    {!goalMissing &&
-                      goal.stock == null &&
-                      goal.rate !== 0 &&
-                      Math.abs(goal.rate) < 1e-4 && (
-                        <span
-                          className="flex cursor-help items-center gap-0.5 text-sm font-semibold text-warning"
-                          title="rates this small can fall below the solver's noise floor — flows may read as zero. If the intent is 'just make/keep some', a keep-in-stock goal (planned) will express that better than a tiny rate."
-                        >
-                          <AlertTriangle className="size-3" /> very low rate
-                        </span>
-                      )}
-                    {logiResolved && kind === "item" && !goalMissing && (
-                      <LogiTag
-                        resolved={logiResolved}
-                        rate={Math.abs(goal.rate)}
-                        machineCount={0}
-                        showBelts={showBelts}
-                        showInserters={showInserters}
-                        launch={launchInfo(g, Math.abs(goal.rate))}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-              {/* add a goal */}
-              <button
-                onClick={() => setGoalPicker({})}
-                title="add a goal product"
-                className="flex min-w-16 flex-col items-center justify-center gap-0.5 border border-dashed border-border px-2 py-1 text-muted-foreground hover:text-foreground"
-              >
-                <Plus className="size-6" />
-                <span className="text-sm">goal</span>
-              </button>
-            </div>
-            {!target && (
-              <div className="text-sm text-muted-foreground">
-                Pick a goal product to size this block.
-              </div>
-            )}
-            {lockedInput && (
-              <div className="flex items-center gap-1 text-sm text-info">
-                <Lock className="size-3 shrink-0" /> sized by input — edit the locked rate in
-                Imports, or unlock it there
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader className="justify-between">
-            <CardTitle>Block balance</CardTitle>
-            {res && (
-              <span className={statusColor}>
-                {res.status}
-                {res.message ? ` — ${res.message}` : ""}
-              </span>
-            )}
-          </CardHeader>
-          {/* Active disposition overrides — ALWAYS shown when any exist, even if the
-              solve is infeasible and the item's chip is hidden, so a forced override
-              (e.g. an input cycled to export) can never soft-lock the block. */}
-          {hasDisp && (
-            <Callout tone="info" icon={null} className="mx-3 mt-2 px-2 py-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span>forced overrides:</span>
-                {Object.entries(disp).map(([name, d]) => (
-                  <button
-                    key={name}
-                    onClick={() => setDispFor(name, "auto")}
-                    title="click to clear this override (back to auto)"
-                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 ${dispTag[d].cls} hover:brightness-110`}
-                  >
-                    <Icon kind="item" name={name} size="sm" title={res?.display?.[name] ?? name} />
-                    {res?.display?.[name] ?? name} {dispTag[d].label} <X className="size-3" />
-                  </button>
-                ))}
-                <button
-                  onClick={doc.clearDispositions}
-                  title="clear all forced overrides"
-                  className="text-muted-foreground underline hover:text-foreground"
-                >
-                  clear all
-                </button>
-              </div>
-            </Callout>
-          )}
-          {/* Planned spoil losses (#20) — always visible when set: the pinned
-              surplus never reaches the boundary flows (it rots), so without this
-              strip a planned loss would be invisible. */}
-          {Object.keys(spoilRates).length > 0 && (
-            <div className="mx-3 mt-2 flex flex-wrap items-center gap-2 border border-warning/30 bg-warning/10 px-2 py-1.5 text-sm">
-              <span className="flex items-center gap-1 text-warning">
-                <Timer className="size-3" /> planned spoil losses:
-              </span>
-              {Object.entries(spoilRates).map(([name, r]) => (
-                <button
-                  key={name}
-                  onClick={() => setSpoilDialog(name)}
-                  title="production is sized to cover this rot rate — click to edit"
-                  className="inline-flex items-center gap-1 bg-warning/20 px-1.5 py-0.5 text-warning hover:brightness-110"
-                >
-                  <Icon kind="item" name={name} size="sm" title={res?.display?.[name] ?? name} />
-                  {res?.display?.[name] ?? name} {num(r)}/s
-                </button>
-              ))}
-            </div>
-          )}
-          {res?.status === "infeasible" ? (
-            <Callout tone="destructive" className="m-3 p-3">
-              {/* Only a genuine reverse-running cycle gets the "chain runs backward"
-                  story; any other infeasibility shows the solver's own reason. */}
-              {res.negativeRecipes?.length ? (
-                <>
-                  <div className="mb-2 font-semibold">
-                    Chain runs backward — a loop has no raw feed. Recipes in red below would run in
-                    reverse.
-                  </div>
-                  {res.stuckItems?.length ? (
-                    <>
-                      <div className="mb-1 text-muted-foreground">
-                        Starved loop items — click one to add a recipe that feeds it:
-                      </div>
-                      <div className="flex flex-wrap gap-x-3 gap-y-2">
-                        {res.stuckItems.map((n) => (
-                          <ItemChip
-                            key={n}
-                            name={n}
-                            kind="item"
-                            display={res.display?.[n]}
-                            link="import"
-                            craftable={producible.has(n)}
-                            onClick={() => makeFor(n)}
-                          />
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-muted-foreground">
-                      Mark a cycling item as <span className="font-semibold">import</span>, or add a
-                      recipe that supplies the loop.
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="font-semibold">
-                  {res.message ?? "This block has no exact solution. Adjust a target or recipe."}
-                </div>
-              )}
-            </Callout>
-          ) : (
-            <>
-              {res?.unmadeTargets?.length && !res.broken ? (
-                <div className="border-b border-border px-3 py-2 text-sm text-warning">
-                  <div className="mb-1 flex items-center gap-1 font-semibold">
-                    <AlertTriangle className="size-3.5 shrink-0" />
-                    {res.unmadeTargets.length === 1 ? "Goal has" : "Goals have"} no recipe yet — add
-                    one to make {res.unmadeTargets.length === 1 ? "it" : "them"}:
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-2">
-                    {res.unmadeTargets.map((n) => (
-                      <ItemChip
-                        key={n}
-                        name={n}
-                        kind={kindOf(n)}
-                        display={res.display?.[n]}
-                        link="target"
-                        onClick={() => makeFor(n)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              {res?.unusedRecipes?.length && !res.broken ? (
-                <div className="border-b border-border px-3 py-2 text-sm text-destructive">
-                  <div className="mb-1 flex items-center gap-1 font-semibold">
-                    <AlertTriangle className="size-3.5 shrink-0" />
-                    {res.unusedRecipes.length === 1
-                      ? "1 recipe isn't"
-                      : `${res.unusedRecipes.length} recipes aren't`}{" "}
-                    used by this block&apos;s goal — pinned to 0. Remove{" "}
-                    {res.unusedRecipes.length === 1 ? "it" : "them"}, or balance an item to connect{" "}
-                    {res.unusedRecipes.length === 1 ? "it" : "them"}:
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-2">
-                    {res.unusedRecipes.map((n) => (
-                      <span key={n} className="flex min-w-0 items-center gap-1">
-                        <Icon kind="recipe" name={n} size="md" noHover />
-                        <span className="truncate">{res.display?.[n] ?? n}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              {res && res.tempWarnings?.length > 0 && (
-                <div className="border-b border-border px-3 py-2 text-sm text-warning">
-                  {res.tempWarnings.map((w) => (
-                    <div
-                      key={`${w.recipe}-${w.item}`}
-                      className="flex items-center gap-1"
-                      title="the solver links fluids by name — check your heat chain"
-                    >
-                      <AlertTriangle className="size-3.5 shrink-0" />{" "}
-                      {res.display?.[w.recipe] ?? w.recipe} needs {res.display?.[w.item] ?? w.item}{" "}
-                      at {w.needs}, but this block makes it at {w.got.join("°, ")}°
-                    </div>
-                  ))}
-                </div>
-              )}
-              {res &&
-                (res.power.totalW > 0 ||
-                  res.power.heatW > 0 ||
-                  Math.abs(res.power.pollutionPerMin) > 0.005) && (
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-border px-3 py-2 text-sm">
-                    {res.power.totalW > 0 && (
-                      <span className="flex items-center gap-1 text-info">
-                        <Zap className="size-3.5" /> {fmtW(res.power.totalW)}{" "}
-                        <span className="text-muted-foreground">electric</span>
-                      </span>
-                    )}
-                    {Math.abs(res.power.pollutionPerMin) > 0.005 && (
-                      <span
-                        className={`flex items-center gap-1 ${res.power.pollutionPerMin < 0 ? "text-success" : "text-warning/80"}`}
-                        title="pollution per minute from this block's machines (base emissions × energy-consumption × pollution module effects; fuel-type multipliers not modelled). Negative = net absorption — Py forestry and plantations soak pollution like trees."
-                      >
-                        <Cloud className="size-3.5" /> {num(Math.abs(res.power.pollutionPerMin))}
-                        <span className="text-muted-foreground">
-                          pollution/min{res.power.pollutionPerMin < 0 ? " absorbed" : ""}
-                        </span>
-                      </span>
-                    )}
-                    {res.power.heatW > 0 && (
-                      <span
-                        className="flex items-center gap-1 text-warning"
-                        title="Heat-powered buildings (Py hard mode). Heat doesn't travel far (~15 tiles), so a heat source — e.g. a py-heat-exchanger — must be built LOCAL to this block."
-                      >
-                        <Flame className="size-3.5" /> {fmtW(res.power.heatW)}{" "}
-                        <span className="text-muted-foreground">heat · local source needed</span>
-                      </span>
-                    )}
-                  </div>
-                )}
-              <div
-                className={`grid gap-4 p-3 ${res?.exports.length ? "grid-cols-2" : "grid-cols-1"}`}
-              >
-                <div>
-                  <div className="mb-1 text-sm font-semibold text-warning">
-                    Imports — bring these in{" "}
-                    <span className="inline-flex items-center gap-0.5 font-normal text-muted-foreground">
-                      (dashed <Plus className="inline size-3" /> = craftable in-block)
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-2">
-                    {res?.imports.length ? (
-                      res.imports.map((f) => (
-                        <span key={f.name} className="group flex flex-col items-start gap-1.5">
-                          <span className="inline-flex items-center gap-1.5">
-                            <ItemChip
-                              name={f.name}
-                              kind={f.kind}
-                              display={res.display?.[f.name]}
-                              rate={f.rate}
-                              link="import"
-                              craftable={producible.has(f.name)}
-                              fuel={fuelSet.has(f.name)}
-                              disp={disp[f.name]}
-                              onClick={() => makeFor(f.name)}
-                              onCycleDisp={() => cycleDispFor(f.name)}
-                              onClearDisp={() => setDispFor(f.name, "auto")}
-                              onContext={(e) =>
-                                setCtxMenu({
-                                  x: e.clientX,
-                                  y: e.clientY,
-                                  name: f.name,
-                                  kind: f.kind,
-                                  link: "import",
-                                })
-                              }
-                            />
-                            {/* Locked-as-block-driver state (set via right-click → "Size block by this
-                                input"): edit its rate inline + an unlock control. The toggle itself
-                                lives in the context menu, so non-locked rows stay uncluttered. */}
-                            {lockedInput === f.name && (
-                              <>
-                                <Input
-                                  type="number"
-                                  value={lockedRate}
-                                  step="0.01"
-                                  min="0"
-                                  autoFocus
-                                  onChange={(e) => setLockedRate(Number(e.target.value) || 0)}
-                                  title="locked rate — the block is sized to consume this much of this input"
-                                  className="h-7 w-16 border-info/60 px-1"
-                                />
-                                <Button
-                                  variant="ghost"
-                                  size="icon-xs"
-                                  onClick={() => setLockedInput(null)}
-                                  title="unlock — the Goal rate is editable again"
-                                  className="text-info"
-                                >
-                                  <Lock className="size-3.5" />
-                                </Button>
-                              </>
-                            )}
-                            {freed.has(f.name) && !disp[f.name] && (
-                              <button
-                                title="recycle loop won't self-close — auto-sourced here. Click to pin it as an import (resolves the relaxed solve)."
-                                onClick={() => setDispFor(f.name, "import")}
-                                className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
-                              >
-                                loop · pin import
-                              </button>
-                            )}
-                          </span>
-                          {logiResolved && f.kind === "item" && (
-                            <LogiTag
-                              resolved={logiResolved}
-                              rate={f.rate}
-                              machineCount={0}
-                              showBelts={showBelts}
-                              showInserters={showInserters}
-                              launch={launchInfo(f.name, f.rate)}
-                            />
-                          )}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-sm text-muted-foreground">
-                        none — nothing to bring in
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {!!res?.exports.length && (
-                  <div>
-                    <div className="mb-1 text-sm font-semibold text-surplus">
-                      Exports — surplus, nothing consumes these
-                    </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-2">
-                      {res.exports.map((f) => (
-                        <span key={f.name} className="flex flex-col items-start gap-1.5">
-                          <span className="inline-flex items-center gap-1.5">
-                            <ItemChip
-                              name={f.name}
-                              kind={f.kind}
-                              display={res.display?.[f.name]}
-                              rate={f.rate}
-                              link="export"
-                              fuel={fuelSet.has(f.name)}
-                              disp={disp[f.name]}
-                              onClick={() => useFor(f.name)}
-                              onCycleDisp={() => cycleDispFor(f.name)}
-                              onClearDisp={() => setDispFor(f.name, "auto")}
-                              onContext={(e) =>
-                                setCtxMenu({
-                                  x: e.clientX,
-                                  y: e.clientY,
-                                  name: f.name,
-                                  kind: f.kind,
-                                  link: "export",
-                                })
-                              }
-                            />
-                            {freed.has(f.name) && !disp[f.name] && (
-                              <button
-                                title="recycle loop won't self-close — auto-sunk here. Click to pin it as an export (resolves the relaxed solve)."
-                                onClick={() => setDispFor(f.name, "export")}
-                                className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
-                              >
-                                loop · pin export
-                              </button>
-                            )}
-                            {/* incidental-spoil risk (#20): a SURPLUS spoilable is the
-                                one that actually sits around long enough to rot */}
-                            {spoilables[f.name] != null && (
-                              <button
-                                title={`spoils in ${fmtSpoilTime(spoilables[f.name])} — surplus sits in storage, so it WILL rot unless something consumes it. Click to plan the loss so production covers it.`}
-                                onClick={() => setSpoilDialog(f.name)}
-                                className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
-                              >
-                                <Timer className="size-3.5" /> rots in{" "}
-                                {fmtSpoilTime(spoilables[f.name])}
-                              </button>
-                            )}
-                          </span>
-                          {logiResolved && f.kind === "item" && (
-                            <LogiTag
-                              resolved={logiResolved}
-                              rate={f.rate}
-                              machineCount={0}
-                              showBelts={showBelts}
-                              showInserters={showInserters}
-                              launch={launchInfo(f.name, f.rate)}
-                            />
-                          )}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </Card>
+        <GoalCard
+          doc={doc}
+          res={res}
+          kindOf={kindOf}
+          lockedInput={lockedInput}
+          logi={logi}
+          onGoalMenu={(e, name) => setGoalMenu({ x: e.clientX, y: e.clientY, name })}
+          onMakeFor={makeFor}
+          onUseFor={useFor}
+          onOpenGoalPicker={() => setGoalPicker({})}
+        />
+        <BalanceCard
+          doc={doc}
+          res={res}
+          statusColor={statusColor}
+          kindOf={kindOf}
+          producible={producible}
+          fuelSet={fuelSet}
+          freed={freed}
+          lockedInput={lockedInput}
+          lockedRate={lockedRate}
+          onLockedRateChange={setLockedRate}
+          onUnlock={() => setLockedInput(null)}
+          logi={logi}
+          onMakeFor={makeFor}
+          onUseFor={useFor}
+          onCtxMenu={openCtxMenu}
+          onOpenSpoilDialog={setSpoilDialog}
+        />
       </div>
 
       <BlockTasks blockId={blockId} />
 
-      {/* Recipe grid: each row's I/O at the solved rate. Click any item to add a
-          recipe that makes it (ingredient) or consumes it (product). */}
-      <Card>
-        <div className={HEAD}>
-          <span>Recipe ({recipes.length})</span>
-          <span>Machines</span>
-          <span>Ingredients ↓ (click to add a producer)</span>
-          <span>Products ↑ (click to add a consumer)</span>
-        </div>
-        {recipes.length === 0 && (
-          <div className="px-3 py-2 text-muted-foreground">
-            none — pick a recipe for the goal above
-          </div>
-        )}
-        <DndContext
-          sensors={recipeSensors}
-          collisionDetection={closestCenter}
-          onDragEnd={onRecipeDragEnd}
-        >
-          <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-            {rowSeq.map((entry) => {
-              if (entry.type === "group") return renderGroupHeader(entry.group);
-              const name = entry.name;
-              const grouped = recipeGroups[name] != null; // member of a sub-block (#7)
-              const off = disabled.has(name); // toggled out of the solve (#73)
-              const row = res?.rows?.find((r) => r.recipe === name);
-              const neg = (row?.rate ?? 0) < -1e-6; // running backward — can't physically happen
-              const isUnused = !off && unused.has(name); // pinned to 0 — nothing in the block needs it
-              // a recipe that no longer exists in the data: show it as a labelled
-              // placeholder row (preserved, not silently dropped) rather than solving.
-              const missingRecipe = res?.missing?.recipes.includes(name) ?? false;
-              if (missingRecipe) {
-                return (
-                  <SortableRow key={name} id={name}>
-                    {() => (
-                      <div className={`${GRID} border-t border-border bg-destructive/10`}>
-                        <div className="flex min-w-0 items-center gap-2">
-                          <Icon kind="recipe" name={name} size="md" noTitle />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate font-mono" title={name}>
-                              {name}
-                            </span>
-                            <span className="flex items-center gap-1 text-sm font-semibold text-destructive">
-                              <AlertTriangle className="size-3" /> no longer exists
-                            </span>
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            className="text-muted-foreground hover:text-destructive"
-                            onClick={() => drop(name)}
-                            title="remove this missing recipe from the block"
-                          >
-                            <X className="size-3.5" />
-                          </Button>
-                        </div>
-                        <div className="col-span-3 text-sm text-muted-foreground">
-                          this recipe isn&apos;t in the current data — re-enable its mod or
-                          re-import to restore it, or remove it
-                        </div>
-                      </div>
-                    )}
-                  </SortableRow>
-                );
-              }
-              return (
-                <SortableRow key={name} id={name}>
-                  {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
-                    <div
-                      className={`${GRID} relative border-t border-border ${grouped ? "border-l-2 border-l-primary/50" : ""} ${neg || isUnused ? "bg-destructive/10" : ""} ${off ? "bg-muted/30" : ""} ${isDragging ? "bg-card shadow-lg" : ""}`}
-                    >
-                      <RecipeHover name={name} className="flex min-w-0 items-center gap-2">
-                        <span
-                          ref={setActivatorNodeRef}
-                          {...attributes}
-                          {...listeners}
-                          title="drag to reorder this recipe"
-                          className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground select-none hover:text-foreground active:cursor-grabbing"
-                        >
-                          <GripVertical className="size-4" />
-                        </span>
-                        <span className={off ? "opacity-40" : undefined}>
-                          <Icon kind="recipe" name={name} size="md" noHover />
-                        </span>
-                        <span
-                          className={`min-w-0 flex-1 ${off ? "opacity-60" : ""}`}
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            setRowMenu({ x: e.clientX, y: e.clientY, name });
-                          }}
-                        >
-                          <span
-                            className={`block truncate ${off ? "line-through" : ""}`}
-                            title={res?.display?.[name] ?? name}
-                          >
-                            {res?.display?.[name] ?? name}
-                          </span>
-                          {off ? (
-                            <span className="text-sm font-semibold text-muted-foreground">
-                              disabled — excluded from the solve
-                            </span>
-                          ) : isUnused ? (
-                            <span className="flex items-center gap-1 text-sm font-semibold text-destructive">
-                              <AlertTriangle className="size-3 shrink-0" /> not made — nothing here
-                              needs it
-                            </span>
-                          ) : row ? (
-                            <span
-                              className={`text-sm ${neg ? "font-semibold text-destructive" : "text-muted-foreground"}`}
-                            >
-                              {neg && (
-                                <AlertTriangle className="mr-0.5 inline size-3 align-text-bottom" />
-                              )}
-                              {neg && "backward "}
-                              {num(row.rate)}/s
-                            </span>
-                          ) : null}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          className={off ? "text-muted-foreground/60" : "text-muted-foreground"}
-                          onClick={() => toggleDisabled(name)}
-                          title={
-                            off
-                              ? "enable — include this recipe in the solve"
-                              : "disable — keep the recipe but exclude it from the solve"
-                          }
-                        >
-                          <Power className="size-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size={confirmRemove === name ? "xs" : "icon-xs"}
-                          className={`shrink-0 hover:text-destructive ${confirmRemove === name ? "font-semibold text-destructive" : "text-muted-foreground"}`}
-                          onClick={() => requestRemove(name)}
-                          title={confirmRemove === name ? "click again to remove" : "remove"}
-                        >
-                          {confirmRemove === name ? (
-                            <span className="whitespace-nowrap">remove?</span>
-                          ) : (
-                            <X className="size-3.5" />
-                          )}
-                        </Button>
-                      </RecipeHover>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <FieldLabel className="w-full md:hidden">Machines</FieldLabel>
-                        {row?.machine ? (
-                          <>
-                            {/* building: icon + count; hover = name/speed, click = picker */}
-                            <button
-                              onClick={() => setPickMachineFor(name)}
-                              title={`${row.machine.display ?? row.machine.name} · ${num(row.machine.craftingSpeed ?? 1)}× speed · click to change building`}
-                              className={cellChip}
-                            >
-                              <Icon kind="entity" name={row.machine.name} size="md" />
-                              <span className="font-semibold text-foreground">
-                                {num(row.machine.count)}
-                              </span>
-                            </button>
-                            {/* electricity, when the machine draws power */}
-                            {row.machine.energySource === "electric" && (
-                              <span
-                                title="electric power draw"
-                                className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-info"
-                              >
-                                <Zap className="size-3.5" /> {fmtW(row.machine.powerW)}
-                              </span>
-                            )}
-                            {row.machine.energySource === "heat" && (
-                              <span
-                                title="heat-powered — fed by an upstream reactor"
-                                className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm"
-                              >
-                                <Flame className="size-3.5" /> heat
-                              </span>
-                            )}
-                            {/* fuel: icon + rate; click = fuel picker */}
-                            {row.fuel && (
-                              <button
-                                onClick={() => setPickFuelFor(name)}
-                                title={`${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s · click to change fuel`}
-                                className={`${cellChip} text-warning`}
-                              >
-                                <Icon
-                                  kind={row.fuel.kind as "item" | "fluid"}
-                                  name={row.fuel.name}
-                                  size="md"
-                                  noTitle
-                                />
-                                <span className="font-semibold">{num(row.fuel.perSec)}</span>
-                              </button>
-                            )}
-                            {/* burnt result (ash, depleted cell): produced 1:1 from burning */}
-                            {row.fuel?.burnt && (
-                              <span
-                                title={`${row.fuel.burnt.display ?? row.fuel.burnt.name} — produced by burning`}
-                                className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-muted-foreground"
-                              >
-                                →<Icon kind="item" name={row.fuel.burnt.name} size="md" noTitle />
-                                <span>{num(row.fuel.burnt.perSec)}</span>
-                              </span>
-                            )}
-                            {/* modules + beacons: configured loadout (or ghost ⊞), click to edit */}
-                            <ModulesChip
-                              modules={row.modules}
-                              beacons={row.beacons}
-                              slots={row.machine.moduleSlots ?? 0}
-                              effects={row.effects}
-                              auto={row.autoModules}
-                              onClick={() => setPickModulesFor(name)}
-                            />
-                            {/* TURD: hidden modules the selected upgrades insert (no slot cost) */}
-                            {row.turdModules.length > 0 && (
-                              <Link
-                                to="/turd"
-                                title={`TURD: ${row.turdModules.map((m) => m.display ?? m.name).join(", ")} — applied by your selected upgrades`}
-                                className="flex items-center gap-1 bg-primary/15 px-1.5 py-1 text-sm text-primary ring-1 ring-primary/40 hover:brightness-110"
-                              >
-                                <FlaskConical className="size-3.5" />
-                                {row.turdModules.map((m) => (
-                                  <Icon key={m.name} kind="item" name={m.name} size="sm" noTitle />
-                                ))}
-                              </Link>
-                            )}
-                          </>
-                        ) : row?.spoil ? (
-                          // Spoil-buffer sizing (#19): no machine — the "cost" of a
-                          // spoiling step is the storage holding items mid-spoil.
-                          <span
-                            title={`spoils in ${fmtSpoilTime(row.spoil.seconds * 60)} — at ${num(row.rate)}/s, ≈${num(row.spoil.buffer)} items sit in storage mid-spoil${row.spoil.stacks != null ? ` (≈${Math.ceil(row.spoil.stacks)} stacks @ ${row.spoil.stackSize}/stack)` : ""}`}
-                            className="flex items-center gap-1.5 bg-muted/50 px-1.5 py-1 text-sm text-warning"
-                          >
-                            <Timer className="size-3.5 shrink-0" />
-                            {fmtSpoilTime(row.spoil.seconds * 60)} · buffer{" "}
-                            {num(Math.ceil(row.spoil.buffer))}
-                            {row.spoil.stacks != null && (
-                              <span className="text-muted-foreground">
-                                ≈ {num(Math.ceil(row.spoil.stacks))} stack
-                                {Math.ceil(row.spoil.stacks) === 1 ? "" : "s"}
-                              </span>
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-x-4 gap-y-3">
-                        <FieldLabel className="w-full md:hidden">Ingredients ↓</FieldLabel>
-                        {row?.ingredients.map((c) => (
-                          <div key={c.name} className="flex flex-col items-start gap-1.5">
-                            <ItemChip
-                              name={c.name}
-                              kind={c.kind}
-                              display={c.display}
-                              rate={c.rate}
-                              link={linkOf(c.name)}
-                              craftable={producible.has(c.name)}
-                              disp={disp[c.name]}
-                              onClick={() => makeFor(c.name)}
-                              onCycleDisp={() => cycleDispFor(c.name)}
-                              onClearDisp={() => setDispFor(c.name, "auto")}
-                              onContext={(e) =>
-                                setCtxMenu({
-                                  x: e.clientX,
-                                  y: e.clientY,
-                                  name: c.name,
-                                  kind: c.kind,
-                                  link: linkOf(c.name),
-                                })
-                              }
-                            />
-                            {logiResolved && c.kind === "item" && (
-                              <LogiTag
-                                resolved={logiResolved}
-                                rate={c.rate}
-                                machineCount={row.machine?.count ?? 0}
-                                showBelts={showBelts}
-                                showInserters={showInserters}
-                                launch={launchInfo(c.name, c.rate)}
-                              />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex flex-wrap gap-x-4 gap-y-3">
-                        <FieldLabel className="w-full md:hidden">Products ↑</FieldLabel>
-                        {row?.products.map((c) => (
-                          <div key={c.name} className="flex flex-col items-start gap-1.5">
-                            <ItemChip
-                              name={c.name}
-                              kind={c.kind}
-                              display={c.display}
-                              rate={c.rate}
-                              link={linkOf(c.name)}
-                              disp={disp[c.name]}
-                              onClick={() => useFor(c.name)}
-                              onCycleDisp={() => cycleDispFor(c.name)}
-                              onClearDisp={() => setDispFor(c.name, "auto")}
-                              onContext={(e) =>
-                                setCtxMenu({
-                                  x: e.clientX,
-                                  y: e.clientY,
-                                  name: c.name,
-                                  kind: c.kind,
-                                  link: linkOf(c.name),
-                                })
-                              }
-                            />
-                            {logiResolved && c.kind === "item" && (
-                              <LogiTag
-                                resolved={logiResolved}
-                                rate={c.rate}
-                                machineCount={row.machine?.count ?? 0}
-                                showBelts={showBelts}
-                                showInserters={showInserters}
-                                launch={launchInfo(c.name, c.rate)}
-                              />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </SortableRow>
-              );
-            })}
-          </SortableContext>
-        </DndContext>
-      </Card>
+      <RecipeGrid
+        doc={doc}
+        blockId={blockId}
+        res={res}
+        unused={unused}
+        linkOf={linkOf}
+        producible={producible}
+        logi={logi}
+        open={{
+          makeFor,
+          useFor,
+          ctxMenu: openCtxMenu,
+          rowMenu: (e, name) => setRowMenu({ x: e.clientX, y: e.clientY, name }),
+          machinePicker: setPickMachineFor,
+          fuelPicker: setPickFuelFor,
+          modulesPicker: setPickModulesFor,
+        }}
+        renamingGroup={renamingGroup}
+        onRenamingGroupChange={setRenamingGroup}
+      />
 
       {/* Goal-item picker — add a new goal, or change an existing goal's item. */}
       {goalPicker && (
