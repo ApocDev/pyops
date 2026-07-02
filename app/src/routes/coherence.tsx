@@ -11,6 +11,14 @@ import {
 import { HelpButton } from "../components/help-drawer";
 import { Icon, IconProvider } from "../lib/icons";
 import { ItemHover } from "../lib/recipe-card";
+import { Badge } from "#/components/ui/badge.tsx";
+import { Button } from "#/components/ui/button.tsx";
+import { Callout } from "#/components/ui/callout.tsx";
+import { Input } from "#/components/ui/input.tsx";
+import { FieldLabel } from "#/components/ui/label.tsx";
+import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { EmptyState } from "#/components/empty-state.tsx";
+import { PageHeader } from "#/components/page-header.tsx";
 
 export const Route = createFileRoute("/coherence")({
   component: () => (
@@ -67,94 +75,110 @@ function CoherencePage() {
 
   return (
     <div className="p-4 font-mono text-foreground">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-bold">Coherence</h1>
-        <span className="text-sm text-muted-foreground">
-          {links.length} link{links.length === 1 ? "" : "s"}
-          {shorts > 0 && <span className="text-destructive"> · {shorts} short</span>}
-        </span>
-        <Link
-          to="/factory"
-          className="rounded border border-border px-2 py-1 text-sm text-primary hover:bg-muted"
-          title="The aggregate per-item totals (this is the block-to-block wiring)"
-        >
-          totals →
-        </Link>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="filter goods…"
-          className="h-8 w-64 rounded border border-border bg-background px-2 text-sm outline-none focus:border-primary"
-        />
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={recomputeAll}
-            disabled={recomputing}
-            title="Recompute all blocks — re-solve every block and refresh its cached flows"
-            className="flex size-7 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
-          >
-            <RefreshCw className={`size-4 ${recomputing ? "animate-spin" : ""}`} />
-          </button>
-          <HelpButton title="What is Coherence?">
-            <p>
-              Coherence shows your factory as{" "}
-              <span className="text-foreground">block-to-block wiring</span> — every good one block
-              makes and another block consumes, on the actual edge between them.
-            </p>
-            <p>
-              <span className="text-foreground">Why it&apos;s separate from Factory.</span> The
-              Factory page sums each block&apos;s output per item, which can <em>hide</em> a real
-              problem: if block A overproduces iron by +5 and block B is 5 short, the totals cancel
-              to &quot;balanced <Check className="inline size-3.5" />
-              &quot; — but the wiring is broken (B is starved, A backs up). Coherence shows each
-              edge, so those canceling mismatches surface.
-            </p>
-            <div>
-              <div className="font-semibold text-foreground">The groups</div>
-              <ul className="mt-1 list-disc space-y-1 pl-5">
-                <li>
-                  <span className="text-destructive">Short</span> — a block isn&apos;t getting
-                  enough of this good. Scale its producer up.
-                </li>
-                <li>
-                  <span className="text-violet-300">Overproduced</span> — more is made than used
-                  internally. Route the extra or it backs up.
-                </li>
-                <li>
-                  <span className="text-emerald-300">Balanced</span> — producers meet consumers;
-                  nothing to do (collapsed by default).
-                </li>
-                <li>
-                  <span className="text-foreground">Unsourced imports</span> — consumed but nothing
-                  makes them: supply a raw, or build a block.
-                </li>
-                <li>
-                  <span className="text-foreground">Surplus / outputs</span> — produced but nothing
-                  consumes them: a final product, or waste to route.
-                </li>
-              </ul>
-            </div>
-            <p>
-              <span className="text-foreground">Scale up.</span> On a short good, &quot;scale
-              up&quot; opens a planner — pick which producer block grows, set a new target rate,
-              preview the buildings, power and inputs it&apos;ll need, then apply.
-            </p>
-            <p>
-              Sides with many blocks (a heavy hitter like stone or electricity) collapse to a count
-              — click <span className="text-foreground">N blocks</span> to expand.
-            </p>
-          </HelpButton>
+      <PageHeader
+        title="Coherence"
+        description={
+          <>
+            {links.length} link{links.length === 1 ? "" : "s"}
+            {shorts > 0 && <span className="text-destructive"> · {shorts} short</span>}
+          </>
+        }
+        actions={
+          <>
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              title="The aggregate per-item totals (this is the block-to-block wiring)"
+            >
+              <Link to="/factory">totals →</Link>
+            </Button>
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="filter goods…"
+              className="w-64"
+            />
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={recomputeAll}
+              disabled={recomputing}
+              title="Recompute all blocks — re-solve every block and refresh its cached flows"
+            >
+              <RefreshCw className={recomputing ? "animate-spin" : ""} />
+            </Button>
+            <HelpButton title="What is Coherence?">
+              <p>
+                Coherence shows your factory as{" "}
+                <span className="text-foreground">block-to-block wiring</span> — every good one
+                block makes and another block consumes, on the actual edge between them.
+              </p>
+              <p>
+                <span className="text-foreground">Why it&apos;s separate from Factory.</span> The
+                Factory page sums each block&apos;s output per item, which can <em>hide</em> a real
+                problem: if block A overproduces iron by +5 and block B is 5 short, the totals
+                cancel to &quot;balanced <Check className="inline size-3.5" />
+                &quot; — but the wiring is broken (B is starved, A backs up). Coherence shows each
+                edge, so those canceling mismatches surface.
+              </p>
+              <div>
+                <div className="font-semibold text-foreground">The groups</div>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  <li>
+                    <span className="text-destructive">Short</span> — a block isn&apos;t getting
+                    enough of this good. Scale its producer up.
+                  </li>
+                  <li>
+                    <span className="text-surplus">Overproduced</span> — more is made than used
+                    internally. Route the extra or it backs up.
+                  </li>
+                  <li>
+                    <span className="text-success">Balanced</span> — producers meet consumers;
+                    nothing to do (collapsed by default).
+                  </li>
+                  <li>
+                    <span className="text-foreground">Unsourced imports</span> — consumed but
+                    nothing makes them: supply a raw, or build a block.
+                  </li>
+                  <li>
+                    <span className="text-foreground">Surplus / outputs</span> — produced but
+                    nothing consumes them: a final product, or waste to route.
+                  </li>
+                </ul>
+              </div>
+              <p>
+                <span className="text-foreground">Scale up.</span> On a short good, &quot;scale
+                up&quot; opens a planner — pick which producer block grows, set a new target rate,
+                preview the buildings, power and inputs it&apos;ll need, then apply.
+              </p>
+              <p>
+                Sides with many blocks (a heavy hitter like stone or electricity) collapse to a
+                count — click <span className="text-foreground">N blocks</span> to expand.
+              </p>
+            </HelpButton>
+          </>
+        }
+      />
+
+      {data.isLoading && (
+        <div className="space-y-4">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
         </div>
-      </div>
+      )}
 
       {(data.data?.links.length ?? 0) === 0 && !data.isLoading && (
-        <div className="text-muted-foreground">
-          no block-to-block links yet —{" "}
-          <Link to="/block" className="text-primary underline">
-            build some blocks
-          </Link>{" "}
-          that feed each other.
-        </div>
+        <EmptyState
+          title="No block-to-block links yet"
+          description="Build some blocks that feed each other and their wiring appears here."
+          action={
+            <Button asChild variant="outline" size="sm">
+              <Link to="/block">build some blocks</Link>
+            </Button>
+          }
+        />
       )}
 
       {/* Problem-first: shorts (the point of the view) on top, balanced last. */}
@@ -180,10 +204,10 @@ function CoherencePage() {
       )}
       {balancedLinks.length > 0 && (
         <details className="mb-5">
-          <summary className="cursor-pointer rounded border border-border bg-card px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
+          <summary className="cursor-pointer border border-border bg-card px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
             Balanced ({balancedLinks.length}) — producers meet consumers, nothing to do
           </summary>
-          <div className="mt-2 divide-y divide-border rounded border border-border">
+          <div className="mt-2 divide-y divide-border border border-border">
             {balancedLinks.map((l) => (
               <LinkRow key={l.good} l={l} onScale={() => setScaling(l)} />
             ))}
@@ -237,10 +261,10 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-5 rounded border border-border">
+    <div className="mb-5 border border-border">
       <div className="flex items-baseline justify-between border-b border-border bg-card px-3 py-2">
         <span className="text-sm font-semibold">{title}</span>
-        <span className="text-xs text-muted-foreground">{hint}</span>
+        <span className="text-sm text-muted-foreground">{hint}</span>
       </div>
       <div className="divide-y divide-border">{children}</div>
     </div>
@@ -253,10 +277,10 @@ function Good({ good, display, kind }: { good: string; display: string | null; k
     <ItemHover
       name={good}
       kind={kind as "item" | "fluid"}
-      className="inline-flex items-center gap-1.5"
+      className="flex max-w-full min-w-0 items-center gap-1.5"
     >
       <Icon kind={kind as "item" | "fluid"} name={good} size="sm" noHover />
-      <span className="truncate">{display ?? good}</span>
+      <span className="min-w-0 truncate">{display ?? good}</span>
     </ItemHover>
   );
 }
@@ -267,21 +291,21 @@ function BlockEnd({ b, tone }: { b: End; tone: "make" | "use" }) {
     <Link
       to="/block/$id"
       params={{ id: String(b.blockId) }}
-      className="inline-flex items-center gap-1 rounded bg-muted/50 px-1.5 py-0.5 text-sm hover:bg-muted"
+      className="inline-flex items-center gap-1 bg-muted/50 px-1.5 py-0.5 text-sm hover:bg-muted"
       title={`${b.blockName} · ${b.role}`}
     >
       <span className="max-w-[17rem] truncate md:max-w-[10rem]">{b.blockName}</span>
-      <span className={tone === "make" ? "text-emerald-300" : "text-amber-300"}>{num(b.rate)}</span>
-      {b.role === "byproduct" && <Recycle className="size-3.5 text-violet-300/80" />}
+      <span className={tone === "make" ? "text-success" : "text-warning"}>{num(b.rate)}</span>
+      {b.role === "byproduct" && <Recycle className="size-3.5 text-surplus/80" />}
     </Link>
   );
 }
 
 function Balance({ net }: { net: number }) {
-  const base = "shrink-0 rounded px-1.5 py-0.5 whitespace-nowrap";
+  const base = "shrink-0 px-1.5 py-0.5 whitespace-nowrap";
   if (Math.abs(net) <= 1e-6)
     return (
-      <span className={`${base} inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-300`}>
+      <span className={`${base} inline-flex items-center gap-1 bg-success/15 text-success`}>
         <Check className="size-3.5" /> balanced
       </span>
     );
@@ -289,7 +313,7 @@ function Balance({ net }: { net: number }) {
     return (
       <span className={`${base} bg-destructive/20 text-destructive`}>short {num(-net)}/s</span>
     );
-  return <span className={`${base} bg-violet-500/15 text-violet-300`}>+{num(net)}/s</span>;
+  return <span className={`${base} bg-surplus/15 text-surplus`}>+{num(net)}/s</span>;
 }
 
 // Past this many blocks on one side, collapse to a count (a heavy hitter like stone
@@ -313,24 +337,31 @@ function Ends({
   const collapsed = ends.length > MANY_ENDS && !open;
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
       {collapsed ? (
-        <button
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={() => setOpen(true)}
           title="Show the blocks"
-          className="rounded bg-muted/50 px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="bg-muted/50 text-muted-foreground"
         >
           {ends.length} blocks
-        </button>
+        </Button>
       ) : (
         ends.map((b) => <BlockEnd key={`${b.blockId}-${b.role}`} b={b} tone={tone} />)
       )}
       {ends.length > MANY_ENDS && open && (
-        <button onClick={() => setOpen(false)} className="text-xs text-muted-foreground underline">
+        <Button
+          variant="link"
+          size="xs"
+          onClick={() => setOpen(false)}
+          className="text-muted-foreground"
+        >
           less
-        </button>
+        </Button>
       )}
-      <span className="text-xs text-muted-foreground">= {num(total)}/s</span>
+      <span className="text-sm text-muted-foreground">= {num(total)}/s</span>
     </span>
   );
 }
@@ -355,13 +386,15 @@ function LinkRow({ l, onScale }: { l: Link; onScale: () => void }) {
         <Ends ends={l.consumers} total={l.consumed} tone="use" label="used by" />
       </div>
       {short && (
-        <button
+        <Button
+          variant="outline"
+          size="xs"
           onClick={onScale}
           title="Plan scaling a producer block up to meet demand"
-          className="shrink-0 rounded border border-primary/50 px-1.5 py-0.5 text-xs text-primary hover:bg-primary/10"
+          className="shrink-0 border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
         >
           ⤢ scale up
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -374,18 +407,14 @@ function OrphanRow({ l, mode }: { l: Link; mode: "unsourced" | "surplus" }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
       <Good good={l.good} display={l.display} kind={l.kind} />
-      <span className={mode === "unsourced" ? "text-amber-300" : "text-violet-300"}>
-        {num(total)}/s
-      </span>
+      <span className={mode === "unsourced" ? "text-warning" : "text-surplus"}>{num(total)}/s</span>
       {mode === "unsourced" &&
         (l.craftable ? (
-          <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-xs text-sky-300">
+          <Badge className="border-transparent bg-info/15 text-info">
             buildable — make a block
-          </span>
+          </Badge>
         ) : (
-          <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-            raw / import
-          </span>
+          <Badge>raw / import</Badge>
         ))}
       <span className="text-muted-foreground">{mode === "unsourced" ? "used by" : "made by"}</span>
       {ends.map((b) => (
@@ -453,7 +482,7 @@ function ScalePlanDrawer({
   const Delta = ({ from, to }: { from: number; to: number }) => {
     const d = to - from;
     return (
-      <span className={d > 1e-6 ? "text-emerald-300" : d < -1e-6 ? "text-destructive" : ""}>
+      <span className={d > 1e-6 ? "text-success" : d < -1e-6 ? "text-destructive" : ""}>
         {num(from)} → {num(to)}{" "}
         {Math.abs(d) > 1e-6 && (
           <span className="text-muted-foreground">
@@ -481,23 +510,18 @@ function ScalePlanDrawer({
           />
           <div className="min-w-0 flex-1">
             <div className="truncate font-semibold">Scale up to demand</div>
-            <div className="truncate text-xs text-muted-foreground">
+            <div className="truncate text-sm text-muted-foreground">
               {link.display ?? link.good} · short {num(shortfall)}/s · demand {num(link.consumed)}/s
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <X className="size-4" />
-          </button>
+          <Button variant="ghost" size="icon-sm" onClick={onClose}>
+            <X />
+          </Button>
         </div>
 
         <div className="flex-1 overflow-auto p-3">
           {/* pick which producer block grows */}
-          <div className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Which block grows?
-          </div>
+          <FieldLabel className="mb-1">Which block grows?</FieldLabel>
           {producers.length === 0 ? (
             <div className="text-sm text-muted-foreground/70 italic">
               only byproduct sources make this — scale the block whose primary it is instead.
@@ -505,18 +529,16 @@ function ScalePlanDrawer({
           ) : (
             <div className="flex flex-col gap-1">
               {producers.map((b) => (
-                <button
+                <Button
                   key={b.blockId}
+                  variant="toggle"
+                  aria-pressed={selId === b.blockId}
                   onClick={() => pick(b.blockId)}
-                  className={`flex items-center gap-2 rounded border px-2 py-1.5 text-left text-sm ${
-                    selId === b.blockId
-                      ? "border-primary bg-primary/10"
-                      : "border-border hover:bg-muted"
-                  }`}
+                  className="h-auto w-full justify-start gap-2 px-2 py-1.5 text-left"
                 >
                   <span className="min-w-0 flex-1 truncate">{b.blockName}</span>
-                  <span className="text-emerald-300">{num(b.rate)}/s</span>
-                </button>
+                  <span className="text-success">{num(b.rate)}/s</span>
+                </Button>
               ))}
             </div>
           )}
@@ -524,27 +546,31 @@ function ScalePlanDrawer({
           {selId != null && (
             <>
               <div className="mt-4 mb-1 flex items-center gap-2">
-                <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  New target
-                </span>
-                <input
+                <FieldLabel>New target</FieldLabel>
+                <Input
                   value={rateStr}
                   onChange={(e) => setRateStr(e.target.value)}
                   onBlur={commitRate}
                   onKeyDown={(e) => e.key === "Enter" && commitRate()}
                   inputMode="decimal"
-                  className="h-7 w-24 rounded border border-border bg-background px-2 text-sm outline-none focus:border-primary"
+                  className="w-24"
                 />
                 <span className="text-sm text-muted-foreground">
                   /s {p && <>(was {num(p.block.currentRate)})</>}
                 </span>
               </div>
 
-              {plan.isLoading && <div className="text-sm text-muted-foreground">solving…</div>}
-              {p && p.status !== "solved" && p.status !== "relaxed" && (
-                <div className="mb-2 rounded bg-destructive/15 px-2 py-1 text-sm text-destructive">
-                  {p.message ?? "this rate doesn't solve cleanly"}
+              {plan.isLoading && (
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-5 w-4/5" />
+                  <Skeleton className="h-5 w-3/5" />
                 </div>
+              )}
+              {p && p.status !== "solved" && p.status !== "relaxed" && (
+                <Callout tone="destructive" className="mb-2">
+                  {p.message ?? "this rate doesn't solve cleanly"}
+                </Callout>
               )}
 
               {p && (
@@ -566,7 +592,7 @@ function ScalePlanDrawer({
                       </div>
                     ))}
                     {p.rows.some((r) => r.modules.length || r.beaconCount > 0) && (
-                      <div className="mt-1 text-xs text-muted-foreground">
+                      <div className="mt-1 text-sm text-muted-foreground">
                         modules/beacons per machine are unchanged — tune them in the block editor to
                         cut building count.
                       </div>
@@ -626,13 +652,13 @@ function ScalePlanDrawer({
         </div>
 
         <div className="border-t border-border p-3">
-          <button
+          <Button
+            className="w-full"
             onClick={apply}
             disabled={selId == null || applying || rate <= 0}
-            className="w-full rounded bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/80 disabled:opacity-60"
           >
             {applying ? "applying…" : `Apply — set to ${num(rate)}/s`}
-          </button>
+          </Button>
         </div>
       </aside>
     </div>
@@ -642,10 +668,8 @@ function ScalePlanDrawer({
 function PlanSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-        {title}
-      </div>
-      <div className="rounded border border-border px-2 py-1">{children}</div>
+      <FieldLabel className="mb-1">{title}</FieldLabel>
+      <div className="border border-border px-2 py-1">{children}</div>
     </div>
   );
 }
