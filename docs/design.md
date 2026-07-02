@@ -98,6 +98,9 @@ Reach for these before writing markup:
 | Text/number entry | `Input`, `Textarea` (`text-base` on mobile so iOS doesn't zoom, `md:text-sm` on desktop). |
 | Choose-one | `Select` (Radix). |
 | Status chip / count | `Badge` — semantic tint via `className` (e.g. `bg-warning/15 text-warning border-transparent`). |
+| Status message / banner | `Callout` (`ui/callout.tsx`) — `tone` success/warning/info/destructive/primary, default icon per tone, optional `title`/`action`; `variant="strip"` for full-bleed rows inside cards. |
+| Segmented choice / on-off toggle | `Button variant="toggle"` with `aria-pressed` — active state styles itself from the aria attribute. |
+| Micro caption over a field group | `FieldLabel` (`ui/label.tsx`) — the uppercase muted eyebrow; `Label` stays the `text-sm` form label. |
 | Panel with a title | `Card` + `CardHeader`/`CardTitle`/`CardContent`. |
 | Confirmation / focused edit | `Dialog` (`ui/dialog.tsx`) — centered modal at `md+`, docks to the bottom as a sheet below. Never a bare centered modal on phones. |
 | Slide-over / drawer / collapsed rail | `Sheet`. |
