@@ -1,0 +1,25 @@
+app/src/components/bridge-indicator.test.tsx
+  s_52a96ee17745bd::t_fa4466e6b23ac6 55,82
+app/src/components/bridge-indicator.tsx
+  s_52a96ee17745bd::t_e8f6c656fac139 43,49
+app/src/components/drift-changes.tsx
+  s_52a96ee17745bd::t_cfe9b7b17592a3 5,35,39-40,46,57
+app/src/lib/icons.tsx
+  s_52a96ee17745bd::t_36845ccd69b5e0 197,214,250
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "8c5136eab8516ff004581bf72e307dbf46cea067",
+  "prompts": {},
+  "sessions": {
+    "s_52a96ee17745bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d11f1513-7c74-4dfd-bf22-726492f6cc19",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
