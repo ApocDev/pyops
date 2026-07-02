@@ -144,6 +144,10 @@ body,
 html {
   color-scheme: dark; /* native controls + scrollbars render dark */
   font-family: var(--font-mono);
+  /* Themed scrollbars: thin, muted thumb on a transparent track — Chromium's
+     stock grey glows against the dark theme. Inherits to every scrollable. */
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--muted-foreground) 30%, transparent) transparent;
 }
 body {
   background-color: var(--background);
