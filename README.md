@@ -127,6 +127,13 @@ rates aren't chained to per-second either: click a goal's unit to cycle `/s → 
 /h` and enter science as `10/min` or a slow bootstrap as `0.5/h` — the unit sticks per
 goal, while the solver keeps working in per-second underneath.
 
+Not everything is a throughput target. Right-click a goal and choose **Keep in stock**
+to turn it into a buffer goal — "keep 100 on hand" — with a refill window (default
+10 min, click to cycle): the machines are sized to rebuild the buffer within the
+window instead of chasing a made-up trickle rate. Stock production still counts in the
+factory ledger, marked with a small **↻ stock** badge so refill demands read apart
+from continuous throughput.
+
 ![Block editor — the Basic substrate bio-chain, solved with byproducts](docs/images/block-editor.png)
 
 The **AI assistant** drafts a whole block from a goal: it resolves the chain, cuts

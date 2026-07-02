@@ -9,7 +9,12 @@ Code: `app/src/solver/` (`block.ts`, `linalg.ts`), with effect aggregation in
 A block is a set of declared output **goals** + a set of chosen recipes + per-item
 dispositions. Each goal has a **target rate** — stored per-second always; a goal's
 optional `unit` (`s`/`min`/`h`) is purely the display/input window the editor converts
-at (#10), so the solver never sees units — and becomes a solver equation — the
+at (#10), so the solver never sees units. A **stock goal** (#38, `stock` + `window` on
+the goal) means "keep N on hand": its rate is derived (`stock / window`, default
+10 min), so the solver still sees an ordinary per-second target — the machines are
+sized to rebuild the buffer within the window — while its cached boundary flow gets
+role `"stock"` so the factory ledger can badge refill demands apart from continuous
+throughput. Each goal becomes a solver equation — the
 block is sized so that good comes out at exactly that rate; `goals[0]` names the
 block, anchors the rate-scaling tools, and is the default icon (the block editor can
 override the icon with any item/fluid, stored as `icon` in the block doc). A good you
