@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { type BlockWithFlows, factoryWhatIf } from "./factory-solve.ts";
+import { type BlockWithFlows, factoryWhatIf } from "./factory-solve.server.ts";
 
 // A minimal 2-block factory: a "plates" block feeds a "gears" block.
 //  - ore   : only consumed → raw

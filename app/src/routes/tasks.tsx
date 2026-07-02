@@ -55,7 +55,7 @@ import type {
   TaskNode,
   TaskPriority,
   TaskStatus,
-} from "#/db/tasks.ts";
+} from "#/db/tasks.server.ts";
 
 /** Advisory-priority badge styling, lowest→highest. */
 const PRIORITY_META: Record<TaskPriority, { label: string; cls: string }> = {

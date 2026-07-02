@@ -23,14 +23,14 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { eq, sql } from "drizzle-orm";
 
-import { currentDatabaseFile, db } from "../db/index.ts";
+import { currentDatabaseFile, db } from "../db/index.server.ts";
 import { importFactorioDump } from "../db/import-factorio.ts";
-import * as q from "../db/queries.ts";
+import * as q from "../db/queries.server.ts";
 import { meta } from "../db/schema.ts";
-import { computeCostAnalysis } from "./cost-analysis.ts";
+import { computeCostAnalysis } from "./cost-analysis.server.ts";
 import { buildIconAtlas } from "./icon-atlas.ts";
 import { applyRenames, readModMigrations } from "./migrations.ts";
-import { ICON_DATA_DIR } from "./paths.ts";
+import { ICON_DATA_DIR } from "./paths.server.ts";
 
 export const FACTORIO_BIN =
   process.env.FACTORIO_BIN ??

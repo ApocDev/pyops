@@ -1,4 +1,4 @@
-import type { SyncPhase } from "../server/dump.ts";
+import type { SyncPhase } from "../server/dump.server.ts";
 
 /** A user-facing step in the guided dump flow. `iconsOnly` steps appear only when
  * the user opted to re-dump icon sprites (that stage loads the full game). */

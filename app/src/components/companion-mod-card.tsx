@@ -5,7 +5,7 @@ import {
   installCompanionFn,
   uninstallCompanionFn,
 } from "../server/companion-mod-fns";
-import type { CompanionPlatform, InstallMethod } from "../server/companion-mod";
+import type { CompanionPlatform, InstallMethod } from "../server/companion-mod.server.ts";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";

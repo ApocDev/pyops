@@ -15,7 +15,7 @@
  */
 import { spawn } from "node:child_process";
 import dgram from "node:dgram";
-import { FACTORIO_BIN, factorioRunning } from "./dump.ts";
+import { FACTORIO_BIN, factorioRunning } from "./dump.server.ts";
 
 const STEAM_APP_ID = "427520";
 

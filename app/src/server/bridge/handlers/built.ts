@@ -7,8 +7,7 @@
  * reported against reality.
  */
 import type { BridgeRequest, BridgeResponse } from "../protocol.ts";
-
-const lib = () => import("../../../db/queries.ts");
+import * as q from "../../../db/queries.server.ts";
 
 export async function handleBuilt(req: BridgeRequest): Promise<BridgeResponse | null> {
   const payload = (req.payload ?? {}) as { machines?: unknown };
@@ -27,7 +26,6 @@ export async function handleBuilt(req: BridgeRequest): Promise<BridgeResponse | 
     }
   }
 
-  const q = await lib();
   const res = q.setBuiltMachines(entries);
   q.metaSet("built_synced_at", new Date().toISOString());
   q.metaSet("built_synced_count", String(res.total));

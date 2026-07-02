@@ -26,7 +26,7 @@ Supporting multiple instances / multiple open projects is tracked in
 
 ## Where data lives
 
-All on-disk state resolves through a single **data dir** (`app/src/server/paths.ts`):
+All on-disk state resolves through a single **data dir** (`app/src/server/paths.server.ts`):
 project databases (`projects/`), the icon atlas (`icon-data/`), and `app-config.json`.
 
 - **Dev** — the working directory (`app/`), so it shares your dev data.

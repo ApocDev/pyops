@@ -1,27 +1,30 @@
 /**
  * Server functions for tasks & notes. Thin wrappers over the db/tasks query
- * layer, scoped to the active project. Dynamic import keeps better-sqlite3 out of
- * the client bundle that imports these.
+ * layer, scoped to the active project. Server-only modules are referenced only
+ * inside `.handler()` bodies, so they never reach the client bundle.
  */
 import { createServerFn } from "@tanstack/react-start";
 
-import type { RefKind } from "../db/tasks.ts";
+import type { RefKind } from "../db/tasks.server.ts";
 
-const store = () => import("../db/tasks.ts");
+// Server-only modules, top-level: referenced only inside `.handler()` bodies,
+// so the Start compiler prunes them from the client bundle with the handlers.
+import { generateText } from "ai";
+import * as store from "../db/tasks.server.ts";
+import { resolveApiKey } from "./app-config.server.ts";
+import { getModel, reasoningProviderOptions } from "./agent.ts";
 
 /* ── tasks ──────────────────────────────────────────────────────────────────── */
 
-export const listTasksFn = createServerFn({ method: "GET" }).handler(async () =>
-  (await store()).listTasks(),
-);
+export const listTasksFn = createServerFn({ method: "GET" }).handler(async () => store.listTasks());
 
 export const getTaskFn = createServerFn({ method: "GET" })
   .validator((id: number) => id)
-  .handler(async ({ data }) => (await store()).getTask(data));
+  .handler(async ({ data }) => store.getTask(data));
 
 export const createTaskFn = createServerFn({ method: "POST" })
   .validator((d: { parentId?: number | null; title?: string }) => d)
-  .handler(async ({ data }) => ({ id: (await store()).createTask(data) }));
+  .handler(async ({ data }) => ({ id: store.createTask(data) }));
 
 export const updateTaskFn = createServerFn({ method: "POST" })
   .validator(
@@ -36,14 +39,14 @@ export const updateTaskFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { id, ...patch } = data;
-    (await store()).updateTask(id, patch);
+    store.updateTask(id, patch);
     return { ok: true };
   });
 
 export const deleteTaskFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => {
-    (await store()).deleteTask(data);
+    store.deleteTask(data);
     return { ok: true };
   });
 
@@ -51,11 +54,9 @@ export const deleteTaskFn = createServerFn({ method: "POST" })
  * Recomputable — a re-run can demote tasks whose context changed. No-op without
  * an OpenRouter key. */
 export const prioritizeTasksFn = createServerFn({ method: "POST" }).handler(async () => {
-  const t = await store();
-  const input = t.prioritizationInput();
+  const input = store.prioritizationInput();
   if (!input.length) return { ok: true as const, count: 0 };
 
-  const { resolveApiKey } = await import("./app-config.ts");
   if (!resolveApiKey().key) {
     return { ok: false as const, error: "No OpenRouter API key configured (set one in Settings)." };
   }
@@ -63,8 +64,6 @@ export const prioritizeTasksFn = createServerFn({ method: "POST" }).handler(asyn
     // generateText + JSON parse (not generateObject) — structured-output mode is
     // flaky across OpenRouter models (some hang/retry); plain text + a strict JSON
     // instruction works with any chat model, like the title-generation path.
-    const { generateText } = await import("ai");
-    const { getModel, reasoningProviderOptions } = await import("./agent.ts");
     const lines = input.map((i) => {
       const parent = i.parentTitle ? ` [under "${i.parentTitle}"]` : "";
       const links = i.links.length ? ` [refs: ${i.links.join(", ")}]` : "";
@@ -91,7 +90,7 @@ export const prioritizeTasksFn = createServerFn({ method: "POST" }).handler(asyn
     const valid = new Set(input.map((i) => i.id));
     const rankings = (parsed.rankings ?? []).filter((r) => valid.has(r.id));
     if (!rankings.length) return { ok: false as const, error: "model returned no rankings" };
-    t.setPriorities(
+    store.setPriorities(
       rankings.map((r) => ({ id: r.id, priority: r.priority, reason: r.reason ?? null })),
     );
     return { ok: true as const, count: rankings.length };
@@ -106,11 +105,9 @@ export const prioritizeTasksFn = createServerFn({ method: "POST" }).handler(asyn
 export const enrichTaskFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => {
-    const t = await store();
-    const task = t.getTask(data);
+    const task = store.getTask(data);
     if (!task) return { ok: false as const, error: "no such task" };
 
-    const { resolveApiKey } = await import("./app-config.ts");
     if (!resolveApiKey().key) {
       return {
         ok: false as const,
@@ -118,8 +115,6 @@ export const enrichTaskFn = createServerFn({ method: "POST" })
       };
     }
     try {
-      const { generateText } = await import("ai");
-      const { getModel, reasoningProviderOptions } = await import("./agent.ts");
       const links = task.links.map((l) => `${l.kind}:${l.display}`).join(", ");
       const { text } = await generateText({
         model: getModel(),
@@ -140,7 +135,7 @@ export const enrichTaskFn = createServerFn({ method: "POST" })
       const title = typeof parsed.title === "string" ? parsed.title.trim() : "";
       const body = typeof parsed.body === "string" ? parsed.body : "";
       if (!title && !body) return { ok: false as const, error: "model returned nothing usable" };
-      t.updateTask(data, { title: title || task.title, body: body || task.body });
+      store.updateTask(data, { title: title || task.title, body: body || task.body });
       return { ok: true as const, title: title || task.title };
     } catch (e) {
       return { ok: false as const, error: e instanceof Error ? e.message : "enrichment failed" };
@@ -161,20 +156,20 @@ function extractJsonObject(text: string): string {
 
 export const addStepFn = createServerFn({ method: "POST" })
   .validator((d: { taskId: number; text: string }) => d)
-  .handler(async ({ data }) => ({ id: (await store()).addStep(data.taskId, data.text) }));
+  .handler(async ({ data }) => ({ id: store.addStep(data.taskId, data.text) }));
 
 export const updateStepFn = createServerFn({ method: "POST" })
   .validator((d: { id: number; text?: string; done?: boolean }) => d)
   .handler(async ({ data }) => {
     const { id, ...patch } = data;
-    (await store()).updateStep(id, patch);
+    store.updateStep(id, patch);
     return { ok: true };
   });
 
 export const deleteStepFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => {
-    (await store()).deleteStep(data);
+    store.deleteStep(data);
     return { ok: true };
   });
 
@@ -182,47 +177,45 @@ export const deleteStepFn = createServerFn({ method: "POST" })
 
 export const searchLinkTargetsFn = createServerFn({ method: "GET" })
   .validator((query: string) => query)
-  .handler(async ({ data }) => (await store()).searchLinkTargets(data));
+  .handler(async ({ data }) => store.searchLinkTargets(data));
 
 export const addLinkFn = createServerFn({ method: "POST" })
   .validator((d: { taskId: number; kind: RefKind; refName: string }) => d)
   .handler(async ({ data }) => ({
-    id: (await store()).addLink(data.taskId, data.kind, data.refName),
+    id: store.addLink(data.taskId, data.kind, data.refName),
   }));
 
 export const removeLinkFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => {
-    (await store()).removeLink(data);
+    store.removeLink(data);
     return { ok: true };
   });
 
 /** Reverse lookup: tasks that link to a given block (block-page view). */
 export const tasksForBlockFn = createServerFn({ method: "GET" })
   .validator((blockId: number) => blockId)
-  .handler(async ({ data }) => (await store()).tasksForBlock(data));
+  .handler(async ({ data }) => store.tasksForBlock(data));
 
 /* ── notes ──────────────────────────────────────────────────────────────────── */
 
-export const listNotesFn = createServerFn({ method: "GET" }).handler(async () =>
-  (await store()).listNotes(),
-);
+export const listNotesFn = createServerFn({ method: "GET" }).handler(async () => store.listNotes());
 
 export const createNoteFn = createServerFn({ method: "POST" })
   .validator((d: { title?: string; body?: string }) => d)
-  .handler(async ({ data }) => ({ id: (await store()).createNote(data) }));
+  .handler(async ({ data }) => ({ id: store.createNote(data) }));
 
 export const updateNoteFn = createServerFn({ method: "POST" })
   .validator((d: { id: number; title?: string | null; body?: string | null }) => d)
   .handler(async ({ data }) => {
     const { id, ...patch } = data;
-    (await store()).updateNote(id, patch);
+    store.updateNote(id, patch);
     return { ok: true };
   });
 
 export const deleteNoteFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => {
-    (await store()).deleteNote(data);
+    store.deleteNote(data);
     return { ok: true };
   });

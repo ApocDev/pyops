@@ -1,9 +1,9 @@
 import { generateId, generateText } from "ai";
 
-import type { StoredMessage } from "../db/conversations.ts";
+import type { StoredMessage } from "../db/conversations.server.ts";
 import { ensureModelsLoaded, modelContextWindow } from "./openrouter-models.ts";
 import { getModel, reasoningProviderOptions } from "./agent.ts";
-import { resolveApiKey, resolveModel } from "./app-config.ts";
+import { resolveApiKey, resolveModel } from "./app-config.server.ts";
 
 const TRIGGER_RATIO = 0.75;
 const TARGET_RATIO = 0.55;

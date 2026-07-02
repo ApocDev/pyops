@@ -6,15 +6,14 @@
  * dynamically imported so the route file stays client-bundle-safe.
  */
 import { createFileRoute } from "@tanstack/react-router";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { ICON_DATA_DIR } from "#/server/paths.server.ts";
 
 export const Route = createFileRoute("/icons/$")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const fs = await import("node:fs/promises");
-        const path = await import("node:path");
-        const { ICON_DATA_DIR } = await import("#/server/paths.ts");
-
         const url = new URL(request.url);
         const rel = decodeURIComponent(url.pathname.replace(/^\/icons\//, ""));
         const file = path.join(ICON_DATA_DIR, path.normalize(rel));

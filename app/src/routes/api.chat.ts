@@ -8,8 +8,10 @@ import {
   getModel,
   reasoningProviderOptions,
 } from "#/server/agent.ts";
-import { resolveApiKey } from "#/server/app-config.ts";
-import { generateConversationTitle } from "#/server/conversations.ts";
+import { resolveApiKey } from "#/server/app-config.server.ts";
+import { generateConversationTitle } from "#/server/conversation-title.server.ts";
+import * as conv from "#/db/conversations.server.ts";
+import * as q from "#/db/queries.server.ts";
 import {
   finishAssistantRun,
   recordAssistantStream,
@@ -54,7 +56,6 @@ export const Route = createFileRoute("/api/chat")({
         let messages = body.messages ?? [];
         if (!id) return new Response("Missing chat id.", { status: 400 });
 
-        const conv = await import("#/db/conversations.ts");
         conv.saveConversation(id, toStored(messages));
         let conversation = conv.getConversation(id);
         if (conversation) {
@@ -75,7 +76,6 @@ export const Route = createFileRoute("/api/chat")({
         const { streamId, abortSignal } = startAssistantRun(id);
 
         // Inject the current planning horizon so the agent honours now/future mode.
-        const q = await import("#/db/queries.ts");
         const h = q.getResearchHorizon();
         const horizonNote =
           `\n\n## Current planning horizon: ${h.mode.toUpperCase()}\n` +

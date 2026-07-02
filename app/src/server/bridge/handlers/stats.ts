@@ -5,8 +5,7 @@
  * against its planned rates. No re-solve — stats don't change any solution.
  */
 import type { BridgeRequest, BridgeResponse } from "../protocol.ts";
-
-const lib = () => import("../../../db/queries.ts");
+import * as q from "../../../db/queries.server.ts";
 
 export async function handleStats(req: BridgeRequest): Promise<BridgeResponse | null> {
   const payload = (req.payload ?? {}) as { items?: unknown };
@@ -29,7 +28,6 @@ export async function handleStats(req: BridgeRequest): Promise<BridgeResponse | 
     }
   }
 
-  const q = await lib();
   const res = q.setProductionStats(entries);
   q.metaSet("stats_synced_at", new Date().toISOString());
   q.metaSet("stats_synced_count", String(res.applied));

@@ -116,7 +116,7 @@ restart or manual reload.
 ### Installing it
 
 **Settings › In-game link** installs `mod/` into the Factorio mods folder for you
-(`app/src/server/companion-mod.ts`, `companion-mod-fns.ts`,
+(`app/src/server/companion-mod.server.ts`, `companion-mod-fns.ts`,
 `components/companion-mod-card.tsx`). Two OS-aware methods: a **symlink**
 (recommended — the installed mod tracks the repo; a directory junction on Windows,
 so no admin/Developer Mode) or a plain **copy**. It detects current install state

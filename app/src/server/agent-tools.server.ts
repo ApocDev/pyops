@@ -17,10 +17,11 @@ import { z } from "zod";
 import { classifyAdditive } from "./additives.ts";
 import { normalizeBlockData, primaryGoal, primaryRate } from "../lib/goals.ts";
 
-const lib = () => import("../db/queries.ts");
-const tasksLib = () => import("../db/tasks.ts");
-const bridge = () => import("./bridge/inspect.ts");
-const gameLib = () => import("./factorio.ts");
+import * as q from "../db/queries.server.ts";
+import * as tasksDb from "../db/tasks.server.ts";
+import { requestFromMod } from "./bridge/inspect.ts";
+import { computeBlock, showBlockInGame, hideBlockInGame } from "./block-compute.server.ts";
+import { chooseModuleFill } from "./module-fill.server.ts";
 
 /** Electricity & heat are energy pseudo-fluids surfaced separately as powerW/heatW.
  * recipeIo (and thus the stoichiometric chainStatus) never lists them as recipe
@@ -42,7 +43,6 @@ export const searchGoods = tool({
     limit: z.number().int().min(1).max(40).default(15),
   }),
   execute: async ({ query, limit }) => {
-    const q = await lib();
     return q
       .searchAll(query, limit)
       .map((g) => ({ name: g.name, display: g.display, kind: g.kind }));
@@ -53,7 +53,7 @@ export const factoryBlocks = tool({
   description:
     "List the blocks that already exist in the user's factory: what each PRODUCES (makes/primary), has spare (byproducts), and imports. Consult this BEFORE drafting — if an existing block already makes a good you need, import it from that block instead of rebuilding it. recipeGraph already marks goods covered by a block; this gives the fuller picture (rates, byproducts you could consume).",
   inputSchema: z.object({}),
-  execute: async () => (await lib()).factoryBlocks(),
+  execute: async () => q.factoryBlocks(),
 });
 
 /* ── Speculative production graph (seam-based, factory-aware) ──────────────── */
@@ -78,7 +78,6 @@ export const recipeGraph = tool({
       .describe("Stop expanding after this many goods (keeps complex targets bounded)"),
   }),
   execute: async ({ target, depth, candidatesPerGood, nodeBudget }) => {
-    const q = await lib();
     const suppliers = q.goodSuppliers(); // good -> existing blocks that output it
     const cutoff = q.spoilImportCutoff();
     const goods: Record<string, unknown> = {};
@@ -168,7 +167,7 @@ export const recipeGraph = tool({
 
 /** Shape the ranked candidates for one good (shared by recipeOptions + the batch form). */
 function optionsFor(
-  q: Awaited<ReturnType<typeof lib>>,
+  q: typeof import("../db/queries.server.ts"),
   good: string,
   direction: "produce" | "consume",
   limit: number,
@@ -248,7 +247,7 @@ export const recipeOptions = tool({
       .describe("'produce' = recipes that make it; 'consume' = recipes that use it"),
     limit: z.number().int().min(1).max(25).default(12),
   }),
-  execute: async ({ good, direction, limit }) => optionsFor(await lib(), good, direction, limit),
+  execute: async ({ good, direction, limit }) => optionsFor(q, good, direction, limit),
 });
 
 export const recipeOptionsBatch = tool({
@@ -272,7 +271,6 @@ export const recipeOptionsBatch = tool({
       .describe("Max candidates per good (keep modest when batching many goods)"),
   }),
   execute: async ({ goods, direction, limitEach }) => {
-    const q = await lib();
     const out: Record<string, ReturnType<typeof optionsFor>> = {};
     for (const g of new Set(goods)) out[g] = optionsFor(q, g, direction, limitEach);
     return out;
@@ -286,7 +284,6 @@ export const recipeInfo = tool({
     recipe: z.string().describe("Internal recipe name, e.g. 'molten-iron-01'"),
   }),
   execute: async ({ recipe }) => {
-    const q = await lib();
     const r = q.getRecipe(recipe);
     if (!r) return { error: `no recipe '${recipe}'` };
     const cost = q.recipeCosts([recipe]).get(recipe) ?? null;
@@ -373,7 +370,6 @@ export const calcRecipe = tool({
       .describe("Desired /s of the recipe's main product → buildings needed"),
   }),
   execute: async ({ recipe, machine, modules, fill, turd, targetRate }) => {
-    const q = await lib();
     return q.computeRecipeScenario({ recipe, machine, modules, fill, turd, targetRate });
   },
 });
@@ -385,7 +381,6 @@ export const goodInfo = tool({
     good: z.string().describe("Internal good name, e.g. 'pressured-air'"),
   }),
   execute: async ({ good }) => {
-    const q = await lib();
     const item = q.getItem(good);
     const fluid = q.getFluid(good);
     if (!item && !fluid) return { error: `no good '${good}'` };
@@ -413,7 +408,6 @@ export const byproductSinks = tool({
     limit: z.number().int().min(1).max(20).default(10),
   }),
   execute: async ({ good, limit }) => {
-    const q = await lib();
     const consumers = q.recipeCandidates(good, "consume").slice(0, limit);
     return {
       good,
@@ -435,7 +429,7 @@ export const byproductSinks = tool({
 });
 
 /** Resolve a recipe's io into {name, amount} pairs, averaging ranged outputs. */
-async function recipeIo(q: Awaited<ReturnType<typeof lib>>, name: string) {
+async function recipeIo(q: typeof import("../db/queries.server.ts"), name: string) {
   const r = q.getRecipe(name);
   if (!r) return null;
   const amt = (c: {
@@ -453,7 +447,6 @@ async function recipeIo(q: Awaited<ReturnType<typeof lib>>, name: string) {
 /** The closure computation behind chainStatus — a plain function so submitBlock
  * can reuse it with full types (not via the tool's loosely-typed execute). */
 async function computeChainStatus(recipes: string[], target: string) {
-  const q = await lib();
   const produced = new Map<string, number>(); // good -> max single-recipe output amount (size hint)
   const consumed = new Map<string, number>(); // good -> max single-recipe input amount
   const invalid: string[] = [];
@@ -528,7 +521,6 @@ export const turdConsistency = tool({
       .describe("Recipe set to check; omit to check every recipe across all existing blocks"),
   }),
   execute: async ({ recipes }) => {
-    const q = await lib();
     const set = recipes ?? q.allBlockRecipes();
     return {
       scope: recipes ? "given recipes" : "all existing blocks",
@@ -547,7 +539,6 @@ export const availableTurds = tool({
       .describe("The base recipes the plan chose (e.g. the block's recipe list)"),
   }),
   execute: async ({ recipes }) => {
-    const q = await lib();
     return { opportunities: q.turdOpportunities(recipes) };
   },
 });
@@ -568,7 +559,6 @@ export const turdChoices = tool({
   }),
   execute: async ({ master, recipe, good }) => {
     if (!master && !recipe && !good) return { error: "pass one of master, recipe, or good" };
-    const q = await lib();
     return { masters: q.turdChoicesLookup({ master, recipe, good }) };
   },
 });
@@ -592,7 +582,6 @@ async function buildBlockDraft({
   subBlocksNeeded,
   notes,
 }: z.infer<typeof blockDraftInput>) {
-  const q = await lib();
   const status = await computeChainStatus(recipes, target);
   const suppliers = q.goodSuppliers();
   const rates = new Map<string, number>();
@@ -605,8 +594,6 @@ async function buildBlockDraft({
     machines: {},
   };
   try {
-    const { computeBlock } = await import("./factorio.ts");
-    const { chooseModuleFill } = await import("./module-fill.ts");
     // First solve module-less to get per-recipe machines + base building counts,
     // then auto-fill modules ("best available": prod where allowed, else
     // speed→floor→efficiency) and re-solve so counts/power/imports reflect them.
@@ -706,7 +693,6 @@ export const submitBlock = tool({
 /** Re-solve an existing block at a NEW rate (keeping its stored recipes/target)
  * and return it as an "update" draft the user approves before it's applied. */
 async function buildBlockUpdate({ blockId, rate, notes }: z.infer<typeof reviseBlockInput>) {
-  const q = await lib();
   const row = q.getBlock(blockId);
   if (!row) {
     return { ok: false, kind: "update" as const, updateBlockId: blockId, missing: true };
@@ -780,7 +766,6 @@ export const submitPlan = tool({
     const drafts = await Promise.all(blocks.map((block) => buildBlockDraft(block)));
     const updateDrafts = await Promise.all((updates ?? []).map((u) => buildBlockUpdate(u)));
     const recipes = [...new Set(blocks.flatMap((b) => b.recipes))];
-    const q = await lib();
     return {
       ok: drafts.every((d) => d.ok) && updateDrafts.every((d) => d.ok),
       title,
@@ -816,7 +801,7 @@ export const listTasks = tool({
     "List the user's planning tasks (the task tree) with completion progress. Consult this to surface tasks relevant to what you're planning and to avoid filing duplicates. Returns a flat list; `parentId` gives the tree (top-level tasks have parentId null).",
   inputSchema: z.object({}),
   execute: async () =>
-    (await tasksLib()).listTasks().map((n) => ({
+    tasksDb.listTasks().map((n) => ({
       id: n.id,
       parentId: n.parentId,
       title: n.title,
@@ -830,7 +815,7 @@ export const getTask = tool({
     "Read one task in full: its description, checklist steps, direct subtasks, and entity links (chips).",
   inputSchema: z.object({ id: z.number().int() }),
   execute: async ({ id }) => {
-    const task = (await tasksLib()).getTask(id);
+    const task = tasksDb.getTask(id);
     if (!task) return { ok: false, error: "no such task" };
     return {
       ok: true,
@@ -857,7 +842,7 @@ export const createTask = tool({
     links: z.array(LINK_SHAPE).optional().describe("Entity references to attach as chips"),
   }),
   execute: async ({ title, body, parentId, steps, links }) => {
-    const t = await tasksLib();
+    const t = tasksDb;
     const id = t.createTask({ title, body, parentId: parentId ?? null });
     for (const s of steps ?? []) if (s.trim()) t.addStep(id, s);
     for (const l of links ?? []) t.addLink(id, l.kind, l.name);
@@ -875,7 +860,7 @@ export const updateTask = tool({
     status: z.enum(["open", "in_progress", "done", "closed"]).optional(),
   }),
   execute: async ({ id, title, body, status }) => {
-    (await tasksLib()).updateTask(id, { title, body, status });
+    tasksDb.updateTask(id, { title, body, status });
     return { ok: true };
   },
 });
@@ -883,7 +868,7 @@ export const updateTask = tool({
 export const addTaskStep = tool({
   description: "Append a checklist step to an existing task.",
   inputSchema: z.object({ taskId: z.number().int(), text: z.string() }),
-  execute: async ({ taskId, text }) => ({ ok: true, id: (await tasksLib()).addStep(taskId, text) }),
+  execute: async ({ taskId, text }) => ({ ok: true, id: tasksDb.addStep(taskId, text) }),
 });
 
 export const linkTask = tool({
@@ -898,7 +883,7 @@ export const linkTask = tool({
   }),
   execute: async ({ taskId, kind, name }) => ({
     ok: true,
-    id: (await tasksLib()).addLink(taskId, kind, name),
+    id: tasksDb.addLink(taskId, kind, name),
   }),
 });
 
@@ -913,7 +898,7 @@ export const gameContext = tool({
   inputSchema: z.object({}),
   execute: async () => {
     try {
-      const r = await (await bridge()).requestFromMod("cmd.game_context", {});
+      const r = await requestFromMod("cmd.game_context", {});
       return { ok: true, ...(r as object) };
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : "bridge error" };
@@ -932,9 +917,7 @@ export const gameInspectArea = tool({
   }),
   execute: async ({ x, y, radius, surface }) => {
     try {
-      const r = await (
-        await bridge()
-      ).requestFromMod("cmd.inspect_area", { x, y, radius, surface });
+      const r = await requestFromMod("cmd.inspect_area", { x, y, radius, surface });
       return { ok: true, ...(r as object) };
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : "bridge error" };
@@ -952,9 +935,7 @@ export const gameFindEntities = tool({
   }),
   execute: async ({ name, surface, limit }) => {
     try {
-      const r = await (
-        await bridge()
-      ).requestFromMod("cmd.find_entities", { name, surface, limit });
+      const r = await requestFromMod("cmd.find_entities", { name, surface, limit });
       return { ok: true, ...(r as object) };
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : "bridge error" };
@@ -970,7 +951,7 @@ export const gameProduction = tool({
   }),
   execute: async ({ goods }) => {
     try {
-      const r = await (await bridge()).requestFromMod("cmd.production", { goods });
+      const r = await requestFromMod("cmd.production", { goods });
       return { ok: true, ...(r as object) };
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : "bridge error" };
@@ -988,7 +969,7 @@ export const gameEval = tool({
   }),
   execute: async ({ code }) => {
     try {
-      const r = await (await bridge()).requestFromMod("cmd.eval", { code }, 8000);
+      const r = await requestFromMod("cmd.eval", { code }, 8000);
       return { ok: true, ...(r as object) };
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : "bridge error" };
@@ -1044,7 +1025,7 @@ export const gameScreenshot = tool({
           `game.take_screenshot{player=player, show_gui=true, path="pyops-shot.png", daytime=1}\n` +
           `if e then local l=e.location local r=player.display_resolution return {x=l.x, y=l.y, w=r.width-2*l.x, h=r.height-2*l.y} else return {miss=true} end`
         : `game.take_screenshot{player=player, show_gui=true, path="pyops-shot.png", daytime=1} return "ok"`;
-      const r = (await (await bridge()).requestFromMod("cmd.eval", { code: lua }, 8000)) as {
+      const r = (await requestFromMod("cmd.eval", { code: lua }, 8000)) as {
         ok?: boolean;
         result?: string;
         error?: string;
@@ -1136,7 +1117,7 @@ export const gameReloadMods = tool({
   }),
   execute: async ({ confirm }) => {
     try {
-      const r = await (await bridge()).requestFromMod("cmd.dev.reload_mods", { confirm }, 8000);
+      const r = await requestFromMod("cmd.dev.reload_mods", { confirm }, 8000);
       return { ok: true, ...(r as object) };
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : "reload error" };
@@ -1152,7 +1133,7 @@ export const gameShowBlock = tool({
   }),
   execute: async ({ blockId }) => {
     try {
-      const r = await (await gameLib()).showBlockInGame(blockId);
+      const r = await showBlockInGame(blockId);
       if (!r.sent && r.name === null) return { ok: false, error: `no block with id ${blockId}` };
       return { ok: r.sent, panel: "pyops_summary", block: r.name };
     } catch (e) {
@@ -1167,7 +1148,7 @@ export const gameCloseSummary = tool({
   inputSchema: z.object({}),
   execute: async () => {
     try {
-      const r = await (await gameLib()).hideBlockInGame();
+      const r = await hideBlockInGame();
       return { ok: r.sent };
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : "close error" };

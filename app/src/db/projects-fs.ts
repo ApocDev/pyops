@@ -8,8 +8,8 @@ import Database from "better-sqlite3";
 import { existsSync, mkdirSync, readdirSync, renameSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import { readAppConfig } from "../server/app-config.ts";
-import { PROJECTS_DIR } from "../server/paths.ts";
+import { readAppConfig } from "../server/app-config.server.ts";
+import { PROJECTS_DIR } from "../server/paths.server.ts";
 
 export { PROJECTS_DIR };
 export const DEFAULT_ID = "default";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { type ModEntry, diffMods, modVersionsFromEntries, redumpNeeded } from "./dump.ts";
+import { type ModEntry, diffMods, modVersionsFromEntries, redumpNeeded } from "./dump.server.ts";
 
 const mod = (name: string, version: string | null, enabled = true): ModEntry => ({
   name,

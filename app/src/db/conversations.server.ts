@@ -5,7 +5,7 @@
  */
 import { desc, eq, sql } from "drizzle-orm";
 
-import { db, currentDatabaseFile } from "./index.ts";
+import { db, currentDatabaseFile } from "./index.server.ts";
 import { conversationMessages, conversations } from "./schema.ts";
 
 /** A message at the transport/storage boundary: `parts` is the JSON-stringified

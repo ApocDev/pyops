@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
-import { db, switchDatabase } from "./index.ts";
+import { db, switchDatabase } from "./index.server.ts";
 import {
   blockMissingRefs,
   blockReferenceFingerprint,
@@ -18,7 +18,7 @@ import {
   setBuiltMachines,
   setGroupParent,
   setResearchHorizon,
-} from "./queries.ts";
+} from "./queries.server.ts";
 import { type TestDb, makeTestDb } from "./test-helpers.ts";
 
 let fx: TestDb;

@@ -3,7 +3,7 @@
 Everything in PyOps starts from the game itself. PyOps runs Factorio headlessly to
 dump its fully-resolved prototype data, then imports it into SQLite. This is
 orchestrated end-to-end from **Settings › Game data** in the UI
-(`app/src/server/dump.ts`):
+(`app/src/server/dump.server.ts`):
 
 1. **Write a helper mod** (`pyops-dump`) into your Factorio mods folder and enable
    it. It sets `data.data_crawler = "yafc pyops"`, which makes `pypostprocessing`
@@ -26,7 +26,7 @@ orchestrated end-to-end from **Settings › Game data** in the UI
    serves them at `/icons/*` (`app/src/routes/icons.$.ts`), cached `immutable` and
    cache-busted by the data fingerprint in the sheet URLs (`?v=…`).
 6. **Compute cost analysis** — a YAFC-style LP that assigns each good an intrinsic
-   cost (`app/src/server/cost-analysis.ts`, a port of YAFC's `CostAnalysis.cs`).
+   cost (`app/src/server/cost-analysis.server.ts`, a port of YAFC's `CostAnalysis.cs`).
 7. **Apply mod migrations** — read each enabled mod's `migrations/*.json` and
    auto-apply any newly-present prototype renames to saved blocks
    (`app/src/server/migrations.ts`; see drift resilience below).
@@ -34,13 +34,13 @@ orchestrated end-to-end from **Settings › Game data** in the UI
 The enabled mod set is fingerprinted (a hash of mod names) and stamped into the DB,
 so the planner knows which version of the game its data reflects. The full mod list
 is persisted alongside it (`mod_list` in `meta`): each mod's name, **version**, and
-enabled state (`readMods`, `app/src/server/dump.ts` — `mod-list.json` carries only
+enabled state (`readMods`, `app/src/server/dump.server.ts` — `mod-list.json` carries only
 name + enabled, so versions are recovered from the `name_x.y.z.zip` entries in the
 mods directory). This records the provenance of the reference data — shown on the
 Settings → Game data tab — and gives drift detection and rename capture
 a concrete previous state to diff against, not just a hash.
 
-**Drift detection** (`modDriftFn`, `diffMods`/`redumpNeeded` in `dump.ts`) compares
+**Drift detection** (`modDriftFn`, `diffMods`/`redumpNeeded` in `dump.server.ts`) compares
 the game's _current_ mod set against that persisted baseline, by name **and**
 version, and categorizes the change (added / removed / enabled / disabled /
 version-changed). `needsRedump` is true only when the _enabled_ mods or their
@@ -56,7 +56,7 @@ shows the same detail. Reading the mod set is cheap (two small file reads), so
 checking often costs little.
 
 Saved blocks additionally carry a **per-block reference fingerprint**
-(`blockReferenceFingerprint`, `app/src/db/queries.ts`): a hash over the _current_
+(`blockReferenceFingerprint`, `app/src/db/queries.server.ts`): a hash over the _current_
 definitions of just the recipes and goal goods that block references. Unlike the
 global mod-name hash, it changes when a referenced recipe is altered in place (an
 in-place mod update) or disappears, so staleness registers for exactly the blocks
@@ -91,7 +91,7 @@ and then repairs the fallout so a real `--dump-data` run succeeds: it normalizes
 1.x-style `result =` recipes, fills in missing icons and fluid-box volumes, drops
 recipes whose result item never got created (and scrubs the now-dangling
 `unlock-recipe` tech effects), and rebuilds TURD sub-tech unlock effects that the
-integration leaves empty. It's strictly a dump-time tool — `dump.ts` enables it,
+integration leaves empty. It's strictly a dump-time tool — `dump.server.ts` enables it,
 runs the dumps, and disables it again in a `finally` block so it never lingers for
 normal play.
 

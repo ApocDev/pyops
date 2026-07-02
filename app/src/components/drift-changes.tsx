@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
-import type { ModDrift } from "../server/dump.ts";
+import type { ModDrift } from "../server/dump.server.ts";
 
 const chip = "bg-muted px-1.5 py-0.5 font-mono";
 

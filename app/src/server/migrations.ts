@@ -22,7 +22,7 @@ import { join } from "node:path";
 import { strFromU8, unzipSync } from "fflate";
 import type { BlockData } from "../db/schema.ts";
 import { normalizeBlockData } from "../lib/goals.ts";
-import type { ModEntry } from "./dump.ts";
+import type { ModEntry } from "./dump.server.ts";
 
 /** Rename maps for the prototype types a saved block can reference. `item` and
  * `fluid` collapse into `good` (goals, dispositions, fuels, modules are all goods);

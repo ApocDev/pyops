@@ -26,7 +26,7 @@ Per-project SQLite stores live in `projects/*.db` (each self-describes its name 
 its own `meta`); `app-config.json` holds app-level config (active project + the
 OpenRouter key/model). Both live under the app's **data dir** — the working dir in
 dev, a per-OS user-data dir for a packaged build, overridable via `PYOPS_DATA_DIR`
-(see `app/src/server/paths.ts`). All are generated/gitignored.
+(see `app/src/server/paths.server.ts`). All are generated/gitignored.
 
 ## App architecture (`app/src/`)
 
@@ -34,9 +34,9 @@ dev, a per-OS user-data dir for a packaged build, overridable via `PYOPS_DATA_DI
   `whatif`, `coherence`, `turd`, `assistant`, `tasks`, …) plus API routes (`api.chat.ts`,
   `mcp.ts`).
 - `server/` — server-side modules (run only on the backend):
-  - `factorio.ts`, `dump.ts` — load/query the Factorio data dump.
-  - `factory-solve.ts`, `cost-analysis.ts`, `effects.ts`, `additives.ts` — planning logic.
-  - `agent.ts`, `agent-tools.ts` — the AI assistant (AI SDK v6 + OpenRouter,
+  - `factorio.ts`, `dump.server.ts` — load/query the Factorio data dump.
+  - `factory-solve.server.ts`, `cost-analysis.server.ts`, `effects.ts`, `additives.ts` — planning logic.
+  - `agent.ts`, `agent-tools.server.ts` — the AI assistant (AI SDK v6 + OpenRouter,
     read-only tools + propose-then-apply writes: draft-a-block, draft-a-plan,
     revise-a-block's rate).
   - `bridge/` — UDP bridge to the mod. `protocol.ts` defines the wire contract;
@@ -113,7 +113,22 @@ bridge + live-state sync), `summary.lua` (production-block view), `combinator.lu
 - **Never `git commit`, create branches, or switch branches unless explicitly
   asked.** Writing/saving files is fine; committing is not.
 - Keep features as focused modules. Prefer adding new files over growing
-  `factorio.ts`/`queries.ts` into catch-alls.
+  `factorio.ts`/`queries.server.ts` into catch-alls.
+- **Server-only code lives in `*.server.ts` modules** (the db layer, the data-dump
+  pipeline, agent tools, anything touching node APIs). TanStack Start's import
+  protection (on by default) fails the build if one is ever pulled into a client
+  bundle — that's the point; don't work around it. Server-fn wrapper files
+  (`server/factorio.ts`, `server/tasks.ts`, `server/conversations.ts`,
+  `bridge/fns.ts`, …) are client-importable by design: they import server-only
+  modules at the **top level** but reference them **only inside `.handler()`
+  bodies** — the compiler replaces handlers with RPC stubs on the client and
+  prunes those imports with them. A plain (non-server-fn) function that needs a
+  server-only module belongs in a `.server.ts` file (see
+  `server/block-compute.server.ts`), never in a wrapper file. Don't reintroduce
+  the old `const lib = () => import("…")` lazy-accessor pattern — module-level
+  dynamic imports of server code trip import protection too. The only sanctioned
+  dynamic imports: heavyweight optional deps (`sharp`), Tauri plugins in client
+  code, and the bridge server↔handlers cycle guard.
 - **UI work follows the design system** — [`docs/design.md`](docs/design.md): theme
   tokens (never raw palette colors), the `components/ui` primitives (never
   hand-rolled buttons/inputs/badges), square corners, `PageHeader`/`EmptyState`/

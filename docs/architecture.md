@@ -84,11 +84,11 @@ at tablet/phone widths.
 Each "project" (usually a different mod list) is its own SQLite file under
 `projects/`. The files are the source of truth — there's no registry: each db
 self-describes its name/createdAt in its own `meta`, and the active project id
-lives in `app-config.json`. The `db` export (`app/src/db/index.ts`) is a proxy
+lives in `app-config.json`. The `db` export (`app/src/db/index.server.ts`) is a proxy
 that always points at the active connection, so the query layer never changes when
 you switch. Schema is provisioned in-process: on first connect (and when creating a
 project) the bundled `drizzle/` migrations are applied via drizzle-orm's `migrate()`
 (`app/src/server/provision.ts`), so no dev tooling is needed at runtime. A new
 project starts empty; you then run a [data sync](data-pipeline.md) to fill it. The
 relevant code lives in `app/src/server/projects.ts`, `app/src/server/provision.ts`,
-and `app/src/db/index.ts`.
+and `app/src/db/index.server.ts`.

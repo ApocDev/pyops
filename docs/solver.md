@@ -2,7 +2,7 @@
 
 Code: `app/src/solver/` (`block.ts`, `linalg.ts`), with effect aggregation in
 `app/src/server/effects.ts` and the factory-level solver in
-`app/src/server/factory-solve.ts`.
+`app/src/server/factory-solve.server.ts`.
 
 ## The block solver
 
@@ -78,7 +78,7 @@ resident mid-spoil at steady state, shown on the row with the equivalent stack c
 
 ## Build cost (capital materials)
 
-Separate from the per-second flows, `buildCost` (`db/queries.ts`, surfaced by
+Separate from the per-second flows, `buildCost` (`db/queries.server.ts`, surfaced by
 `computeBlock`) reports the **one-time** materials to _construct_ the block's
 buildings: it ceils the solved machine counts per building type, expands each
 building's own build recipe, and sums the direct ingredients. This is why a science
@@ -100,7 +100,7 @@ bottom out at 0.2, productivity caps at +300%.
 
 ## Factory-level what-if
 
-The factory-level **what-if** (`factory-solve.ts`) _is_ an LP. It treats each block
+The factory-level **what-if** (`factory-solve.server.ts`) _is_ an LP. It treats each block
 as a fixed-ratio "super-recipe" (its cached boundary flows at the current rate) and
 solves for the per-block scale factors that satisfy every demand.
 

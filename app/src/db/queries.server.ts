@@ -9,7 +9,7 @@
  */
 import { createHash } from "node:crypto";
 import { and, eq, inArray, isNotNull, sql, type AnyColumn } from "drizzle-orm";
-import { db } from "./index.ts";
+import { db } from "./index.server.ts";
 import {
   recipes,
   recipeIngredients,

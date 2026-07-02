@@ -8,10 +8,9 @@
  *
  * `task.list` — the panel pulls the project's tasks to render (list + detail).
  */
-import type { TaskLink } from "../../../db/tasks.ts";
+import * as t from "../../../db/tasks.server.ts";
+import type { TaskLink } from "../../../db/tasks.server.ts";
 import type { BridgeRequest, BridgeResponse } from "../protocol.ts";
-
-const lib = () => import("../../../db/tasks.ts");
 
 export async function handleTaskCapture(req: BridgeRequest): Promise<BridgeResponse | null> {
   const p = (req.payload ?? {}) as {
@@ -34,7 +33,6 @@ export async function handleTaskCapture(req: BridgeRequest): Promise<BridgeRespo
     };
   }
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-  const t = await lib();
   const { id, title: created } = t.captureTask({
     text: text || title,
     title: title || null,
@@ -75,7 +73,6 @@ function linkToWire(l: TaskLink) {
  * list + detail without a second round-trip. Read-only for now; status/step writes
  * come later. */
 export async function handleTaskList(req: BridgeRequest): Promise<BridgeResponse | null> {
-  const t = await lib();
   const tasks = t.listTasks().map((n) => {
     const d = t.getTask(n.id);
     return {

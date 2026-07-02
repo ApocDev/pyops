@@ -10,7 +10,7 @@ import { handleTurd } from "./turd.ts";
 // Handlers are thin validators over the query/db layer; mock those so we can
 // assert exactly what each one parses out of an (untrusted) mod payload, and how
 // it handles malformed input.
-vi.mock("../../../db/queries.ts", () => ({
+vi.mock("../../../db/queries.server.ts", () => ({
   setResearchHorizon: vi.fn(),
   setBuiltMachines: vi.fn(() => ({ applied: 0, total: 0, changed: false })),
   setTurdSelectionsBulk: vi.fn(() => ({
@@ -22,16 +22,16 @@ vi.mock("../../../db/queries.ts", () => ({
   setProductionStats: vi.fn(() => ({ applied: 0 })),
   metaSet: vi.fn(),
 }));
-vi.mock("../../factorio.ts", () => ({ resolveAllBlocks: vi.fn() }));
-vi.mock("../../../db/tasks.ts", () => ({
+vi.mock("../../block-compute.server.ts", () => ({ resolveAllBlocks: vi.fn() }));
+vi.mock("../../../db/tasks.server.ts", () => ({
   captureTask: vi.fn(() => ({ id: 7, title: "Build smelters" })),
   listTasks: vi.fn(() => []),
   getTask: vi.fn(() => null),
 }));
 
-const q = await import("../../../db/queries.ts");
-const factorio = await import("../../factorio.ts");
-const tasks = await import("../../../db/tasks.ts");
+const q = await import("../../../db/queries.server.ts");
+const factorio = await import("../../block-compute.server.ts");
+const tasks = await import("../../../db/tasks.server.ts");
 
 const req = (payload: unknown, extra: Partial<BridgeRequest> = {}): BridgeRequest => ({
   protocol_version: 4,

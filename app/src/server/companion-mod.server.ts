@@ -18,7 +18,7 @@ import { existsSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { join } from "node:path";
 
-import { MOD_SOURCE_DIR } from "./paths.ts";
+import { MOD_SOURCE_DIR } from "./paths.server.ts";
 
 const FACTORIO_DATA = process.env.FACTORIO_DATA_DIR ?? join(homedir(), ".factorio");
 const MODS_DIR = join(FACTORIO_DATA, "mods");

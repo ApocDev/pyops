@@ -11,8 +11,8 @@
  */
 import { asc, eq, sql } from "drizzle-orm";
 
-import { db, currentDatabaseFile } from "./index.ts";
-import { searchAll, searchTechs } from "./queries.ts";
+import { db, currentDatabaseFile } from "./index.server.ts";
+import { searchAll, searchTechs } from "./queries.server.ts";
 import {
   blocks,
   fluids,

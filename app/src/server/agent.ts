@@ -6,9 +6,9 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModel } from "ai";
 
-import { agentTools } from "./agent-tools.ts";
-import { DEFAULT_MODEL, resolveApiKey, resolveModel } from "./app-config.ts";
-import { normalizeReasoningEffort, type ReasoningEffort } from "../db/conversations.ts";
+import { agentTools } from "./agent-tools.server.ts";
+import { DEFAULT_MODEL, resolveApiKey, resolveModel } from "./app-config.server.ts";
+import { normalizeReasoningEffort, type ReasoningEffort } from "../db/conversations.server.ts";
 import { supportsReasoningEffort } from "./openrouter-models.ts";
 
 export { agentTools, DEFAULT_MODEL };

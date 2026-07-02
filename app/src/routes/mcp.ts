@@ -12,6 +12,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { ZodRawShape } from "zod";
 
 import { handleMcpRequest } from "#/utils/mcp-handler";
+import { agentTools } from "#/server/agent-tools.server.ts";
 
 /** Minimal shape we rely on from an AI-SDK `tool()` to bridge it to MCP. */
 type AiTool = {
@@ -26,7 +27,6 @@ let serverPromise: Promise<McpServer> | null = null;
 function getServer(): Promise<McpServer> {
   serverPromise ??= (async () => {
     const server = new McpServer({ name: "pyops", version: "1.0.0" });
-    const { agentTools } = await import("#/server/agent-tools.ts");
     for (const [name, raw] of Object.entries(agentTools)) {
       const t = raw as AiTool;
       if (!t.execute) continue;

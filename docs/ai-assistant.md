@@ -1,7 +1,7 @@
 # AI assistant
 
 Code: `app/src/server/agent.ts` (config + system prompt + model resolution),
-`app/src/server/agent-tools.ts` (the tools), `app/src/routes/api.chat.ts` (the
+`app/src/server/agent-tools.server.ts` (the tools), `app/src/routes/api.chat.ts` (the
 streaming chat route), `app/src/server/assistant-run-store.ts` (active run
 replay), and `app/src/routes/mcp.ts` (the MCP surface).
 
@@ -96,7 +96,7 @@ Clicking it force-compacts the conversation now (`compactConversationFn` →
 the returned messages and the stale real-token count is cleared so the gauge
 reflects the smaller compacted size until the next turn measures it for real.
 
-Code: `db/conversations.ts` (queries, usage columns + `recordTurnUsage`, and an
+Code: `db/conversations.server.ts` (queries, usage columns + `recordTurnUsage`, and an
 idempotent `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE` so existing project dbs
 gain the tables/columns without a manual push), `server/conversations.ts` (server
 fns incl. `generateTitleFn`, `conversationTokenStatusFn`, `compactConversationFn`,
@@ -218,7 +218,7 @@ The key resolves **env → app-config**. The model resolves
   choose low/medium/high when a supported reasoning model needs an explicit
   effort.
 
-Resolution lives in `server/app-config.ts` (`resolveApiKey` / `resolveModel`).
+Resolution lives in `server/app-config.server.ts` (`resolveApiKey` / `resolveModel`).
 
 The agent runs a bounded tool loop (`MAX_STEPS`, currently 60) — drafting a full Py
 chain takes many calls.

@@ -15,7 +15,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
 import * as schema from "../db/schema.ts";
-import { MIGRATIONS_DIR } from "./paths.ts";
+import { MIGRATIONS_DIR } from "./paths.server.ts";
 
 /** Apply pending migrations to an already-open drizzle connection (used on the hot
  * path in `db/index.ts`, where the connection is cached and reused). Idempotent. */

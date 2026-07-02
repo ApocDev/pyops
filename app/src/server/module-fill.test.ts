@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { chooseModuleFill } from "./module-fill.ts";
+import { chooseModuleFill } from "./module-fill.server.ts";
 
 // module-fill dynamically imports ../db/queries.ts; mock it so the test stays
 // pure (no db, no Factorio dump). We only need modulePickerData + availableModuleItems.
-vi.mock("../db/queries.ts", () => ({
+vi.mock("../db/queries.server.ts", () => ({
   modulePickerData: vi.fn(),
   availableModuleItems: vi.fn(),
 }));
-const { modulePickerData, availableModuleItems } = await import("../db/queries.ts");
+const { modulePickerData, availableModuleItems } = await import("../db/queries.server.ts");
 const mockPicker = vi.mocked(modulePickerData);
 const mockAvail = vi.mocked(availableModuleItems);
 

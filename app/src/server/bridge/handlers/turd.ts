@@ -6,8 +6,8 @@
  * (master, sub) names (a runtime↔dump mismatch) are recorded for diagnosis.
  */
 import type { BridgeRequest, BridgeResponse } from "../protocol.ts";
-
-const lib = () => import("../../../db/queries.ts");
+import * as q from "../../../db/queries.server.ts";
+import { resolveAllBlocks } from "../../block-compute.server.ts";
 
 export async function handleTurd(req: BridgeRequest): Promise<BridgeResponse | null> {
   const payload = (req.payload ?? {}) as { selections?: unknown };
@@ -18,7 +18,6 @@ export async function handleTurd(req: BridgeRequest): Promise<BridgeResponse | n
     }
   }
 
-  const q = await lib();
   const res = q.setTurdSelectionsBulk(selections);
   q.metaSet("turd_synced_at", new Date().toISOString());
   q.metaSet("turd_synced_count", String(res.applied));
@@ -26,7 +25,6 @@ export async function handleTurd(req: BridgeRequest): Promise<BridgeResponse | n
 
   if (res.changed) {
     // TURD modules change machine throughput → cached block flows are now stale.
-    const { resolveAllBlocks } = await import("../../factorio.ts");
     await resolveAllBlocks();
   }
   return null;

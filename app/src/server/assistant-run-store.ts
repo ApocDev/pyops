@@ -1,4 +1,5 @@
 import { generateId, UI_MESSAGE_STREAM_HEADERS, type UIMessage } from "ai";
+import * as db from "#/db/conversations.server.ts";
 
 type Subscriber = ReadableStreamDefaultController<string>;
 
@@ -100,21 +101,17 @@ export function stopAssistantRun(chatId: string, assistantMessage?: UIMessage) {
   if (!run) return { stopped: false };
   run.abort.abort();
   if (assistantMessage) {
-    void import("#/db/conversations.ts").then((db) => {
-      const conv = db.getConversation(chatId);
-      const messages = conv?.messages ?? [];
-      const existing = messages.findIndex((m) => m.id === assistantMessage.id);
-      const stored = {
-        id: assistantMessage.id,
-        role: assistantMessage.role,
-        parts: JSON.stringify(assistantMessage.parts),
-      };
-      const next =
-        existing >= 0
-          ? messages.map((m, i) => (i === existing ? stored : m))
-          : [...messages, stored];
-      db.saveConversation(chatId, next);
-    });
+    const conv = db.getConversation(chatId);
+    const messages = conv?.messages ?? [];
+    const existing = messages.findIndex((m) => m.id === assistantMessage.id);
+    const stored = {
+      id: assistantMessage.id,
+      role: assistantMessage.role,
+      parts: JSON.stringify(assistantMessage.parts),
+    };
+    const next =
+      existing >= 0 ? messages.map((m, i) => (i === existing ? stored : m)) : [...messages, stored];
+    db.saveConversation(chatId, next);
   }
   run.subscribers.forEach((s) => {
     try {

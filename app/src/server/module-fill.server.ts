@@ -16,7 +16,8 @@
  * (availableModuleItems). TURD beacons are applied separately by the solver and
  * never count against slots, so they're untouched here.
  */
-import type { computeBlock } from "./factorio.ts";
+import * as q from "../db/queries.server.ts";
+import type { computeBlock } from "./block-compute.server.ts";
 
 type Rows = Awaited<ReturnType<typeof computeBlock>>["rows"];
 
@@ -26,7 +27,6 @@ export type ModuleFill = {
 };
 
 export async function chooseModuleFill(rows: Rows): Promise<ModuleFill> {
-  const q = await import("../db/queries.ts");
   const modules: Record<string, string[]> = {};
   const machines: Record<string, string> = {};
 

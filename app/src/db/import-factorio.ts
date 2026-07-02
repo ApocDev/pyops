@@ -14,7 +14,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { synthesizePass2 } from "./synthesize.ts";
-import { PROJECTS_DIR } from "../server/paths.ts";
+import { PROJECTS_DIR } from "../server/paths.server.ts";
 
 const DEFAULT_DUMP = join(homedir(), ".factorio", "script-output", "data-raw-dump.json");
 

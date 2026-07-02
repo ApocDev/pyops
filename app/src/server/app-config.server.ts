@@ -11,7 +11,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
-import { APP_CONFIG_FILE } from "./paths.ts";
+import { APP_CONFIG_FILE } from "./paths.server.ts";
 
 /** Default OpenRouter model when neither env nor app-config sets one. */
 export const DEFAULT_MODEL = "~anthropic/claude-sonnet-latest";

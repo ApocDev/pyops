@@ -6,7 +6,7 @@
  * proxy; creating provisions a fresh db with the current schema by applying the
  * bundled migrations, then the user runs a data sync to fill it.
  */
-import { currentDatabaseFile, switchDatabase } from "../db/index.ts";
+import { currentDatabaseFile, switchDatabase } from "../db/index.server.ts";
 import {
   DEFAULT_ID,
   fileForProject,
@@ -14,7 +14,7 @@ import {
   removeProjectFiles,
   writeProjectMeta,
 } from "../db/projects-fs.ts";
-import { readAppConfig, writeAppConfig } from "./app-config.ts";
+import { readAppConfig, writeAppConfig } from "./app-config.server.ts";
 import { migrateToLatest } from "./provision.ts";
 
 export type Project = { id: string; name: string; dbFile: string; createdAt: string };

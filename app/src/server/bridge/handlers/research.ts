@@ -5,8 +5,7 @@
  * extra wiring. Fire-and-forget: no response needed.
  */
 import type { BridgeRequest, BridgeResponse } from "../protocol.ts";
-
-const lib = () => import("../../../db/queries.ts");
+import * as q from "../../../db/queries.server.ts";
 
 export async function handleResearch(req: BridgeRequest): Promise<BridgeResponse | null> {
   const payload = (req.payload ?? {}) as { researched?: unknown; force?: unknown };
@@ -14,7 +13,6 @@ export async function handleResearch(req: BridgeRequest): Promise<BridgeResponse
     ? payload.researched.filter((t): t is string => typeof t === "string")
     : [];
 
-  const q = await lib();
   q.setResearchHorizon({ researched });
   q.metaSet("research_synced_at", new Date().toISOString());
   q.metaSet("research_synced_count", String(researched.length));

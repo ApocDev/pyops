@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import { type TestDb, makeTestDb } from "../db/test-helpers.ts";
-import { computeCostAnalysis } from "./cost-analysis.ts";
+import { computeCostAnalysis } from "./cost-analysis.server.ts";
 
 let fx: TestDb;
 
