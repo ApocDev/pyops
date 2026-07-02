@@ -1,0 +1,19 @@
+app/src/routes/turd.tsx
+  s_47616e0ffce432::t_258477f62c3147 8,12-14,63,68,73,104,125,168-171,202-233,235,237-243,246-260,276,284-285,288-289,291,298-299,304,312,320-321
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "356382f11f7b477e61e20cd035a414f08fff2fa5",
+  "prompts": {},
+  "sessions": {
+    "s_47616e0ffce432": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a29e0dec21ce0b68b",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
