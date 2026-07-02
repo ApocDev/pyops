@@ -216,10 +216,12 @@ function pickDefaultMachine<
 /** The target good's boundary flow for the cache. A normal block exports its
  * target (role "primary"); a SINK block (negative rate) consumes it, so record it
  * as an import of |rate| — that way the factory/coherence aggregates treat the
- * block as a consumer of the good, not a negative producer. */
-function targetBoundaryFlow(item: string, kind: string, rate: number) {
+ * block as a consumer of the good, not a negative producer. A stock goal (#38)
+ * exports at role "stock" — primary-like everywhere, but factory views can mark
+ * it as a buffer-refill demand rather than continuous throughput. */
+function targetBoundaryFlow(item: string, kind: string, rate: number, stock?: boolean) {
   return rate >= 0
-    ? { item, kind, role: "primary", rate }
+    ? { item, kind, role: stock ? "stock" : "primary", rate }
     : { item, kind, role: "import", rate: -rate };
 }
 
@@ -228,14 +230,14 @@ function targetBoundaryFlow(item: string, kind: string, rate: number) {
  * every save path emits the same shape. The solver excludes goals from its own
  * exports, so they never double-count here. */
 function boundaryFlows(
-  goals: { name: string; kind: string; rate: number }[],
+  goals: { name: string; kind: string; rate: number; stock?: boolean }[],
   r: {
     exports: { name: string; kind: string; rate: number }[];
     imports: { name: string; kind: string; rate: number }[];
   },
 ) {
   return [
-    ...goals.map((g) => targetBoundaryFlow(g.name, g.kind, g.rate)),
+    ...goals.map((g) => targetBoundaryFlow(g.name, g.kind, g.rate, g.stock)),
     ...r.exports.map((f) => ({ item: f.name, kind: f.kind, role: "byproduct", rate: f.rate })),
     ...r.imports.map((f) => ({ item: f.name, kind: f.kind, role: "import", rate: f.rate })),
   ];
@@ -246,11 +248,12 @@ function boundaryFlows(
 function goalFlows(
   data: SolveInput,
   q: Awaited<ReturnType<typeof lib>>,
-): { name: string; kind: string; rate: number }[] {
+): { name: string; kind: string; rate: number; stock?: boolean }[] {
   return data.goals.map((g) => ({
     name: g.name,
     kind: q.getFluid(g.name) ? "fluid" : "item",
     rate: g.rate,
+    stock: g.stock != null,
   }));
 }
 

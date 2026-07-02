@@ -58,7 +58,7 @@ export async function factoryWhatIf(
         bump(net, f.item, -f.rate);
       } else {
         addTo(anyProducers, f.item, b.id);
-        if (f.role === "primary") addTo(primaryProducers, f.item, b.id);
+        if (f.role === "primary" || f.role === "stock") addTo(primaryProducers, f.item, b.id);
         bump(producedTotal, f.item, f.rate);
         bump(net, f.item, f.rate);
       }
@@ -90,7 +90,7 @@ export async function factoryWhatIf(
   const productive = blocks.map((b) =>
     b.flows.some(
       (f) =>
-        f.role === "primary" &&
+        (f.role === "primary" || f.role === "stock") &&
         (classify(f.item) === "demand" || classify(f.item) === "intermediate"),
     ),
   );

@@ -338,9 +338,21 @@ export type BeaconConfig = { beacon: string; modules: string[]; count: number };
 /** One output goal of a block: a good the block is sized to produce at `rate`
  * (a solver target). A good you don't target is a byproduct, not a goal.
  * `rate` is ALWAYS per-second (the solver's canonical unit); `unit` is only the
- * display/input window the user chose for it (#10) — absent means "/s". */
+ * display/input window the user chose for it (#10) — absent means "/s".
+ *
+ * A STOCK goal (#38) means "keep `stock` on hand" instead of a throughput target:
+ * its rate is derived (`stock / window`, the buffer-refill window in seconds,
+ * default 10 min), so the solver still sees an ordinary per-second rate — the
+ * machines are sized to rebuild the buffer within the window. Its boundary flow
+ * is cached with role "stock" so factory views can mark refill demands. */
 export type RateUnit = "s" | "min" | "h";
-export type Goal = { name: string; rate: number; unit?: RateUnit };
+export type Goal = {
+  name: string;
+  rate: number;
+  unit?: RateUnit;
+  stock?: number; // "keep N on hand" — presence makes this a stock goal
+  window?: number; // refill window in seconds (default 600); rate = stock / window
+};
 
 export type BlockData = {
   // Output goals, each a solver target. goals[0] names the block and anchors the

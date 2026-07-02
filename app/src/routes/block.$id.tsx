@@ -47,7 +47,7 @@ import { bridgeLocateFn } from "../server/bridge/fns";
 import { tasksForBlockFn } from "../server/tasks.ts";
 import type { Disposition } from "../solver/block";
 import type { Goal, RateUnit } from "../db/schema";
-import { normalizeBlockData } from "../lib/goals";
+import { normalizeBlockData, STOCK_WINDOW_DEFAULT } from "../lib/goals";
 import { formatQty } from "../lib/format";
 import {
   groupMembers,
@@ -81,6 +81,7 @@ import {
   Pencil,
   Plus,
   Power,
+  RefreshCw,
   Rocket,
   Star,
   Timer,
@@ -208,6 +209,74 @@ const fmtRate = (n: number) => {
  * per-second (the solver's canonical unit) — these only convert at the UI edge. */
 const RATE_UNITS: RateUnit[] = ["s", "min", "h"];
 const UNIT_FACTOR: Record<RateUnit, number> = { s: 1, min: 60, h: 3600 };
+
+/** Stock-goal refill windows (#38): the machines are sized to rebuild the buffer
+ * within the window (rate = stock / window). Click-to-cycle presets. */
+const STOCK_WINDOWS = [300, 600, 1800, 3600];
+const fmtWindow = (s: number) => (s >= 3600 ? `${s / 3600}h` : `${s / 60}m`);
+
+/** "keep N" editor for a stock goal (#38): click the count to edit it, click the
+ * window to cycle how fast the buffer refills. The stored rate stays derived. */
+function EditableStock({
+  stock,
+  window: win,
+  onChange,
+  onWindowChange,
+}: {
+  stock: number;
+  window: number;
+  onChange: (n: number) => void;
+  onWindowChange: (secs: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const cycle = () =>
+    onWindowChange(STOCK_WINDOWS[(STOCK_WINDOWS.indexOf(win) + 1) % STOCK_WINDOWS.length]);
+  if (!editing) {
+    return (
+      <span className="flex items-center gap-1 tabular-nums">
+        <button
+          onClick={() => {
+            setDraft(String(stock));
+            setEditing(true);
+          }}
+          title="keep this many on hand — click to edit"
+          className="hover:text-sky-300"
+        >
+          keep {formatQty(stock)}
+        </button>
+        <button
+          onClick={cycle}
+          title="refill window — machines are sized to rebuild the buffer within this time; click to cycle"
+          className="flex items-center gap-0.5 text-muted-foreground hover:text-sky-300"
+        >
+          <RefreshCw className="size-3" />
+          {fmtWindow(win)}
+        </button>
+      </span>
+    );
+  }
+  const commit = () => {
+    const n = Number(draft);
+    if (Number.isFinite(n) && n > 0) onChange(n);
+    setEditing(false);
+  };
+  return (
+    <input
+      autoFocus
+      type="text"
+      inputMode="numeric"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") commit();
+        if (e.key === "Escape") setEditing(false);
+      }}
+      className="w-16 rounded border border-sky-400/60 bg-muted px-1 py-0.5 text-center text-sm"
+    />
+  );
+}
 
 function EditableRate({
   value,
@@ -830,6 +899,43 @@ function Block({ blockId }: { blockId: number }) {
     setGoals((gs) =>
       gs.map((g) =>
         g.name === name ? { ...g, ...(unit === "s" ? { unit: undefined } : { unit }) } : g,
+      ),
+    );
+  };
+  // Stock goals (#38): "keep N on hand". The stored rate stays canonical /s but is
+  // DERIVED (stock / window), so the solver sizes machines to rebuild the buffer
+  // within the refill window; the goal chip displays intent, not the fake rate.
+  const makeStockGoal = (name: string) => {
+    markEdited();
+    setGoals((gs) =>
+      gs.map((g) => {
+        if (g.name !== name) return g;
+        const window = g.window ?? STOCK_WINDOW_DEFAULT;
+        const stock = Math.max(1, Math.round(g.rate * window)) || 1;
+        return { ...g, stock, window, rate: stock / window };
+      }),
+    );
+  };
+  const makeRateGoal = (name: string) => {
+    markEdited();
+    // keep the derived rate as the throughput target; drop the stock intent
+    setGoals((gs) =>
+      gs.map((g) => (g.name === name ? { ...g, stock: undefined, window: undefined } : g)),
+    );
+  };
+  const setGoalStock = (name: string, stock: number) => {
+    markEdited();
+    setGoals((gs) =>
+      gs.map((g) =>
+        g.name === name ? { ...g, stock, rate: stock / (g.window ?? STOCK_WINDOW_DEFAULT) } : g,
+      ),
+    );
+  };
+  const setGoalWindow = (name: string, window: number) => {
+    markEdited();
+    setGoals((gs) =>
+      gs.map((g) =>
+        g.name === name && g.stock != null ? { ...g, window, rate: g.stock / window } : g,
       ),
     );
   };
@@ -1524,8 +1630,13 @@ function Block({ blockId }: { blockId: number }) {
               good comes out at exactly that rate. Click a goal&apos;s rate to edit it, and click
               its unit to cycle <span className="text-foreground">/s → /min → /h</span> — enter
               science as 10/min or a slow bootstrap as 0.5/h; the unit sticks per goal while the
-              solver works in per-second underneath. So a single &quot;logistics&quot; block can
-              make belts @10/s, undergrounds @4/s and splitters @2/s side by side. The first goal{" "}
+              solver works in per-second underneath. Not everything is throughput:{" "}
+              <span className="text-foreground">right-click a goal → Keep in stock</span> turns it
+              into a buffer goal (&quot;keep 100 on hand&quot;) with a refill window (default 10m,
+              click to cycle) — machines are sized to rebuild the buffer within the window, and the
+              factory ledger badges the flow <span className="text-sky-300">↻ stock</span>. So a
+              single &quot;logistics&quot; block can make belts @10/s, undergrounds @4/s and
+              splitters @2/s side by side. The first goal{" "}
               <span className="text-blue-300">names the block</span>, anchors the scale tools, and
               is the default icon; <Star className="inline size-3.5 text-foreground" /> moves a goal
               to the front. Click the icon next to the block&apos;s name to pick any item or fluid
@@ -1711,6 +1822,15 @@ function Block({ blockId }: { blockId: number }) {
                       <span className="flex items-center gap-0.5 text-xs font-semibold text-destructive">
                         <AlertTriangle className="size-3" /> gone
                       </span>
+                    ) : goal.stock != null ? (
+                      <span className="text-sm">
+                        <EditableStock
+                          stock={goal.stock}
+                          window={goal.window ?? STOCK_WINDOW_DEFAULT}
+                          onChange={(n) => setGoalStock(g, n)}
+                          onWindowChange={(w) => setGoalWindow(g, w)}
+                        />
+                      </span>
                     ) : (
                       <span className="text-sm">
                         <EditableRate
@@ -1730,14 +1850,17 @@ function Block({ blockId }: { blockId: number }) {
                     {/* Rates near the solver's noise floor (flows under 1e-6/s read as
                         zero) solve unreliably — and are usually a proxy for "just keep
                         some around", which is a stock goal's job (#38), not a rate's. */}
-                    {!goalMissing && goal.rate !== 0 && Math.abs(goal.rate) < 1e-4 && (
-                      <span
-                        className="flex cursor-help items-center gap-0.5 text-xs font-semibold text-amber-400"
-                        title="rates this small can fall below the solver's noise floor — flows may read as zero. If the intent is 'just make/keep some', a keep-in-stock goal (planned) will express that better than a tiny rate."
-                      >
-                        <AlertTriangle className="size-3" /> very low rate
-                      </span>
-                    )}
+                    {!goalMissing &&
+                      goal.stock == null &&
+                      goal.rate !== 0 &&
+                      Math.abs(goal.rate) < 1e-4 && (
+                        <span
+                          className="flex cursor-help items-center gap-0.5 text-xs font-semibold text-amber-400"
+                          title="rates this small can fall below the solver's noise floor — flows may read as zero. If the intent is 'just make/keep some', a keep-in-stock goal (planned) will express that better than a tiny rate."
+                        >
+                          <AlertTriangle className="size-3" /> very low rate
+                        </span>
+                      )}
                     {logiResolved && kind === "item" && !goalMissing && (
                       <LogiTag
                         resolved={logiResolved}
@@ -2590,6 +2713,25 @@ function Block({ blockId }: { blockId: number }) {
                 }}
               >
                 <Star className="size-3.5" /> Move to front (names the block)
+              </CtxBtn>
+            )}
+            {goals.find((x) => x.name === goalMenu.name)?.stock == null ? (
+              <CtxBtn
+                onClick={() => {
+                  makeStockGoal(goalMenu.name);
+                  setGoalMenu(null);
+                }}
+              >
+                <RefreshCw className="size-3.5" /> Keep in stock instead (buffer, not throughput)
+              </CtxBtn>
+            ) : (
+              <CtxBtn
+                onClick={() => {
+                  makeRateGoal(goalMenu.name);
+                  setGoalMenu(null);
+                }}
+              >
+                <RefreshCw className="size-3.5" /> Track a rate instead
               </CtxBtn>
             )}
             <div className="my-1 border-t border-border" />

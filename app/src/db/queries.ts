@@ -1463,16 +1463,22 @@ export function factoryBlocks() {
       .from(blockFlows)
       .where(eq(blockFlows.blockId, b.id))
       .all();
-    const pick = (role: string) =>
+    const pick = (roles: string[]) =>
       flows
-        .filter((f) => f.role === role)
-        .map((f) => ({ item: f.item, kind: f.kind, rate: f.rate }));
+        .filter((f) => roles.includes(f.role))
+        .map((f) => ({
+          item: f.item,
+          kind: f.kind,
+          rate: f.rate,
+          // stock-goal refill demand (#38), not continuous throughput
+          ...(f.role === "stock" ? { stock: true as const } : {}),
+        }));
     return {
       id: b.id,
       name: b.name,
-      makes: pick("primary"),
-      byproducts: pick("byproduct"),
-      imports: pick("import"),
+      makes: pick(["primary", "stock"]),
+      byproducts: pick(["byproduct"]),
+      imports: pick(["import"]),
     };
   });
 }
@@ -1539,7 +1545,9 @@ export function blocksForGood(good: string) {
   return {
     good,
     display: getItem(good)?.display ?? getFluid(good)?.display ?? null,
-    producers: rows.filter((r) => r.role === "primary" || r.role === "byproduct").map(shape),
+    producers: rows
+      .filter((r) => r.role === "primary" || r.role === "stock" || r.role === "byproduct")
+      .map(shape),
     consumers: rows.filter((r) => r.role === "import").map(shape),
   };
 }
@@ -1632,7 +1640,9 @@ export function goodSuppliers(): Map<
     })
     .from(blockFlows)
     .innerJoin(blocks, eq(blocks.id, blockFlows.blockId))
-    .where(and(inArray(blockFlows.role, ["primary", "byproduct"]), eq(blocks.enabled, true)))
+    .where(
+      and(inArray(blockFlows.role, ["primary", "stock", "byproduct"]), eq(blocks.enabled, true)),
+    )
     .all();
   const m = new Map<string, { blockId: number; blockName: string; role: string }[]>();
   for (const r of rows) {

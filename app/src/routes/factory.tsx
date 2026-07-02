@@ -102,7 +102,15 @@ function FactoryPage() {
   // produced (primary + byproduct) vs consumed (imports), net per item
   const byItem = new Map<
     string,
-    { kind: string; display: string | null; produced: number; consumed: number; primary: boolean }
+    {
+      kind: string;
+      display: string | null;
+      produced: number;
+      consumed: number;
+      primary: boolean;
+      stock: boolean; // some of this good's production is a stock-refill demand (#38)
+      otherProduced: number; // production NOT from stock goals — 0 means stock-only
+    }
   >();
   for (const f of totals.data ?? []) {
     const e = byItem.get(f.item) ?? {
@@ -111,11 +119,19 @@ function FactoryPage() {
       produced: 0,
       consumed: 0,
       primary: false,
+      stock: false,
+      otherProduced: 0,
     };
     if (f.role === "import") e.consumed += f.rate;
     else {
       e.produced += f.rate;
       if (f.role === "primary") e.primary = true;
+      if (f.role === "stock") {
+        e.primary = true;
+        e.stock = true;
+      } else {
+        e.otherProduced += f.rate;
+      }
     }
     byItem.set(f.item, e);
   }
@@ -130,9 +146,14 @@ function FactoryPage() {
     .sort((a, b) => a.net - b.net); // deficits first — that's the work list
 
   const totalPowerW = (blocks.data ?? []).reduce((s, b) => s + (b.electricityW ?? 0), 0);
+  // A good produced ONLY by keep-in-stock goals isn't surplus to route — a mall
+  // of stock goals would otherwise flood the surplus list. Own section below.
+  // (A stock good that's also genuinely consumed can still show as a deficit.)
+  const stockOnly = (r: (typeof rows)[number]) => r.stock && r.otherProduced <= 1e-9;
   const deficits = rows.filter((r) => r.net < -1e-6);
-  const surpluses = rows.filter((r) => r.net > 1e-6);
-  const balanced = rows.filter((r) => Math.abs(r.net) <= 1e-6);
+  const stockBuffers = rows.filter((r) => r.net >= -1e-6 && stockOnly(r));
+  const surpluses = rows.filter((r) => r.net > 1e-6 && !stockOnly(r));
+  const balanced = rows.filter((r) => Math.abs(r.net) <= 1e-6 && !stockOnly(r));
 
   const Row = ({ r }: { r: (typeof rows)[number] }) => (
     <button
@@ -149,6 +170,14 @@ function FactoryPage() {
         <span className="min-w-0 flex-1 truncate" title={r.display ?? r.item}>
           {r.display ?? r.item}
         </span>
+        {r.stock && (
+          <span
+            title="some of this production is a stock-refill demand (a 'keep N on hand' goal), not continuous throughput"
+            className="flex shrink-0 items-center gap-0.5 rounded bg-sky-500/15 px-1 text-xs text-sky-300"
+          >
+            <RefreshCw className="size-3" /> stock
+          </span>
+        )}
       </span>
       <span className="grid grid-cols-2 gap-x-4 gap-y-0.5 pl-7 md:flex md:gap-2 md:pl-0">
         <StatCell label="produced/s" layout="row" w="md:w-24" className="text-emerald-300">
@@ -270,6 +299,11 @@ function FactoryPage() {
                   than produced across blocks) is what to build or scale next.
                 </li>
                 <li>
+                  <span className="text-foreground">Stock buffers</span> — goods made only by
+                  &quot;keep in stock&quot; goals sit in their own list: they&apos;re refill demand,
+                  not surplus for other blocks to consume.
+                </li>
+                <li>
                   <span className="text-foreground">Planned vs actual</span> — when the game is
                   linked, each item shows your real in-game rate against plan: red = starved, amber
                   = behind, green = on target.
@@ -331,6 +365,13 @@ function FactoryPage() {
           hint="net production available to new blocks"
         />
         <Section title="Balanced" items={balanced} hint="block-to-block flows that match exactly" />
+        {/* least actionable of the goods lists — a healthy mall parks here, so it
+            takes the last cell rather than crowding the deficit/surplus work lists */}
+        <Section
+          title="Stock buffers"
+          items={stockBuffers}
+          hint="keep-on-hand goals — refill demand, not surplus to route"
+        />
       </div>
 
       <MachinesCard data={machines.data} />

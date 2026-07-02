@@ -43,6 +43,9 @@ export function normalizeBlockData<T extends RawBlockData>(d: T): BlockData {
   return { ...(rest as object), goals: next } as BlockData;
 }
 
+/** Default stock-goal refill window (#38), seconds: rebuild the buffer in 10 min. */
+export const STOCK_WINDOW_DEFAULT = 600;
+
 /** The first goal (names the block + sizing anchor), or undefined for an empty block. */
 export const primaryGoal = (d: { goals?: Goal[] }): Goal | undefined => d.goals?.[0];
 
@@ -64,8 +67,18 @@ export const goalNames = (d: { goals?: Goal[] }): string[] => {
 export const primaryRate = (d: { goals?: Goal[] }): number => primaryGoal(d)?.rate ?? 1;
 
 /** Return a copy of the doc with the first goal re-rated (used by the
- * scale-to-demand / revise-rate paths, which resize a block by its anchor goal). */
+ * scale-to-demand / revise-rate paths, which resize a block by its anchor goal).
+ * A stock goal's `stock` is kept consistent with its derived rate (#38), so
+ * external re-rating scales the buffer rather than silently detaching it. */
 export function withPrimaryRate<T extends { goals?: Goal[] }>(d: T, rate: number): T {
-  const goals = (d.goals ?? []).map((g, i) => (i === 0 ? { ...g, rate } : g));
+  const goals = (d.goals ?? []).map((g, i) =>
+    i === 0
+      ? {
+          ...g,
+          rate,
+          ...(g.stock != null ? { stock: rate * (g.window ?? STOCK_WINDOW_DEFAULT) } : {}),
+        }
+      : g,
+  );
   return { ...d, goals };
 }

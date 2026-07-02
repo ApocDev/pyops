@@ -410,7 +410,7 @@ function ScalePlanDrawer({
   onClose: () => void;
   onApplied: () => void;
 }) {
-  const producers = link.producers.filter((p) => p.role === "primary");
+  const producers = link.producers.filter((p) => p.role === "primary" || p.role === "stock");
   const shortfall = +(-link.net).toFixed(3);
   const initId = producers.length === 1 ? producers[0].blockId : null;
   const initRate = initId ? +(producers[0].rate + shortfall).toFixed(3) : 0;
