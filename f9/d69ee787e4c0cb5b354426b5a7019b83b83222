@@ -1,0 +1,27 @@
+app/package.json
+  s_9be9645d11a3e7::t_de6255533fb811 35
+app/pnpm-lock.yaml
+  s_9be9645d11a3e7::t_85fb03af8ebb43 56-58,2694-2699,2796-2798,7774-7780,7921-7922
+app/src/components/block/doc-store.test.ts
+  s_9be9645d11a3e7::t_dcc07000703ef2 1-215
+app/src/components/block/doc-store.ts
+  s_9be9645d11a3e7::t_859c574836ff62 1-350
+app/src/routes/block.$id.tsx
+  s_9be9645d11a3e7::t_667385ac7c0326 19,21,35,128-147,196-199,203,210,218-221,268-270,272-273,278,304-309,313-320,333,342,346,350,353-356,370,381,404-408,410,412,416-417,425-426,431-437,440-441,444-445,447,487,494,497,526,785,1229,1943,1989-1990
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "f9d69ee787e4c0cb5b354426b5a7019b83b83222",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
