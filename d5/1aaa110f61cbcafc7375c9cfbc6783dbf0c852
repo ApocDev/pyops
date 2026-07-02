@@ -1,0 +1,39 @@
+app/drizzle/0003_add_pollution.sql
+  s_b92d5ef9e1806e::t_739d50ad3aa7b2 1-2
+app/drizzle/meta/0003_snapshot.json
+  s_b92d5ef9e1806e::t_841f0f466b6dba 1-2306
+app/drizzle/meta/_journal.json
+  s_b92d5ef9e1806e::t_00610fd7e12367 25-31
+app/src/db/import-factorio.ts
+  s_b92d5ef9e1806e::t_c1774693276f6b 191,350
+app/src/db/queries.ts
+  s_b92d5ef9e1806e::t_466cb2e97a5740 177,1067,1376,1392
+app/src/db/schema.ts
+  s_b92d5ef9e1806e::t_65814d0e3348bb 117,399-401
+app/src/db/synthesize.ts
+  s_b92d5ef9e1806e::t_af65d427b6b3dd 50,113,123,151,232
+app/src/routes/block.$id.tsx
+  s_b92d5ef9e1806e::t_25b1f4bbaedcb7 71,2090-2092,2100-2110
+app/src/routes/factory.tsx
+  s_b92d5ef9e1806e::t_6d1917bb948d70 3,151,167-175
+app/src/server/effects.ts
+  s_b92d5ef9e1806e::t_ce2b0ae46950bf 19-20,24-29,38,45,60,65,78,90
+app/src/server/factorio.ts
+  s_b92d5ef9e1806e::t_06ef22ece945ad 593-596,614-616,761,939
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "d51aaa110f61cbcafc7375c9cfbc6783dbf0c852",
+  "prompts": {},
+  "sessions": {
+    "s_b92d5ef9e1806e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a7099cb-0e25-4285-9a43-6f6e104a2ec9",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
