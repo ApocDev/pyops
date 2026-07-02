@@ -1,0 +1,37 @@
+app/src/routes/settings.tsx
+  s_52a96ee17745bd::t_de8c9ede7c480a 25,27,502-503,505-506,510
+app/src/components/project-switcher.test.tsx
+  s_c382e62fbe19b1::t_36ad0c4a6de9e8 36-41,45-47,56,63,72,80
+app/src/components/project-switcher.tsx
+  s_c382e62fbe19b1::t_fb948773a63465 1,10-16,33,48,57-72,74-78,94,96-99,102-104
+app/src/components/ui/checkbox.tsx
+  s_c382e62fbe19b1::t_7c7093ec90e82a 1-31
+app/src/components/ui/dropdown-menu.tsx
+  s_52a96ee17745bd::t_69efd6972d4b35 1-90
+app/src/routes/tasks.tsx
+  s_c382e62fbe19b1::t_2747c610b59352 26,737,739,842
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "45158de7683bc703cec59cbc14154d9ffed52a19",
+  "prompts": {},
+  "sessions": {
+    "s_52a96ee17745bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d11f1513-7c74-4dfd-bf22-726492f6cc19",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_c382e62fbe19b1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ae7565f4e80a9f984",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
