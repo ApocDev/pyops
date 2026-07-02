@@ -114,6 +114,11 @@ into **sub-blocks**: right-click a recipe's name to start a named group, add row
 and collapse it to a single line showing the chain's net flows (inputs → outputs,
 intermediates cancelled), machines and power. Purely visual — the solve is unchanged.
 
+Deliberate-spoilage steps (the uranium chain's decay, nagesium and friends) show their
+**storage buffer** right on the row: how many items sit mid-spoil at the solved
+throughput (`rate × spoil time`) and roughly how many stacks that is — the "how many
+chests do I need while it decays" figure.
+
 Numbers everywhere scale their precision to the value: a `0.001/s` trickle block shows
 its real rates instead of a wall of rounded-down `0.00`, and only a true zero reads as
 `0`. Large figures render compact (`200K`) by default — switch to full (`200,000`) with

@@ -54,6 +54,12 @@ least-squares solve (`linalg.ts`) that handles Py's cyclic recipe chains and
 reports fractional building counts. Because the choices are the user's, the solver
 faithfully shows imbalance rather than silently "fixing" it by swapping recipes.
 
+Synthetic **spoiling** recipes (`kind = "spoiling"`, energy = the spoil time in
+seconds) run in no machine — the items just sit in storage until they rot. For those
+rows `computeBlock` reports a **spoil buffer** (#19): `rate × spoil time` items are
+resident mid-spoil at steady state, shown on the row with the equivalent stack count
+— the chest space a deliberate-decay step (uranium, nagesium) actually needs.
+
 ## Build cost (capital materials)
 
 Separate from the per-second flows, `buildCost` (`db/queries.ts`, surfaced by
