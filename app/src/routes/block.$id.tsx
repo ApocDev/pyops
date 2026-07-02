@@ -16,7 +16,9 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { useStore } from "@tanstack/react-store";
 import { ActiveEditorRefContext } from "./block";
+import { createBlockDocStore, solveInputOf } from "../components/block/doc-store.ts";
 import {
   bridgeShowBlockFn,
   goodInfoFn,
@@ -29,20 +31,13 @@ import {
   setBlockEnabledFn,
   solveBlockFn,
 } from "../server/factorio";
-import type { BeaconConfig } from "../server/factorio";
 import { launchesForRate, resolveLogistics } from "../lib/logistics";
-import type { Disposition } from "../solver/block";
-import type { Goal, RateUnit } from "../db/schema";
-import { normalizeBlockData, STOCK_WINDOW_DEFAULT } from "../lib/goals";
+import { STOCK_WINDOW_DEFAULT } from "../lib/goals";
 import {
   groupMembers,
   groupNet,
-  joinGroup,
-  leaveGroup,
   moveGroupSpan,
-  normalizeGroups,
   resolveGroupAfterMove,
-  type GroupAssign,
   type RowGroup,
 } from "../lib/row-groups";
 import { fmtSpoilTime, Icon, IconProvider, useSpoilables } from "../lib/icons";
@@ -91,7 +86,6 @@ import { BlockTasks } from "../components/block/block-tasks.tsx";
 import { EditableRate } from "../components/block/editable-rate.tsx";
 import { EditableStock } from "../components/block/editable-stock.tsx";
 import {
-  DISP_CYCLE,
   ItemChip,
   craftableStyle,
   dispTag,
@@ -131,14 +125,30 @@ function Block({ blockId }: { blockId: number }) {
   const spoilables = useSpoilables(); // item → spoil ticks, for spoil-risk UI (#20)
   // Output goals, first-listed anchors naming/sizing and is the DEFAULT icon. A goal
   // with a numeric rate is pinned (a solver target); rate null is an unpinned co-product.
-  const [goals, setGoals] = useState<Goal[]>([]);
+  // The persisted block doc lives in an external store (one per editor mount —
+  // the route keys this component by block id). Actions mark dirty structurally;
+  // hydrate() can be called any time an external write lands (undo, restore).
+  const [doc] = useState(createBlockDocStore);
+  const s = useStore(doc.store);
+  const {
+    goals,
+    customIcon,
+    recipes,
+    disabled,
+    dispositions: disp,
+    spoilRates,
+    rowGroups,
+    recipeGroups,
+    machines: machineSel,
+    fuels: fuelSel,
+    modules: moduleSel,
+    beacons: beaconSel,
+    blockName,
+  } = s;
   const target = goals[0]?.name ?? ""; // the first goal's good (sizing anchor)
   const rate = goals[0]?.rate ?? 1; // the first goal's pinned rate
   // goal-item picker dialog: null = closed, {} = adding a new goal, {replace} = changing that goal's item
   const [goalPicker, setGoalPicker] = useState<null | { replace?: string }>(null);
-  // Explicit block icon (#40): null = follow the first goal. Persisted in the block
-  // doc; the picker dialog searches items+fluids like the goal picker.
-  const [customIcon, setCustomIcon] = useState<{ kind: string; name: string } | null>(null);
   const [iconPicker, setIconPicker] = useState(false);
   // right-click menu on a goal cell (change item / move to front / remove)
   const [goalMenu, setGoalMenu] = useState<{ x: number; y: number; name: string } | null>(null);
@@ -152,36 +162,23 @@ function Block({ blockId }: { blockId: number }) {
   } | null>(null);
   const [lockedInput, setLockedInput] = useState<string | null>(null); // import pinned to size the block
   const [lockedRate, setLockedRate] = useState(0); // the rate that import is pinned to
-  const [recipes, setRecipes] = useState<string[]>([]);
   // Drag-reorder of recipe rows via dnd-kit. PointerSensor covers mouse + touch; the
   // small activation distance keeps a tap/click on the grip from registering as a drag.
   const recipeSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  const [disp, setDisp] = useState<Record<string, Disposition>>({});
-  // Recipes toggled off (#73): kept in `recipes` but excluded from the solve. A
-  // Set for O(1) row lookups; persisted/solved as a sorted array via solveInput.
-  const [disabled, setDisabled] = useState<Set<string>>(new Set());
   // Sub-blocks (#7): named groups of recipe rows, display-only. Members stay
   // contiguous in `recipes` order (lib/row-groups.ts). Fold state is a view
   // preference — localStorage, not the doc, so folding doesn't churn auto-save.
   // Planned spoil losses (#20): item → expected rot rate /s, solved as extra
   // pinned surplus. `spoilDialog` holds the item whose rate is being edited.
-  const [spoilRates, setSpoilRates] = useState<Record<string, number>>({});
   const [spoilDialog, setSpoilDialog] = useState<string | null>(null);
-  const [rowGroups, setRowGroups] = useState<RowGroup[]>([]);
-  const [recipeGroups, setRecipeGroups] = useState<GroupAssign>({});
   const [foldedGroups, setFoldedGroups] = useState<Record<number, boolean>>({});
   // rename-in-place on a group header (holds the group id being edited)
   const [renamingGroup, setRenamingGroup] = useState<number | null>(null);
   // right-click menu on a recipe row (sub-block actions)
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; name: string } | null>(null);
-  // Drop groups that lost their last member (ungrouping happens by attrition too).
-  const pruneEmptyGroups = (rs: string[], assign: GroupAssign) => {
-    const used = new Set(rs.map((r) => assign[r]).filter((g): g is number => g != null));
-    setRowGroups((gs) => (gs.every((g) => used.has(g.id)) ? gs : gs.filter((g) => used.has(g.id))));
-  };
   // Reorder is display/authoring only — the solver is order-independent, so this just
   // changes how the rows are listed (and persists `recipes`). Sub-blocks (#7) make
   // it three cases: drag a group header to move the whole span; drop a row on a
@@ -190,31 +187,27 @@ function Block({ blockId }: { blockId: number }) {
     if (!over || active.id === over.id) return;
     const aid = String(active.id);
     const oid = String(over.id);
-    markEdited();
     if (aid.startsWith("grp:")) {
       const gid = Number(aid.slice(4));
       const rest = recipes.filter((r) => recipeGroups[r] !== gid);
       const at = oid.startsWith("grp:")
         ? rest.findIndex((r) => recipeGroups[r] === Number(oid.slice(4)))
         : rest.indexOf(oid);
-      setRecipes(moveGroupSpan(recipes, recipeGroups, gid, at < 0 ? rest.length : at));
+      doc.applyReorder(
+        moveGroupSpan(recipes, recipeGroups, gid, at < 0 ? rest.length : at),
+        recipeGroups,
+      );
       return;
     }
     if (oid.startsWith("grp:")) {
-      const joined = joinGroup(recipes, recipeGroups, aid, Number(oid.slice(4)));
-      setRecipes(joined.recipes);
-      setRecipeGroups(joined.assign);
-      pruneEmptyGroups(joined.recipes, joined.assign);
+      doc.joinRecipeToGroup(aid, Number(oid.slice(4)));
       return;
     }
     const from = recipes.indexOf(aid);
     const to = recipes.indexOf(oid);
     if (from < 0 || to < 0) return;
     const moved = arrayMove(recipes, from, to);
-    const assign = resolveGroupAfterMove(moved, recipeGroups, aid);
-    setRecipes(moved);
-    setRecipeGroups(assign);
-    pruneEmptyGroups(moved, assign);
+    doc.applyReorder(moved, resolveGroupAfterMove(moved, recipeGroups, aid));
   };
   const toggleFold = (id: number) =>
     setFoldedGroups((f) => {
@@ -222,40 +215,16 @@ function Block({ blockId }: { blockId: number }) {
       localStorage.setItem(`pyops.groupFold.${blockId}`, JSON.stringify(next));
       return next;
     });
-  const createGroupFromRow = (recipe: string) => {
-    markEdited();
-    const id = Math.max(0, ...rowGroups.map((g) => g.id)) + 1;
-    setRowGroups((gs) => [...gs, { id, name: "Sub-block" }]);
-    setRecipeGroups((a) => ({ ...a, [recipe]: id }));
-    setRenamingGroup(id); // name it right away
-  };
-  const renameGroup = (id: number, name: string) => {
-    markEdited();
-    setRowGroups((gs) => gs.map((g) => (g.id === id ? { ...g, name } : g)));
-  };
-  /** Dissolve a group — its rows stay, just ungrouped. */
-  const ungroupRows = (id: number) => {
-    markEdited();
-    setRowGroups((gs) => gs.filter((g) => g.id !== id));
-    setRecipeGroups((a) => Object.fromEntries(Object.entries(a).filter(([, g]) => g !== id)));
-  };
-  const removeFromGroup = (recipe: string) => {
-    markEdited();
-    const assign = leaveGroup(recipeGroups, recipe);
-    setRecipeGroups(assign);
-    pruneEmptyGroups(recipes, assign);
-  };
-  const [machineSel, setMachineSel] = useState<Record<string, string>>({}); // recipe → machine
-  const [fuelSel, setFuelSel] = useState<Record<string, string>>({}); // recipe → fuel
-  const [moduleSel, setModuleSel] = useState<Record<string, string[]>>({}); // recipe → modules
-  const [beaconSel, setBeaconSel] = useState<Record<string, BeaconConfig[]>>({}); // recipe → beacons
+  const createGroupFromRow = (recipe: string) => setRenamingGroup(doc.createGroupFromRow(recipe)); // name it right away
+  const renameGroup = doc.renameGroup;
+  const ungroupRows = doc.ungroupRows;
+  const removeFromGroup = doc.removeFromGroup;
   const [pickFor, setPickFor] = useState<{ name: string; mode: "produce" | "consume" } | null>(
     null,
   );
   const [pickMachineFor, setPickMachineFor] = useState<string | null>(null); // recipe whose machine we're choosing
   const [pickFuelFor, setPickFuelFor] = useState<string | null>(null); // recipe whose fuel we're choosing
   const [pickModulesFor, setPickModulesFor] = useState<string | null>(null); // recipe whose modules we're editing
-  const [blockName, setBlockName] = useState("");
   // Whole-block on/off (#73). Persisted immediately on toggle (not via the block's
   // auto-save), like group/order changes; disabled = excluded from factory rollups.
   const [blockEnabled, setBlockEnabled] = useState(true);
@@ -295,40 +264,18 @@ function Block({ blockId }: { blockId: number }) {
     gcTime: 0,
     staleTime: 0,
   });
-  const hydrated = useRef(false);
-  // becomes true ONLY when a user-edit handler fires (markEdited); the auto-save
-  // is gated on it so hydration / refetch / state-settling never persists.
-  const dirty = useRef(false);
-  const markEdited = () => {
-    dirty.current = true;
-  };
   useEffect(() => {
-    if (hydrated.current || !loaded.data) return;
-    hydrated.current = true;
-    const d = loaded.data.data;
-    setGoals(normalizeBlockData(d).goals);
-    // sub-block groups (#7): normalize on read so a drifted doc (orphaned
-    // assignments, scattered members) can't break the grouped rendering
-    const ng = normalizeGroups(d.recipes ?? [], d.rowGroups ?? [], d.recipeGroups ?? {});
-    setRecipes(ng.recipes);
-    setRowGroups(ng.groups);
-    setRecipeGroups(ng.assign);
+    if (s.hydrated || !loaded.data) return;
+    // the store normalizes legacy doc shapes + drifted groups on hydrate
+    doc.hydrate(loaded.data.data, loaded.data.name);
     try {
-      const s = JSON.parse(localStorage.getItem(`pyops.groupFold.${blockId}`) || "{}");
-      if (s && typeof s === "object") setFoldedGroups(s);
+      const f = JSON.parse(localStorage.getItem(`pyops.groupFold.${blockId}`) || "{}");
+      if (f && typeof f === "object") setFoldedGroups(f);
     } catch {
       /* ignore */
     }
-    setDisp((d.dispositions ?? {}) as Record<string, Disposition>);
-    setDisabled(new Set(d.disabledRecipes ?? []));
-    setSpoilRates(d.spoilRates ?? {});
-    setMachineSel(d.machines ?? {});
-    setFuelSel(d.fuels ?? {});
-    setModuleSel(d.modules ?? {});
-    setBeaconSel((d.beacons ?? {}) as Record<string, BeaconConfig[]>);
-    setBlockName(loaded.data.name);
     setBlockEnabled(loaded.data.enabled ?? true);
-    setCustomIcon(d.icon ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded.data]);
 
   const copySetup = () => {
@@ -354,109 +301,23 @@ function Block({ blockId }: { blockId: number }) {
       void qc.invalidateQueries({ queryKey: ["factory"] });
     });
   };
-  const pickMachine = (recipe: string, m: string) => {
-    markEdited();
-    setMachineSel((s) => ({ ...s, [recipe]: m }));
-  };
-  const pickFuel = (recipe: string, f: string) => {
-    markEdited();
-    setFuelSel((s) => ({ ...s, [recipe]: f }));
-  };
-  const setDispFor = (name: string, d: Disposition | "auto") => {
-    markEdited();
-    setDisp((m) => {
-      const next = { ...m };
-      if (d === "auto") delete next[name];
-      else next[name] = d;
-      return next;
-    });
-  };
-  const cycleDispFor = (name: string) => {
-    const i = DISP_CYCLE.indexOf(disp[name] ?? "auto");
-    setDispFor(name, DISP_CYCLE[(i + 1) % DISP_CYCLE.length]);
-  };
-  // Planned spoil loss (#20): r == null (or <= 0) clears the plan.
-  const setSpoilRateFor = (name: string, r: number | null) => {
-    markEdited();
-    setSpoilRates((m) => {
-      const next = { ...m };
-      if (r == null || !(r > 0)) delete next[name];
-      else next[name] = r;
-      return next;
-    });
-  };
-  // Toggle a recipe off/on (#73): a disabled recipe stays in the block but drops
-  // out of the solve, so its rate/machines/flows vanish until re-enabled.
-  const toggleDisabled = (name: string) => {
-    markEdited();
-    setDisabled((s) => {
-      const next = new Set(s);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  };
+  const pickMachine = doc.pickMachine;
+  const pickFuel = doc.pickFuel;
+  const setDispFor = doc.setDisposition;
+  const cycleDispFor = doc.cycleDisposition;
+  const setSpoilRateFor = doc.setSpoilRate;
+  const toggleDisabled = doc.toggleDisabled;
   // Goals: an ordered list, primary first (goals[0] = the sizing anchor). A new
   // block's first goal is pinned to 1/s; further goals start unpinned (co-products)
   // and can be pinned to their own target rate.
-  const addGoal = (name: string) => {
-    markEdited();
-    setGoals((gs) => (gs.some((g) => g.name === name) ? gs : [...gs, { name, rate: 1 }]));
-  };
-  const removeGoal = (name: string) => {
-    markEdited();
-    setGoals((gs) => gs.filter((g) => g.name !== name));
-  };
-  const setGoalRate = (name: string, r: number) => {
-    markEdited();
-    setGoals((gs) => gs.map((g) => (g.name === name ? { ...g, rate: r } : g)));
-  };
-  // Rate window (#10): a display/input unit per goal — the stored rate stays /s.
-  const setGoalUnit = (name: string, unit: RateUnit) => {
-    markEdited();
-    setGoals((gs) =>
-      gs.map((g) =>
-        g.name === name ? { ...g, ...(unit === "s" ? { unit: undefined } : { unit }) } : g,
-      ),
-    );
-  };
-  // Stock goals (#38): "keep N on hand". The stored rate stays canonical /s but is
-  // DERIVED (stock / window), so the solver sizes machines to rebuild the buffer
-  // within the refill window; the goal chip displays intent, not the fake rate.
-  const makeStockGoal = (name: string) => {
-    markEdited();
-    setGoals((gs) =>
-      gs.map((g) => {
-        if (g.name !== name) return g;
-        const window = g.window ?? STOCK_WINDOW_DEFAULT;
-        const stock = Math.max(1, Math.round(g.rate * window)) || 1;
-        return { ...g, stock, window, rate: stock / window };
-      }),
-    );
-  };
-  const makeRateGoal = (name: string) => {
-    markEdited();
-    // keep the derived rate as the throughput target; drop the stock intent
-    setGoals((gs) =>
-      gs.map((g) => (g.name === name ? { ...g, stock: undefined, window: undefined } : g)),
-    );
-  };
-  const setGoalStock = (name: string, stock: number) => {
-    markEdited();
-    setGoals((gs) =>
-      gs.map((g) =>
-        g.name === name ? { ...g, stock, rate: stock / (g.window ?? STOCK_WINDOW_DEFAULT) } : g,
-      ),
-    );
-  };
-  const setGoalWindow = (name: string, window: number) => {
-    markEdited();
-    setGoals((gs) =>
-      gs.map((g) =>
-        g.name === name && g.stock != null ? { ...g, window, rate: g.stock / window } : g,
-      ),
-    );
-  };
+  const addGoal = doc.addGoal;
+  const removeGoal = doc.removeGoal;
+  const setGoalRate = doc.setGoalRate;
+  const setGoalUnit = doc.setGoalUnit;
+  const makeStockGoal = doc.makeStockGoal;
+  const makeRateGoal = doc.makeRateGoal;
+  const setGoalStock = doc.setGoalStock;
+  const setGoalWindow = doc.setGoalWindow;
   // Spin up a fresh block that produces `name` (e.g. to supply an import), sized
   // to the rate this block needs, and open it. Recipes are left for the user to
   // pick — same starting point as "New block", but pre-seeded with the goal.
@@ -469,14 +330,7 @@ function Block({ blockId }: { blockId: number }) {
   };
   // Swap a goal's item in place (keeps its position + rate); drop it if the new item
   // is already a goal.
-  const changeGoalItem = (from: string, to: string) => {
-    markEdited();
-    if (to === from) return;
-    setGoals((gs) => {
-      const exists = gs.some((g) => g.name === to);
-      return gs.flatMap((g) => (g.name === from ? (exists ? [] : [{ ...g, name: to }]) : [g]));
-    });
-  };
+  const changeGoalItem = doc.changeGoalItem;
   // The goal-picker dialog routes to add / change depending on how it was opened.
   const pickGoalItem = (name: string) => {
     if (goalPicker?.replace) changeGoalItem(goalPicker.replace, name);
@@ -485,46 +339,21 @@ function Block({ blockId }: { blockId: number }) {
   };
   // Block icon (#40): pick an explicit item/fluid, or reset to follow the first goal.
   const pickIcon = (kind: string, name: string) => {
-    markEdited();
-    setCustomIcon({ kind, name });
+    doc.setCustomIcon({ kind, name });
     setIconPicker(false);
   };
   const resetIcon = () => {
-    markEdited();
-    setCustomIcon(null);
+    doc.setCustomIcon(null);
     setIconPicker(false);
   };
   // Move a goal to the front, so it names the block + anchors the rate-scaling tools.
-  const makePrimary = (name: string) => {
-    markEdited();
-    setGoals((gs) => {
-      const g = gs.find((x) => x.name === name);
-      return g ? [g, ...gs.filter((x) => x.name !== name)] : gs;
-    });
-  };
+  const makePrimary = doc.makePrimary;
 
   const hasDisp = Object.keys(disp).length > 0;
-  // prune empty module/beacon entries so they don't bloat the saved doc
-  // module entries are kept even when EMPTY: an explicit [] means "no modules"
-  // and suppresses auto-fill for that row ("reset to auto" deletes the key)
-  const modulesUsed = moduleSel;
-  const beaconsUsed = Object.fromEntries(Object.entries(beaconSel).filter(([, v]) => v.length));
-  // persist disabled recipes as a sorted array, and only when non-empty, so the
-  // saved doc stays minimal and stable (no key churn from Set iteration order).
-  const disabledRecipes = [...disabled].sort();
-  const solveInput = {
-    goals,
-    ...(customIcon ? { icon: customIcon } : {}),
-    recipes,
-    ...(disabledRecipes.length ? { disabledRecipes } : {}),
-    ...(rowGroups.length ? { rowGroups, recipeGroups } : {}),
-    ...(Object.keys(spoilRates).length ? { spoilRates } : {}),
-    ...(hasDisp ? { dispositions: disp } : {}),
-    ...(Object.keys(machineSel).length ? { machines: machineSel } : {}),
-    ...(Object.keys(fuelSel).length ? { fuels: fuelSel } : {}),
-    ...(Object.keys(modulesUsed).length ? { modules: modulesUsed } : {}),
-    ...(Object.keys(beaconsUsed).length ? { beacons: beaconsUsed } : {}),
-  };
+  // the solver/save doc, assembled by the store (empty maps omitted, disabled
+  // recipes as a sorted array — see solveInputOf)
+  const solveInput = useMemo(() => solveInputOf(s), [s]);
+  const disabledRecipes = solveInput.disabledRecipes ?? [];
   // kind + display for the goal cells, so a fluid goal (e.g. crude-oil) icons
   // correctly even before any recipe makes it appear in the solve's flows, and so
   // the block can auto-name itself from its primary goal pre-solve.
@@ -538,7 +367,7 @@ function Block({ blockId }: { blockId: number }) {
   // The first run after hydrate decides whether the loaded name was custom; after
   // that, the name follows the primary goal whenever it changes (unless custom).
   useEffect(() => {
-    if (!hydrated.current || !target) return;
+    if (!s.hydrated || !target) return;
     const info = goalInfo.data?.[target];
     if (!info) return; // wait until we know the goal's display name
     const auto = info.display;
@@ -549,10 +378,7 @@ function Block({ blockId }: { blockId: number }) {
       setNameCustom(wasCustom);
       if (wasCustom) return;
     }
-    if (!nameCustom && blockName !== auto) {
-      markEdited();
-      setBlockName(auto);
-    }
+    if (!nameCustom && blockName !== auto) doc.setBlockName(auto);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, goalInfo.data, nameCustom, blockName]);
   const solve = useQuery({
@@ -575,21 +401,20 @@ function Block({ blockId }: { blockId: number }) {
     placeholderData: keepPreviousData,
   });
   // Auto-save (debounced) to the DB, plus a flush on unmount so switching blocks
-  // never drops edits. `latest` holds the newest state for the timeout / flush.
-  // CRITICAL: we only ever save when `dirty` is set, and `dirty` is set ONLY by
-  // real user-edit handlers (markEdited) — never by hydration or state settling.
-  // Hydrating a block (incl. from a fresh refetch) must not trigger a write, or
-  // re-opening a block would clobber it with whatever it loaded.
-  const latest = useRef({ solveInput, blockName });
-  latest.current = { solveInput, blockName };
+  // never drops edits. The store owns dirty: only user-edit actions set it, and
+  // hydrate() never does — so hydration (incl. a fresh refetch) can't trigger a
+  // write that would clobber the block. Persist reads the store directly, so
+  // the flush always saves the newest state (no snapshot ref needed).
+  const retryHold = useRef(false); // a failed save stays dirty but waits for the next edit
   const persist = () => {
-    dirty.current = false;
+    doc.markClean();
     setSaveState("saving");
+    const cur = doc.store.state;
     return saveBlockFn({
       data: {
         id: blockId,
-        name: latest.current.blockName.trim() || undefined,
-        data: latest.current.solveInput,
+        name: cur.blockName.trim() || undefined,
+        data: solveInputOf(cur),
       },
     })
       .then(() => {
@@ -597,33 +422,29 @@ function Block({ blockId }: { blockId: number }) {
         void qc.invalidateQueries({ queryKey: ["blocks"] });
       })
       .catch(() => {
-        dirty.current = true; // failed — stay dirty so a later edit retries
+        retryHold.current = true;
+        doc.markDirty(); // failed — stay dirty so a later edit retries
         setSaveState("idle");
       });
   };
   useEffect(() => {
-    if (!hydrated.current || !dirty.current) return;
+    if (!s.hydrated || !s.dirty) return;
+    if (retryHold.current) {
+      // the markDirty after a failed save re-runs this effect; don't hot-loop —
+      // wait for a real edit (the next store change) to retry
+      retryHold.current = false;
+      return;
+    }
     const t = setTimeout(persist, 700);
     return () => clearTimeout(t);
-  }, [
-    goals,
-    customIcon,
-    recipes,
-    disabled,
-    rowGroups,
-    recipeGroups,
-    spoilRates,
-    disp,
-    machineSel,
-    fuelSel,
-    moduleSel,
-    beaconSel,
-    blockName,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s]);
   useEffect(
     () => () => {
-      if (hydrated.current && dirty.current) void persist();
+      const cur = doc.store.state;
+      if (cur.hydrated && cur.dirty) void persist();
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
@@ -663,48 +484,17 @@ function Block({ blockId }: { blockId: number }) {
   const showInserters = !!logiPrefs?.showInserters;
 
   const add = (name: string) => {
-    markEdited();
-    setRecipes((rs) => (rs.includes(name) ? rs : [...rs, name]));
+    doc.addRecipe(name);
     setPickFor(null);
     // Bake the preferred (favorite, else lowest-tier/cheapest) building + fuel for
     // this recipe into the block's stored picks (#18). New recipes only — existing
     // rows already have their picks and aren't touched.
     void recipeDefaultsFn({ data: [name] }).then((defaults) => {
       const d = defaults[name];
-      if (!d) return;
-      if (d.machine) setMachineSel((s) => (s[name] ? s : { ...s, [name]: d.machine! }));
-      if (d.fuel) setFuelSel((s) => (s[name] ? s : { ...s, [name]: d.fuel! }));
+      if (d) doc.applyRecipeDefaults(name, d);
     });
   };
-  const drop = (name: string) => {
-    markEdited();
-    setRecipes((rs) => rs.filter((r) => r !== name));
-    // Drop the recipe's per-row overrides too, so they don't linger as orphaned
-    // entries in the block config — and so re-adding the recipe is a fresh add that
-    // re-applies the current favorite (#18) rather than resurrecting the old pick.
-    const without = (s: Record<string, unknown>) => {
-      if (!(name in s)) return s;
-      const next = { ...s };
-      delete next[name];
-      return next;
-    };
-    setMachineSel((s) => without(s) as Record<string, string>);
-    setFuelSel((s) => without(s) as Record<string, string>);
-    setModuleSel((s) => without(s) as Record<string, string[]>);
-    setBeaconSel((s) => without(s) as Record<string, BeaconConfig[]>);
-    setDisabled((s) => {
-      if (!s.has(name)) return s;
-      const next = new Set(s);
-      next.delete(name);
-      return next;
-    });
-    const assign = leaveGroup(recipeGroups, name);
-    if (assign !== recipeGroups) setRecipeGroups(assign);
-    pruneEmptyGroups(
-      recipes.filter((r) => r !== name),
-      assign,
-    );
-  };
+  const drop = doc.dropRecipe;
 
   // When a flow has exactly one craftable recipe, skip the picker dialog and add
   // it directly. A superseded recipe (its base no longer exists in-game) or one
@@ -732,13 +522,8 @@ function Block({ blockId }: { blockId: number }) {
       return;
     }
     if (imp.rate > 0 && rate > 0 && Math.abs(imp.rate - lockedRate) > 1e-3) {
-      markEdited();
       // back-solve the first goal's rate so the locked import lands at lockedRate
-      setGoals((gs) =>
-        gs.map((g, i) =>
-          i === 0 ? { ...g, rate: +((lockedRate * g.rate) / imp.rate).toFixed(4) } : g,
-        ),
-      );
+      doc.setPrimaryRate(+((lockedRate * rate) / imp.rate).toFixed(4));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [res, lockedInput, lockedRate]);
@@ -996,9 +781,8 @@ function Block({ blockId }: { blockId: number }) {
         <Input
           value={blockName}
           onChange={(e) => {
-            markEdited();
             const v = e.target.value;
-            setBlockName(v);
+            doc.setBlockName(v);
             // typing a name pins it; clearing it resumes auto-naming from the goal
             customDecided.current = true;
             setNameCustom(v.trim().length > 0);
@@ -1442,10 +1226,7 @@ function Block({ blockId }: { blockId: number }) {
                   </button>
                 ))}
                 <button
-                  onClick={() => {
-                    markEdited();
-                    setDisp({});
-                  }}
+                  onClick={doc.clearDispositions}
                   title="clear all forced overrides"
                   className="text-muted-foreground underline hover:text-foreground"
                 >
@@ -2159,12 +1940,7 @@ function Block({ blockId }: { blockId: number }) {
           groups={rowGroups}
           currentGroup={rowGroups.find((g) => g.id === recipeGroups[rowMenu.name]) ?? null}
           onNewGroup={() => createGroupFromRow(rowMenu.name)}
-          onJoinGroup={(gid) => {
-            markEdited();
-            const joined = joinGroup(recipes, recipeGroups, rowMenu.name, gid);
-            setRecipes(joined.recipes);
-            setRecipeGroups(joined.assign);
-          }}
+          onJoinGroup={(gid) => doc.joinRecipeToGroup(rowMenu.name, gid)}
           onLeaveGroup={() => removeFromGroup(rowMenu.name)}
           onClose={() => setRowMenu(null)}
         />
@@ -2210,19 +1986,8 @@ function Block({ blockId }: { blockId: number }) {
               beacons={beaconSel[pickModulesFor] ?? []}
               effects={mr.effects}
               auto={mr.autoModules && moduleSel[pickModulesFor] === undefined}
-              onChange={(mods, bcns) => {
-                markEdited();
-                setModuleSel((s) => ({ ...s, [pickModulesFor]: mods }));
-                setBeaconSel((s) => ({ ...s, [pickModulesFor]: bcns }));
-              }}
-              onReset={() => {
-                markEdited();
-                setModuleSel((s) => {
-                  const n = { ...s };
-                  delete n[pickModulesFor];
-                  return n;
-                });
-              }}
+              onChange={(mods, bcns) => doc.setModules(pickModulesFor, mods, bcns)}
+              onReset={() => doc.resetModules(pickModulesFor)}
               onClose={() => setPickModulesFor(null)}
             />
           );

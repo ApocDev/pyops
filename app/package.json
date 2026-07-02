@@ -32,6 +32,7 @@
     "@tanstack/react-router-devtools": "latest",
     "@tanstack/react-router-ssr-query": "latest",
     "@tanstack/react-start": "latest",
+    "@tanstack/react-store": "latest",
     "@tanstack/react-table": "latest",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
