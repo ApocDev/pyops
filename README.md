@@ -121,7 +121,17 @@ intermediates cancelled), machines and power. Purely visual — the solve is unc
 Deliberate-spoilage steps (the uranium chain's decay, nagesium and friends) show their
 **storage buffer** right on the row: how many items sit mid-spoil at the solved
 throughput (`rate × spoil time`) and roughly how many stacks that is — the "how many
-chests do I need while it decays" figure.
+chests do I need while it decays" figure. For *incidental* spoilage — stuff rotting
+because it isn't consumed fast enough — a spoilable **surplus** gets a "rots in X"
+flag, and any spoilable can carry a **planned spoil loss** (right-click → Plan spoil
+loss): an expected rot rate the solver covers with extra production, shown in an
+amber strip on the block balance.
+
+Each block also reports its **power and pollution budget** — electric draw and
+pollution/min (machine base emissions × energy-consumption × pollution-module
+effects) — with factory-wide totals in the Factory header.
+
+
 
 Numbers everywhere scale their precision to the value: a `0.001/s` trickle block shows
 its real rates instead of a wall of rounded-down `0.00`, and only a true zero reads as

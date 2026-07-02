@@ -38,6 +38,17 @@ later. A whole block can likewise be disabled (`blocks.enabled = false`): it sti
 opens and solves for editing, but every factory-wide rollup (totals, coherence,
 suppliers, machine counts, what-if) skips it.
 
+A block doc can carry **planned spoil losses** (#20, `spoilRates`: item → rot rate
+/s). Each entry is merged into the solver targets as extra pinned net production —
+surplus that rots in storage — so the chain is sized to cover the loss. The rotted
+surplus never reaches the boundary flows (pinned items are excluded from exports),
+which is correct: spoiled goods aren't available to other blocks.
+
+`computeBlock` also rolls up a **pollution budget** (#23): per row, machine base
+`emissions_per_minute` × count × energy-consumption multiplier × pollution-module
+multiplier (per-fuel emissions multipliers are approximated as 1). Cached on the
+block like `electricity_w` and summed in the Factory header.
+
 Rows can be grouped into **sub-blocks** (`rowGroups` + `recipeGroups` in the block
 doc) — named, collapsible groups the editor renders as one folded line with the
 chain's net flows (member products minus member ingredients; intermediates cancel).
@@ -82,9 +93,10 @@ Module/beacon effects (`effects.ts`) apply **before** the solve:
 - **Productivity** scales a recipe's products (a real balance change).
 - **Speed** scales the machine count.
 - **Consumption** scales power/fuel.
+- **Pollution** scales the block's pollution budget (#23).
 
-Factorio's clamps are respected: speed and consumption multipliers bottom out at
-0.2, productivity caps at +300%.
+Factorio's clamps are respected: speed, consumption, and pollution multipliers
+bottom out at 0.2, productivity caps at +300%.
 
 ## Factory-level what-if
 
