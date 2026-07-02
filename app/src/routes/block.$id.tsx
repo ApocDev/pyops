@@ -92,7 +92,10 @@ import {
 } from "lucide-react";
 import { ItemHover, RecipeHover, TechLine } from "../lib/recipe-card";
 import { Badge } from "#/components/ui/badge.tsx";
+import { Button } from "#/components/ui/button.tsx";
+import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card.tsx";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "#/components/ui/dialog.tsx";
 import {
   Sheet,
   SheetContent,
@@ -100,8 +103,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "#/components/ui/sheet.tsx";
+import { ContextMenu, ContextMenuItem } from "#/components/context-menu.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { FieldLabel } from "#/components/ui/label.tsx";
+import { Skeleton } from "#/components/ui/skeleton.tsx";
 
 export const Route = createFileRoute("/block/$id")({ component: BlockRoute });
 
@@ -148,7 +154,7 @@ function BlockRoute() {
   );
 }
 const head =
-  "px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border";
+  "px-3 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground border-b border-border";
 
 /** Reverse view of task→block links: the planner tasks that reference this
  * block, each linking back to it on the tasks page. Hidden when none. */
@@ -171,10 +177,10 @@ function BlockTasks({ blockId }: { blockId: number }) {
               key={t.id}
               to="/tasks"
               search={{ tab: "tasks", t: t.id }}
-              className="flex items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-muted"
+              className="flex items-center gap-2 px-1 py-0.5 text-sm hover:bg-muted"
             >
               <span
-                className={`size-2 shrink-0 rounded-full ${t.done ? "bg-emerald-500" : "bg-muted-foreground/40"}`}
+                className={`size-2 shrink-0 rounded-full ${t.done ? "bg-success" : "bg-muted-foreground/40"}`}
               />
               <span
                 className={`min-w-0 flex-1 truncate ${t.done ? "text-muted-foreground line-through" : ""}`}
@@ -182,7 +188,7 @@ function BlockTasks({ blockId }: { blockId: number }) {
                 {t.title || "Untitled task"}
               </span>
               {total > 0 && (
-                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
                   {done}/{total}
                 </span>
               )}
@@ -193,8 +199,10 @@ function BlockTasks({ blockId }: { blockId: number }) {
     </Card>
   );
 }
-const rowBtn = "flex w-full items-center gap-1.5 rounded px-2 py-1 text-left hover:bg-muted";
-const craftableStyle = "border border-dashed border-amber-400/60 bg-amber-500/10 text-amber-200";
+// whole-row picker trigger — Button's fixed-height anatomy would fight the
+// icon+truncating-label row layout, so this stays a raw button with tokens
+const rowBtn = "flex w-full items-center gap-1.5 px-2 py-1 text-left hover:bg-muted";
+const craftableStyle = "border border-dashed border-warning/60 bg-warning/10 text-warning";
 const num = formatQty; // adaptive precision (#74) — shared with every other table
 // goal-rate display: enough precision to be exact, trailing zeros trimmed
 const fmtRate = (n: number) => {
@@ -242,14 +250,14 @@ function EditableStock({
             setEditing(true);
           }}
           title="keep this many on hand — click to edit"
-          className="hover:text-sky-300"
+          className="hover:text-info"
         >
           keep {formatQty(stock)}
         </button>
         <button
           onClick={cycle}
           title="refill window — machines are sized to rebuild the buffer within this time; click to cycle"
-          className="flex items-center gap-0.5 text-muted-foreground hover:text-sky-300"
+          className="flex items-center gap-0.5 text-muted-foreground hover:text-info"
         >
           <RefreshCw className="size-3" />
           {fmtWindow(win)}
@@ -263,7 +271,7 @@ function EditableStock({
     setEditing(false);
   };
   return (
-    <input
+    <Input
       autoFocus
       type="text"
       inputMode="numeric"
@@ -274,7 +282,7 @@ function EditableStock({
         if (e.key === "Enter") commit();
         if (e.key === "Escape") setEditing(false);
       }}
-      className="w-16 rounded border border-sky-400/60 bg-muted px-1 py-0.5 text-center text-sm"
+      className="h-7 w-16 border-info/60 px-1 text-center"
     />
   );
 }
@@ -309,14 +317,14 @@ function EditableRate({
             setEditing(true);
           }}
           title={readOnly ? "sized by a locked input" : "click to edit the goal rate"}
-          className={readOnly ? "text-muted-foreground" : "hover:text-sky-300"}
+          className={readOnly ? "text-muted-foreground" : "hover:text-info"}
         >
           {fmtRate(value * factor)}
         </button>
         <button
           onClick={cycleUnit}
           title="rate window — click to cycle per second / minute / hour"
-          className="text-muted-foreground hover:text-sky-300"
+          className="text-muted-foreground hover:text-info"
         >
           /{unit}
         </button>
@@ -330,7 +338,7 @@ function EditableRate({
   };
   return (
     <span className="inline-flex items-center gap-0.5">
-      <input
+      <Input
         autoFocus
         type="text"
         inputMode="decimal"
@@ -341,7 +349,7 @@ function EditableRate({
           if (e.key === "Enter") commit();
           if (e.key === "Escape") setEditing(false);
         }}
-        className="w-16 rounded border border-sky-400/60 bg-muted px-1 py-0.5 text-center text-sm"
+        className="h-7 w-16 border-info/60 px-1 text-center"
       />
       <span className="text-sm text-muted-foreground">/{unit}</span>
     </span>
@@ -363,8 +371,10 @@ const fmtJ = (j: number) =>
       : j >= 1e3
         ? `${(j / 1e3).toFixed(0)} kJ`
         : `${j.toFixed(0)} J`;
-// compact YAFC-style cell chip: icon + number, clickable
-const cellChip = "flex items-center gap-1 rounded bg-muted/50 px-1.5 py-1 text-sm hover:bg-accent";
+// compact YAFC-style cell chip: icon + number, clickable — stays a raw
+// button/span shape (icon-in-flow trigger; Button's height/padding would fight
+// the dense grid rows)
+const cellChip = "flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm hover:bg-accent";
 // io amounts: integers stay clean ("50", "1000"), long numbers humanize ("1.2k")
 const fmtAmt = (n: number) => {
   const r = Math.round(n * 100) / 100;
@@ -393,18 +403,18 @@ const fmtCost = (c: number) =>
  * obvious which flows are linked internally vs. need a recipe vs. spill out. */
 type Link = "target" | "import" | "export" | "linked";
 const linkStyle: Record<Link, string> = {
-  target: "bg-blue-500/20 ring-1 ring-blue-400/40 text-blue-200",
-  import: "bg-amber-500/20 ring-1 ring-amber-400/40 text-amber-200", // nothing in-block makes it
-  export: "bg-violet-500/20 ring-1 ring-violet-400/40 text-violet-200", // surplus, nothing consumes it
-  linked: "bg-emerald-500/15 ring-1 ring-emerald-400/30 text-emerald-200", // produced AND consumed in-block
+  target: "bg-info/20 ring-1 ring-info/40 text-info",
+  import: "bg-warning/20 ring-1 ring-warning/40 text-warning", // nothing in-block makes it
+  export: "bg-surplus/20 ring-1 ring-surplus/40 text-surplus", // surplus, nothing consumes it
+  linked: "bg-success/15 ring-1 ring-success/30 text-success", // produced AND consumed in-block
 };
 
 /** Disposition override cycle (alt/right-click) + how the small tag reads. */
 const DISP_CYCLE = ["auto", "import", "export", "balance"] as const;
 const dispTag: Record<Disposition, { label: string; cls: string }> = {
-  import: { label: "→ import", cls: "bg-amber-500/30 text-amber-200" },
-  export: { label: "→ export", cls: "bg-violet-500/30 text-violet-200" },
-  balance: { label: "= balance", cls: "bg-emerald-500/30 text-emerald-200" },
+  import: { label: "→ import", cls: "bg-warning/30 text-warning" },
+  export: { label: "→ export", cls: "bg-surplus/30 text-surplus" },
+  balance: { label: "= balance", cls: "bg-success/30 text-success" },
 };
 
 /** Clickable ingredient/product pill: icon + rate, tinted by link state. Click
@@ -467,8 +477,8 @@ function ItemChip({
             onContext(e);
           }}
           aria-label={`${display ?? name}${rate != null ? ` ${num(rate)}/s` : ""} · ${why}`}
-          className={`flex items-center gap-1 rounded px-1.5 py-1 text-sm hover:brightness-95 ${cls} ${
-            disp ? "ring-2 ring-sky-400/60" : ""
+          className={`flex items-center gap-1 px-1.5 py-1 text-sm hover:brightness-95 ${cls} ${
+            disp ? "ring-2 ring-info/60" : ""
           }`}
         >
           <span className="relative flex">
@@ -476,20 +486,20 @@ function ItemChip({
             {fuel && (
               <Flame
                 aria-label="burned as fuel"
-                className="absolute -right-1 -bottom-1 size-3.5 rounded-full bg-background/90 p-px text-orange-400"
+                className="absolute -right-1 -bottom-1 size-3.5 rounded-full bg-background/90 p-px text-warning"
                 strokeWidth={2.5}
               />
             )}
           </span>
           {rate != null && <span>{num(rate)}</span>}
-          {craftableImport && <Plus className="size-3.5 text-amber-300" strokeWidth={3} />}
+          {craftableImport && <Plus className="size-3.5 text-warning" strokeWidth={3} />}
         </button>
       </ItemHover>
       {disp && (
         <button
           onClick={onClearDisp}
           title="forced disposition — click to clear back to auto"
-          className={`rounded px-1 py-0.5 text-sm ${dispTag[disp].cls} hover:brightness-110`}
+          className={`px-1 py-0.5 text-sm ${dispTag[disp].cls} hover:brightness-110`}
         >
           {dispTag[disp].label}
         </button>
@@ -553,7 +563,7 @@ function LogiTag({
     .filter(Boolean)
     .join(" · ");
   return (
-    <span className="flex items-center gap-2.5 pl-1 text-xs text-muted-foreground" title={title}>
+    <span className="flex items-center gap-2.5 pl-1 text-sm text-muted-foreground" title={title}>
       {beltOn && beltName && (
         <span className="inline-flex items-center gap-1.5">
           <Icon kind="entity" name={beltName} size="sm" noHover />
@@ -575,28 +585,6 @@ function LogiTag({
         </span>
       )}
     </span>
-  );
-}
-
-/** One row in the chip right-click context menu. */
-function CtxBtn({
-  children,
-  onClick,
-  active,
-  className = "",
-}: {
-  children: ReactNode;
-  onClick: () => void;
-  active?: boolean;
-  className?: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex w-full items-center gap-2 px-3 py-1 text-left text-sm hover:bg-muted ${active ? "text-sky-300" : ""} ${className}`}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -1260,10 +1248,10 @@ function Block({ blockId }: { blockId: number }) {
   const unused = new Set(res?.unusedRecipes ?? []);
   const statusColor =
     res?.status === "solved"
-      ? "text-emerald-400"
+      ? "text-success"
       : res?.status === "infeasible"
         ? "text-destructive"
-        : "text-amber-400";
+        : "text-warning";
 
   // Block health for the title tint (mirrors the sidebar verdict): red for broken
   // refs / infeasible, amber for unmade goals / relaxed / underdetermined / temp
@@ -1283,7 +1271,7 @@ function Block({ blockId }: { blockId: number }) {
     editorHealth === "error"
       ? "border-destructive/70 text-destructive focus-visible:ring-destructive/40"
       : editorHealth === "warn"
-        ? "border-amber-400/70 text-amber-400 focus-visible:ring-amber-400/40"
+        ? "border-warning/70 text-warning focus-visible:ring-warning/40"
         : "";
 
   // Per-item link state from the solve, so each chip can show whether it's the
@@ -1405,16 +1393,18 @@ function Block({ blockId }: { blockId: number }) {
             >
               <GripVertical className="size-4" />
             </span>
-            <button
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={() => toggleFold(g.id)}
               title={folded ? "expand this sub-block" : "collapse this sub-block to one line"}
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground"
             >
               {folded ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
-            </button>
+            </Button>
             <Layers className="size-4 shrink-0 text-primary/70" />
             {renamingGroup === g.id ? (
-              <input
+              <Input
                 autoFocus
                 defaultValue={g.name}
                 onFocus={(e) => e.target.select()}
@@ -1426,7 +1416,7 @@ function Block({ blockId }: { blockId: number }) {
                   if (e.key === "Enter") e.currentTarget.blur();
                   if (e.key === "Escape") setRenamingGroup(null);
                 }}
-                className="w-44 rounded border border-input bg-muted px-1.5 py-0.5 text-sm"
+                className="h-7 w-44 px-1.5"
               />
             ) : (
               <span
@@ -1437,45 +1427,41 @@ function Block({ blockId }: { blockId: number }) {
                 {g.name}
               </span>
             )}
-            <span className="text-xs text-muted-foreground">
+            <span className="text-sm text-muted-foreground">
               {members.length} recipe{members.length === 1 ? "" : "s"}
             </span>
             {net && (
               <span className="flex flex-wrap items-center gap-1.5 text-sm">
                 {net.inputs.map((f) => (
-                  <span
-                    key={f.name}
-                    className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-0.5"
-                  >
+                  <span key={f.name} className="flex items-center gap-1 bg-muted/50 px-1.5 py-0.5">
                     <Icon kind={f.kind as "item" | "fluid"} name={f.name} size="sm" />
                     <span className="tabular-nums">{num(f.rate)}</span>
                   </span>
                 ))}
                 <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
                 {net.outputs.map((f) => (
-                  <span
-                    key={f.name}
-                    className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-0.5"
-                  >
+                  <span key={f.name} className="flex items-center gap-1 bg-muted/50 px-1.5 py-0.5">
                     <Icon kind={f.kind as "item" | "fluid"} name={f.name} size="sm" />
                     <span className="tabular-nums">{num(f.rate)}</span>
                   </span>
                 ))}
                 {net.machines > 0 && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-sm text-muted-foreground">
                     · {num(net.machines)} machines
                   </span>
                 )}
-                {net.powerW > 0 && <span className="text-xs text-sky-300">{fmtW(net.powerW)}</span>}
+                {net.powerW > 0 && <span className="text-sm text-info">{fmtW(net.powerW)}</span>}
               </span>
             )}
-            <button
+            <Button
+              variant="ghost"
+              size="icon-xs"
               className="ml-auto text-muted-foreground hover:text-destructive"
               onClick={() => ungroupRows(g.id)}
               title="ungroup — dissolve the sub-block, its rows stay"
             >
               <X className="size-3.5" />
-            </button>
+            </Button>
           </div>
         )}
       </SortableRow>
@@ -1485,14 +1471,16 @@ function Block({ blockId }: { blockId: number }) {
   return (
     <div className="p-4 font-mono text-base text-foreground">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <button
+        <Button
+          variant="outline"
+          size="icon-lg"
           onClick={() => setIconPicker(true)}
           title={
             customIcon
               ? "block icon (custom) — click to change or reset to auto"
               : "block icon — follows the first goal; click to pick your own"
           }
-          className={`flex size-9 shrink-0 items-center justify-center rounded border hover:bg-muted ${customIcon ? "border-primary/60" : "border-border"}`}
+          className={customIcon ? "border-primary/60" : ""}
         >
           {blockIcon ? (
             <Icon
@@ -1505,7 +1493,7 @@ function Block({ blockId }: { blockId: number }) {
           ) : (
             <Grid2x2 className="size-4 text-muted-foreground" />
           )}
-        </button>
+        </Button>
         <Input
           value={blockName}
           onChange={(e) => {
@@ -1530,60 +1518,70 @@ function Block({ blockId }: { blockId: number }) {
             ""
           )}
         </span>
-        <button
+        <Button
+          variant="outline"
+          size="icon-sm"
           onClick={copySetup}
           title="Copy setup — copy this block's recipe/module setup to the clipboard"
-          className="flex size-7 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="text-muted-foreground"
         >
           <Copy className="size-4" />
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="outline"
+          size="icon-sm"
           onClick={() => showInGame.mutate()}
           disabled={showInGame.isPending}
           title="Open in game — show this block as an in-game build sheet; click a building there for a configured blueprint (needs the bridge)"
-          className="flex size-7 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
+          className="text-muted-foreground"
         >
           <Gamepad2 className={`size-4 ${showInGame.isPending ? "animate-pulse" : ""}`} />
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="outline"
+          size="icon-sm"
           onClick={toggleBlockEnabled}
           title={
             blockEnabled
               ? "Disable block — keep it here but exclude it from every factory-wide total"
               : "Enable block — count this block in the factory totals again"
           }
-          className={`flex size-7 items-center justify-center rounded border ${blockEnabled ? "border-border text-muted-foreground hover:bg-muted hover:text-foreground" : "border-amber-500/60 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"}`}
+          className={
+            !blockEnabled
+              ? "border-warning/60 bg-warning/10 text-warning hover:bg-warning/20"
+              : "text-muted-foreground"
+          }
         >
           <Power className="size-4" />
-        </button>
+        </Button>
         {!blockEnabled && (
-          <span className="rounded bg-amber-500/15 px-2 py-1 text-xs font-semibold text-amber-400">
+          <Badge className="border-transparent bg-warning/15 font-semibold text-warning">
             disabled — excluded from factory totals
-          </span>
+          </Badge>
         )}
         {res?.buildCost && res.buildCost.buildings.length > 0 && (
           <Sheet>
             <SheetTrigger asChild>
-              <button
+              <Button
+                variant="outline"
+                size="icon-sm"
                 title="Building summary — the buildings + one-time materials to construct this block"
-                className="flex size-7 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="text-muted-foreground"
               >
                 <Hammer className="size-4" />
-              </button>
+              </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-96 max-w-[92vw] font-mono">
               <SheetHeader>
                 <SheetTitle>Building summary</SheetTitle>
               </SheetHeader>
               <div className="min-h-0 flex-1 space-y-4 overflow-auto p-3">
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   The buildings to construct this block, and the one-time materials to build them —
                   a shopping list, separate from the per-second flows.
                 </p>
                 <div>
-                  <div className="mb-1.5 text-xs font-semibold text-muted-foreground">
-                    Buildings
-                  </div>
+                  <FieldLabel className="mb-1.5">Buildings</FieldLabel>
                   <div className="flex flex-wrap gap-2">
                     {res.buildCost.buildings.map((b) => (
                       <span key={b.name} className={cellChip} title={b.display}>
@@ -1594,9 +1592,7 @@ function Block({ blockId }: { blockId: number }) {
                   </div>
                 </div>
                 <div>
-                  <div className="mb-1.5 text-xs font-semibold text-muted-foreground">
-                    Materials to build them
-                  </div>
+                  <FieldLabel className="mb-1.5">Materials to build them</FieldLabel>
                   {res.buildCost.materials.length === 0 ? (
                     <span className="text-sm text-muted-foreground">
                       — (no build recipe found for these buildings)
@@ -1617,14 +1613,14 @@ function Block({ blockId }: { blockId: number }) {
           </Sheet>
         )}
         {showInGame.data && !showInGame.data.sent && (
-          <span className="text-xs text-amber-300">game not connected</span>
+          <span className="text-sm text-warning">game not connected</span>
         )}
         {showInGame.data?.sent && (
-          <span className="flex items-center gap-1 text-xs text-emerald-300">
+          <span className="flex items-center gap-1 text-sm text-success">
             opened in game <Check className="size-3" />
           </span>
         )}
-        <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+        <span className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
           <Legend cls={linkStyle.target} label="goal" />
           <Legend cls={linkStyle.linked} label="linked" />
           <Legend cls={linkStyle.import} label="raw in" />
@@ -1655,14 +1651,13 @@ function Block({ blockId }: { blockId: number }) {
               <span className="text-foreground">right-click a goal → Keep in stock</span> turns it
               into a buffer goal (&quot;keep 100 on hand&quot;) with a refill window (default 10m,
               click to cycle) — machines are sized to rebuild the buffer within the window, and the
-              factory ledger badges the flow <span className="text-sky-300">↻ stock</span>. So a
-              single &quot;logistics&quot; block can make belts @10/s, undergrounds @4/s and
-              splitters @2/s side by side. The first goal{" "}
-              <span className="text-blue-300">names the block</span>, anchors the scale tools, and
-              is the default icon; <Star className="inline size-3.5 text-foreground" /> moves a goal
-              to the front. Click the icon next to the block&apos;s name to pick any item or fluid
-              as its icon instead. A good you don&apos;t target isn&apos;t a goal — it falls out as
-              a byproduct (export).
+              factory ledger badges the flow <span className="text-info">↻ stock</span>. So a single
+              &quot;logistics&quot; block can make belts @10/s, undergrounds @4/s and splitters @2/s
+              side by side. The first goal <span className="text-info">names the block</span>,
+              anchors the scale tools, and is the default icon;{" "}
+              <Star className="inline size-3.5 text-foreground" /> moves a goal to the front. Click
+              the icon next to the block&apos;s name to pick any item or fluid as its icon instead.
+              A good you don&apos;t target isn&apos;t a goal — it falls out as a byproduct (export).
             </p>
             <p className="mt-1">
               If your goals can&apos;t all be met at once (e.g. two goods locked to a fixed ratio by
@@ -1733,11 +1728,11 @@ function Block({ blockId }: { blockId: number }) {
           current data, so the block is NOT solved (showing wrong numbers would be
           worse). The block + its last-good cache are preserved untouched. */}
       {res?.broken && (
-        <div className="mb-4 rounded border border-destructive/40 bg-destructive/10 p-3 text-sm">
-          <div className="flex items-center gap-1.5 font-semibold text-destructive">
-            <AlertTriangle className="size-4 shrink-0" /> This block references prototypes that no
-            longer exist in the current data — it won&apos;t be solved.
-          </div>
+        <Callout
+          tone="destructive"
+          className="mb-4"
+          title="This block references prototypes that no longer exist in the current data — it won't be solved."
+        >
           <p className="mt-1 text-muted-foreground">
             The block is preserved exactly as saved (its last solved numbers are kept). Re-enable
             the mod or re-import the data dump to restore it — pure renames are applied
@@ -1747,7 +1742,7 @@ function Block({ blockId }: { blockId: number }) {
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className="text-muted-foreground">missing recipe:</span>
               {res.missing.recipes.map((n) => (
-                <code key={n} className="rounded bg-destructive/15 px-1.5 py-0.5 text-destructive">
+                <code key={n} className="bg-destructive/15 px-1.5 py-0.5 text-destructive">
                   {n}
                 </code>
               ))}
@@ -1757,13 +1752,13 @@ function Block({ blockId }: { blockId: number }) {
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
               <span className="text-muted-foreground">missing good:</span>
               {res.missing.goods.map((n) => (
-                <code key={n} className="rounded bg-destructive/15 px-1.5 py-0.5 text-destructive">
+                <code key={n} className="bg-destructive/15 px-1.5 py-0.5 text-destructive">
                   {n}
                 </code>
               ))}
             </div>
           )}
-        </div>
+        </Callout>
       )}
 
       {/* Goal + block summary */}
@@ -1797,14 +1792,14 @@ function Block({ blockId }: { blockId: number }) {
                       e.preventDefault();
                       setGoalMenu({ x: e.clientX, y: e.clientY, name: g });
                     }}
-                    className={`group relative flex min-w-16 flex-col items-center gap-0.5 rounded px-2 py-1 ${
+                    className={`group relative flex min-w-16 flex-col items-center gap-0.5 px-2 py-1 ${
                       goalMissing
                         ? "bg-destructive/10 ring-1 ring-destructive/40"
                         : goalUnmade
-                          ? "bg-amber-500/10 ring-1 ring-amber-400/40"
+                          ? "bg-warning/10 ring-1 ring-warning/40"
                           : isFirst
-                            ? "bg-blue-500/10 ring-1 ring-blue-400/30"
-                            : "bg-sky-500/5 ring-1 ring-sky-400/20"
+                            ? "bg-info/10 ring-1 ring-info/30"
+                            : "bg-info/5 ring-1 ring-info/20"
                     }`}
                     title={
                       goalMissing
@@ -1820,7 +1815,7 @@ function Block({ blockId }: { blockId: number }) {
                         <button
                           onClick={() => makePrimary(g)}
                           title="move to front — name the block after this goal"
-                          className="flex size-5 items-center justify-center rounded bg-background text-blue-300 shadow ring-1 ring-border hover:text-blue-200"
+                          className="flex size-5 items-center justify-center bg-background text-info shadow ring-1 ring-border hover:brightness-125"
                         >
                           <Star className="size-3" />
                         </button>
@@ -1828,7 +1823,7 @@ function Block({ blockId }: { blockId: number }) {
                       <button
                         onClick={() => removeGoal(g)}
                         title="remove this goal"
-                        className="flex size-5 items-center justify-center rounded bg-background text-muted-foreground shadow ring-1 ring-border hover:text-destructive"
+                        className="flex size-5 items-center justify-center bg-background text-muted-foreground shadow ring-1 ring-border hover:text-destructive"
                       >
                         <X className="size-3" />
                       </button>
@@ -1840,7 +1835,7 @@ function Block({ blockId }: { blockId: number }) {
                       <Icon kind={kind} name={g} size="lg" title={res?.display?.[g] ?? g} />
                     </button>
                     {goalMissing ? (
-                      <span className="flex items-center gap-0.5 text-xs font-semibold text-destructive">
+                      <span className="flex items-center gap-0.5 text-sm font-semibold text-destructive">
                         <AlertTriangle className="size-3" /> gone
                       </span>
                     ) : goal.stock != null ? (
@@ -1864,7 +1859,7 @@ function Block({ blockId }: { blockId: number }) {
                       </span>
                     )}
                     {goalUnmade && (
-                      <span className="flex items-center gap-0.5 text-xs font-semibold text-amber-400">
+                      <span className="flex items-center gap-0.5 text-sm font-semibold text-warning">
                         <AlertTriangle className="size-3" /> no recipe
                       </span>
                     )}
@@ -1876,7 +1871,7 @@ function Block({ blockId }: { blockId: number }) {
                       goal.rate !== 0 &&
                       Math.abs(goal.rate) < 1e-4 && (
                         <span
-                          className="flex cursor-help items-center gap-0.5 text-xs font-semibold text-amber-400"
+                          className="flex cursor-help items-center gap-0.5 text-sm font-semibold text-warning"
                           title="rates this small can fall below the solver's noise floor — flows may read as zero. If the intent is 'just make/keep some', a keep-in-stock goal (planned) will express that better than a tiny rate."
                         >
                           <AlertTriangle className="size-3" /> very low rate
@@ -1902,10 +1897,10 @@ function Block({ blockId }: { blockId: number }) {
                   setGoalPicker({});
                 }}
                 title="add a goal product"
-                className="flex min-w-16 flex-col items-center justify-center gap-0.5 rounded border border-dashed border-border px-2 py-1 text-muted-foreground hover:text-foreground"
+                className="flex min-w-16 flex-col items-center justify-center gap-0.5 border border-dashed border-border px-2 py-1 text-muted-foreground hover:text-foreground"
               >
                 <Plus className="size-6" />
-                <span className="text-xs">goal</span>
+                <span className="text-sm">goal</span>
               </button>
             </div>
             {!target && (
@@ -1914,7 +1909,7 @@ function Block({ blockId }: { blockId: number }) {
               </div>
             )}
             {lockedInput && (
-              <div className="flex items-center gap-1 text-xs text-sky-300">
+              <div className="flex items-center gap-1 text-sm text-info">
                 <Lock className="size-3 shrink-0" /> sized by input — edit the locked rate in
                 Imports, or unlock it there
               </div>
@@ -1936,37 +1931,39 @@ function Block({ blockId }: { blockId: number }) {
               solve is infeasible and the item's chip is hidden, so a forced override
               (e.g. an input cycled to export) can never soft-lock the block. */}
           {hasDisp && (
-            <div className="mx-3 mt-2 flex flex-wrap items-center gap-2 rounded border border-sky-400/30 bg-sky-500/10 px-2 py-1.5 text-xs">
-              <span className="text-sky-300">forced overrides:</span>
-              {Object.entries(disp).map(([name, d]) => (
+            <Callout tone="info" icon={null} className="mx-3 mt-2 px-2 py-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span>forced overrides:</span>
+                {Object.entries(disp).map(([name, d]) => (
+                  <button
+                    key={name}
+                    onClick={() => setDispFor(name, "auto")}
+                    title="click to clear this override (back to auto)"
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 ${dispTag[d].cls} hover:brightness-110`}
+                  >
+                    <Icon kind="item" name={name} size="sm" title={res?.display?.[name] ?? name} />
+                    {res?.display?.[name] ?? name} {dispTag[d].label} <X className="size-3" />
+                  </button>
+                ))}
                 <button
-                  key={name}
-                  onClick={() => setDispFor(name, "auto")}
-                  title="click to clear this override (back to auto)"
-                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 ${dispTag[d].cls} hover:brightness-110`}
+                  onClick={() => {
+                    markEdited();
+                    setDisp({});
+                  }}
+                  title="clear all forced overrides"
+                  className="text-muted-foreground underline hover:text-foreground"
                 >
-                  <Icon kind="item" name={name} size="sm" title={res?.display?.[name] ?? name} />
-                  {res?.display?.[name] ?? name} {dispTag[d].label} <X className="size-3" />
+                  clear all
                 </button>
-              ))}
-              <button
-                onClick={() => {
-                  markEdited();
-                  setDisp({});
-                }}
-                title="clear all forced overrides"
-                className="text-muted-foreground underline hover:text-foreground"
-              >
-                clear all
-              </button>
-            </div>
+              </div>
+            </Callout>
           )}
           {/* Planned spoil losses (#20) — always visible when set: the pinned
               surplus never reaches the boundary flows (it rots), so without this
               strip a planned loss would be invisible. */}
           {Object.keys(spoilRates).length > 0 && (
-            <div className="mx-3 mt-2 flex flex-wrap items-center gap-2 rounded border border-amber-400/30 bg-amber-500/10 px-2 py-1.5 text-xs">
-              <span className="flex items-center gap-1 text-amber-300">
+            <div className="mx-3 mt-2 flex flex-wrap items-center gap-2 border border-warning/30 bg-warning/10 px-2 py-1.5 text-sm">
+              <span className="flex items-center gap-1 text-warning">
                 <Timer className="size-3" /> planned spoil losses:
               </span>
               {Object.entries(spoilRates).map(([name, r]) => (
@@ -1977,7 +1974,7 @@ function Block({ blockId }: { blockId: number }) {
                     setSpoilDialog(name);
                   }}
                   title="production is sized to cover this rot rate — click to edit"
-                  className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-amber-200 hover:brightness-110"
+                  className="inline-flex items-center gap-1 bg-warning/20 px-1.5 py-0.5 text-warning hover:brightness-110"
                 >
                   <Icon kind="item" name={name} size="sm" title={res?.display?.[name] ?? name} />
                   {res?.display?.[name] ?? name} {num(r)}/s
@@ -1986,12 +1983,12 @@ function Block({ blockId }: { blockId: number }) {
             </div>
           )}
           {res?.status === "infeasible" ? (
-            <div className="m-3 rounded border border-destructive/30 bg-destructive/10 p-3 text-xs">
+            <Callout tone="destructive" className="m-3 p-3">
               {/* Only a genuine reverse-running cycle gets the "chain runs backward"
                   story; any other infeasibility shows the solver's own reason. */}
               {res.negativeRecipes?.length ? (
                 <>
-                  <div className="mb-2 font-semibold text-destructive">
+                  <div className="mb-2 font-semibold">
                     Chain runs backward — a loop has no raw feed. Recipes in red below would run in
                     reverse.
                   </div>
@@ -2022,15 +2019,15 @@ function Block({ blockId }: { blockId: number }) {
                   )}
                 </>
               ) : (
-                <div className="font-semibold text-destructive">
+                <div className="font-semibold">
                   {res.message ?? "This block has no exact solution. Adjust a target or recipe."}
                 </div>
               )}
-            </div>
+            </Callout>
           ) : (
             <>
               {res?.unmadeTargets?.length && !res.broken ? (
-                <div className="border-b border-border px-3 py-2 text-xs text-amber-300">
+                <div className="border-b border-border px-3 py-2 text-sm text-warning">
                   <div className="mb-1 flex items-center gap-1 font-semibold">
                     <AlertTriangle className="size-3.5 shrink-0" />
                     {res.unmadeTargets.length === 1 ? "Goal has" : "Goals have"} no recipe yet — add
@@ -2051,7 +2048,7 @@ function Block({ blockId }: { blockId: number }) {
                 </div>
               ) : null}
               {res?.unusedRecipes?.length && !res.broken ? (
-                <div className="border-b border-border px-3 py-2 text-xs text-destructive">
+                <div className="border-b border-border px-3 py-2 text-sm text-destructive">
                   <div className="mb-1 flex items-center gap-1 font-semibold">
                     <AlertTriangle className="size-3.5 shrink-0" />
                     {res.unusedRecipes.length === 1
@@ -2072,7 +2069,7 @@ function Block({ blockId }: { blockId: number }) {
                 </div>
               ) : null}
               {res && res.tempWarnings?.length > 0 && (
-                <div className="border-b border-border px-3 py-2 text-xs text-amber-300">
+                <div className="border-b border-border px-3 py-2 text-sm text-warning">
                   {res.tempWarnings.map((w) => (
                     <div
                       key={`${w.recipe}-${w.item}`}
@@ -2092,14 +2089,14 @@ function Block({ blockId }: { blockId: number }) {
                   Math.abs(res.power.pollutionPerMin) > 0.005) && (
                   <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-border px-3 py-2 text-sm">
                     {res.power.totalW > 0 && (
-                      <span className="flex items-center gap-1 text-sky-300">
+                      <span className="flex items-center gap-1 text-info">
                         <Zap className="size-3.5" /> {fmtW(res.power.totalW)}{" "}
                         <span className="text-muted-foreground">electric</span>
                       </span>
                     )}
                     {Math.abs(res.power.pollutionPerMin) > 0.005 && (
                       <span
-                        className={`flex items-center gap-1 ${res.power.pollutionPerMin < 0 ? "text-emerald-300" : "text-lime-300/80"}`}
+                        className={`flex items-center gap-1 ${res.power.pollutionPerMin < 0 ? "text-success" : "text-warning/80"}`}
                         title="pollution per minute from this block's machines (base emissions × energy-consumption × pollution module effects; fuel-type multipliers not modelled). Negative = net absorption — Py forestry and plantations soak pollution like trees."
                       >
                         <Cloud className="size-3.5" /> {num(Math.abs(res.power.pollutionPerMin))}
@@ -2110,7 +2107,7 @@ function Block({ blockId }: { blockId: number }) {
                     )}
                     {res.power.heatW > 0 && (
                       <span
-                        className="flex items-center gap-1 text-orange-300"
+                        className="flex items-center gap-1 text-warning"
                         title="Heat-powered buildings (Py hard mode). Heat doesn't travel far (~15 tiles), so a heat source — e.g. a py-heat-exchanger — must be built LOCAL to this block."
                       >
                         <Flame className="size-3.5" /> {fmtW(res.power.heatW)}{" "}
@@ -2123,7 +2120,7 @@ function Block({ blockId }: { blockId: number }) {
                 className={`grid gap-4 p-3 ${res?.exports.length ? "grid-cols-2" : "grid-cols-1"}`}
               >
                 <div>
-                  <div className="mb-1 text-xs font-semibold text-amber-400">
+                  <div className="mb-1 text-sm font-semibold text-warning">
                     Imports — bring these in{" "}
                     <span className="inline-flex items-center gap-0.5 font-normal text-muted-foreground">
                       (dashed <Plus className="inline size-3" /> = craftable in-block)
@@ -2161,7 +2158,7 @@ function Block({ blockId }: { blockId: number }) {
                                 lives in the context menu, so non-locked rows stay uncluttered. */}
                             {lockedInput === f.name && (
                               <>
-                                <input
+                                <Input
                                   type="number"
                                   value={lockedRate}
                                   step="0.01"
@@ -2169,22 +2166,24 @@ function Block({ blockId }: { blockId: number }) {
                                   autoFocus
                                   onChange={(e) => setLockedRate(Number(e.target.value) || 0)}
                                   title="locked rate — the block is sized to consume this much of this input"
-                                  className="w-16 rounded border border-sky-400/60 bg-muted px-1 py-0.5 text-sm"
+                                  className="h-7 w-16 border-info/60 px-1"
                                 />
-                                <button
+                                <Button
+                                  variant="ghost"
+                                  size="icon-xs"
                                   onClick={() => setLockedInput(null)}
                                   title="unlock — the Goal rate is editable again"
-                                  className="flex items-center rounded px-0.5 text-sky-300 hover:text-foreground"
+                                  className="text-info"
                                 >
                                   <Lock className="size-3.5" />
-                                </button>
+                                </Button>
                               </>
                             )}
                             {freed.has(f.name) && !disp[f.name] && (
                               <button
                                 title="recycle loop won't self-close — auto-sourced here. Click to pin it as an import (resolves the relaxed solve)."
                                 onClick={() => setDispFor(f.name, "import")}
-                                className="rounded bg-amber-500/25 px-1.5 py-0.5 text-sm text-amber-200 hover:brightness-110"
+                                className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
                               >
                                 loop · pin import
                               </button>
@@ -2203,13 +2202,15 @@ function Block({ blockId }: { blockId: number }) {
                         </span>
                       ))
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-sm text-muted-foreground">
+                        none — nothing to bring in
+                      </span>
                     )}
                   </div>
                 </div>
                 {!!res?.exports.length && (
                   <div>
-                    <div className="mb-1 text-xs font-semibold text-violet-400">
+                    <div className="mb-1 text-sm font-semibold text-surplus">
                       Exports — surplus, nothing consumes these
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-2">
@@ -2241,7 +2242,7 @@ function Block({ blockId }: { blockId: number }) {
                               <button
                                 title="recycle loop won't self-close — auto-sunk here. Click to pin it as an export (resolves the relaxed solve)."
                                 onClick={() => setDispFor(f.name, "export")}
-                                className="rounded bg-amber-500/25 px-1.5 py-0.5 text-sm text-amber-200 hover:brightness-110"
+                                className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
                               >
                                 loop · pin export
                               </button>
@@ -2255,7 +2256,7 @@ function Block({ blockId }: { blockId: number }) {
                                   setSpoilDraft(String(spoilRates[f.name] ?? ""));
                                   setSpoilDialog(f.name);
                                 }}
-                                className="flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-sm text-amber-300 hover:brightness-110"
+                                className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
                               >
                                 <Timer className="size-3.5" /> rots in{" "}
                                 {fmtSpoilTime(spoilables[f.name])}
@@ -2327,17 +2328,19 @@ function Block({ blockId }: { blockId: number }) {
                             <span className="block truncate font-mono" title={name}>
                               {name}
                             </span>
-                            <span className="flex items-center gap-1 text-xs font-semibold text-destructive">
+                            <span className="flex items-center gap-1 text-sm font-semibold text-destructive">
                               <AlertTriangle className="size-3" /> no longer exists
                             </span>
                           </span>
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
                             className="text-muted-foreground hover:text-destructive"
                             onClick={() => drop(name)}
                             title="remove this missing recipe from the block"
                           >
                             <X className="size-3.5" />
-                          </button>
+                          </Button>
                         </div>
                         <div className="col-span-3 text-sm text-muted-foreground">
                           this recipe isn&apos;t in the current data — re-enable its mod or
@@ -2381,17 +2384,17 @@ function Block({ blockId }: { blockId: number }) {
                             {res?.display?.[name] ?? name}
                           </span>
                           {off ? (
-                            <span className="text-xs font-semibold text-muted-foreground">
+                            <span className="text-sm font-semibold text-muted-foreground">
                               disabled — excluded from the solve
                             </span>
                           ) : isUnused ? (
-                            <span className="flex items-center gap-1 text-xs font-semibold text-destructive">
+                            <span className="flex items-center gap-1 text-sm font-semibold text-destructive">
                               <AlertTriangle className="size-3 shrink-0" /> not made — nothing here
                               needs it
                             </span>
                           ) : row ? (
                             <span
-                              className={`text-xs ${neg ? "font-semibold text-destructive" : "text-muted-foreground"}`}
+                              className={`text-sm ${neg ? "font-semibold text-destructive" : "text-muted-foreground"}`}
                             >
                               {neg && (
                                 <AlertTriangle className="mr-0.5 inline size-3 align-text-bottom" />
@@ -2401,12 +2404,10 @@ function Block({ blockId }: { blockId: number }) {
                             </span>
                           ) : null}
                         </span>
-                        <button
-                          className={
-                            off
-                              ? "text-muted-foreground/60 hover:text-foreground"
-                              : "text-muted-foreground hover:text-foreground"
-                          }
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className={off ? "text-muted-foreground/60" : "text-muted-foreground"}
                           onClick={() => toggleDisabled(name)}
                           title={
                             off
@@ -2415,23 +2416,23 @@ function Block({ blockId }: { blockId: number }) {
                           }
                         >
                           <Power className="size-3.5" />
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size={confirmRemove === name ? "xs" : "icon-xs"}
                           className={`shrink-0 hover:text-destructive ${confirmRemove === name ? "font-semibold text-destructive" : "text-muted-foreground"}`}
                           onClick={() => requestRemove(name)}
                           title={confirmRemove === name ? "click again to remove" : "remove"}
                         >
                           {confirmRemove === name ? (
-                            <span className="text-xs whitespace-nowrap">remove?</span>
+                            <span className="whitespace-nowrap">remove?</span>
                           ) : (
                             <X className="size-3.5" />
                           )}
-                        </button>
+                        </Button>
                       </RecipeHover>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="w-full text-xs text-muted-foreground md:hidden">
-                          Machines
-                        </span>
+                        <FieldLabel className="w-full md:hidden">Machines</FieldLabel>
                         {row?.machine ? (
                           <>
                             {/* building: icon + count; hover = name/speed, click = picker */}
@@ -2449,7 +2450,7 @@ function Block({ blockId }: { blockId: number }) {
                             {row.machine.energySource === "electric" && (
                               <span
                                 title="electric power draw"
-                                className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-1 text-sm text-sky-300"
+                                className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-info"
                               >
                                 <Zap className="size-3.5" /> {fmtW(row.machine.powerW)}
                               </span>
@@ -2457,7 +2458,7 @@ function Block({ blockId }: { blockId: number }) {
                             {row.machine.energySource === "heat" && (
                               <span
                                 title="heat-powered — fed by an upstream reactor"
-                                className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-1 text-sm"
+                                className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm"
                               >
                                 <Flame className="size-3.5" /> heat
                               </span>
@@ -2467,7 +2468,7 @@ function Block({ blockId }: { blockId: number }) {
                               <button
                                 onClick={() => setPickFuelFor(name)}
                                 title={`${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s · click to change fuel`}
-                                className={`${cellChip} text-amber-300`}
+                                className={`${cellChip} text-warning`}
                               >
                                 <Icon
                                   kind={row.fuel.kind as "item" | "fluid"}
@@ -2482,7 +2483,7 @@ function Block({ blockId }: { blockId: number }) {
                             {row.fuel?.burnt && (
                               <span
                                 title={`${row.fuel.burnt.display ?? row.fuel.burnt.name} — produced by burning`}
-                                className="flex items-center gap-1 rounded bg-muted/50 px-1.5 py-1 text-sm text-muted-foreground"
+                                className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-muted-foreground"
                               >
                                 →<Icon kind="item" name={row.fuel.burnt.name} size="md" noTitle />
                                 <span>{num(row.fuel.burnt.perSec)}</span>
@@ -2502,7 +2503,7 @@ function Block({ blockId }: { blockId: number }) {
                               <Link
                                 to="/turd"
                                 title={`TURD: ${row.turdModules.map((m) => m.display ?? m.name).join(", ")} — applied by your selected upgrades`}
-                                className="flex items-center gap-1 rounded bg-fuchsia-500/15 px-1.5 py-1 text-sm text-fuchsia-300 ring-1 ring-fuchsia-400/40 hover:brightness-110"
+                                className="flex items-center gap-1 bg-primary/15 px-1.5 py-1 text-sm text-primary ring-1 ring-primary/40 hover:brightness-110"
                               >
                                 <FlaskConical className="size-3.5" />
                                 {row.turdModules.map((m) => (
@@ -2516,7 +2517,7 @@ function Block({ blockId }: { blockId: number }) {
                           // spoiling step is the storage holding items mid-spoil.
                           <span
                             title={`spoils in ${fmtSpoilTime(row.spoil.seconds * 60)} — at ${num(row.rate)}/s, ≈${num(row.spoil.buffer)} items sit in storage mid-spoil${row.spoil.stacks != null ? ` (≈${Math.ceil(row.spoil.stacks)} stacks @ ${row.spoil.stackSize}/stack)` : ""}`}
-                            className="flex items-center gap-1.5 rounded bg-muted/50 px-1.5 py-1 text-sm text-amber-200"
+                            className="flex items-center gap-1.5 bg-muted/50 px-1.5 py-1 text-sm text-warning"
                           >
                             <Timer className="size-3.5 shrink-0" />
                             {fmtSpoilTime(row.spoil.seconds * 60)} · buffer{" "}
@@ -2533,9 +2534,7 @@ function Block({ blockId }: { blockId: number }) {
                         )}
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-3">
-                        <span className="w-full text-xs text-muted-foreground md:hidden">
-                          Ingredients ↓
-                        </span>
+                        <FieldLabel className="w-full md:hidden">Ingredients ↓</FieldLabel>
                         {row?.ingredients.map((c) => (
                           <div key={c.name} className="flex flex-col items-start gap-1.5">
                             <ItemChip
@@ -2573,9 +2572,7 @@ function Block({ blockId }: { blockId: number }) {
                         ))}
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-3">
-                        <span className="w-full text-xs text-muted-foreground md:hidden">
-                          Products ↑
-                        </span>
+                        <FieldLabel className="w-full md:hidden">Products ↑</FieldLabel>
                         {row?.products.map((c) => (
                           <div key={c.name} className="flex flex-col items-start gap-1.5">
                             <ItemChip
@@ -2623,40 +2620,38 @@ function Block({ blockId }: { blockId: number }) {
       {/* Goal-item picker — choose what product a goal is (add a new one, or change
           an existing goal's item). Searches items AND fluids. */}
       {goalPicker && (
-        <div
-          className="fixed inset-0 z-40 flex items-start justify-center bg-black/55 p-10"
-          onClick={() => {
-            setGoalPicker(null);
-            setSearch("");
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setGoalPicker(null);
+              setSearch("");
+            }
           }}
         >
-          <Card className="w-[34rem] shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <CardHeader className="justify-between">
-              <CardTitle className="normal-case">
+          <DialogContent className="md:max-w-[34rem]">
+            <DialogHeader>
+              <DialogTitle>
                 {goalPicker.replace
                   ? `Change goal — ${res?.display?.[goalPicker.replace] ?? goalPicker.replace}`
                   : "Add a goal product"}
-              </CardTitle>
-              <button
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  setGoalPicker(null);
-                  setSearch("");
-                }}
-              >
-                <X className="size-4" />
-              </button>
-            </CardHeader>
-            <div className="space-y-2 p-3">
-              <input
+              </DialogTitle>
+            </DialogHeader>
+            <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
+              <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 autoFocus
                 placeholder="search an item or fluid…"
-                className="w-full rounded border border-input bg-muted px-2 py-1.5 text-sm placeholder:text-muted-foreground"
               />
-              <div className="max-h-[55vh] overflow-auto rounded border border-border">
-                {items.isLoading && <div className="px-3 py-2 text-muted-foreground">…</div>}
+              <div className="max-h-[55vh] overflow-auto border border-border">
+                {items.isLoading && (
+                  <div className="space-y-1.5 p-3">
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-4/5" />
+                    <Skeleton className="h-6 w-2/3" />
+                  </div>
+                )}
                 {!search.trim() ? (
                   <div className="px-3 py-2 text-sm text-muted-foreground">
                     type to search for a product…
@@ -2675,39 +2670,32 @@ function Block({ blockId }: { blockId: number }) {
                   ))
                 ) : (
                   !items.isLoading && (
-                    <div className="px-3 py-2 text-muted-foreground">no matches</div>
+                    <div className="px-3 py-2 text-sm text-muted-foreground">no matches</div>
                   )
                 )}
               </div>
             </div>
-          </Card>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Block-icon picker (#40) — choose any item/fluid as the block's icon, or
           reset to auto (follow the first goal). */}
       {iconPicker && (
-        <div
-          className="fixed inset-0 z-40 flex items-start justify-center bg-black/55 p-10"
-          onClick={() => {
-            setIconPicker(false);
-            setSearch("");
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setIconPicker(false);
+              setSearch("");
+            }
           }}
         >
-          <Card className="w-[34rem] shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <CardHeader className="justify-between">
-              <CardTitle className="normal-case">Block icon</CardTitle>
-              <button
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  setIconPicker(false);
-                  setSearch("");
-                }}
-              >
-                <X className="size-4" />
-              </button>
-            </CardHeader>
-            <div className="space-y-2 p-3">
+          <DialogContent className="md:max-w-[34rem]">
+            <DialogHeader>
+              <DialogTitle>Block icon</DialogTitle>
+            </DialogHeader>
+            <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
               <button className={rowBtn} onClick={resetIcon}>
                 {target ? (
                   <Icon
@@ -2722,18 +2710,23 @@ function Block({ blockId }: { blockId: number }) {
                 )}
                 <span>
                   auto — follow the first goal
-                  {!customIcon && <span className="ml-2 text-xs text-primary">current</span>}
+                  {!customIcon && <span className="ml-2 text-sm text-primary">current</span>}
                 </span>
               </button>
-              <input
+              <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 autoFocus
                 placeholder="search an item or fluid…"
-                className="w-full rounded border border-input bg-muted px-2 py-1.5 text-sm placeholder:text-muted-foreground"
               />
-              <div className="max-h-[55vh] overflow-auto rounded border border-border">
-                {items.isLoading && <div className="px-3 py-2 text-muted-foreground">…</div>}
+              <div className="max-h-[55vh] overflow-auto border border-border">
+                {items.isLoading && (
+                  <div className="space-y-1.5 p-3">
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-4/5" />
+                    <Skeleton className="h-6 w-2/3" />
+                  </div>
+                )}
                 {!search.trim() ? (
                   <div className="px-3 py-2 text-sm text-muted-foreground">
                     type to search for an item or fluid…
@@ -2749,182 +2742,152 @@ function Block({ blockId }: { blockId: number }) {
                       <Icon kind={it.kind as "item" | "fluid"} name={it.name} size="md" noTitle />
                       <span className="truncate">{it.display ?? it.name}</span>
                       {customIcon?.kind === it.kind && customIcon?.name === it.name && (
-                        <span className="text-xs text-primary">current</span>
+                        <span className="text-sm text-primary">current</span>
                       )}
                     </button>
                   ))
                 ) : (
                   !items.isLoading && (
-                    <div className="px-3 py-2 text-muted-foreground">no matches</div>
+                    <div className="px-3 py-2 text-sm text-muted-foreground">no matches</div>
                   )
                 )}
               </div>
             </div>
-          </Card>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Goal context menu — right-click a goal cell: change item, make primary, remove */}
       {goalMenu && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setGoalMenu(null)}
-            onContextMenu={(e) => {
-              e.preventDefault();
+        <ContextMenu x={goalMenu.x} y={goalMenu.y} onClose={() => setGoalMenu(null)}>
+          <div className="flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-sm text-muted-foreground">
+            <Icon
+              kind={kindOf(goalMenu.name)}
+              name={goalMenu.name}
+              size="sm"
+              title={res?.display?.[goalMenu.name] ?? goalMenu.name}
+            />
+            <span className="truncate">{res?.display?.[goalMenu.name] ?? goalMenu.name}</span>
+          </div>
+          <ContextMenuItem
+            onClick={() => {
+              setSearch("");
+              setGoalPicker({ replace: goalMenu.name });
               setGoalMenu(null);
             }}
-          />
-          <div
-            className="fixed z-50 min-w-48 overflow-hidden rounded-md border border-border bg-background py-1 shadow-xl"
-            style={{ left: goalMenu.x, top: goalMenu.y }}
           >
-            <div className="flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
-              <Icon
-                kind={kindOf(goalMenu.name)}
-                name={goalMenu.name}
-                size="sm"
-                title={res?.display?.[goalMenu.name] ?? goalMenu.name}
-              />
-              <span className="truncate">{res?.display?.[goalMenu.name] ?? goalMenu.name}</span>
-            </div>
-            <CtxBtn
+            <Pencil className="size-3.5" /> Change item
+          </ContextMenuItem>
+          {goalMenu.name !== target && (
+            <ContextMenuItem
               onClick={() => {
-                setSearch("");
-                setGoalPicker({ replace: goalMenu.name });
+                makePrimary(goalMenu.name);
                 setGoalMenu(null);
               }}
             >
-              <Pencil className="size-3.5" /> Change item
-            </CtxBtn>
-            {goalMenu.name !== target && (
-              <CtxBtn
-                onClick={() => {
-                  makePrimary(goalMenu.name);
-                  setGoalMenu(null);
-                }}
-              >
-                <Star className="size-3.5" /> Move to front (names the block)
-              </CtxBtn>
-            )}
-            {goals.find((x) => x.name === goalMenu.name)?.stock == null ? (
-              <CtxBtn
-                onClick={() => {
-                  makeStockGoal(goalMenu.name);
-                  setGoalMenu(null);
-                }}
-              >
-                <RefreshCw className="size-3.5" /> Keep in stock instead (buffer, not throughput)
-              </CtxBtn>
-            ) : (
-              <CtxBtn
-                onClick={() => {
-                  makeRateGoal(goalMenu.name);
-                  setGoalMenu(null);
-                }}
-              >
-                <RefreshCw className="size-3.5" /> Track a rate instead
-              </CtxBtn>
-            )}
-            <div className="my-1 border-t border-border" />
-            <CtxBtn
+              <Star className="size-3.5" /> Move to front (names the block)
+            </ContextMenuItem>
+          )}
+          {goals.find((x) => x.name === goalMenu.name)?.stock == null ? (
+            <ContextMenuItem
               onClick={() => {
-                removeGoal(goalMenu.name);
+                makeStockGoal(goalMenu.name);
                 setGoalMenu(null);
               }}
             >
-              <X className="size-3.5" /> Remove goal
-            </CtxBtn>
-          </div>
-        </>
+              <RefreshCw className="size-3.5" /> Keep in stock instead (buffer, not throughput)
+            </ContextMenuItem>
+          ) : (
+            <ContextMenuItem
+              onClick={() => {
+                makeRateGoal(goalMenu.name);
+                setGoalMenu(null);
+              }}
+            >
+              <RefreshCw className="size-3.5" /> Track a rate instead
+            </ContextMenuItem>
+          )}
+          <div className="my-1 border-t border-border" />
+          <ContextMenuItem
+            onClick={() => {
+              removeGoal(goalMenu.name);
+              setGoalMenu(null);
+            }}
+          >
+            <X className="size-3.5" /> Remove goal
+          </ContextMenuItem>
+        </ContextMenu>
       )}
 
       {/* Recipe-row context menu — sub-block (#7) actions on the row's name */}
       {rowMenu && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setRowMenu(null)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setRowMenu(null);
-            }}
-          />
-          <div
-            className="fixed z-50 min-w-48 overflow-hidden rounded-md border border-border bg-background py-1 shadow-xl"
-            style={{ left: rowMenu.x, top: rowMenu.y }}
-          >
-            <div className="flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
-              <Icon kind="recipe" name={rowMenu.name} size="sm" noTitle noHover />
-              <span className="truncate">{res?.display?.[rowMenu.name] ?? rowMenu.name}</span>
-            </div>
-            {recipeGroups[rowMenu.name] == null ? (
-              <>
-                <CtxBtn
-                  onClick={() => {
-                    createGroupFromRow(rowMenu.name);
-                    setRowMenu(null);
-                  }}
-                >
-                  <Layers className="size-3.5" /> New sub-block from this row
-                </CtxBtn>
-                {rowGroups.map((g) => (
-                  <CtxBtn
-                    key={g.id}
-                    onClick={() => {
-                      markEdited();
-                      const joined = joinGroup(recipes, recipeGroups, rowMenu.name, g.id);
-                      setRecipes(joined.recipes);
-                      setRecipeGroups(joined.assign);
-                      setRowMenu(null);
-                    }}
-                  >
-                    <Layers className="size-3.5 text-primary/70" /> Add to “{g.name}”
-                  </CtxBtn>
-                ))}
-              </>
-            ) : (
-              <CtxBtn
+        <ContextMenu x={rowMenu.x} y={rowMenu.y} onClose={() => setRowMenu(null)}>
+          <div className="flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-sm text-muted-foreground">
+            <Icon kind="recipe" name={rowMenu.name} size="sm" noTitle noHover />
+            <span className="truncate">{res?.display?.[rowMenu.name] ?? rowMenu.name}</span>
+          </div>
+          {recipeGroups[rowMenu.name] == null ? (
+            <>
+              <ContextMenuItem
                 onClick={() => {
-                  removeFromGroup(rowMenu.name);
+                  createGroupFromRow(rowMenu.name);
                   setRowMenu(null);
                 }}
               >
-                <X className="size-3.5" /> Remove from “
-                {rowGroups.find((g) => g.id === recipeGroups[rowMenu.name])?.name ?? "sub-block"}”
-              </CtxBtn>
-            )}
-          </div>
-        </>
+                <Layers className="size-3.5" /> New sub-block from this row
+              </ContextMenuItem>
+              {rowGroups.map((g) => (
+                <ContextMenuItem
+                  key={g.id}
+                  onClick={() => {
+                    markEdited();
+                    const joined = joinGroup(recipes, recipeGroups, rowMenu.name, g.id);
+                    setRecipes(joined.recipes);
+                    setRecipeGroups(joined.assign);
+                    setRowMenu(null);
+                  }}
+                >
+                  <Layers className="size-3.5 text-primary/70" /> Add to “{g.name}”
+                </ContextMenuItem>
+              ))}
+            </>
+          ) : (
+            <ContextMenuItem
+              onClick={() => {
+                removeFromGroup(rowMenu.name);
+                setRowMenu(null);
+              }}
+            >
+              <X className="size-3.5" /> Remove from “
+              {rowGroups.find((g) => g.id === recipeGroups[rowMenu.name])?.name ?? "sub-block"}”
+            </ContextMenuItem>
+          )}
+        </ContextMenu>
       )}
 
       {/* Recipe picker — floats over everything, dismissable */}
       {pickFor && !picker.isLoading && !autoAddRecipe && (
-        <div
-          className="fixed inset-0 z-40 flex items-start justify-center bg-black/55 p-10"
-          onClick={() => setPickFor(null)}
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setPickFor(null);
+          }}
         >
-          <Card className="w-[42rem] shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <CardHeader className="justify-between">
-              <CardTitle className="normal-case">
+          <DialogContent className="md:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="truncate">
                 {pickFor.mode === "consume" ? "Recipes that consume" : "Recipes that make"}{" "}
                 {res?.display?.[pickFor.name] ?? pickFor.name}
-              </CardTitle>
-              <button
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => setPickFor(null)}
-              >
-                <X className="size-4" />
-              </button>
-            </CardHeader>
-            <div className="max-h-[60vh] overflow-auto p-2">
+              </DialogTitle>
+            </DialogHeader>
+            <div className="min-h-0 flex-1 overflow-auto p-2">
               {picker.data?.length
                 ? picker.data.map((r) => {
                     const added = recipes.includes(r.name);
                     return (
                       <button
                         key={r.name}
-                        className={`flex w-full items-start gap-3 rounded px-3 py-2.5 text-left hover:bg-muted ${
+                        className={`flex w-full items-start gap-3 px-3 py-2.5 text-left hover:bg-muted ${
                           r.enabled || r.turd?.turdSelected ? "" : "opacity-70"
                         }`}
                         onClick={() => add(r.name)}
@@ -2993,7 +2956,7 @@ function Block({ blockId }: { blockId: number }) {
                               nothing unlocks it (dark gray) */}
                           {r.superseded ? (
                             <span
-                              className="flex flex-wrap items-center gap-1.5 text-sm text-zinc-500"
+                              className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
                               title={`your ${r.superseded.masterDisplay ?? "TURD"} choice "${r.superseded.subDisplay}" replaced this recipe with "${r.superseded.newDisplay}" — the base version no longer exists in-game`}
                             >
                               <Icon
@@ -3004,7 +2967,7 @@ function Block({ blockId }: { blockId: number }) {
                               />
                               <FlaskConical className="size-3.5" /> replaced by{" "}
                               {r.superseded.newDisplay}
-                              <span className="text-zinc-600">
+                              <span className="text-muted-foreground/70">
                                 ({r.superseded.masterDisplay ?? "TURD"} › {r.superseded.subDisplay})
                               </span>
                             </span>
@@ -3012,7 +2975,7 @@ function Block({ blockId }: { blockId: number }) {
                             !r.enabled &&
                             (r.turd ? (
                               <span
-                                className={`flex flex-wrap items-center gap-1.5 text-sm ${r.turd.turdSelected ? "text-emerald-300" : "text-fuchsia-300"}`}
+                                className={`flex flex-wrap items-center gap-1.5 text-sm ${r.turd.turdSelected ? "text-success" : "text-primary"}`}
                                 title={
                                   r.turd.turdSelected
                                     ? "granted by your selected TURD choice"
@@ -3033,7 +2996,7 @@ function Block({ blockId }: { blockId: number }) {
                               />
                             ) : (
                               <span
-                                className="flex items-center gap-1 text-sm text-zinc-500"
+                                className="flex items-center gap-1 text-sm text-muted-foreground"
                                 title="no technology unlocks this recipe"
                               >
                                 <Lock className="size-3.5" /> locked
@@ -3045,37 +3008,39 @@ function Block({ blockId }: { blockId: number }) {
                     );
                   })
                 : !picker.isLoading && (
-                    <div className="px-2 py-1 text-muted-foreground">
+                    <div className="px-2 py-1 text-sm text-muted-foreground">
                       {pickFor.mode === "consume"
                         ? "nothing consumes this in the data"
                         : "no recipes make this — it's a raw input"}
                     </div>
                   )}
             </div>
-          </Card>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Building picker — choose which machine runs a recipe (speed / power / tier) */}
       {pickMachineFor && (
-        <div
-          className="fixed inset-0 z-40 flex items-start justify-center bg-black/55 p-10"
-          onClick={() => setPickMachineFor(null)}
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setPickMachineFor(null);
+          }}
         >
-          <Card className="w-[36rem] shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <CardHeader className="justify-between">
-              <CardTitle className="normal-case">
+          <DialogContent className="md:max-w-[36rem]">
+            <DialogHeader>
+              <DialogTitle className="truncate">
                 Building for {res?.display?.[pickMachineFor] ?? pickMachineFor}
-              </CardTitle>
-              <button
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => setPickMachineFor(null)}
-              >
-                <X className="size-4" />
-              </button>
-            </CardHeader>
-            <div className="max-h-[60vh] overflow-auto p-2">
-              {machineOpts.isLoading && <div className="px-2 py-1 text-muted-foreground">…</div>}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="min-h-0 flex-1 overflow-auto p-2">
+              {machineOpts.isLoading && (
+                <div className="space-y-1.5 p-2">
+                  <Skeleton className="h-9 w-full" />
+                  <Skeleton className="h-9 w-full" />
+                  <Skeleton className="h-9 w-3/4" />
+                </div>
+              )}
               {machineOpts.data
                 ?.slice()
                 .sort((a, b) => (a.craftingSpeed ?? 0) - (b.craftingSpeed ?? 0))
@@ -3097,27 +3062,27 @@ function Block({ blockId }: { blockId: number }) {
                           <span className="text-foreground">{m.display ?? m.name}</span>
                           <Badge variant="secondary">{m.craftingSpeed}× speed</Badge>
                           {m.energySource === "electric" && (
-                            <span className="flex items-center gap-1 text-xs text-sky-300">
+                            <span className="flex items-center gap-1 text-sm text-info">
                               <Zap className="size-3" /> {fmtW(m.energyUsageW ?? 0)}
                             </span>
                           )}
                           {(m.energySource === "burner" || m.energySource === "fluid") && (
-                            <span className="flex items-center gap-1 text-xs text-amber-300">
+                            <span className="flex items-center gap-1 text-sm text-warning">
                               <Flame className="size-3" /> {fmtW(m.energyUsageW ?? 0)}
                             </span>
                           )}
                           {m.energySource === "heat" && (
-                            <span className="flex items-center gap-1 text-xs">
+                            <span className="flex items-center gap-1 text-sm">
                               <Flame className="size-3" /> heat
                             </span>
                           )}
                           {m.moduleSlots > 0 && (
-                            <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-0.5 text-sm text-muted-foreground">
                               {m.moduleSlots}
                               <Grid2x2 className="size-3" />
                             </span>
                           )}
-                          {cur && <span className="text-xs text-primary">· current</span>}
+                          {cur && <span className="text-sm text-primary">· current</span>}
                           <span
                             role="button"
                             tabIndex={-1}
@@ -3126,7 +3091,7 @@ function Block({ blockId }: { blockId: number }) {
                                 ? "Favorite building for this category — new recipes here use it. Click to clear."
                                 : "Set as the favorite building for this category (new recipes here will use it)"
                             }
-                            className={`ml-auto cursor-pointer text-sm ${m.favorite ? "text-amber-300" : "text-muted-foreground hover:text-amber-300"}`}
+                            className={`ml-auto cursor-pointer text-sm ${m.favorite ? "text-warning" : "text-muted-foreground hover:text-warning"}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleFavoriteMachine(pickMachineFor, m.name, m.favorite);
@@ -3135,9 +3100,9 @@ function Block({ blockId }: { blockId: number }) {
                             <Star className="size-4" fill={m.favorite ? "currentColor" : "none"} />
                           </span>
                         </span>
-                        <span className="block truncate text-xs">
+                        <span className="block truncate text-sm">
                           {m.availableNow ? (
-                            <span className="flex items-center gap-1 text-emerald-300/80">
+                            <span className="flex items-center gap-1 text-success/80">
                               <Check className="size-3 shrink-0" />
                               {m.startEnabled
                                 ? "available from start"
@@ -3148,7 +3113,7 @@ function Block({ blockId }: { blockId: number }) {
                                   }`}
                             </span>
                           ) : (
-                            <span className="flex items-center gap-1 text-amber-300/90">
+                            <span className="flex items-center gap-1 text-warning/90">
                               <Lock className="size-3 shrink-0" /> needs{" "}
                               {m.unlockedBy.length
                                 ? m.unlockedBy.map((u) => u.display ?? u.tech).join(", ")
@@ -3161,8 +3126,8 @@ function Block({ blockId }: { blockId: number }) {
                   );
                 })}
             </div>
-          </Card>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Modules & beacons — per-recipe loadout, applied through the solver */}
@@ -3202,23 +3167,19 @@ function Block({ blockId }: { blockId: number }) {
         (() => {
           const fr = res?.rows?.find((r) => r.recipe === pickFuelFor);
           return (
-            <div
-              className="fixed inset-0 z-40 flex items-start justify-center bg-black/55 p-10"
-              onClick={() => setPickFuelFor(null)}
+            <Dialog
+              open
+              onOpenChange={(open) => {
+                if (!open) setPickFuelFor(null);
+              }}
             >
-              <Card className="w-[30rem] shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <CardHeader className="justify-between">
-                  <CardTitle className="normal-case">
+              <DialogContent className="md:max-w-[30rem]">
+                <DialogHeader>
+                  <DialogTitle className="truncate">
                     Fuel for {res?.display?.[pickFuelFor] ?? pickFuelFor}
-                  </CardTitle>
-                  <button
-                    className="text-muted-foreground hover:text-foreground"
-                    onClick={() => setPickFuelFor(null)}
-                  >
-                    <X className="size-4" />
-                  </button>
-                </CardHeader>
-                <div className="max-h-[60vh] overflow-auto p-2">
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="min-h-0 flex-1 overflow-auto p-2">
                   {fr?.availableFuels.map((f) => {
                     const cur = fr.fuel?.chosen === f.name;
                     return (
@@ -3238,7 +3199,7 @@ function Block({ blockId }: { blockId: number }) {
                             {f.kind === "fluid" ? "/unit" : ""}
                           </Badge>
                         )}
-                        {cur && <span className="text-xs text-primary">current</span>}
+                        {cur && <span className="text-sm text-primary">current</span>}
                         {/* solid fuels favorite per fuel category; fluids have no
                             category, so a fluid star sets the single preferred fluid fuel */}
                         <span
@@ -3253,7 +3214,7 @@ function Block({ blockId }: { blockId: number }) {
                                 ? "Favorite fuel for this category — new burners here use it. Click to clear."
                                 : "Set as the favorite fuel for this category (new burners here will use it)"
                           }
-                          className={`ml-auto cursor-pointer text-sm ${f.favorite ? "text-amber-300" : "text-muted-foreground hover:text-amber-300"}`}
+                          className={`ml-auto cursor-pointer text-sm ${f.favorite ? "text-warning" : "text-muted-foreground hover:text-warning"}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleFavoriteFuel(f.name, f.favorite);
@@ -3265,36 +3226,32 @@ function Block({ blockId }: { blockId: number }) {
                     );
                   })}
                   {!fr?.availableFuels.length && (
-                    <div className="px-2 py-1 text-muted-foreground">
+                    <div className="px-2 py-1 text-sm text-muted-foreground">
                       no fuels for this machine's categories
                     </div>
                   )}
                 </div>
-              </Card>
-            </div>
+              </DialogContent>
+            </Dialog>
           );
         })()}
 
       {/* right-click context menu for a good — explicit actions (safer than cycling) */}
       {/* Planned-spoil-rate dialog (#20) */}
       {spoilDialog && (
-        <div
-          className="fixed inset-0 z-40 flex items-start justify-center bg-black/55 p-10"
-          onClick={() => setSpoilDialog(null)}
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setSpoilDialog(null);
+          }}
         >
-          <Card className="w-[26rem] shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <CardHeader className="justify-between">
-              <CardTitle className="flex items-center gap-2 normal-case">
+          <DialogContent className="md:max-w-[26rem]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 truncate">
                 <Icon kind="item" name={spoilDialog} size="sm" noHover noTitle />
                 Planned spoil loss — {res?.display?.[spoilDialog] ?? spoilDialog}
-              </CardTitle>
-              <button
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => setSpoilDialog(null)}
-              >
-                <X className="size-4" />
-              </button>
-            </CardHeader>
+              </DialogTitle>
+            </DialogHeader>
             <form
               className="space-y-3 p-3 text-sm"
               onSubmit={(e) => {
@@ -3312,217 +3269,204 @@ function Block({ blockId }: { blockId: number }) {
                 )}
               </p>
               <div className="flex items-center gap-2">
-                <input
+                <Input
                   autoFocus
                   type="text"
                   inputMode="decimal"
                   value={spoilDraft}
                   onChange={(e) => setSpoilDraft(e.target.value)}
                   placeholder="0.5"
-                  className="w-28 rounded border border-input bg-muted px-2 py-1 text-center"
+                  className="w-28 text-center"
                 />
                 <span className="text-muted-foreground">/s</span>
-                <button
-                  type="submit"
-                  className="ml-auto rounded border border-border px-3 py-1 hover:bg-muted"
-                >
+                <Button type="submit" variant="outline" size="sm" className="ml-auto">
                   save
-                </button>
+                </Button>
                 {spoilRates[spoilDialog] != null && (
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => {
                       setSpoilRateFor(spoilDialog, null);
                       setSpoilDialog(null);
                     }}
-                    className="rounded border border-border px-3 py-1 text-muted-foreground hover:bg-muted"
+                    className="text-muted-foreground"
                   >
                     clear
-                  </button>
+                  </Button>
                 )}
               </div>
             </form>
-          </Card>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {ctxMenu && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setCtxMenu(null)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setCtxMenu(null);
-            }}
-          />
-          <div
-            className="fixed z-50 min-w-52 overflow-hidden rounded-md border border-border bg-background py-1 shadow-xl"
-            style={{ left: ctxMenu.x, top: ctxMenu.y }}
-          >
-            <div className="flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-xs text-muted-foreground">
-              <Icon
-                kind={ctxMenu.kind as "item" | "fluid"}
-                name={ctxMenu.name}
-                size="sm"
-                title={res?.display?.[ctxMenu.name] ?? ctxMenu.name}
-              />
-              <span className="truncate">{res?.display?.[ctxMenu.name] ?? ctxMenu.name}</span>
-            </div>
-            {ctxMenu.link === "export" && (
-              <CtxBtn
-                onClick={() => {
-                  addGoal(ctxMenu.name);
-                  setCtxMenu(null);
-                }}
-              >
-                <Star className="size-3.5" /> Make a goal
-              </CtxBtn>
-            )}
-            {ctxMenu.link === "import" && (
-              <>
-                <CtxBtn
-                  active={lockedInput === ctxMenu.name}
-                  onClick={() => {
-                    if (lockedInput === ctxMenu.name) setLockedInput(null);
-                    else {
-                      const imp = res?.imports.find((f) => f.name === ctxMenu.name);
-                      setLockedInput(ctxMenu.name);
-                      setLockedRate(imp ? +imp.rate.toFixed(4) : 0);
-                    }
-                    setCtxMenu(null);
-                  }}
-                >
-                  {lockedInput === ctxMenu.name ? (
-                    <>
-                      <Unlock className="size-3.5" /> Unlock sizing
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="size-3.5" /> Size block by this input
-                    </>
-                  )}
-                </CtxBtn>
-                <CtxBtn
-                  onClick={() => {
-                    const imp = res?.imports.find((f) => f.name === ctxMenu.name);
-                    void createSupplier(ctxMenu.name, imp?.rate ?? 0);
-                    setCtxMenu(null);
-                  }}
-                >
-                  <Plus className="size-3.5" /> Create block to make this
-                </CtxBtn>
-              </>
-            )}
-            {/* Jump to other blocks that already produce this good (skip self). */}
-            {(() => {
-              const producers = (ctxProducers.data?.producers ?? []).filter(
-                (p) => p.blockId !== blockId,
-              );
-              if (!producers.length) return null;
-              return (
-                <>
-                  <div className="my-1 border-t border-border" />
-                  <div className="px-3 pb-0.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                    produced in
-                  </div>
-                  {producers.map((p) => (
-                    <CtxBtn
-                      key={p.blockId}
-                      className="gap-1.5"
-                      onClick={() => {
-                        void navigate({
-                          to: "/block/$id",
-                          params: { id: String(p.blockId) },
-                        });
-                        setCtxMenu(null);
-                      }}
-                    >
-                      {p.iconKind && p.iconName ? (
-                        <Icon
-                          kind={p.iconKind as "item" | "fluid" | "recipe"}
-                          name={p.iconName}
-                          size="sm"
-                        />
-                      ) : null}
-                      <span className="truncate">{p.blockName}</span>
-                      <span className="ml-auto text-muted-foreground">
-                        {p.role === "byproduct" ? "byproduct " : ""}
-                        {num(p.rate)}/s
-                      </span>
-                    </CtxBtn>
-                  ))}
-                </>
-              );
-            })()}
-            <div className="my-1 border-t border-border" />
-            <div className="px-3 pb-0.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-              disposition
-            </div>
-            {(["auto", "import", "export", "balance"] as const).map((d) => {
-              const active = (disp[ctxMenu.name] ?? "auto") === d;
-              const labels = {
-                auto: "Auto (solver decides)",
-                import: "Force import",
-                export: "Force export",
-                balance: "Force balance",
-              };
-              return (
-                <CtxBtn
-                  key={d}
-                  active={active}
-                  onClick={() => {
-                    setDispFor(ctxMenu.name, d);
-                    setCtxMenu(null);
-                  }}
-                >
-                  {active ? (
-                    <Check className="mr-1 inline size-3.5" />
-                  ) : (
-                    <span className="mr-1 inline-block size-3.5" />
-                  )}
-                  {labels[d]}
-                </CtxBtn>
-              );
-            })}
-            {spoilables[ctxMenu.name] != null && (
-              <>
-                <div className="my-1 border-t border-border" />
-                <CtxBtn
-                  onClick={() => {
-                    setSpoilDraft(String(spoilRates[ctxMenu.name] ?? ""));
-                    setSpoilDialog(ctxMenu.name);
-                    setCtxMenu(null);
-                  }}
-                >
-                  <Timer className="size-3.5" />
-                  {spoilRates[ctxMenu.name] != null
-                    ? `Planned spoil ${num(spoilRates[ctxMenu.name])}/s — edit`
-                    : "Plan spoil loss…"}
-                </CtxBtn>
-                {spoilRates[ctxMenu.name] != null && (
-                  <CtxBtn
-                    onClick={() => {
-                      setSpoilRateFor(ctxMenu.name, null);
-                      setCtxMenu(null);
-                    }}
-                  >
-                    <X className="size-3.5" /> Clear planned spoil
-                  </CtxBtn>
-                )}
-              </>
-            )}
-            <div className="my-1 border-t border-border" />
-            <CtxBtn
+        <ContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onClose={() => setCtxMenu(null)}
+          className="min-w-52"
+        >
+          <div className="flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-sm text-muted-foreground">
+            <Icon
+              kind={ctxMenu.kind as "item" | "fluid"}
+              name={ctxMenu.name}
+              size="sm"
+              title={res?.display?.[ctxMenu.name] ?? ctxMenu.name}
+            />
+            <span className="truncate">{res?.display?.[ctxMenu.name] ?? ctxMenu.name}</span>
+          </div>
+          {ctxMenu.link === "export" && (
+            <ContextMenuItem
               onClick={() => {
-                locate.mutate({ name: ctxMenu.name, kind: ctxMenu.kind as "item" | "fluid" });
+                addGoal(ctxMenu.name);
                 setCtxMenu(null);
               }}
             >
-              <MapPin className="size-3.5" /> Locate in game
-            </CtxBtn>
-          </div>
-        </>
+              <Star className="size-3.5" /> Make a goal
+            </ContextMenuItem>
+          )}
+          {ctxMenu.link === "import" && (
+            <>
+              <ContextMenuItem
+                active={lockedInput === ctxMenu.name}
+                onClick={() => {
+                  if (lockedInput === ctxMenu.name) setLockedInput(null);
+                  else {
+                    const imp = res?.imports.find((f) => f.name === ctxMenu.name);
+                    setLockedInput(ctxMenu.name);
+                    setLockedRate(imp ? +imp.rate.toFixed(4) : 0);
+                  }
+                  setCtxMenu(null);
+                }}
+              >
+                {lockedInput === ctxMenu.name ? (
+                  <>
+                    <Unlock className="size-3.5" /> Unlock sizing
+                  </>
+                ) : (
+                  <>
+                    <Lock className="size-3.5" /> Size block by this input
+                  </>
+                )}
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => {
+                  const imp = res?.imports.find((f) => f.name === ctxMenu.name);
+                  void createSupplier(ctxMenu.name, imp?.rate ?? 0);
+                  setCtxMenu(null);
+                }}
+              >
+                <Plus className="size-3.5" /> Create block to make this
+              </ContextMenuItem>
+            </>
+          )}
+          {/* Jump to other blocks that already produce this good (skip self). */}
+          {(() => {
+            const producers = (ctxProducers.data?.producers ?? []).filter(
+              (p) => p.blockId !== blockId,
+            );
+            if (!producers.length) return null;
+            return (
+              <>
+                <div className="my-1 border-t border-border" />
+                <FieldLabel className="px-3 pb-0.5 font-semibold">produced in</FieldLabel>
+                {producers.map((p) => (
+                  <ContextMenuItem
+                    key={p.blockId}
+                    className="gap-1.5"
+                    onClick={() => {
+                      void navigate({
+                        to: "/block/$id",
+                        params: { id: String(p.blockId) },
+                      });
+                      setCtxMenu(null);
+                    }}
+                  >
+                    {p.iconKind && p.iconName ? (
+                      <Icon
+                        kind={p.iconKind as "item" | "fluid" | "recipe"}
+                        name={p.iconName}
+                        size="sm"
+                      />
+                    ) : null}
+                    <span className="truncate">{p.blockName}</span>
+                    <span className="ml-auto text-muted-foreground">
+                      {p.role === "byproduct" ? "byproduct " : ""}
+                      {num(p.rate)}/s
+                    </span>
+                  </ContextMenuItem>
+                ))}
+              </>
+            );
+          })()}
+          <div className="my-1 border-t border-border" />
+          <FieldLabel className="px-3 pb-0.5 font-semibold">disposition</FieldLabel>
+          {(["auto", "import", "export", "balance"] as const).map((d) => {
+            const active = (disp[ctxMenu.name] ?? "auto") === d;
+            const labels = {
+              auto: "Auto (solver decides)",
+              import: "Force import",
+              export: "Force export",
+              balance: "Force balance",
+            };
+            return (
+              <ContextMenuItem
+                key={d}
+                active={active}
+                onClick={() => {
+                  setDispFor(ctxMenu.name, d);
+                  setCtxMenu(null);
+                }}
+              >
+                {active ? (
+                  <Check className="mr-1 inline size-3.5" />
+                ) : (
+                  <span className="mr-1 inline-block size-3.5" />
+                )}
+                {labels[d]}
+              </ContextMenuItem>
+            );
+          })}
+          {spoilables[ctxMenu.name] != null && (
+            <>
+              <div className="my-1 border-t border-border" />
+              <ContextMenuItem
+                onClick={() => {
+                  setSpoilDraft(String(spoilRates[ctxMenu.name] ?? ""));
+                  setSpoilDialog(ctxMenu.name);
+                  setCtxMenu(null);
+                }}
+              >
+                <Timer className="size-3.5" />
+                {spoilRates[ctxMenu.name] != null
+                  ? `Planned spoil ${num(spoilRates[ctxMenu.name])}/s — edit`
+                  : "Plan spoil loss…"}
+              </ContextMenuItem>
+              {spoilRates[ctxMenu.name] != null && (
+                <ContextMenuItem
+                  onClick={() => {
+                    setSpoilRateFor(ctxMenu.name, null);
+                    setCtxMenu(null);
+                  }}
+                >
+                  <X className="size-3.5" /> Clear planned spoil
+                </ContextMenuItem>
+              )}
+            </>
+          )}
+          <div className="my-1 border-t border-border" />
+          <ContextMenuItem
+            onClick={() => {
+              locate.mutate({ name: ctxMenu.name, kind: ctxMenu.kind as "item" | "fluid" });
+              setCtxMenu(null);
+            }}
+          >
+            <MapPin className="size-3.5" /> Locate in game
+          </ContextMenuItem>
+        </ContextMenu>
       )}
     </div>
   );
@@ -3531,7 +3475,7 @@ function Block({ blockId }: { blockId: number }) {
 function Legend({ cls, label }: { cls: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-1">
-      <span className={`inline-block h-2.5 w-2.5 rounded-sm ${cls}`} />
+      <span className={`inline-block h-2.5 w-2.5 ${cls}`} />
       {label}
     </span>
   );
