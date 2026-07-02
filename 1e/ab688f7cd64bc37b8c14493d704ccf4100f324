@@ -1,0 +1,19 @@
+app/src/styles.css
+  s_5d692d3b6d92da::t_e1846c83ef7c4b 147-150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "1eab688f7cd64bc37b8c14493d704ccf4100f324",
+  "prompts": {},
+  "sessions": {
+    "s_5d692d3b6d92da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aed9fb79cbb81c38f",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
