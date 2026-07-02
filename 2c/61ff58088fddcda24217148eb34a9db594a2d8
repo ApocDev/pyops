@@ -1,0 +1,35 @@
+app/src/lib/modules-modal.tsx
+  s_52a96ee17745bd::t_23fcf06106efea 13-16,96-98,101,105,178,181,202,209,249-250,255,262,312,317,384-385,389,405,407-408,410-411,415,491-495,497-510,517,538,544-546,548,552,564,566-567,569,581,583-585,587,591,605-607,609,612,635-637,644,647,662,664-665,668-669,681-683,689,691-693,697,699-701,710,713,753-754
+app/src/lib/recipe-card.test.tsx
+  s_52a96ee17745bd::t_a73c727f66ef00 59,64
+app/src/lib/recipe-card.tsx
+  s_52a96ee17745bd::t_85b5b510a93403 10-11,31,33,39,54,61-67,131,137-141,273,287-291,311,343,345,347,420-422,455,540,549-552,570,596,695,702,714,725,733,747,762-765,769,848
+app/src/routes/block.index.tsx
+  s_ac39aa95816fd8::t_15b02e0cbcfd0e 2-3,7-17
+app/src/routes/block.tsx
+  s_ac39aa95816fd8::t_58727e75656b40 40-49,51,53-55,425,429,462,466,490,494-495,521,524,569,587,603,617-620,623,626-627,629,646-651,653-669,675-684,757
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "2c61ff58088fddcda24217148eb34a9db594a2d8",
+  "prompts": {},
+  "sessions": {
+    "s_52a96ee17745bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d11f1513-7c74-4dfd-bf22-726492f6cc19",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_ac39aa95816fd8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a5ce93414f06ff03b",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
