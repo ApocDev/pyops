@@ -25,6 +25,11 @@ import { Popover } from "radix-ui";
 import remarkGfm from "remark-gfm";
 
 import { Icon, IconProvider } from "#/lib/icons";
+import { Button } from "#/components/ui/button.tsx";
+import { Callout } from "#/components/ui/callout.tsx";
+import { Input } from "#/components/ui/input.tsx";
+import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { Textarea } from "#/components/ui/textarea.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { ItemHover, RecipeHover } from "#/lib/recipe-card";
 import { formatRate } from "#/lib/format";
@@ -132,24 +137,24 @@ function AssistantShell() {
       sidebar={(close) => (
         <>
           <div className="flex items-center justify-between px-3 py-2">
-            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            <span className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
               Chats
             </span>
-            <button
+            <Button
+              size="sm"
               onClick={() => {
                 newChat();
                 close();
               }}
-              className="flex items-center gap-1 rounded bg-primary px-2 py-0.5 text-sm font-bold text-primary-foreground hover:bg-primary/80"
             >
               <Plus className="size-3.5" /> New
-            </button>
+            </Button>
           </div>
           <div className="min-h-0 flex-1 overflow-auto px-1 pb-2">
             {(list.data ?? []).map((conv) => (
               <div
                 key={conv.id}
-                className={`group flex items-center gap-1 rounded px-2 py-1.5 text-sm hover:bg-muted ${
+                className={`group flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-muted ${
                   conv.id === selected ? "bg-accent" : ""
                 }`}
               >
@@ -169,24 +174,35 @@ function AssistantShell() {
                 >
                   {conv.title ?? "Untitled"}
                 </button>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() => void rename(conv.id, conv.title)}
                   title="rename"
-                  className="hidden px-1 text-muted-foreground group-hover:inline-flex hover:text-foreground"
+                  className="hidden text-muted-foreground group-hover:inline-flex hover:text-foreground"
                 >
                   <Pencil className="size-3.5" />
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() => void remove(conv.id)}
                   title="delete"
-                  className="hidden px-1 text-muted-foreground group-hover:inline-flex hover:text-destructive"
+                  className="hidden text-muted-foreground group-hover:inline-flex hover:text-destructive"
                 >
                   <X className="size-3.5" />
-                </button>
+                </Button>
               </div>
             ))}
-            {(list.data?.length ?? 0) === 0 && (
-              <div className="px-2 py-2 text-xs text-muted-foreground">no saved chats yet</div>
+            {list.isLoading && (
+              <div className="space-y-1 px-2 py-1">
+                <Skeleton className="h-7 w-full" />
+                <Skeleton className="h-7 w-full" />
+                <Skeleton className="h-7 w-2/3" />
+              </div>
+            )}
+            {!list.isLoading && (list.data?.length ?? 0) === 0 && (
+              <div className="px-2 py-2 text-sm text-muted-foreground">no saved chats yet</div>
             )}
           </div>
         </>
@@ -196,11 +212,7 @@ function AssistantShell() {
         {openIds.map((id) => (
           <ChatPane key={id} id={id} active={id === selected} />
         ))}
-        {openIds.length === 0 && (
-          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-            …
-          </div>
-        )}
+        {openIds.length === 0 && <ChatPaneSkeleton />}
       </div>
     </SidebarShell>
   );
@@ -218,11 +230,33 @@ function ChatPane({ id, active }: { id: string; active: boolean }) {
     };
   }, [id]);
   if (!chat) {
-    return active ? (
-      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">…</div>
-    ) : null;
+    return active ? <ChatPaneSkeleton /> : null;
   }
   return <ChatView chat={chat} active={active} />;
+}
+
+/** Loading placeholder for a chat pane: approximates the header bar + a few
+ * message bubbles so the surface never renders blank. */
+function ChatPaneSkeleton() {
+  return (
+    <div className="flex h-full min-w-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-center border-b border-border bg-card px-6 py-2">
+        <Skeleton className="h-5 w-36" />
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <div className="mx-auto w-full max-w-6xl space-y-4 px-6 py-4">
+          <div className="flex justify-end">
+            <Skeleton className="h-10 w-1/2" />
+          </div>
+          <Skeleton className="h-24 w-full" />
+          <div className="flex justify-end">
+            <Skeleton className="h-10 w-1/3" />
+          </div>
+          <Skeleton className="h-16 w-full" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const SUGGESTIONS = [
@@ -361,13 +395,14 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
               </p>
               <div className="mx-auto mt-6 grid max-w-2xl gap-2 sm:grid-cols-2">
                 {SUGGESTIONS.map((s) => (
-                  <button
+                  <Button
                     key={s}
+                    variant="outline"
                     onClick={() => submit(s)}
-                    className="rounded-md border border-border bg-card px-3 py-2 text-left text-sm hover:bg-muted/50"
+                    className="h-auto justify-start px-3 py-2 text-left font-normal whitespace-normal"
                   >
                     {s}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -392,19 +427,21 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
           )}
 
           {incompleteTurn && (
-            <div className="flex items-center gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
-              <span className="text-muted-foreground">
-                The assistant stopped without a final answer (interrupted, or it ran out of steps).
-              </span>
-              <button
-                onClick={() =>
-                  submit("Continue from where you left off and give the final answer.")
-                }
-                className="ml-auto shrink-0 rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/80"
-              >
-                Continue
-              </button>
-            </div>
+            <Callout
+              tone="warning"
+              action={
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    submit("Continue from where you left off and give the final answer.")
+                  }
+                >
+                  Continue
+                </Button>
+              }
+            >
+              The assistant stopped without a final answer (interrupted, or it ran out of steps).
+            </Callout>
           )}
         </div>
       </div>
@@ -418,43 +455,39 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
       >
         <div className="mx-auto w-full max-w-6xl">
           {noKey && (
-            <div className="mb-1.5 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-              <span>
-                No OpenRouter API key set — the assistant can&apos;t respond. Add one in{" "}
-                <Link to="/settings" className="font-medium underline">
-                  Settings → Assistant
-                </Link>
-                , or set the <code className="font-mono">OPENROUTER_API_KEY</code> env var.
-              </span>
-            </div>
+            <Callout tone="warning" className="mb-1.5">
+              No OpenRouter API key set — the assistant can&apos;t respond. Add one in{" "}
+              <Link to="/settings" className="font-medium underline">
+                Settings → Assistant
+              </Link>
+              , or set the <code className="font-mono">OPENROUTER_API_KEY</code> env var.
+            </Callout>
           )}
           {error && (
-            <div className="mb-1.5 flex items-start gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-              <span>
-                {error.message?.trim() || "The assistant request failed. See the server log."}
-              </span>
-            </div>
+            <Callout tone="destructive" className="mb-1.5">
+              {error.message?.trim() || "The assistant request failed. See the server log."}
+            </Callout>
           )}
           {editingId && (
-            <div className="mb-1.5 flex items-center gap-2 text-sm text-amber-300">
+            <div className="mb-1.5 flex items-center gap-2 text-sm text-warning">
               <span>Editing an earlier message; sending will replace it and retry from there.</span>
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="xs"
                 onClick={() => {
                   setEditingId(null);
                   setInput("");
                 }}
-                className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <X className="size-3" />
                 Cancel
-              </button>
+              </Button>
             </div>
           )}
-          <div className="rounded-xl border border-border bg-background focus-within:border-primary">
-            <textarea
+          <div className="border border-border bg-background focus-within:border-primary">
+            <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -465,7 +498,7 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
               }}
               rows={2}
               placeholder="Ask about a recipe or chain…  (Enter to send, Shift+Enter for newline)"
-              className="field-sizing-content max-h-48 min-h-[3.5rem] w-full resize-none bg-transparent px-3 py-2.5 text-sm leading-relaxed outline-none"
+              className="max-h-48 min-h-[3.5rem] resize-none border-0 bg-transparent px-3 py-2.5 leading-relaxed focus-visible:ring-0 dark:bg-transparent"
             />
             <div className="flex flex-wrap items-center gap-1.5 px-2 pb-2">
               <ContextGauge
@@ -486,23 +519,26 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
                 onSaveReasoning={(value) => void saveReasoningEffort(value)}
               />
               {busy ? (
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="icon-lg"
                   onClick={() => void stopInChat(chat.id)}
                   title="Stop generating"
-                  className="ml-auto inline-flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  className="ml-auto text-muted-foreground hover:text-foreground"
                 >
                   <Square className="size-4" />
-                </button>
+                </Button>
               ) : (
-                <button
+                <Button
                   type="submit"
+                  size="icon-lg"
                   disabled={!input.trim()}
                   title={editingId ? "Resend" : "Send"}
-                  className="ml-auto inline-flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 disabled:opacity-40"
+                  className="ml-auto"
                 >
                   <ArrowUp className="size-4" />
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -543,7 +579,7 @@ function ContextGauge({
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const ringColor =
-    ratio >= 0.85 ? "text-red-500" : ratio >= 0.6 ? "text-amber-500" : "text-emerald-500";
+    ratio >= 0.85 ? "text-destructive" : ratio >= 0.6 ? "text-warning" : "text-success";
   const used = status?.usedTokens ?? 0;
   const window = status?.contextWindow ?? 0;
   const title = status
@@ -583,7 +619,7 @@ function ContextGauge({
           stroke="currentColor"
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold tabular-nums text-foreground">
+      <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular-nums text-foreground">
         {compacting ? <Loader2 className="size-3.5 animate-spin" /> : pct}
       </span>
     </button>
@@ -609,10 +645,7 @@ const REASONING_LEVELS = ["low", "medium", "high"] as const;
  * and the `author/` prefix, e.g. `~moonshotai/kimi-latest` → `kimi-latest`. */
 const shortModel = (id: string) => id.replace(/^~/, "").split("/").pop() || id;
 
-const pillClass =
-  "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground disabled:opacity-50";
-const popoverPanel =
-  "z-50 w-80 rounded-lg border border-border bg-card p-2 text-foreground shadow-lg";
+const popoverPanel = "z-50 w-80 border border-border bg-card p-2 text-foreground shadow-lg";
 
 /** Model selector pill (name + chevron) → popover with the curated list, a
  * custom-id field, and make-default / clear. Opens upward (sits in the input bar). */
@@ -643,22 +676,23 @@ function ModelMenu({
   }, [value]);
 
   const fieldClass =
-    "h-9 w-full rounded-md border border-border bg-background px-2 text-sm outline-none focus:border-primary disabled:opacity-50";
+    "h-8 w-full border border-input bg-background px-2 text-sm outline-none focus:border-primary disabled:opacity-50";
 
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
-        <button
+        <Button
           type="button"
+          variant="outline"
           disabled={disabled}
           title={`Model: ${resolved || "…"}${envOverride ? " (PYOPS_AGENT_MODEL env override)" : ""}`}
-          className={pillClass}
+          className="text-muted-foreground"
         >
           <span className="max-w-[6rem] truncate text-foreground md:max-w-[12rem]">
             {resolved ? shortModel(resolved) : "model"}
           </span>
           <ChevronDown className="size-3.5 opacity-60" />
-        </button>
+        </Button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content side="top" align="start" sideOffset={6} className={`${popoverPanel} p-3`}>
@@ -693,7 +727,7 @@ function ModelMenu({
             <option value="__custom__">Custom OpenRouter id…</option>
           </select>
           {customOpen && !envOverride && (
-            <input
+            <Input
               ref={inputRef}
               value={draft}
               placeholder={defaultModel || resolved}
@@ -702,35 +736,37 @@ function ModelMenu({
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
               }}
-              className={`mt-2 ${fieldClass}`}
+              className="mt-2"
             />
           )}
           {envOverride ? (
-            <p className="mt-1.5 text-xs text-muted-foreground">
+            <p className="mt-1.5 text-sm text-muted-foreground">
               <code>PYOPS_AGENT_MODEL</code> is set — env wins for every chat.
             </p>
           ) : (
             <div className="mt-2 flex gap-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 disabled={!activeModel}
                 onClick={() => onMakeDefault(activeModel)}
-                className="h-8 flex-1 rounded border border-border px-2 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground disabled:opacity-50"
+                className="flex-1 text-muted-foreground hover:text-foreground"
               >
                 Make default
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
                 disabled={!value}
                 onClick={() => {
                   setDraft("");
                   setCustomOpen(false);
                   onSaveModel("");
                 }}
-                className="h-8 flex-1 rounded border border-border px-2 text-sm text-muted-foreground hover:bg-muted/50 disabled:opacity-50"
+                className="flex-1 text-muted-foreground"
               >
                 Clear override
-              </button>
+              </Button>
             </div>
           )}
         </Popover.Content>
@@ -769,22 +805,23 @@ function ReasoningMenu({
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
-        <button
+        <Button
           type="button"
+          variant="outline"
           disabled={disabled}
           title={
             supported
               ? "Reasoning effort"
               : "This model doesn’t advertise OpenRouter reasoning effort"
           }
-          className={pillClass}
+          className="text-muted-foreground"
         >
           {current ? <Brain className="size-3.5" /> : <Zap className="size-3.5" />}
           <span className="text-foreground">
             {current ? current[0].toUpperCase() + current.slice(1) : "Auto"}
           </span>
           <ChevronDown className="size-3.5 opacity-60" />
-        </button>
+        </Button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content side="top" align="start" sideOffset={6} className={`${popoverPanel} w-52`}>
@@ -798,7 +835,7 @@ function ReasoningMenu({
                   type="button"
                   disabled={optDisabled}
                   onClick={() => !optDisabled && onSaveReasoning(opt.value)}
-                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted/60 disabled:opacity-40 disabled:hover:bg-transparent ${
+                  className={`flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-muted/60 disabled:opacity-40 disabled:hover:bg-transparent ${
                     isCurrent ? "text-foreground" : "text-muted-foreground"
                   }`}
                 >
@@ -815,7 +852,7 @@ function ReasoningMenu({
             );
           })}
           {!supported && (
-            <p className="px-2 pt-1.5 text-xs text-muted-foreground">
+            <p className="px-2 pt-1.5 text-sm text-muted-foreground">
               Levels need a model that supports reasoning effort.
             </p>
           )}
@@ -846,7 +883,7 @@ function Message({
     <div className={isUser ? "flex justify-end" : "flex justify-start"}>
       <div
         className={
-          "group/message space-y-2 rounded-lg px-3 py-2 text-sm " +
+          "group/message space-y-2 px-3 py-2 text-sm " +
           (isUser ? "max-w-[80%] bg-primary/15 text-foreground" : "w-full bg-card text-foreground")
         }
       >
@@ -923,7 +960,7 @@ function CompactionNotice({
     "",
   );
   return (
-    <details className="rounded border border-amber-500/30 bg-amber-500/5 text-sm">
+    <details className="border border-warning/30 bg-warning/5 text-sm">
       <summary className="cursor-pointer select-none px-3 py-2 text-muted-foreground">
         Earlier conversation summarized · {compaction.originalCount} messages ·{" "}
         {compaction.estimatedTokensBefore.toLocaleString()} →{" "}
@@ -931,8 +968,8 @@ function CompactionNotice({
       </summary>
       <div className="space-y-3 px-3 pb-3">
         <Prose text={summary} />
-        <details className="rounded border border-border/60 bg-background/50">
-          <summary className="cursor-pointer select-none px-2 py-1 text-xs text-muted-foreground">
+        <details className="border border-border/60 bg-background/50">
+          <summary className="cursor-pointer select-none px-2 py-1 text-sm text-muted-foreground">
             View original messages
           </summary>
           <div className="max-h-96 space-y-2 overflow-auto px-2 py-2">
@@ -940,13 +977,13 @@ function CompactionNotice({
               const parts = parseStoredParts(original.parts);
               const text = textParts(parts);
               return (
-                <details key={original.id} className="rounded border border-border/60 p-2 text-xs">
+                <details key={original.id} className="border border-border/60 p-2 text-sm">
                   <summary className="cursor-pointer select-none font-medium text-muted-foreground">
                     {original.role}
                     {text ? ` · ${text.replace(/\s+/g, " ").slice(0, 120)}` : ""}
                   </summary>
                   {text && <div className="mt-2 whitespace-pre-wrap">{text}</div>}
-                  <pre className="mt-2 max-h-80 overflow-auto rounded bg-background p-2 text-[11px] text-muted-foreground">
+                  <pre className="mt-2 max-h-80 overflow-auto bg-background p-2 text-xs text-muted-foreground">
                     {JSON.stringify(parts, null, 2)}
                   </pre>
                 </details>
@@ -971,15 +1008,17 @@ function IconButton({
   children: ReactNode;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="icon-sm"
       title={title}
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex size-7 items-center justify-center rounded border border-border/70 text-muted-foreground hover:bg-muted/50 hover:text-foreground disabled:opacity-30"
+      className="text-muted-foreground"
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -1051,11 +1090,9 @@ function renderParts(parts: ChatMessage["parts"], isUser: boolean): ReactNode[] 
 function ReasoningBlock({ text, state }: { text: string; state?: string }) {
   if (!text.trim()) return null;
   return (
-    <details className="rounded border border-sky-500/30 bg-sky-500/5 text-xs">
+    <details className="border border-info/30 bg-info/5 text-sm">
       <summary className="cursor-pointer select-none px-2 py-1 text-muted-foreground">
-        <span
-          className={`inline-flex ${state === "streaming" ? "text-amber-400/90" : "text-sky-300"}`}
-        >
+        <span className={`inline-flex ${state === "streaming" ? "text-warning/90" : "text-info"}`}>
           {state === "streaming" ? (
             <Loader2 className="size-3.5 animate-spin" />
           ) : (
@@ -1080,15 +1117,15 @@ function Ref({ name, prefer }: { name: string; prefer?: "recipe" }) {
     staleTime: 5 * 60_000,
   });
   if (isLoading || data === undefined)
-    return <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-[0.85em]">{name}</code>;
+    return <code className="bg-muted/60 px-1 py-0.5 font-mono text-[0.85em]">{name}</code>;
   if (data === null)
-    return <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-[0.85em]">{name}</code>;
+    return <code className="bg-muted/60 px-1 py-0.5 font-mono text-[0.85em]">{name}</code>;
 
   // In a recipe list the names are recipes by construction (even iron-plate, which
   // also resolves as an item) — honour the caller's preference.
   const kind: "item" | "fluid" | "recipe" = prefer === "recipe" ? "recipe" : data.kind;
   const chip = (
-    <span className="inline-flex items-center gap-1 rounded bg-muted/60 px-1 py-0.5 align-middle font-mono text-[0.85em] hover:bg-muted">
+    <span className="inline-flex items-center gap-1 bg-muted/60 px-1 py-0.5 align-middle font-mono text-[0.85em] hover:bg-muted">
       <Icon kind={kind} name={name} size="sm" noHover />
       <span>{data.display}</span>
     </span>
@@ -1123,12 +1160,9 @@ function Prose({ text }: { text: string }) {
           strong: (props) => <strong {...props} className="font-semibold text-foreground" />,
           hr: () => <hr className="my-3 border-border" />,
           pre: (props) => (
-            <pre
-              {...props}
-              className="my-2 overflow-auto rounded bg-background p-2 text-xs leading-snug"
-            />
+            <pre {...props} className="my-2 overflow-auto bg-background p-2 text-sm leading-snug" />
           ),
-          table: (props) => <table {...props} className="my-2 w-full border-collapse text-xs" />,
+          table: (props) => <table {...props} className="my-2 w-full border-collapse text-sm" />,
           th: (props) => <th {...props} className="border border-border px-2 py-1 text-left" />,
           td: (props) => <td {...props} className="border border-border px-2 py-1" />,
           a: (props) => <a {...props} className="text-primary underline" />,
@@ -1217,7 +1251,7 @@ function refRow(label: ReactNode, items: string[] | undefined, prefer?: "recipe"
   return items && items.length ? (
     <div className="mt-2.5">
       <div
-        className={`flex items-center gap-1 text-[11px] uppercase tracking-wide ${warn ? "text-red-400" : "text-muted-foreground"}`}
+        className={`flex items-center gap-1 text-xs uppercase tracking-wide ${warn ? "text-destructive" : "text-muted-foreground"}`}
       >
         {label}
       </div>
@@ -1234,7 +1268,7 @@ function refRow(label: ReactNode, items: string[] | undefined, prefer?: "recipe"
 function rateRow(label: ReactNode, entries: GoodRate[] | undefined) {
   return entries && entries.length ? (
     <div className="mt-2.5">
-      <div className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+      <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1.5">
@@ -1242,7 +1276,7 @@ function rateRow(label: ReactNode, entries: GoodRate[] | undefined) {
           <span key={e.good} className="inline-flex items-center gap-1">
             <Ref name={e.good} />
             {e.rate != null && (
-              <span className="text-[11px] text-muted-foreground">{fmtRate(e.rate)}</span>
+              <span className="text-xs text-muted-foreground">{fmtRate(e.rate)}</span>
             )}
           </span>
         ))}
@@ -1264,14 +1298,14 @@ function DraftRows({ draft }: { draft: Draft }) {
       {rateRow("imports (external)", externalImports)}
       {draft.importsFromBlocks && draft.importsFromBlocks.length > 0 && (
         <div className="mt-2.5">
-          <div className="text-[11px] uppercase tracking-wide text-sky-300/80">
+          <div className="text-xs uppercase tracking-wide text-info/80">
             reuse from existing blocks
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1.5">
             {draft.importsFromBlocks.map((i) => (
               <span key={i.good} className="inline-flex items-center gap-1">
                 <Ref name={i.good} />
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   {i.rate != null && `${fmtRate(i.rate)} `}←{" "}
                   {i.fromBlock.map((b) => `#${b.id}`).join(", ")}
                 </span>
@@ -1290,13 +1324,13 @@ function DraftRows({ draft }: { draft: Draft }) {
 
       {draft.turd?.conflicts && draft.turd.conflicts.length > 0 && (
         <div className="mt-2.5">
-          <div className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-red-400">
+          <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-destructive">
             <AlertTriangle className="size-3.5" /> TURD conflicts (infeasible — one choice per
             master)
           </div>
           {draft.turd.conflicts.map((c) => (
             <div key={c.master} className="mt-1 text-sm">
-              <span className="inline-flex items-center gap-1 text-red-300">
+              <span className="inline-flex items-center gap-1 text-destructive">
                 <FlaskConical className="size-3.5" /> {c.masterDisplay}
               </span>
               : {c.choices.map((ch) => ch.choice).join(" vs ")}
@@ -1306,19 +1340,19 @@ function DraftRows({ draft }: { draft: Draft }) {
       )}
       {draft.turd?.selections && draft.turd.selections.length > 0 && (
         <div className="mt-2.5">
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
             TURD selections this block needs
           </div>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {draft.turd.selections.map((sel) => (
               <span
                 key={sel.master}
-                className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] ${
+                className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-sm ${
                   sel.action === "switch"
-                    ? "bg-amber-500/15 text-amber-300"
+                    ? "bg-warning/15 text-warning"
                     : sel.action === "pick"
-                      ? "bg-sky-500/15 text-sky-300"
-                      : "bg-emerald-500/15 text-emerald-300/90"
+                      ? "bg-info/15 text-info"
+                      : "bg-success/15 text-success/90"
                 }`}
                 title={`${sel.action}${sel.current ? ` (currently: ${sel.current})` : ""}`}
               >
@@ -1375,7 +1409,7 @@ function BlockDraft({ draft }: { draft: Draft }) {
   };
 
   return (
-    <div className="rounded-lg border border-primary/40 bg-primary/5 p-3">
+    <div className="border border-primary/40 bg-primary/5 p-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-base font-semibold">
           <Icon kind="item" name={draft.target} size="md" noTitle />
@@ -1392,7 +1426,7 @@ function BlockDraft({ draft }: { draft: Draft }) {
               )}
               {draft.heatW != null && draft.heatW > 0 && (
                 <span
-                  className="inline-flex items-center gap-1 text-orange-300"
+                  className="inline-flex items-center gap-1 text-warning"
                   title="heat doesn't travel — needs a local heat source"
                 >
                   {" · "}
@@ -1402,20 +1436,18 @@ function BlockDraft({ draft }: { draft: Draft }) {
             </span>
           </span>
         </div>
-        <button
-          onClick={() => void create()}
-          disabled={status === "creating"}
-          className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
-        >
+        <Button onClick={() => void create()} disabled={status === "creating"}>
           {status === "creating" ? "Creating…" : "Create block →"}
-        </button>
+        </Button>
       </div>
 
       {draft.notes && <p className="mt-2 text-sm text-muted-foreground">{draft.notes}</p>}
       <DraftRows draft={draft} />
 
       {status === "error" && (
-        <div className="mt-2 text-sm text-red-400">Couldn't create the block — see console.</div>
+        <div className="mt-2 text-sm text-destructive">
+          Couldn't create the block — see console.
+        </div>
       )}
     </div>
   );
@@ -1429,9 +1461,9 @@ function BlockUpdate({ draft }: { draft: Draft }) {
 
   if (draft.missing || draft.updateBlockId == null) {
     return (
-      <div className="rounded-lg border border-red-500/40 bg-red-500/5 p-3 text-sm text-red-300">
+      <Callout tone="destructive">
         Couldn't find block #{draft.updateBlockId ?? "?"} to update — it may have been deleted.
-      </div>
+      </Callout>
     );
   }
   const blockId = draft.updateBlockId;
@@ -1449,13 +1481,13 @@ function BlockUpdate({ draft }: { draft: Draft }) {
   };
 
   return (
-    <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
+    <div className="border border-warning/40 bg-warning/5 p-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-base font-semibold">
           <Icon kind="item" name={draft.target} size="md" noTitle />
           <span>
             Resize block #{blockId}:{" "}
-            <span className="text-amber-300">{draft.blockName ?? draft.targetDisplay}</span>{" "}
+            <span className="text-warning">{draft.blockName ?? draft.targetDisplay}</span>{" "}
             <span className="text-sm font-normal text-muted-foreground">
               {draft.oldRate != null && (
                 <>
@@ -1467,10 +1499,10 @@ function BlockUpdate({ draft }: { draft: Draft }) {
             </span>
           </span>
         </div>
-        <button
+        <Button
           onClick={() => void apply()}
           disabled={status === "applying" || status === "done"}
-          className="flex shrink-0 items-center gap-1 rounded-md bg-amber-500 px-3 py-1.5 text-sm font-medium text-black hover:bg-amber-400 disabled:opacity-50"
+          className="border-warning/40 bg-warning/15 text-warning hover:bg-warning/25"
         >
           {status === "applying" ? (
             "Applying…"
@@ -1481,14 +1513,16 @@ function BlockUpdate({ draft }: { draft: Draft }) {
           ) : (
             "Apply update →"
           )}
-        </button>
+        </Button>
       </div>
 
       {draft.notes && <p className="mt-2 text-sm text-muted-foreground">{draft.notes}</p>}
       <DraftRows draft={draft} />
 
       {status === "error" && (
-        <div className="mt-2 text-sm text-red-400">Couldn't apply the new rate — see console.</div>
+        <div className="mt-2 text-sm text-destructive">
+          Couldn't apply the new rate — see console.
+        </div>
       )}
     </div>
   );
@@ -1527,32 +1561,31 @@ function PlanDraft({ plan }: { plan: PlanDraftData }) {
   };
 
   return (
-    <div className="rounded-lg border border-primary/40 bg-primary/5 p-3">
+    <div className="border border-primary/40 bg-primary/5 p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-base font-semibold text-primary">{plan.title}</div>
           <div className="mt-1 text-sm text-muted-foreground">{plan.objective}</div>
         </div>
-        <button
+        <Button
           onClick={() => void createAll()}
           disabled={status === "creating" || status === "done" || plan.blocks.length === 0}
-          className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
           {status === "creating"
             ? "Applying…"
             : status === "done"
               ? `Done (${created.length})`
               : `Create ${plan.blocks.length} blocks${updates.length ? ` · resize ${updates.length}` : ""}`}
-        </button>
+        </Button>
       </div>
 
       {plan.notes && <p className="mt-2 text-sm text-muted-foreground">{plan.notes}</p>}
-      <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-        <span className="rounded border border-border/60 px-1.5 py-0.5">
+      <div className="mt-2 flex flex-wrap gap-2 text-sm text-muted-foreground">
+        <span className="border border-border/60 px-1.5 py-0.5">
           building materials {plan.buildingMaterialsIncluded ? "included" : "not included"}
         </span>
         {plan.invalid && plan.invalid.length > 0 && (
-          <span className="rounded border border-red-500/50 px-1.5 py-0.5 text-red-300">
+          <span className="border border-destructive/50 px-1.5 py-0.5 text-destructive">
             {plan.invalid.length} invalid recipes
           </span>
         )}
@@ -1560,10 +1593,10 @@ function PlanDraft({ plan }: { plan: PlanDraftData }) {
 
       <div className="mt-3 space-y-2">
         {plan.blocks.map((draft, index) => (
-          <details key={`${draft.target}-${index}`} className="rounded border border-border/60 p-2">
+          <details key={`${draft.target}-${index}`} className="border border-border/60 p-2">
             <summary className="cursor-pointer select-none text-sm font-medium">
               {draft.name ?? draft.targetDisplay ?? draft.target}{" "}
-              <span className="text-xs font-normal text-muted-foreground">
+              <span className="text-sm font-normal text-muted-foreground">
                 @ {draft.rate}/s · {draft.recipes.length} recipes
               </span>
             </summary>
@@ -1574,18 +1607,18 @@ function PlanDraft({ plan }: { plan: PlanDraftData }) {
 
       {updates.length > 0 && (
         <div className="mt-3">
-          <div className="text-[11px] uppercase tracking-wide text-amber-300/80">
+          <div className="text-xs uppercase tracking-wide text-warning/80">
             resize existing blocks to meet demand
           </div>
           <div className="mt-1 space-y-2">
             {updates.map((u, index) => (
               <details
                 key={`u-${u.updateBlockId}-${index}`}
-                className="rounded border border-amber-500/30 bg-amber-500/5 p-2"
+                className="border border-warning/30 bg-warning/5 p-2"
               >
                 <summary className="cursor-pointer select-none text-sm font-medium">
                   #{u.updateBlockId} {u.blockName ?? u.targetDisplay ?? u.target}{" "}
-                  <span className="text-xs font-normal text-muted-foreground">
+                  <span className="text-sm font-normal text-muted-foreground">
                     {u.oldRate != null && <span className="line-through">{u.oldRate}/s</span>} →{" "}
                     <span className="text-foreground">{u.rate}/s</span>
                   </span>
@@ -1598,12 +1631,14 @@ function PlanDraft({ plan }: { plan: PlanDraftData }) {
       )}
 
       {created.length > 0 && (
-        <div className="mt-3 text-sm text-emerald-300">
+        <div className="mt-3 text-sm text-success">
           Created: {created.map((b) => `#${b.id} ${b.name}`).join(", ")}
         </div>
       )}
       {status === "error" && (
-        <div className="mt-3 text-sm text-red-400">Couldn't create every block — see console.</div>
+        <div className="mt-3 text-sm text-destructive">
+          Couldn't create every block — see console.
+        </div>
       )}
     </div>
   );
@@ -1614,7 +1649,7 @@ function PlanBlockPreview({ draft }: { draft: Draft }) {
     <div className="mt-2 space-y-2 text-sm">
       {draft.notes && <p className="text-muted-foreground">{draft.notes}</p>}
       <div>
-        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">recipes</div>
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">recipes</div>
         <div className="mt-1 flex flex-wrap gap-1.5">
           {draft.recipes.map((r) => (
             <Ref key={r} name={r} prefer="recipe" />
@@ -1623,7 +1658,7 @@ function PlanBlockPreview({ draft }: { draft: Draft }) {
       </div>
       {draft.importsExternal && draft.importsExternal.length > 0 && (
         <div>
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
             external imports
           </div>
           <div className="mt-1 flex flex-wrap gap-1.5">
@@ -1635,7 +1670,7 @@ function PlanBlockPreview({ draft }: { draft: Draft }) {
       )}
       {draft.subBlocksNeeded && draft.subBlocksNeeded.length > 0 && (
         <div>
-          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
             still suggested as sub-blocks
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1.5">
@@ -1643,7 +1678,7 @@ function PlanBlockPreview({ draft }: { draft: Draft }) {
               <span key={entry.good} className="inline-flex items-center gap-1">
                 <Ref name={entry.good} />
                 {entry.rate != null && (
-                  <span className="text-[11px] text-muted-foreground">{fmtRate(entry.rate)}</span>
+                  <span className="text-xs text-muted-foreground">{fmtRate(entry.rate)}</span>
                 )}
               </span>
             ))}
@@ -1663,11 +1698,11 @@ function ToolCallGroup({ parts }: { parts: any[] }) {
   const anyErr = parts.some((p) => p.state === "output-error");
   const allDone = parts.every((p) => p.state === "output-available" || p.state === "output-error");
   return (
-    <details className="rounded border border-border/60 bg-background/50 text-xs">
+    <details className="border border-border/60 bg-background/50 text-sm">
       <summary className="cursor-pointer select-none px-2 py-1 font-mono text-muted-foreground">
         <span
           className={`inline-flex ${
-            anyErr ? "text-red-400" : allDone ? "text-emerald-400/90" : "text-amber-400/90"
+            anyErr ? "text-destructive" : allDone ? "text-success/90" : "text-warning/90"
           }`}
         >
           {anyErr ? (
@@ -1694,10 +1729,10 @@ function ToolCall({ part }: { part: any }) {
   const done = part.state === "output-available";
   const err = part.state === "output-error";
   return (
-    <details className="rounded border border-border/60 bg-background/50 text-xs">
+    <details className="border border-border/60 bg-background/50 text-sm">
       <summary className="cursor-pointer select-none px-2 py-1 font-mono text-muted-foreground">
         <span
-          className={`inline-flex ${err ? "text-red-400" : done ? "text-emerald-400/90" : "text-amber-400/90"}`}
+          className={`inline-flex ${err ? "text-destructive" : done ? "text-success/90" : "text-warning/90"}`}
         >
           {err ? (
             <X className="size-3.5" />
@@ -1711,11 +1746,11 @@ function ToolCall({ part }: { part: any }) {
         {part.input ? ` (${Object.values(part.input).join(", ")})` : ""}
       </summary>
       {part.output != null && (
-        <pre className="overflow-auto px-2 py-1 text-[11px] leading-snug text-muted-foreground">
+        <pre className="overflow-auto px-2 py-1 text-xs leading-snug text-muted-foreground">
           {JSON.stringify(part.output, null, 2)}
         </pre>
       )}
-      {err && <div className="px-2 py-1 text-red-400">{String(part.errorText)}</div>}
+      {err && <div className="px-2 py-1 text-destructive">{String(part.errorText)}</div>}
     </details>
   );
 }
