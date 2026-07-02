@@ -93,7 +93,11 @@ launch, same as [from source](#setup) below. For how it's built and released, se
 ## Screenshots
 
 The **Factory** view rolls every block's imports/exports into one ledger — deficits,
-surpluses, and a machine count compared against what you've actually placed in-game.
+surpluses, stock buffers, and a machine count compared against what you've actually
+placed in-game. Every section sorts by any column (click a header; the choice sticks)
+and collapses out of the way. Deficits rank by **% of demand met** rather than raw
+rate, so a fully-starved intermediate outranks a half-fed bulk fluid no matter how
+small its numbers are.
 
 ![Factory ledger — whole-factory balance with deficits, surpluses, and built-vs-required machines](docs/images/factory.png)
 
