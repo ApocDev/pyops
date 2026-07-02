@@ -1,0 +1,19 @@
+app/src/routes/index.tsx
+  s_47616e0ffce432::t_ca1ab7a7d04875 6-8,28-49,51,89-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "e985018b3dac989dfc9cdbcd0bbafc8053c73b2a",
+  "prompts": {},
+  "sessions": {
+    "s_47616e0ffce432": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a29e0dec21ce0b68b",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
