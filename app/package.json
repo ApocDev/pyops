@@ -34,6 +34,7 @@
     "@tanstack/react-start": "latest",
     "@tanstack/react-store": "latest",
     "@tanstack/react-table": "latest",
+    "@tanstack/store": "latest",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
     "ai": "^6.0.204",
