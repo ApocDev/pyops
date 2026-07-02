@@ -33,8 +33,17 @@ beforeEach(() => {
   // jsdom's window.location can't be navigated; replace it with spies
   location = { reload: vi.fn(), assign: vi.fn() };
   Object.defineProperty(window, "location", { value: location, writable: true });
+  // jsdom has no ResizeObserver; Radix popper positioning needs one
+  window.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
 });
 afterEach(cleanup);
+
+/** The Radix DropdownMenu trigger opens on pointerdown, not click. */
+const openMenu = (trigger: Element) => fireEvent.pointerDown(trigger);
 
 describe("ProjectSwitcher", () => {
   it("labels the trigger with the active project", async () => {
@@ -44,14 +53,14 @@ describe("ProjectSwitcher", () => {
 
   it("opens a dropdown listing every project plus a create action", async () => {
     const { findByTitle, getByText } = render(<ProjectSwitcher />);
-    fireEvent.click(await findByTitle(/project: Default/));
+    openMenu(await findByTitle(/project: Default/));
     expect(getByText("Py Run")).toBeTruthy();
     expect(getByText("+ new project…")).toBeTruthy();
   });
 
   it("switches project then reloads (queries belong to the old db)", async () => {
     const { findByTitle, getByText } = render(<ProjectSwitcher />);
-    fireEvent.click(await findByTitle(/project: Default/));
+    openMenu(await findByTitle(/project: Default/));
     fireEvent.click(getByText("Py Run"));
     await waitFor(() => expect(setActive).toHaveBeenCalledWith({ data: "py" }));
     await waitFor(() => expect(location.reload).toHaveBeenCalled());
@@ -60,7 +69,7 @@ describe("ProjectSwitcher", () => {
   it("creates a project from the prompt and routes to the sync page", async () => {
     vi.spyOn(window, "prompt").mockReturnValue("  Fresh Run  ");
     const { findByTitle, getByText } = render(<ProjectSwitcher />);
-    fireEvent.click(await findByTitle(/project: Default/));
+    openMenu(await findByTitle(/project: Default/));
     fireEvent.click(getByText("+ new project…"));
     await waitFor(() => expect(createProject).toHaveBeenCalledWith({ data: "Fresh Run" }));
     await waitFor(() => expect(location.assign).toHaveBeenCalledWith("/settings?tab=data"));
@@ -68,7 +77,7 @@ describe("ProjectSwitcher", () => {
 
   it("offers remove only for non-default projects", async () => {
     const { findByTitle, getAllByTitle } = render(<ProjectSwitcher />);
-    fireEvent.click(await findByTitle(/project: Default/));
+    openMenu(await findByTitle(/project: Default/));
     // exactly one ✕ (Py Run); 'default' is protected
     expect(getAllByTitle(/remove from list/)).toHaveLength(1);
   });

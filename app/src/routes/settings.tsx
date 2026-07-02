@@ -22,8 +22,9 @@ import { driftModal } from "../lib/drift-store";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
+import { Checkbox } from "#/components/ui/checkbox.tsx";
 import { Input } from "#/components/ui/input.tsx";
-import { FieldLabel } from "#/components/ui/label.tsx";
+import { FieldLabel, Label } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Switch } from "#/components/ui/switch.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
@@ -498,16 +499,15 @@ function PlannerCard() {
             </Button>
           ))}
         </div>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
+        <Label>
+          <Checkbox
             checked={s.fillMiners}
-            onChange={(e) =>
-              save.mutate({ autofillPayback: s.autofillPayback, fillMiners: e.target.checked })
+            onCheckedChange={(checked) =>
+              save.mutate({ autofillPayback: s.autofillPayback, fillMiners: checked === true })
             }
           />
           also fill mining drills
-        </label>
+        </Label>
         {save.isError && (
           <p className="text-sm text-destructive">save failed: {save.error.message}</p>
         )}

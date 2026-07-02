@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, ChevronDown, Database, X } from "lucide-react";
 import {
   createProjectFn,
@@ -7,6 +7,13 @@ import {
   setActiveProjectFn,
 } from "../server/factorio";
 import { Button } from "#/components/ui/button.tsx";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "#/components/ui/dropdown-menu.tsx";
 
 type Projects = Awaited<ReturnType<typeof listProjectsFn>>;
 
@@ -14,26 +21,16 @@ type Projects = Awaited<ReturnType<typeof listProjectsFn>>;
  * every query in flight belongs to the previous project's database. */
 export function ProjectSwitcher() {
   const [data, setData] = useState<Projects | null>(null);
-  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     void listProjectsFn().then(setData);
   }, []);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    window.addEventListener("mousedown", close);
-    return () => window.removeEventListener("mousedown", close);
-  }, [open]);
 
   const active = data?.projects.find((p) => p.id === data.active);
 
   const switchTo = async (id: string) => {
-    if (id === data?.active) return setOpen(false);
+    if (id === data?.active) return;
     setBusy(true);
     await setActiveProjectFn({ data: id });
     window.location.reload();
@@ -48,7 +45,7 @@ export function ProjectSwitcher() {
     window.location.assign("/settings?tab=data"); // fresh db: first stop is the sync page
   };
   const remove = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+    e.stopPropagation(); // keep the row's select from firing
     if (!window.confirm("Remove this project from the list? Its database file is kept on disk."))
       return;
     await removeProjectFn({ data: id });
@@ -57,26 +54,28 @@ export function ProjectSwitcher() {
   };
 
   return (
-    <div ref={ref} className="relative flex items-stretch">
-      <Button
-        variant="ghost"
-        onClick={() => setOpen((o) => !o)}
-        disabled={busy}
-        className="h-full gap-1.5 px-3 font-normal text-muted-foreground hover:bg-muted/50"
-        title={`project: ${active?.name ?? "…"} — click to switch`}
-      >
-        <Database className="size-4" /> {active?.name ?? "…"}
-        <ChevronDown className="size-3" />
-      </Button>
-      {open && data && (
-        <div className="absolute top-full right-0 z-50 min-w-48 border border-border bg-popover py-1 shadow-2xl">
-          {data.projects.map((p) => (
-            <Button
+    <div className="flex items-stretch">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            disabled={busy}
+            className="h-full gap-1.5 px-3 font-normal text-muted-foreground hover:bg-muted/50"
+            title={`project: ${active?.name ?? "…"} — click to switch`}
+          >
+            <Database className="size-4" /> {active?.name ?? "…"}
+            <ChevronDown className="size-3" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-48">
+          {data?.projects.map((p) => (
+            <DropdownMenuItem
               key={p.id}
-              variant="ghost"
-              onClick={() => void switchTo(p.id)}
-              className={`group h-auto w-full justify-start gap-2 px-3 py-1.5 font-normal ${
-                p.id === data.active ? "text-primary hover:text-primary" : ""
+              onSelect={() => void switchTo(p.id)}
+              className={`group ${
+                p.id === data.active
+                  ? "text-primary focus:text-primary data-highlighted:text-primary"
+                  : ""
               }`}
             >
               <span className="min-w-0 flex-1 truncate">{p.name}</span>
@@ -92,17 +91,17 @@ export function ProjectSwitcher() {
                   <X className="size-3.5" />
                 </span>
               )}
-            </Button>
+            </DropdownMenuItem>
           ))}
-          <Button
-            variant="ghost"
-            onClick={() => void create()}
-            className="h-auto w-full justify-start border-t-border px-3 py-1.5 font-normal text-info hover:text-info"
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => void create()}
+            className="text-info focus:text-info data-highlighted:text-info"
           >
             + new project…
-          </Button>
-        </div>
-      )}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

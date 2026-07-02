@@ -23,6 +23,7 @@ import { HelpButton } from "#/components/help-drawer.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
+import { Checkbox } from "#/components/ui/checkbox.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
@@ -733,11 +734,9 @@ function TaskDetail({
           const r = rollup(c);
           return (
             <div key={c.id} className="group flex items-center gap-2">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={c.done}
-                onChange={() => toggleChild.mutate({ id: c.id, done: !c.done })}
-                className="size-4 shrink-0 accent-primary"
+                onCheckedChange={() => toggleChild.mutate({ id: c.id, done: !c.done })}
               />
               <button
                 onClick={() => onOpen(c.id)}
@@ -840,12 +839,7 @@ function CheckRow({
   useEffect(() => setValue(text), [text]);
   return (
     <div className="group flex items-center gap-2">
-      <input
-        type="checkbox"
-        checked={done}
-        onChange={onToggle}
-        className="size-4 shrink-0 accent-primary"
-      />
+      <Checkbox checked={done} onCheckedChange={onToggle} />
       <Input
         value={value}
         onChange={(ev) => setValue(ev.target.value)}
