@@ -1,0 +1,65 @@
+app/src/components/browse/flow-stale-callout.tsx
+  s_9be9645d11a3e7::t_ac911bd8fdbc32 1-37
+app/src/lib/explorer.test.ts
+  s_9be9645d11a3e7::t_6436afc28f46c2 1-140
+app/src/lib/explorer.ts
+  s_9be9645d11a3e7::t_68d4758e927187 1-88
+app/src/routes/browse.tsx
+  s_9be9645d11a3e7::t_e7841cf829e83e 3-4,13,15,19-20,37-40,195-206,212-214,221-223
+README.md
+  s_dd5253c3a3da73::t_3ac237ad7c7f25 41-46,203-206
+app/e2e/mut/explorer.e2e.ts
+  s_dd5253c3a3da73::t_cef0585ff27409 1-54
+app/src/components/browse/recipe-list.tsx
+  s_dd5253c3a3da73::t_4aa4c587c1e4de 1-89
+app/src/components/browse/recipe-row.tsx
+  s_dd5253c3a3da73::t_6b8a3d67dd1574 1-179
+app/src/db/queries.server.ts
+  s_dd5253c3a3da73::t_6254fc60039afc 2889-2892,2897-2911,2918-2919,3052-3092
+app/src/db/schema.ts
+  s_4b15f540ec769f::t_8736ad49a3a655 356-360,364
+app/src/server/cost-analysis.server.ts
+  s_dd5253c3a3da73::t_5a2c8ded95c64f 20-29,128,156-159,185-194,196,211-217
+app/src/server/cost-analysis.test.ts
+  s_aad89dfae48fc4::t_01973b7244fd45 41-47,70-74,82,89,93-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b6f3d7d27e04737a195b5c50eea197571da5e04f",
+  "prompts": {},
+  "sessions": {
+    "s_4b15f540ec769f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a5ec51233a12cb82c",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_aad89dfae48fc4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aceb64b791005eeb5",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_dd5253c3a3da73": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ae4fb273cdf66f64a",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
