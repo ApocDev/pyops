@@ -14,6 +14,7 @@ import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
+import { timeAgo } from "../lib/format";
 import { useState } from "react";
 
 export const Route = createFileRoute("/turd")({
@@ -25,13 +26,6 @@ export const Route = createFileRoute("/turd")({
 });
 
 const pct = (x: number) => `${x > 0 ? "+" : ""}${Math.round(x * 100)}%`;
-
-function timeAgo(iso: string): string {
-  const sec = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
-  if (sec < 60) return `${sec}s ago`;
-  if (sec < 3600) return `${Math.round(sec / 60)}m ago`;
-  return `${Math.round(sec / 3600)}h ago`;
-}
 
 type TurdChange = {
   from: string | null;

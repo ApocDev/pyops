@@ -6,21 +6,21 @@
  * localStorage. Deficits sort by "% of demand met" by default, so a fully
  * starved 0.3/s intermediate outranks a half-fed 500/s bulk fluid.
  */
-import { useState } from "react";
 import {
   createColumnHelper,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
   type SortingState,
-  type Updater,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
+import { StatSortHeader } from "#/components/stat-sort-header.tsx";
 import { Icon } from "../lib/icons";
 import { rateLabel } from "../lib/format";
+import { usePersistedFold, usePersistedSorting } from "../lib/use-table-prefs";
 
 export type GoodsRow = {
   item: string;
@@ -55,11 +55,11 @@ const columns = [
 // header/cell width per column id — the same flex layout the sections always had
 const HEAD_W: Record<string, string> = {
   item: "flex-1 text-left",
-  produced: "w-24 text-right",
-  consumed: "w-24 text-right",
-  net: "w-24 text-right",
-  met: "w-14 text-right",
-  actual: "w-24 text-right",
+  produced: "w-24 justify-end",
+  consumed: "w-24 justify-end",
+  net: "w-24 justify-end",
+  met: "w-14 justify-end",
+  actual: "w-24 justify-end",
 };
 
 function ActualCell({
@@ -100,15 +100,6 @@ function MetCell({ pct }: { pct: number | null }) {
   );
 }
 
-const readJSON = (key: string) => {
-  if (typeof localStorage === "undefined") return null;
-  try {
-    return JSON.parse(localStorage.getItem(key) ?? "null");
-  } catch {
-    return null;
-  }
-};
-
 export function GoodsSection({
   id,
   title,
@@ -130,26 +121,8 @@ export function GoodsSection({
   selectedItem: string | null;
   onSelect: (r: GoodsRow) => void;
 }) {
-  const sortKey = `pyops.factorySort.${id}`;
-  const [sorting, setSorting] = useState<SortingState>(() => {
-    const saved = readJSON(sortKey);
-    return Array.isArray(saved) && saved.length ? (saved as SortingState) : defaultSorting;
-  });
-  const onSortingChange = (u: Updater<SortingState>) =>
-    setSorting((old) => {
-      const next = typeof u === "function" ? u(old) : u;
-      if (typeof localStorage !== "undefined") localStorage.setItem(sortKey, JSON.stringify(next));
-      return next;
-    });
-  const foldKey = `pyops.factoryFold.${id}`;
-  const [folded, setFolded] = useState(
-    () => typeof localStorage !== "undefined" && localStorage.getItem(foldKey) === "1",
-  );
-  const toggleFold = () =>
-    setFolded((f) => {
-      localStorage.setItem(foldKey, f ? "0" : "1");
-      return !f;
-    });
+  const [sorting, onSortingChange] = usePersistedSorting(`pyops.factorySort.${id}`, defaultSorting);
+  const [folded, toggleFold] = usePersistedFold(`pyops.factoryFold.${id}`);
 
   const table = useReactTable({
     data: rows,
@@ -185,23 +158,7 @@ export function GoodsSection({
         // pushing its siblings off-page — the sorted top IS the work list.
         // (Also the fixed-height container react-virtual would want, if ever.)
         <div className="max-h-[60vh] overflow-y-auto overscroll-contain">
-          <div className="sticky top-0 z-10 hidden gap-2 bg-card px-3 pb-1 text-sm text-muted-foreground md:flex">
-            {table.getFlatHeaders().map((h) => {
-              const dir = h.column.getIsSorted();
-              return (
-                <button
-                  key={h.id}
-                  onClick={h.column.getToggleSortingHandler()}
-                  title="click to sort"
-                  className={`flex items-center gap-0.5 hover:text-foreground ${HEAD_W[h.id]} ${h.id === "item" ? "" : "justify-end"} ${dir ? "text-foreground" : ""}`}
-                >
-                  {h.column.columnDef.header as string}
-                  {dir === "asc" && <ArrowUp className="size-3" />}
-                  {dir === "desc" && <ArrowDown className="size-3" />}
-                </button>
-              );
-            })}
-          </div>
+          <StatSortHeader headers={table.getFlatHeaders()} widths={HEAD_W} />
           {table.getRowModel().rows.map(({ original: r }) => (
             <button
               key={r.item}

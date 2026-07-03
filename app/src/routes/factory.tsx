@@ -27,9 +27,8 @@ import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
-import { StatCell } from "#/components/stat-cell.tsx";
-import { StatTableHeader } from "#/components/stat-table.tsx";
 import { GoodsSection } from "#/components/goods-table.tsx";
+import { MachinesCard } from "#/components/factory/machines-card.tsx";
 
 export const Route = createFileRoute("/factory")({
   component: () => (
@@ -39,13 +38,7 @@ export const Route = createFileRoute("/factory")({
   ),
 });
 
-import { formatQty as num } from "../lib/format";
-function timeAgo(iso: string): string {
-  const sec = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
-  if (sec < 60) return `${sec}s ago`;
-  if (sec < 3600) return `${Math.round(sec / 60)}m ago`;
-  return `${Math.round(sec / 3600)}h ago`;
-}
+import { formatQty as num, timeAgo } from "../lib/format";
 const fmtW = (w: number) =>
   w >= 1e9
     ? `${(w / 1e9).toFixed(2)} GW`
@@ -383,7 +376,13 @@ function FactoryPage() {
         />
       </div>
 
-      <MachinesCard data={machines.data} />
+      {machines.isLoading && <Skeleton className="mt-4 h-40 max-w-3xl" />}
+      {machines.isError && (
+        <div className="mt-4 text-sm text-destructive">
+          failed to load machine status — {machines.error?.message}
+        </div>
+      )}
+      {machines.data && <MachinesCard data={machines.data} />}
 
       {selected && (
         <ResourceDrawer
@@ -396,22 +395,6 @@ function FactoryPage() {
   );
 }
 
-type MachineRow = {
-  machine: string;
-  display: string;
-  requiredTotal: number;
-  builtTotal: number;
-  recipeAware: boolean;
-  unassignedBuilt: number;
-  short: number;
-  recipes: {
-    recipe: string;
-    display: string;
-    required: number;
-    built: number | null;
-    short: number;
-  }[];
-};
 type ChangeReportData = {
   total: number;
   affected: number;
@@ -509,133 +492,6 @@ function ChangeReport({ data }: { data: ChangeReportData }) {
           </div>
         ))}
       </div>
-    </Card>
-  );
-}
-
-type MachineSufficiency = {
-  machines: MachineRow[];
-  syncedAt: string | null;
-  syncedCount: number | null;
-};
-
-const ceil = (n: number) => Math.ceil(n - 1e-6);
-
-/** Live actual production rate for an item, colored against what's planned: red
- * when the game is making far less than planned (starved), amber when behind,
- * green when on target. "—" when no live stats exist for the good. */
-/** Required-vs-built per machine, broken down by the recipe each runs. The blocks
- * say how many machines they need per recipe; the game says how many are placed
- * and (for assemblers / active furnaces) what they're set to craft. So a machine
- * built but on the wrong recipe still reads as short. Mining drills / labs / idle
- * furnaces report no recipe — those fall back to a machine-level total. Built
- * counts are force-wide, so this is the factory-level picture. */
-function MachinesCard({ data }: { data: MachineSufficiency | undefined }) {
-  if (!data) return null;
-  const rows = data.machines;
-  if (rows.length === 0 && !data.syncedAt) return null;
-  const shortCount = rows.filter((m) => m.short > 0).length;
-
-  return (
-    <Card className="mt-4 max-w-3xl">
-      <CardHeader className="justify-between">
-        <CardTitle className="normal-case">
-          Machines ({rows.length})
-          {shortCount > 0 && (
-            <span className="ml-2 text-sm font-normal text-destructive">
-              {shortCount} under-built
-            </span>
-          )}
-        </CardTitle>
-        <span className="text-sm text-muted-foreground">
-          {data.syncedAt ? (
-            <span className="inline-flex items-center gap-1 text-success">
-              <Check className="size-3.5" /> live: {data.syncedCount ?? 0} placed (
-              {timeAgo(data.syncedAt)})
-            </span>
-          ) : (
-            "no built-machine data — open the PyOps panel in-game and Sync"
-          )}
-        </span>
-      </CardHeader>
-      <StatTableHeader
-        lead="machine · recipe"
-        cols={[
-          { label: "built", w: "w-20" },
-          { label: "required", w: "w-20" },
-          { label: "short", w: "w-24" },
-        ]}
-      />
-      {rows.map((m) => (
-        <div key={m.machine} className="border-t border-border">
-          {/* machine summary */}
-          <div className="flex flex-col gap-1 px-3 py-2 text-sm md:flex-row md:items-center md:gap-2 md:py-1.5">
-            <span className="flex min-w-0 items-center gap-2 md:flex-1">
-              <Icon kind="item" name={m.machine} size="sm" title={m.display} />
-              <span className="min-w-0 flex-1 truncate font-semibold" title={m.display}>
-                {m.display}
-                {!m.recipeAware && m.builtTotal > 0 && (
-                  <span className="ml-1 text-xs font-normal text-muted-foreground">
-                    (no recipe data)
-                  </span>
-                )}
-              </span>
-            </span>
-            <span className="grid grid-cols-3 gap-x-3 pl-7 md:flex md:gap-2 md:pl-0">
-              <StatCell label="built" w="md:w-20" className="text-muted-foreground">
-                {m.builtTotal}
-              </StatCell>
-              <StatCell label="required" w="md:w-20" className="text-warning">
-                {ceil(m.requiredTotal)}
-              </StatCell>
-              <StatCell
-                label="short"
-                w="md:w-24"
-                className={`font-semibold ${m.short > 0 ? "text-destructive" : "text-success"}`}
-              >
-                {m.short > 0 ? `need ${m.short}` : <Check className="inline size-4" />}
-              </StatCell>
-            </span>
-          </div>
-          {/* per-recipe breakdown (only meaningful when recipe-aware) */}
-          {m.recipeAware &&
-            m.recipes.map((r) => (
-              <div
-                key={r.recipe}
-                className="flex flex-col gap-0.5 py-1 pr-3 pl-10 text-sm text-muted-foreground md:flex-row md:items-center md:gap-2 md:py-0.5"
-              >
-                <span className="flex min-w-0 items-center gap-2 md:flex-1">
-                  <Icon kind="recipe" name={r.recipe} size="sm" title={r.display} />
-                  <span className="min-w-0 flex-1 truncate" title={r.display}>
-                    {r.display}
-                  </span>
-                </span>
-                <span className="grid grid-cols-3 gap-x-3 pl-6 md:flex md:gap-2 md:pl-0">
-                  <StatCell label="built" w="md:w-20">
-                    {r.built ?? "—"}
-                  </StatCell>
-                  <StatCell label="required" w="md:w-20">
-                    {ceil(r.required)}
-                  </StatCell>
-                  <StatCell
-                    label="short"
-                    w="md:w-24"
-                    className={r.short > 0 ? "text-destructive" : "text-success/70"}
-                  >
-                    {r.short > 0 ? `need ${r.short}` : <Check className="inline size-3.5" />}
-                  </StatCell>
-                </span>
-              </div>
-            ))}
-          {m.recipeAware && m.unassignedBuilt > 0 && (
-            <div className="flex items-center gap-2 py-0.5 pr-3 pl-10 text-sm text-muted-foreground/70 italic">
-              <span className="min-w-0 flex-1">
-                {m.unassignedBuilt} built with no recipe set (idle / spare)
-              </span>
-            </div>
-          )}
-        </div>
-      ))}
     </Card>
   );
 }

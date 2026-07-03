@@ -73,6 +73,14 @@ export function formatQty(n: number): string {
 /** A per-second rate: adaptive quantity + "/s". */
 export const formatRate = (n: number): string => `${formatQty(n)}/s`;
 
+/** Coarse "how stale is this sync" text: "12s ago", "3m ago", "2h ago". */
+export function timeAgo(iso: string): string {
+  const sec = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (sec < 60) return `${sec}s ago`;
+  if (sec < 3600) return `${Math.round(sec / 60)}m ago`;
+  return `${Math.round(sec / 3600)}h ago`;
+}
+
 /** Energy pseudo-fluids (1 unit = 1 MJ, so 1 unit/s = 1 MW): rates for these
  * display as power, and inputs accept power units. */
 export const ENERGY_PSEUDO = new Set(["pyops-electricity", "pyops-heat", "pyops-fluid-fuel"]);
