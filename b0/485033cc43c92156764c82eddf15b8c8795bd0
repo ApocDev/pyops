@@ -1,0 +1,31 @@
+app/src/components/project-create-dialog.tsx
+  s_9be9645d11a3e7::t_e543edd8763a33 1-84
+app/src/components/project-switcher.tsx
+  s_9be9645d11a3e7::t_afd438067c637b 3-4,21,33-43,97,104
+app/src/components/project-switcher.test.tsx
+  s_cfc203fbf219b3::t_af646353404ed5 69-70,73-80,85-114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "b0485033cc43c92156764c82eddf15b8c8795bd0",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_cfc203fbf219b3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a0bee78340974e828",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
