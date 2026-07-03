@@ -25,16 +25,16 @@
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@openrouter/ai-sdk-provider": "^2.9.1",
     "@tailwindcss/vite": "^4.1.18",
-    "@tanstack/react-devtools": "latest",
-    "@tanstack/react-query": "latest",
-    "@tanstack/react-query-devtools": "latest",
-    "@tanstack/react-router": "latest",
-    "@tanstack/react-router-devtools": "latest",
-    "@tanstack/react-router-ssr-query": "latest",
-    "@tanstack/react-start": "latest",
-    "@tanstack/react-store": "latest",
-    "@tanstack/react-table": "latest",
-    "@tanstack/store": "latest",
+    "@tanstack/react-devtools": "^0.10.8",
+    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-query-devtools": "^5.101.2",
+    "@tanstack/react-router": "^1.170.17",
+    "@tanstack/react-router-devtools": "^1.167.0",
+    "@tanstack/react-router-ssr-query": "^1.167.1",
+    "@tanstack/react-start": "^1.168.27",
+    "@tanstack/react-store": "^0.11.0",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/store": "^0.11.0",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
     "ai": "^6.0.204",
@@ -62,7 +62,7 @@
   "devDependencies": {
     "@rolldown/plugin-babel": "^0.2.3",
     "@tailwindcss/typography": "^0.5.16",
-    "@tanstack/devtools-vite": "latest",
+    "@tanstack/devtools-vite": "^0.8.1",
     "@tanstack/router-cli": "^1.132.0",
     "@tauri-apps/cli": "^2.11.0",
     "@testing-library/dom": "^10.4.1",
@@ -77,9 +77,9 @@
     "jsdom": "^28.1.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
-    "vite": "npm:@voidzero-dev/vite-plus-core@latest",
-    "vite-plus": "latest",
-    "vitest": "npm:@voidzero-dev/vite-plus-test@latest"
+    "vite": "npm:@voidzero-dev/vite-plus-core@^0.2.1",
+    "vite-plus": "^0.2.1",
+    "vitest": "npm:@voidzero-dev/vite-plus-test@^0.1.24"
   },
   "packageManager": "pnpm@11.5.3",
   "pnpm": {
@@ -89,8 +89,8 @@
       "better-sqlite3"
     ],
     "overrides": {
-      "vite": "npm:@voidzero-dev/vite-plus-core@latest",
-      "vitest": "npm:@voidzero-dev/vite-plus-test@latest"
+      "vite": "npm:@voidzero-dev/vite-plus-core@^0.2.1",
+      "vitest": "npm:@voidzero-dev/vite-plus-test@^0.1.24"
     },
     "peerDependencyRules": {
       "allowAny": [
