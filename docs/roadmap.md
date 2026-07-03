@@ -49,15 +49,15 @@ via #98, v1 deleted), #110's full temperature-identity model, and #114
 (temperature-fed fluid drains). The solver docs live in docs/solver.md; the
 tracker records the details.
 
-## Wave 3 — assistant (closes epic #30 with #72 from Wave 0)
+## Wave 3 — DONE (2026-07-03)
 
-| Issue                      | Effort | Notes                                                                                                                                                                                   |
-| -------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #11 coherence audit tool   | M      | Labeled `priority: next`. **Scope-check first**: the audit found `turdConsistency`'s factory-wide checks already cover part of this — confirm what's genuinely missing before building. |
-| #12 revise recipe set      | M      | Completes propose-then-apply beyond rate changes; the doc store's `hydrate()` makes live-editor updates work.                                                                           |
-| #13 one-click follow-ups   | S      | Draft sub-block / route byproduct buttons on assistant output.                                                                                                                          |
-| #15 gameEval approval gate | M      | Per-call approval UI for in-game Lua eval.                                                                                                                                              |
-| #14 push block in-game     | S      | Cybersyn blueprint / bridge show from the assistant.                                                                                                                                    |
+The assistant batch (closes epic #30 with #72 from Wave 0): #11 coherence audit
+tool (with data-driven byproduct disposal verdicts — the dump's 3159 pyvoid
+recipes; corrected the prompt's wrong "hard mode cannot void" guidance), #12
+revise recipe set (propose-then-apply beyond rates), #13 one-click follow-up
+chips, #15 per-call gameEval approval gate (+ a pyops-allow-eval mod kill
+switch), #14 push created blocks in-game. Conversational round-trips and the
+mod-side kill switch still want a live pass (API key + game).
 
 ## Wave 4 — UI leverage (mostly epic #35)
 
