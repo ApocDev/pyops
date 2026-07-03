@@ -61,8 +61,12 @@ source](#setup) to hack on it.
   the live factory through the bridge to ground its planning.
 - **Jump anywhere from the keyboard.** **Ctrl+K** (Cmd+K on macOS) opens a command
   palette from any page — or press `/` when you're not typing in a field. Fuzzy
-  search across pages and factory blocks, plus quick actions (new block, new
-  project, undo); arrows + Enter to run, Esc to close.
+  search across pages and factory blocks, goods (items & fluids, searched against
+  the game data and jumping to their browse view), plus quick actions (new block,
+  new project, undo); opened empty, it surfaces your recently visited blocks and
+  goods. Arrows + Enter to run, Esc to close — and **`?`** (or the palette's
+  "Keyboard shortcuts" entry) opens a sheet listing every shortcut active on the
+  current page.
 - **Undo your planning edits.** **Ctrl+Z** (Cmd+Z on macOS) reverts the last
   planning action — block edits, deletions, applied plans — as whole steps, with
   a multi-level stack per project. The ↶ button in the top bar shows what the

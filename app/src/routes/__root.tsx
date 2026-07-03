@@ -8,6 +8,7 @@ import { AppNav } from "../components/app-nav";
 import { CommandPalette } from "../components/command-palette";
 import { DbMigrationsBanner } from "../components/db-migrations-banner";
 import { DriftModal } from "../components/drift-modal";
+import { ShortcutHelpSheet } from "../components/shortcut-help-sheet";
 import { UndoHotkey } from "../components/undo-hotkey";
 import { UpdatePrompt } from "../components/update-prompt";
 import { Toaster } from "../components/ui/toast";
@@ -65,6 +66,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <div className="min-h-0 flex-1 overflow-auto">{children}</div>
         </div>
         <CommandPalette />
+        <ShortcutHelpSheet />
         <UndoHotkey />
         <Toaster />
         <DriftModal />

@@ -3,10 +3,12 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import {
   activeHotkeys,
   dispatchKeydown,
+  formatCombo,
   isEditableTarget,
   matchesCombo,
   parseCombo,
   registerHotkey,
+  summarizeHotkeys,
   type KeyLike,
 } from "./hotkeys";
 
@@ -204,5 +206,40 @@ describe("registry dispatch", () => {
     dispatchKeydown(e, true);
     expect(handler).toHaveBeenCalledTimes(1);
     off();
+  });
+});
+
+describe("formatCombo", () => {
+  it("resolves mod per platform", () => {
+    expect(formatCombo("mod+k", false)).toBe("Ctrl+K");
+    expect(formatCombo("mod+k", true)).toBe("⌘K");
+    expect(formatCombo("ctrl+shift+z", false)).toBe("Ctrl+Shift+Z");
+    expect(formatCombo("alt+a", true)).toBe("⌥A");
+  });
+
+  it("renders bare printables and named keys for humans", () => {
+    expect(formatCombo("/", false)).toBe("/");
+    expect(formatCombo("?", false)).toBe("?");
+    expect(formatCombo("escape", false)).toBe("Esc");
+    expect(formatCombo("arrowup", false)).toBe("↑");
+  });
+});
+
+describe("summarizeHotkeys", () => {
+  it("groups combos under one description, deduped, in first-seen order", () => {
+    const rows = summarizeHotkeys([
+      { combo: "mod+k", description: "Open the command palette" },
+      { combo: "/", description: "Open the command palette" },
+      { combo: "mod+z", description: "Undo the last action" },
+      { combo: "mod+k", description: "Open the command palette" }, // re-registered
+    ]);
+    expect(rows).toEqual([
+      { description: "Open the command palette", combos: ["mod+k", "/"] },
+      { description: "Undo the last action", combos: ["mod+z"] },
+    ]);
+  });
+
+  it("passes an empty registry through", () => {
+    expect(summarizeHotkeys([])).toEqual([]);
   });
 });

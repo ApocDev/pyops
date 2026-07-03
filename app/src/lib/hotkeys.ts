@@ -162,9 +162,54 @@ export function registerHotkey(reg: HotkeyRegistration): () => void {
   };
 }
 
-/** Currently registered shortcuts, for a future help overlay. */
+/** Currently registered shortcuts, in registration order — what the shortcut
+ * help sheet renders (page-scoped registrations appear only while mounted). */
 export function activeHotkeys(): { combo: string; description: string }[] {
   return registry.map((r) => ({ combo: r.combo, description: r.description }));
+}
+
+const KEY_LABELS: Record<string, string> = {
+  escape: "Esc",
+  arrowup: "↑",
+  arrowdown: "↓",
+  arrowleft: "←",
+  arrowright: "→",
+  enter: "Enter",
+  " ": "Space",
+  space: "Space",
+};
+
+/** Render a combo string for humans: `"mod+k"` → `"Ctrl+K"` (`"⌘K"` on mac),
+ * `"escape"` → `"Esc"`, bare printables stay themselves (`"/"`, `"?"`). */
+export function formatCombo(combo: string, isMac: boolean = detectMac()): string {
+  const parsed = parseCombo(combo);
+  const parts: string[] = [];
+  if (parsed.ctrl || (parsed.mod && !isMac)) parts.push("Ctrl");
+  if (parsed.meta || (parsed.mod && isMac)) parts.push("⌘");
+  if (parsed.alt) parts.push(isMac ? "⌥" : "Alt");
+  if (parsed.shift) parts.push("Shift");
+  const key =
+    KEY_LABELS[parsed.key] ??
+    (parsed.key.length === 1 && /[a-z]/.test(parsed.key) ? parsed.key.toUpperCase() : parsed.key);
+  parts.push(key);
+  // mac chords read glued (⌘K); everything else joins with + (Ctrl+K). Bare
+  // keys are just themselves either way.
+  return isMac ? parts.join("") : parts.join("+");
+}
+
+/** Collapse `activeHotkeys()` for display: one row per description (a feature
+ * often registers several combos — Ctrl+K and `/` both open the palette),
+ * combos deduped in first-registered order. */
+export function summarizeHotkeys(
+  regs: { combo: string; description: string }[],
+): { description: string; combos: string[] }[] {
+  const byDescription = new Map<string, string[]>();
+  for (const r of regs) {
+    const combos = byDescription.get(r.description) ?? [];
+    if (!combos.includes(r.combo)) combos.push(r.combo);
+    byDescription.set(r.description, combos);
+  }
+  return [...byDescription].map(([description, combos]) => ({ description, combos }));
 }
 
 /** React binding: registers on mount, unregisters on unmount, and always calls

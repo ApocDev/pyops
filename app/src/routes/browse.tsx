@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Droplet, Flame, FlaskConical, Lock, Search, Timer } from "lucide-react";
 import { browseDetailFn, searchAllFn, statsFn } from "../server/factorio";
 import { IconProvider, Icon } from "../lib/icons";
+import { recordRecent } from "../lib/recents";
 import { RecipeHover } from "../lib/recipe-card";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
@@ -55,6 +56,20 @@ function Browse() {
   });
 
   const open = (name: string) => void navigate({ search: { sel: name } });
+
+  // A good that resolves to a detail view is a visit — surfaces it in the
+  // command palette's Recent group (#78). Recorded here (not in the palette)
+  // so sidebar clicks and shared links count the same as palette jumps.
+  const detailData = detail.data;
+  useEffect(() => {
+    if (!detailData || detailData.name !== sel) return;
+    recordRecent({
+      type: "good",
+      name: detailData.name,
+      goodKind: detailData.kind as Kind,
+      display: detailData.display ?? detailData.name,
+    });
+  }, [detailData, sel]);
 
   return (
     <SidebarShell

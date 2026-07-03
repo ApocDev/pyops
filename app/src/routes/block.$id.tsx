@@ -24,6 +24,7 @@ import { toast } from "../lib/toast-store";
 import { epochSeconds } from "../lib/undo-client";
 import { blockActionName } from "../lib/undo-names";
 import { launchesForRate, resolveLogistics } from "../lib/logistics";
+import { recordRecent } from "../lib/recents";
 import { IconProvider, useSpoilables } from "../lib/icons";
 import { ModulesModal } from "../lib/modules-modal";
 import { Callout } from "#/components/ui/callout.tsx";
@@ -165,6 +166,9 @@ function Block({ blockId }: { blockId: number }) {
     doc.hydrate(loaded.data.data, loaded.data.name);
     baseUpdatedAt.current = epochSeconds(loaded.data.updatedAt);
     setBlockEnabled(loaded.data.enabled ?? true);
+    // a successful load is a visit — surfaces this block in the command
+    // palette's Recent group (#78); identity only, the label resolves live
+    recordRecent({ type: "block", id: blockId });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded.data]);
 

@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CornerDownLeft, Plus, Undo2, type LucideIcon } from "lucide-react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CornerDownLeft, Keyboard, Plus, Undo2, type LucideIcon } from "lucide-react";
 import { SETTINGS_LINK, visibleNavLinks } from "./nav-links";
 import { ProjectCreateDialog } from "./project-create-dialog";
+import { openShortcutHelp } from "./shortcut-help-sheet";
 import { rankMatches } from "../lib/command-search";
 import { useHotkey } from "../lib/hotkeys";
+import { loadRecents } from "../lib/recents";
 import { runUndo } from "../lib/undo-client";
 import { Icon, IconProvider, type IconKind } from "../lib/icons";
-import { dataCapabilitiesFn, listBlocksFn, saveBlockFn } from "../server/factorio";
+import { dataCapabilitiesFn, listBlocksFn, saveBlockFn, searchAllFn } from "../server/factorio";
 import { Dialog, DialogContent, DialogTitle } from "#/components/ui/dialog.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
@@ -26,14 +28,24 @@ type PaletteItem = {
 type PaletteGroup = { title: string; items: PaletteItem[] };
 
 const GROUP_CAP = 10; // keep the panel scannable; type more to narrow
+const RECENT_CAP = 6; // recents are a shortcut, not a history browser
+
+/** Debounce a fast-changing value (the goods search hits SQLite per keystroke
+ * otherwise). Tiny and palette-only, so it lives here rather than in lib/. */
+function useDebouncedValue<T>(value: T, ms: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
+}
 
 /**
  * The Ctrl+K / `/` command palette (#78): one search box over page navigation,
- * factory blocks, and a couple of actions. Arrow keys + Enter, Escape closes.
- *
- * Deliberately minimal for now — goods/recipes search (server-side), recent
- * selections on empty query, and smarter ranking/frecency are follow-ups; the
- * item model above is where they slot in.
+ * factory blocks, goods (items + fluids, searched server-side against SQLite),
+ * and a few actions. Empty query surfaces recently visited blocks/goods.
+ * Arrow keys + Enter, Escape closes.
  */
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
@@ -60,6 +72,25 @@ export function CommandPalette() {
     enabled: open,
   });
 
+  // Goods search runs server-side (Py ships thousands of items; the client
+  // never sees the full table). Debounced so SQLite isn't hit per keystroke;
+  // keepPreviousData holds the last results steady while the next ones load.
+  const trimmed = query.trim();
+  const debounced = useDebouncedValue(trimmed, 150);
+  const goods = useQuery({
+    queryKey: ["paletteGoods", debounced],
+    queryFn: () => searchAllFn({ data: debounced }),
+    enabled: open && debounced.length > 0,
+    placeholderData: keepPreviousData,
+  });
+  // Between a keystroke and its (debounced) results, goods are in flux — used
+  // to hold off the "no matches" verdict so it never flashes mid-search.
+  const goodsSettling = trimmed.length > 0 && (debounced !== trimmed || goods.isFetching);
+
+  // Recently visited blocks/goods (lib/recents.ts) — read when the palette
+  // opens, so visits recorded on other pages since the last open are included.
+  const recents = useMemo(() => (open ? loadRecents() : []), [open]);
+
   const close = () => setOpen(false);
   // Reset the search whenever the palette closes, whatever closed it (Escape,
   // overlay click, Ctrl+K toggle, running an item) — it reopens fresh.
@@ -77,14 +108,53 @@ export function CommandPalette() {
       glyph: l.icon,
       run: () => void navigate({ to: l.to }),
     }));
-    const blockItems: PaletteItem[] = (blocks.data ?? []).map((b) => ({
-      key: `block:${b.id}`,
+    const blockItem = (
+      b: NonNullable<typeof blocks.data>[number],
+      keyPrefix = "",
+    ): PaletteItem => ({
+      key: `${keyPrefix}block:${b.id}`,
       label: b.name,
       sprite: b.iconName
         ? { kind: (b.iconKind ?? "item") as IconKind, name: b.iconName }
         : undefined,
       run: () => void navigate({ to: "/block/$id", params: { id: String(b.id) } }),
-    }));
+    });
+    // Recent selections show only on an empty query (typing means the user
+    // already knows what they want). Blocks resolve against the live block
+    // list — renames show fresh, deleted blocks drop out.
+    const recentItems: PaletteItem[] = trimmed
+      ? []
+      : recents
+          .flatMap((r): PaletteItem[] => {
+            if (r.type === "block") {
+              const b = (blocks.data ?? []).find((x) => x.id === r.id);
+              return b ? [blockItem(b, "recent:")] : [];
+            }
+            return [
+              {
+                key: `recent:good:${r.name}`,
+                label: r.display || r.name,
+                sprite: { kind: r.goodKind, name: r.name },
+                run: () => void navigate({ to: "/browse", search: { sel: r.name } }),
+              },
+            ];
+          })
+          .slice(0, RECENT_CAP);
+    const recentKeys = new Set(recentItems.map((i) => i.key.replace(/^recent:/, "")));
+    const blockItems: PaletteItem[] = (blocks.data ?? [])
+      .map((b) => blockItem(b))
+      // on an empty query, don't repeat what the Recent group already shows
+      .filter((b) => trimmed.length > 0 || !recentKeys.has(b.key));
+    // Goods arrive pre-filtered and pre-ranked by the server (its match covers
+    // internal names too, which the visible label deliberately isn't).
+    const goodItems: PaletteItem[] = trimmed
+      ? (goods.data ?? []).map((g) => ({
+          key: `good:${g.kind}:${g.name}`,
+          label: g.display ?? g.name,
+          sprite: { kind: g.kind as IconKind, name: g.name },
+          run: () => void navigate({ to: "/browse", search: { sel: g.name } }),
+        }))
+      : [];
     const actions: PaletteItem[] = [
       {
         key: "action:new-block",
@@ -110,16 +180,24 @@ export function CommandPalette() {
         glyph: Undo2,
         run: () => runUndo(qc), // same path as Ctrl+Z / the nav button
       },
+      {
+        key: "action:shortcuts",
+        label: "Keyboard shortcuts",
+        glyph: Keyboard,
+        run: () => openShortcutHelp(), // also on `?` outside text fields
+      },
     ];
     return [
+      { title: "Recent", items: recentItems },
       { title: "Pages", items: rankMatches(query, pages, (i) => i.label).slice(0, GROUP_CAP) },
       {
         title: "Blocks",
         items: rankMatches(query, blockItems, (i) => i.label).slice(0, GROUP_CAP),
       },
+      { title: "Goods", items: goodItems.slice(0, GROUP_CAP) },
       { title: "Actions", items: rankMatches(query, actions, (i) => i.label).slice(0, GROUP_CAP) },
     ].filter((g) => g.items.length > 0);
-  }, [caps.data, blocks.data, query, navigate, qc]);
+  }, [caps.data, blocks.data, goods.data, recents, query, trimmed, navigate, qc]);
 
   const flat = useMemo(() => groups.flatMap((g) => g.items), [groups]);
   const activeItem = flat[Math.min(active, flat.length - 1)];
@@ -167,14 +245,16 @@ export function CommandPalette() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Search pages, blocks, actions…"
+              placeholder="Search pages, blocks, goods, actions…"
               aria-label="Search commands"
             />
           </div>
           <div ref={listRef} className="max-h-96 min-h-0 flex-1 overflow-y-auto p-2">
             <IconProvider>
               {groups.map((g) => (
-                <div key={g.title} className="mb-2 last:mb-0">
+                // data-group: a stable per-group handle (a block and a good can
+                // share a visible name; tests and tools scope by group with it)
+                <div key={g.title} data-group={g.title} className="mb-2 last:mb-0">
                   <div className="px-2 py-1 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
                     {g.title}
                   </div>
@@ -213,7 +293,7 @@ export function CommandPalette() {
                   })}
                 </div>
               ))}
-              {open && blocks.isPending && (
+              {open && (blocks.isPending || (trimmed.length > 0 && goods.isPending)) && (
                 <div className="flex flex-col gap-1 px-2 py-1">
                   <Skeleton className="h-8 w-full" />
                   <Skeleton className="h-8 w-2/3" />
@@ -224,15 +304,20 @@ export function CommandPalette() {
                   Couldn't load blocks — page and action search still work.
                 </div>
               )}
-              {flat.length === 0 && !blocks.isPending && (
+              {goods.isError && (
+                <div className="px-2 py-1 text-sm text-destructive">
+                  Couldn't search goods — pages, blocks, and actions still work.
+                </div>
+              )}
+              {flat.length === 0 && !blocks.isPending && !goodsSettling && (
                 <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                  No matches for "{query}" — try a page name, block, or action.
+                  No matches for "{query}" — try a page, block, good, or action.
                 </div>
               )}
             </IconProvider>
           </div>
           <div className="border-t border-border px-3 py-1.5 text-xs text-muted-foreground">
-            ↑↓ navigate · Enter open · Esc close
+            ↑↓ navigate · Enter open · Esc close · ? shortcuts
           </div>
         </DialogContent>
       </Dialog>
