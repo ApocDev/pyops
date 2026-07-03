@@ -1,0 +1,27 @@
+app/src/components/block/format.test.ts
+  s_9be9645d11a3e7::t_0d6278bca175ea 114-129
+app/src/components/block/item-chip.tsx
+  s_9be9645d11a3e7::t_fbc4f70e2022a7 38,52-53,105
+app/src/components/block/recipe-row.tsx
+  s_9be9645d11a3e7::t_bf14cfe6bd0300 266,299
+app/src/lib/format.ts
+  s_9be9645d11a3e7::t_1855e74252ebb8 113-129
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_7c2a69b419b2e6 13,599-600,608-609,699
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "bceea1598454837972d161a8a2822915332ab3b2",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
