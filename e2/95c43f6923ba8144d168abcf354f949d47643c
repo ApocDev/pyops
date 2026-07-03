@@ -1,0 +1,51 @@
+app/drizzle/0006_research-productivity.sql
+  s_9be9645d11a3e7::t_1dd263d941b0f1 1-9
+app/drizzle/meta/0006_snapshot.json
+  s_9be9645d11a3e7::t_47a03df33d9ded 1-2560
+app/drizzle/meta/_journal.json
+  s_9be9645d11a3e7::t_ad8bc28b7b11ea 46-52
+app/src/db/import-factorio.ts
+  s_9be9645d11a3e7::t_f236b88088c46a 104,176,235-237,268-269,474-475,481-488,491
+app/src/db/queries.server.ts
+  s_9be9645d11a3e7::t_cf8ad6a80348e0 34,468-469,477-481,2222-2251
+app/src/db/schema.ts
+  s_9be9645d11a3e7::t_30911fd4895c10 55-57,260-273
+app/src/server/effects.test.ts
+  s_9be9645d11a3e7::t_e2ef7c80868cd3 106-179
+app/src/server/effects.ts
+  s_9be9645d11a3e7::t_cf0eab6293c595 7-16,46-55,77,102-107
+app/src/db/import-factorio.test.ts
+  s_04f654fbfd4fdd::t_c2fa1666b41c15 1-159
+app/src/db/queries.test.ts
+  s_04f654fbfd4fdd::t_c363a0e37e83d2 17,247-314
+app/src/server/block-compute.server.ts
+  s_04f654fbfd4fdd::t_4d5a02e635fd2d 193-197,325-329
+docs/data-pipeline.md
+  s_04f654fbfd4fdd::t_6cadc0da730801 123-131
+docs/solver.md
+  s_04f654fbfd4fdd::t_f7598932c394af 99-112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "e295c43f6923ba8144d168abcf354f949d47643c",
+  "prompts": {},
+  "sessions": {
+    "s_04f654fbfd4fdd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-af26130267d64dcb1",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
