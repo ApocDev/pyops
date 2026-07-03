@@ -413,7 +413,21 @@ export type BlockData = {
   // Planned spoil losses (#20): item → expected rot rate (/s). Fed to the solver
   // as extra pinned surplus, so production is sized to cover what spoils away.
   spoilRates?: Record<string, number>;
+  // Legacy per-item overrides (pre-#91). New docs write `made`/`pins` instead;
+  // a doc carrying only dispositions has its made set derived server-side on
+  // solve and adopted by the editor (lazy migration).
   dispositions?: Record<string, string>;
+  // Items this block claims in-block production for (#91): net ≥ 0 in the
+  // solve — production covers consumption, surplus exports, imports forbidden.
+  made?: string[];
+  // Per-row pins (#91), in building counts: count = always run exactly N
+  // buildings; cap = at most N (built ceiling); share = this consumer takes a
+  // fraction of the item's production (base "remaining" = after count-pinned
+  // consumers' fixed intake; default).
+  pins?: (
+    | { kind: "count" | "cap"; recipe: string; count: number }
+    | { kind: "share"; recipe: string; item: string; share: number; base?: "total" | "remaining" }
+  )[];
   machines?: Record<string, string>; // recipe → chosen machine
   fuels?: Record<string, string>; // recipe → chosen fuel
   // Reactor farm layout per reactor recipe row (#94): the assumed x×y grid whose

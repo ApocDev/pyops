@@ -42,7 +42,6 @@ export function RecipeGrid({
   doc,
   blockId,
   res,
-  unused,
   linkOf,
   producible,
   logi,
@@ -54,7 +53,6 @@ export function RecipeGrid({
   blockId: number;
   res: SolveResult | undefined;
   /** recipes pinned to 0 — nothing in the block needs them */
-  unused: ReadonlySet<string>;
   linkOf: (name: string) => ItemLink;
   producible: ReadonlySet<string>;
   logi: LogiView;
@@ -216,7 +214,6 @@ export function RecipeGrid({
                 display={res?.recipeDisplay?.[name] ?? name}
                 grouped={recipeGroups[name] != null}
                 off={off}
-                isUnused={!off && unused.has(name)}
                 gridClass={GRID}
                 confirmRemove={confirmRemove === name}
                 onRequestRemove={() => requestRemove(name)}

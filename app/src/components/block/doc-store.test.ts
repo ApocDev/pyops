@@ -162,17 +162,39 @@ describe("recipes", () => {
   });
 });
 
-describe("dispositions & spoil plans", () => {
-  it("cycleDisposition walks auto → import → export → balance → auto (key removed)", () => {
+describe("made marks, pins & spoil plans", () => {
+  it("markMade/unmark edit the made set; adoptMade only fills a legacy null (clean)", () => {
     const doc = seeded();
-    doc.cycleDisposition("tar");
-    expect(doc.store.state.dispositions.tar).toBe("import");
-    doc.cycleDisposition("tar");
-    expect(doc.store.state.dispositions.tar).toBe("export");
-    doc.cycleDisposition("tar");
-    expect(doc.store.state.dispositions.tar).toBe("balance");
-    doc.cycleDisposition("tar");
-    expect("tar" in doc.store.state.dispositions).toBe(false);
+    // seeded() hydrates a doc with no `made` → legacy (null) until adopted
+    expect(doc.store.state.made).toBeNull();
+    doc.adoptMade(["iron-plate", "coke"]);
+    expect(doc.store.state.dirty).toBe(false); // adoption is not a user edit
+    expect([...doc.store.state.made!].sort((a, b) => a.localeCompare(b))).toEqual([
+      "coke",
+      "iron-plate",
+    ]);
+    doc.adoptMade(["tar"]); // no-op — the doc already owns a made set
+    expect(doc.store.state.made!.has("tar")).toBe(false);
+
+    doc.markMade("tar");
+    expect(doc.store.state.dirty).toBe(true);
+    expect(doc.store.state.made!.has("tar")).toBe(true);
+    doc.unmark("tar");
+    expect(doc.store.state.made!.has("tar")).toBe(false);
+  });
+
+  it("pins: one count/cap per recipe, one share per edge; dropRecipe cascades", () => {
+    const doc = seeded();
+    doc.setPin({ kind: "count", recipe: "coke", count: 5 });
+    doc.setPin({ kind: "cap", recipe: "coke", count: 8 }); // replaces the count pin
+    expect(doc.store.state.pins).toEqual([{ kind: "cap", recipe: "coke", count: 8 }]);
+    doc.setPin({ kind: "share", recipe: "coke", item: "tar", share: 0.5 });
+    doc.setPin({ kind: "share", recipe: "coke", item: "tar", share: 0.25 }); // replaces
+    expect(doc.store.state.pins).toHaveLength(2);
+    doc.clearPin("coke", { item: "tar" });
+    expect(doc.store.state.pins).toEqual([{ kind: "cap", recipe: "coke", count: 8 }]);
+    doc.dropRecipe("coke");
+    expect(doc.store.state.pins).toEqual([]);
   });
 
   it("setSpoilRate clears on null or non-positive rates", () => {

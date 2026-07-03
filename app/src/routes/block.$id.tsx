@@ -74,7 +74,8 @@ function Block({ blockId }: { blockId: number }) {
     goals,
     customIcon,
     recipes,
-    dispositions: disp,
+    made,
+    pins,
     spoilRates,
     rowGroups,
     recipeGroups,
@@ -185,7 +186,17 @@ function Block({ blockId }: { blockId: number }) {
   const copySetup = () => {
     void navigator.clipboard?.writeText(
       JSON.stringify(
-        { goals, recipes, disp, machineSel, fuelSel, moduleSel, beaconSel, reactorLayouts },
+        {
+          goals,
+          recipes,
+          made: made ? [...made] : null,
+          pins,
+          machineSel,
+          fuelSel,
+          moduleSel,
+          beaconSel,
+          reactorLayouts,
+        },
         null,
         2,
       ),
@@ -218,7 +229,6 @@ function Block({ blockId }: { blockId: number }) {
   };
   const pickMachine = doc.pickMachine;
   const pickFuel = doc.pickFuel;
-  const setDispFor = doc.setDisposition;
   const setSpoilRateFor = doc.setSpoilRate;
   // Goals: an ordered list, primary first (goals[0] = the sizing anchor). A new
   // block's first goal is pinned to 1/s; further goals start unpinned (co-products)
@@ -296,7 +306,8 @@ function Block({ blockId }: { blockId: number }) {
       recipes,
       disabledRecipes,
       spoilRates,
-      disp,
+      made,
+      pins,
       machineSel,
       fuelSel,
       moduleSel,
@@ -309,6 +320,14 @@ function Block({ blockId }: { blockId: number }) {
     // briefly unmounts everything derived from `res` (incl. open modals)
     placeholderData: keepPreviousData,
   });
+  // Legacy-doc migration (#91): a pre-#91 doc has no `made` set, so the server
+  // derives one from its old dispositions and echoes it on the result. Adopt it
+  // (clean — no save churn); the next real edit persists the new shape.
+  const resMade = solve.data && "made" in solve.data ? solve.data.made : undefined;
+  useEffect(() => {
+    if (resMade && doc.store.state.hydrated && doc.store.state.made == null) doc.adoptMade(resMade);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resMade]);
   // Auto-save (debounced) to the DB, plus a flush on unmount so switching blocks
   // never drops edits. The store owns dirty: only user-edit actions set it, and
   // hydrate() never does — so hydration (incl. a fresh refetch) can't trigger a
@@ -415,6 +434,12 @@ function Block({ blockId }: { blockId: number }) {
 
   const add = (name: string) => {
     doc.addRecipe(name);
+    // Adding a producer via an item's chip is the linking gesture (#91): the
+    // block now claims in-block production for that item. Goal items skip the
+    // mark (a goal already links itself); consume-mode adds (routing a
+    // byproduct) and search-adds never link anything implicitly.
+    if (pickFor?.mode === "produce" && !goals.some((g) => g.name === pickFor.name))
+      doc.markMade(pickFor.name);
     // label the save for the undo stack — the picker rows carry the display name
     const display = picker.data?.find((c) => c.name === name)?.display;
     doc.note(`Add recipe "${display ?? name}"`);
@@ -460,8 +485,6 @@ function Block({ blockId }: { blockId: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [res, lockedInput, lockedRate]);
 
-  const freed = new Set(res?.autoFreed ?? []);
-  const unused = new Set(res?.unusedRecipes ?? []);
   const statusColor =
     res?.status === "solved"
       ? "text-success"
@@ -470,17 +493,13 @@ function Block({ blockId }: { blockId: number }) {
         : "text-warning";
 
   // Block health for the title tint (mirrors the sidebar verdict): red for broken
-  // refs / infeasible, amber for unmade goals / relaxed / underdetermined / temp
-  // mismatches, none when clean.
+  // refs / infeasible / solver error, amber for unmade goals or made marks /
+  // temperature mismatches, none when clean.
   const editorHealth: "error" | "warn" | null = !res
     ? null
-    : res.broken || res.status === "infeasible"
+    : res.broken || res.status === "infeasible" || res.status === "error"
       ? "error"
-      : (res.unmadeTargets?.length ?? 0) > 0 ||
-          (res.unusedRecipes?.length ?? 0) > 0 ||
-          res.status === "relaxed" ||
-          res.status === "underdetermined" ||
-          res.tempWarnings.length > 0
+      : (res.unmade?.length ?? 0) > 0 || res.tempWarnings.length > 0
         ? "warn"
         : null;
   const titleHealthCls =
@@ -646,7 +665,6 @@ function Block({ blockId }: { blockId: number }) {
           kindOf={kindOf}
           producible={producible}
           fuelSet={fuelSet}
-          freed={freed}
           lockedInput={lockedInput}
           lockedRate={lockedRate}
           onLockedRateChange={setLockedRate}
@@ -665,7 +683,6 @@ function Block({ blockId }: { blockId: number }) {
         doc={doc}
         blockId={blockId}
         res={res}
-        unused={unused}
         linkOf={linkOf}
         producible={producible}
         logi={logi}
@@ -852,7 +869,10 @@ function Block({ blockId }: { blockId: number }) {
           blockId={blockId}
           locked={lockedInput === ctxMenu.name}
           importRate={res?.imports.find((f) => f.name === ctxMenu.name)?.rate ?? null}
-          currentDisp={disp[ctxMenu.name] ?? "auto"}
+          made={!!made?.has(ctxMenu.name)}
+          producedInBlock={
+            !!res?.rows.some((r) => r.products.some((pr) => pr.name === ctxMenu.name))
+          }
           spoilRate={spoilRates[ctxMenu.name] ?? null}
           onAddGoal={() => addGoal(ctxMenu.name)}
           onLock={(r) => {
@@ -861,7 +881,14 @@ function Block({ blockId }: { blockId: number }) {
           }}
           onUnlock={() => setLockedInput(null)}
           onCreateSupplier={(r) => void createSupplier(ctxMenu.name, r)}
-          onSetDisp={(d) => setDispFor(ctxMenu.name, d)}
+          onMark={() => {
+            doc.markMade(ctxMenu.name);
+            doc.note(`Mark "${res?.display?.[ctxMenu.name] ?? ctxMenu.name}" made in-block`);
+          }}
+          onUnmark={() => {
+            doc.unmark(ctxMenu.name);
+            doc.note(`Unmark "${res?.display?.[ctxMenu.name] ?? ctxMenu.name}" (import instead)`);
+          }}
           onEditSpoil={() => setSpoilDialog(ctxMenu.name)}
           onClearSpoil={() => setSpoilRateFor(ctxMenu.name, null)}
           onClose={() => setCtxMenu(null)}

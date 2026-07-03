@@ -18,7 +18,7 @@ import type { Goal, RateUnit } from "../../db/schema";
 import type { Disposition } from "../../solver/block";
 import type { BeaconConfig } from "../../server/effects";
 import type { ReactorLayout } from "../../lib/reactor";
-import type { SolveInput } from "../../server/block-compute.server.ts";
+import type { DocPin, SolveInput } from "../../server/block-compute.server.ts";
 import { normalizeBlockData, STOCK_WINDOW_DEFAULT, type RawBlockData } from "../../lib/goals";
 import { mergeActionLabel } from "../../lib/undo-names";
 import {
@@ -28,9 +28,6 @@ import {
   type GroupAssign,
   type RowGroup,
 } from "../../lib/row-groups";
-
-/** Disposition override cycle (alt-click on a chip): auto → import → export → balance. */
-export const DISP_CYCLE = ["auto", "import", "export", "balance"] as const;
 
 export type BlockDocState = {
   /** true once a server doc has been loaded — auto-save stays off until then */
@@ -46,6 +43,15 @@ export type BlockDocState = {
   customIcon: { kind: string; name: string } | null;
   recipes: string[];
   disabled: ReadonlySet<string>;
+  /** items this block claims in-block production for (#91): net ≥ 0 in the
+   * solve. null = legacy doc that hasn't adopted a made set yet — the server
+   * derives one from the old dispositions and echoes it; adoptMade() takes it
+   * without dirtying, and the next real edit persists it. */
+  made: ReadonlySet<string> | null;
+  /** per-row pins (#91): fixed/cap building counts, consumer shares */
+  pins: DocPin[];
+  /** legacy dispositions payload, kept verbatim until `made` is adopted so the
+   * server keeps deriving from it; dropped from the doc after adoption */
   dispositions: Record<string, Disposition>;
   spoilRates: Record<string, number>;
   rowGroups: RowGroup[];
@@ -67,6 +73,8 @@ const EMPTY: BlockDocState = {
   customIcon: null,
   recipes: [],
   disabled: new Set(),
+  made: null,
+  pins: [],
   dispositions: {},
   spoilRates: {},
   rowGroups: [],
@@ -92,7 +100,11 @@ export function solveInputOf(s: BlockDocState): SolveInput {
     ...(disabledRecipes.length ? { disabledRecipes } : {}),
     ...(s.rowGroups.length ? { rowGroups: s.rowGroups, recipeGroups: s.recipeGroups } : {}),
     ...(Object.keys(s.spoilRates).length ? { spoilRates: s.spoilRates } : {}),
-    ...(Object.keys(s.dispositions).length ? { dispositions: s.dispositions } : {}),
+    // adopted docs persist `made` (and never dispositions); legacy docs keep
+    // shipping their dispositions so the server can derive
+    ...(s.made ? { made: [...s.made].sort() } : {}),
+    ...(s.pins.length ? { pins: s.pins } : {}),
+    ...(!s.made && Object.keys(s.dispositions).length ? { dispositions: s.dispositions } : {}),
     ...(Object.keys(s.machines).length ? { machines: s.machines } : {}),
     ...(Object.keys(s.fuels).length ? { fuels: s.fuels } : {}),
     ...(Object.keys(s.reactorLayouts).length ? { reactorLayouts: s.reactorLayouts } : {}),
@@ -140,6 +152,8 @@ export function createBlockDocStore() {
       rowGroups: ng.groups,
       recipeGroups: ng.assign,
       disabled: new Set(d.disabledRecipes ?? []),
+      made: d.made ? new Set(d.made) : null,
+      pins: d.pins ?? [],
       dispositions: (d.dispositions ?? {}) as Record<string, Disposition>,
       spoilRates: d.spoilRates ?? {},
       machines: d.machines ?? {},
@@ -285,6 +299,8 @@ export function createBlockDocStore() {
           modules: withoutKey(s.modules, name),
           beacons: withoutKey(s.beacons, name),
           reactorLayouts: withoutKey(s.reactorLayouts, name),
+          // a removed recipe takes its pins with it — nothing dangles (#91)
+          pins: s.pins.filter((p) => p.recipe !== name),
           recipeGroups,
           rowGroups: pruneGroups(recipes, recipeGroups, s.rowGroups),
         };
@@ -321,24 +337,47 @@ export function createBlockDocStore() {
     // "reset to auto" deletes the key — an explicit [] would mean "no modules"
     resetModules: (recipe: string) => edit((s) => ({ modules: withoutKey(s.modules, recipe) })),
 
-    /* ── dispositions & spoil plans ── */
-    setDisposition: (name: string, d: Disposition | "auto") =>
-      edit((s) => ({
-        dispositions:
-          d === "auto" ? withoutKey(s.dispositions, name) : { ...s.dispositions, [name]: d },
-      })),
-    cycleDisposition: (name: string) =>
+    /* ── made marks & pins (#91) ── */
+    /** Adopt the server-derived made set for a legacy doc — NOT a user edit
+     * (stays clean; persists whenever the next real edit saves). No-op once
+     * the doc owns a made set. */
+    adoptMade: (items: readonly string[]) =>
+      store.setState((s) => (s.made ? s : { ...s, made: new Set(items), dispositions: {} })),
+    /** Claim in-block production for an item (net ≥ 0; imports forbidden). */
+    markMade: (name: string) =>
       edit((s) => {
-        const cur = s.dispositions[name] ?? "auto";
-        const next = DISP_CYCLE[(DISP_CYCLE.indexOf(cur) + 1) % DISP_CYCLE.length];
-        return {
-          dispositions:
-            next === "auto"
-              ? withoutKey(s.dispositions, name)
-              : { ...s.dispositions, [name]: next },
-        };
+        const next = new Set(s.made ?? []);
+        next.add(name);
+        return { made: next, dispositions: {} };
       }),
-    clearDispositions: () => edit(() => ({ dispositions: {} })),
+    /** Stop claiming it — the item goes free (imports shortfall, exports surplus). */
+    unmark: (name: string) =>
+      edit((s) => {
+        const next = new Set(s.made ?? []);
+        next.delete(name);
+        return { made: next, dispositions: {} };
+      }),
+    /** Set/replace a row pin: one count-or-cap pin per recipe, one share pin
+     * per (recipe, item) edge. */
+    setPin: (pin: DocPin) =>
+      edit((s) => ({
+        pins: [
+          ...s.pins.filter((p) =>
+            pin.kind === "share"
+              ? !(p.kind === "share" && p.recipe === pin.recipe && p.item === pin.item)
+              : !(p.kind !== "share" && p.recipe === pin.recipe),
+          ),
+          pin,
+        ],
+      })),
+    clearPin: (recipe: string, share?: { item: string }) =>
+      edit((s) => ({
+        pins: s.pins.filter((p) =>
+          share
+            ? !(p.kind === "share" && p.recipe === recipe && p.item === share.item)
+            : !(p.kind !== "share" && p.recipe === recipe),
+        ),
+      })),
     // Planned spoil loss (#20): rate == null (or <= 0) clears the plan.
     setSpoilRate: (name: string, rate: number | null) =>
       edit((s) => ({

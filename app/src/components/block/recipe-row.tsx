@@ -1,4 +1,3 @@
-import { useStore } from "@tanstack/react-store";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
@@ -43,8 +42,8 @@ export type RowOverlayOpeners = {
 
 /** One live recipe row of the grid: name + solved rate, machine/fuel/module
  * cells, and the ingredient/product chips at the solved rates. Click any item
- * to add a producer (ingredient) or consumer (product); alt-click cycles the
- * disposition; right-click the name for sub-block actions. */
+ * to add a producer (ingredient) or consumer (product); right-click opens the
+ * good menu; right-click the name for sub-block actions. */
 export function RecipeRow({
   doc,
   name,
@@ -52,7 +51,6 @@ export function RecipeRow({
   display,
   grouped,
   off,
-  isUnused,
   gridClass,
   confirmRemove,
   onRequestRemove,
@@ -71,7 +69,6 @@ export function RecipeRow({
   /** toggled out of the solve (#73) */
   off: boolean;
   /** pinned to 0 — nothing in the block needs it */
-  isUnused: boolean;
   gridClass: string;
   /** the click-to-confirm remove is armed on this row */
   confirmRemove: boolean;
@@ -84,13 +81,14 @@ export function RecipeRow({
   /** per-chip fluid-temperature mismatches touching this row (#110 interim) */
   tempWarnings: { ingredient: Map<string, ChipTempWarning>; product: Map<string, ChipTempWarning> };
 }) {
-  const disp = useStore(doc.store, (s) => s.dispositions);
-  const neg = (row?.rate ?? 0) < -1e-6; // running backward — can't physically happen
+  // v2 solver (#91): rates are ≥ 0 by construction. A row at exactly 0 is
+  // idle — nothing in the block pulls it (not an error; often a parked option).
+  const idle = !off && row != null && Math.abs(row.rate) < 1e-9;
   return (
     <SortableRow key={name} id={name}>
       {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
         <div
-          className={`${gridClass} relative border-t border-border ${grouped ? "border-l-2 border-l-primary/50" : ""} ${neg || isUnused ? "bg-destructive/10" : ""} ${off ? "bg-muted/30" : ""} ${isDragging ? "bg-card shadow-lg" : ""}`}
+          className={`${gridClass} relative border-t border-border ${grouped ? "border-l-2 border-l-primary/50" : ""}  ${off ? "bg-muted/30" : ""} ${isDragging ? "bg-card shadow-lg" : ""}`}
         >
           <RecipeHover name={name} className="flex min-w-0 items-center gap-2">
             <span
@@ -119,18 +117,12 @@ export function RecipeRow({
                 <span className="text-sm font-semibold text-muted-foreground">
                   disabled — excluded from the solve
                 </span>
-              ) : isUnused ? (
-                <span className="flex items-center gap-1 text-sm font-semibold text-destructive">
-                  <AlertTriangle className="size-3 shrink-0" /> not made — nothing here needs it
+              ) : idle ? (
+                <span className="text-sm font-semibold text-muted-foreground">
+                  idle — nothing in this block pulls it
                 </span>
               ) : row ? (
-                <span
-                  className={`text-sm ${neg ? "font-semibold text-destructive" : "text-muted-foreground"}`}
-                >
-                  {neg && <AlertTriangle className="mr-0.5 inline size-3 align-text-bottom" />}
-                  {neg && "backward "}
-                  {num(row.rate)}/s
-                </span>
+                <span className="text-sm text-muted-foreground">{num(row.rate)}/s</span>
               ) : null}
             </span>
             <Button
@@ -300,10 +292,7 @@ export function RecipeRow({
                   temp={c.temp}
                   link={linkOf(c.name)}
                   craftable={producible.has(c.name)}
-                  disp={disp[c.name]}
                   onClick={() => open.makeFor(c.name)}
-                  onCycleDisp={() => doc.cycleDisposition(c.name)}
-                  onClearDisp={() => doc.setDisposition(c.name, "auto")}
                   onContext={(e) =>
                     open.ctxMenu(e, { name: c.name, kind: c.kind, link: linkOf(c.name) })
                   }
@@ -343,10 +332,7 @@ export function RecipeRow({
                   rate={c.rate}
                   temp={c.temp}
                   link={linkOf(c.name)}
-                  disp={disp[c.name]}
                   onClick={() => open.useFor(c.name)}
-                  onCycleDisp={() => doc.cycleDisposition(c.name)}
-                  onClearDisp={() => doc.setDisposition(c.name, "auto")}
                   onContext={(e) =>
                     open.ctxMenu(e, { name: c.name, kind: c.kind, link: linkOf(c.name) })
                   }

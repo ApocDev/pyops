@@ -245,7 +245,7 @@ export function BlockToolbar({
         <Legend cls={linkStyle.export} label="export" />
         <span
           className="text-muted-foreground/70"
-          title="right-click any item for actions (make a goal, lock as sizing input, force import/export/balance, locate in game). Alt-click quick-cycles the disposition."
+          title="right-click any item for actions (make a goal, lock as sizing input, mark made-in-block or import it instead, locate in game)."
         >
           · right-click = menu
         </span>
@@ -277,25 +277,29 @@ export function BlockToolbar({
             good you don&apos;t target isn&apos;t a goal — it falls out as a byproduct (export).
           </p>
           <p className="mt-1">
-            If your goals can&apos;t all be met at once (e.g. two goods locked to a fixed ratio by
-            one recipe), the block is <span className="text-destructive">infeasible</span> and says
-            so — add a recipe to make more of the short good, or change a rate.
+            A goal is a floor, not an exact pin: the solver builds the cheapest plan making{" "}
+            <span className="text-foreground">at least</span> that rate, so when one recipe makes
+            two goals in a fixed ratio, the tight one lands exactly and the other&apos;s extra
+            simply exports. Only a genuinely impossible ask reads{" "}
+            <span className="text-destructive">infeasible</span> — and the balance card then names
+            the exact goals, marks, and pins in conflict, each with a one-click fix.
           </p>
         </div>
         <p>
-          <span className="text-foreground">How it solves.</span> Given the goals, every other good
-          in the block is one of: <span className="text-foreground">balanced</span> (made and used
-          inside the block), <span className="text-foreground">imported</span> (brought in from
-          outside or another block), or <span className="text-foreground">exported</span> (surplus
-          that leaves). The solver sets each recipe&apos;s run-rate to satisfy that — it&apos;s a
-          linear system, and it handles Py&apos;s cyclic recipe chains.
+          <span className="text-foreground">How it solves.</span> Adding a producer through an
+          item&apos;s chip marks that good <span className="text-success">made in this block</span>:
+          production must cover consumption, surplus exports, and it never imports. Everything else
+          is free — consumption imports, and an incidental byproduct just offsets the import
+          (it&apos;s never scaled up to cover demand). The solver picks the cheapest run-rates
+          (fewest machine-seconds) satisfying the goals, marks, and pins — it handles Py&apos;s
+          cyclic recipe chains, and identical inputs always solve identically.
         </p>
         <p>
           <span className="text-foreground">You drive it, not an optimizer.</span> You choose the
-          recipes and how to split a good between competing ones; PyOps just solves the system you
-          describe. <span className="text-foreground">Right-click</span> any item to make it a goal,
-          lock it as a sizing input, or force import / export / balance — the colored legend shows
-          each item&apos;s current disposition.
+          recipes, pin building counts, and split a good between competing consumers; PyOps solves
+          the system you describe. <span className="text-foreground">Right-click</span> any item to
+          make it a goal, lock it as a sizing input, or toggle its made-in-block mark — the colored
+          legend shows each item&apos;s role.
         </p>
         <div>
           <div className="font-semibold text-foreground">Sub-blocks</div>

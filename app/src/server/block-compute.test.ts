@@ -640,11 +640,12 @@ describe("fluid-fuel supplier designation (#115)", () => {
     const input = {
       goals: [{ name: "diesel", rate: 5 }],
       recipes: ["refine", "burn-fluid-kerosene"],
-      dispositions: { kerosene: "balance" as const },
+      // the v2 routing gesture (#91): send ALL kerosene production into the burn
+      pins: [{ kind: "share" as const, recipe: "burn-fluid-kerosene", item: "kerosene", share: 1 }],
     };
     const res = await computeBlock(input);
     expect(res.status).toBe("solved");
-    // 1 refine exec/s makes 5 kerosene/s; balance pins it into the burn → 7.5 MJ/s
+    // 1 refine exec/s makes 5 kerosene/s; the share pin routes it into the burn → 7.5 MJ/s
     expect(res.rows.find((r) => r.recipe === "burn-fluid-kerosene")?.rate).toBeCloseTo(5);
     expect(res.exports.find((f) => f.name === "pyops-fluid-fuel")?.rate).toBeCloseTo(7.5);
     const flows = boundaryFlows(goalFlows(input), res);
@@ -656,14 +657,13 @@ describe("fluid-fuel supplier designation (#115)", () => {
     });
   });
 
-  it("without a goal or balance pin the conversion is unused — feedstock exports stay feedstock", async () => {
+  it("without a goal or share pin the conversion idles at 0 — feedstock exports stay feedstock", async () => {
     const res = await computeBlock({
       goals: [{ name: "kerosene", rate: 5 }],
       recipes: ["make-kerosene", "burn-fluid-kerosene"],
     });
     expect(res.status).toBe("solved");
-    // the conversion can't reach the kerosene goal → pinned to 0 and flagged
-    expect(res.unusedRecipes).toContain("burn-fluid-kerosene");
+    // nothing demands MJ, so the conversion honestly solves to 0 (no pinning)
     expect(res.rows.find((r) => r.recipe === "burn-fluid-kerosene")?.rate).toBeCloseTo(0);
     // no MJ flow anywhere: the kerosene export is NOT conscripted as fuel supply
     expect(res.exports.map((f) => f.name)).not.toContain("pyops-fluid-fuel");

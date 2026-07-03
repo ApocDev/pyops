@@ -211,6 +211,32 @@ export function SnapshotDiffView({
         </DiffSection>
       )}
 
+      {diff.made.length > 0 && (
+        <DiffSection title="Made in block">
+          {diff.made.map((c) => (
+            <Row
+              key={c.name}
+              left={<NameChip name={c.name} />}
+              right={
+                <FromTo from={c.from ? "made here" : "free"} to={c.to ? "made here" : "free"} />
+              }
+            />
+          ))}
+        </DiffSection>
+      )}
+
+      {diff.pins.length > 0 && (
+        <DiffSection title="Pins">
+          {diff.pins.map((c) => (
+            <Row
+              key={c.name}
+              left={<NameChip name={c.name.split(" « ")[0]} recipe />}
+              right={<FromTo from={c.from ?? "—"} to={c.to ?? "—"} />}
+            />
+          ))}
+        </DiffSection>
+      )}
+
       {diff.spoilRates.length > 0 && (
         <DiffSection title="Planned spoilage">
           {diff.spoilRates.map((c) => (

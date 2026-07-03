@@ -6,15 +6,16 @@ import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { fmtSpoilTime, Icon, useSpoilables } from "../../lib/icons";
 import { fmtTemp } from "../../lib/format";
-import { ItemChip, dispTag, type Link as ItemLink } from "./item-chip.tsx";
+import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
 import { LogiTag } from "./logi-tag.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
 import { fmtW, num } from "./format.ts";
 
-/** The Block balance card: solve status, forced-disposition and planned-spoil
- * strips, the infeasible/unmade/unused/temperature warnings, the power line,
- * and the imports/exports chip lists with the sizing-lock controls. */
+/** The Block balance card: solve status, made-here and planned-spoil strips,
+ * the root-cause (IIS) cards on an infeasible solve, the unmade/temperature
+ * warnings, the power line, and the imports/exports chip lists with the
+ * sizing-lock controls. */
 export function BalanceCard({
   doc,
   res,
@@ -22,7 +23,6 @@ export function BalanceCard({
   kindOf,
   producible,
   fuelSet,
-  freed,
   lockedInput,
   lockedRate,
   onLockedRateChange,
@@ -40,8 +40,6 @@ export function BalanceCard({
   producible: ReadonlySet<string>;
   /** items consumed as fuel (folded into the balance) */
   fuelSet: ReadonlySet<string>;
-  /** items the relaxed solve auto-freed (recycle loop won't self-close) */
-  freed: ReadonlySet<string>;
   lockedInput: string | null;
   lockedRate: number;
   onLockedRateChange: (rate: number) => void;
@@ -55,10 +53,9 @@ export function BalanceCard({
   ) => void;
   onOpenSpoilDialog: (name: string) => void;
 }) {
-  const disp = useStore(doc.store, (s) => s.dispositions);
+  const made = useStore(doc.store, (s) => s.made);
   const spoilRates = useStore(doc.store, (s) => s.spoilRates);
   const spoilables = useSpoilables();
-  const hasDisp = Object.keys(disp).length > 0;
   return (
     <Card className="lg:col-span-2">
       <CardHeader className="justify-between">
@@ -70,31 +67,35 @@ export function BalanceCard({
           </span>
         )}
       </CardHeader>
-      {/* Active disposition overrides — ALWAYS shown when any exist, even if the
-          solve is infeasible and the item's chip is hidden, so a forced override
-          (e.g. an input cycled to export) can never soft-lock the block. */}
-      {hasDisp && (
+      {/* Made-here marks (#91) — the block's claimed in-block production. Always
+          visible when any exist (even on an infeasible solve) so a mark can
+          never soft-lock the block: click × to unmark (the item goes free —
+          imports its shortfall, exports its surplus). */}
+      {!!made?.size && (
         <Callout tone="info" icon={null} className="mx-3 mt-2 px-2 py-1.5">
           <div className="flex flex-wrap items-center gap-2">
-            <span>forced overrides:</span>
-            {Object.entries(disp).map(([name, d]) => (
-              <button
-                key={name}
-                onClick={() => doc.setDisposition(name, "auto")}
-                title="click to clear this override (back to auto)"
-                className={`inline-flex items-center gap-1 px-1.5 py-0.5 ${dispTag[d].cls} hover:brightness-110`}
-              >
-                <Icon kind="item" name={name} size="sm" title={res?.display?.[name] ?? name} />
-                {res?.display?.[name] ?? name} {dispTag[d].label} <X className="size-3" />
-              </button>
-            ))}
-            <button
-              onClick={doc.clearDispositions}
-              title="clear all forced overrides"
-              className="text-muted-foreground underline hover:text-foreground"
-            >
-              clear all
-            </button>
+            <span>made in this block:</span>
+            {[...made]
+              .sort((a, b) => a.localeCompare(b))
+              .map((name) => (
+                <button
+                  key={name}
+                  onClick={() => {
+                    doc.unmark(name);
+                    doc.note(`Unmark "${res?.display?.[name] ?? name}" (import instead)`);
+                  }}
+                  title="production here covers consumption (surplus exports). Click to unmark — the item imports instead."
+                  className="inline-flex items-center gap-1 bg-success/15 px-1.5 py-0.5 text-success ring-1 ring-success/30 hover:brightness-110"
+                >
+                  <Icon
+                    kind={kindOf(name)}
+                    name={name}
+                    size="sm"
+                    title={res?.display?.[name] ?? name}
+                  />
+                  {res?.display?.[name] ?? name} <X className="size-3" />
+                </button>
+              ))}
           </div>
         </Callout>
       )}
@@ -121,40 +122,89 @@ export function BalanceCard({
       )}
       {res?.status === "infeasible" ? (
         <Callout tone="destructive" className="m-3 p-3">
-          {/* Only a genuine reverse-running cycle gets the "chain runs backward"
-              story; any other infeasibility shows the solver's own reason. */}
-          {res.negativeRecipes?.length ? (
-            <>
-              <div className="mb-2 font-semibold">
-                Chain runs backward — a loop has no raw feed. Recipes in red below would run in
-                reverse.
-              </div>
-              {res.stuckItems?.length ? (
-                <>
-                  <div className="mb-1 text-muted-foreground">
-                    Starved loop items — click one to add a recipe that feeds it:
+          {res.diagnosis?.length ? (
+            <div className="flex flex-col gap-3">
+              {res.diagnosis.map((card, ci) => (
+                <div key={ci}>
+                  <div className="mb-1 font-semibold">
+                    These can&apos;t all hold — fixing any one repairs the block:
                   </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-2">
-                    {res.stuckItems.map((n) => (
-                      <ItemChip
-                        key={n}
-                        name={n}
-                        kind="item"
-                        display={res.display?.[n]}
-                        link="import"
-                        craftable={producible.has(n)}
-                        onClick={() => onMakeFor(n)}
-                      />
-                    ))}
+                  <div className="flex flex-col gap-1">
+                    {card.members.map((m, mi) => {
+                      const prov = m.prov;
+                      const short = m.shortBy > 1e-6 ? ` — short ${num(m.shortBy)}/s` : "";
+                      if (prov.type === "goal")
+                        return (
+                          <div key={mi} className="flex flex-wrap items-center gap-1.5">
+                            <span>
+                              goal: {res.display?.[prov.item] ?? prov.item}{" "}
+                              {prov.rate < 0
+                                ? `consume ≥ ${num(-prov.rate)}/s`
+                                : `≥ ${num(prov.rate)}/s`}
+                              {short}
+                            </span>
+                          </div>
+                        );
+                      if (prov.type === "made")
+                        return (
+                          <div key={mi} className="flex flex-wrap items-center gap-1.5">
+                            <span>
+                              made here: {res.display?.[prov.item] ?? prov.item}
+                              {short}
+                            </span>
+                            <button
+                              onClick={() => {
+                                doc.unmark(prov.item);
+                                doc.note(
+                                  `Unmark "${res.display?.[prov.item] ?? prov.item}" (import instead)`,
+                                );
+                              }}
+                              className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
+                            >
+                              import it instead
+                            </button>
+                            {producible.has(prov.item) && (
+                              <button
+                                onClick={() => onMakeFor(prov.item)}
+                                className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
+                              >
+                                add a producer
+                              </button>
+                            )}
+                          </div>
+                        );
+                      // pin members: name the recipe + offer one-click removal
+                      const label =
+                        prov.type === "pin-share"
+                          ? `share pin: ${Math.round(prov.share * 100)}% of ${res.display?.[prov.item] ?? prov.item} into ${res.recipeDisplay?.[prov.recipe] ?? prov.recipe}`
+                          : `${prov.type === "pin-rate" ? "fixed" : "built"} count on ${res.recipeDisplay?.[prov.recipe] ?? prov.recipe}`;
+                      return (
+                        <div key={mi} className="flex flex-wrap items-center gap-1.5">
+                          <span>
+                            {label}
+                            {short}
+                          </span>
+                          <button
+                            onClick={() => {
+                              doc.clearPin(
+                                prov.recipe,
+                                prov.type === "pin-share" ? { item: prov.item } : undefined,
+                              );
+                              doc.note(
+                                `Remove pin on "${res.recipeDisplay?.[prov.recipe] ?? prov.recipe}"`,
+                              );
+                            }}
+                            className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
+                          >
+                            remove pin
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
-                </>
-              ) : (
-                <div className="text-muted-foreground">
-                  Mark a cycling item as <span className="font-semibold">import</span>, or add a
-                  recipe that supplies the loop.
                 </div>
-              )}
-            </>
+              ))}
+            </div>
           ) : (
             <div className="font-semibold">
               {res.message ?? "This block has no exact solution. Adjust a target or recipe."}
@@ -163,15 +213,14 @@ export function BalanceCard({
         </Callout>
       ) : (
         <>
-          {res?.unmadeTargets?.length && !res.broken ? (
+          {res?.unmade?.length && !res.broken ? (
             <div className="border-b border-border px-3 py-2 text-sm text-warning">
               <div className="mb-1 flex items-center gap-1 font-semibold">
                 <AlertTriangle className="size-3.5 shrink-0" />
-                {res.unmadeTargets.length === 1 ? "Goal has" : "Goals have"} no recipe yet — add one
-                to make {res.unmadeTargets.length === 1 ? "it" : "them"}:
+                No recipe makes {res.unmade.length === 1 ? "this" : "these"} yet — add one:
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-2">
-                {res.unmadeTargets.map((n) => (
+                {res.unmade.map((n) => (
                   <ItemChip
                     key={n}
                     name={n}
@@ -180,27 +229,6 @@ export function BalanceCard({
                     link="target"
                     onClick={() => onMakeFor(n)}
                   />
-                ))}
-              </div>
-            </div>
-          ) : null}
-          {res?.unusedRecipes?.length && !res.broken ? (
-            <div className="border-b border-border px-3 py-2 text-sm text-destructive">
-              <div className="mb-1 flex items-center gap-1 font-semibold">
-                <AlertTriangle className="size-3.5 shrink-0" />
-                {res.unusedRecipes.length === 1
-                  ? "1 recipe isn't"
-                  : `${res.unusedRecipes.length} recipes aren't`}{" "}
-                used by this block&apos;s goal — pinned to 0. Remove{" "}
-                {res.unusedRecipes.length === 1 ? "it" : "them"}, or balance an item to connect{" "}
-                {res.unusedRecipes.length === 1 ? "it" : "them"}:
-              </div>
-              <div className="flex flex-wrap gap-x-3 gap-y-2">
-                {res.unusedRecipes.map((n) => (
-                  <span key={n} className="flex min-w-0 items-center gap-1">
-                    <Icon kind="recipe" name={n} size="md" noHover />
-                    <span className="truncate">{res.display?.[n] ?? n}</span>
-                  </span>
                 ))}
               </div>
             </div>
@@ -275,10 +303,7 @@ export function BalanceCard({
                           link="import"
                           craftable={producible.has(f.name)}
                           fuel={fuelSet.has(f.name)}
-                          disp={disp[f.name]}
                           onClick={() => onMakeFor(f.name)}
-                          onCycleDisp={() => doc.cycleDisposition(f.name)}
-                          onClearDisp={() => doc.setDisposition(f.name, "auto")}
                           onContext={(e) =>
                             onCtxMenu(e, { name: f.name, kind: f.kind, link: "import" })
                           }
@@ -308,15 +333,6 @@ export function BalanceCard({
                               <Lock className="size-3.5" />
                             </Button>
                           </>
-                        )}
-                        {freed.has(f.name) && !disp[f.name] && (
-                          <button
-                            title="recycle loop won't self-close — auto-sourced here. Click to pin it as an import (resolves the relaxed solve)."
-                            onClick={() => doc.setDisposition(f.name, "import")}
-                            className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
-                          >
-                            loop · pin import
-                          </button>
                         )}
                       </span>
                       {logi.resolved && f.kind === "item" && (
@@ -352,23 +368,11 @@ export function BalanceCard({
                           rate={f.rate}
                           link="export"
                           fuel={fuelSet.has(f.name)}
-                          disp={disp[f.name]}
                           onClick={() => onUseFor(f.name)}
-                          onCycleDisp={() => doc.cycleDisposition(f.name)}
-                          onClearDisp={() => doc.setDisposition(f.name, "auto")}
                           onContext={(e) =>
                             onCtxMenu(e, { name: f.name, kind: f.kind, link: "export" })
                           }
                         />
-                        {freed.has(f.name) && !disp[f.name] && (
-                          <button
-                            title="recycle loop won't self-close — auto-sunk here. Click to pin it as an export (resolves the relaxed solve)."
-                            onClick={() => doc.setDisposition(f.name, "export")}
-                            className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
-                          >
-                            loop · pin export
-                          </button>
-                        )}
                         {/* incidental-spoil risk (#20): a SURPLUS spoilable is the
                             one that actually sits around long enough to rot */}
                         {spoilables[f.name] != null && (

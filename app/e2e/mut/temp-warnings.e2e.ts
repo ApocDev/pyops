@@ -48,8 +48,13 @@ test("fluid-temp mismatch flags the 3000° producer feeding a 4000° generator",
   await expect(page.getByText("needs 4k°", { exact: true })).toBeVisible(); // producer row's product chip
 
   // add b-h (neutron @4000°, satisfies the generator): the dt-he3 mismatch
-  // must STAY flagged — one matching producer used to mask it entirely
-  await page.getByRole("button", { name: /^Neutron/ }).first().click();
+  // must STAY flagged — one matching producer used to mask it entirely.
+  // Target the generator row's linked ingredient chip: the balance card's
+  // "made in this block" strip also has a Neutron button (it unmarks — #91).
+  await page
+    .getByRole("button", { name: /^Neutron.*linked/ })
+    .first()
+    .click();
   await neutronPicker.getByRole("button", { name: /Fuse boron with a proton/ }).click();
   await expect(neutronPicker).toBeHidden();
   await expect(page.locator('span[title="Fuse boron with a proton"]')).toBeVisible();

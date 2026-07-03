@@ -145,7 +145,7 @@ through the normal persist machinery, and runs as ONE tracked undo action, so a
 restore is both undoable and re-restorable. **Diff** (`app/src/lib/block-diff.ts`,
 pure) compares a snapshot against the live editor doc — goals added/removed/
 re-rated, recipes added/removed/toggled, machine/fuel/module/beacon picks,
-dispositions, spoil plans — rendered in the scale-plan drawer's from → to
+made marks, pins, spoil plans — rendered in the scale-plan drawer's from → to
 language with display names resolved server-side. Snapshot bookkeeping itself is
 not a planning edit: `block_snapshots` carries no undo triggers and every
 capture runs `{ undo: false }`, and rows deliberately survive block deletion

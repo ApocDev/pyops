@@ -102,6 +102,14 @@ export function applyRenames(
     goals: d.goals.map((g) => ({ ...g, name: good(g.name) })),
     recipes: d.recipes.map(recipe),
     dispositions: mapKeys(d.dispositions, good),
+    // v2 doc state (#91): made marks are goods; pins reference recipes (+ an
+    // item for shares) — a prototype rename must follow them all
+    made: d.made?.map(good),
+    pins: d.pins?.map((p) =>
+      p.kind === "share"
+        ? { ...p, recipe: recipe(p.recipe), item: good(p.item) }
+        : { ...p, recipe: recipe(p.recipe) },
+    ),
     machines: mapKeys(d.machines, recipe, entity),
     fuels: mapKeys(d.fuels, recipe, good),
     modules: mapKeys(d.modules, recipe, (mods) => mods.map(good)),

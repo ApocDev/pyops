@@ -54,8 +54,7 @@ export function GoalCard({
             // declared but no recipe in the block makes it — fixable, not broken.
             // Suppressed on a broken block: the missing-refs banner already
             // explains why nothing's being made there.
-            const goalUnmade =
-              !goalMissing && !res?.broken && (res?.unmadeTargets?.includes(g) ?? false);
+            const goalUnmade = !goalMissing && !res?.broken && (res?.unmade?.includes(g) ?? false);
             return (
               <div
                 key={g}

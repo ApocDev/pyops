@@ -43,6 +43,10 @@ export type BlockDiff = {
   };
   picks: PickChange[];
   dispositions: ValueChange<string>[];
+  /** made-in-block marks added/removed (#91) */
+  made: ValueChange<boolean>[];
+  /** pin changes (#91), keyed per recipe (count/cap) or recipe « item (share) */
+  pins: ValueChange<string>[];
   spoilRates: ValueChange<number>[];
   /** true when nothing above holds a change */
   unchanged: boolean;
@@ -115,6 +119,24 @@ export function diffBlockDocs(from: BlockData, to: BlockData): BlockDiff {
   };
   const dispositions = diffMap(from.dispositions, to.dispositions);
   const spoilRates = diffMap(from.spoilRates, to.spoilRates);
+  // made marks (#91): a plain add/remove set diff, shown like dispositions were
+  const madeFrom = new Set(from.made ?? []);
+  const madeTo = new Set(to.made ?? []);
+  const made: ValueChange<boolean>[] = [];
+  for (const k of new Set([...madeFrom, ...madeTo])) {
+    if (madeFrom.has(k) !== madeTo.has(k))
+      made.push({ name: k, from: madeFrom.has(k) || null, to: madeTo.has(k) || null });
+  }
+  // pins (#91): keyed per recipe(+item for shares); value compared structurally
+  const pinKey = (p: NonNullable<BlockData["pins"]>[number]) =>
+    p.kind === "share" ? `${p.recipe} « ${p.item}` : p.recipe;
+  const pinVal = (p: NonNullable<BlockData["pins"]>[number]) =>
+    p.kind === "share"
+      ? `${Math.round(p.share * 100)}%${p.base === "total" ? " of total" : ""}`
+      : `${p.kind} ${p.count}`;
+  const pinsA = Object.fromEntries((from.pins ?? []).map((p) => [pinKey(p), pinVal(p)]));
+  const pinsB = Object.fromEntries((to.pins ?? []).map((p) => [pinKey(p), pinVal(p)]));
+  const pins = diffMap(pinsA, pinsB);
 
   const unchanged =
     goals.added.length +
@@ -126,10 +148,12 @@ export function diffBlockDocs(from: BlockData, to: BlockData): BlockDiff {
       recipes.disabled.length +
       picks.length +
       dispositions.length +
+      made.length +
+      pins.length +
       spoilRates.length ===
     0;
 
-  return { goals, recipes, picks, dispositions, spoilRates, unchanged };
+  return { goals, recipes, picks, dispositions, made, pins, spoilRates, unchanged };
 }
 
 /** Every internal name a diff references, split by NAMESPACE — `recipes` (recipe
@@ -158,6 +182,11 @@ export function diffRefNames(diff: BlockDiff): { recipes: string[]; goods: strin
       for (const m of b.modules) goods.add(m);
     }
   }
-  for (const c of [...diff.dispositions, ...diff.spoilRates]) goods.add(c.name);
+  for (const c of [...diff.dispositions, ...diff.made, ...diff.spoilRates]) goods.add(c.name);
+  for (const c of diff.pins) {
+    const [recipe, item] = c.name.split(" « ");
+    recipeNames.add(recipe);
+    if (item) goods.add(item);
+  }
   return { recipes: [...recipeNames].sort(), goods: [...goods].sort() };
 }

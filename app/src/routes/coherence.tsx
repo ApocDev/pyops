@@ -576,7 +576,7 @@ function ScalePlanDrawer({
                   <Skeleton className="h-5 w-3/5" />
                 </div>
               )}
-              {p && p.status !== "solved" && p.status !== "relaxed" && (
+              {p && p.status !== "solved" && (
                 <Callout tone="destructive" className="mb-2">
                   {p.message ?? "this rate doesn't solve cleanly"}
                 </Callout>

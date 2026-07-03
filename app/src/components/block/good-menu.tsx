@@ -3,7 +3,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { Check, Lock, MapPin, Plus, Star, Timer, Unlock, X } from "lucide-react";
 import { blocksForGoodFn } from "../../server/factorio";
 import { bridgeLocateFn } from "../../server/bridge/fns";
-import type { Disposition } from "../../solver/block";
 import { ContextMenu, ContextMenuItem } from "#/components/context-menu.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Icon, useSpoilables } from "../../lib/icons";
@@ -24,13 +23,15 @@ export function GoodMenu({
   blockId,
   locked,
   importRate,
-  currentDisp,
+  made,
+  producedInBlock,
   spoilRate,
   onAddGoal,
   onLock,
   onUnlock,
   onCreateSupplier,
-  onSetDisp,
+  onMark,
+  onUnmark,
   onEditSpoil,
   onClearSpoil,
   onClose,
@@ -47,14 +48,18 @@ export function GoodMenu({
   locked: boolean;
   /** the import's current rate /s, when it is one */
   importRate: number | null;
-  currentDisp: Disposition | "auto";
+  /** the item is in the block's made set (net ≥ 0, imports forbidden) */
+  made: boolean;
+  /** some enabled recipe in the block produces it (mark would bind immediately) */
+  producedInBlock: boolean;
   /** planned rot rate /s, null = none */
   spoilRate: number | null;
   onAddGoal: () => void;
   onLock: (rate: number) => void;
   onUnlock: () => void;
   onCreateSupplier: (rate: number) => void;
-  onSetDisp: (d: Disposition | "auto") => void;
+  onMark: () => void;
+  onUnmark: () => void;
   onEditSpoil: () => void;
   onClearSpoil: () => void;
   onClose: () => void;
@@ -76,12 +81,6 @@ export function GoodMenu({
     onClose();
   };
   const producers = (ctxProducers.data?.producers ?? []).filter((p) => p.blockId !== blockId);
-  const dispLabels: Record<Disposition | "auto", string> = {
-    auto: "Auto (solver decides)",
-    import: "Force import",
-    export: "Force export",
-    balance: "Force balance",
-  };
   return (
     <ContextMenu x={x} y={y} onClose={onClose} className="min-w-52">
       <div className="flex items-center gap-1.5 border-b border-border px-3 py-1.5 text-sm text-muted-foreground">
@@ -147,20 +146,19 @@ export function GoodMenu({
         </>
       )}
       <div className="my-1 border-t border-border" />
-      <FieldLabel className="px-3 pb-0.5 font-semibold">disposition</FieldLabel>
-      {(["auto", "import", "export", "balance"] as const).map((d) => {
-        const active = currentDisp === d;
-        return (
-          <ContextMenuItem key={d} active={active} onClick={act(() => onSetDisp(d))}>
-            {active ? (
-              <Check className="mr-1 inline size-3.5" />
-            ) : (
-              <span className="mr-1 inline-block size-3.5" />
-            )}
-            {dispLabels[d]}
-          </ContextMenuItem>
-        );
-      })}
+      {/* the made-here link (#91): production covers consumption, imports
+          forbidden, surplus exports. Marking without a producer flags the item
+          as unmade until one is added. */}
+      {made ? (
+        <ContextMenuItem onClick={act(onUnmark)}>
+          <Check className="size-3.5" /> Made in this block — click to import instead
+        </ContextMenuItem>
+      ) : (
+        <ContextMenuItem onClick={act(onMark)}>
+          <span className="inline-block size-3.5" />
+          {producedInBlock ? "Make in this block (link production)" : "Require in-block production"}
+        </ContextMenuItem>
+      )}
       {spoilables[name] != null && (
         <>
           <div className="my-1 border-t border-border" />

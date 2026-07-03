@@ -80,7 +80,7 @@ source](#setup) to hack on it.
   refactor (label optional), and automatic ones are taken silently before deletes,
   restores, resizes, and — throttled — ordinary edits (newest 20 per block; manual
   ones stay until deleted). Any snapshot can be diffed against the current state
-  (goals, recipes, machines/modules, dispositions, spoil plans) and restored — a
+  (goals, recipes, machines/modules, made marks, pins, spoil plans) and restored — a
   restore snapshots first and is itself a single undoable action, and snapshots of
   deleted blocks are kept as a recycle bin.
 - **Use it on any screen.** The UI is responsive: the full desktop layout on a

@@ -6,21 +6,17 @@
  * (`resolveAllBlocks`). Extracted from factorio.ts so the server-fn layer
  * stays client-importable while this module imports the query layer statically.
  */
-import {
-  cycleItems,
-  solveBlock,
-  type BlockInput,
-  type Disposition,
-  type RecipeDef,
-} from "../solver/block";
+import type { Disposition, RecipeDef } from "../solver/block";
+import { solveBlockLp, type LpBlockInput, type Pin } from "../solver/lp";
+import { diagnoseBlock, type DiagnosisCard } from "../solver/diagnose";
+import { migrateToLpInput } from "../solver/migrate";
 
-/** Migration scaffolding (#91): observe the exact solver input computeBlock
- * assembles, so the v1↔v2 side-by-side parity report runs both solvers on
- * identical, fully effect-adjusted defs. Removed when v2 replaces v1. */
-let solveInputTap: ((input: BlockInput) => void) | null = null;
-export function setSolveInputTap(fn: ((input: BlockInput) => void) | null) {
-  solveInputTap = fn;
-}
+/** A pin as stored in the block doc (#91): counts are in BUILDINGS (what the
+ * user sees on the row); the solve converts to executions/sec via the row's
+ * per-building craft rate, so module/beacon changes re-derive the rate. */
+export type DocPin =
+  | { kind: "count" | "cap"; recipe: string; count: number }
+  | { kind: "share"; recipe: string; item: string; share: number; base?: "total" | "remaining" };
 import { computeEffects, type BeaconConfig } from "./effects";
 import { resolveLogistics, rowLogistics } from "../lib/logistics";
 import { prodScaledAmount } from "../lib/productivity";
@@ -175,7 +171,17 @@ export type SolveInput = {
   rowGroups?: { id: number; name: string }[]; // sub-block groups (#7), display-only
   recipeGroups?: Record<string, number>; // recipe → sub-block group id (#7)
   spoilRates?: Record<string, number>; // item → planned rot rate /s (#20), extra pinned surplus
+  /** legacy per-item overrides (pre-#91 docs) — migrated to `made` on read; new
+   * docs never write this */
   dispositions?: Record<string, Disposition>;
+  /** items this block claims in-block production for (net ≥ 0; #91). Absent on a
+   * legacy doc → derived from dispositions via the migration mapping and echoed
+   * back on the result so the editor persists it on next save. */
+  made?: string[];
+  /** per-row pins (#91), in building counts (converted to rates at solve time):
+   * count = always run exactly N buildings; cap = at most N buildings (built
+   * ceiling); share = this consumer takes a % of the item's production. */
+  pins?: DocPin[];
   machines?: Record<string, string>; // recipe → chosen machine (else fastest)
   fuels?: Record<string, string>; // recipe → chosen fuel (else cheapest available)
   // Reactor farm layout per reactor recipe row (#94): the assumed x×y grid whose
@@ -522,13 +528,44 @@ export async function computeBlock(rawData: SolveInput) {
         return [...merged.values()];
       })()
     : data.goals;
-  const v1Input = {
-    targets,
-    recipes: defs,
-    dispositions: data.dispositions,
+  // ── the solve (#91): v2 LP on the effect-adjusted defs ─────────────────────
+  // Explicit doc state wins; a legacy doc (no `made`) derives it from its old
+  // dispositions via the migration mapping the parity report validated. The
+  // derived set is echoed back on the result so the editor persists it.
+  const goals = targets.map((t) => ({ name: t.name, rate: t.rate }));
+  const made =
+    data.made ??
+    migrateToLpInput({ targets: goals, recipes: defs, dispositions: data.dispositions }).made ??
+    [];
+  // doc pins are in buildings; convert to executions/sec with the row's real
+  // per-building craft rate (speed × speed-effects ÷ energy) so pins follow
+  // module/machine changes. Rows whose recipe left the block are ignored.
+  const craftRate = (recipe: string) => {
+    const s = setup.get(recipe);
+    const def = defs.find((d) => d.name === recipe);
+    if (!s || !def) return null;
+    const speed = (s.chosen?.craftingSpeed ?? 1) * s.effects.speedMult;
+    return speed / Math.max(1e-9, def.energyRequired ?? 0.5);
   };
-  solveInputTap?.(v1Input);
-  const result = solveBlock(v1Input);
+  const pins: Pin[] = [];
+  for (const p of data.pins ?? []) {
+    if (p.kind === "share") {
+      pins.push({ kind: "share", item: p.item, recipe: p.recipe, share: p.share, base: p.base });
+      continue;
+    }
+    const perBuilding = craftRate(p.recipe);
+    if (perBuilding == null) continue;
+    pins.push({
+      kind: p.kind === "count" ? "rate" : "cap",
+      recipe: p.recipe,
+      rate: p.count * perBuilding,
+    });
+  }
+  const lpInput: LpBlockInput = { goals, recipes: defs, made, pins };
+  const result = await solveBlockLp(lpInput);
+  // root-cause cards for the balance card — every member is a clickable gesture
+  const diagnosis: DiagnosisCard[] =
+    result.status === "infeasible" ? await diagnoseBlock(lpInput) : [];
 
   // Per-recipe rows for the grid: each recipe's ingredients/products at the
   // solved run-rate, the chosen machine (override or fastest) with a real count
@@ -866,21 +903,6 @@ export async function computeBlock(rawData: SolveInput) {
     }
   }
 
-  // On a backward/infeasible solve, surface the loop items the reverse recipes
-  // consume — these are the ones starved of a feed. The UI lets the player click
-  // one to add a recipe that supplies it.
-  let stuckItems: string[] = [];
-  if (result.status === "infeasible" && result.negativeRecipes?.length) {
-    const cyc = cycleItems(defs);
-    const negSet = new Set(result.negativeRecipes);
-    const stuck = new Set<string>();
-    for (const r of fetched) {
-      if (!negSet.has(r.name)) continue;
-      for (const c of r.ingredients) if (cyc.has(c.name)) stuck.add(c.name);
-    }
-    stuckItems = [...stuck];
-  }
-
   // Display-name maps for the result — recipes and goods are SEPARATE namespaces
   // (#113). Py routinely names a recipe after its main product (recipe `coal-gas`
   // "Coal gas from coal" vs fluid `coal-gas` "Coal gas"), so one flat map would
@@ -900,7 +922,11 @@ export async function computeBlock(rawData: SolveInput) {
     ...goalNames(data),
     ...imports.map((f) => f.name),
     ...exports.map((f) => f.name),
-    ...stuckItems,
+    // made marks + diagnosis items may not appear in the flows — map them so
+    // link chips and IIS cards always show localized names
+    ...made,
+    ...(result.unmade ?? []),
+    ...diagnosis.flatMap((c) => c.members.flatMap((m) => ("item" in m.prov ? [m.prov.item] : []))),
     // internally-linked fluids named by a temperature warning aren't in the
     // flows above — map them too so the warning text shows localized names
     ...tempWarnings.map((w) => w.item),
@@ -932,7 +958,10 @@ export async function computeBlock(rawData: SolveInput) {
     display,
     recipeDisplay,
     producible,
-    stuckItems,
+    // the block's effective made set (explicit or migrated) — the editor
+    // hydrates this into legacy docs so the next save persists it
+    made,
+    diagnosis,
     power,
     fuelItems,
     burntItems,

@@ -1,34 +1,66 @@
 # Block solver
 
-Code: `app/src/solver/` (`block.ts`, `linalg.ts`), with effect aggregation in
+Code: `app/src/solver/` (`lp.ts` — the LP core, `diagnose.ts` — root-cause
+cards, `migrate.ts` — the legacy-doc mapping; `block.ts`/`linalg.ts` are the
+retired v1 kept for reference), with effect aggregation in
 `app/src/server/effects.ts` and the factory-level solver in
 `app/src/server/factory-solve.server.ts`.
 
-## The block solver
+## The block solver (v2, #91)
 
-A block is a set of declared output **goals** + a set of chosen recipes + per-item
-dispositions. Each goal has a **target rate** — stored per-second always; a goal's
+A block is **goals** + chosen recipes + a **`made` set** (items the block claims
+in-block production for) + **pins**. The solve is a small LP (HiGHS, the same
+engine as cost analysis): recipe run-rates are nonnegative variables, and the
+objective minimizes machine-seconds (with a tiny epsilon per recipe so zero-cost
+synthetic recipes can't create ties) — so identical inputs always solve
+identically, and a `≥` goal binds at exactly its rate unless chemistry forces
+surplus. Each goal has a **target rate** — stored per-second always; a goal's
 optional `unit` (`s`/`min`/`h`) is purely the display/input window the editor converts
 at (#10), so the solver never sees units. A **stock goal** (#38, `stock` + `window` on
 the goal) means "keep N on hand": its rate is derived (`stock / window`, default
 10 min), so the solver still sees an ordinary per-second target — the machines are
 sized to rebuild the buffer within the window — while its cached boundary flow gets
 role `"stock"` so the factory ledger can badge refill demands apart from continuous
-throughput. Each goal becomes a solver equation — the
-block is sized so that good comes out at exactly that rate; `goals[0]` names the
+throughput. Each goal becomes a `net ≥ rate`
+constraint (a negative rate is a SINK block: `consume ≥ |rate|`) — a floor the
+minimizing objective presses the plan down onto, so the good comes out at
+exactly that rate unless a co-product ratio forces surplus (which simply
+exports); `goals[0]` names the
 block, anchors the rate-scaling tools, and is the default icon (the block editor can
 override the icon with any item/fluid, stored as `icon` in the block doc). A good you
-don't target isn't a goal —
-it falls out as a byproduct (export) or import. If the goals can't be jointly
-satisfied (e.g. two goods locked to a fixed ratio by one recipe) the block is
-**infeasible** and says so. See `app/src/lib/goals.ts` for the model and the
-migration from the legacy single-`target` shape. The solver builds a **sparse linear
-system** and solves for recipe run-rates (executions/sec):
+don't target isn't a goal — it falls out as a byproduct (export) or import. See
+`app/src/lib/goals.ts` for the model and the migration from the legacy
+single-`target` shape. The item rules:
 
-- Goals and `balance` items become equations (net production = target / 0).
-- `import` / `export` items carry no equation — their net is a free boundary flow.
-- Default disposition: a good produced **and** consumed in-block balances to zero;
-  produced-only becomes an export, consumed-only an import.
+- A **`made` item** gets `net ≥ 0`: production covers consumption, surplus
+  exports, imports are forbidden — the rule that makes a block a plan instead of
+  a shopping list. The set is built by gestures: setting a goal implies it, and
+  adding a producer through an item's chip marks it; right-click toggles it; a
+  removed recipe takes nothing with it implicitly.
+- Every **other item is free**: consumption imports, surplus exports, and an
+  incidental byproduct just offsets the import — a 0.02/s side-product of
+  something else is never scaled up to cover a 10/s demand.
+- **Pins** (`pins` in the doc, in building counts) constrain single rows:
+  `count` = always run exactly N buildings (supply-push — this is how byproducts
+  route into in-block consumers), `cap` = at most N (a built-capacity ceiling;
+  the diagnosis reports the shortfall in buildings when it binds), and `share` =
+  this consumer takes a fraction of the item's production (base `remaining`
+  applies it after count-pinned consumers' fixed intake). Counts convert to
+  rates at solve time via the row's real per-building craft rate, so pins follow
+  module/machine changes.
+
+There are no per-item dispositions and no relaxed/underdetermined states: the LP
+either **solves** or is **infeasible**, and infeasibility is diagnosed, never
+silently patched. `diagnose.ts` extracts root-cause cards: an elastic pass finds
+what's short (with magnitudes), violated constraints split into independent
+problems by shared recipe variables, and each problem's variable neighborhood is
+deletion-tested for IIS membership — a card lists exactly the gestures (goals,
+made marks, pins) whose single removal repairs the block, each with a one-click
+fix in the balance card. A diagnosis can only name things the user can click.
+Legacy docs (pre-#91 `dispositions`) migrate on read: the server derives a
+`made` set (`migrate.ts` — auto-balanced intermediates and `balance` overrides
+become marks; `import`/`export` overrides unlink), echoes it on the result, and
+the editor adopts it so the next save persists the new shape.
 
 A recipe can be **disabled** (`disabledRecipes` in the block doc): it stays in the
 block, keeping its machine/fuel/module picks, but is filtered out before the system is
@@ -66,11 +98,12 @@ temperature-fed — not fuel burners at all.
 
 A block can also be a **designated fuel supplier** (#115), exporting
 `pyops-fluid-fuel` MJ for other blocks' generic draws. The designation is an
-explicit routing gesture — a conversion recipe that reaches no goal is pinned to 0
-and flagged unused — so either **pin `pyops-fluid-fuel` as a goal** (the conversion
-is sized to the pinned MW and the MJ exports as a primary — a dedicated fuel farm)
-or **mark the feed fluid `balance`** (all surplus routes into the conversion and
-the MJ exports as a byproduct — burning off co-products). A block that merely
+explicit routing gesture — a conversion recipe nothing demands honestly solves
+to 0 — so either **pin `pyops-fluid-fuel` as a goal** (the conversion is sized to the
+pinned MW and the MJ exports as a primary — a dedicated fuel farm)
+or **route the feed fluid with a 100% share pin** on the conversion (all
+production routes into it and the MJ exports as a byproduct — burning off
+co-products). A block that merely
 exports a fuel-valued fluid without a conversion is never conscripted as fuel
 supply: kerosene sold as feedstock stays feedstock.
 
@@ -90,19 +123,19 @@ Display-only: the groups never reach the solver, which sees the same flat recipe
 either way (`app/src/lib/row-groups.ts` holds the pure grouping/net-flow logic).
 
 A goal that **no recipe in the block makes** (an unfinished block, or one whose
-producer vanished after a data migration) is _not_ pinned — pinning it would be a
-zero-coefficient equation with a nonzero rate, forcing the whole least-squares solve
-infeasible and masking an otherwise-valid block. Instead such goals are returned in
-`unmadeTargets` and the rest of the block solves normally; the editor flags just
-those goals ("no recipe — add one") and the sidebar/tabs tint the block amber. Note
+producer vanished after a data migration) is _not_ enforced — that would zero
+the rest of the block. Such goals (and `made` marks with no producer) are
+returned in `unmade` and the rest of the block solves normally; the editor flags
+just those ("no recipe — add one") and the sidebar/tabs tint the block amber. Note
 the factory/coherence index still treats every goal as produced at its target rate
 (goals are a declared _intent_), so an unmade goal won't show as a deficit there —
 the per-block health flag is what surfaces it.
 
-Recipes and splits are **user-chosen**, so there's no LP/optimizer here — it's a
-least-squares solve (`linalg.ts`) that handles Py's cyclic recipe chains and
-reports fractional building counts. Because the choices are the user's, the solver
-faithfully shows imbalance rather than silently "fixing" it by swapping recipes.
+Recipes, marks, and pins are **user-chosen** — the LP's objective is only a
+tie-breaker, never a recipe selector. It handles Py's cyclic recipe chains and
+reports fractional building counts, and because every constraint traces to a
+user gesture, a failure names the gesture rather than swapping recipes behind
+your back.
 
 Synthetic **spoiling** recipes (`kind = "spoiling"`, energy = the spoil time in
 seconds) run in no machine — the items just sit in storage until they rot. For those
