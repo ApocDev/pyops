@@ -1,0 +1,17 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "815b906421baa022b1dc8555631d5d6aff664ec9",
+  "prompts": {},
+  "sessions": {
+    "s_320403043ad6f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a5e6099b1455cdcff",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
