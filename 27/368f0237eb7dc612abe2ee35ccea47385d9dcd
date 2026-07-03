@@ -1,0 +1,61 @@
+app/src/components/block/balance-card.tsx
+  s_9be9645d11a3e7::t_08aa7fcf31d282 217-219
+app/src/components/block/recipe-grid.tsx
+  s_9be9645d11a3e7::t_ba2231a3ac879e 100,216,227-232
+app/src/components/block/snapshot-sheet.tsx
+  s_9be9645d11a3e7::t_1f48a85309d249 264
+app/src/db/queries.server.ts
+  s_9be9645d11a3e7::t_ec6ca38fa88fea 2072-2075,2078,2080-2083
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_cfcbd7b06c73ec 868-872,874-875,880,917
+app/src/components/block/snapshot-diff.tsx
+  s_b410b99c8c67fa::t_00522b55afd972 21,25,27-29,34-35,40,111,118,125,132,144
+app/src/components/block/temp-warnings.test.ts
+  s_b410b99c8c67fa::t_c81d1f1be168f2 5-7,12-16,43,54,74,80-104,106,109
+app/src/components/block/temp-warnings.ts
+  s_b410b99c8c67fa::t_d74e18137200a7 18,20-23,27,44,55
+app/src/lib/block-diff.test.ts
+  s_9be9645d11a3e7::t_b725834635c2de 141,155-161
+app/src/lib/block-diff.ts
+  s_b410b99c8c67fa::t_a6d473e832c1b3 135-144,151,153-155,157-158,161-162
+app/src/routes/block.$id.tsx
+  s_b410b99c8c67fa::t_3d376681d4f5ca 733,759,777,796
+app/src/server/block-compute.test.ts
+  s_b410b99c8c67fa::t_bc37d476d49404 32-36,497-562
+app/src/server/factorio.ts
+  s_b410b99c8c67fa::t_967976083e2795 118-119
+app/src/server/snapshot-fns.ts
+  s_af2318e964c488::t_35fea442013f62 53-56,58,62-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "27368f0237eb7dc612abe2ee35ccea47385d9dcd",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_af2318e964c488": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2e3e8a59232fcdce",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_b410b99c8c67fa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a99299a487f6877fb",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
