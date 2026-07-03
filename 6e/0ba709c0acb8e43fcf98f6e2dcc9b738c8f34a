@@ -1,0 +1,45 @@
+app/drizzle/0011_solve-diagnosis-cache.sql
+  s_9be9645d11a3e7::t_5fc56a4fc1c5a3 1-11
+app/drizzle/meta/0011_snapshot.json
+  s_9be9645d11a3e7::t_30e69ff416f91a 1-2603
+app/drizzle/meta/_journal.json
+  s_9be9645d11a3e7::t_610c084e496078 81-87
+app/src/components/block/block-toolbar.tsx
+  s_9be9645d11a3e7::t_6d2d4ae85b4281 72,121-132
+app/src/components/block/doc-store.ts
+  s_9be9645d11a3e7::t_da317e834d89f1 53-54,80,110,161,378-379
+app/src/components/block/pin-dialog.tsx
+  s_9be9645d11a3e7::t_3d4838d47cfd6d 1-202
+app/src/components/block/recipe-row.tsx
+  s_9be9645d11a3e7::t_a156b30a139bc8 2,85-91,175-195
+app/src/components/block/row-menu.tsx
+  s_9be9645d11a3e7::t_83d4c776428b98 18,31-32,45-46
+app/src/db/queries.server.ts
+  s_9be9645d11a3e7::t_d1a39e020531d2 1386-1389,1391,1425-1426,1443-1445
+app/src/db/schema.ts
+  s_9be9645d11a3e7::t_77c3f7fcb3bf35 431-433,449-460
+app/src/routes/block.$id.tsx
+  s_9be9645d11a3e7::t_bf10ce58768143 41,80,118-119,315,750,756
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_65d6624fac8bf5 185-187,567-583,617-619,1015-1016
+app/src/solver/lp.test.ts
+  s_9be9645d11a3e7::t_5369a99a974f36 344-375
+app/src/solver/lp.ts
+  s_9be9645d11a3e7::t_6b2ef294fac355 57-62,86-88,262,273,295-325,328,371-373,384
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6e0ba709c0acb8e43fcf98f6e2dcc9b738c8f34a",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
