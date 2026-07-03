@@ -2,6 +2,8 @@
   s_ad8974a3b278d5::t_59c9f778c89017 56-58,60,88-91,102-103,107,127-130
 app/src-tauri/vendor-node.sh
   s_ad8974a3b278d5::t_93d5a62c7c2589 8-10,12,16
+app/src/server/factory-solve.ts
+  s_9be9645d11a3e7::t_5f6257605ed637 28
 ---
 {
   "schema_version": "authorship/3.0.0",
@@ -9,10 +11,26 @@ app/src-tauri/vendor-node.sh
   "base_commit_sha": "f4befa52f21586f3c2ffceee2ab3eb4fb5ed5a44",
   "prompts": {},
   "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
     "s_ad8974a3b278d5": {
       "agent_id": {
         "tool": "claude",
         "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_af2318e964c488": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2e3e8a59232fcdce",
         "model": "unknown"
       },
       "human_author": "ApocDev <apocdev@gmail.com>"
