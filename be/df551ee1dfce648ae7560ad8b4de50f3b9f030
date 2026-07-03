@@ -1,0 +1,37 @@
+README.md
+  s_9be9645d11a3e7::t_187f78096e0886 139-143
+app/e2e/mut/fluid-fuel.e2e.ts
+  s_9be9645d11a3e7::t_648118c89a6d1f 2,37-76
+app/src/server/agent-tools.server.ts
+  s_9be9645d11a3e7::t_5b865b16c3b142 27-29,31-36,621,624
+app/src/server/agent-tools.test.ts
+  s_9be9645d11a3e7::t_d9fd4638c2a381 1-97
+app/src/server/agent.ts
+  s_9be9645d11a3e7::t_11f627662b9b12 105
+app/src/server/factory-solve.server.ts
+  s_9be9645d11a3e7::t_96b0b38e63e9e9 26-32
+app/src/server/factory-solve.test.ts
+  s_9be9645d11a3e7::t_cdd96a16fc14b9 65-156
+docs/data-pipeline.md
+  s_9be9645d11a3e7::t_2bce5e17800d59 108-112
+docs/solver.md
+  s_9be9645d11a3e7::t_8411cce9b0ea33 67-76,164-171
+app/src/server/block-compute.test.ts
+  s_9be9645d11a3e7::t_9c258905f0b262 37-44,50,571-672
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "bedf551ee1dfce648ae7560ad8b4de50f3b9f030",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
