@@ -1,0 +1,59 @@
+README.md
+  s_9be9645d11a3e7::t_3d327de176f931 83
+app/e2e/mut/made-links.e2e.ts
+  s_9be9645d11a3e7::t_a0c89ad4122d35 1-52
+app/e2e/mut/temp-warnings.e2e.ts
+  s_9be9645d11a3e7::t_65a445b92fc87f 51-57
+app/src/components/block/balance-card.tsx
+  s_9be9645d11a3e7::t_3919d44a044954 9,15-18,56,70-74,77-98,125-130,132-203,206-207,216,220,223
+app/src/components/block/block-toolbar.tsx
+  s_9be9645d11a3e7::t_ca4dd1f591f489 248,280-285,289-295,299-302
+app/src/components/block/doc-store.test.ts
+  s_9be9645d11a3e7::t_b4d1d7ee0aedcb 165-166,168-197
+app/src/components/block/doc-store.ts
+  s_9be9645d11a3e7::t_edafe1f2597226 21,46-54,76-77,103-107,155-156,302-303,340-347,349-358,360-380
+app/src/components/block/goal-card.tsx
+  s_9be9645d11a3e7::t_e8ea8acb632584 57
+app/src/components/block/good-menu.tsx
+  s_9be9645d11a3e7::t_6ca48c46e98477 26-27,33-34,51-54,61-62,149-161
+app/src/components/block/item-chip.tsx
+  s_9be9645d11a3e7::t_238b7160e82646 22,61,64,71
+app/src/components/block/recipe-row.tsx
+  s_9be9645d11a3e7::t_a99cfb41583c21 45-46,84-86,91,120-122,125
+app/src/components/block/snapshot-diff.tsx
+  s_9be9645d11a3e7::t_257ff570638e2b 214-239
+app/src/db/schema.ts
+  s_9be9645d11a3e7::t_cba00e2cd9c999 416-418,420-430
+app/src/lib/block-diff.ts
+  s_9be9645d11a3e7::t_76791528d11289 46-49,122-139,151-152,156,185-190
+app/src/routes/block.$id.tsx
+  s_9be9645d11a3e7::t_90978b9cacf61a 77-78,189-199,309-310,323-330,437-442,496-497,500,502,872-875,884-891
+app/src/routes/coherence.tsx
+  s_9be9645d11a3e7::t_f21b5c2e7c688e 579
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_82ee0dff24b23a 9-19,174-175,177-184,531-548,550-568,925-929,961-964
+app/src/server/block-compute.test.ts
+  s_9be9645d11a3e7::t_0ff2ac609f06ff 643-644,648,660,666
+app/src/server/migrations.ts
+  s_9be9645d11a3e7::t_bef0743eb4590e 105-112
+docs/architecture.md
+  s_9be9645d11a3e7::t_d2f1679a1fed17 148
+docs/solver.md
+  s_9be9645d11a3e7::t_deaecbc3b765e1 3-5,9,11-17,24-28,31-63,101-106,126-129,134-138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "21a6599bca4b5cef8587657aac2a57939e6ac81d",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
