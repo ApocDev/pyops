@@ -47,6 +47,7 @@ export type { SolveInput } from "./block-compute.server.ts";
 function pseudoDisplay(name: string) {
   if (name === "pyops-heat") return "heat";
   if (name === "pyops-electricity") return "electricity";
+  if (name === "pyops-fluid-fuel") return "fluid fuel";
   return null;
 }
 
@@ -528,7 +529,6 @@ export const recipeDefaultsFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const favMachines = q.getFavoriteMachines();
     const favFuels = q.getFavoriteFuels();
-    const favFluidFuel = q.getFavoriteFluidFuel();
     const restrict = q.getResearchHorizon().mode !== "future";
     const out: Record<string, { machine?: string; fuel?: string }> = {};
     for (const name of data) {
@@ -549,21 +549,17 @@ export const recipeDefaultsFn = createServerFn({ method: "POST" })
         (favMachine && pool.find((m) => m.name === favMachine)) || pickDefaultMachine(pool);
       if (!chosen) continue;
       const pick: { machine?: string; fuel?: string } = { machine: chosen.name };
-      if (chosen.energySource === "burner" || chosen.energySource === "fluid") {
-        const isFluid = chosen.energySource === "fluid";
-        const fuels = q.fuelsForCategories(chosen.fuelCategories, isFluid);
+      // Solid burners only: fluid burners have no per-row pick — unfiltered ones
+      // draw from the shared pyops-fluid-fuel pool, filtered ones are pinned to
+      // their energy source's filter fluid (#25).
+      if (chosen.energySource === "burner") {
+        const fuels = q.fuelsForCategories(chosen.fuelCategories);
         let favFuel: string | undefined;
-        if (isFluid) {
-          // fluids have no category — a single global preferred fluid fuel
-          const ff = favFluidFuel;
-          if (ff && fuels.some((x) => x.name === ff)) favFuel = ff;
-        } else {
-          for (const cat of chosen.fuelCategories) {
-            const f = favFuels[cat];
-            if (f && fuels.some((x) => x.name === f)) {
-              favFuel = f;
-              break;
-            }
+        for (const cat of chosen.fuelCategories) {
+          const f = favFuels[cat];
+          if (f && fuels.some((x) => x.name === f)) {
+            favFuel = f;
+            break;
           }
         }
         const fuel = favFuel ?? defaultFuel(fuels)?.name;
@@ -586,18 +582,15 @@ export const setFavoriteMachineFn = createServerFn({ method: "POST" })
   });
 
 /** Set/clear the preferred fuel (the "favorite" star in the fuel picker). A solid
- * fuel sets the favorite for its fuel category; a fluid sets the single global
- * preferred fluid fuel (fluids have no category). `clear: true` removes it. */
+ * fuel sets the favorite for its fuel category. Fluids have no pick to favorite:
+ * unfiltered fluid burners draw from the shared pyops-fluid-fuel pool and
+ * filtered ones are pinned to one fluid (#25). `clear: true` removes it. */
 export const setFavoriteFuelFn = createServerFn({ method: "POST" })
   .validator((d: { fuel: string; clear?: boolean }) => d)
   .handler(async ({ data }) => {
     const category = q.getItem(data.fuel)?.fuelCategory;
     if (category) {
       q.setFavoriteFuel(category, data.clear ? null : data.fuel);
-      return { ok: true };
-    }
-    if (q.getFluid(data.fuel)) {
-      q.setFavoriteFluidFuel(data.clear ? null : data.fuel);
       return { ok: true };
     }
     return { ok: false };

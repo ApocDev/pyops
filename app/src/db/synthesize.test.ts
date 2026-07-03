@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
-import { ELECTRICITY, HEAT, synthesizePass2 } from "./synthesize.ts";
+import { ELECTRICITY, FLUID_FUEL, HEAT, synthesizePass2 } from "./synthesize.ts";
 import { type TestDb, makeTestDb } from "./test-helpers.ts";
 
 let fx: TestDb;
@@ -335,5 +335,109 @@ describe("synthesizePass2 rocket launch", () => {
     };
     const counts2 = synthesizePass2(fx.db, noFixed, ctx);
     expect(counts2.launching).toBe(0);
+  });
+});
+
+describe("synthesizePass2 fluid fuel (#25)", () => {
+  // fuel_value_j values verbatim from the Py dump: kerosene 1.5MJ, coal-gas
+  // 0.2MJ; water carries no fuel_value.
+  const seedFluids = () =>
+    fx.db.exec(`INSERT INTO fluids (name, display, fuel_value_j) VALUES
+      ('kerosene','Kerosene',1500000),
+      ('coal-gas','Coal gas',200000),
+      ('water','Water',NULL);`);
+
+  it("defines the pool pseudo-fluid and one burn conversion per fuel-valued fluid", () => {
+    seedFluids();
+    const counts = synthesizePass2(fx.db, raw, ctx);
+    expect(get(`SELECT name FROM fluids WHERE name = ?`, FLUID_FUEL)).toBeTruthy();
+    // 1 unit of fluid → its fuel_value in MJ of the pool; no machine of its own
+    expect(
+      get(`SELECT kind, category FROM recipes WHERE name = 'burn-fluid-kerosene'`),
+    ).toMatchObject({ kind: "burning", category: null });
+    expect(
+      get(
+        `SELECT amount FROM recipe_ingredients WHERE recipe = 'burn-fluid-kerosene' AND name = 'kerosene'`,
+      ),
+    ).toMatchObject({ amount: 1 });
+    expect(
+      get(
+        `SELECT amount FROM recipe_products WHERE recipe = 'burn-fluid-kerosene' AND name = ?`,
+        FLUID_FUEL,
+      ),
+    ).toMatchObject({ amount: 1.5 });
+    expect(
+      get(
+        `SELECT amount FROM recipe_products WHERE recipe = 'burn-fluid-coal-gas' AND name = ?`,
+        FLUID_FUEL,
+      ),
+    ).toMatchObject({ amount: 0.2 });
+    // a fluid without a fuel_value gets no conversion
+    expect(get(`SELECT name FROM recipes WHERE name = 'burn-fluid-water'`)).toBeUndefined();
+    expect(counts.burning).toBe(2);
+  });
+
+  it("captures a drill's fluid energy source and folds burner effectivity", () => {
+    // Py dump values: antimony-drill-mk01 is a 1MW unfiltered fluid burner
+    // (energy_source { type "fluid", burns_fluid true }); mo-mine is a 550kW
+    // solid burner at effectivity 8 → 68.75kW of fuel actually drawn.
+    const drills = {
+      "mining-drill": {
+        "antimony-drill-mk01": {
+          resource_categories: ["antimony"],
+          mining_speed: 1,
+          energy_usage: 1_000_000,
+          energy_source: { type: "fluid", burns_fluid: true, effectivity: 1, fluid_box: {} },
+        },
+        "mo-mine": {
+          resource_categories: ["molybdenum"],
+          mining_speed: 1,
+          energy_usage: 550_000,
+          energy_source: { type: "burner", effectivity: 8, fuel_categories: ["chemical"] },
+        },
+      },
+    };
+    synthesizePass2(fx.db, drills, ctx);
+    expect(
+      get(
+        `SELECT energy_usage_w w, burns_fluid bf, fluid_fuel_filter ff FROM crafting_machines WHERE name = 'antimony-drill-mk01'`,
+      ),
+    ).toMatchObject({ w: 1e6, bf: 1, ff: null });
+    expect(
+      get(`SELECT energy_usage_w w, burns_fluid bf FROM crafting_machines WHERE name = 'mo-mine'`),
+    ).toMatchObject({ w: 68750, bf: null });
+  });
+
+  it("marks the oil boiler a pool burner — its fluid_box filter is the water box, not the fuel", () => {
+    // Py's oil-boiler-mk01 verbatim: energy_consumption 29.61MW, energy_source
+    // { type "fluid", burns_fluid true, effectivity 2 } (fuel draw 14.805MW,
+    // matching the imported py.db row); the entity-level fluid_box.filter
+    // "water" is the boiler's INPUT box, not the energy source's — so the
+    // burner stays unfiltered (pool).
+    fx.db.exec(
+      `INSERT INTO fluids (name, display, default_temperature, heat_capacity_j) VALUES ('steam','Steam',15,200)`,
+    );
+    const boilers = {
+      boiler: {
+        "oil-boiler-mk01": {
+          energy_consumption: 29_610_000,
+          target_temperature: 250,
+          fluid_box: { filter: "water" },
+          output_fluid_box: { filter: "steam" },
+          energy_source: {
+            type: "fluid",
+            burns_fluid: true,
+            effectivity: 2,
+            emissions_per_minute: { pollution: 30 },
+          },
+        },
+      },
+    };
+    synthesizePass2(fx.db, boilers, ctx);
+    expect(
+      get(
+        `SELECT energy_usage_w w, energy_source es, burns_fluid bf, fluid_fuel_filter ff FROM crafting_machines WHERE name = 'oil-boiler-mk01'`,
+      ),
+    ).toMatchObject({ w: 14_805_000, es: "fluid", bf: 1, ff: null });
   });
 });

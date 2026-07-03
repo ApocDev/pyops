@@ -189,7 +189,7 @@ export function importFactorioDump(
     ),
     recipeCat: db.prepare(`INSERT OR IGNORE INTO recipe_categories (name) VALUES (?)`),
     machine: db.prepare(
-      `INSERT INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories) VALUES (@name,@display,@kind,@crafting_speed,@module_slots,@energy_usage_w,@energy_source,@pollution_per_min,@allowed_effects,@allowed_module_categories)`,
+      `INSERT INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,burns_fluid,fluid_fuel_filter) VALUES (@name,@display,@kind,@crafting_speed,@module_slots,@energy_usage_w,@energy_source,@pollution_per_min,@allowed_effects,@allowed_module_categories,@burns_fluid,@fluid_fuel_filter)`,
     ),
     machineCat: db.prepare(
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
@@ -354,21 +354,31 @@ export function importFactorioDump(
       for (const [name, m] of Object.entries(raw[kind] ?? {})) {
         const cats = arr<string>(m.crafting_categories);
         if (cats.length === 0) continue;
+        const es = m.energy_source ?? {};
+        // Burner/fluid sources: fuel drawn = energy_usage / effectivity, so fold
+        // effectivity into the stored draw (the convention synthesize.ts already
+        // uses for boilers/reactors). Py's oil-boiler-mk01 dumps effectivity 2.
+        const effectivity = es.type === "burner" || es.type === "fluid" ? (es.effectivity ?? 1) : 1;
+        const usage = parseSI(m.energy_usage);
         ins.machine.run({
           name,
           display: localeByKind.entity?.names?.[name] ?? productDisplay[name] ?? null,
           kind,
           crafting_speed: m.crafting_speed ?? 1,
           module_slots: m.module_slots ?? 0,
-          energy_usage_w: parseSI(m.energy_usage),
-          energy_source: m.energy_source?.type ?? null,
-          pollution_per_min: m.energy_source?.emissions_per_minute?.pollution ?? 0,
+          energy_usage_w: usage != null ? usage / effectivity : null,
+          energy_source: es.type ?? null,
+          pollution_per_min: es.emissions_per_minute?.pollution ?? 0,
           allowed_effects: jsonList(m.allowed_effects),
           allowed_module_categories: jsonList(m.allowed_module_categories),
+          // fluid energy sources (#25): burns_fluid ⇒ fuel_value burner (the
+          // FluidEnergySource default is false = temperature-fed); a fluid_box
+          // filter pins the burner to that one fluid
+          burns_fluid: es.type === "fluid" ? (es.burns_fluid ? 1 : 0) : null,
+          fluid_fuel_filter: es.type === "fluid" ? (es.fluid_box?.filter ?? null) : null,
         });
         for (const c of cats) ins.machineCat.run(name, c);
-        for (const fc of arr<string>(m.energy_source?.fuel_categories))
-          ins.machineFuel.run(name, fc);
+        for (const fc of arr<string>(es.fuel_categories)) ins.machineFuel.run(name, fc);
       }
     }
 

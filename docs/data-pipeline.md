@@ -104,12 +104,24 @@ deliberate choices:
 - **Quality is not modelled** — Py has none.
 - **Fluid temperatures are** — ingredients carry a min/max range, products an exact
   temperature; the synthetic-recipe pass generates per-temperature variants.
-- **Energy is pseudo-fluids** — `pyops-electricity` and `pyops-heat` flow through
-  the model as goods (1 unit = 1 MJ) so a reactor recipe gets sized to a block's
-  heat draw, but they're filtered out of normal import/byproduct lists and surfaced
-  separately as power/heat in watts. Reactors also persist their prototype's
-  `neighbour_bonus` (`crafting_machines.neighbour_bonus`, #94) so the solver can
-  scale heat output for an assumed reactor-farm layout.
+- **Energy is pseudo-fluids** — `pyops-electricity`, `pyops-heat`, and
+  `pyops-fluid-fuel` flow through the model as goods (1 unit = 1 MJ) so a reactor
+  recipe gets sized to a block's heat draw, but they're filtered out of normal
+  import/byproduct lists and surfaced separately as power/heat in watts. Reactors
+  also persist their prototype's `neighbour_bonus`
+  (`crafting_machines.neighbour_bonus`, #94) so the solver can scale heat output
+  for an assumed reactor-farm layout.
+- **Fluid fuel is fungible** (#25) — fluids carry no fuel category; an unfiltered
+  `burns_fluid` energy source (Py: glassworks, smelter, antimony drills, the oil
+  boiler) accepts _any_ fluid with a `fuel_value`, so those machines draw MJ from
+  the shared `pyops-fluid-fuel` pool, fed by one synthetic `burn-fluid-<fluid>`
+  conversion per fuel-valued fluid (1 unit → its `fuel_value` in MJ; 59 in the Py
+  dump). A `fluid_box.filter` on the energy source pins the machine to that one
+  fluid instead (Py oil/gas powerplants); `burns_fluid: false` sources consume
+  their filter fluid by temperature, not fuel, and are not modelled as burners
+  (Py uf6 reactors, compost plants, the solar tower). `crafting_machines` carries
+  `burns_fluid` + `fluid_fuel_filter`, and burner/fluid `effectivity` is folded
+  into the stored `energy_usage_w` (fuel draw = energy ÷ effectivity).
 - **Logistics prototypes** — `belts`, `loaders`, and `inserters` tables capture the
   bits needed to size belt/inserter counts per block row (the **Logistics** display,
   issue #21): belt/loader `speed`, and per-inserter `rotation_speed` /

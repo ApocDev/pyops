@@ -75,7 +75,7 @@ export const formatRate = (n: number): string => `${formatQty(n)}/s`;
 
 /** Energy pseudo-fluids (1 unit = 1 MJ, so 1 unit/s = 1 MW): rates for these
  * display as power, and inputs accept power units. */
-export const ENERGY_PSEUDO = new Set(["pyops-electricity", "pyops-heat"]);
+export const ENERGY_PSEUDO = new Set(["pyops-electricity", "pyops-heat", "pyops-fluid-fuel"]);
 
 /** Display an energy pseudo-fluid rate (units/s) as power with the largest
  * sensible unit and trimmed decimals: 5000/s → "5 GW". Watts are per-second by

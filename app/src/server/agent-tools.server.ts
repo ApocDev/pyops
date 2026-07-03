@@ -28,7 +28,7 @@ import { withUndoAction } from "./undo-action.server.ts";
  * recipeIo (and thus the stoichiometric chainStatus) never lists them as recipe
  * ingredients, so they must be filtered from open-inputs/byproducts; in submitBlock
  * they're likewise dropped from the solver's import list (shown via powerW/heatW). */
-const PSEUDO_GOODS = new Set(["pyops-electricity", "pyops-heat"]);
+const PSEUDO_GOODS = new Set(["pyops-electricity", "pyops-heat", "pyops-fluid-fuel"]);
 
 /** "100 molten-iron + 3 borax" — compact io for the model (internal names = stable handles). */
 function io(parts: { name: string; amount: number }[]): string {

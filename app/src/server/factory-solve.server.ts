@@ -25,7 +25,9 @@ type GoodClass = "raw" | "demand" | "surplus" | "intermediate";
 
 // Energy pseudo-goods are grid utilities / block-local, not block-to-block flows —
 // don't balance them across the factory (they'd create a power feedback loop).
-const FREE_GOODS = new Set(["pyops-electricity", "pyops-heat"]);
+// pyops-fluid-fuel (#25) is block-local too: the real cross-block flow is the
+// fluid that a block's burn-fluid-* conversion consumes, not the MJ pool.
+const FREE_GOODS = new Set(["pyops-electricity", "pyops-heat", "pyops-fluid-fuel"]);
 
 function addTo<K, V>(map: Map<K, Set<V>>, key: K, val: V) {
   let s = map.get(key);

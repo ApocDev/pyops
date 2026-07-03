@@ -24,6 +24,11 @@
  * whose temperature falls outside a consumer's accepted range is flagged even
  * when ANOTHER producer satisfies it — the silent mismatch the old
  * block-level check missed.
+ *
+ * #25 — fluid-fueled machines. Seeds the dump's three FluidEnergySource
+ * shapes (unfiltered burner → pyops-fluid-fuel pool draw, filtered burner →
+ * pinned fluid, burns_fluid:false → temperature-fed, no fuel) and checks the
+ * pool/pinned/none classification and MJ math.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import { switchDatabase } from "../db/index.server.ts";
@@ -356,5 +361,131 @@ describe("per-producer fluid-temperature warnings (#110 interim)", () => {
       disabledRecipes: ["dt-he3"],
     });
     expect(res.tempWarnings).toEqual([]);
+  });
+});
+
+describe("fluid-fueled machines (#25)", () => {
+  let fx: TestDb;
+
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    // Machines and fuels verbatim from the Py dump / py.db:
+    //  - glassworks-mk01: 10MW, energy_source { type "fluid", burns_fluid true,
+    //    no filter, effectivity 1 }, crafting_speed 1 — an UNFILTERED fluid
+    //    burner: accepts any fuel-valued fluid → draws the pyops-fluid-fuel pool.
+    //  - py-oil-powerplant-mk03: 30MW, energy_source { type "fluid",
+    //    burns_fluid true, fluid_box.filter "diesel" }, crafting_speed 3 —
+    //    pinned to diesel (fuel_value 1.5MJ).
+    //  - nuclear-reactor-mk01: 300kW, energy_source { type "fluid",
+    //    burns_fluid false, fluid_box.filter "uf6" }, crafting_speed 2 —
+    //    temperature-fed, NOT a fuel burner (uf6 has no fuel_value).
+    //  - recipe glass (category glassworks, energy 4): 20 sand → 20 molten-glass.
+    //  - recipe oil-molten-salt-01 (category oil-powerplant, energy 20):
+    //    500 molten-salt → 500 hot-molten-salt @1000°.
+    //  - recipe nuclear-molten-thorium-reactor (category nuclear-fission,
+    //    energy 5): 1000 molten-fluoride-thorium → 1000 …-pa233.
+    //  - burn-fluid-kerosene as db/synthesize.ts builds it: 1 kerosene →
+    //    1.5 pyops-fluid-fuel MJ (kerosene fuel_value 1.5MJ).
+    fx.db.exec(`
+      INSERT INTO fluids (name, display, fuel_value_j) VALUES
+        ('pyops-fluid-fuel','Fluid fuel (MJ)',NULL),
+        ('kerosene','Kerosene',1500000),
+        ('diesel','Diesel',1500000),
+        ('petroleum-gas','Petroleum gas',1000000),
+        ('uf6','Uranium hexafluoride',NULL),
+        ('molten-glass','Molten glass',NULL),
+        ('molten-salt','Molten salt',NULL),
+        ('hot-molten-salt','Hot molten salt',NULL),
+        ('molten-fluoride-thorium','Molten fluoride thorium',NULL),
+        ('molten-fluoride-thorium-pa233','Molten fluoride thorium (Pa-233)',NULL);
+      INSERT INTO items (name, display) VALUES ('sand','Sand');
+
+      INSERT INTO recipes (name, kind, category, energy_required, enabled, hidden) VALUES
+        ('glass','real','glassworks',4,1,0),
+        ('oil-molten-salt-01','real','oil-powerplant',20,1,0),
+        ('nuclear-molten-thorium-reactor','real','nuclear-fission',5,1,0),
+        ('burn-fluid-kerosene','burning',NULL,1,1,0);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
+        ('glass',0,'item','sand',20),
+        ('oil-molten-salt-01',0,'fluid','molten-salt',500),
+        ('nuclear-molten-thorium-reactor',0,'fluid','molten-fluoride-thorium',1000),
+        ('burn-fluid-kerosene',0,'fluid','kerosene',1);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount, temperature) VALUES
+        ('glass',0,'fluid','molten-glass',20,NULL),
+        ('oil-molten-salt-01',0,'fluid','hot-molten-salt',500,1000),
+        ('nuclear-molten-thorium-reactor',0,'fluid','molten-fluoride-thorium-pa233',1000,NULL),
+        ('burn-fluid-kerosene',0,'fluid','pyops-fluid-fuel',1.5,NULL);
+
+      INSERT INTO crafting_machines
+        (name, display, kind, crafting_speed, module_slots, energy_usage_w, energy_source, burns_fluid, fluid_fuel_filter)
+      VALUES
+        ('glassworks-mk01','Glassworks MK 01','assembling-machine',1,1,10000000,'fluid',1,NULL),
+        ('py-oil-powerplant-mk03','Oil powerplant MK 03','assembling-machine',3,0,30000000,'fluid',1,'diesel'),
+        ('nuclear-reactor-mk01','Nuclear reactor MK 01','assembling-machine',2,0,300000,'fluid',0,'uf6');
+      INSERT INTO machine_categories (machine, category) VALUES
+        ('glassworks-mk01','glassworks'),
+        ('py-oil-powerplant-mk03','oil-powerplant'),
+        ('nuclear-reactor-mk01','nuclear-fission');
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+
+  afterEach(() => fx.cleanup());
+
+  it("an unfiltered burns_fluid machine draws the fluid-fuel pool, not a picked fluid", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "molten-glass", rate: 20 }],
+      recipes: ["glass"],
+    });
+    const row = res.rows.find((r) => r.recipe === "glass")!;
+    // 20/s ÷ 20/craft = 1 craft/s × 4s = 4 machines × 10MW = 40 MJ/s
+    expect(row.machine?.count).toBeCloseTo(4);
+    expect(row.fuel).toMatchObject({ name: "pyops-fluid-fuel", pool: true });
+    expect(row.fuel!.perSec).toBeCloseTo(40);
+    expect(row.availableFuels).toEqual([]); // no per-row pick — supply via a Burn recipe
+    expect(res.imports.find((f) => f.name === "pyops-fluid-fuel")?.rate).toBeCloseTo(40);
+    // the pre-#25 behavior defaulted fluid burners to petroleum-gas — gone
+    expect(res.imports.find((f) => f.name === "petroleum-gas")).toBeUndefined();
+  });
+
+  it("a burn-fluid conversion recipe in the block gets sized to the pool draw", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "molten-glass", rate: 20 }],
+      recipes: ["glass", "burn-fluid-kerosene"],
+    });
+    expect(res.status).toBe("solved");
+    // 40 MJ/s ÷ 1.5 MJ/kerosene = 26.667 kerosene/s, balanced in-block
+    expect(res.imports.find((f) => f.name === "pyops-fluid-fuel")).toBeUndefined();
+    expect(res.imports.find((f) => f.name === "kerosene")?.rate).toBeCloseTo(40 / 1.5);
+    expect(res.rows.find((r) => r.recipe === "burn-fluid-kerosene")?.rate).toBeCloseTo(40 / 1.5);
+  });
+
+  it("a filtered fluid burner is pinned to its filter fluid — stored picks are ignored", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "hot-molten-salt", rate: 500 }],
+      recipes: ["oil-molten-salt-01"],
+      fuels: { "oil-molten-salt-01": "petroleum-gas" }, // legacy pick — must not win
+    });
+    const row = res.rows.find((r) => r.recipe === "oil-molten-salt-01")!;
+    // 1 craft/s × 20s ÷ speed 3 = 6.667 machines × 30MW = 200MW ÷ 1.5MJ = 133.33/s
+    expect(row.machine?.count).toBeCloseTo(20 / 3);
+    expect(row.fuel).toMatchObject({ name: "diesel", pinned: true });
+    expect(row.fuel!.perSec).toBeCloseTo(200e6 / 1.5e6);
+    expect(row.availableFuels.map((f) => f.name)).toEqual(["diesel"]);
+    expect(res.imports.find((f) => f.name === "diesel")?.rate).toBeCloseTo(200e6 / 1.5e6);
+    expect(res.imports.find((f) => f.name === "pyops-fluid-fuel")).toBeUndefined();
+  });
+
+  it("a temperature-fed fluid source (burns_fluid false) is not a fuel burner", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "molten-fluoride-thorium-pa233", rate: 1000 }],
+      recipes: ["nuclear-molten-thorium-reactor"],
+    });
+    const row = res.rows.find((r) => r.recipe === "nuclear-molten-thorium-reactor")!;
+    expect(row.fuel).toBeNull();
+    expect(row.availableFuels).toEqual([]);
+    // only the recipe's real ingredient imports — no uf6/pool/petroleum-gas fuel
+    expect(res.imports.map((f) => f.name)).toEqual(["molten-fluoride-thorium"]);
   });
 });

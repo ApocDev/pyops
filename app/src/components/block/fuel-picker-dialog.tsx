@@ -7,9 +7,11 @@ import { Icon } from "../../lib/icons";
 import { fmtJ } from "./format.ts";
 import { rowBtn } from "./styles.ts";
 
-/** Fuel picker — choose what a burner burns (energy value shown to compare),
- * with the favorite star (#18). Favorites are app-level prefs; toggling one
- * refetches the solve so its ☆ updates without touching the block's picks. */
+/** Fuel picker — choose what a SOLID burner burns (energy value shown to
+ * compare), with the favorite star (#18). Favorites are app-level prefs;
+ * toggling one refetches the solve so its ☆ updates without touching the
+ * block's picks. Fluid burners never open this: unfiltered ones draw from the
+ * shared fluid-fuel pool and filtered ones are pinned to one fluid (#25). */
 export function FuelPickerDialog({
   recipeDisplay,
   fuels,
@@ -58,26 +60,16 @@ export function FuelPickerDialog({
               >
                 <Icon kind={f.kind as "item" | "fluid"} name={f.name} size="md" noTitle />
                 <span className="truncate text-foreground">{f.display ?? f.name}</span>
-                {f.fuelValueJ != null && (
-                  <Badge variant="secondary">
-                    {fmtJ(f.fuelValueJ)}
-                    {f.kind === "fluid" ? "/unit" : ""}
-                  </Badge>
-                )}
+                {f.fuelValueJ != null && <Badge variant="secondary">{fmtJ(f.fuelValueJ)}</Badge>}
                 {cur && <span className="text-sm text-primary">current</span>}
-                {/* solid fuels favorite per fuel category; fluids have no
-                    category, so a fluid star sets the single preferred fluid fuel */}
+                {/* favorite per fuel category */}
                 <span
                   role="button"
                   tabIndex={-1}
                   title={
-                    f.kind === "fluid"
-                      ? f.favorite
-                        ? "Preferred fluid fuel — new fluid burners use it. Click to clear."
-                        : "Set as the preferred fluid fuel (new fluid burners will use it)"
-                      : f.favorite
-                        ? "Favorite fuel for this category — new burners here use it. Click to clear."
-                        : "Set as the favorite fuel for this category (new burners here will use it)"
+                    f.favorite
+                      ? "Favorite fuel for this category — new burners here use it. Click to clear."
+                      : "Set as the favorite fuel for this category (new burners here will use it)"
                   }
                   className={`ml-auto cursor-pointer text-sm ${f.favorite ? "text-warning" : "text-muted-foreground hover:text-warning"}`}
                   onClick={(e) => {

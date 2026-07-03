@@ -49,6 +49,21 @@ which is correct: spoiled goods aren't available to other blocks.
 multiplier (per-fuel emissions multipliers are approximated as 1). Cached on the
 block like `electricity_w` and summed in the Factory header.
 
+**Fuel** folds into the balance by energy source. Electric draw nets as
+`pyops-electricity` consumption post-solve; solid burners burn their per-row fuel
+pick (folded post-solve, or modeled in the system when the block produces the fuel
+itself — self-fueling — so ash and the extra production come out right). Fluid
+burners (#25) have no pick: an **unfiltered** `burns_fluid` machine (Py glassworks,
+smelter, antimony drill, oil boiler) burns _any_ fuel-valued fluid, so its draw is
+modeled like heat — a `pyops-fluid-fuel` ingredient (1 unit = 1 MJ) the system must
+balance. Adding a `burn-fluid-<fluid>` conversion recipe (1 fluid → its
+`fuel_value` in MJ) sizes that conversion to the draw; the choice of conversion
+decides which fluid burns, several split like any other multi-producer good, and
+with none present the MJ surfaces as a "Fluid fuel" import. A **filtered** fluid
+burner (Py oil/gas powerplants) is pinned to its filter fluid, and
+`burns_fluid: false` sources (uf6 reactors, compost plants, the solar tower) are
+temperature-fed — not fuel burners at all.
+
 Reactor rows honour the **neighbour bonus** (#94): each adjacent working reactor
 adds `neighbour_bonus` × base heat (Py's breeder reactor dumps `neighbour_bonus: 1`,
 +100% per neighbour). The block doc can carry an assumed x×y farm per reactor row

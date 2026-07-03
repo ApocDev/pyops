@@ -12,6 +12,9 @@
  *    different sizes share one recipe per (output fluid, target temp)
  *  - mining: resource → products, drills as machines (modules work)
  *  - pumping: offshore pump → water
+ *  - fluid fuel: `pyops-fluid-fuel` (1 unit = 1 MJ) — the fungible pool that
+ *    unfiltered `burns_fluid` machines draw from, fed by one `burn-fluid-*`
+ *    conversion recipe per fuel-valued fluid (#25)
  *  - spoiling: passive item → spoil_result conversions (no machine)
  *  - planting: seed → plant harvest in an agricultural tower (Factorio 2.0 /
  *    Space Age); tower crafting_speed = its (2·radius+1)²−1 parallel growth
@@ -26,6 +29,10 @@ import type Database from "better-sqlite3";
 
 export const ELECTRICITY = "pyops-electricity";
 export const HEAT = "pyops-heat";
+/** The fungible fluid-fuel energy pool (#25), 1 unit = 1 MJ. Unfiltered
+ * `burns_fluid` machines draw MJ from it; one `burn-fluid-*` conversion recipe
+ * per fuel-valued fluid feeds it. */
+export const FLUID_FUEL = "pyops-fluid-fuel";
 
 type Raw = Record<string, Record<string, any>>;
 type Ctx = {
@@ -74,7 +81,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       `INSERT OR IGNORE INTO fluids (name,display,default_temperature,heat_capacity_j) VALUES (?,?,NULL,NULL)`,
     ),
     machine: db.prepare(
-      `INSERT OR REPLACE INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,neighbour_bonus) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT OR REPLACE INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,neighbour_bonus,burns_fluid,fluid_fuel_filter) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     ),
     machineCat: db.prepare(
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
@@ -155,6 +162,10 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
     pollutionPerMin?: number | null;
     /** reactors only (#94): extra heat per adjacent working reactor */
     neighbourBonus?: number | null;
+    /** fluid energy sources (#25): fuel_value burner vs temperature-fed */
+    burnsFluid?: number | null;
+    /** fluid energy sources (#25): the fluid_box filter pinning the fuel */
+    fluidFuelFilter?: string | null;
   }) => {
     ins.machine.run(
       m.name,
@@ -168,19 +179,33 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       null,
       m.allowedModuleCategories?.length ? JSON.stringify(m.allowedModuleCategories) : null,
       m.neighbourBonus ?? null,
+      m.burnsFluid ?? null,
+      m.fluidFuelFilter ?? null,
     );
     ins.machineCat.run(m.name, m.category);
     for (const fc of m.fuelCategories ?? []) ins.machineFuel.run(m.name, fc);
   };
 
+  /** The #25 fluid-energy-source fields + effectivity for a raw `energy_source`.
+   * Fuel drawn = energy / effectivity, so callers divide their usage by `eff`
+   * (Py: oil-boiler-mk01 dumps effectivity 2; the mo-mine drill dumps 8). */
+  const energySourceInfo = (es: any) => ({
+    eff: es?.type === "burner" || es?.type === "fluid" ? (es.effectivity ?? 1) : 1,
+    burnsFluid: es?.type === "fluid" ? (es.burns_fluid ? 1 : 0) : null,
+    fluidFuelFilter: es?.type === "fluid" ? ((es.fluid_box?.filter as string) ?? null) : null,
+  });
+
   const tx = db.transaction(() => {
-    /* ── electricity + heat pseudo-fluids ─────────────────────────────────── */
+    /* ── electricity + heat + fluid-fuel pseudo-fluids ────────────────────── */
     ins.fluid.run(ELECTRICITY, "Electricity (MJ)");
     ins.fluid.run(HEAT, "Heat (MJ)");
+    ins.fluid.run(FLUID_FUEL, "Fluid fuel (MJ)");
 
     /* ── mining: resource → products, drills as machines ─────────────────── */
     const drillsByCat = new Map<string, string[]>();
     for (const [name, d] of Object.entries(raw["mining-drill"] ?? {})) {
+      const es = energySourceInfo(d.energy_source);
+      const usage = parseSI(d.energy_usage);
       for (const rc of arr<string>(d.resource_categories)) {
         drillsByCat.set(rc, [...(drillsByCat.get(rc) ?? []), name]);
         machine({
@@ -188,12 +213,15 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
           kind: "mining-drill",
           speed: d.mining_speed ?? 1,
           moduleSlots: d.module_slots ?? 0,
-          energyUsageW: parseSI(d.energy_usage),
+          // fuel draw = energy / effectivity (Py's mo-mine dumps effectivity 8)
+          energyUsageW: usage != null ? usage / es.eff : null,
           energySource: d.energy_source?.type ?? null,
           fuelCategories: arr<string>(d.energy_source?.fuel_categories),
           allowedModuleCategories: arr<string>(d.allowed_module_categories),
           category: `mine:${rc}`,
           pollutionPerMin: d.energy_source?.emissions_per_minute?.pollution ?? 0,
+          burnsFluid: es.burnsFluid,
+          fluidFuelFilter: es.fluidFuelFilter,
         });
       }
     }
@@ -256,6 +284,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       const perMW = 1e6 / heatPerUnit; // units/s boiled per MW of heat
       const src = b.energy_source ?? {};
       const eff = src.effectivity ?? 1;
+      const esInfo = energySourceInfo(src);
       const cat = `boil:${outFluid}@${target}`;
       machine({
         name,
@@ -266,6 +295,10 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
         fuelCategories: arr<string>(src.fuel_categories),
         category: cat,
         pollutionPerMin: src.emissions_per_minute?.pollution ?? 0,
+        // Py's oil-boiler-mk01 is a pool fluid burner (burns_fluid, no filter,
+        // effectivity 2); the solar tower is temperature-fed (burns_fluid absent)
+        burnsFluid: esInfo.burnsFluid,
+        fluidFuelFilter: esInfo.fluidFuelFilter,
       });
       recipe({
         name: `boil-${outFluid}-${target}`,
@@ -412,6 +445,31 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       counts.burning++;
     }
 
+    /* ── fluid fuel (#25): fluid → its fuel_value in pyops-fluid-fuel MJ ──────
+       One conversion per fuel-valued fluid (59 in the Py dump, coal-gas 0.2 MJ
+       up to kerosene/diesel 1.5 MJ). Unfiltered burns_fluid machines draw MJ
+       from the pool as a solver-modeled ingredient; adding a Burn recipe to the
+       block decides WHICH fluid fills the demand (splits/dispositions handle
+       several, like any other multi-producer good). No machine of its own —
+       the burn happens inside the consuming machine. Fluids never leave a
+       burnt result (confirmed against the dump), so the conversion is pure. */
+    const fuelFluids = db
+      .prepare(`SELECT name, display, fuel_value_j fv FROM fluids WHERE fuel_value_j IS NOT NULL`)
+      .all() as { name: string; display: string | null; fv: number }[];
+    for (const f of fuelFluids) {
+      recipe({
+        name: `burn-fluid-${f.name}`,
+        display: `Burn ${f.display ?? f.name}`,
+        kind: "burning",
+        category: null,
+        energy: 1,
+        source: f.name,
+        ingredients: [{ kind: "fluid", name: f.name, amount: 1 }],
+        products: [{ kind: "fluid", name: FLUID_FUEL, amount: f.fv / 1e6 }],
+      });
+      counts.burning++;
+    }
+
     /* ── spoiling: passive item → spoil_result ───────────────────────────── */
     const spoilables = db
       .prepare(
@@ -442,15 +500,19 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
     if (towers.length) {
       for (const [name, t] of towers) {
         const radius = t.radius ?? 1;
+        const es = energySourceInfo(t.energy_source);
+        const usage = parseSI(t.energy_usage);
         machine({
           name,
           kind: "agricultural-tower",
           speed: (2 * radius + 1) ** 2 - 1, // parallel growth cells
-          energyUsageW: parseSI(t.energy_usage),
+          energyUsageW: usage != null ? usage / es.eff : null,
           energySource: t.energy_source?.type ?? null,
           fuelCategories: arr<string>(t.energy_source?.fuel_categories),
           category: "plant:agriculture",
           pollutionPerMin: t.energy_source?.emissions_per_minute?.pollution ?? 0,
+          burnsFluid: es.burnsFluid,
+          fluidFuelFilter: es.fluidFuelFilter,
         });
       }
       const seeds = db
@@ -508,18 +570,23 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       // crafting_categories); just add it to the launch category. Register it
       // ourselves only if pass 1 skipped it (no crafting_categories).
       if (machineExists.get(siloName)) ins.machineCat.run(siloName, cat);
-      else
+      else {
+        const es = energySourceInfo(s.energy_source);
+        const usage = parseSI(s.energy_usage);
         machine({
           name: siloName,
           kind: "rocket-silo",
           speed: s.crafting_speed ?? 1,
           moduleSlots: s.module_slots ?? 0,
-          energyUsageW: parseSI(s.energy_usage),
+          energyUsageW: usage != null ? usage / es.eff : null,
           energySource: s.energy_source?.type ?? null,
           fuelCategories: arr<string>(s.energy_source?.fuel_categories),
           category: cat,
           pollutionPerMin: s.energy_source?.emissions_per_minute?.pollution ?? 0,
+          burnsFluid: es.burnsFluid,
+          fluidFuelFilter: es.fluidFuelFilter,
         });
+      }
       for (const [payload, lp] of launchables) {
         const row = itemRow.get(payload) as
           | { display: string | null; ss: number | null; w: number | null }

@@ -133,6 +133,16 @@ export const craftingMachines = sqliteTable("crafting_machines", {
   // Only set for kind "reactor"; null elsewhere (and on pre-#94 imports, where
   // the engine-default 1 applies).
   neighbourBonus: real("neighbour_bonus"),
+  // Fluid energy sources (#25). `burns_fluid` = 1 when the machine burns fluid
+  // by its fuel_value (Py: glassworks, smelter, antimony drills, oil boiler);
+  // 0 when it consumes its filter fluid by temperature instead (Py: uf6
+  // reactors, compost plants, the solar tower) — those aren't fuel burners.
+  // `fluid_fuel_filter` = the energy source fluid_box's filter: a filtered
+  // burner is pinned to exactly that fluid (Py oil/gas powerplants); an
+  // unfiltered one accepts ANY fuel-valued fluid (the pyops-fluid-fuel pool).
+  // Both null on non-fluid energy sources and on pre-#25 imports.
+  burnsFluid: integer("burns_fluid"),
+  fluidFuelFilter: text("fluid_fuel_filter"),
 });
 
 export const machineCategories = sqliteTable(

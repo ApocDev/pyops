@@ -21,8 +21,28 @@ import { ensureBridge, sendToPeer } from "./bridge/server.ts";
 /** Pseudo-fluids modeling energy flows (1 unit = 1 MJ → rate/s = MW). Electricity
  * is grid-distributed (always an import); heat is a short-trip mechanic that must
  * be produced locally — it flows through the solver as a real good so a reactor
- * recipe in the block gets sized to the heat draw. */
+ * recipe in the block gets sized to the heat draw. Fluid fuel (#25) works like
+ * heat: unfiltered `burns_fluid` machines draw MJ of pyops-fluid-fuel, and a
+ * `burn-fluid-*` conversion recipe in the block gets sized to supply it. */
 const HEAT = "pyops-heat";
+const FLUID_FUEL = "pyops-fluid-fuel";
+
+/** How a fluid-energy-source machine takes in fuel (#25), from the dump's
+ * FluidEnergySource: `burns_fluid` machines burn by fuel_value — any
+ * fuel-valued fluid when unfiltered (the shared pyops-fluid-fuel pool: Py's
+ * glassworks/smelter/antimony drills/oil boiler), or exactly the fluid_box's
+ * filter fluid when set (Py's oil/gas powerplants). Non-burning fluid sources
+ * consume their filter fluid by TEMPERATURE (Py: uf6 reactors, compost plants,
+ * the solar tower) — not fuel, not modelled here. A null burnsFluid is a
+ * pre-#25 import: treat it as the pool (the common Py case) until a re-sync. */
+function fluidFueling(m: {
+  burnsFluid: number | null;
+  fluidFuelFilter: string | null;
+}): { mode: "pool" } | { mode: "pinned"; fluid: string } | { mode: "none" } {
+  const burns = m.burnsFluid == null ? true : m.burnsFluid !== 0;
+  if (!burns) return { mode: "none" };
+  return m.fluidFuelFilter ? { mode: "pinned", fluid: m.fluidFuelFilter } : { mode: "pool" };
+}
 
 // Common, non-creative fuels to default to (cheapest-first surfaces editor items
 // like ee-super-fuel). Prefer a real fuel by name; else the median by energy.
@@ -222,7 +242,6 @@ export async function computeBlock(rawData: SolveInput) {
   // Favorites are baked into a block's stored picks at recipe-add time, so the
   // solve fallback here stays favorite-independent (lowest tier / cheapest fuel).
   const favoriteFuels = q.getFavoriteFuels();
-  const favoriteFluidFuel = q.getFavoriteFluidFuel();
   const recipeCostMap =
     payback > 0 ? q.recipeCosts(fetched.map((r) => r.name)) : new Map<string, number>();
   const autoFill = (
@@ -247,10 +266,22 @@ export async function computeBlock(rawData: SolveInput) {
     if (chosen.energySource === "electric") {
       effectivityEconomy =
         ((chosen.energyUsageW ?? 0) / 1e6) * Math.max(0, costs.get("pyops-electricity") ?? 0);
-    } else if (chosen.energySource === "burner" || chosen.energySource === "fluid") {
-      const all = q.fuelsForCategories(chosen.fuelCategories, chosen.energySource === "fluid");
+    } else if (chosen.energySource === "burner") {
+      const all = q.fuelsForCategories(chosen.fuelCategories);
       const pick = all.find((f) => f.name === data.fuels?.[r.name]) ?? defaultFuel(all);
       if (pick?.fuelValueJ) {
+        const perSec = (chosen.energyUsageW ?? 0) / pick.fuelValueJ;
+        effectivityEconomy = perSec * Math.max(0, q.goodCosts([pick.name]).get(pick.name) ?? 0);
+      }
+    } else if (chosen.energySource === "fluid") {
+      const f = fluidFueling(chosen);
+      const pick = f.mode === "pinned" ? q.fluidFuelEntry(f.fluid) : null;
+      if (f.mode === "pool") {
+        // MJ/s drawn from the pool, at the pool's LP price per MJ
+        effectivityEconomy =
+          ((chosen.energyUsageW ?? 0) / 1e6) *
+          Math.max(0, q.goodCosts([FLUID_FUEL]).get(FLUID_FUEL) ?? 0);
+      } else if (pick?.fuelValueJ) {
         const perSec = (chosen.energyUsageW ?? 0) / pick.fuelValueJ;
         effectivityEconomy = perSec * Math.max(0, q.goodCosts([pick.name]).get(pick.name) ?? 0);
       }
@@ -374,12 +405,17 @@ export async function computeBlock(rawData: SolveInput) {
     // scales mining up so net output meets the target AND covers its own fuel, and
     // ash falls out as a real byproduct, instead of the fuel showing as an import.
     // Imported fuels (not produced in-block) stay post-hoc. Mirrors the powerW formula.
-    if (
-      (chosen?.energySource === "burner" || chosen?.energySource === "fluid") &&
-      chosen.energyUsageW
-    ) {
-      const all = q.fuelsForCategories(chosen.fuelCategories, chosen.energySource === "fluid");
-      const pick = all.find((f) => f.name === data.fuels?.[r.name]) ?? defaultFuel(all);
+    // Applies to solid burners and PINNED fluid burners (a filtered powerplant
+    // burning the gas the block makes); pooled fluid burners are handled below.
+    const fueling = chosen?.energySource === "fluid" ? fluidFueling(chosen) : null;
+    if ((chosen?.energySource === "burner" || fueling?.mode === "pinned") && chosen?.energyUsageW) {
+      const pick =
+        fueling?.mode === "pinned"
+          ? q.fluidFuelEntry(fueling.fluid)
+          : (() => {
+              const all = q.fuelsForCategories(chosen.fuelCategories);
+              return all.find((f) => f.name === data.fuels?.[r.name]) ?? defaultFuel(all);
+            })();
       if (pick?.fuelValueJ && producedInBlock.has(pick.name)) {
         const speed = (chosen.craftingSpeed ?? 1) * fx.speedMult;
         const energyRequired = r.energyRequired ?? 0.5;
@@ -392,6 +428,21 @@ export async function computeBlock(rawData: SolveInput) {
           selfFueled.add(r.name);
         }
       }
+    }
+    // Pooled fluid burners (#25): an unfiltered burns_fluid machine accepts ANY
+    // fuel-valued fluid, so its demand is fungible energy — model it like heat,
+    // as a pyops-fluid-fuel ingredient (1 unit = 1 MJ) the solver must balance.
+    // A burn-fluid-* conversion recipe in the block (1 fluid → fuel_value MJ)
+    // then gets sized to the draw — the player's choice of conversion decides
+    // WHICH fluid burns; several split like any other multi-producer good. With
+    // no conversion present the MJ falls out as a "Fluid fuel" import — the
+    // signal to add one. energy_usage_w already includes the energy source's
+    // effectivity (folded at import; Py's oil boiler dumps effectivity 2).
+    if (fueling?.mode === "pool" && chosen?.energyUsageW) {
+      const speed = (chosen.craftingSpeed ?? 1) * fx.speedMult;
+      const energyRequired = r.energyRequired ?? 0.5;
+      const mjPerExec = (chosen.energyUsageW * fx.consMult * energyRequired) / (speed * 1e6);
+      if (mjPerExec > 0) ingredients.push({ kind: "fluid", name: FLUID_FUEL, amount: mjPerExec });
     }
     // Heat-powered machines (Py hard mode) draw heat that must be produced LOCALLY
     // by a reactor recipe in the same block (heat can't cross blocks). Model the
@@ -506,6 +557,10 @@ export async function computeBlock(rawData: SolveInput) {
       perSec: number;
       chosen: string;
       burnt: { name: string; display: string | null; perSec: number } | null;
+      /** #25: the fungible pyops-fluid-fuel pool (perSec is MJ/s) — no per-row pick */
+      pool?: boolean;
+      /** #25: a filtered fluid burner, pinned to its one fluid — no per-row pick */
+      pinned?: boolean;
     } | null = null;
     let availableFuels: {
       name: string;
@@ -514,56 +569,78 @@ export async function computeBlock(rawData: SolveInput) {
       fuelValueJ: number | null;
       favorite: boolean;
     }[] = [];
-    const burns = chosen && (chosen.energySource === "burner" || chosen.energySource === "fluid");
-    if (burns && chosen.energyUsageW) {
-      const all = q.fuelsForCategories(chosen.fuelCategories, chosen.energySource === "fluid");
-      // a fuel is the favorite when it's the stored pick for any of the machine's
-      // fuel categories (solid fuels carry exactly one category) — or, for fluids
-      // (no category), the single global preferred fluid fuel
-      const favSet = new Set(
-        chosen.fuelCategories.map((c) => favoriteFuels[c]).filter((n): n is string => !!n),
-      );
-      availableFuels = all.map((f) => ({
-        name: f.name,
-        display: f.display,
-        kind: f.kind,
-        fuelValueJ: f.fuelValueJ,
-        favorite: f.kind === "fluid" ? f.name === favoriteFluidFuel : favSet.has(f.name),
-      }));
-      const pick = all.find((f) => f.name === data.fuels?.[rr.recipe]) ?? defaultFuel(all);
-      if (pick?.fuelValueJ) {
-        const perSec = powerW / pick.fuelValueJ; // J/s ÷ J/unit = units/s (effectivity≈1)
-        // burning yields a burnt result 1:1 (coal → ash, fuel-cell → depleted-cell)
-        const burnt = pick.burntResult
-          ? {
-              name: pick.burntResult,
-              display: q.getItem(pick.burntResult)?.display ?? null,
-              perSec,
-            }
-          : null;
+    const fueling = chosen?.energySource === "fluid" ? fluidFueling(chosen) : null;
+    const burns = chosen?.energySource === "burner" || (fueling && fueling.mode !== "none");
+    if (burns && chosen?.energyUsageW) {
+      if (fueling?.mode === "pool") {
+        // fungible fluid fuel (#25): the draw is MJ/s of the pool; which fluid
+        // fills it is the block's choice of burn-fluid-* conversion recipe, so
+        // there's no per-row fuel pick (availableFuels stays empty)
         fuel = {
-          name: pick.name,
-          display: pick.display,
-          kind: pick.kind,
-          perSec,
-          chosen: pick.name,
-          burnt,
+          name: FLUID_FUEL,
+          display: q.getFluid(FLUID_FUEL)?.display ?? "Fluid fuel (MJ)",
+          kind: "fluid",
+          perSec: powerW / 1e6, // MJ/s = MW
+          chosen: FLUID_FUEL,
+          burnt: null,
+          pool: true,
         };
-        if (count > 0 && !selfFueled.has(rr.recipe)) {
-          // self-fueled recipes are netted in the LP (fuel + ash modeled there) —
-          // folding here too would double-count. Otherwise fold the fuel/ash.
-          // (also skip backward/infeasible recipes via count > 0)
-          const t = fuelTotals.get(pick.name) ?? {
+      } else {
+        const pinned = fueling?.mode === "pinned";
+        const all = pinned
+          ? [q.fluidFuelEntry(fueling.fluid)].filter((f) => f != null)
+          : q.fuelsForCategories(chosen.fuelCategories);
+        // a fuel is the favorite when it's the stored pick for any of the machine's
+        // fuel categories (solid fuels carry exactly one category); a pinned fluid
+        // is forced by the machine, so favorites don't apply
+        const favSet = new Set(
+          chosen.fuelCategories.map((c) => favoriteFuels[c]).filter((n): n is string => !!n),
+        );
+        availableFuels = all.map((f) => ({
+          name: f.name,
+          display: f.display,
+          kind: f.kind,
+          fuelValueJ: f.fuelValueJ,
+          favorite: !pinned && favSet.has(f.name),
+        }));
+        const pick = pinned
+          ? all[0]
+          : (all.find((f) => f.name === data.fuels?.[rr.recipe]) ?? defaultFuel(all));
+        if (pick?.fuelValueJ) {
+          const perSec = powerW / pick.fuelValueJ; // J/s ÷ J/unit = units/s (effectivity folded into energy_usage_w)
+          // burning yields a burnt result 1:1 (coal → ash, fuel-cell → depleted-cell)
+          const burnt = pick.burntResult
+            ? {
+                name: pick.burntResult,
+                display: q.getItem(pick.burntResult)?.display ?? null,
+                perSec,
+              }
+            : null;
+          fuel = {
+            name: pick.name,
             display: pick.display,
             kind: pick.kind,
-            perSec: 0,
+            perSec,
+            chosen: pick.name,
+            burnt,
+            ...(pinned ? { pinned: true } : {}),
           };
-          t.perSec += perSec;
-          fuelTotals.set(pick.name, t);
-          if (burnt) {
-            const b = burntTotals.get(burnt.name) ?? { display: burnt.display, perSec: 0 };
-            b.perSec += perSec;
-            burntTotals.set(burnt.name, b);
+          if (count > 0 && !selfFueled.has(rr.recipe)) {
+            // self-fueled recipes are netted in the LP (fuel + ash modeled there) —
+            // folding here too would double-count. Otherwise fold the fuel/ash.
+            // (also skip backward/infeasible recipes via count > 0)
+            const t = fuelTotals.get(pick.name) ?? {
+              display: pick.display,
+              kind: pick.kind,
+              perSec: 0,
+            };
+            t.perSec += perSec;
+            fuelTotals.set(pick.name, t);
+            if (burnt) {
+              const b = burntTotals.get(burnt.name) ?? { display: burnt.display, perSec: 0 };
+              b.perSec += perSec;
+              burntTotals.set(burnt.name, b);
+            }
           }
         }
       }
@@ -810,6 +887,9 @@ export async function computeBlock(rawData: SolveInput) {
     const d = itemDisp(name);
     if (d) display[name] = d;
   }
+  // the fluid-fuel pool's fluids row only exists after a data re-sync — keep the
+  // label readable on older imports
+  display[FLUID_FUEL] ??= "Fluid fuel (MJ)";
   // One-time build cost: the materials needed to CONSTRUCT this block's buildings
   // (#38). Aggregate machines across rows by type, then expand each building's own
   // recipe — this surfaces e.g. steel for a science block even though no science
@@ -905,7 +985,7 @@ export async function showBlockInGame(id: number) {
 
   // Energy pseudo-goods are shown as the power/heat lines, not as I/O rows
   // (they aren't real prototypes, so an in-game icon tag wouldn't resolve).
-  const PSEUDO = new Set([HEAT, "pyops-electricity"]);
+  const PSEUDO = new Set([HEAT, "pyops-electricity", FLUID_FUEL]);
   // Logistics for the in-game summary's Helmod-style belt/inserter readout: belts
   // to carry each item, and inserters/loaders to feed one building (recipe rows
   // only). Sized against the same picks as the web Logistics control.
@@ -955,7 +1035,9 @@ export async function showBlockInGame(id: number) {
       // depleted cell). Those are real item flows in/out of the building, so — like
       // Helmod — fold the fuel into ingredients and the burnt result into products
       // (tagged so the cell can note it). They then get belt/inserter sizing too.
-      if (row.fuel) {
+      // The pooled fluid-fuel draw (#25) is a pseudo-good, not a prototype — its
+      // real fluid flows through the block's burn-fluid-* conversion instead.
+      if (row.fuel && !row.fuel.pool) {
         ingredients.push(
           good({ name: row.fuel.name, kind: row.fuel.kind, rate: row.fuel.perSec }, count, "fuel"),
         );

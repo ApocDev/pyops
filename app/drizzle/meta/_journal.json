@@ -64,6 +64,13 @@
       "when": 1783089935081,
       "tag": "0008_reactor-neighbour-bonus",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1783096616095,
+      "tag": "0009_fluid-fuel-machines",
+      "breakpoints": true
     }
   ]
 }

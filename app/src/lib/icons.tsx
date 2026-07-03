@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { Flame, Timer, Zap } from "lucide-react";
+import { Flame, Fuel, Timer, Zap } from "lucide-react";
 import { iconManifestFn, spoilablesFn, type IconManifest, type IconSlot } from "../server/factorio";
 import { GoodHover } from "./recipe-card";
 
@@ -147,8 +147,11 @@ export type IconProps = {
  * bare `title`/`noTitle` props only apply when `noHover` is set. */
 export function Icon(props: IconProps & { noHover?: boolean }) {
   const { noHover, ...rest } = props;
-  // pseudo-goods (heat/electricity) have no prototype/detail to card.
-  const noCard = rest.name === "pyops-electricity" || rest.name === "pyops-heat";
+  // pseudo-goods (heat/electricity/fluid fuel) have no prototype/detail to card.
+  const noCard =
+    rest.name === "pyops-electricity" ||
+    rest.name === "pyops-heat" ||
+    rest.name === "pyops-fluid-fuel";
   if (noHover || noCard) return <RawIcon {...rest} />;
   return (
     <GoodHover kind={rest.kind} name={rest.name}>
@@ -201,17 +204,20 @@ export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: Ico
         </span>
       </span>
     );
-  // the electricity / heat pseudo-goods have no real prototype — render an icon
-  if (name === "pyops-electricity" || name === "pyops-heat") {
+  // the electricity / heat / fluid-fuel pseudo-goods have no real prototype — render an icon
+  if (name === "pyops-electricity" || name === "pyops-heat" || name === "pyops-fluid-fuel") {
     const heat = name === "pyops-heat";
-    const Glyph = heat ? Flame : Zap;
+    const fuel = name === "pyops-fluid-fuel";
+    const Glyph = heat ? Flame : fuel ? Fuel : Zap;
     return (
       <span
-        title={noTitle ? undefined : (title ?? (heat ? "heat" : "electricity"))}
+        title={
+          noTitle ? undefined : (title ?? (heat ? "heat" : fuel ? "fluid fuel" : "electricity"))
+        }
         style={{ ...base, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
       >
         <Glyph
-          color={heat ? "var(--destructive)" : "var(--warning)"}
+          color={heat ? "var(--destructive)" : fuel ? "var(--info)" : "var(--warning)"}
           style={{ width: `calc(${v} * 0.85)`, height: `calc(${v} * 0.85)` }}
         />
       </span>

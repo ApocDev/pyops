@@ -180,6 +180,8 @@ export function machinesForRecipe(recipeName: string) {
       allowedEffects: craftingMachines.allowedEffects,
       allowedModuleCategories: craftingMachines.allowedModuleCategories,
       neighbourBonus: craftingMachines.neighbourBonus,
+      burnsFluid: craftingMachines.burnsFluid,
+      fluidFuelFilter: craftingMachines.fluidFuelFilter,
     })
     .from(machineCategories)
     .innerJoin(craftingMachines, eq(craftingMachines.name, machineCategories.machine))
@@ -196,40 +198,43 @@ export function machinesForRecipe(recipeName: string) {
   }));
 }
 
-/** Solid + fluid fuels valid for a set of fuel categories (for the fuel picker).
- * Fluid fuels (no category in Factorio) are offered when `includeFluids` is set —
- * machines with a fluid energy source burn any fluid that has a fuel value. */
-export function fuelsForCategories(categories: string[], includeFluids = false) {
-  const solid = categories.length
-    ? db
-        .select({
-          name: items.name,
-          display: items.display,
-          fuelValueJ: items.fuelValueJ,
-          kind: sql<string>`'item'`,
-          burntResult: items.burntResult,
-        })
-        .from(items)
-        .where(and(isNotNull(items.fuelValueJ), inArray(items.fuelCategory, categories)))
-        .orderBy(items.fuelValueJ)
-        .all()
-        .filter((f) => !isExcluded(f.name)) // EE / user-excluded fuels
-    : [];
-  const fluid = includeFluids
-    ? db
-        .select({
-          name: fluids.name,
-          display: fluids.display,
-          fuelValueJ: fluids.fuelValueJ,
-          kind: sql<string>`'fluid'`,
-          burntResult: sql<string | null>`NULL`,
-        })
-        .from(fluids)
-        .where(isNotNull(fluids.fuelValueJ))
-        .orderBy(fluids.fuelValueJ)
-        .all()
-    : [];
-  return [...solid, ...fluid];
+/** Solid fuels valid for a set of fuel categories (for the fuel picker).
+ * Fluid burners don't pick from a list: unfiltered ones draw from the shared
+ * pyops-fluid-fuel pool, filtered ones are pinned to `fluidFuelEntry` (#25). */
+export function fuelsForCategories(categories: string[]) {
+  if (!categories.length) return [];
+  return db
+    .select({
+      name: items.name,
+      display: items.display,
+      fuelValueJ: items.fuelValueJ,
+      kind: sql<string>`'item'`,
+      burntResult: items.burntResult,
+    })
+    .from(items)
+    .where(and(isNotNull(items.fuelValueJ), inArray(items.fuelCategory, categories)))
+    .orderBy(items.fuelValueJ)
+    .all()
+    .filter((f) => !isExcluded(f.name)); // EE / user-excluded fuels
+}
+
+/** A single fluid in fuel-entry shape — the pinned fuel of a FILTERED fluid
+ * burner (energy_source.fluid_box.filter, e.g. Py's oil/gas powerplants).
+ * Null when the fluid is unknown or carries no fuel value (burning a fluid
+ * never leaves a burnt result — none in the dump has one). */
+export function fluidFuelEntry(name: string) {
+  const f = db
+    .select({
+      name: fluids.name,
+      display: fluids.display,
+      fuelValueJ: fluids.fuelValueJ,
+      kind: sql<string>`'fluid'`,
+      burntResult: sql<string | null>`NULL`,
+    })
+    .from(fluids)
+    .where(and(eq(fluids.name, name), isNotNull(fluids.fuelValueJ)))
+    .get();
+  return f ?? null;
 }
 
 /** Which of the given machines are buildable under the current research horizon —
@@ -1640,7 +1645,7 @@ export function fuelOptionsForRecipe(recipeName: string) {
   const burners = machinesForRecipe(recipeName).filter((m) => m.fuelCategories.length > 0);
   if (!burners.length) return null;
   const cats = Array.from(new Set(burners.flatMap((m) => m.fuelCategories)));
-  const fuels = fuelsForCategories(cats, false).map((f) => ({
+  const fuels = fuelsForCategories(cats).map((f) => ({
     fuel: f.name,
     ash: f.burntResult ?? null, // ash-producing if non-null
     mj: f.fuelValueJ ? +(f.fuelValueJ / 1e6).toFixed(2) : null,
@@ -2980,17 +2985,9 @@ export function setFavoriteFuel(fuelCategory: string, fuel: string | null) {
   metaSet("favorite_fuels", JSON.stringify(map));
 }
 
-/** Preferred fluid fuel. Fluids carry no fuel category in Factorio — a fluid burner
- * accepts any fuel-valued fluid — so this is a single global pick, not per-category
- * (issue #18; the shared fluid-energy pool is #25). */
-export function getFavoriteFluidFuel(): string | null {
-  return metaAll().favorite_fluid_fuel || null;
-}
-
-export function setFavoriteFluidFuel(fuel: string | null) {
-  if (fuel) metaSet("favorite_fluid_fuel", fuel);
-  else metaDelete("favorite_fluid_fuel");
-}
+// (The old global "preferred fluid fuel" pick is gone: unfiltered fluid burners
+// now draw from the shared pyops-fluid-fuel pool — which fluid fills the demand
+// is a per-block choice of Burn recipe, not a per-machine fuel pick. See #25.)
 
 /* ── Cost analysis lookups (LP shadow prices; see server/cost-analysis.ts) ──── */
 
