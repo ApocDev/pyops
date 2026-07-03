@@ -72,9 +72,12 @@ Releases are driven by **conventional commits** via
    version for the whole product, kept in lockstep across `version.txt`,
    `app/package.json`, `app/src-tauri/tauri.conf.json`, `app/src-tauri/Cargo.toml`,
    and the mod's `mod/info.json` (**don't hand-edit these**) — and the changelog.
-3. Merging the release PR creates the tag + GitHub release; the build matrix then
-   builds, signs, and attaches each platform's bundles, and a final job aggregates a
-   signed `latest.json` onto the release.
+3. Merging the release PR creates the tag + GitHub release. An inline step then
+   rewrites the GitHub release body with an LLM — a short friendly summary on top,
+   the raw release-please changelog kept verbatim below a divider (see
+   "Release-notes polish" below). The build matrix then builds, signs, and attaches
+   each platform's bundles, and a final job aggregates a signed `latest.json` onto
+   the release.
 
 The matrix builds Linux (`deb` + `AppImage`), Windows (NSIS), and **both** macOS
 arches — Apple Silicon natively and Intel **cross-compiled on the arm64 runner**
@@ -87,11 +90,24 @@ Config: `release-please-config.json` + `.release-please-manifest.json` — a sin
 package rooted at the repo (`.`), so all the version files above (across `app/` and
 `mod/`) are reachable as plain `extra-files` paths, and the action emits unprefixed
 outputs (`tag_name`, `releases_created`) that the build gate reads. Workflow:
-`.github/workflows/release.yml` (release-please job → gated build matrix →
-`latest-json` aggregate job, all one workflow so no PAT is needed).
+`.github/workflows/release.yml` (release-please job + AI notes polish → gated build
+matrix → `latest-json` aggregate job, all one workflow so no PAT is needed).
 `workflow_dispatch` with a `tag` input rebuilds an existing release's assets
 (recovery / fill-in) by building `main`; without a tag
 it's a build-only smoke test.
+
+**Release-notes polish**: right after release-please cuts the release, a step in
+the same job asks an LLM (via OpenRouter — the **`OPENROUTER_API_KEY` repo
+secret**; optional `RELEASE_NOTES_MODEL` repo *variable* to override the default
+small model) to rewrite the release body into a short friendly summary, keeping
+the raw changelog below a divider. It runs before the build/`latest-json` jobs,
+so the in-app update dialog — which renders `latest.json`'s `notes` — shows the
+same polished text as the releases page. The model only writes the summary; the
+step assembles summary + divider + original body itself, so no changes can be
+invented into or dropped from the changelog, and `CHANGELOG.md` stays the
+deterministic commit-derived record. It **fails open**: a missing secret, an API
+error, or an empty reply leaves release-please's raw notes untouched and the
+workflow green — a release is never blocked on the polish.
 
 ## Self-update
 
@@ -100,7 +116,8 @@ The app updates itself from GitHub Releases.
 - The release build signs the updater artifacts with the CI key
   (`createUpdaterArtifacts` emits a `.sig` per platform), and the `latest-json` job
   aggregates each platform's `{signature, url}` into one `latest.json` — listing each
-  artifact's URL + signature, with the changelog as `notes` — attached to the release.
+  artifact's URL + signature, with the release body (the AI-polished notes, or the
+  raw changelog if the polish was skipped) as `notes` — attached to the release.
   The updater artifact is picked explicitly per platform (AppImage / `.app.tar.gz` /
   `-setup.exe`), and the macOS `.app.tar.gz` is arch-suffixed so the two Mac builds
   don't collide.

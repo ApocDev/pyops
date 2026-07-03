@@ -35,6 +35,67 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+      # Rewrite the fresh release's body with an LLM: a short friendly summary on
+      # top, the raw release-please changelog kept verbatim below a divider.
+      # Sequenced here — in the same job, before the build matrix — so it always
+      # finishes before latest-json copies the body into latest.json's `notes`
+      # (the in-app update dialog renders that markdown); a separate
+      # `release: published` workflow would race it. Fails open at every step: a
+      # missing OPENROUTER_API_KEY secret, an API error, or an empty reply keeps
+      # the raw notes and the workflow green. The model only writes the summary —
+      # the script assembles summary + divider + original body itself, so the
+      # changelog can't be dropped or altered, and CHANGELOG.md is never touched.
+      - name: Polish release notes with AI
+        if: ${{ steps.rp.outputs.releases_created == 'true' }}
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          MODEL: ${{ vars.RELEASE_NOTES_MODEL || 'anthropic/claude-3.5-haiku' }}
+          TAG: ${{ steps.rp.outputs.tag_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "OPENROUTER_API_KEY secret not set; keeping the raw release notes"
+            exit 0
+          fi
+          BODY="$(gh release view "$TAG" --repo "$REPO" --json body -q .body)"
+          if [ -z "$BODY" ]; then
+            echo "release body is empty; nothing to polish"
+            exit 0
+          fi
+
+          SYSTEM='You write release notes for PyOps, a desktop factory planner and
+          in-game assistant for Factorio (Pyanodons). You are given the auto-generated
+          changelog for one release: grouped conventional-commit subjects with commit
+          links. Rewrite it as a short, friendly release summary in Markdown: one or
+          two plain sentences saying what this release is about, then a few themed
+          highlight bullets (group related commits; lead with what users notice).
+          Strict rules: only describe changes that appear in the given changelog —
+          never invent, embellish, or speculate about features or fixes. Do not
+          include a version heading, a date, the word "Changelog", commit hashes, or
+          links. Skip pure chore/CI noise unless it is all there is. Output plain
+          Markdown only — no code fence around the output, no preamble like "Here is
+          the summary".'
+          REQ="$(jq -n --arg model "$MODEL" --arg sys "$SYSTEM" --arg body "$BODY" \
+            '{model: $model, max_tokens: 1200,
+              messages: [{role: "system", content: $sys}, {role: "user", content: $body}]}')"
+          RESP="$(curl -sS --max-time 120 https://openrouter.ai/api/v1/chat/completions \
+            -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$REQ")" || { echo "OpenRouter request failed; keeping the raw release notes"; exit 0; }
+          SUMMARY="$(jq -r '.choices[0].message.content // empty' <<<"$RESP" 2>/dev/null || true)"
+          if [ -z "$SUMMARY" ]; then
+            echo "no summary in the OpenRouter response; keeping the raw release notes"
+            jq -r '.error.message // empty' <<<"$RESP" 2>/dev/null || true
+            exit 0
+          fi
+          printf '%s\n\n---\n\n%s\n' "$SUMMARY" "$BODY" > polished-notes.md
+          gh release edit "$TAG" --repo "$REPO" --notes-file polished-notes.md
+          echo "release notes polished with $MODEL"
+
   build:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch' }}
