@@ -123,6 +123,19 @@ about "how do I make X":
   recipe. `recipeInfo.turd` returns the same full detail for every master touching a
   recipe. This is what the agent consults for "what does this TURD give / which
   branch is best" — never assume a master has a single choice.
+- **Factory-wide coherence audit** (`coherenceAudit`,
+  `app/src/server/coherence-audit.server.ts`, #11) — the cross-block balance in
+  one call, reusing the Coherence page's wiring query: under-supplied goods
+  (each with its producer blocks' ids + rates, so the agent can propose
+  `reviseBlock` resizes), overproduced links, imports no block produces
+  (with a craftable flag), and dangling byproducts. Each dangling byproduct
+  carries a **disposal verdict**: `route` (productive consuming recipes exist),
+  `void` (only a vent/void/incinerate disposal recipe), or `nowhere`
+  (store/buffer — an open problem). The void classifier is data-driven (a
+  recipe that consumes only the good and returns at most a fraction of it), so
+  it matches Py's `*-pyvoid*` venting/sinkhole/incineration families without
+  name-matching. `byproductSinks` uses the same classifier to list
+  `voidOptions` separately from real consumers.
 - **Additive/commodity classifier** (`app/src/server/additives.ts`) — decides
   whether an input should be _imported_ (a cross-cutting commodity like an acid,
   gas, or solvent — stop recursing) or _built_ (part of the target's own lineage —

@@ -15,6 +15,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { classifyAdditive } from "./additives.ts";
+import { coherenceAudit as runCoherenceAudit, isVoidRecipeFor } from "./coherence-audit.server.ts";
 import { normalizeBlockData, primaryGoal, primaryRate } from "../lib/goals.ts";
 
 import * as q from "../db/queries.server.ts";
@@ -408,13 +409,15 @@ export const goodInfo = tool({
 
 export const byproductSinks = tool({
   description:
-    "Where a byproduct can GO — for routing the outputs a block produces but doesn't consume (tailings, ash, sludge, off-gases). Returns recipes that CONSUME the good (with what they make + availability) and existing blocks that already IMPORT it (route the byproduct there). If nothing consumes it, it must be voided/flushed. Use this on each byproduct from chainStatus so the block's waste has a home.",
+    "Where a byproduct can GO — for routing the outputs a block produces but doesn't consume (tailings, ash, sludge, off-gases). Returns recipes that PRODUCTIVELY consume the good (with what they make + availability), existing blocks that already IMPORT it (route the byproduct there), and — separately — voidOptions: the vent/void/incinerate disposal recipes that just destroy it. Prefer routing to a real consumer; voiding is the fallback when nothing useful consumes it. Only when there's no consumer AND no void does it need storage/buffering. Use this on each byproduct from chainStatus so the block's waste has a home.",
   inputSchema: z.object({
     good: z.string().describe("Internal good name of the byproduct, e.g. 'tailings'"),
     limit: z.number().int().min(1).max(20).default(10),
   }),
   execute: async ({ good, limit }) => {
-    const consumers = q.recipeCandidates(good, "consume").slice(0, limit);
+    const candidates = q.recipeCandidates(good, "consume");
+    const voids = candidates.filter((r) => isVoidRecipeFor(r.name, good));
+    const consumers = candidates.filter((r) => !voids.includes(r)).slice(0, limit);
     return {
       good,
       spoils: q.goodSpoilage(good),
@@ -426,12 +429,28 @@ export const byproductSinks = tool({
         in: io(r.ingredients),
         out: io(r.products),
       })),
+      // Vent/void/incinerate recipes — disposal, not production. Kept apart so
+      // real routing options stand out.
+      voidOptions: voids.slice(0, 3).map((r) => ({
+        recipe: r.name,
+        available: r.available,
+        in: io(r.ingredients),
+      })),
       note:
-        consumers.length === 0
-          ? "nothing consumes this — needs a void/flush sink"
-          : `${consumers.length} consuming recipe(s); pick one or route to an importing block`,
+        consumers.length > 0
+          ? `${consumers.length} consuming recipe(s); route to one (or an importing block) before falling back to a void`
+          : voids.length > 0
+            ? "no productive consumer — vent/void it with a voidOptions recipe"
+            : "nothing consumes this and no vent/void exists — it must be stored/buffered (open problem)",
     };
   },
+});
+
+export const coherenceAudit = tool({
+  description:
+    "Factory-WIDE coherence audit — the cross-block balance in ONE call, so you can audit the whole factory instead of reasoning block by block. Call it with {} (no arguments), at most once per audit. Returns: underSupplied (a good's producer blocks make less than its consumer blocks demand — for each, propose resizing the producer with reviseBlock, or a submitPlan `updates` entry, to the consumed rate), overProduced (surplus on a link), unsourcedImports (consumed but NO block produces it — craftable=true means a block could be drafted for it, else it's a raw to supply), danglingByproducts (produced but nothing consumes it, each with a disposal verdict: 'route' = productive consuming recipes exist [topConsumers], 'void' = only a vent/void disposal recipe [voidRecipes], 'nowhere' = must be stored/buffered — an open problem), and finalProducts (declared outputs nothing consumes — intentional, not waste). Electricity/heat are excluded (grid/local); fluid-fuel MJ is audited like any good. Use byproductSinks for deeper routing detail on one good, and turdConsistency for the TURD side of a factory audit.",
+  inputSchema: z.object({}),
+  execute: async () => runCoherenceAudit(),
 });
 
 /** Resolve a recipe's io into {name, amount} pairs, averaging ranged outputs. */
@@ -1184,6 +1203,7 @@ export const agentTools = {
   calcRecipe,
   goodInfo,
   byproductSinks,
+  coherenceAudit,
   turdConsistency,
   availableTurds,
   turdChoices,

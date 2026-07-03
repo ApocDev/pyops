@@ -1343,7 +1343,7 @@ function DraftRows({ draft }: { draft: Draft }) {
         </>,
         draft.subBlocksNeeded,
       )}
-      {rateRow("byproducts (must be routed — hard mode can't void)", draft.byproducts)}
+      {rateRow("byproducts (route to a consumer, or void)", draft.byproducts)}
 
       {draft.turd?.conflicts && draft.turd.conflicts.length > 0 && (
         <div className="mt-2.5">
