@@ -1,0 +1,43 @@
+app/src/components/block/recipe-row.tsx
+  s_9be9645d11a3e7::t_2ee4bdbb2279fd 22,63,84-85,289-299,332-342
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_4e2098e542606e 724-732,735-749,753-754,757-763,765-766,768,770,806-808
+app/e2e/mut/temp-warnings.e2e.ts
+  s_4c0dcc604f7f04::t_33bc1d57c51125 1-59
+app/src/components/block/balance-card.tsx
+  s_4c0dcc604f7f04::t_04b1ce62059548 8,212,214,217-219
+app/src/components/block/recipe-grid.tsx
+  s_4c0dcc604f7f04::t_fc53309cd78b47 25,227
+app/src/components/block/temp-warnings.test.ts
+  s_4c0dcc604f7f04::t_f7d974b221991c 1-83
+app/src/components/block/temp-warnings.ts
+  s_4c0dcc604f7f04::t_cc00ad6b3e3ba8 1-55
+app/src/server/block-compute.test.ts
+  s_4c0dcc604f7f04::t_0426c283da8615 18-26,210-360
+docs/roadmap.md
+  s_4c0dcc604f7f04::t_0592a7a389f231 53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "130a32883b5592d0f8626401cbc42da14b7f66a0",
+  "prompts": {},
+  "sessions": {
+    "s_4c0dcc604f7f04": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a02c8cdce2ad89a76",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
