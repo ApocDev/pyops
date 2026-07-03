@@ -1,0 +1,47 @@
+app/src/components/assistant/game-eval-card.test.tsx
+  s_9be9645d11a3e7::t_b830031f517cac 1-64
+app/src/components/assistant/game-eval-card.tsx
+  s_9be9645d11a3e7::t_2a54af223c86cd 1-138
+app/src/routes/assistant.tsx
+  s_9be9645d11a3e7::t_90378642ea03a7 35,378-381,1066-1072,1080-1081,1141-1149
+app/src/server/agent-tools-eval.test.ts
+  s_9be9645d11a3e7::t_121103d73f86f3 1-51
+app/src/server/bridge/fns.ts
+  s_9be9645d11a3e7::t_becdeb3f9a9108 9,38-52
+mod/control.lua
+  s_9be9645d11a3e7::t_b411222e70af20 572-579
+mod/locale/en/pyops.cfg
+  s_9be9645d11a3e7::t_2b9c4ca2d428e8 9,13
+mod/settings.lua
+  s_9be9645d11a3e7::t_98bb293327e174 10-19
+app/src/routes/mcp.ts
+  s_c7842965976508::t_f21dbd3dbc7d2b 4-6,16,31-33
+app/src/server/agent-tools.server.ts
+  s_c7842965976508::t_744159097c7737 1039-1043,1046-1071,1297-1299,1309-1316
+docs/ai-assistant.md
+  s_c7842965976508::t_0e92b6b6f4be19 168-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3d829352afeb74c395db2f33645a03984dde3db7",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_c7842965976508": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a1d179e529c21c33a",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
