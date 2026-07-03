@@ -78,6 +78,13 @@
       "when": 1783098495410,
       "tag": "0010_module-preset-icon-default",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1783117002168,
+      "tag": "0011_solve-diagnosis-cache",
+      "breakpoints": true
     }
   ]
 }

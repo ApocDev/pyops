@@ -38,6 +38,7 @@ import { FuelPickerDialog } from "../components/block/fuel-picker-dialog.tsx";
 import { SpoilRateDialog } from "../components/block/spoil-rate-dialog.tsx";
 import { GoalMenu } from "../components/block/goal-menu.tsx";
 import { RowMenu } from "../components/block/row-menu.tsx";
+import { PinDialog } from "../components/block/pin-dialog.tsx";
 import { GoodMenu } from "../components/block/good-menu.tsx";
 import { BlockToolbar } from "../components/block/block-toolbar.tsx";
 import { SnapshotSheet } from "../components/block/snapshot-sheet.tsx";
@@ -76,6 +77,7 @@ function Block({ blockId }: { blockId: number }) {
     recipes,
     made,
     pins,
+    wholeMachines,
     spoilRates,
     rowGroups,
     recipeGroups,
@@ -113,6 +115,8 @@ function Block({ blockId }: { blockId: number }) {
   const [renamingGroup, setRenamingGroup] = useState<number | null>(null);
   // right-click menu on a recipe row (sub-block actions)
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; name: string } | null>(null);
+  // pin editor (#91/#98): the recipe whose pins are being edited
+  const [pinFor, setPinFor] = useState<string | null>(null);
   // snapshot-history drawer (#85)
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -308,6 +312,7 @@ function Block({ blockId }: { blockId: number }) {
       spoilRates,
       made,
       pins,
+      wholeMachines,
       machineSel,
       fuelSel,
       moduleSel,
@@ -742,11 +747,13 @@ function Block({ blockId }: { blockId: number }) {
       )}
 
       {/* Recipe-row context menu — sub-block (#7) actions */}
+      {pinFor && <PinDialog doc={doc} recipe={pinFor} res={res} onClose={() => setPinFor(null)} />}
       {rowMenu && (
         <RowMenu
           x={rowMenu.x}
           y={rowMenu.y}
           recipe={rowMenu.name}
+          onOpenPins={() => setPinFor(rowMenu.name)}
           display={res?.recipeDisplay?.[rowMenu.name] ?? rowMenu.name}
           groups={rowGroups}
           currentGroup={rowGroups.find((g) => g.id === recipeGroups[rowMenu.name]) ?? null}

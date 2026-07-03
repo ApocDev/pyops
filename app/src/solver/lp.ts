@@ -54,6 +54,12 @@ export type LpBlockInput = {
    * implicitly made; listing them again is harmless. */
   made?: string[];
   pins?: Pin[];
+  /** whole-machine mode (#98): per-recipe executions/sec of ONE building (the
+   * caller's real per-building craft rate). When present, each listed recipe
+   * gets an integer building count n with rate ≤ n × perBuilding, a small
+   * objective weight lands n on the ceiling, and the result reports it in
+   * `wholeMachines` — machines may idle; the rates stay exact. */
+  machineRates?: Record<string, number>;
 };
 
 /** The user gesture a constraint came from — the unit of diagnosis. */
@@ -77,6 +83,9 @@ export type LpBlockResult = {
    * Their constraints are dropped (reported, not enforced) so the rest of the
    * block still solves — the UI flags exactly these with "add a producer". */
   unmade?: string[];
+  /** whole-machine mode (#98): recipe → integer building count (the ceiling
+   * the solve committed to; the recipe's rate may leave it partly idle) */
+  wholeMachines?: Record<string, number>;
 };
 
 /** Tiny per-recipe objective cost so zero-time recipes still cost something —
@@ -250,7 +259,7 @@ export function buildModel(input: LpBlockInput): BlockModel {
 export async function runLp(
   recipes: RecipeDef[],
   rows: { id: string; parts: string[]; op: string; rhs: number }[],
-  opts: { objective?: string; extraBounds?: string[] } = {},
+  opts: { objective?: string; extraBounds?: string[]; integers?: string[] } = {},
 ): Promise<{ status: string; primal: (v: string) => number }> {
   const varOf = (i: number) => `x${i}`;
   const obj =
@@ -261,7 +270,7 @@ export async function runLp(
     : `free: ${term(1, varOf(0))} >= 0`;
   const lp = `Minimize\n obj: ${obj}\nSubject To\n ${body}\nBounds\n ${(
     opts.extraBounds ?? []
-  ).join("\n ")}\nEnd`;
+  ).join("\n ")}\n${opts.integers?.length ? `General\n ${opts.integers.join(" ")}\n` : ""}End`;
   const highs = await getHighs();
   const sol = highs.solve(lp);
   return {
@@ -283,9 +292,40 @@ export async function solveBlockLp(input: LpBlockInput): Promise<LpBlockResult> 
 
   if (n === 0) return { status: "solved", ...empty, ...unmadeOut };
 
+  // Whole-machine mode (#98): an integer n_i per recipe with a known
+  // per-building rate; x_i ≤ n_i·perBuilding plus a small n cost lands n_i on
+  // ceil(x_i/perBuilding). Rates stay exact; the integers are the commitment.
+  const mr = input.machineRates ?? {};
+  const rows = [...constraints];
+  const integers: string[] = [];
+  const nOf = new Map<number, string>();
+  recipes.forEach((r, i) => {
+    const per = mr[r.name];
+    if (per == null || !(per > 0)) return;
+    const nv = `n${i}`;
+    integers.push(nv);
+    nOf.set(i, nv);
+    rows.push({
+      id: `whole_${i}`,
+      parts: [term(1, `x${i}`), term(-per, nv)],
+      op: "<=",
+      rhs: 0,
+      // provenance is unused here — whole_ rows never reach diagnosis (the
+      // diagnose pass builds its own model without machineRates)
+      prov: { type: "pin-cap", recipe: r.name, rate: 0 },
+    });
+  });
+  const wholeObj = integers.length
+    ? [
+        ...recipes.map((r, i) => term(Math.max(0, r.energyRequired) + EPSILON_COST, `x${i}`)),
+        // any positive weight makes each n minimal given x
+        ...integers.map((v) => term(EPSILON_COST, v)),
+      ].join(" ")
+    : undefined;
+
   let sol: Awaited<ReturnType<typeof runLp>>;
   try {
-    sol = await runLp(recipes, constraints);
+    sol = await runLp(recipes, rows, { integers, objective: wholeObj });
   } catch (e) {
     return {
       status: "error",
@@ -328,6 +368,9 @@ export async function solveBlockLp(input: LpBlockInput): Promise<LpBlockResult> 
   imports.sort((a, b) => (a.name < b.name ? -1 : 1));
   exports.sort((a, b) => (a.name < b.name ? -1 : 1));
 
+  const wholeMachines: Record<string, number> = {};
+  for (const [i, nv] of nOf) wholeMachines[recipes[i].name] = Math.round(sol.primal(nv));
+
   return {
     status: "solved",
     recipes: recipes.map((r, i) => ({
@@ -338,5 +381,6 @@ export async function solveBlockLp(input: LpBlockInput): Promise<LpBlockResult> 
     imports,
     exports,
     ...unmadeOut,
+    ...(nOf.size ? { wholeMachines } : {}),
   };
 }

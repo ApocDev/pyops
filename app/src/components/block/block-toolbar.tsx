@@ -69,6 +69,7 @@ export function BlockToolbar({
   onOpenIconPicker: () => void;
 }) {
   const blockName = useStore(doc.store, (s) => s.blockName);
+  const wholeMachines = useStore(doc.store, (s) => s.wholeMachines);
   const customIcon = useStore(doc.store, (s) => s.customIcon);
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -117,6 +118,18 @@ export function BlockToolbar({
           ""
         )}
       </span>
+      <Button
+        variant={wholeMachines ? "default" : "outline"}
+        size="sm"
+        onClick={() => {
+          doc.setWholeMachines(!wholeMachines);
+          doc.note(wholeMachines ? "Fractional machine counts" : "Whole-machine counts");
+        }}
+        title="Whole machines (#98): every row's building count becomes an integer the solve commits to — machines may idle, rates stay exact. Off = exact fractional counts."
+        className={wholeMachines ? "" : "text-muted-foreground"}
+      >
+        1×
+      </Button>
       <Button
         variant="outline"
         size="icon-sm"

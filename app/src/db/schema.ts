@@ -428,6 +428,9 @@ export type BlockData = {
     | { kind: "count" | "cap"; recipe: string; count: number }
     | { kind: "share"; recipe: string; item: string; share: number; base?: "total" | "remaining" }
   )[];
+  // Whole-machine mode (#98): building counts are integers the solve commits
+  // to (rows may idle; rates stay exact). Off = exact fractional counts.
+  wholeMachines?: boolean;
   machines?: Record<string, string>; // recipe → chosen machine
   fuels?: Record<string, string>; // recipe → chosen fuel
   // Reactor farm layout per reactor recipe row (#94): the assumed x×y grid whose
@@ -443,6 +446,18 @@ export const blocks = sqliteTable("blocks", {
   iconKind: text("icon_kind"), // item | fluid | recipe — defaults to first product
   iconName: text("icon_name"),
   data: text({ mode: "json" }).$type<BlockData>().notNull(),
+  // cached IIS diagnosis cards from the last infeasible solve (#91) — the
+  // sidebar and agent tools can say WHY without re-solving; null when solved.
+  // Written only by the solve path (persistBlock), like every cache column.
+  solveDiagnosis: text("solve_diagnosis", { mode: "json" }).$type<
+    | {
+        members: {
+          prov: { type: string; item?: string; recipe?: string; rate?: number; share?: number };
+          shortBy: number;
+        }[];
+      }[]
+    | null
+  >(),
   // Whole-block on/off (#73): a disabled block still opens and solves for editing,
   // but is excluded from every factory-wide rollup (totals, coherence, suppliers)
   // and dimmed in the sidebar. Used to stage future blocks or park alternatives.

@@ -341,3 +341,35 @@ test("mass conservation: every item's flows balance on a cyclic Py-style chain",
   expect(netHeavy).toBeGreaterThanOrEqual(-1e-9); // made: net ≥ 0
   expect(netLight).toBeCloseTo(25, 9); // goal binds exactly (ε-cost pushes down)
 });
+
+test("whole-machine mode (#98): integer counts land on the ceiling, rates stay exact", async () => {
+  // goal needs 1 exec/s; one building does 0.3 exec/s → 4 buildings (ceil 3.33)
+  const res = await solveBlockLp({
+    goals: [{ name: "plate", rate: 1 }],
+    recipes: [plate],
+    machineRates: { plate: 0.3 },
+  });
+  expect(res.status).toBe("solved");
+  expect(res.recipes[0].rate).toBeCloseTo(1); // demand exact — machines idle a bit
+  expect(res.wholeMachines).toEqual({ plate: 4 });
+});
+
+test("whole-machine mode composes with a built cap: infeasible when the ceiling can't fit", async () => {
+  const res = await solveBlockLp({
+    goals: [{ name: "plate", rate: 1 }],
+    recipes: [plate],
+    machineRates: { plate: 0.3 },
+    pins: [{ kind: "cap", recipe: "plate", rate: 0.9 }], // 3 buildings' worth
+  });
+  expect(res.status).toBe("infeasible");
+});
+
+test("whole-machine mode: an exact fit needs no extra building", async () => {
+  const res = await solveBlockLp({
+    goals: [{ name: "plate", rate: 1 }],
+    recipes: [plate],
+    machineRates: { plate: 0.25 },
+  });
+  expect(res.status).toBe("solved");
+  expect(res.wholeMachines).toEqual({ plate: 4 }); // 1 / 0.25 exactly
+});

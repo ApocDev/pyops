@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useStore } from "@tanstack/react-store";
 import {
   AlertTriangle,
   FlaskConical,
@@ -81,6 +82,13 @@ export function RecipeRow({
   /** per-chip fluid-temperature mismatches touching this row (#110 interim) */
   tempWarnings: { ingredient: Map<string, ChipTempWarning>; product: Map<string, ChipTempWarning> };
 }) {
+  const rowPin = useStore(doc.store, (s) =>
+    s.pins.find((p) => p.kind !== "share" && p.recipe === name),
+  ) as { kind: "count" | "cap"; count: number } | undefined;
+  const shareCount = useStore(
+    doc.store,
+    (s) => s.pins.filter((p) => p.kind === "share" && p.recipe === name).length,
+  );
   // v2 solver (#91): rates are ≥ 0 by construction. A row at exactly 0 is
   // idle — nothing in the block pulls it (not an error; often a parked option).
   const idle = !off && row != null && Math.abs(row.rate) < 1e-9;
@@ -164,6 +172,27 @@ export function RecipeRow({
                 >
                   <Icon kind="entity" name={row.machine.name} size="md" />
                   <span className="font-semibold text-foreground">{num(row.machine.count)}</span>
+                  {rowPin && (
+                    <span
+                      className="bg-info/20 px-1 text-sm text-info ring-1 ring-info/40"
+                      title={
+                        rowPin.kind === "count"
+                          ? `pinned: always run exactly ${rowPin.count} buildings (right-click the row → Pins to change)`
+                          : `capped: at most ${rowPin.count} buildings built (right-click the row → Pins to change)`
+                      }
+                    >
+                      {rowPin.kind === "count" ? "=" : "≤"}
+                      {rowPin.count}
+                    </span>
+                  )}
+                  {shareCount > 0 && (
+                    <span
+                      className="bg-info/20 px-1 text-sm text-info ring-1 ring-info/40"
+                      title={`${shareCount} routed input share${shareCount > 1 ? "s" : ""} (right-click the row → Pins to change)`}
+                    >
+                      %
+                    </span>
+                  )}
                 </button>
                 {/* electricity, when the machine draws power */}
                 {row.machine.energySource === "electric" && (

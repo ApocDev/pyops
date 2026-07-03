@@ -15,6 +15,7 @@ export function RowMenu({
   onNewGroup,
   onJoinGroup,
   onLeaveGroup,
+  onOpenPins,
   onClose,
 }: {
   x: number;
@@ -27,6 +28,8 @@ export function RowMenu({
   onNewGroup: () => void;
   onJoinGroup: (groupId: number) => void;
   onLeaveGroup: () => void;
+  /** open the pin editor (#91/#98): fixed/cap counts, input shares */
+  onOpenPins: () => void;
   onClose: () => void;
 }) {
   const act = (fn: () => void) => () => {
@@ -39,6 +42,8 @@ export function RowMenu({
         <Icon kind="recipe" name={recipe} size="sm" noTitle noHover />
         <span className="truncate">{display}</span>
       </div>
+      <ContextMenuItem onClick={act(onOpenPins)}>Pins — count / cap / route…</ContextMenuItem>
+      <div className="my-1 border-t border-border" />
       {currentGroup == null ? (
         <>
           <ContextMenuItem onClick={act(onNewGroup)}>

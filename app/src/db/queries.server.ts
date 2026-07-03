@@ -1383,8 +1383,12 @@ function recipeSignature(name: string): string {
  * an in-place mod update or a vanished recipe registers as staleness for exactly
  * the blocks that touch it, instead of being invisible. Stored on the block at
  * save time; a mismatch on a later check means the block's own inputs changed. */
+/** Bumped when solver semantics change — folded into the reference fingerprint
+ * so every cache from an older solver reads stale and re-solves on first touch. */
+const SOLVER_VERSION = "sv2";
+
 export function blockReferenceFingerprint(data: BlockData): string {
-  const parts: string[] = [];
+  const parts: string[] = [`S ${SOLVER_VERSION}`];
   for (const name of [...new Set(data.recipes ?? [])].sort())
     parts.push(`R ${name} ${recipeSignature(name)}`);
   for (const g of goalNames(normalizeBlockData(data)).sort())
@@ -1418,6 +1422,8 @@ export function saveBlockRow(
     pollutionPerMin?: number | null;
     dataFingerprint: string | null;
     solveStatus?: string | null;
+    /** IIS cards from an infeasible solve; null clears (solved); undefined keeps */
+    solveDiagnosis?: unknown[] | null;
   },
   flows: BlockFlow[] | null,
   machines: BlockMachine[] | null = [],
@@ -1434,6 +1440,9 @@ export function saveBlockRow(
       ...(input.pollutionPerMin != null ? { pollutionPerMin: input.pollutionPerMin } : {}),
       // undefined = leave the stored status untouched (broken block); null clears it
       ...(input.solveStatus !== undefined ? { solveStatus: input.solveStatus } : {}),
+      ...(input.solveDiagnosis !== undefined
+        ? { solveDiagnosis: input.solveDiagnosis as never }
+        : {}),
       dataFingerprint: input.dataFingerprint,
     };
     if (id != null) {

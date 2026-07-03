@@ -182,6 +182,9 @@ export type SolveInput = {
    * count = always run exactly N buildings; cap = at most N buildings (built
    * ceiling); share = this consumer takes a % of the item's production. */
   pins?: DocPin[];
+  /** whole-machine mode (#98): every row's building count is an integer the
+   * solve commits to (machines may idle); rates stay exact. */
+  wholeMachines?: boolean;
   machines?: Record<string, string>; // recipe → chosen machine (else fastest)
   fuels?: Record<string, string>; // recipe → chosen fuel (else cheapest available)
   // Reactor farm layout per reactor recipe row (#94): the assumed x×y grid whose
@@ -561,7 +564,23 @@ export async function computeBlock(rawData: SolveInput) {
       rate: p.count * perBuilding,
     });
   }
-  const lpInput: LpBlockInput = { goals, recipes: defs, made, pins };
+  // whole-machine mode (#98): hand the LP each row's real per-building rate so
+  // it can commit to integer counts
+  const machineRates = data.wholeMachines
+    ? Object.fromEntries(
+        defs.flatMap((d) => {
+          const per = craftRate(d.name);
+          return per != null && per > 0 ? [[d.name, per]] : [];
+        }),
+      )
+    : undefined;
+  const lpInput: LpBlockInput = {
+    goals,
+    recipes: defs,
+    made,
+    pins,
+    ...(machineRates ? { machineRates } : {}),
+  };
   const result = await solveBlockLp(lpInput);
   // root-cause cards for the balance card — every member is a clickable gesture
   const diagnosis: DiagnosisCard[] =
@@ -595,7 +614,9 @@ export async function computeBlock(rawData: SolveInput) {
       autoModules,
     } = setup.get(rr.recipe)!;
     const speed = (chosen?.craftingSpeed ?? 1) * fx.speedMult;
-    const count = rr.machines1x / speed;
+    // whole-machine mode (#98): the LP committed to an integer count (the row
+    // may idle); otherwise the exact fractional requirement
+    const count = result.wholeMachines?.[rr.recipe] ?? rr.machines1x / speed;
     const powerW = (chosen?.energyUsageW ?? 0) * count * fx.consMult;
     const pollutionPerMin =
       (chosen?.pollutionPerMin ?? 0) * Math.max(0, count) * fx.consMult * fx.pollutionMult;
@@ -991,6 +1012,8 @@ export async function persistBlock(
       pollutionPerMin: r.broken ? null : r.power.pollutionPerMin,
       // leave the stored status untouched on a broken solve (cache preserved)
       solveStatus: r.broken ? undefined : r.status,
+      // cache the WHY alongside an infeasible status (#91); solved clears it
+      solveDiagnosis: r.broken ? undefined : r.status === "infeasible" ? (r.diagnosis ?? []) : null,
       dataFingerprint: q.blockReferenceFingerprint(data),
     },
     r.broken ? null : [...boundaryFlows(goalFlows(data), r)],
