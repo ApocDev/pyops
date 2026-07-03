@@ -160,7 +160,7 @@ intermediates cancelled), machines and power. Purely visual — the solve is unc
 Deliberate-spoilage steps (the uranium chain's decay, nagesium and friends) show their
 **storage buffer** right on the row: how many items sit mid-spoil at the solved
 throughput (`rate × spoil time`) and roughly how many stacks that is — the "how many
-chests do I need while it decays" figure. For *incidental* spoilage — stuff rotting
+chests do I need while it decays" figure. For _incidental_ spoilage — stuff rotting
 because it isn't consumed fast enough — a spoilable **surplus** gets a "rots in X"
 flag, and any spoilable can carry a **planned spoil loss** (right-click → Plan spoil
 loss): an expected rot rate the solver covers with extra production, shown in an
@@ -169,8 +169,6 @@ amber strip on the block balance.
 Each block also reports its **power and pollution budget** — electric draw and
 pollution/min (machine base emissions × energy-consumption × pollution-module
 effects) — with factory-wide totals in the Factory header.
-
-
 
 Numbers everywhere scale their precision to the value: a `0.001/s` trickle block shows
 its real rates instead of a wall of rounded-down `0.00`, and only a true zero reads as
@@ -317,14 +315,14 @@ live sync of your research, TURD picks, and placed machines back into the planne
 
 Set these in `app/.env.local` (or the environment). All are optional.
 
-| Setting              | Default                                            | Purpose                                                                                               |
-| -------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `FACTORIO_BIN`       | `~/.local/share/Steam/.../bin/x64/factorio`        | Path to the Factorio executable used for data syncs.                                                  |
-| `FACTORIO_DATA_DIR`  | `~/.factorio`                                      | Factorio user data (mods, `script-output`).                                                           |
-| `OPENROUTER_API_KEY` | —                                                  | AI **Assistant** key. Optional — set it here _or_ in **Settings → Assistant** (env wins).             |
-| `PYOPS_AGENT_MODEL`  | `~anthropic/claude-sonnet-latest`                  | Any OpenRouter model id. Optional — set it here, per chat, or in **Settings → Assistant** (env wins). |
+| Setting              | Default                                            | Purpose                                                                                                  |
+| -------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `FACTORIO_BIN`       | `~/.local/share/Steam/.../bin/x64/factorio`        | Path to the Factorio executable used for data syncs.                                                     |
+| `FACTORIO_DATA_DIR`  | `~/.factorio`                                      | Factorio user data (mods, `script-output`).                                                              |
+| `OPENROUTER_API_KEY` | —                                                  | AI **Assistant** key. Optional — set it here _or_ in **Settings → Assistant** (env wins).                |
+| `PYOPS_AGENT_MODEL`  | `~anthropic/claude-sonnet-latest`                  | Any OpenRouter model id. Optional — set it here, per chat, or in **Settings → Assistant** (env wins).    |
 | `PYOPS_BRIDGE_PORT`  | `37657`                                            | UDP port the app's bridge listens on (mod's send target). Use a _different_ port for `--enable-lua-udp`. |
-| `DATABASE_URL`       | active project's file (else `projects/default.db`) | Override the local SQLite file.                                                                       |
+| `DATABASE_URL`       | active project's file (else `projects/default.db`) | Override the local SQLite file.                                                                          |
 
 ---
 

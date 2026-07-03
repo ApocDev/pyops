@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing release tag to build + attach assets to (e.g. v0.2.0). Empty = build-only smoke test.'
+        description: "Existing release tag to build + attach assets to (e.g. v0.2.0). Empty = build-only smoke test."
         required: false
 
 permissions:
@@ -106,23 +106,23 @@ jobs:
           # `updater` is the glob for this platform's updater artifact — the one that
           # goes in latest.json (deb/dmg are install-only and also produce .sig files,
           # so pick explicitly rather than grab the first .sig).
-          - platform: ubuntu-22.04    # Linux x64 (deb + AppImage)
-            bundles: 'deb,appimage'
+          - platform: ubuntu-22.04 # Linux x64 (deb + AppImage)
+            bundles: "deb,appimage"
             target: linux-x86_64
-            updater: '*.AppImage'
-          - platform: macos-14        # macOS Apple Silicon (app.tar.gz = updater artifact)
-            bundles: 'app,dmg'
+            updater: "*.AppImage"
+          - platform: macos-14 # macOS Apple Silicon (app.tar.gz = updater artifact)
+            bundles: "app,dmg"
             target: darwin-aarch64
-            updater: '*.app.tar.gz'
-          - platform: macos-14        # macOS Intel — cross-compiled on arm64, since the
-            bundles: 'app,dmg'        # macos-13 (Intel) runners are deprecated and badly
-            target: darwin-x86_64     # queue-starved. arm64 runners are plentiful.
-            updater: '*.app.tar.gz'
+            updater: "*.app.tar.gz"
+          - platform: macos-14 # macOS Intel — cross-compiled on arm64, since the
+            bundles: "app,dmg" # macos-13 (Intel) runners are deprecated and badly
+            target: darwin-x86_64 # queue-starved. arm64 runners are plentiful.
+            updater: "*.app.tar.gz"
             rust_target: x86_64-apple-darwin
-          - platform: windows-latest  # Windows x64
-            bundles: 'nsis'
+          - platform: windows-latest # Windows x64
+            bundles: "nsis"
             target: windows-x86_64
-            updater: '*-setup.exe'
+            updater: "*-setup.exe"
     runs-on: ${{ matrix.platform }}
     steps:
       # Always build the workflow's own ref (the release commit on push, main on a
@@ -154,7 +154,7 @@ jobs:
       # vite-plus toolchain + app deps (same as ci.yml).
       - uses: voidzero-dev/setup-vp@v1
         with:
-          node-version: '24'
+          node-version: "24"
           cache: true
       - name: Install app dependencies
         working-directory: app

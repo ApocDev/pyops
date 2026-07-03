@@ -86,7 +86,7 @@ from inside `app/`:
   each project db. `db:studio` opens the drizzle DB browser. A Factorio dump loads
   through the in-app data sync.
 - Desktop shell: `vp run tauri dev` runs the app in a native window; `vp run tauri
-  build` packages a bundle (run `src-tauri/vendor-node.sh` first). Releases are
+build` packages a bundle (run `src-tauri/vendor-node.sh` first). Releases are
   automated by **release-please** (one product version) — **don't hand-edit the
   version** in `version.txt` / `app/package.json` / `Cargo.toml` / `tauri.conf.json` /
   `mod/info.json`; it bumps them all in lockstep from conventional commits. See

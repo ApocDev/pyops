@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
       - run: npm install -g factorio-test-cli
       # Provide a Factorio binary + data dir (headless download, or a self-hosted
       # install). The CLI launches it, loads pyops + factorio-test, runs the suite,

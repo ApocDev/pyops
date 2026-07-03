@@ -21,7 +21,6 @@ These drive the wave order; violating them creates rework:
 - **#82 before #85** — snapshots build on the export/serialization format.
 - **#90 before #83** — destructive-action consistency consumes undo (its
   soft-delete toast is explicitly superseded by real undo).
-- **#91 before #98** — whole-machine MIP counts need the LP solve.
 - **#25 closes epic #31** — it's the last open child of the planning-model epic.
 - **#24 assumes #68's direction** — data-gated (not mod-detected) UI; #68 is
   closed with the nav gating shipped, but #24 inherits its philosophy.
