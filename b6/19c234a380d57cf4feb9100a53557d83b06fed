@@ -1,7 +1,35 @@
+app/src/db/synthesize.test.ts
+  s_9be9645d11a3e7::t_d4e0f584c8ae67 105
 ---
 {
   "schema_version": "authorship/3.0.0",
-  "git_ai_version": "1.6.5",
+  "git_ai_version": "1.6.10",
   "base_commit_sha": "b619c234a380d57cf4feb9100a53557d83b06fed",
-  "prompts": {}
+  "prompts": {},
+  "sessions": {
+    "s_60dddf0a5809f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a123a54927f02fdd5",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_8f2891f68edaae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a4565eaa97df3b294",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
 }
