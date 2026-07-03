@@ -62,6 +62,98 @@ describe("factoryWhatIf", () => {
     expect(byId(r.blocks, 1).scale).toBeCloseTo(0.5);
   });
 
+  // ── fluid-fuel matching (#115): pyops-fluid-fuel left FREE_GOODS — generic MJ
+  // imports now match designated MJ exports block-to-block like any other good.
+  describe("fluid-fuel matching (#115)", () => {
+    // an unfiltered fluid-burner block: generic MJ demand, no ceremony
+    const glassworks: BlockWithFlows = {
+      id: 4,
+      name: "glassworks",
+      rate: 20,
+      flows: [
+        { item: "molten-glass", kind: "fluid", role: "primary", rate: 20 },
+        { item: "sand", kind: "item", role: "import", rate: 20 },
+        { item: "pyops-fluid-fuel", kind: "fluid", role: "import", rate: 40 },
+      ],
+    };
+    // a DESIGNATED supplier: pyops-fluid-fuel pinned as its goal (role primary)
+    const fuelFarm: BlockWithFlows = {
+      id: 5,
+      name: "fuel farm",
+      rate: 40,
+      flows: [
+        { item: "pyops-fluid-fuel", kind: "fluid", role: "primary", rate: 40 },
+        { item: "crude", kind: "fluid", role: "import", rate: 53.3 },
+      ],
+    };
+    // kerosene sold as chemical FEEDSTOCK — fuel-valued, but it exports the
+    // fluid itself, not MJ; it must never be conscripted as fuel supply
+    const keroseneFeedstock: BlockWithFlows = {
+      id: 6,
+      name: "kerosene feedstock",
+      rate: 10,
+      flows: [
+        { item: "kerosene", kind: "fluid", role: "primary", rate: 10 },
+        { item: "crude", kind: "fluid", role: "import", rate: 20 },
+      ],
+    };
+
+    it("a designated MJ supplier balances a generic-importing block", async () => {
+      const r = await factoryWhatIf([glassworks, fuelFarm]);
+      expect(r.status).toBe("Optimal");
+      // MJ is a matched intermediate now — neither a raw nor a pinned demand
+      expect(r.raws.map((g) => g.good)).not.toContain("pyops-fluid-fuel");
+      expect(r.demands.map((g) => g.good)).toEqual(["molten-glass"]);
+      expect(byId(r.blocks, 4).scale).toBeCloseTo(1);
+      expect(byId(r.blocks, 5).scale).toBeCloseTo(1);
+    });
+
+    it("scales the supplier with the consumer's demand", async () => {
+      const r = await factoryWhatIf([glassworks, fuelFarm], { "molten-glass": 40 });
+      expect(r.status).toBe("Optimal");
+      expect(byId(r.blocks, 4).scale).toBeCloseTo(2); // glassworks doubles
+      expect(byId(r.blocks, 5).scale).toBeCloseTo(2); // fuel farm follows the 80 MJ/s draw
+      const crude = r.raws.find((g) => g.good === "crude")!;
+      expect(crude.projected).toBeCloseTo(106.6);
+    });
+
+    it("a kerosene-as-feedstock exporter does NOT count as fuel supply", async () => {
+      const r = await factoryWhatIf([glassworks, keroseneFeedstock], { "molten-glass": 40 });
+      expect(r.status).toBe("Optimal");
+      // nothing exports MJ → it classifies as an external input (the signal to
+      // designate a supplier), and the kerosene block is never scaled to feed it
+      const mj = r.raws.find((g) => g.good === "pyops-fluid-fuel")!;
+      expect(mj.projected).toBeCloseTo(80);
+      expect(byId(r.blocks, 6).scale).toBeCloseTo(1);
+    });
+
+    it("electricity (and heat) stay free — a grid producer is never matched", async () => {
+      const consumer: BlockWithFlows = {
+        id: 7,
+        name: "smelter",
+        rate: 1,
+        flows: [
+          { item: "plate", kind: "item", role: "primary", rate: 2 },
+          { item: "ore", kind: "item", role: "import", rate: 8 },
+          { item: "pyops-electricity", kind: "fluid", role: "import", rate: 50 },
+        ],
+      };
+      const powerPlant: BlockWithFlows = {
+        id: 8,
+        name: "power",
+        rate: 100,
+        flows: [{ item: "pyops-electricity", kind: "fluid", role: "primary", rate: 100 }],
+      };
+      const r = await factoryWhatIf([consumer, powerPlant], { plate: 4 });
+      expect(r.status).toBe("Optimal");
+      expect(byId(r.blocks, 7).scale).toBeCloseTo(2);
+      // grid utility: still a free boundary, so the power block is pinned at 1
+      // even though the electric draw doubled (pyops-heat shares the same set)
+      expect(byId(r.blocks, 8).scale).toBeCloseTo(1);
+      expect(r.raws.map((g) => g.good)).toContain("pyops-electricity");
+    });
+  });
+
   it("reports an overproduced byproduct as surplus to handle", async () => {
     // a smelting block emits 'slag' as a non-primary byproduct nobody consumes
     const smelter: BlockWithFlows = {

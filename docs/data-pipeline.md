@@ -105,10 +105,11 @@ deliberate choices:
 - **Fluid temperatures are** — ingredients carry a min/max range, products an exact
   temperature; the synthetic-recipe pass generates per-temperature variants.
 - **Energy is pseudo-fluids** — `pyops-electricity`, `pyops-heat`, and
-  `pyops-fluid-fuel` flow through the model as goods (1 unit = 1 MJ) so a reactor
-  recipe gets sized to a block's heat draw, but they're filtered out of normal
-  import/byproduct lists and surfaced separately as power/heat in watts. Reactors
-  also persist their prototype's `neighbour_bonus`
+  `pyops-fluid-fuel` flow through the model as goods (1 unit = 1 MJ). Electricity
+  and heat are filtered out of normal import/byproduct lists and surfaced
+  separately as power/heat in watts; fluid fuel is a real matched flow (#115) that
+  shows as an explicit "Fluid fuel (MJ)" import/export, rendered in power units.
+  Reactors also persist their prototype's `neighbour_bonus`
   (`crafting_machines.neighbour_bonus`, #94) so the solver can scale heat output
   for an assumed reactor-farm layout.
 - **Fluid fuel is fungible** (#25) — fluids carry no fuel category; an unfiltered

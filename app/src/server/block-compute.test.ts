@@ -34,12 +34,20 @@
  * (recipe `coal-gas` "Coal gas from coal" producing fluid `coal-gas` "Coal
  * gas") and checks that the shared internal name resolves to each namespace's
  * own display string instead of the last write winning.
+ *
+ * #115 — fluid-fuel supplier designation. A block becomes a factory-scale MJ
+ * supplier only through an explicit routing gesture: pin `pyops-fluid-fuel` as
+ * a goal (the burn-fluid-* conversion is sized to it and the MJ exports as a
+ * primary), or mark the feed fluid `balance` (surplus routes into the
+ * conversion and the MJ exports as a byproduct). With neither, the conversion
+ * is unreachable from the goals — pinned to 0 and flagged unused — so a
+ * fuel-valued export (kerosene as feedstock) is never conscripted as supply.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import { switchDatabase } from "../db/index.server.ts";
 import { computeRecipeScenario } from "../db/queries.server.ts";
 import { type TestDb, makeTestDb } from "../db/test-helpers.ts";
-import { computeBlock } from "./block-compute.server.ts";
+import { boundaryFlows, computeBlock, goalFlows } from "./block-compute.server.ts";
 
 describe("per-product ignored_by_productivity (#93)", () => {
   let fx: TestDb;
@@ -558,5 +566,107 @@ describe("recipe/good display-name namespaces (#113)", () => {
     });
     expect(res.recipeDisplay["coal-gas"]).toBe("Coal gas from coal");
     expect(res.display["coal-gas"]).toBe("Coal gas");
+  });
+});
+
+describe("fluid-fuel supplier designation (#115)", () => {
+  let fx: TestDb;
+
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    // A minimal fuel-farm chain:
+    //  - make-kerosene (category distillation, energy 2): 10 crude → 5 kerosene.
+    //  - refine (same category, energy 2): 10 crude → 5 diesel + 5 kerosene —
+    //    a co-product producer for the share-pin (balance) gesture.
+    //  - burn-fluid-kerosene as db/synthesize.ts builds it: 1 kerosene →
+    //    1.5 pyops-fluid-fuel MJ (kerosene fuel_value 1.5MJ in py.db).
+    //  - distillery: electric, speed 1, 1MW.
+    fx.db.exec(`
+      INSERT INTO fluids (name, display, fuel_value_j) VALUES
+        ('pyops-fluid-fuel','Fluid fuel (MJ)',NULL),
+        ('crude','Crude',NULL),
+        ('kerosene','Kerosene',1500000),
+        ('diesel','Diesel',1500000);
+
+      INSERT INTO recipes (name, kind, category, energy_required, enabled, hidden) VALUES
+        ('make-kerosene','real','distillation',2,1,0),
+        ('refine','real','distillation',2,1,0),
+        ('burn-fluid-kerosene','burning',NULL,1,1,0);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
+        ('make-kerosene',0,'fluid','crude',10),
+        ('refine',0,'fluid','crude',10),
+        ('burn-fluid-kerosene',0,'fluid','kerosene',1);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+        ('make-kerosene',0,'fluid','kerosene',5),
+        ('refine',0,'fluid','diesel',5),
+        ('refine',1,'fluid','kerosene',5),
+        ('burn-fluid-kerosene',0,'fluid','pyops-fluid-fuel',1.5);
+
+      INSERT INTO crafting_machines (name, display, kind, crafting_speed, module_slots, energy_usage_w, energy_source)
+        VALUES ('distillery','Distillery','assembling-machine',1,0,1000000,'electric');
+      INSERT INTO machine_categories (machine, category) VALUES ('distillery','distillation');
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+
+  afterEach(() => fx.cleanup());
+
+  it("a pinned Fluid fuel (MJ) goal sizes the conversion and exports MJ as a primary", async () => {
+    const input = {
+      goals: [{ name: "pyops-fluid-fuel", rate: 30 }],
+      recipes: ["make-kerosene", "burn-fluid-kerosene"],
+    };
+    const res = await computeBlock(input);
+    expect(res.status).toBe("solved");
+    // 30 MJ/s ÷ 1.5 MJ/kerosene = 20 kerosene/s burned, 4 make-kerosene execs/s
+    expect(res.rows.find((r) => r.recipe === "burn-fluid-kerosene")?.rate).toBeCloseTo(20);
+    expect(res.rows.find((r) => r.recipe === "make-kerosene")?.rate).toBeCloseTo(4);
+    expect(res.imports.find((f) => f.name === "crude")?.rate).toBeCloseTo(40);
+    // kerosene balances in-block; the MJ goal itself never double-counts as an export
+    expect(res.exports.map((f) => f.name)).not.toContain("kerosene");
+    expect(res.exports.map((f) => f.name)).not.toContain("pyops-fluid-fuel");
+    // the cached boundary flow is a PRIMARY — the factory-scale supplier designation
+    const flows = boundaryFlows(goalFlows(input), res);
+    expect(flows).toContainEqual({
+      item: "pyops-fluid-fuel",
+      kind: "fluid",
+      role: "primary",
+      rate: 30,
+    });
+  });
+
+  it("balancing the feed fluid routes surplus into the conversion — MJ exports as a byproduct", async () => {
+    const input = {
+      goals: [{ name: "diesel", rate: 5 }],
+      recipes: ["refine", "burn-fluid-kerosene"],
+      dispositions: { kerosene: "balance" as const },
+    };
+    const res = await computeBlock(input);
+    expect(res.status).toBe("solved");
+    // 1 refine exec/s makes 5 kerosene/s; balance pins it into the burn → 7.5 MJ/s
+    expect(res.rows.find((r) => r.recipe === "burn-fluid-kerosene")?.rate).toBeCloseTo(5);
+    expect(res.exports.find((f) => f.name === "pyops-fluid-fuel")?.rate).toBeCloseTo(7.5);
+    const flows = boundaryFlows(goalFlows(input), res);
+    expect(flows).toContainEqual({
+      item: "pyops-fluid-fuel",
+      kind: "fluid",
+      role: "byproduct",
+      rate: 7.5,
+    });
+  });
+
+  it("without a goal or balance pin the conversion is unused — feedstock exports stay feedstock", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "kerosene", rate: 5 }],
+      recipes: ["make-kerosene", "burn-fluid-kerosene"],
+    });
+    expect(res.status).toBe("solved");
+    // the conversion can't reach the kerosene goal → pinned to 0 and flagged
+    expect(res.unusedRecipes).toContain("burn-fluid-kerosene");
+    expect(res.rows.find((r) => r.recipe === "burn-fluid-kerosene")?.rate).toBeCloseTo(0);
+    // no MJ flow anywhere: the kerosene export is NOT conscripted as fuel supply
+    expect(res.exports.map((f) => f.name)).not.toContain("pyops-fluid-fuel");
+    expect(res.imports.map((f) => f.name)).not.toContain("pyops-fluid-fuel");
   });
 });

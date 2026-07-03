@@ -136,7 +136,11 @@ researched — existing blocks keep their picks. Machines that burn **fluid** fu
 demand a fungible "Fluid fuel" energy pool instead of a per-machine pick — add a
 "Burn <fluid>" recipe to the block to choose which fluid (including surplus
 byproducts) fills it; filtered machines like the oil/gas powerplants stay pinned
-to their one fluid. Save a row's module/beacon loadout as
+to their one fluid. The pool also flows **between blocks**: pin "Fluid fuel (MJ)"
+as a goal (fed by a Burn recipe) to make a block a designated fuel supplier, and
+its MJ export covers other blocks' generic fuel imports in the factory ledger and
+what-if — one fuel farm feeds many consumers, and switching the factory's fuel of
+choice touches one block. Save a row's module/beacon loadout as
 a **template** from the modules dialog — it applies in one click, but only where the
 target machine and recipe actually accept its modules (slots, allowed effects, module
 categories, productivity permission); incompatible templates show up disabled with the

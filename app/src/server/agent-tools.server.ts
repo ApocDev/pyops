@@ -24,11 +24,16 @@ import { computeBlock, showBlockInGame, hideBlockInGame } from "./block-compute.
 import { chooseModuleFill } from "./module-fill.server.ts";
 import { withUndoAction } from "./undo-action.server.ts";
 
-/** Electricity & heat are energy pseudo-fluids surfaced separately as powerW/heatW.
- * recipeIo (and thus the stoichiometric chainStatus) never lists them as recipe
- * ingredients, so they must be filtered from open-inputs/byproducts; in submitBlock
- * they're likewise dropped from the solver's import list (shown via powerW/heatW). */
+/** Energy pseudo-fluids. The stoichiometric chainStatus filters all three: recipes
+ * never list them as ingredients (machine draws are injected at solve time), so a
+ * burn-fluid-* conversion's MJ output would misread as an unconsumed byproduct. */
 const PSEUDO_GOODS = new Set(["pyops-electricity", "pyops-heat", "pyops-fluid-fuel"]);
+/** Electricity & heat are surfaced separately as powerW/heatW, so submitBlock drops
+ * them from the SOLVED import/export lists. pyops-fluid-fuel is not dropped (#115):
+ * at factory scale MJ is a matched block-to-block flow, so a generic fluid-fuel
+ * draw must surface as an explicit import (and a designated supplier's MJ output
+ * as an explicit export) in the draft. */
+const POWER_PSEUDO = new Set(["pyops-electricity", "pyops-heat"]);
 
 /** "100 molten-iron + 3 borax" — compact io for the model (internal names = stable handles). */
 function io(parts: { name: string; amount: number }[]): string {
@@ -613,10 +618,10 @@ async function buildBlockDraft({
     for (const f of solved.exports) rates.set(f.name, +f.rate.toFixed(3));
     powerW = solved.power?.totalW ?? null;
     heatW = solved.power?.heatW ?? null;
-    solvedImportNames = solved.imports.map((f) => f.name).filter((n) => !PSEUDO_GOODS.has(n));
+    solvedImportNames = solved.imports.map((f) => f.name).filter((n) => !POWER_PSEUDO.has(n));
     solvedByproductNames = solved.exports
       .map((f) => f.name)
-      .filter((n) => !PSEUDO_GOODS.has(n) && n !== target);
+      .filter((n) => !POWER_PSEUDO.has(n) && n !== target);
   } catch {
     /* keep going with stoichiometric fallback */
   }

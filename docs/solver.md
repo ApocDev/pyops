@@ -64,6 +64,16 @@ burner (Py oil/gas powerplants) is pinned to its filter fluid, and
 `burns_fluid: false` sources (uf6 reactors, compost plants, the solar tower) are
 temperature-fed — not fuel burners at all.
 
+A block can also be a **designated fuel supplier** (#115), exporting
+`pyops-fluid-fuel` MJ for other blocks' generic draws. The designation is an
+explicit routing gesture — a conversion recipe that reaches no goal is pinned to 0
+and flagged unused — so either **pin `pyops-fluid-fuel` as a goal** (the conversion
+is sized to the pinned MW and the MJ exports as a primary — a dedicated fuel farm)
+or **mark the feed fluid `balance`** (all surplus routes into the conversion and
+the MJ exports as a byproduct — burning off co-products). A block that merely
+exports a fuel-valued fluid without a conversion is never conscripted as fuel
+supply: kerosene sold as feedstock stays feedstock.
+
 Reactor rows honour the **neighbour bonus** (#94): each adjacent working reactor
 adds `neighbour_bonus` × base heat (Py's breeder reactor dumps `neighbour_bonus: 1`,
 +100% per neighbour). The block doc can carry an assumed x×y farm per reactor row
@@ -151,3 +161,11 @@ infeasible. The LP uses _production ≥ demand_ (surplus allowed) and minimizes 
 scaling, which is always feasible and matches "scale each block up/down to meet
 demand". It's report-only: it never writes; you adjust each block by hand (or
 ignore the suggestion).
+
+Two energy pseudo-goods stay **free boundaries** (never balanced across blocks):
+`pyops-electricity` (grid-distributed — matching it would create a power feedback
+loop) and `pyops-heat` (block-local by game rule). `pyops-fluid-fuel` is **not**
+free (#115): a designated supplier's MJ export matches generic MJ imports
+block-to-block like any other good — a primary MJ export classifies as an
+intermediate the LP scales with demand, and an MJ import with no supplier
+classifies as a raw, the signal to designate one.
