@@ -1,7 +1,7 @@
 /**
  * Pass-1 importer: parse Factorio's `data-raw-dump.json` (from `factorio --dump-data`)
  * into the SQLite db. REAL prototypes only — synthetic recipes (mining/boiling/burning/
- * spoiling) and fluid temperature variants come in pass 2.
+ * spoiling/planting/rocket-launch) and fluid temperature variants come in pass 2.
  *
  * `importFactorioDump({ dumpPath, dbUrl })` is called in-process by the server-side
  * data sync (src/server/dump.ts).
@@ -520,7 +520,7 @@ export function importFactorioDump(
 
   const t0 = Date.now();
   load();
-  // pass 2: synthetic recipes (mining/pumping/boiling/generating/spoiling + electricity)
+  // pass 2: synthetic recipes (mining/pumping/boiling/generating/spoiling/planting/launch + electricity)
   const synthetic = synthesizePass2(db, raw, {
     display: (name) =>
       localeByKind.entity?.names?.[name] ??

@@ -55,6 +55,56 @@ const raw = {
     },
   },
 };
+// planting slice — real Space Age values (space-age/prototypes/entity/
+// entities.lua: radius = 3, energy_usage = "100kW"; plants.lua: yumako-tree
+// growth_ticks = 5 min = 18000, minable results = 50 yumako)
+const agriRaw = {
+  "agricultural-tower": {
+    "agricultural-tower": {
+      radius: 3,
+      energy_usage: 100_000,
+      energy_source: { type: "electric" },
+    },
+  },
+  plant: {
+    "yumako-tree": {
+      growth_ticks: 18000,
+      minable: { mining_time: 0.5, results: [{ type: "item", name: "yumako", amount: 50 }] },
+    },
+  },
+};
+
+// launch slice — real Py values (data-raw-dump.json: rocket-silo has
+// fixed_recipe "rocket-part", rocket_parts_required 15, rocket inventory 5;
+// satellite: weight 200000, stack 1, launch products 6× destabilized-toxirus;
+// utility-constants rocket_lift_weight 1e6 → ⌊1e6/200000⌋ = 5 per launch)
+const launchRaw = {
+  "rocket-silo": {
+    "rocket-silo": {
+      fixed_recipe: "rocket-part",
+      rocket_parts_required: 15,
+      to_be_inserted_to_rocket_inventory_size: 5,
+      crafting_categories: ["rocket-building"],
+      crafting_speed: 1,
+      energy_usage: 250_000,
+    },
+  },
+  recipe: {
+    "rocket-part": { results: [{ type: "item", name: "rocket-part", amount: 1 }] },
+  },
+  item: {
+    satellite: {
+      rocket_launch_products: [{ type: "item", name: "destabilized-toxirus", amount: 6 }],
+    },
+    "bulk-good": {
+      rocket_launch_products: [{ type: "item", name: "bulk-product", amount: 2 }],
+    },
+  },
+  "utility-constants": {
+    default: { rocket_lift_weight: 1_000_000, default_item_weight: 100 },
+  },
+};
+
 const ctx = {
   display: () => null,
   parseSI: (s: unknown) => (typeof s === "number" ? s : null),
@@ -147,5 +197,143 @@ describe("synthesizePass2", () => {
     expect(
       get(`SELECT neighbour_bonus nb FROM crafting_machines WHERE name = 'default-bonus-reactor'`),
     ).toMatchObject({ nb: 1 });
+  });
+});
+
+describe("synthesizePass2 planting", () => {
+  const seedSeed = () =>
+    fx.db
+      .prepare(`INSERT INTO items (name, display, stack_size, plant_result) VALUES (?,?,?,?)`)
+      .run("yumako-seed", "Yumako seed", 10, "yumako-tree");
+
+  it("creates a planting recipe: 1 seed → harvest over growth_ticks/60 s", () => {
+    seedSeed();
+    const counts = synthesizePass2(fx.db, agriRaw, ctx);
+    expect(counts.planting).toBe(1);
+
+    const rec = get<{ kind: string; category: string; energy: number; src: string }>(
+      `SELECT kind, category, energy_required energy, source_entity src FROM recipes WHERE name = 'plant-yumako-seed'`,
+    );
+    expect(rec).toMatchObject({
+      kind: "planting",
+      category: "plant:agriculture",
+      energy: 300, // 18000 ticks / 60
+      src: "yumako-tree",
+    });
+    expect(
+      get(`SELECT name, amount FROM recipe_ingredients WHERE recipe = 'plant-yumako-seed'`),
+    ).toMatchObject({ name: "yumako-seed", amount: 1 });
+    expect(
+      get(`SELECT name, amount FROM recipe_products WHERE recipe = 'plant-yumako-seed'`),
+    ).toMatchObject({ name: "yumako", amount: 50 });
+  });
+
+  it("registers the tower with (2·radius+1)²−1 parallel cells as its speed", () => {
+    seedSeed();
+    synthesizePass2(fx.db, agriRaw, ctx);
+    const tower = get<{ kind: string; speed: number; w: number }>(
+      `SELECT kind, crafting_speed speed, energy_usage_w w FROM crafting_machines WHERE name = 'agricultural-tower'`,
+    );
+    expect(tower).toMatchObject({ kind: "agricultural-tower", speed: 48, w: 100_000 }); // (2·3+1)²−1
+    expect(
+      get(`SELECT category FROM machine_categories WHERE machine = 'agricultural-tower'`),
+    ).toMatchObject({ category: "plant:agriculture" });
+  });
+
+  it("synthesizes nothing when the mod set has no agricultural towers", () => {
+    seedSeed(); // a seed item alone (e.g. Py) must not produce recipes
+    const counts = synthesizePass2(fx.db, raw, ctx);
+    expect(counts.planting).toBe(0);
+    expect(get(`SELECT name FROM recipes WHERE name = 'plant-yumako-seed'`)).toBeUndefined();
+  });
+
+  it("skips seeds whose plant prototype is missing from the dump", () => {
+    fx.db
+      .prepare(`INSERT INTO items (name, stack_size, plant_result) VALUES (?,?,?)`)
+      .run("weird-seed", 10, "no-such-plant");
+    const counts = synthesizePass2(fx.db, agriRaw, ctx);
+    expect(counts.planting).toBe(0);
+  });
+});
+
+describe("synthesizePass2 rocket launch", () => {
+  const seedItems = () => {
+    const ins = fx.db.prepare(
+      `INSERT INTO items (name, display, stack_size, weight) VALUES (?,?,?,?)`,
+    );
+    ins.run("satellite", "Satellite", 1, 200_000);
+    ins.run("bulk-good", null, 10, null); // no weight → default_item_weight
+  };
+
+  it("creates a launch recipe: parts + weight-capped payload → launch products", () => {
+    seedItems();
+    const counts = synthesizePass2(fx.db, launchRaw, ctx);
+    expect(counts.launching).toBe(2);
+
+    const rec = get<{ kind: string; category: string; energy: number; src: string }>(
+      `SELECT kind, category, energy_required energy, source_entity src FROM recipes WHERE name = 'launch-rocket-silo-satellite'`,
+    );
+    expect(rec).toMatchObject({
+      kind: "launch",
+      category: "launch:rocket-silo",
+      energy: 40.33,
+      src: "rocket-silo",
+    });
+    // 15 rocket parts + ⌊1e6 / 200000⌋ = 5 satellites …
+    expect(
+      get(
+        `SELECT amount FROM recipe_ingredients WHERE recipe = 'launch-rocket-silo-satellite' AND name = 'rocket-part'`,
+      ),
+    ).toMatchObject({ amount: 15 });
+    expect(
+      get(
+        `SELECT amount FROM recipe_ingredients WHERE recipe = 'launch-rocket-silo-satellite' AND name = 'satellite'`,
+      ),
+    ).toMatchObject({ amount: 5 });
+    // … → 5 × 6 destabilized-toxirus
+    expect(
+      get(`SELECT name, amount FROM recipe_products WHERE recipe = 'launch-rocket-silo-satellite'`),
+    ).toMatchObject({ name: "destabilized-toxirus", amount: 30 });
+  });
+
+  it("caps the payload at rocket inventory slots × stack_size", () => {
+    seedItems();
+    synthesizePass2(fx.db, launchRaw, ctx);
+    // bulk-good: weight defaults to 100 → ⌊1e6/100⌋ = 10000, capped at 5 slots × stack 10 = 50
+    expect(
+      get(
+        `SELECT amount FROM recipe_ingredients WHERE recipe = 'launch-rocket-silo-bulk-good' AND name = 'bulk-good'`,
+      ),
+    ).toMatchObject({ amount: 50 });
+    expect(
+      get(
+        `SELECT amount FROM recipe_products WHERE recipe = 'launch-rocket-silo-bulk-good' AND name = 'bulk-product'`,
+      ),
+    ).toMatchObject({ amount: 100 }); // 50 × 2
+  });
+
+  it("maps the silo into the launch machine category", () => {
+    seedItems();
+    synthesizePass2(fx.db, launchRaw, ctx);
+    expect(
+      get(
+        `SELECT category FROM machine_categories WHERE machine = 'rocket-silo' AND category = 'launch:rocket-silo'`,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("skips payload items that were never imported, and silos without a fixed recipe", () => {
+    // no items seeded → both raw launchables are unknown items
+    const counts = synthesizePass2(fx.db, launchRaw, ctx);
+    expect(counts.launching).toBe(0);
+
+    // a silo with no fixed_recipe synthesizes nothing either
+    seedItems();
+    const noFixed = {
+      ...launchRaw,
+      "rocket-silo": { "rocket-silo": { rocket_parts_required: 15 } },
+    };
+    const counts2 = synthesizePass2(fx.db, noFixed, ctx);
+    expect(counts2.launching).toBe(0);
   });
 });

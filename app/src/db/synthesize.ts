@@ -13,6 +13,12 @@
  *  - mining: resource → products, drills as machines (modules work)
  *  - pumping: offshore pump → water
  *  - spoiling: passive item → spoil_result conversions (no machine)
+ *  - planting: seed → plant harvest in an agricultural tower (Factorio 2.0 /
+ *    Space Age); tower crafting_speed = its (2·radius+1)²−1 parallel growth
+ *    cells, recipe time = the plant's growth_ticks
+ *  - launch: rocket parts + payload → the payload's rocket_launch_products,
+ *    payload count scaled by rocket_lift_weight / item weight (capped by the
+ *    rocket inventory), in the rocket silo
  *
  * All rows carry recipes.kind + source_entity so the UI can tell them apart.
  */
@@ -30,6 +36,27 @@ type Ctx = {
 
 const arr = <T = any>(x: unknown): T[] => (Array.isArray(x) ? (x as T[]) : []);
 
+type NormResult = { kind: string; name: string; amount: number; probability: number };
+/** Normalize a minable/recipe result list: `results` (object or legacy
+ * `[name, amount]` form, `amount_min`/`amount_max` averaged) or the legacy
+ * `result`/`count` pair. */
+const normResults = (src: { results?: unknown; result?: string; count?: number }): NormResult[] => {
+  if (src.results) {
+    return arr<any>(src.results)
+      .map((c) => ({
+        kind: c.type ?? "item",
+        name: c.name ?? c[0],
+        amount:
+          c.amount ?? (c.amount_min != null ? (c.amount_min + c.amount_max) / 2 : (c[1] ?? 1)),
+        probability: c.probability ?? 1,
+      }))
+      .filter((c) => c.name);
+  }
+  if (src.result)
+    return [{ kind: "item", name: src.result, amount: src.count ?? 1, probability: 1 }];
+  return [];
+};
+
 export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Record<string, number> {
   const { display, parseSI } = ctx;
 
@@ -41,7 +68,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       `INSERT OR REPLACE INTO recipe_ingredients (recipe,idx,kind,name,amount,min_temp,max_temp) VALUES (?,?,?,?,?,?,?)`,
     ),
     prod: db.prepare(
-      `INSERT OR REPLACE INTO recipe_products (recipe,idx,kind,name,amount,probability,temperature,ignored_by_productivity) VALUES (?,?,?,?,?,1,?,0)`,
+      `INSERT OR REPLACE INTO recipe_products (recipe,idx,kind,name,amount,probability,temperature,ignored_by_productivity) VALUES (?,?,?,?,?,?,?,0)`,
     ),
     fluid: db.prepare(
       `INSERT OR IGNORE INTO fluids (name,display,default_temperature,heat_capacity_j) VALUES (?,?,NULL,NULL)`,
@@ -62,7 +89,16 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       .prepare(`SELECT default_temperature dt, heat_capacity_j hc FROM fluids WHERE name = ?`)
       .get(name) as { dt: number | null; hc: number | null } | undefined;
 
-  const counts = { mining: 0, pumping: 0, boiling: 0, generating: 0, burning: 0, spoiling: 0 };
+  const counts = {
+    mining: 0,
+    pumping: 0,
+    boiling: 0,
+    generating: 0,
+    burning: 0,
+    spoiling: 0,
+    planting: 0,
+    launching: 0,
+  };
 
   const recipe = (r: {
     name: string;
@@ -78,7 +114,13 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       minTemp?: number | null;
       maxTemp?: number | null;
     }[];
-    products?: { kind: string; name: string; amount: number; temperature?: number | null }[];
+    products?: {
+      kind: string;
+      name: string;
+      amount: number;
+      probability?: number | null;
+      temperature?: number | null;
+    }[];
     mainProduct?: string | null;
   }) => {
     ins.recipe.run({
@@ -95,7 +137,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       ins.ing.run(r.name, i, c.kind, c.name, c.amount, c.minTemp ?? null, c.maxTemp ?? null),
     );
     (r.products ?? []).forEach((c, i) =>
-      ins.prod.run(r.name, i, c.kind, c.name, c.amount, c.temperature ?? null),
+      ins.prod.run(r.name, i, c.kind, c.name, c.amount, c.probability ?? 1, c.temperature ?? null),
     );
   };
 
@@ -160,11 +202,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       if (!minable) continue;
       const cat = res.category ?? "basic-solid";
       if (!drillsByCat.has(cat)) continue; // nothing can mine it
-      const results = minable.results
-        ? arr<any>(minable.results)
-        : minable.result
-          ? [{ type: "item", name: minable.result, amount: minable.count ?? 1 }]
-          : [];
+      const results = normResults(minable);
       if (!results.length) continue;
       const ingredients = minable.required_fluid
         ? [
@@ -183,12 +221,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
         energy: minable.mining_time ?? 1,
         source: name,
         ingredients,
-        products: results.map((c) => ({
-          kind: c.type ?? "item",
-          name: c.name ?? c[0],
-          amount:
-            c.amount ?? (c.amount_min != null ? (c.amount_min + c.amount_max) / 2 : (c[1] ?? 1)),
-        })),
+        products: results,
       });
       counts.mining++;
     }
@@ -397,6 +430,130 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
         products: [{ kind: "item", name: it.sr, amount: 1 }],
       });
       counts.spoiling++;
+    }
+
+    /* ── planting: seed → plant harvest, agricultural towers as machines ─────
+       An agricultural tower keeps (2·radius+1)²−1 growth-grid cells planted in
+       parallel (the center cell is the tower itself), so that count is its
+       crafting_speed and the recipe's time is one plant's growth_ticks — the
+       same "machine speed encodes size" trick the boiler recipes use.
+       Gated on data presence: no towers in the mod set → no planting recipes. */
+    const towers = Object.entries(raw["agricultural-tower"] ?? {});
+    if (towers.length) {
+      for (const [name, t] of towers) {
+        const radius = t.radius ?? 1;
+        machine({
+          name,
+          kind: "agricultural-tower",
+          speed: (2 * radius + 1) ** 2 - 1, // parallel growth cells
+          energyUsageW: parseSI(t.energy_usage),
+          energySource: t.energy_source?.type ?? null,
+          fuelCategories: arr<string>(t.energy_source?.fuel_categories),
+          category: "plant:agriculture",
+          pollutionPerMin: t.energy_source?.emissions_per_minute?.pollution ?? 0,
+        });
+      }
+      const seeds = db
+        .prepare(`SELECT name, display, plant_result pr FROM items WHERE plant_result IS NOT NULL`)
+        .all() as { name: string; display: string | null; pr: string }[];
+      for (const seed of seeds) {
+        const plant = raw.plant?.[seed.pr];
+        const growthTicks = plant?.growth_ticks as number | undefined;
+        if (!plant?.minable || !growthTicks || growthTicks <= 0) continue;
+        const results = normResults(plant.minable);
+        if (!results.length) continue;
+        recipe({
+          name: `plant-${seed.name}`,
+          display: `Grow ${display(seed.pr) ?? seed.display ?? seed.pr}`,
+          kind: "planting",
+          category: "plant:agriculture",
+          energy: growthTicks / 60,
+          source: seed.pr,
+          ingredients: [{ kind: "item", name: seed.name, amount: 1 }],
+          products: results,
+        });
+        counts.planting++;
+      }
+    }
+
+    /* ── rocket launch: rocket parts + payload → rocket_launch_products ──────
+       One recipe per (silo × launchable item), covering a whole launch:
+       rocket_parts_required × the silo's fixed-recipe products, plus as many
+       payload items as one rocket lifts — min(⌊rocket_lift_weight / item
+       weight⌋, rocket inventory slots × stack_size), at least 1 — yielding
+       that many sets of the item's rocket_launch_products. The launch
+       sequence itself is ~40.33 s (YAFC's constant). */
+    const uc = raw["utility-constants"]?.default ?? {};
+    const liftWeight = (uc.rocket_lift_weight as number) ?? 1_000_000;
+    const defaultItemWeight = (uc.default_item_weight as number) ?? 100;
+    const itemRow = db.prepare(`SELECT display, stack_size ss, weight w FROM items WHERE name = ?`);
+    const machineExists = db.prepare(`SELECT 1 FROM crafting_machines WHERE name = ?`);
+    // every item prototype (any subtype) that yields products when launched
+    const launchables = new Map<string, any[]>();
+    for (const protos of Object.values(raw)) {
+      for (const [iname, it] of Object.entries(protos)) {
+        const lp = arr<any>(it?.rocket_launch_products);
+        if (lp.length && !launchables.has(iname)) launchables.set(iname, lp);
+      }
+    }
+    for (const [siloName, s] of Object.entries(raw["rocket-silo"] ?? {})) {
+      if (launchables.size === 0) break;
+      const fixedRecipe = s.fixed_recipe ? raw.recipe?.[s.fixed_recipe] : undefined;
+      const parts = fixedRecipe ? normResults(fixedRecipe) : [];
+      if (!parts.length) continue; // silo without a rocket-part recipe
+      const partsRequired = (s.rocket_parts_required as number) ?? 100; // engine default
+      const slots = (s.to_be_inserted_to_rocket_inventory_size as number) ?? 1;
+      const cat = `launch:${siloName}`;
+      // pass 1 already imported the silo as a crafting machine (it has
+      // crafting_categories); just add it to the launch category. Register it
+      // ourselves only if pass 1 skipped it (no crafting_categories).
+      if (machineExists.get(siloName)) ins.machineCat.run(siloName, cat);
+      else
+        machine({
+          name: siloName,
+          kind: "rocket-silo",
+          speed: s.crafting_speed ?? 1,
+          moduleSlots: s.module_slots ?? 0,
+          energyUsageW: parseSI(s.energy_usage),
+          energySource: s.energy_source?.type ?? null,
+          fuelCategories: arr<string>(s.energy_source?.fuel_categories),
+          category: cat,
+          pollutionPerMin: s.energy_source?.emissions_per_minute?.pollution ?? 0,
+        });
+      for (const [payload, lp] of launchables) {
+        const row = itemRow.get(payload) as
+          | { display: string | null; ss: number | null; w: number | null }
+          | undefined;
+        if (!row) continue; // not an imported item
+        const weight = row.w ?? defaultItemWeight;
+        const perLaunch = Math.max(
+          1,
+          Math.min(weight > 0 ? Math.floor(liftWeight / weight) : Infinity, slots * (row.ss ?? 1)),
+        );
+        recipe({
+          name: `launch-${siloName}-${payload}`,
+          display: `Launch ${row.display ?? payload}`,
+          kind: "launch",
+          category: cat,
+          energy: 40.33, // launch sequence duration
+          source: siloName,
+          ingredients: [
+            ...parts.map((p) => ({ kind: p.kind, name: p.name, amount: p.amount * partsRequired })),
+            { kind: "item", name: payload, amount: perLaunch },
+          ],
+          products: lp.map((c) => ({
+            kind: c.type ?? "item",
+            name: c.name,
+            amount:
+              (c.amount ?? (c.amount_min != null ? (c.amount_min + c.amount_max) / 2 : 1)) *
+              perLaunch,
+            probability: c.probability ?? 1,
+            temperature: c.temperature ?? null,
+          })),
+          mainProduct: lp[0]?.name ?? null,
+        });
+        counts.launching++;
+      }
     }
   });
 
