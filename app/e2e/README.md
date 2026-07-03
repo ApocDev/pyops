@@ -93,6 +93,11 @@ Mutating (`mut/`, against the isolated server):
 - **`project-dialog.e2e.ts`** — the switcher's "new project…" dialog: create
   disabled on empty/whitespace names, Escape cancels, creating writes a fresh db
   to the scratch dir and lands on Settings › Game data (then switches back).
+- **`reactor-layout.e2e.ts`** — a heat block's reactor row: picking a 2×2 farm
+  applies the neighbour bonus (×3 heat, a third of the reactors) and persists.
+- **`module-presets.e2e.ts`** — module templates (#99): save a row's loadout as
+  a preset from the modules dialog, star it as the default template, and a
+  compatible new recipe row starts with that loadout baked in.
 
 ## CI
 

@@ -71,6 +71,13 @@
       "when": 1783096616095,
       "tag": "0009_fluid-fuel-machines",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1783098495410,
+      "tag": "0010_module-preset-icon-default",
+      "breakpoints": true
     }
   ]
 }

@@ -28,6 +28,7 @@ import { factoryWhatIf } from "./factory-solve.server.ts";
 import { APP_CONFIG_FILE, DATA_DIR, ICON_DATA_DIR, PROJECTS_DIR } from "./paths.server.ts";
 import { withUndoAction } from "./undo-action.server.ts";
 import { captureSnapshot } from "./snapshots.server.ts";
+import { defaultPresetLoadout, presetsForRow } from "./module-presets.server.ts";
 import {
   blockSaveConflict,
   blockUpdatedAt,
@@ -164,18 +165,23 @@ export const modulePickerFn = createServerFn({ method: "GET" })
   .validator((d: { recipe: string; machine: string }) => d)
   .handler(async ({ data }) => q.modulePickerData(data.recipe, data.machine));
 
-/* Module/beacon presets (saved loadouts). */
-export const listModulePresetsFn = createServerFn({ method: "GET" }).handler(async () =>
-  q.listModulePresets(),
-);
+/* Module/beacon presets — saved loadout templates (#99). Listed per recipe row
+ * with a compatibility verdict: a template only offers/applies where the
+ * machine's slots, allowed effects, module categories, and the recipe's
+ * allow_productivity accept every module in it. */
+export const modulePresetsForFn = createServerFn({ method: "GET" })
+  .validator((d: { recipe: string; machine: string }) => d)
+  .handler(async ({ data }) => presetsForRow(data.recipe, data.machine));
 
 export const saveModulePresetFn = createServerFn({ method: "POST" })
   .validator((d: { name: string; modules: string[]; beacons: BeaconConfig[] }) => d)
   .handler(async ({ data }) => {
     const name = data.name.trim() || "Preset";
+    // chip icon: the first machine module, else the first beacon module
+    const icon = data.modules[0] ?? data.beacons.find((b) => b.modules.length)?.modules[0] ?? null;
     return {
       id: await withUndoAction(`Save module preset "${name}"`, () =>
-        q.saveModulePreset(name, data.modules, data.beacons),
+        q.saveModulePreset(name, data.modules, data.beacons, icon),
       ),
     };
   });
@@ -184,6 +190,18 @@ export const deleteModulePresetFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => {
     await withUndoAction("Delete module preset", () => q.deleteModulePreset(data));
+    return { ok: true };
+  });
+
+/** Mark/unmark a preset as a DEFAULT template: new recipe rows start with the
+ * first compatible default's loadout (see recipeDefaultsFn). */
+export const setModulePresetDefaultFn = createServerFn({ method: "POST" })
+  .validator((d: { id: number; isDefault: boolean }) => d)
+  .handler(async ({ data }) => {
+    await withUndoAction(
+      data.isDefault ? "Set default module preset" : "Unset default module preset",
+      () => q.setModulePresetDefault(data.id, data.isDefault),
+    );
     return { ok: true };
   });
 
@@ -523,14 +541,21 @@ export const setPlannerSettingsFn = createServerFn({ method: "POST" })
  * config (issue #18). Availability-gated: a favorite that isn't unlocked yet (or an
  * unpicked TURD option) falls through to the lowest-tier / cheapest fallback until
  * it becomes buildable. Favorites are NEVER consulted at solve time, so existing
- * blocks keep their picks when a favorite changes. */
+ * blocks keep their picks when a favorite changes.
+ *
+ * Module templates (#99) ride along: when a DEFAULT preset is compatible with the
+ * resolved machine+recipe, its loadout is baked into the new row the same way —
+ * no compatible default leaves the row unset, so the auto-fill takes over. */
 export const recipeDefaultsFn = createServerFn({ method: "POST" })
   .validator((recipes: string[]) => recipes)
   .handler(async ({ data }) => {
     const favMachines = q.getFavoriteMachines();
     const favFuels = q.getFavoriteFuels();
     const restrict = q.getResearchHorizon().mode !== "future";
-    const out: Record<string, { machine?: string; fuel?: string }> = {};
+    const out: Record<
+      string,
+      { machine?: string; fuel?: string; modules?: string[]; beacons?: BeaconConfig[] }
+    > = {};
     for (const name of data) {
       const r = q.getRecipe(name);
       if (!r) continue;
@@ -548,7 +573,12 @@ export const recipeDefaultsFn = createServerFn({ method: "POST" })
       const chosen =
         (favMachine && pool.find((m) => m.name === favMachine)) || pickDefaultMachine(pool);
       if (!chosen) continue;
-      const pick: { machine?: string; fuel?: string } = { machine: chosen.name };
+      const pick: (typeof out)[string] = { machine: chosen.name };
+      const preset = defaultPresetLoadout(name, chosen.name);
+      if (preset) {
+        pick.modules = preset.modules;
+        if (preset.beacons.length) pick.beacons = preset.beacons;
+      }
       // Solid burners only: fluid burners have no per-row pick — unfiltered ones
       // draw from the shared pyops-fluid-fuel pool, filtered ones are pinned to
       // their energy source's filter fluid (#25).

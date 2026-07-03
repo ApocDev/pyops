@@ -136,7 +136,13 @@ researched — existing blocks keep their picks. Machines that burn **fluid** fu
 demand a fungible "Fluid fuel" energy pool instead of a per-machine pick — add a
 "Burn <fluid>" recipe to the block to choose which fluid (including surplus
 byproducts) fills it; filtered machines like the oil/gas powerplants stay pinned
-to their one fluid. **Toggle a recipe off** to keep it in
+to their one fluid. Save a row's module/beacon loadout as
+a **template** from the modules dialog — it applies in one click, but only where the
+target machine and recipe actually accept its modules (slots, allowed effects, module
+categories, productivity permission); incompatible templates show up disabled with the
+reason. Star a template as the **default** and compatible new rows start with that
+loadout baked in (per-row edits always win; rows without a compatible default fall
+back to the auto-fill). **Toggle a recipe off** to keep it in
 the block but drop it from the solve — flip between two recipes for the same output to
 compare them, or park future rows (T1 now, T2–T4 later) until you enable them. **Toggle
 a whole block off** the same way: it stays in the sidebar (dimmed) and still opens for

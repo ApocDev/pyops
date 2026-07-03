@@ -1046,19 +1046,37 @@ export function activeTurdModules(): ModuleRow[] {
   return selected.flatMap((sub) => turdModulesOf(sub));
 }
 
-/* Module/beacon presets (saved loadouts). */
+/* Module/beacon presets (saved loadouts). Name order is also the auto-apply
+ * precedence: the FIRST compatible default preset wins (see
+ * server/module-presets.server.ts). */
 export function listModulePresets() {
   return db.select().from(modulePresets).orderBy(modulePresets.name).all();
 }
-export function saveModulePreset(name: string, moduleList: string[], beaconList: BeaconConfig[]) {
+export function saveModulePreset(
+  name: string,
+  moduleList: string[],
+  beaconList: BeaconConfig[],
+  icon: string | null = null,
+) {
   return db
     .insert(modulePresets)
-    .values({ name, modules: moduleList, beacons: beaconList })
+    .values({ name, modules: moduleList, beacons: beaconList, icon })
     .returning({ id: modulePresets.id })
     .get().id;
 }
 export function deleteModulePreset(id: number) {
   db.delete(modulePresets).where(eq(modulePresets.id, id)).run();
+}
+/** Mark/unmark a preset as a default for new rows; returns its name (null if
+ * the id vanished). Multiple defaults may coexist — compatibility decides. */
+export function setModulePresetDefault(id: number, isDefault: boolean): string | null {
+  const row = db
+    .update(modulePresets)
+    .set({ isDefault })
+    .where(eq(modulePresets.id, id))
+    .returning({ name: modulePresets.name })
+    .get();
+  return row?.name ?? null;
 }
 
 /* ── User blocks (persistence) ──────────────────────────────────────────────── */

@@ -126,6 +126,22 @@ describe("recipes", () => {
     expect(doc.store.state.machines.coke).toBe("coke-oven"); // new row → applied
   });
 
+  it("applyRecipeDefaults bakes a default module template into a NEW row only (#99)", () => {
+    const doc = seeded();
+    const beacons = [{ beacon: "beacon-AM1-FM1", count: 1, modules: ["speed-module"] }];
+    doc.applyRecipeDefaults("coke", { modules: ["productivity-module"], beacons });
+    expect(doc.store.state.modules.coke).toEqual(["productivity-module"]);
+    expect(doc.store.state.beacons.coke).toEqual(beacons);
+
+    // an existing loadout — even an explicit "no modules" — is never overwritten
+    doc.setModules("copper-plate", [], []);
+    doc.applyRecipeDefaults("copper-plate", { modules: ["productivity-module"], beacons });
+    expect(doc.store.state.modules["copper-plate"]).toEqual([]);
+    expect(doc.store.state.beacons["copper-plate"]).toEqual([]);
+    doc.applyRecipeDefaults("iron-plate", { modules: ["productivity-module"] });
+    expect(doc.store.state.modules["iron-plate"]).toEqual(["speed-module"]);
+  });
+
   it("setReactorLayout stores real farms; the 1×1 default (or null) clears (#94)", () => {
     const doc = seeded();
     doc.setReactorLayout("iron-plate", { x: 2, y: 4 });

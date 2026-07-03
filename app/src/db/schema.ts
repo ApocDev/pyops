@@ -502,12 +502,18 @@ export const turdSelections = sqliteTable("turd_selections", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });
 
-/** Saved module+beacon loadouts, applied to a recipe row in one click. */
+/** Saved module+beacon loadouts, applied to a recipe row in one click.
+ * `icon` is the module item shown on the preset's chip (derived from the
+ * loadout at save time). `isDefault` marks a template to auto-apply to NEW
+ * recipe rows: the first compatible default (name order) is baked into the
+ * row's picks at add time, falling back to auto-fill when none fits. */
 export const modulePresets = sqliteTable("module_presets", {
   id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
   name: text().notNull(),
   modules: text({ mode: "json" }).$type<string[]>().notNull(),
   beacons: text({ mode: "json" }).$type<BeaconConfig[]>().notNull(),
+  icon: text(),
+  isDefault: bool("is_default").notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });
 

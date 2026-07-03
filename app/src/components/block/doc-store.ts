@@ -246,14 +246,26 @@ export function createBlockDocStore() {
     /* ── recipes ── */
     addRecipe: (name: string) =>
       edit((s) => ({ recipes: s.recipes.includes(name) ? s.recipes : [...s.recipes, name] })),
-    /** Bake the preferred building + fuel into the stored picks (#18) — new rows
-     * only: an existing pick is never overwritten. */
-    applyRecipeDefaults: (name: string, d: { machine?: string; fuel?: string }) =>
+    /** Bake the preferred building + fuel (#18) and the default module template
+     * (#99) into the stored picks — new rows only: an existing pick is never
+     * overwritten. The template's modules/beacons land as ONE loadout, gated on
+     * neither key existing (a row the user already configured — even to an
+     * explicit "no modules" — keeps its config). */
+    applyRecipeDefaults: (
+      name: string,
+      d: { machine?: string; fuel?: string; modules?: string[]; beacons?: BeaconConfig[] },
+    ) =>
       edit((s) => ({
         ...(d.machine && !s.machines[name]
           ? { machines: { ...s.machines, [name]: d.machine } }
           : {}),
         ...(d.fuel && !s.fuels[name] ? { fuels: { ...s.fuels, [name]: d.fuel } } : {}),
+        ...(d.modules && !(name in s.modules) && !(name in s.beacons)
+          ? {
+              modules: { ...s.modules, [name]: d.modules },
+              ...(d.beacons?.length ? { beacons: { ...s.beacons, [name]: d.beacons } } : {}),
+            }
+          : {}),
       })),
     /** Remove a recipe AND its per-row overrides, so nothing lingers as orphaned
      * config — re-adding is a fresh add that re-applies the current favorite

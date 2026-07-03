@@ -1,12 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Ban, Minus, Plus, RotateCcw, SquarePlus, X } from "lucide-react";
+import { Ban, Minus, Plus, RotateCcw, SquarePlus, Star, X } from "lucide-react";
 import {
   deleteModulePresetFn,
-  listModulePresetsFn,
   moduleInfoFn,
   modulePickerFn,
+  modulePresetsForFn,
   saveModulePresetFn,
+  setModulePresetDefaultFn,
   type BeaconConfig,
 } from "../server/factorio";
 import { Badge } from "#/components/ui/badge.tsx";
@@ -447,9 +448,10 @@ export function ModulesModal({
     queryKey: ["modulePicker", recipe, machineName],
     queryFn: () => modulePickerFn({ data: { recipe, machine: machineName } }),
   });
+  // presets carry a per-row compatibility verdict (#99), so key by the row
   const presets = useQuery({
-    queryKey: ["modulePresets"],
-    queryFn: () => listModulePresetsFn(),
+    queryKey: ["modulePresets", recipe, machineName],
+    queryFn: () => modulePresetsForFn({ data: { recipe, machine: machineName } }),
   });
   const [variantFor, setVariantFor] = useState<number | null>(null); // beacon index choosing a variant
 
@@ -482,6 +484,11 @@ export function ModulesModal({
     e.stopPropagation();
     await deleteModulePresetFn({ data: id });
     deletedToast(qc, name);
+    void qc.invalidateQueries({ queryKey: ["modulePresets"] });
+  };
+  const toggleDefault = async (id: number, isDefault: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await setModulePresetDefaultFn({ data: { id, isDefault: !isDefault } });
     void qc.invalidateQueries({ queryKey: ["modulePresets"] });
   };
 
@@ -563,26 +570,66 @@ export function ModulesModal({
                 <span className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
                   Presets
                 </span>
-                {presets.data?.map((p) => (
-                  <Button
-                    key={p.id}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onChange(p.modules.slice(0, slots), p.beacons)}
-                    className="group"
-                    title={`${p.modules.length} modules · ${p.beacons.length} beacon(s) — click to apply`}
-                  >
-                    {p.name}
-                    <span
-                      role="button"
-                      tabIndex={-1}
-                      onClick={(e) => void deletePreset(p.id, p.name, e)}
-                      className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
+                {presets.data?.map((p) => {
+                  const compat = p.compat;
+                  return (
+                    <Button
+                      key={p.id}
+                      variant="outline"
+                      size="sm"
+                      aria-disabled={!compat.ok}
+                      onClick={() => {
+                        if (compat.ok) onChange(p.modules.slice(0, slots), p.beacons);
+                      }}
+                      className={`group ${compat.ok ? "" : "cursor-not-allowed opacity-50"}`}
+                      title={
+                        compat.ok
+                          ? `${p.modules.length} modules · ${p.beacons.length} beacon(s) — click to apply`
+                          : `not compatible here — ${compat.reason}`
+                      }
                     >
-                      <X className="size-3.5" />
-                    </span>
-                  </Button>
-                ))}
+                      {(p.icon ?? p.beacons[0]) &&
+                        (p.icon ? (
+                          <Icon kind="item" name={p.icon} size="sm" noHover noTitle />
+                        ) : (
+                          <Icon
+                            kind="entity"
+                            name={p.beacons[0].beacon}
+                            size="sm"
+                            noHover
+                            noTitle
+                          />
+                        ))}
+                      {p.name}
+                      <span
+                        role="button"
+                        tabIndex={-1}
+                        aria-pressed={p.isDefault}
+                        onClick={(e) => void toggleDefault(p.id, p.isDefault, e)}
+                        title={
+                          p.isDefault
+                            ? "default template — new rows that accept it start with this loadout · click to unset"
+                            : "make this the default template for new rows"
+                        }
+                        className={
+                          p.isDefault
+                            ? "text-warning"
+                            : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-warning"
+                        }
+                      >
+                        <Star className="size-3.5" fill={p.isDefault ? "currentColor" : "none"} />
+                      </span>
+                      <span
+                        role="button"
+                        tabIndex={-1}
+                        onClick={(e) => void deletePreset(p.id, p.name, e)}
+                        className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
+                      >
+                        <X className="size-3.5" />
+                      </span>
+                    </Button>
+                  );
+                })}
                 <Button
                   variant="outline"
                   size="sm"
