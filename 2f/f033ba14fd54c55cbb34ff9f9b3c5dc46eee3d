@@ -1,0 +1,41 @@
+app/src/components/block/editable-rate.tsx
+  s_9be9645d11a3e7::t_5883e3dc3b1a21 4,17,26-27,42-43,46-52,55,57-66,71-74,92
+app/src/components/block/editable-stock.tsx
+  s_9be9645d11a3e7::t_5ecb174f1a6e68 5,54-55
+app/src/components/block/format.test.ts
+  s_9be9645d11a3e7::t_c1c98f26b25ebe 1-113
+app/src/components/block/format.ts
+  s_9be9645d11a3e7::t_0a4e746a831b17 5-6,13-16,20-28,76-102
+app/src/components/block/goal-card.tsx
+  s_9be9645d11a3e7::t_256822cf294707 7,127
+app/src/components/block/group-header-row.tsx
+  s_9be9645d11a3e7::t_184fc91b24449f 10,97,104
+app/src/components/block/item-chip.tsx
+  s_9be9645d11a3e7::t_195526662cd5f3 5,86,101
+app/src/components/goods-table.tsx
+  s_9be9645d11a3e7::t_344e8b2e440bf3 23,65-73,81-85,232,235,249,257
+app/src/lib/format.ts
+  s_9be9645d11a3e7::t_ec812a13c89ed6 75-112
+app/src/routes/coherence.tsx
+  s_9be9645d11a3e7::t_ca847dced1ec3d 32,290,299-301,307,317-319,321-325,335,341,363,375-377,393,397,399,423-425,438
+app/src/routes/whatif.tsx
+  s_9be9645d11a3e7::t_3c47b81bfa061d 25,178,185,231,287-290,294
+app/src/server/factory-solve.server.ts
+  s_9be9645d11a3e7::t_fb1718c80f31d7 155-156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "2ff033ba14fd54c55cbb34ff9f9b3c5dc46eee3d",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
