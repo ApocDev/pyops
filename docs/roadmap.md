@@ -43,15 +43,14 @@ STAYS OPEN re-scoped to the remainder (goods search, recents, help sheet).
 
 ## Wave 2 — planner correctness (batch: solver + data context)
 
+Batch A landed 2026-07-03: #93, #92, #94, #96 (parallel worktree agents,
+integrated + gated on main). Remaining:
+
 | Issue | Effort | Notes |
 |---|---|---|
-| #93 `ignored_by_productivity` bug | M | The only open `bug`. Per-product flag treated all-or-nothing; affects solve accuracy. |
-| #92 research-driven productivity | L | Mining productivity + per-recipe productivity techs applied to solves, gated on the research horizon. |
-| #94 reactor neighbour bonus | M | Heat generation modelling tweak; independent, slot anywhere in the wave. |
-| #96 synthesize planting/agriculture + rocket products | L | Data-pipeline pass 2 additions; directly affects existing Vrauk/Native-flora-style blocks. |
 | #25 fluid-fuel energy commodity | L | `energy:fluid` fungible demand. **Closing this closes epic #31.** |
 | #110 fluid-temp variants as distinct goods | L | YAFC-style (fluid, temperature) identity in the solve; range consumers pool matching variants. Land the cheap interim first (per-producer temp warnings — S), full model with/after #91. |
-| #91 solver v2: LP (HiGHS) | L | The wave's centerpiece; gate for #98, a foundation #76 wants, and the natural home for #110's range-pooling. |
+| #91 solver v2: LP (HiGHS) | XL | The wave's centerpiece; gate for #98, a foundation #76 wants, and the natural home for #110's range-pooling. Re-scoped 2026-07-03 after design discussion: LP core + gesture-derived block model (goals ≥ both directions, `made` set, count/share pins, dispositions deleted) + IIS root-cause diagnosis. Spec is the issue body. |
 | #98 whole-machine mode (MIP) | M | Integer building counts on top of #91. |
 | #99 module templates | M | Partially done (a `module_presets` table + save/load shipped). Remaining: template icons, real compatibility filtering, default/auto-apply. |
 
