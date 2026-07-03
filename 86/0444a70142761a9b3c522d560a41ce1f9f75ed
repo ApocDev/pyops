@@ -1,0 +1,21 @@
+AGENTS.md
+  s_790bcd64b4fc23::t_fa693a40a0f116 72-79
+app/e2e/README.md
+  s_790bcd64b4fc23::t_c9320cfbafdb87 3-5,22,25-52,56-57,72-95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "860444a70142761a9b3c522d560a41ce1f9f75ed",
+  "prompts": {},
+  "sessions": {
+    "s_790bcd64b4fc23": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a78a3a759423c1897",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

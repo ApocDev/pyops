@@ -1,0 +1,23 @@
+app/e2e/.gitignore
+  s_790bcd64b4fc23::t_4d69a0ca0a3195 7
+app/e2e/playwright.config.ts
+  s_790bcd64b4fc23::t_dabc47d26905f9 1-2,12-24,27-36,53-83
+app/e2e/seed-mut-data.mjs
+  s_790bcd64b4fc23::t_119a1aea91120a 1-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "5e265b3bda4a58439053f7d2ee630adb6505d5b8",
+  "prompts": {},
+  "sessions": {
+    "s_790bcd64b4fc23": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a78a3a759423c1897",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
