@@ -1,0 +1,49 @@
+app/src/components/filter-empty-state.tsx
+  s_9be9645d11a3e7::t_bbcb6c21d187da 1-29
+app/src/components/filter-input.tsx
+  s_9be9645d11a3e7::t_6bc87da8779a92 1-52
+app/src/lib/filtered-list.test.ts
+  s_9be9645d11a3e7::t_e9cf5006e46ae3 1-80
+app/src/lib/filtered-list.ts
+  s_9be9645d11a3e7::t_b3ccaebef0e5bf 1-71
+app/src/routes/block.tsx
+  s_9be9645d11a3e7::t_d4994957e97880 58-59,61,434-436,673,675,677,717,719-720
+app/src/routes/browse.tsx
+  s_9be9645d11a3e7::t_cc9c1b9a244dd9 13-14,83,85,137
+app/src/routes/coherence.tsx
+  s_9be9645d11a3e7::t_59270a58d2e869 22-23,25,50-56,78-89,115,117,203-205
+app/src/routes/factory.tsx
+  s_9be9645d11a3e7::t_102f79a92ffe14 26-27,29,149-160,201,203,338
+app/src/routes/settings.tsx
+  s_9be9645d11a3e7::t_9f08903ec45acc 32-33,35,324-325,355,373-375
+app/src/routes/turd.tsx
+  s_9be9645d11a3e7::t_f41d41127e4dd3 13-14,16,161-166,208,210,256
+app/src/lib/use-filtered-list.ts
+  s_f19afcd2a7964e::t_099dc77aef10d2 1-18
+docs/design.md
+  s_f19afcd2a7964e::t_b63b1f7a010410 113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b7c937f4923b80d5226c0b400d231d5fa8436819",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f19afcd2a7964e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-abbc313e04746d005",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
