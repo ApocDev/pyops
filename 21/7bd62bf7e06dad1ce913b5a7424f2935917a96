@@ -7,10 +7,34 @@
   "base_commit_sha": "217bd62bf7e06dad1ce913b5a7424f2935917a96",
   "prompts": {},
   "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
     "s_ad8974a3b278d5": {
       "agent_id": {
         "tool": "claude",
         "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_af2318e964c488": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2e3e8a59232fcdce",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_b410b99c8c67fa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a99299a487f6877fb",
         "model": "unknown"
       },
       "human_author": "ApocDev <apocdev@gmail.com>"
