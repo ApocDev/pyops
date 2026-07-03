@@ -92,3 +92,10 @@ project) the bundled `drizzle/` migrations are applied via drizzle-orm's `migrat
 project starts empty; you then run a [data sync](data-pipeline.md) to fill it. The
 relevant code lives in `app/src/server/projects.ts`, `app/src/server/provision.ts`,
 and `app/src/db/index.server.ts`.
+
+Because connections are cached, migrations added while the server is running (the
+dev-server case) are **not** picked up — the fix is a restart. The app shell polls a
+cheap drift check (`app/src/server/db-migrations.server.ts`: bundled
+`drizzle/meta/_journal.json` vs the active db's `__drizzle_migrations` rows) and
+shows a "restart the app to apply" banner when any are pending; migrations are never
+auto-applied at runtime.

@@ -5,6 +5,7 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 
 import { AppNav } from "../components/app-nav";
+import { DbMigrationsBanner } from "../components/db-migrations-banner";
 import { DriftModal } from "../components/drift-modal";
 import { UpdatePrompt } from "../components/update-prompt";
 import appCss from "../styles.css?url";
@@ -57,6 +58,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <div className="flex h-screen flex-col">
           <AppNav />
+          <DbMigrationsBanner />
           <div className="min-h-0 flex-1 overflow-auto">{children}</div>
         </div>
         <DriftModal />
