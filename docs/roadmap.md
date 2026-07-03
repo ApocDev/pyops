@@ -26,18 +26,12 @@ These drive the wave order; violating them creates rework:
 - **#24 assumes #68's direction** — data-gated (not mod-detected) UI; #68 is
   closed with the nav gating shipped, but #24 inherits its philosophy.
 
-## Wave 0 — audit & close sweep (all small; shrinks the list fast)
+## Wave 0 — DONE (2026-07-03)
 
-Done in the 2026-07-03 audit: **#86** (modal hygiene) and **#95** (pollution
-accounting) verified in code and closed.
-
-| Issue | Effort | Notes from the deep read |
-|---|---|---|
-| #79 pin dependency versions | S | Mechanical: replace every `"latest"` in `app/package.json` with the lockfile-resolved version; one convention (caret or exact) across the board. Fresh motivation: the v0.5.0 phantom-dep CI failure. Closes most of epic #89. |
-| #75 pending-migrations warning | S | Well-specified: compare bundled `drizzle/meta/_journal.json` tags vs the project DB's `__drizzle_migrations`, expose via a light server fn, banner in the shell. Auto-apply explicitly out of scope. |
-| #84 project switcher dialog | S | Replace `window.prompt` with a proper create dialog + router navigation. Body allows keeping the hard reload if active-project pinning requires it — but document that in code. |
-| #72 Claude 1M-context beta | S | Not just a flag: attach the beta header for Claude models only (in `getModel` or `streamText` providerOptions), verify the current beta identifier + OpenRouter routing, and gate the `model-capabilities.ts` window values on the beta actually being on. |
-| #54 AI release notes | M | Must run **inside** `release.yml` _before_ the `latest-json` job (the updater dialog renders the release body) — not on a `release:published` trigger, to avoid the race. CHANGELOG.md stays deterministic; fail-open to raw notes. |
+Closed: #86, #95 (verified already-shipped), #79, #75, #84, #72, #54 (implemented
+via parallel worktree agents, reviewed + live-verified on main). Follow-up filed:
+#111 (dead package.json "pnpm" field) under epic #89, which stays open as the
+standing toolchain bucket.
 
 ## Wave 1 — the safety net
 
@@ -121,7 +115,7 @@ Bridge + Lua context loads once; verification is hands-on in-game.
 
 | Epic | State after this audit |
 |---|---|
-| #89 toolchain | #79 (+ #54) away from closing |
+| #89 toolchain | children done; stays open as a standing bucket (#111 landed there) |
 | #31 planning model | **one issue away** (#25) |
 | #30 assistant | Wave 3 + #72 |
 | #33 composition | #76 + #85 |
