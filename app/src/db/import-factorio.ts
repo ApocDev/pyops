@@ -101,6 +101,7 @@ const TABLES = [
   "loaders",
   "inserters",
   "tech_stack_bonuses",
+  "tech_productivity_bonuses",
   "technologies",
   "tech_unlocks",
   "tech_ingredients",
@@ -172,7 +173,7 @@ export function importFactorioDump(
 
   const ins = {
     recipe: db.prepare(
-      `INSERT INTO recipes (name,display,kind,category,energy_required,enabled,hidden,allow_productivity,allowed_module_categories,main_product,subgroup,"order",source_entity) VALUES (@name,@display,@kind,@category,@energy_required,@enabled,@hidden,@allow_productivity,@allowed_module_categories,@main_product,@subgroup,@order,@source_entity)`,
+      `INSERT INTO recipes (name,display,kind,category,energy_required,enabled,hidden,allow_productivity,maximum_productivity,allowed_module_categories,main_product,subgroup,"order",source_entity) VALUES (@name,@display,@kind,@category,@energy_required,@enabled,@hidden,@allow_productivity,@maximum_productivity,@allowed_module_categories,@main_product,@subgroup,@order,@source_entity)`,
     ),
     ing: db.prepare(
       `INSERT INTO recipe_ingredients (recipe,idx,kind,name,amount,min_temp,max_temp) VALUES (@recipe,@idx,@kind,@name,@amount,@min_temp,@max_temp)`,
@@ -231,6 +232,9 @@ export function importFactorioDump(
     techStack: db.prepare(
       `INSERT OR REPLACE INTO tech_stack_bonuses (technology,effect,modifier) VALUES (?,?,?)`,
     ),
+    techProd: db.prepare(
+      `INSERT OR REPLACE INTO tech_productivity_bonuses (technology,recipe,modifier) VALUES (?,?,?)`,
+    ),
     meta: db.prepare(`INSERT OR REPLACE INTO meta (key,value) VALUES (?,?)`),
     turdRepl: db.prepare(
       `INSERT OR IGNORE INTO turd_replacements (sub_tech, old_recipe, new_recipe) VALUES (?,?,?)`,
@@ -261,6 +265,8 @@ export function importFactorioDump(
         enabled: r.enabled === false ? 0 : 1,
         hidden: r.hidden ? 1 : 0,
         allow_productivity: r.allow_productivity ? 1 : 0,
+        maximum_productivity:
+          typeof r.maximum_productivity === "number" ? r.maximum_productivity : null,
         allowed_module_categories: jsonList(r.allowed_module_categories),
         main_product: r.main_product ?? null,
         subgroup: r.subgroup ?? null,
@@ -474,13 +480,24 @@ export function importFactorioDump(
       });
       for (const pre of arr<string>(t.prerequisites)) ins.techPrereq.run(name, pre);
       const stackAcc: Record<string, number> = {};
+      // productivity effects (#92): '' = mining drills, else the target recipe
+      const prodAcc: Record<string, number> = {};
       for (const eff of arr<any>(t.effects)) {
         if (eff?.type === "unlock-recipe" && eff.recipe) ins.techUnlock.run(name, eff.recipe);
         const key = STACK_EFFECT[eff?.type];
         if (key && typeof eff.modifier === "number")
           stackAcc[key] = (stackAcc[key] ?? 0) + eff.modifier;
+        if (eff?.type === "mining-drill-productivity-bonus" && typeof eff.modifier === "number")
+          prodAcc[""] = (prodAcc[""] ?? 0) + eff.modifier;
+        if (
+          eff?.type === "change-recipe-productivity" &&
+          eff.recipe &&
+          typeof eff.change === "number"
+        )
+          prodAcc[eff.recipe] = (prodAcc[eff.recipe] ?? 0) + eff.change;
       }
       for (const [key, mod] of Object.entries(stackAcc)) ins.techStack.run(name, key, mod);
+      for (const [recipe, mod] of Object.entries(prodAcc)) ins.techProd.run(name, recipe, mod);
       for (const ing of arr<any>(t.unit?.ingredients)) {
         const sn = Array.isArray(ing) ? ing[0] : ing.name;
         const sa = Array.isArray(ing) ? ing[1] : ing.amount;

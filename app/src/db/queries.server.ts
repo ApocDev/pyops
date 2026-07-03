@@ -31,6 +31,7 @@ import {
   belts,
   loaders,
   inserters,
+  techProductivityBonuses,
   techStackBonuses,
   modulePresets,
   blocks,
@@ -465,6 +466,8 @@ export function computeRecipeScenario(opts: {
   const beaconCfgs = (opts.beacons ?? []).filter((b) => b.count > 0);
   const beaconDb = getBeacons(beaconCfgs.map((b) => b.beacon));
 
+  // research-driven productivity (#92) — same bonuses computeBlock applies
+  const rp = productivityBonuses();
   const fx = computeEffects(
     r.allowProductivity,
     validSlots,
@@ -472,6 +475,11 @@ export function computeRecipeScenario(opts: {
     moduleDb,
     beaconDb,
     turdModules,
+    {
+      recipeProd: rp.recipes.get(r.name) ?? 0,
+      miningProd: r.kind === "mining" ? rp.mining : 0,
+      maxProductivity: r.maximumProductivity,
+    },
   );
 
   const craftsPerSec = (machine.craftingSpeed * fx.speedMult) / (r.energyRequired || 0.5);
@@ -2208,6 +2216,36 @@ export function stackBonuses(): StackBonuses {
     if (r.effect === "belt") out.belt += r.modifier;
     else if (r.effect === "inserter") out.inserter += r.modifier;
     else if (r.effect === "bulk-inserter") out.bulkInserter += r.modifier;
+  }
+  return out;
+}
+
+export type ProductivityBonuses = {
+  /** summed mining-drill-productivity-bonus (all mining recipes; uncapped in-game) */
+  mining: number;
+  /** summed change-recipe-productivity per target recipe */
+  recipes: Map<string, number>;
+};
+/** Research-driven flat productivity in effect under the research horizon (#92):
+ * mining-productivity levels and Factorio 2.0 `change-recipe-productivity` techs.
+ * Gated exactly like stackBonuses / machine availability — everything in FUTURE
+ * mode, live research + the pack gate in NOW, the tier's pack gate for a target.
+ * Note: repeatable techs (Py's infinite mining-productivity-12) count at most one
+ * level — the mod's research sync reports researched tech NAMES, not levels. */
+export function productivityBonuses(): ProductivityBonuses {
+  const h = getResearchHorizon();
+  const out: ProductivityBonuses = { mining: 0, recipes: new Map() };
+  for (const r of db.select().from(techProductivityBonuses).all()) {
+    if (h.mode !== "future") {
+      const science = db
+        .select({ name: techIngredients.name })
+        .from(techIngredients)
+        .where(eq(techIngredients.technology, r.technology))
+        .all();
+      if (!techReachedByScience(r.technology, science, h)) continue;
+    }
+    if (r.recipe === "") out.mining += r.modifier;
+    else out.recipes.set(r.recipe, (out.recipes.get(r.recipe) ?? 0) + r.modifier);
   }
   return out;
 }

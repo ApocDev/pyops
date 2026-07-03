@@ -100,7 +100,20 @@ Module/beacon effects (`effects.ts`) apply **before** the solve:
 - **Pollution** scales the block's pollution budget (#23).
 
 Factorio's clamps are respected: speed, consumption, and pollution multipliers
-bottom out at 0.2, productivity caps at +300%.
+bottom out at 0.2, productivity caps at the recipe's `maximum_productivity`
+(+300% by default — but Py raises it to 1e6 on nearly every recipe).
+
+**Research-driven productivity** (#92) is folded into the same effects stage,
+gated by the research horizon exactly like machine availability (everything in
+FUTURE mode, reached techs in NOW/target): mining-productivity levels add an
+uncapped bonus to every mining recipe (resources aren't recipes, so no cap
+applies — matching in-game mining productivity exceeding +300%), and Factorio
+2.0 `change-recipe-productivity` techs (Py's microfilters tiers) add base
+productivity to their target recipes — applied even when the recipe doesn't
+allow productivity **modules** (e.g. bhoddos-spore gets +100% from
+microfilters-mk02 despite having no `allow_productivity`). Repeatable techs
+(Py's infinite `mining-productivity-12`) count at most one level, since the
+mod's research sync reports researched tech names, not levels.
 
 ## Factory-level what-if
 

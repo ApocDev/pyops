@@ -191,6 +191,11 @@ export async function computeBlock(rawData: SolveInput) {
   // (via an internal 1:1 beacon — no slot cost). A module applies when the
   // machine's slot categories accept its category, and — for the per-tier
   // -mk0N variants — the machine's own -mk0N tier matches.
+  // Research-driven productivity (#92): mining-productivity levels + Factorio
+  // 2.0 change-recipe-productivity techs, gated by the research horizon exactly
+  // like machine availability (everything in FUTURE, reached techs otherwise).
+  const researchProd = q.productivityBonuses();
+
   const turdMods = q.activeTurdModules();
   const turdFor = (machine: { name: string; allowedModuleCategories: string[] | null } | null) => {
     if (!machine || !turdMods.length) return [];
@@ -318,6 +323,11 @@ export async function computeBlock(rawData: SolveInput) {
         moduleDb,
         beaconDb,
         turdModules,
+        {
+          recipeProd: researchProd.recipes.get(r.name) ?? 0,
+          miningProd: r.kind === "mining" ? researchProd.mining : 0,
+          maxProductivity: r.maximumProductivity,
+        },
       );
       return [
         r.name,

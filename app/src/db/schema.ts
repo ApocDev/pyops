@@ -52,6 +52,9 @@ export const recipes = sqliteTable(
     enabled: bool("enabled").notNull().default(true),
     hidden: bool("hidden").notNull().default(false),
     allowProductivity: bool("allow_productivity").notNull().default(false),
+    // RecipePrototype.maximum_productivity — caps total productivity (null = engine
+    // default +300%). Py raises it to 1e6 on nearly every recipe (10344/10392).
+    maximumProductivity: real("maximum_productivity"),
     allowedModuleCategories: text("allowed_module_categories", { mode: "json" }).$type<
       string[] | null
     >(),
@@ -255,6 +258,20 @@ export const techStackBonuses = sqliteTable(
     modifier: real().notNull(),
   },
   (t) => [primaryKey({ columns: [t.technology, t.effect] })],
+);
+
+/** Tech effects that grant flat productivity — `mining-drill-productivity-bonus`
+ * (recipe = '' → applies to every mining recipe) and Factorio 2.0
+ * `change-recipe-productivity` (a specific recipe). Summed over the in-effect
+ * tech set (per the research horizon), like tech_stack_bonuses. */
+export const techProductivityBonuses = sqliteTable(
+  "tech_productivity_bonuses",
+  {
+    technology: text().notNull(),
+    recipe: text().notNull().default(""), // '' = mining-drill productivity
+    modifier: real().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.technology, t.recipe] }), index("tpb_recipe_idx").on(t.recipe)],
 );
 
 export const technologies = sqliteTable("technologies", {

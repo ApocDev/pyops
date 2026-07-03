@@ -120,6 +120,15 @@ deliberate choices:
   `speed × 480 × stack`; inserters use the swing model ported from the in-game
   `inserter-throughput-lib` (inventory→inventory case). The per-row arithmetic runs
   client-side so changing belt/inserter tier is instant (no re-solve).
+- **Research productivity** (#92) — `tech_productivity_bonuses` captures the two
+  flat-productivity tech effects (one row per tech per target): Factorio 2.0
+  `change-recipe-productivity` keyed by its target recipe, and
+  `mining-drill-productivity-bonus` under the sentinel key `''` (applies to every
+  synthetic mining recipe). Summed over the in-effect tech set
+  (`queries.productivityBonuses`, gated by the research horizon like
+  `stackBonuses`) and applied in the solver's effects stage. Recipes also carry
+  `maximum_productivity` (the 2.0 productivity cap; NULL = engine default +300%
+  — Py sets 1e6 on nearly every recipe).
 - **Rocket logistics** (issue #22) — `items.weight` (rocket-lift weight) feeds an
   optional launches/min readout: `floor(rocket_lift_weight / weight)` per rocket,
   then `rate × 60 / capacity`. `rocket_lift_weight` and `default_item_weight` come

@@ -4,7 +4,16 @@
  * Productivity scales a recipe's products (a real balance change, applied
  * before the solve); speed scales the machine count; consumption scales
  * power/fuel. Factorio clamps: speed and consumption multipliers bottom out
- * at 0.2, productivity caps at +300%.
+ * at 0.2, productivity caps at the recipe's maximum_productivity (+300% by
+ * default; Py raises it to 1e6 on nearly every recipe).
+ *
+ * Research-driven productivity (#92) rides along: change-recipe-productivity
+ * techs add base recipe productivity that applies even when productivity
+ * MODULES are not allowed (Py's microfilters-mk02 grants bhoddos-spore +100%
+ * although the recipe has no allow_productivity), and mining-productivity
+ * research adds an uncapped bonus on mining recipes (resources are not
+ * recipes, so no maximum_productivity cap applies — in-game mining
+ * productivity routinely exceeds +300%).
  */
 
 export type BeaconConfig = { beacon: string; modules: string[]; count: number };
@@ -34,6 +43,16 @@ export type BeaconEff = {
   profile: number[] | null;
 };
 
+/** Research-driven productivity for one recipe row (#92). */
+export type ResearchProductivity = {
+  /** change-recipe-productivity sum — applies regardless of allowProductivity */
+  recipeProd: number;
+  /** mining-productivity research sum — mining recipes only, exempt from the cap */
+  miningProd: number;
+  /** recipe maximum_productivity (null = engine default +300%) */
+  maxProductivity: number | null;
+};
+
 function sumEffects(names: string[], moduleDb: Map<string, ModuleEff>) {
   const s = { speed: 0, prod: 0, cons: 0, poll: 0 };
   for (const n of names) {
@@ -55,6 +74,7 @@ export function computeEffects(
   beaconDb: Map<string, BeaconEff>,
   // game-inserted module effects (Py TURD hidden beacon, 1:1, no slot cost)
   extraModules: ModuleEff[] = [],
+  research?: ResearchProductivity,
 ): Effects {
   const own = sumEffects(machineModules, moduleDb);
   let { speed, prod, cons, poll } = own;
@@ -79,7 +99,12 @@ export function computeEffects(
     beaconPowerPerMachineW += (b.energyUsageW ?? 0) * cfg.count;
   }
   if (!allowProductivity) prod = 0;
-  prod = Math.max(0, Math.min(prod, 3));
+  // tech-granted recipe productivity applies even when modules can't (a base
+  // bonus on the recipe itself), then everything clamps to the recipe's cap
+  prod += research?.recipeProd ?? 0;
+  prod = Math.max(0, Math.min(prod, research?.maxProductivity ?? 3));
+  // mining-productivity research is uncapped (resources have no recipe cap)
+  prod += research?.miningProd ?? 0;
   return {
     speedBonus: speed,
     prodBonus: prod,

@@ -14,6 +14,7 @@ import {
   listBlocks,
   listGroups,
   machineSufficiency,
+  productivityBonuses,
   saveBlockRow,
   setBlockGroup,
   setBuiltMachines,
@@ -241,5 +242,73 @@ describe("nested folders", () => {
     expect(groups.some((g) => g.id === mid)).toBe(false);
     expect(groups.find((g) => g.id === leaf)?.parentId).toBe(parent); // subfolder → grandparent
     expect(listBlocks().find((b) => b.id === 1)?.groupId).toBe(parent); // block → parent
+  });
+});
+
+// Research-driven productivity bonuses (#92). Techs + science costs are real Py
+// dump values: mining-productivity-1/-2 cost py-science-pack-1 ×1 + automation ×2
+// and grant mining-drill-productivity-bonus +0.1 each; microfilters (logistic ×1 +
+// py1 ×2 + automation ×3) grants fawogae-spore +0.15; microfilters-mk02 (py2 ×1 +
+// logistic ×2 + py1 ×3 + automation ×6) grants fawogae-spore +0.20.
+describe("productivityBonuses (research horizon gated)", () => {
+  const seed = () => {
+    db.run(sql`
+      INSERT INTO tech_productivity_bonuses (technology, recipe, modifier) VALUES
+        ('mining-productivity-1', '', 0.1),
+        ('mining-productivity-2', '', 0.1),
+        ('microfilters', 'fawogae-spore', 0.15),
+        ('microfilters-mk02', 'fawogae-spore', 0.2)
+    `);
+    db.run(sql`
+      INSERT INTO tech_ingredients (technology, name, amount) VALUES
+        ('mining-productivity-1', 'py-science-pack-1', 1),
+        ('mining-productivity-1', 'automation-science-pack', 2),
+        ('mining-productivity-2', 'py-science-pack-1', 1),
+        ('mining-productivity-2', 'automation-science-pack', 2),
+        ('microfilters', 'logistic-science-pack', 1),
+        ('microfilters', 'py-science-pack-1', 2),
+        ('microfilters', 'automation-science-pack', 3),
+        ('microfilters-mk02', 'py-science-pack-2', 1),
+        ('microfilters-mk02', 'logistic-science-pack', 2),
+        ('microfilters-mk02', 'py-science-pack-1', 3),
+        ('microfilters-mk02', 'automation-science-pack', 6)
+    `);
+  };
+
+  it("FUTURE mode sums every tech's bonus", () => {
+    seed();
+    setResearchHorizon({ mode: "future" });
+    const b = productivityBonuses();
+    expect(b.mining).toBeCloseTo(0.2); // two mining-productivity levels
+    expect(b.recipes.get("fawogae-spore")).toBeCloseTo(0.35); // both microfilter tiers
+  });
+
+  it("NOW mode gates by available science packs (reachable techs count)", () => {
+    seed();
+    setResearchHorizon({
+      mode: "now",
+      packs: ["automation-science-pack", "py-science-pack-1"],
+      researched: [],
+    });
+    const b = productivityBonuses();
+    // both mining-productivity techs cost only automation + py1 → reached
+    expect(b.mining).toBeCloseTo(0.2);
+    // microfilters needs logistic science, mk02 needs py2 → neither counts
+    expect(b.recipes.has("fawogae-spore")).toBe(false);
+  });
+
+  it("NOW mode counts an explicitly researched tech past the pack gate", () => {
+    seed();
+    setResearchHorizon({ mode: "now", packs: [], researched: ["microfilters"] });
+    const b = productivityBonuses();
+    expect(b.mining).toBe(0); // neither mining tech researched, no packs
+    expect(b.recipes.get("fawogae-spore")).toBeCloseTo(0.15); // microfilters only
+  });
+
+  it("returns empty bonuses when the table has no rows", () => {
+    setResearchHorizon({ mode: "future" });
+    const b = productivityBonuses();
+    expect(b.mining).toBe(0);
+    expect(b.recipes.size).toBe(0);
   });
 });
