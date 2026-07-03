@@ -49,7 +49,10 @@ integrated + gated on main). Remaining:
 
 | Issue | Effort | Notes |
 |---|---|---|
+| #113 display map collides on shared item/recipe names | S | Pre-existing bug surfaced by #99's e2e; recipe rows can render the good's label. |
+| #115 fluid-fuel pool at factory scale | M | #25 follow-up decided 2026-07-03: demand stays automatic, supply is an explicit conversion + export, MJ leaves FREE_GOODS and matches block-to-block. Independent of #91. |
 | #110 fluid-temp variants as distinct goods | L | YAFC-style (fluid, temperature) identity in the solve; range consumers pool matching variants. The cheap interim (per-producer temp warnings — S) has shipped; the full model lands with/after #91. |
+| #114 temperature-fed fluid energy sources | M | #25 follow-up: uf6 reactors / compost plants / solar tower drain their feed fluid by temp × heat capacity; currently unmodelled. Natural fit with/after #91's coefficient stage. |
 | #91 solver v2: LP (HiGHS) | XL | The wave's centerpiece; gate for #98, a foundation #76 wants, and the natural home for #110's range-pooling. Re-scoped 2026-07-03 after design discussion: LP core + gesture-derived block model (goals ≥ both directions, `made` set, count/share pins, dispositions deleted) + IIS root-cause diagnosis. Spec is the issue body. |
 | #98 whole-machine mode (MIP) | M | Integer building counts on top of #91. |
 
@@ -95,6 +98,7 @@ Bridge + Lua context loads once; verification is hands-on in-game.
 | #4 summary panel width | M | Folded into #109; the naive stretchable approach was tried and reverted — needs the layout rework. |
 | #88 below-plan alerts | M | Live-data alerts against planned rates. |
 | #3 select machine in-game → focus block | M | Bridge + protocol addition. |
+| #112 sync repeatable-tech levels | S | #92 follow-up: send force.mining_drill_productivity_bonus (or per-tech levels) over the bridge; PROTOCOL_VERSION bump. |
 | #102 train logistics math | L | Payload/cadence on factory links. |
 | #2 time-series metrics | XL | Prometheus-style live factory data; the wave's big one. |
 
