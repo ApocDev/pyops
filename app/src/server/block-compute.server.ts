@@ -39,21 +39,54 @@ import { ensureBridge, sendToPeer } from "./bridge/server.ts";
 const HEAT = "pyops-heat";
 const FLUID_FUEL = "pyops-fluid-fuel";
 
-/** How a fluid-energy-source machine takes in fuel (#25), from the dump's
+/** How a fluid-energy-source machine takes in fuel (#25/#114), from the dump's
  * FluidEnergySource: `burns_fluid` machines burn by fuel_value — any
  * fuel-valued fluid when unfiltered (the shared pyops-fluid-fuel pool: Py's
  * glassworks/smelter/antimony drills/oil boiler), or exactly the fluid_box's
  * filter fluid when set (Py's oil/gas powerplants). Non-burning fluid sources
- * consume their filter fluid by TEMPERATURE (Py: uf6 reactors, compost plants,
- * the solar tower) — not fuel, not modelled here. A null burnsFluid is a
- * pre-#25 import: treat it as the pool (the common Py case) until a re-sync. */
+ * consume their filter fluid by TEMPERATURE (#114 — Py: uf6 reactors, compost
+ * plants, the solar tower): a fixed units/s drain (`fluidFuelPerSec`, from
+ * fluid_usage_per_tick or the engine's maximum_temperature derivation) or an
+ * energy-following one (draw ÷ `fluidFuelEnergyJ` usable J per unit) — see
+ * db/fluid-energy.ts. A null burnsFluid is a pre-#25 import: treat it as the
+ * pool (the common Py case) until a re-sync; a temperature source with neither
+ * drain column (pre-#114 import) stays unmodelled until a re-sync. */
 function fluidFueling(m: {
   burnsFluid: number | null;
   fluidFuelFilter: string | null;
-}): { mode: "pool" } | { mode: "pinned"; fluid: string } | { mode: "none" } {
+  fluidFuelPerSec: number | null;
+  fluidFuelEnergyJ: number | null;
+}):
+  | { mode: "pool" }
+  | { mode: "pinned"; fluid: string }
+  | { mode: "temperature"; fluid: string; perSec: number | null; energyJ: number | null }
+  | { mode: "none" } {
   const burns = m.burnsFluid == null ? true : m.burnsFluid !== 0;
-  if (!burns) return { mode: "none" };
+  if (!burns) {
+    if (m.fluidFuelFilter && (m.fluidFuelPerSec != null || m.fluidFuelEnergyJ != null))
+      return {
+        mode: "temperature",
+        fluid: m.fluidFuelFilter,
+        perSec: m.fluidFuelPerSec,
+        energyJ: m.fluidFuelEnergyJ,
+      };
+    return { mode: "none" };
+  }
   return m.fluidFuelFilter ? { mode: "pinned", fluid: m.fluidFuelFilter } : { mode: "pool" };
+}
+
+/** Steady drain (units/s) of a temperature-fed machine's filter fluid, for ONE
+ * running machine at consumption multiplier `consMult` (#114). Fixed-rate
+ * sources ignore modules — the engine consumes their derived per-tick rate
+ * regardless; scaling sources follow the actual energy draw. */
+function temperatureDrainPerMachine(
+  f: { perSec: number | null; energyJ: number | null },
+  energyUsageW: number | null,
+  consMult: number,
+): number {
+  if (f.perSec != null) return f.perSec;
+  if (f.energyJ && energyUsageW) return (energyUsageW * consMult) / f.energyJ;
+  return 0;
 }
 
 // Common, non-creative fuels to default to (cheapest-first surfaces editor items
@@ -309,6 +342,11 @@ export async function computeBlock(rawData: SolveInput) {
       } else if (pick?.fuelValueJ) {
         const perSec = (chosen.energyUsageW ?? 0) / pick.fuelValueJ;
         effectivityEconomy = perSec * Math.max(0, q.goodCosts([pick.name]).get(pick.name) ?? 0);
+      } else if (f.mode === "temperature" && f.perSec == null && f.energyJ && chosen.energyUsageW) {
+        // #114: only ENERGY-FOLLOWING drains benefit from consumption modules;
+        // fixed-rate ones (perSec set) consume the same regardless
+        const perSec = chosen.energyUsageW / f.energyJ;
+        effectivityEconomy = perSec * Math.max(0, q.goodCosts([f.fluid]).get(f.fluid) ?? 0);
       }
     }
 
@@ -468,6 +506,20 @@ export async function computeBlock(rawData: SolveInput) {
       const energyRequired = r.energyRequired ?? 0.5;
       const mjPerExec = (chosen.energyUsageW * fx.consMult * energyRequired) / (speed * 1e6);
       if (mjPerExec > 0) ingredients.push({ kind: "fluid", name: FLUID_FUEL, amount: mjPerExec });
+    }
+    // Temperature-fed machines (#114): a burns_fluid:false source drains its
+    // filter fluid for its heat content — real consumption of a REAL fluid
+    // (uf6 for Py's reactors, sweet-syrup for compost plants), so inject it as
+    // a solver ingredient the same way the pool draw is. Produced in-block it's
+    // balanced like any ingredient; otherwise it surfaces as an import of the
+    // feed fluid — previously the block showed no demand for it at all.
+    if (fueling?.mode === "temperature" && chosen) {
+      const speed = (chosen.craftingSpeed ?? 1) * fx.speedMult;
+      const energyRequired = r.energyRequired ?? 0.5;
+      const perMachine = temperatureDrainPerMachine(fueling, chosen.energyUsageW, fx.consMult);
+      // one execution occupies energyRequired/speed machine-seconds
+      const perExec = (perMachine * energyRequired) / speed;
+      if (perExec > 0) ingredients.push({ kind: "fluid", name: fueling.fluid, amount: perExec });
     }
     // Heat-powered machines (Py hard mode) draw heat that must be produced LOCALLY
     // by a reactor recipe in the same block (heat can't cross blocks). Model the
@@ -683,6 +735,9 @@ export async function computeBlock(rawData: SolveInput) {
       pool?: boolean;
       /** #25: a filtered fluid burner, pinned to its one fluid — no per-row pick */
       pinned?: boolean;
+      /** #114: a temperature-fed drain (modeled in the solve as a real
+       * ingredient — never folded post-hoc) — no per-row pick */
+      temperature?: boolean;
     } | null = null;
     let availableFuels: {
       name: string;
@@ -692,8 +747,25 @@ export async function computeBlock(rawData: SolveInput) {
       favorite: boolean;
     }[] = [];
     const fueling = chosen?.energySource === "fluid" ? fluidFueling(chosen) : null;
-    const burns = chosen?.energySource === "burner" || (fueling && fueling.mode !== "none");
-    if (burns && chosen?.energyUsageW) {
+    const burns =
+      chosen?.energySource === "burner" ||
+      (fueling && fueling.mode !== "none" && fueling.mode !== "temperature");
+    if (fueling?.mode === "temperature" && chosen) {
+      // #114: the drain is already a solver ingredient (see the defs loop) —
+      // the chip mirrors it for the row; adding it to fuelTotals would double
+      // count. Fixed-rate drains ignore consumption effects; scaling ones don't.
+      const perSec =
+        temperatureDrainPerMachine(fueling, chosen.energyUsageW, fx.consMult) * Math.max(0, count);
+      fuel = {
+        name: fueling.fluid,
+        display: q.getFluid(fueling.fluid)?.display ?? null,
+        kind: "fluid",
+        perSec,
+        chosen: fueling.fluid,
+        burnt: null,
+        temperature: true,
+      };
+    } else if (burns && chosen?.energyUsageW) {
       if (fueling?.mode === "pool") {
         // fungible fluid fuel (#25): the draw is MJ/s of the pool; which fluid
         // fills it is the block's choice of burn-fluid-* conversion recipe, so

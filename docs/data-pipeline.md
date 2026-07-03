@@ -118,9 +118,15 @@ deliberate choices:
   the shared `pyops-fluid-fuel` pool, fed by one synthetic `burn-fluid-<fluid>`
   conversion per fuel-valued fluid (1 unit → its `fuel_value` in MJ; 59 in the Py
   dump). A `fluid_box.filter` on the energy source pins the machine to that one
-  fluid instead (Py oil/gas powerplants); `burns_fluid: false` sources consume
-  their filter fluid by temperature, not fuel, and are not modelled as burners
-  (Py uf6 reactors, compost plants, the solar tower). `crafting_machines` carries
+  fluid instead (Py oil/gas powerplants). `burns_fluid: false` sources are
+  **temperature-fed** (#114): they drain their filter fluid for its heat content
+  (Py uf6 reactors, compost plants, the solar tower). The import derives their
+  drain via `db/fluid-energy.ts` and stores it on `crafting_machines`:
+  `fluid_fuel_per_sec` (a fixed units/s — an explicit `fluid_usage_per_tick`, or
+  the engine's derivation from the source's `maximum_temperature`, e.g.
+  nuclear-reactor-mk01's 300 kW ÷ ((250° − 0.01°) × 20 J/°) ≈ 60.0024 uf6/s) and
+  `fluid_fuel_energy_j` (usable J per unit — `scale_fluid_usage` sources like the
+  compost plants follow the energy draw instead). `crafting_machines` carries
   `burns_fluid` + `fluid_fuel_filter`, and burner/fluid `effectivity` is folded
   into the stored `energy_usage_w` (fuel draw = energy ÷ effectivity).
 - **Logistics prototypes** — `belts`, `loaders`, and `inserters` tables capture the

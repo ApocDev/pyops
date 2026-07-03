@@ -14,6 +14,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { synthesizePass2 } from "./synthesize.ts";
+import { temperatureFedDrain, type TempFedFluid } from "./fluid-energy.ts";
 import { PROJECTS_DIR } from "../server/paths.server.ts";
 
 const DEFAULT_DUMP = join(homedir(), ".factorio", "script-output", "data-raw-dump.json");
@@ -189,7 +190,7 @@ export function importFactorioDump(
     ),
     recipeCat: db.prepare(`INSERT OR IGNORE INTO recipe_categories (name) VALUES (?)`),
     machine: db.prepare(
-      `INSERT INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,burns_fluid,fluid_fuel_filter) VALUES (@name,@display,@kind,@crafting_speed,@module_slots,@energy_usage_w,@energy_source,@pollution_per_min,@allowed_effects,@allowed_module_categories,@burns_fluid,@fluid_fuel_filter)`,
+      `INSERT INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,burns_fluid,fluid_fuel_filter,fluid_fuel_per_sec,fluid_fuel_energy_j) VALUES (@name,@display,@kind,@crafting_speed,@module_slots,@energy_usage_w,@energy_source,@pollution_per_min,@allowed_effects,@allowed_module_categories,@burns_fluid,@fluid_fuel_filter,@fluid_fuel_per_sec,@fluid_fuel_energy_j)`,
     ),
     machineCat: db.prepare(
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
@@ -349,6 +350,19 @@ export function importFactorioDump(
     // recipe categories
     for (const name of Object.keys(raw["recipe-category"] ?? {})) ins.recipeCat.run(name);
 
+    // temperature-fed drain inputs (#114): the filter fluid's prototype straight
+    // from the raw dump (fluids are read again here rather than from the table,
+    // so machine rows never depend on insert order)
+    const tempFedFluid = (filter: unknown): TempFedFluid | null => {
+      const f = typeof filter === "string" ? raw.fluid?.[filter] : undefined;
+      if (!f) return null;
+      return {
+        defaultTemperature: f.default_temperature ?? null,
+        maxTemperature: f.max_temperature ?? null,
+        heatCapacityJ: parseSI(f.heat_capacity),
+      };
+    };
+
     // crafting machines (+ categories + fuel categories)
     for (const kind of MACHINE_TYPES) {
       for (const [name, m] of Object.entries(raw[kind] ?? {})) {
@@ -360,6 +374,11 @@ export function importFactorioDump(
         // uses for boilers/reactors). Py's oil-boiler-mk01 dumps effectivity 2.
         const effectivity = es.type === "burner" || es.type === "fluid" ? (es.effectivity ?? 1) : 1;
         const usage = parseSI(m.energy_usage);
+        // temperature-fed sources (#114): fixed drain / usable J per unit
+        const drain =
+          es.type === "fluid" && !es.burns_fluid
+            ? temperatureFedDrain(es, usage, tempFedFluid(es.fluid_box?.filter))
+            : { perSec: null, energyJPerUnit: null };
         ins.machine.run({
           name,
           display: localeByKind.entity?.names?.[name] ?? productDisplay[name] ?? null,
@@ -376,6 +395,8 @@ export function importFactorioDump(
           // filter pins the burner to that one fluid
           burns_fluid: es.type === "fluid" ? (es.burns_fluid ? 1 : 0) : null,
           fluid_fuel_filter: es.type === "fluid" ? (es.fluid_box?.filter ?? null) : null,
+          fluid_fuel_per_sec: drain.perSec,
+          fluid_fuel_energy_j: drain.energyJPerUnit,
         });
         for (const c of cats) ins.machineCat.run(name, c);
         for (const fc of arr<string>(es.fuel_categories)) ins.machineFuel.run(name, fc);

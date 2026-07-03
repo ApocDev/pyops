@@ -143,6 +143,18 @@ export const craftingMachines = sqliteTable("crafting_machines", {
   // Both null on non-fluid energy sources and on pre-#25 imports.
   burnsFluid: integer("burns_fluid"),
   fluidFuelFilter: text("fluid_fuel_filter"),
+  // Temperature-fed drain (#114), for `burns_fluid = 0` sources (see
+  // db/fluid-energy.ts for the shapes and math). `fluid_fuel_per_sec` = a FIXED
+  // drain of the filter fluid in units/s per running machine (an explicit
+  // fluid_usage_per_tick, or the engine's derivation from maximum_temperature —
+  // Py's uf6 reactors ≈60/s, neutron absorbers ≈2/s, the solar tower 60/s).
+  // `fluid_fuel_energy_j` = usable J per unit of the filter fluid
+  // ((usable-temperature cap − default_temperature) × heat_capacity, without
+  // effectivity): when per_sec is null (scale_fluid_usage — Py's compost
+  // plants), the drain is the effectivity-folded draw ÷ this. Both null on
+  // fuel burners and pre-#114 imports (re-sync the data to populate).
+  fluidFuelPerSec: real("fluid_fuel_per_sec"),
+  fluidFuelEnergyJ: real("fluid_fuel_energy_j"),
 });
 
 export const machineCategories = sqliteTable(

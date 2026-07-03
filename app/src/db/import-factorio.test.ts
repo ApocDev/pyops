@@ -157,3 +157,82 @@ describe("importFactorioDump — research productivity effects (#92)", () => {
     db.close();
   });
 });
+
+// Fixture values verbatim from the Py dump: nuclear-reactor-mk01 draws 300kW
+// through a temperature-fed uf6 source (scale_fluid_usage false,
+// maximum_temperature 250) — the engine derives a FIXED per-tick usage from
+// the cap; compost-plant-mk01-turd draws 1MW at effectivity 1000 with
+// scale_fluid_usage true — the drain follows the energy draw, so only the
+// usable J per unit is stored. fluid.uf6: default_temperature 0.01,
+// heat_capacity "0.02kJ"; fluid.sweet-syrup: default_temperature 0, no
+// heat_capacity (engine default 1kJ).
+describe("importFactorioDump — temperature-fed fluid energy sources (#114)", () => {
+  const raw = {
+    fluid: {
+      uf6: { default_temperature: 0.01, max_temperature: 10000, heat_capacity: "0.02kJ" },
+      "sweet-syrup": { default_temperature: 0, max_temperature: 100 },
+    },
+    "assembling-machine": {
+      "nuclear-reactor-mk01": {
+        crafting_categories: ["nuclear-fission"],
+        crafting_speed: 2,
+        energy_usage: "300kW",
+        energy_source: {
+          type: "fluid",
+          effectivity: 1,
+          burns_fluid: false,
+          scale_fluid_usage: false,
+          maximum_temperature: 250,
+          fluid_box: { filter: "uf6" },
+        },
+      },
+    },
+    furnace: {
+      "compost-plant-mk01-turd": {
+        crafting_categories: ["composting"],
+        crafting_speed: 1,
+        energy_usage: "1MW",
+        energy_source: {
+          type: "fluid",
+          effectivity: 1000,
+          burns_fluid: false,
+          scale_fluid_usage: true,
+          maximum_temperature: 10,
+          fluid_box: { filter: "sweet-syrup" },
+        },
+      },
+    },
+  };
+
+  it("derives the uf6 reactor's fixed drain from its maximum_temperature", () => {
+    const db = runImport(raw);
+    const row = db
+      .prepare(
+        `SELECT energy_usage_w w, burns_fluid bf, fluid_fuel_filter ff,
+                fluid_fuel_per_sec ps, fluid_fuel_energy_j ej
+         FROM crafting_machines WHERE name = 'nuclear-reactor-mk01'`,
+      )
+      .get() as { w: number; bf: number; ff: string; ps: number; ej: number };
+    expect(row).toMatchObject({ w: 300_000, bf: 0, ff: "uf6" });
+    // 300000 W ÷ ((250 − 0.01)° × 20 J/°) ≈ 60.0024 uf6/s, fixed
+    expect(row.ej).toBeCloseTo(4999.8);
+    expect(row.ps).toBeCloseTo(60.0024, 4);
+    db.close();
+  });
+
+  it("stores only the usable J per unit for a scale_fluid_usage source", () => {
+    const db = runImport(raw);
+    const row = db
+      .prepare(
+        `SELECT energy_usage_w w, burns_fluid bf, fluid_fuel_filter ff,
+                fluid_fuel_per_sec ps, fluid_fuel_energy_j ej
+         FROM crafting_machines WHERE name = 'compost-plant-mk01-turd'`,
+      )
+      .get() as { w: number; bf: number; ff: string; ps: number | null; ej: number };
+    // effectivity 1000 folds into the stored draw (1MW → 1kW of heat drawn)
+    expect(row).toMatchObject({ w: 1000, bf: 0, ff: "sweet-syrup", ps: null });
+    // (10 − 0)° × 1kJ engine-default heat_capacity = 10kJ per unit
+    expect(row.ej).toBeCloseTo(10_000);
+    db.close();
+  });
+});

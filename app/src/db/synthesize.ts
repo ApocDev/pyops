@@ -26,6 +26,7 @@
  * All rows carry recipes.kind + source_entity so the UI can tell them apart.
  */
 import type Database from "better-sqlite3";
+import { temperatureFedDrain, type TempFedDrain } from "./fluid-energy.ts";
 
 export const ELECTRICITY = "pyops-electricity";
 export const HEAT = "pyops-heat";
@@ -81,7 +82,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       `INSERT OR IGNORE INTO fluids (name,display,default_temperature,heat_capacity_j) VALUES (?,?,NULL,NULL)`,
     ),
     machine: db.prepare(
-      `INSERT OR REPLACE INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,neighbour_bonus,burns_fluid,fluid_fuel_filter) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT OR REPLACE INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,neighbour_bonus,burns_fluid,fluid_fuel_filter,fluid_fuel_per_sec,fluid_fuel_energy_j) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     ),
     machineCat: db.prepare(
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
@@ -93,8 +94,10 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
 
   const fluidInfo = (name: string) =>
     db
-      .prepare(`SELECT default_temperature dt, heat_capacity_j hc FROM fluids WHERE name = ?`)
-      .get(name) as { dt: number | null; hc: number | null } | undefined;
+      .prepare(
+        `SELECT default_temperature dt, max_temperature mt, heat_capacity_j hc FROM fluids WHERE name = ?`,
+      )
+      .get(name) as { dt: number | null; mt: number | null; hc: number | null } | undefined;
 
   const counts = {
     mining: 0,
@@ -166,6 +169,10 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
     burnsFluid?: number | null;
     /** fluid energy sources (#25): the fluid_box filter pinning the fuel */
     fluidFuelFilter?: string | null;
+    /** temperature-fed sources (#114): fixed drain, units/s per machine */
+    fluidFuelPerSec?: number | null;
+    /** temperature-fed sources (#114): usable J per unit of the filter fluid */
+    fluidFuelEnergyJ?: number | null;
   }) => {
     ins.machine.run(
       m.name,
@@ -181,6 +188,8 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       m.neighbourBonus ?? null,
       m.burnsFluid ?? null,
       m.fluidFuelFilter ?? null,
+      m.fluidFuelPerSec ?? null,
+      m.fluidFuelEnergyJ ?? null,
     );
     ins.machineCat.run(m.name, m.category);
     for (const fc of m.fuelCategories ?? []) ins.machineFuel.run(m.name, fc);
@@ -194,6 +203,27 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
     burnsFluid: es?.type === "fluid" ? (es.burns_fluid ? 1 : 0) : null,
     fluidFuelFilter: es?.type === "fluid" ? ((es.fluid_box?.filter as string) ?? null) : null,
   });
+
+  /** Temperature-fed drain (#114) for a raw fluid `energy_source`, resolved
+   * against the filter fluid already imported by pass 1 (Py's solar tower comes
+   * through the boiler path here; the reactors/compost plants through pass 1).
+   * `usageW` is the RAW prototype draw — the helper folds effectivity itself. */
+  const tempFedDrain = (
+    es: any,
+    usageW: number | null,
+  ): { fluidFuelPerSec: number | null; fluidFuelEnergyJ: number | null } => {
+    let d: TempFedDrain = { perSec: null, energyJPerUnit: null };
+    const filter = es?.type === "fluid" ? (es.fluid_box?.filter as string | undefined) : undefined;
+    if (filter && !es.burns_fluid) {
+      const fi = fluidInfo(filter);
+      d = temperatureFedDrain(
+        es,
+        usageW,
+        fi ? { defaultTemperature: fi.dt, maxTemperature: fi.mt, heatCapacityJ: fi.hc } : null,
+      );
+    }
+    return { fluidFuelPerSec: d.perSec, fluidFuelEnergyJ: d.energyJPerUnit };
+  };
 
   const tx = db.transaction(() => {
     /* ── electricity + heat + fluid-fuel pseudo-fluids ────────────────────── */
@@ -222,6 +252,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
           pollutionPerMin: d.energy_source?.emissions_per_minute?.pollution ?? 0,
           burnsFluid: es.burnsFluid,
           fluidFuelFilter: es.fluidFuelFilter,
+          ...tempFedDrain(d.energy_source, usage),
         });
       }
     }
@@ -296,9 +327,11 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
         category: cat,
         pollutionPerMin: src.emissions_per_minute?.pollution ?? 0,
         // Py's oil-boiler-mk01 is a pool fluid burner (burns_fluid, no filter,
-        // effectivity 2); the solar tower is temperature-fed (burns_fluid absent)
+        // effectivity 2); the solar tower is temperature-fed (burns_fluid absent,
+        // fluid_usage_per_tick 1 → a fixed 60/s of solar-concentration, #114)
         burnsFluid: esInfo.burnsFluid,
         fluidFuelFilter: esInfo.fluidFuelFilter,
+        ...tempFedDrain(src, energyW),
       });
       recipe({
         name: `boil-${outFluid}-${target}`,
@@ -513,6 +546,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
           pollutionPerMin: t.energy_source?.emissions_per_minute?.pollution ?? 0,
           burnsFluid: es.burnsFluid,
           fluidFuelFilter: es.fluidFuelFilter,
+          ...tempFedDrain(t.energy_source, usage),
         });
       }
       const seeds = db
@@ -585,6 +619,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
           pollutionPerMin: s.energy_source?.emissions_per_minute?.pollution ?? 0,
           burnsFluid: es.burnsFluid,
           fluidFuelFilter: es.fluidFuelFilter,
+          ...tempFedDrain(s.energy_source, usage),
         });
       }
       for (const [payload, lp] of launchables) {

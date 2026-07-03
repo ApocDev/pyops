@@ -40,18 +40,14 @@ Ctrl+Z UI + editor rehydration, closed), #85 (snapshots + diff, closed), #83
 toasts; closes on push). #78 delivered its hotkey layer + minimal palette and
 STAYS OPEN re-scoped to the remainder (goods search, recents, help sheet).
 
-## Wave 2 — planner correctness (batch: solver + data context)
+## Wave 2 — DONE (2026-07-03)
 
-Batch A landed 2026-07-03: #93, #92, #94, #96. Batch B landed 2026-07-03: #25
-(closed epic #31), #99, #110's interim temp warnings. Batch C landed
-2026-07-03: #113, #115 (all parallel worktree agents, integrated + gated on
-main). #91 — solver v2 (LP core, gesture model, IIS diagnosis, pins, whole
-machines via #98, v1 deleted) — CLOSED 2026-07-03. Remaining:
-
-| Issue                                      | Effort | Notes                                                                                                                                                                                                                                                                                                                              |
-| ------------------------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #110 fluid-temp variants as distinct goods | L      | YAFC-style (fluid, temperature) identity in the solve; range consumers pool matching variants. The cheap interim (per-producer temp warnings — S) has shipped; the full model builds directly on the v2 LP core.                                                                                                                                |
-| #114 temperature-fed fluid energy sources  | M      | #25 follow-up: uf6 reactors / compost plants / solar tower drain their feed fluid by temp × heat capacity; currently unmodelled. In flight (worktree agent).                                                                                                                                                   |
+Planner correctness, all landed: #93, #92, #94, #96 (batch A), #25 (closed epic
+#31), #99, #110's interim warnings (batch B), #113, #115 (batch C), then the
+solver rewrite #91 (LP core, gesture model, IIS diagnosis, pins, whole machines
+via #98, v1 deleted), #110's full temperature-identity model, and #114
+(temperature-fed fluid drains). The solver docs live in docs/solver.md; the
+tracker records the details.
 
 ## Wave 3 — assistant (closes epic #30 with #72 from Wave 0)
 

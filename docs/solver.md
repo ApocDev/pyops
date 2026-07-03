@@ -105,9 +105,19 @@ balance. Adding a `burn-fluid-<fluid>` conversion recipe (1 fluid → its
 `fuel_value` in MJ) sizes that conversion to the draw; the choice of conversion
 decides which fluid burns, several split like any other multi-producer good, and
 with none present the MJ surfaces as a "Fluid fuel" import. A **filtered** fluid
-burner (Py oil/gas powerplants) is pinned to its filter fluid, and
+burner (Py oil/gas powerplants) is pinned to its filter fluid.
 `burns_fluid: false` sources (uf6 reactors, compost plants, the solar tower) are
-temperature-fed — not fuel burners at all.
+**temperature-fed** (#114): they drain their filter fluid for its heat content,
+not a fuel value. The import derives the drain from the prototype
+(`db/fluid-energy.ts`): a fixed units/s per machine — an explicit
+`fluid_usage_per_tick` (neutron absorbers, the solar tower's 60/s) or the
+engine's derivation from `maximum_temperature` (nuclear-reactor-mk01: 300 kW ÷
+((250° − 0.01°) × 20 J/°) ≈ 60.0024 uf6/s) — or, for `scale_fluid_usage`
+sources (compost plants), an energy-following one (the effectivity-folded draw
+÷ usable J per unit, so consumption modules reduce it). The drain is injected
+as a **real system ingredient** of the actual feed fluid — an in-block producer
+covers it, otherwise it surfaces as an import — and the row's fuel chip mirrors
+it (no per-row pick, never folded post-hoc).
 
 A block can also be a **designated fuel supplier** (#115), exporting
 `pyops-fluid-fuel` MJ for other blocks' generic draws. The designation is an

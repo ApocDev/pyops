@@ -27,8 +27,18 @@
  *
  * #25 — fluid-fueled machines. Seeds the dump's three FluidEnergySource
  * shapes (unfiltered burner → pyops-fluid-fuel pool draw, filtered burner →
- * pinned fluid, burns_fluid:false → temperature-fed, no fuel) and checks the
- * pool/pinned/none classification and MJ math.
+ * pinned fluid, burns_fluid:false → temperature-fed) and checks the
+ * pool/pinned classification and MJ math.
+ *
+ * #114 — temperature-fed fluid energy sources. A burns_fluid:false machine
+ * drains its filter fluid for its heat content: a FIXED units/s rate for the
+ * uf6 reactors (300kW ÷ ((250° − 0.01°) × 20 J/°) ≈ 60.0024 uf6/s, derived at
+ * import) or an energy-following one for scale_fluid_usage sources (Py's
+ * compost plants: draw ÷ usable J per unit, so consumption modules reduce it).
+ * The drain is injected as a REAL solver ingredient — it surfaces as an import
+ * of the feed fluid, or is covered by an in-block producer — and the row's
+ * fuel chip mirrors it without folding into fuelTotals (no double count).
+ * Pre-#114 imports (drain columns null) stay unmodelled until a re-sync.
  *
  * #113 — recipe/good display namespaces. Seeds Py's coal-gas chain verbatim
  * (recipe `coal-gas` "Coal gas from coal" producing fluid `coal-gas` "Coal
@@ -391,7 +401,9 @@ describe("fluid-fueled machines (#25)", () => {
     //    pinned to diesel (fuel_value 1.5MJ).
     //  - nuclear-reactor-mk01: 300kW, energy_source { type "fluid",
     //    burns_fluid false, fluid_box.filter "uf6" }, crafting_speed 2 —
-    //    temperature-fed, NOT a fuel burner (uf6 has no fuel_value).
+    //    temperature-fed, NOT a fuel burner (uf6 has no fuel_value). Seeded
+    //    here WITHOUT the #114 drain columns — the pre-#114 import shape
+    //    (the modelled drain has its own suite below).
     //  - recipe glass (category glassworks, energy 4): 20 sand → 20 molten-glass.
     //  - recipe oil-molten-salt-01 (category oil-powerplant, energy 20):
     //    500 molten-salt → 500 hot-molten-salt @1000°.
@@ -490,7 +502,7 @@ describe("fluid-fueled machines (#25)", () => {
     expect(res.imports.find((f) => f.name === "pyops-fluid-fuel")).toBeUndefined();
   });
 
-  it("a temperature-fed fluid source (burns_fluid false) is not a fuel burner", async () => {
+  it("a pre-#114 temperature-fed import (no drain data) stays unmodelled — and is never a fuel burner", async () => {
     const res = await computeBlock({
       goals: [{ name: "molten-fluoride-thorium-pa233", rate: 1000 }],
       recipes: ["nuclear-molten-thorium-reactor"],
@@ -500,6 +512,115 @@ describe("fluid-fueled machines (#25)", () => {
     expect(row.availableFuels).toEqual([]);
     // only the recipe's real ingredient imports — no uf6/pool/petroleum-gas fuel
     expect(res.imports.map((f) => f.name)).toEqual(["molten-fluoride-thorium"]);
+  });
+});
+
+describe("temperature-fed fluid energy sources (#114)", () => {
+  // shares the #25 fixture shape — see that suite's beforeEach for the values
+  let fx: TestDb;
+
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    fx.db.exec(`
+      INSERT INTO fluids (name, display) VALUES
+        ('uf6','Uranium hexafluoride'),
+        ('sweet-syrup','Sweet syrup'),
+        ('molten-fluoride-thorium','Molten fluoride thorium'),
+        ('molten-fluoride-thorium-pa233','Molten fluoride thorium (Pa-233)');
+      INSERT INTO items (name, display) VALUES ('biomass','Biomass'),('compost','Compost');
+
+      INSERT INTO recipes (name, kind, category, energy_required, enabled, hidden) VALUES
+        ('nuclear-molten-thorium-reactor','real','nuclear-fission',5,1,0),
+        ('compost','real','composting',10,1,0),
+        ('make-uf6','real','uf6-enrichment',4,1,0);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
+        ('nuclear-molten-thorium-reactor',0,'fluid','molten-fluoride-thorium',1000),
+        ('compost',0,'item','biomass',1);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+        ('nuclear-molten-thorium-reactor',0,'fluid','molten-fluoride-thorium-pa233',1000),
+        ('compost',0,'item','compost',1),
+        ('make-uf6',0,'fluid','uf6',200);
+
+      INSERT INTO crafting_machines
+        (name, display, kind, crafting_speed, module_slots, energy_usage_w, energy_source, burns_fluid, fluid_fuel_filter, fluid_fuel_per_sec, fluid_fuel_energy_j)
+      VALUES
+        ('nuclear-reactor-mk01','Nuclear reactor MK 01','assembling-machine',2,0,300000,'fluid',0,'uf6',60.00240009600384,4999.8),
+        ('compost-plant-mk01-turd','Compost plant','furnace',1,1,1000,'fluid',0,'sweet-syrup',NULL,10000),
+        ('centrifuge-mk01','Centrifuge','assembling-machine',1,0,500000,'electric',NULL,NULL,NULL,NULL);
+      INSERT INTO machine_categories (machine, category) VALUES
+        ('nuclear-reactor-mk01','nuclear-fission'),
+        ('compost-plant-mk01-turd','composting'),
+        ('centrifuge-mk01','uf6-enrichment');
+      -- consumption module for the energy-following drain test (−40% energy)
+      INSERT INTO modules (name, category, hidden, eff_speed, eff_productivity, eff_consumption)
+        VALUES ('eff-module','effectivity',0,0,0,-0.4);
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+
+  afterEach(() => fx.cleanup());
+
+  it("a uf6 reactor drains its filter fluid at the import-derived fixed rate", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "molten-fluoride-thorium-pa233", rate: 1000 }],
+      recipes: ["nuclear-molten-thorium-reactor"],
+    });
+    const row = res.rows.find((r) => r.recipe === "nuclear-molten-thorium-reactor")!;
+    // 1000/s ÷ 1000/craft = 1 craft/s × 5s ÷ speed 2 = 2.5 reactors
+    expect(row.machine?.count).toBeCloseTo(2.5);
+    // the chip mirrors the drain: 2.5 × 60.0024 ≈ 150.006 uf6/s, no per-row pick
+    expect(row.fuel).toMatchObject({ name: "uf6", kind: "fluid", temperature: true });
+    expect(row.fuel!.perSec).toBeCloseTo(150.006, 3);
+    expect(row.availableFuels).toEqual([]);
+    // the drain is a REAL solver ingredient → it surfaces as a uf6 import
+    // (previously the block showed no demand for the feed fluid at all)
+    expect(res.imports.find((f) => f.name === "uf6")?.rate).toBeCloseTo(150.006, 3);
+  });
+
+  it("an in-block producer covers the drain — it's a real ingredient, not a post-hoc fold", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "molten-fluoride-thorium-pa233", rate: 1000 }],
+      recipes: ["nuclear-molten-thorium-reactor", "make-uf6"],
+    });
+    expect(res.status).toBe("solved");
+    // make-uf6 (200 uf6/craft) is sized to the reactors' drain: 150.006 ÷ 200
+    expect(res.imports.find((f) => f.name === "uf6")).toBeUndefined();
+    expect(res.rows.find((r) => r.recipe === "make-uf6")?.rate).toBeCloseTo(150.006 / 200, 4);
+  });
+
+  it("an energy-following drain (scale_fluid_usage) tracks the draw and consumption modules", async () => {
+    const plain = await computeBlock({
+      goals: [{ name: "compost", rate: 1 }],
+      recipes: ["compost"],
+    });
+    const row = plain.rows.find((r) => r.recipe === "compost")!;
+    // 1/s × 10s = 10 plants; each draws 1kW ÷ 10kJ/unit = 0.1 sweet-syrup/s
+    expect(row.machine?.count).toBeCloseTo(10);
+    expect(row.fuel).toMatchObject({ name: "sweet-syrup", temperature: true });
+    expect(row.fuel!.perSec).toBeCloseTo(1);
+    expect(plain.imports.find((f) => f.name === "sweet-syrup")?.rate).toBeCloseTo(1);
+
+    // −40% consumption → 0.6 kW per plant → 0.6 sweet-syrup/s total
+    const moduled = await computeBlock({
+      goals: [{ name: "compost", rate: 1 }],
+      recipes: ["compost"],
+      modules: { compost: ["eff-module"] },
+    });
+    expect(moduled.rows.find((r) => r.recipe === "compost")!.fuel!.perSec).toBeCloseTo(0.6);
+    expect(moduled.imports.find((f) => f.name === "sweet-syrup")?.rate).toBeCloseTo(0.6);
+  });
+
+  it("never double-counts: the chip's fluid stays out of the post-hoc fuel fold", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "molten-fluoride-thorium-pa233", rate: 1000 }],
+      recipes: ["nuclear-molten-thorium-reactor"],
+    });
+    // fuelItems drives the 🔥 tag for post-hoc-folded fuels — the temperature
+    // drain is solver-modeled, so uf6 must not be in it (folding it again
+    // would double the import)
+    expect(res.fuelItems).not.toContain("uf6");
+    expect(res.imports.filter((f) => f.name === "uf6")).toHaveLength(1);
   });
 });
 

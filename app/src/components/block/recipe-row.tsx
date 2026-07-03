@@ -219,15 +219,18 @@ export function RecipeRow({
                   />
                 )}
                 {/* fuel: icon + rate; click = fuel picker. The fluid-fuel pool
-                    (#25) and a filtered burner's pinned fluid have no per-row
-                    pick, so those render as plain (non-clickable) chips. */}
+                    (#25), a filtered burner's pinned fluid, and a temperature-fed
+                    drain (#114) have no per-row pick, so those render as plain
+                    (non-clickable) chips. */}
                 {row.fuel &&
-                  (row.fuel.pool || row.fuel.pinned ? (
+                  (row.fuel.pool || row.fuel.pinned || row.fuel.temperature ? (
                     <span
                       title={
                         row.fuel.pool
                           ? `Fluid fuel · ${fmtW(row.fuel.perSec * 1e6)} — burns any fuel-valued fluid; add a "Burn …" recipe to choose which`
-                          : `${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s — this machine only burns ${row.fuel.display ?? row.fuel.name}`
+                          : row.fuel.temperature
+                            ? `${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s — drained for its heat (temperature), not burned`
+                            : `${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s — this machine only burns ${row.fuel.display ?? row.fuel.name}`
                       }
                       className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-warning"
                     >

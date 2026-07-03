@@ -440,4 +440,43 @@ describe("synthesizePass2 fluid fuel (#25)", () => {
       ),
     ).toMatchObject({ w: 14_805_000, es: "fluid", bf: 1, ff: null });
   });
+
+  it("captures the solar tower's fixed temperature-fed drain (#114)", () => {
+    // Py's solar-tower-building verbatim: a 16GW boiler (molten-salt →
+    // hot-molten-salt @5000°) whose energy source is temperature-fed
+    // solar-concentration — burns_fluid absent, fluid_usage_per_tick 1 → a
+    // FIXED 60/s drain; usable J per unit from the fluid's own max_temperature
+    // (source cap unset): (10000 − 0)° × 32kJ = 3.2e8 J.
+    fx.db.exec(`
+      INSERT INTO fluids (name, display, default_temperature, max_temperature, heat_capacity_j) VALUES
+        ('molten-salt','Molten salt',1000,5000,NULL),
+        ('hot-molten-salt','Hot molten salt',1000,5000,1000),
+        ('solar-concentration','Solar concentration',0,10000,32000);
+    `);
+    const boilers = {
+      boiler: {
+        "solar-tower-building": {
+          energy_consumption: 16_000_000_000,
+          target_temperature: 5000,
+          fluid_box: { filter: "molten-salt" },
+          output_fluid_box: { filter: "hot-molten-salt" },
+          energy_source: {
+            type: "fluid",
+            effectivity: 1,
+            burns_fluid: false,
+            scale_fluid_usage: false,
+            fluid_usage_per_tick: 1,
+            fluid_box: { filter: "solar-concentration" },
+          },
+        },
+      },
+    };
+    synthesizePass2(fx.db, boilers, ctx);
+    const row = get<{ bf: number; ff: string; ps: number; ej: number }>(
+      `SELECT burns_fluid bf, fluid_fuel_filter ff, fluid_fuel_per_sec ps, fluid_fuel_energy_j ej
+       FROM crafting_machines WHERE name = 'solar-tower-building'`,
+    )!;
+    expect(row).toMatchObject({ bf: 0, ff: "solar-concentration", ps: 60 });
+    expect(row.ej).toBeCloseTo(3.2e8);
+  });
 });

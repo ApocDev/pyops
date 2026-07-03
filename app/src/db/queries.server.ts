@@ -181,6 +181,8 @@ export function machinesForRecipe(recipeName: string) {
       neighbourBonus: craftingMachines.neighbourBonus,
       burnsFluid: craftingMachines.burnsFluid,
       fluidFuelFilter: craftingMachines.fluidFuelFilter,
+      fluidFuelPerSec: craftingMachines.fluidFuelPerSec,
+      fluidFuelEnergyJ: craftingMachines.fluidFuelEnergyJ,
     })
     .from(machineCategories)
     .innerJoin(craftingMachines, eq(craftingMachines.name, machineCategories.machine))
