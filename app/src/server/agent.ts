@@ -18,7 +18,12 @@ export const MAX_STEPS = 60;
 
 /** Resolve the configured model (env → conversation override → app-config →
  * default). Throws if no API key is set anywhere — callers should check
- * resolveApiKey() first for a friendly message. */
+ * resolveApiKey() first for a friendly message.
+ *
+ * Note: no `anthropic-beta` header is attached for Claude's 1M context — it's GA
+ * and the default window on the current Sonnet/Opus generations (the retired
+ * `context-1m-2025-08-07` beta only ever covered Sonnet 4/4.5). See
+ * lib/model-capabilities.ts and #72. */
 export function getModel(modelOverride?: string | null): LanguageModel {
   const { key } = resolveApiKey();
   if (!key) throw new Error("OPENROUTER_API_KEY is not set");

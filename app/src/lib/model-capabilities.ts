@@ -8,11 +8,14 @@ export type ModelCapability = {
  * fetch resolves, or an id the API doesn't list. The dynamic layer is the source
  * of truth; this just keeps the common models sane without a network round-trip. */
 export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
-  // Claude's default window over the API is 200k; the 1M context is a beta we don't
-  // request yet (no context-1m beta header), so 200k is the honest usable size.
-  // Bump back to 1M once that beta is wired up — see #72.
-  "~anthropic/claude-sonnet-latest": { contextWindow: 200_000, reasoningEffort: true },
-  "~anthropic/claude-opus-latest": { contextWindow: 200_000, reasoningEffort: true },
+  // Claude's 1M context is GA (since 2026-03) on the current Sonnet/Opus
+  // generations these aliases resolve to: it is the DEFAULT window — no
+  // `anthropic-beta: context-1m-…` header, no long-context surcharge. The old
+  // `context-1m-2025-08-07` beta was retired 2026-04-30 (it only ever applied to
+  // Sonnet 4/4.5, which stay at 200k). Nothing to send per-request, so 1M is the
+  // honest usable size here; OpenRouter's live catalogue agrees. See #72.
+  "~anthropic/claude-sonnet-latest": { contextWindow: 1_000_000, reasoningEffort: true },
+  "~anthropic/claude-opus-latest": { contextWindow: 1_000_000, reasoningEffort: true },
   "~google/gemini-flash-latest": { contextWindow: 1_048_576, reasoningEffort: true },
   "~moonshotai/kimi-latest": { contextWindow: 262_142, reasoningEffort: true },
   "~openai/gpt-latest": { contextWindow: 1_050_000, reasoningEffort: true },
