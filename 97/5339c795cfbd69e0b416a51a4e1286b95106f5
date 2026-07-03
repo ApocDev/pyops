@@ -1,0 +1,33 @@
+app/src/lib/toast-store.test.ts
+  s_9be9645d11a3e7::t_ed168d43f38418 1-67
+app/src/components/ui/toast.tsx
+  s_17199c808cce12::t_486367761664a2 1-85
+app/src/lib/toast-store.ts
+  s_17199c808cce12::t_2aae4ea64de89f 1-73
+docs/design.md
+  s_17199c808cce12::t_ba21bdf59d5cf0 104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "975339c795cfbd69e0b416a51a4e1286b95106f5",
+  "prompts": {},
+  "sessions": {
+    "s_17199c808cce12": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a536c66ba7359ba34",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
