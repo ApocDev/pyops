@@ -1,0 +1,39 @@
+app/e2e/mut/backup.e2e.ts
+  s_9be9645d11a3e7::t_206e8c9f1f3dc1 1-71
+app/e2e/mut/destructive.e2e.ts
+  s_9be9645d11a3e7::t_2395bb662fdf3b 1-78
+app/e2e/mut/palette.e2e.ts
+  s_9be9645d11a3e7::t_634807cc2752b8 1-83
+app/e2e/mut/snapshots.e2e.ts
+  s_9be9645d11a3e7::t_f2298c4225ca1c 1-67
+app/e2e/mut/undo.e2e.ts
+  s_9be9645d11a3e7::t_fd20c6e40f8fe7 1-64
+app/e2e/mut/helpers.ts
+  s_790bcd64b4fc23::t_a6f7667cc13ca3 1-130
+app/e2e/mut/project-dialog.e2e.ts
+  s_790bcd64b4fc23::t_3f9920188d9113 1-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "35680815c6aeaa6f9521d5ad569e21c0c4782fb0",
+  "prompts": {},
+  "sessions": {
+    "s_790bcd64b4fc23": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a78a3a759423c1897",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
