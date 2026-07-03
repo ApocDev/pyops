@@ -1,0 +1,33 @@
+app/src/components/command-palette.tsx
+  s_9be9645d11a3e7::t_326076bc876c97 1-235
+app/src/lib/command-search.test.ts
+  s_e22e05e91345be::t_734b4fdd8304ce 1-52
+app/src/lib/command-search.ts
+  s_e22e05e91345be::t_3939f195ff7b4b 1-37
+app/src/routes/__root.tsx
+  s_e22e05e91345be::t_a7df2d1fbc9275 8,65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "a08f01ac8cbde74bfeeb2564a251aabe0da9ee5a",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_e22e05e91345be": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-abd3c1a71b74f59c9",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
