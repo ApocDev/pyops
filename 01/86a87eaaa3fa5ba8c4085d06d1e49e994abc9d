@@ -1,0 +1,21 @@
+app/src/lib/hotkeys.test.ts
+  s_e22e05e91345be::t_a302a041eab0e0 1-208
+app/src/lib/hotkeys.ts
+  s_e22e05e91345be::t_b042c49b2df85c 1-191
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "0186a87eaaa3fa5ba8c4085d06d1e49e994abc9d",
+  "prompts": {},
+  "sessions": {
+    "s_e22e05e91345be": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-abd3c1a71b74f59c9",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
