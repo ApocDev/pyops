@@ -19,6 +19,7 @@ import { SortableRow } from "./sortable-row.tsx";
 import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
 import { LogiTag } from "./logi-tag.tsx";
 import { ReactorLayoutChip } from "./reactor-layout-chip.tsx";
+import type { ChipTempWarning } from "./temp-warnings.ts";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
 import { fmtW, num } from "./format.ts";
@@ -59,6 +60,7 @@ export function RecipeRow({
   producible,
   logi,
   open,
+  tempWarnings,
 }: {
   doc: BlockDocStore;
   name: string;
@@ -79,6 +81,8 @@ export function RecipeRow({
   producible: ReadonlySet<string>;
   logi: LogiView;
   open: RowOverlayOpeners;
+  /** per-chip fluid-temperature mismatches touching this row (#110 interim) */
+  tempWarnings: { ingredient: Map<string, ChipTempWarning>; product: Map<string, ChipTempWarning> };
 }) {
   const disp = useStore(doc.store, (s) => s.dispositions);
   const neg = (row?.rate ?? 0) < -1e-6; // running backward — can't physically happen
@@ -282,6 +286,17 @@ export function RecipeRow({
                     open.ctxMenu(e, { name: c.name, kind: c.kind, link: linkOf(c.name) })
                   }
                 />
+                {/* fluid-temp mismatch (#110 interim): part of this fluid is made
+                    at a temperature this machine can't accept */}
+                {tempWarnings.ingredient.has(c.name) && (
+                  <span
+                    title={tempWarnings.ingredient.get(c.name)!.title}
+                    className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning"
+                  >
+                    <AlertTriangle className="size-3.5 shrink-0" />
+                    {tempWarnings.ingredient.get(c.name)!.label}
+                  </span>
+                )}
                 {logi.resolved && c.kind === "item" && (
                   <LogiTag
                     resolved={logi.resolved}
@@ -314,6 +329,17 @@ export function RecipeRow({
                     open.ctxMenu(e, { name: c.name, kind: c.kind, link: linkOf(c.name) })
                   }
                 />
+                {/* fluid-temp mismatch (#110 interim): a consumer in this block
+                    can't accept this output's temperature */}
+                {tempWarnings.product.has(c.name) && (
+                  <span
+                    title={tempWarnings.product.get(c.name)!.title}
+                    className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning"
+                  >
+                    <AlertTriangle className="size-3.5 shrink-0" />
+                    {tempWarnings.product.get(c.name)!.label}
+                  </span>
+                )}
                 {logi.resolved && c.kind === "item" && (
                   <LogiTag
                     resolved={logi.resolved}

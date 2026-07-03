@@ -22,6 +22,7 @@ import type { LogiView, SolveResult } from "./solve-view.ts";
 import { GroupHeaderRow } from "./group-header-row.tsx";
 import { MissingRecipeRow } from "./missing-recipe-row.tsx";
 import { RecipeRow, type RowOverlayOpeners } from "./recipe-row.tsx";
+import { rowTempWarnings } from "./temp-warnings.ts";
 import type { Link as ItemLink } from "./item-chip.tsx";
 import { head } from "./styles.ts";
 
@@ -223,6 +224,7 @@ export function RecipeGrid({
                 producible={producible}
                 logi={logi}
                 open={open}
+                tempWarnings={rowTempWarnings(res?.tempWarnings, res?.display, name)}
               />
             );
           })}

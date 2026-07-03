@@ -15,6 +15,15 @@
  * and its fuel (`uranium-fuel-cell`: fuel_value 4GJ, burnt to
  * `depleted-uranium-fuel-cell`), then checks that an assumed farm layout
  * scales heat output — and ONLY heat output; fuel stays per-reactor.
+ *
+ * #110 (interim) — per-producer fluid-temperature warnings. Seeds Py's real
+ * MHD/fusion chain verbatim from py.db (`b-h`: neutron 10000 @4000°;
+ * `dt-he3`: neutron 7500 @3000°; `generate-mdh-4000`/`-3000`: neutron 24000
+ * min=max 4000/3000; `enriched-water`: water 1000 ≤101°;
+ * `enriched-water-distillation`: water 175 @125°) and checks that a producer
+ * whose temperature falls outside a consumer's accepted range is flagged even
+ * when ANOTHER producer satisfies it — the silent mismatch the old
+ * block-level check missed.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import { switchDatabase } from "../db/index.server.ts";
@@ -196,5 +205,156 @@ describe("computeBlock reactor neighbour bonus (#94)", () => {
     const row = r.rows[0]!;
     expect(row.reactor?.multiplier).toBeCloseTo(3.75, 9);
     expect(row.machine?.count).toBeCloseTo(HEAT_GOAL / (2000 * 3.75), 9);
+  });
+});
+
+describe("per-producer fluid-temperature warnings (#110 interim)", () => {
+  let fx: TestDb;
+
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    // Py's real fusion/MHD chain + heavy-water loop, verbatim from py.db:
+    //   recipe_products:  b-h → neutron 10000 @4000°, helium 160
+    //                     dt-he3 → neutron 7500 @3000°, helium 175, proton 20
+    //                     enriched-water-distillation → water 175 @125°, heavy-water 25
+    //   recipe_ingredients: generate-mdh-4000 ← neutron 24000 (min=max 4000)
+    //                       generate-mdh-3000 ← neutron 24000 (min=max 3000)
+    //                       enriched-water ← deuterium-sulfide 200, water 1000 (≤101°)
+    fx.db.exec(`
+      INSERT INTO fluids (name, display) VALUES
+        ('neutron','Neutron'),('helium','Helium'),('proton','Hydrogen proton'),
+        ('deuterium','Deuterium'),('helium3','Helium-3'),('liquid-helium','Liquid helium'),
+        ('pyops-electricity','Electricity (MJ)'),('water','Water'),
+        ('deuterium-sulfide','Deuterium sulfide'),('heavy-water','Heavy water'),
+        ('vacuum','Vacuum'),('enriched-water','Enriched water');
+      INSERT INTO items (name, display) VALUES ('boron','Boron');
+
+      INSERT INTO recipes (name, display, kind, category, energy_required, enabled, hidden) VALUES
+        ('b-h','Fuse boron with a proton','real','fusion-02',40,1,0),
+        ('dt-he3','Fuse deuterium and helium-3','real','fusion-02',40,1,0),
+        ('generate-mdh-4000','Magnetohydrodynamic (MHD) generator power (4000°)','generating','generate:mdh',1,1,0),
+        ('generate-mdh-3000','Magnetohydrodynamic (MHD) generator power (3000°)','generating','generate:mdh',1,1,0),
+        ('enriched-water','Enriched water','real','compressor',60,1,0),
+        ('enriched-water-distillation','Heavy water','real','distilator',15,1,0);
+
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount, min_temp, max_temp) VALUES
+        ('b-h',0,'fluid','proton',20,NULL,NULL),
+        ('b-h',1,'item','boron',20,NULL,NULL),
+        ('b-h',2,'fluid','liquid-helium',10,NULL,NULL),
+        ('dt-he3',0,'fluid','deuterium',50,NULL,NULL),
+        ('dt-he3',1,'fluid','helium3',50,NULL,NULL),
+        ('dt-he3',2,'fluid','liquid-helium',35,NULL,NULL),
+        ('generate-mdh-4000',0,'fluid','neutron',24000,4000,4000),
+        ('generate-mdh-3000',0,'fluid','neutron',24000,3000,3000),
+        ('enriched-water',0,'fluid','deuterium-sulfide',200,NULL,NULL),
+        ('enriched-water',1,'fluid','water',1000,NULL,101),
+        ('enriched-water-distillation',0,'fluid','vacuum',400,NULL,NULL),
+        ('enriched-water-distillation',1,'fluid','enriched-water',200,NULL,NULL);
+
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount, temperature) VALUES
+        ('b-h',0,'fluid','neutron',10000,4000),
+        ('b-h',1,'fluid','helium',160,NULL),
+        ('dt-he3',0,'fluid','neutron',7500,3000),
+        ('dt-he3',1,'fluid','helium',175,NULL),
+        ('dt-he3',2,'fluid','proton',20,NULL),
+        ('generate-mdh-4000',0,'fluid','pyops-electricity',9600000,NULL),
+        ('generate-mdh-3000',0,'fluid','pyops-electricity',7200000,NULL),
+        ('enriched-water',0,'fluid','enriched-water',200,NULL),
+        ('enriched-water-distillation',0,'fluid','water',175,125),
+        ('enriched-water-distillation',1,'fluid','heavy-water',25,NULL);
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+
+  afterEach(() => fx.cleanup());
+
+  it("flags a mismatched producer even when another producer satisfies the range", async () => {
+    // b-h's 4000° neutrons satisfy the generator, which used to mask dt-he3's
+    // 3000° neutrons being pooled in too — the silent wrong answer of #110.
+    const res = await computeBlock({
+      goals: [{ name: "pyops-electricity", rate: 240000 }],
+      recipes: ["b-h", "dt-he3", "generate-mdh-4000"],
+    });
+    expect(res.tempWarnings).toEqual([
+      {
+        producer: "dt-he3",
+        consumer: "generate-mdh-4000",
+        item: "neutron",
+        temp: 3000,
+        needs: "4k°",
+        partial: true,
+      },
+    ]);
+    // the warned fluid is display-mapped even though it's internally linked
+    expect(res.display["neutron"]).toBe("Neutron");
+  });
+
+  it("flags each mismatched producer→consumer pair with both generators present", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "pyops-electricity", rate: 240000 }],
+      recipes: ["b-h", "dt-he3", "generate-mdh-4000", "generate-mdh-3000"],
+    });
+    expect(res.tempWarnings).toHaveLength(2);
+    expect(res.tempWarnings).toContainEqual({
+      producer: "dt-he3",
+      consumer: "generate-mdh-4000",
+      item: "neutron",
+      temp: 3000,
+      needs: "4k°",
+      partial: true,
+    });
+    expect(res.tempWarnings).toContainEqual({
+      producer: "b-h",
+      consumer: "generate-mdh-3000",
+      item: "neutron",
+      temp: 4000,
+      needs: "3k°",
+      partial: true,
+    });
+  });
+
+  it("still flags a total mismatch (no in-block temperature acceptable)", async () => {
+    // enriched-water accepts water ≤101°; the distillation returns it at 125° —
+    // by-name linking closes a recycle loop the game won't run.
+    const res = await computeBlock({
+      goals: [{ name: "heavy-water", rate: 1 }],
+      recipes: ["enriched-water", "enriched-water-distillation"],
+    });
+    expect(res.tempWarnings).toEqual([
+      {
+        producer: "enriched-water-distillation",
+        consumer: "enriched-water",
+        item: "water",
+        temp: 125,
+        needs: "≤101°",
+        partial: false,
+      },
+    ]);
+  });
+
+  it("stays silent when every producer satisfies the range", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "pyops-electricity", rate: 240000 }],
+      recipes: ["b-h", "generate-mdh-4000"],
+    });
+    expect(res.tempWarnings).toEqual([]);
+  });
+
+  it("stays silent for imported fluids (no in-block producer)", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "pyops-electricity", rate: 240000 }],
+      recipes: ["generate-mdh-4000"],
+    });
+    expect(res.tempWarnings).toEqual([]);
+  });
+
+  it("ignores disabled producers (excluded from the solve)", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "pyops-electricity", rate: 240000 }],
+      recipes: ["b-h", "dt-he3", "generate-mdh-4000"],
+      disabledRecipes: ["dt-he3"],
+    });
+    expect(res.tempWarnings).toEqual([]);
   });
 });

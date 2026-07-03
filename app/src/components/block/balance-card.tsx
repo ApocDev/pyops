@@ -5,6 +5,7 @@ import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { fmtSpoilTime, Icon, useSpoilables } from "../../lib/icons";
+import { fmtTemp } from "../../lib/format";
 import { ItemChip, dispTag, type Link as ItemLink } from "./item-chip.tsx";
 import { LogiTag } from "./logi-tag.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
@@ -208,13 +209,14 @@ export function BalanceCard({
             <div className="border-b border-border px-3 py-2 text-sm text-warning">
               {res.tempWarnings.map((w) => (
                 <div
-                  key={`${w.recipe}-${w.item}`}
+                  key={`${w.producer}-${w.consumer}-${w.item}-${w.temp}`}
                   className="flex items-center gap-1"
-                  title="the solver links fluids by name — check your heat chain"
+                  title="the solver links fluids by name and pools all temperatures — in-game this producer's output can't feed this consumer"
                 >
                   <AlertTriangle className="size-3.5 shrink-0" />{" "}
-                  {res.display?.[w.recipe] ?? w.recipe} needs {res.display?.[w.item] ?? w.item} at{" "}
-                  {w.needs}, but this block makes it at {w.got.join("°, ")}°
+                  {res.display?.[w.producer] ?? w.producer} makes {res.display?.[w.item] ?? w.item}{" "}
+                  at {fmtTemp(w.temp)}, but {res.display?.[w.consumer] ?? w.consumer} needs{" "}
+                  {w.needs}
                 </div>
               ))}
             </div>

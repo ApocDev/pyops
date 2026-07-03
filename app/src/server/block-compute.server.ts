@@ -721,31 +721,53 @@ export async function computeBlock(rawData: SolveInput) {
     .filter((f) => q.recipesProducing(f.name).length > 0)
     .map((f) => f.name);
 
-  // Fluid temperature sanity: the solver links fluids by name, so flag any
-  // consumer whose required temperature range no fluid produced in-block
-  // satisfies (e.g. a turbine needing ≥500° fed by 250° steam).
-  const producedTempsInBlock = new Map<string, number[]>();
+  // Fluid temperature sanity (#110 interim): the solver links fluids by NAME,
+  // pooling every temperature variant into one good, so a producer whose output
+  // temperature falls outside a consumer's accepted range is silently blended in
+  // (e.g. dt-he3's 3000° neutrons pooled into a 4000°-only MHD generator). Flag
+  // every mismatched producer→consumer pair — per PRODUCER, so one in-range
+  // producer can no longer mask another that's out of range (the old check
+  // warned only when NO in-block temperature satisfied the range). The full
+  // per-temperature identity model lands with the solver rewrite (#91).
+  const fluidProducers = new Map<string, { recipe: string; temp: number }[]>();
   for (const r of fetched)
     for (const p of r.products)
-      if (p.kind === "fluid" && p.temperature != null)
-        producedTempsInBlock.set(p.name, [
-          ...(producedTempsInBlock.get(p.name) ?? []),
-          p.temperature,
-        ]);
-  const tempWarnings: { recipe: string; item: string; needs: string; got: number[] }[] = [];
+      if (p.kind === "fluid" && p.temperature != null) {
+        const list = fluidProducers.get(p.name) ?? [];
+        list.push({ recipe: r.name, temp: p.temperature });
+        fluidProducers.set(p.name, list);
+      }
+  const tempWarnings: {
+    producer: string; // recipe making the out-of-range temperature
+    consumer: string; // recipe whose ingredient can't accept it
+    item: string; // the fluid
+    temp: number; // the producer's output temperature
+    needs: string; // the consumer's accepted range, formatted
+    /** true when ANOTHER in-block producer does satisfy the range — the silent
+     * partial mismatch the old block-level check missed entirely */
+    partial: boolean;
+  }[] = [];
   for (const r of fetched) {
     for (const c of r.ingredients) {
       if (c.kind !== "fluid" || (c.minTemp == null && c.maxTemp == null)) continue;
-      const got = producedTempsInBlock.get(c.name);
-      if (!got?.length) continue; // imported — temperature is the player's problem
+      const producers = fluidProducers.get(c.name);
+      if (!producers?.length) continue; // imported — temperature is the player's problem
       const lo = c.minTemp ?? -Infinity;
       const hi = c.maxTemp ?? Infinity;
-      if (!got.some((t) => t >= lo && t <= hi)) {
+      const anyOk = producers.some((p) => p.temp >= lo && p.temp <= hi);
+      const seen = new Set<string>(); // a recipe can emit the same fluid+temp more than once
+      for (const p of producers) {
+        if (p.temp >= lo && p.temp <= hi) continue;
+        const key = `${p.recipe}@${p.temp}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
         tempWarnings.push({
-          recipe: r.name,
+          producer: p.recipe,
+          consumer: r.name,
           item: c.name,
+          temp: p.temp,
           needs: fmtTempRange(c.minTemp, c.maxTemp) ?? "any°",
-          got: Array.from(new Set(got)),
+          partial: anyOk,
         });
       }
     }
@@ -781,6 +803,9 @@ export async function computeBlock(rawData: SolveInput) {
     ...imports.map((f) => f.name),
     ...exports.map((f) => f.name),
     ...stuckItems,
+    // internally-linked fluids named by a temperature warning aren't in the
+    // flows above — map them too so the warning text shows localized names
+    ...tempWarnings.map((w) => w.item),
   ]) {
     const d = itemDisp(name);
     if (d) display[name] = d;
