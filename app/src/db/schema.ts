@@ -353,12 +353,15 @@ export const meta = sqliteTable("meta", {
 
 /** YAFC-style cost analysis (LP shadow prices): one row per good/recipe.
  * Goods get an intrinsic cost; recipes get their execution cost (ingredients +
- * logistics). Recipe names can collide with item names (e.g. iron-plate), so
- * the key is (scope, name). Recomputed after every data import. */
+ * logistics) plus two explorer measures (#97): `recipe-flow` (the dual of the
+ * recipe's LP constraint — how much a sensible economy runs it) and
+ * `recipe-waste` (the 0–1 share of input value the recipe destroys). Recipe
+ * names can collide with item names (e.g. iron-plate), so the key is
+ * (scope, name). Recomputed after every data import. */
 export const costAnalysis = sqliteTable(
   "cost_analysis",
   {
-    scope: text().notNull(), // good | recipe
+    scope: text().notNull(), // good | recipe | recipe-flow | recipe-waste
     name: text().notNull(),
     kind: text().notNull(), // item | fluid | recipe
     cost: real().notNull(),

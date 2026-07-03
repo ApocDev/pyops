@@ -1,24 +1,24 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Check, Droplet, Flame, FlaskConical, Lock, Search, Timer } from "lucide-react";
+import { Droplet, Flame, Search } from "lucide-react";
 import { browseDetailFn, searchAllFn, statsFn } from "../server/factorio";
 import { IconProvider, Icon } from "../lib/icons";
 import { recordRecent } from "../lib/recents";
-import { RecipeHover } from "../lib/recipe-card";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
-import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
+import { FlowStaleCallout } from "#/components/browse/flow-stale-callout.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
+import { RecipeList } from "#/components/browse/recipe-list.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 
-/** The item/fluid browser. `sel` lives in the URL so every view is linkable
- * and back/forward walks your browse history. */
+/** The item/fluid browser + recipe explorer (#97). `sel` lives in the URL so
+ * every view is linkable and back/forward walks your browse history. */
 export const Route = createFileRoute("/browse")({
   validateSearch: (s: Record<string, unknown>): { sel?: string } =>
     typeof s.sel === "string" && s.sel ? { sel: s.sel } : {},
@@ -29,17 +29,16 @@ export const Route = createFileRoute("/browse")({
   ),
 });
 
-const num = (n: number) => {
-  const r = Math.round(n * 100) / 100;
-  return `${r}`;
-};
-
 type Kind = "item" | "fluid";
 
 function Browse() {
   const { sel } = Route.useSearch();
   const navigate = useNavigate({ from: "/browse" });
   const [query, setQuery] = useState("");
+  // the detail pane's recipe filter — reset when the selected good changes, so
+  // walking the graph never lands on an invisibly-filtered list
+  const [recipeQuery, setRecipeQuery] = useState("");
+  useEffect(() => setRecipeQuery(""), [sel]);
 
   const stats = useQuery({ queryKey: ["stats"], queryFn: () => statsFn() });
   const results = useQuery({
@@ -208,17 +207,35 @@ function Browse() {
               </div>
             </div>
 
+            {!detail.data.flowComputed &&
+              detail.data.producedBy.length + detail.data.consumedBy.length > 0 && (
+                <FlowStaleCallout />
+              )}
+            {detail.data.producedBy.length + detail.data.consumedBy.length > 0 && (
+              <FilterInput
+                value={recipeQuery}
+                onValueChange={setRecipeQuery}
+                placeholder="filter recipes…"
+                className="mb-4 max-w-sm"
+              />
+            )}
             <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
               <RecipeList
                 title={`Produced by (${detail.data.producedBy.length})`}
                 cards={detail.data.producedBy}
                 focus={detail.data.name}
+                emptyText="nothing makes this — a raw input"
+                query={recipeQuery}
+                onClearQuery={() => setRecipeQuery("")}
                 onPick={open}
               />
               <RecipeList
                 title={`Consumed by (${detail.data.consumedBy.length})`}
                 cards={detail.data.consumedBy}
                 focus={detail.data.name}
+                emptyText="no consumers"
+                query={recipeQuery}
+                onClearQuery={() => setRecipeQuery("")}
                 onPick={open}
               />
             </div>
@@ -235,157 +252,3 @@ const fmtJ = (j: number) =>
     : j >= 1e6
       ? `${(j / 1e6).toFixed(1)} MJ`
       : `${(j / 1e3).toFixed(0)} kJ`;
-
-type Cards = NonNullable<Awaited<ReturnType<typeof browseDetailFn>>>["producedBy"];
-
-function RecipeList({
-  title,
-  cards,
-  focus,
-  onPick,
-}: {
-  title: string;
-  cards: Cards;
-  focus: string;
-  onPick: (name: string) => void;
-}) {
-  const [showAll, setShowAll] = useState(false);
-  const LIMIT = 25;
-  const shown = showAll ? cards : cards.slice(0, LIMIT);
-  return (
-    <Card className="self-start">
-      <CardHeader>
-        <CardTitle className="normal-case">{title}</CardTitle>
-      </CardHeader>
-      {cards.length === 0 && (
-        <div className="px-3 pb-3 text-muted-foreground">
-          {title.startsWith("Produced") ? "nothing makes this — a raw input" : "no consumers"}
-        </div>
-      )}
-      {shown.map((c) => (
-        <RecipeRow key={c.name} card={c} focus={focus} onPick={onPick} />
-      ))}
-      {cards.length > LIMIT && !showAll && (
-        <Button
-          variant="ghost"
-          onClick={() => setShowAll(true)}
-          className="w-full justify-start border-t-border px-3 font-normal text-info hover:text-info"
-        >
-          show all {cards.length}…
-        </Button>
-      )}
-    </Card>
-  );
-}
-
-/** One recipe: name + lock state, then its io with every component clickable. */
-function RecipeRow({
-  card,
-  focus,
-  onPick,
-}: {
-  card: Cards[number];
-  focus: string;
-  onPick: (name: string) => void;
-}) {
-  const turd = card.unlocks.find((u) => u.isTurdSub);
-  const lock = card.enabled
-    ? null
-    : turd
-      ? {
-          cls: turd.turdSelected ? "text-success" : "text-surplus",
-          text: turd.turdSelected ? (
-            <>
-              <FlaskConical className="size-3.5" /> {turd.display} <Check className="size-3.5" />
-            </>
-          ) : (
-            <>
-              <FlaskConical className="size-3.5" /> TURD: {turd.display}
-            </>
-          ),
-          title: turd.turdSelected
-            ? "granted by your selected TURD choice"
-            : "requires this TURD choice — pick it on the TURD page",
-        }
-      : card.unlocks.length
-        ? {
-            cls: "text-muted-foreground",
-            text: (
-              <>
-                <Lock className="size-3.5" /> {card.unlocks[0].display}
-                {card.unlocks.length > 1 ? ` +${card.unlocks.length - 1}` : ""}
-              </>
-            ),
-            title: `unlocked by: ${card.unlocks.map((u) => u.display).join(", ")}`,
-          }
-        : {
-            cls: "text-muted-foreground",
-            text: (
-              <>
-                <Lock className="size-3.5" /> locked
-              </>
-            ),
-            title: "no unlocking technology found",
-          };
-
-  const Comp = ({
-    c,
-    dim,
-  }: {
-    c: { kind: string; name: string; display: string | null; amount: number };
-    dim?: boolean;
-  }) => (
-    <Button
-      variant="ghost"
-      onClick={() => onPick(c.name)}
-      title={`${c.display ?? c.name} ×${num(c.amount)}`}
-      className={`h-auto gap-0.5 px-0.5 py-0 font-normal hover:bg-accent ${
-        c.name === focus ? "ring-1 ring-primary/60" : ""
-      } ${dim ? "opacity-80" : ""}`}
-    >
-      <Icon kind={c.kind as Kind} name={c.name} size="sm" noTitle />
-      <span className="text-sm">{num(c.amount)}</span>
-    </Button>
-  );
-
-  return (
-    <div className="border-t border-border px-3 py-2">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-        <RecipeHover
-          name={card.name}
-          className="flex min-w-0 basis-full items-center gap-1.5 md:basis-auto"
-        >
-          <Icon kind="recipe" name={card.name} size="sm" noHover />
-          <span className="truncate" title={card.display ?? card.name}>
-            {card.display ?? card.name}
-          </span>
-        </RecipeHover>
-        <span className="flex items-center gap-1 text-sm text-muted-foreground">
-          <Timer className="size-3.5" /> {num(card.energyRequired ?? 0.5)}s
-        </span>
-        {lock && (
-          <span className={`inline-flex items-center gap-1 text-sm ${lock.cls}`} title={lock.title}>
-            {lock.text}
-          </span>
-        )}
-        <span className="ml-auto flex shrink-0 items-center gap-0.5">
-          {card.machines.slice(0, 4).map((m) => (
-            <Icon key={m.name} kind="item" name={m.name} size="sm" title={m.display ?? m.name} />
-          ))}
-          {card.machines.length > 4 && (
-            <span className="text-sm text-muted-foreground">+{card.machines.length - 4}</span>
-          )}
-        </span>
-      </div>
-      <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
-        {card.ingredients.map((c, i) => (
-          <Comp key={`i${i}`} c={c} />
-        ))}
-        <span className="text-muted-foreground">→</span>
-        {card.products.map((c, i) => (
-          <Comp key={`p${i}`} c={c} dim={(c.probability ?? 1) < 1} />
-        ))}
-      </div>
-    </div>
-  );
-}

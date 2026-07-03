@@ -2886,19 +2886,37 @@ function recipeCard(name: string) {
 }
 export type RecipeCardData = NonNullable<ReturnType<typeof recipeCard>>;
 
-/** Everything the browser's detail pane needs for one item/fluid. */
+/** Everything the browser's detail pane needs for one item/fluid: recipe cards
+ * enriched with the explorer measures (#97) — economy cost/flow/waste, the
+ * research-horizon availability, and TURD supersession — so the UI can rank
+ * producers/consumers by how much a sensible economy actually runs them. */
 export function browseDetail(name: string) {
   const item = getItem(name);
   const fluid = getFluid(name);
   if (!item && !fluid) return null;
-  const cards = (rs: { name: string }[]) =>
-    rs.map((r) => recipeCard(r.name)).filter((c): c is RecipeCardData => !!c);
+  const horizon = getResearchHorizon();
+  const selections = getTurdSelections();
+  const cards = (rs: { name: string }[]) => {
+    const eco = recipeEconomy(rs.map((r) => r.name));
+    const superseded = turdSuperseded(rs.map((r) => r.name));
+    return rs
+      .map((r) => recipeCard(r.name))
+      .filter((c): c is RecipeCardData => !!c)
+      .map((c) => ({
+        ...c,
+        ...(eco.get(c.name) ?? { cost: null, flow: null, waste: null }),
+        avail: computeAvail(c.enabled, c.unlocks, horizon, selections),
+        superseded: superseded.get(c.name) ?? null,
+      }));
+  };
   return {
     name,
     kind: fluid ? "fluid" : "item",
     display: item?.display ?? fluid?.display ?? name,
     item,
     fluid,
+    // false until a cost-analysis recompute adds flow/waste (pre-#97 DBs)
+    flowComputed: recipeFlowsComputed(),
     producedBy: cards(recipesProducing(name)),
     consumedBy: cards(recipesConsuming(name)),
   };
@@ -3028,6 +3046,47 @@ export function recipeCosts(names: string[]): Map<string, number> {
       )
       .all()
       .map((r) => [r.name, r.cost]),
+  );
+}
+
+export type RecipeEconomy = { cost: number | null; flow: number | null; waste: number | null };
+/** Explorer measures per recipe (#97): execution cost, estimated economy flow
+ * (the LP dual of the recipe's constraint), and waste share (0–1: how much of
+ * the recipe's input value it destroys). Fields are null where the analysis
+ * hasn't produced them — e.g. a DB whose cost analysis predates the flow/waste
+ * scopes, until the next data sync or manual recompute. */
+export function recipeEconomy(names: string[]): Map<string, RecipeEconomy> {
+  const out = new Map<string, RecipeEconomy>();
+  if (!names.length) return out;
+  const rows = db
+    .select({ scope: costAnalysis.scope, name: costAnalysis.name, cost: costAnalysis.cost })
+    .from(costAnalysis)
+    .where(
+      and(
+        inArray(costAnalysis.scope, ["recipe", "recipe-flow", "recipe-waste"]),
+        inArray(costAnalysis.name, Array.from(new Set(names))),
+      ),
+    )
+    .all();
+  for (const r of rows) {
+    const e = out.get(r.name) ?? { cost: null, flow: null, waste: null };
+    if (r.scope === "recipe") e.cost = r.cost;
+    else if (r.scope === "recipe-flow") e.flow = r.cost;
+    else e.waste = r.cost;
+    out.set(r.name, e);
+  }
+  return out;
+}
+
+/** Whether the stored cost analysis carries the explorer's flow/waste scopes —
+ * false for a DB computed before #97, until a recompute or data sync. */
+export function recipeFlowsComputed(): boolean {
+  return (
+    db
+      .select({ n: sql<number>`count(*)` })
+      .from(costAnalysis)
+      .where(eq(costAnalysis.scope, "recipe-flow"))
+      .get()!.n > 0
   );
 }
 

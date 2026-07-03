@@ -38,6 +38,12 @@ source](#setup) to hack on it.
   **launches/min** per good (`floor(rocket_lift_weight / item weight)` per rocket).
 - **Browse the data.** A searchable catalogue of every item, fluid, and recipe in
   your exact mod set — used-in / produced-by, ingredients, products, machines.
+  The detail view is a **recipe explorer**: a good's producers and consumers come
+  grouped by availability (available now / needs a TURD pick / needs research,
+  with the blocking tech named), ranked by how much a sensible economy actually
+  runs each recipe, and annotated with the share of input value a recipe destroys
+  (both from the cost analysis) — with a filter over the lists, and every
+  ingredient/product clickable to walk the recipe graph.
 - **Track TURD choices.** Py's "There's Usually a Recipe Difference" tech upgrades
   are first-class: each master shows every branch — its description, the recipes it
   swaps or newly unlocks, and a hover diff of what actually changes (inputs,
@@ -198,7 +204,10 @@ and TURD upgrades.
 ![AI assistant drafting a py science 1 production block](docs/images/assistant.png)
 
 **Browse** — a searchable catalogue of every item, fluid, and recipe in your exact mod
-set, with produced-by / used-in (here: Iron plate — 14 producers, 160 consumers).
+set, with produced-by / used-in (here: Iron plate — 14 producers, 160 consumers). The
+lists are a recipe explorer: grouped by availability against your research horizon,
+ranked by estimated economy flow, and annotated with waste % (both from the cost
+analysis).
 
 ![Browse — Iron plate with its producers and consumers](docs/images/browse.png)
 

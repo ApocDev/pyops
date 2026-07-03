@@ -17,7 +17,16 @@
  *    never priced through barrel round-trips (and the recipes sort last)
  *
  * Results land in the cost_analysis table: goods cost + per-recipe execution
- * cost (ingredients + logistics). Recomputed after every data import.
+ * cost (ingredients + logistics), plus two practicality measures per recipe
+ * for the recipe explorer (#97):
+ *  - flow (scope `recipe-flow`): the dual (shadow price) of the recipe's LP
+ *    constraint — how much a sensible economy actually runs the recipe. A
+ *    binding constraint (the recipe sets its products' prices) gets a positive
+ *    dual; a slack one (the economy has cheaper ways) gets 0.
+ *  - waste (scope `recipe-waste`): 1 − productValue / recipeCost — the share
+ *    of a recipe's input+logistics value it destroys (0 = value-neutral,
+ *    1 = pure sink).
+ * Recomputed after every data import.
  */
 import Database from "better-sqlite3";
 import highsLoader from "highs";
@@ -116,6 +125,7 @@ export async function computeCostAnalysis(dbFile: string): Promise<CostSummary> 
   // logistics cost per recipe (the constraint's right-hand side)
   const logistics = new Map<string, number>();
   const constraints: string[] = [];
+  const constraintRecipe: string[] = []; // c<i> → recipe name (for the duals)
   for (const r of recipes) {
     const ing = ingByRecipe.get(r.name) ?? [];
     const prod = prodByRecipe.get(r.name) ?? [];
@@ -143,7 +153,10 @@ export async function computeCostAnalysis(dbFile: string): Promise<CostSummary> 
       if (Math.abs(coef) < 1e-9) continue;
       parts.push(`${coef >= 0 ? "+" : "-"} ${Math.abs(coef)} ${goodVar.get(good)}`);
     }
-    if (parts.length) constraints.push(`c${constraints.length}: ${parts.join(" ")} <= ${cost}`);
+    if (parts.length) {
+      constraints.push(`c${constraints.length}: ${parts.join(" ")} <= ${cost}`);
+      constraintRecipe.push(r.name);
+    }
   }
 
   // objective: small weight on everything + science usage; bounds per variable
@@ -169,7 +182,18 @@ export async function computeCostAnalysis(dbFile: string): Promise<CostSummary> 
     costOf.set(varGood[i], (sol.Columns[`g${i}`]?.Primal as number) ?? 0);
   }
 
+  // per-recipe estimated flow: the dual of the recipe's constraint (#97).
+  // Rows come back named c<i>; a pure-LP solve always carries duals.
+  const flowOf = new Map<string, number>();
+  for (const row of sol.Rows) {
+    if (!("Name" in row) || !("Dual" in row)) continue;
+    const idx = Number(row.Name.slice(1));
+    const recipe = constraintRecipe[idx];
+    if (recipe !== undefined) flowOf.set(recipe, Math.max(0, row.Dual ?? 0));
+  }
+
   // persist: goods cost + recipe execution cost (ingredients + logistics)
+  // + the explorer's flow/waste measures per recipe
   const wipe = db.prepare(`DELETE FROM cost_analysis`);
   const put = db.prepare(
     `INSERT OR REPLACE INTO cost_analysis (scope, name, kind, cost) VALUES (?,?,?,?)`,
@@ -184,6 +208,13 @@ export async function computeCostAnalysis(dbFile: string): Promise<CostSummary> 
       for (const c of ingByRecipe.get(r.name) ?? [])
         cost += c.amount * Math.max(0, costOf.get(c.name) ?? 0);
       put.run("recipe", r.name, "recipe", cost);
+      put.run("recipe-flow", r.name, "recipe", flowOf.get(r.name) ?? 0);
+      // waste: the share of the recipe's cost its products fail to return
+      let productValue = 0;
+      for (const c of prodByRecipe.get(r.name) ?? [])
+        productValue += c.amount * Math.max(0, costOf.get(c.name) ?? 0);
+      const waste = cost > 0 ? Math.min(1, Math.max(0, 1 - productValue / cost)) : 0;
+      put.run("recipe-waste", r.name, "recipe", waste);
     }
   });
   tx();
