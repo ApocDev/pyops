@@ -106,6 +106,7 @@ Reach for these before writing markup:
 | Micro caption over a field group | `FieldLabel` (`ui/label.tsx`) — the uppercase muted eyebrow; `Label` stays the `text-sm` form label. |
 | Panel with a title | `Card` + `CardHeader`/`CardTitle`/`CardContent`. |
 | Confirmation / focused edit | `Dialog` (`ui/dialog.tsx`) — centered modal at `md+`, docks to the bottom as a sheet below. Never a bare centered modal on phones. |
+| Destructive-action confirm | `ConfirmDialog` (`components/confirm-dialog.tsx`) — the app's one "are you sure?", built on `AlertDialog` (`ui/alert-dialog.tsx`, radix; shares Dialog's surface + responsive bottom-sheet, but no × close or outside-dismiss — Cancel or a destructive-variant confirm). Body copy names exactly what's destroyed (e.g. block name + recipe/goal counts). Only for big/irreversible deletes (block, project, companion mod, chat); small undo-logged deletes skip the confirm and fire immediately with a toast whose Undo action shortcuts into the undo system (`deletedToast`/`undoToast` in `lib/undo-client.ts`). Never `window.confirm`. |
 | Slide-over / drawer / collapsed rail | `Sheet`. |
 | Page title row + toolbar | `PageHeader` (`components/page-header.tsx`). |
 | "Nothing here yet" | `EmptyState` (`components/empty-state.tsx`). |

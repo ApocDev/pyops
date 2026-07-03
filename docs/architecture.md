@@ -200,3 +200,17 @@ saves name themselves on the stack where the call site knows what changed
 (`pendingAction` labels in the block doc store, merged by
 `lib/undo-names.ts`); the debounced auto-save otherwise stays generic
 (`Edit block "…"`).
+
+Destructive actions ride the same rails (#83): a small undo-logged delete
+(task, subtask, step, note, folder, module preset) fires immediately — no
+confirm — and shows a toast whose **Undo** button is just a shortcut into
+`runUndo` (`deletedToast`/`undoToast` in `lib/undo-client.ts`). Big or
+irreversible deletes go through `ConfirmDialog`
+(`components/confirm-dialog.tsx`, on the `ui/alert-dialog.tsx` primitive —
+never `window.confirm`): block deletion states the recipe/goal counts being
+destroyed (from `listBlocks`) and still gets the undo toast; project removal,
+companion-mod removal, and chat deletion aren't in the undo log, so their
+dialogs say so and their toasts carry no Undo button. In-editor row removals
+(recipe rows, snapshot delete) keep their two-click arm instead — they mutate
+the editor's local doc ahead of the debounced auto-save, so a toast-Undo could
+pop the wrong action.
