@@ -29,7 +29,7 @@ export const Route = createFileRoute("/coherence")({
   ),
 });
 
-import { formatQty as num } from "../lib/format";
+import { formatQty as num, rateLabel } from "../lib/format";
 
 type End = { blockId: number; blockName: string; rate: number; role: string };
 type Link = {
@@ -287,7 +287,7 @@ function Good({ good, display, kind }: { good: string; display: string | null; k
 }
 
 /** One block on an edge end: name + rate, links to the block editor. */
-function BlockEnd({ b, tone }: { b: End; tone: "make" | "use" }) {
+function BlockEnd({ good, b, tone }: { good: string; b: End; tone: "make" | "use" }) {
   return (
     <Link
       to="/block/$id"
@@ -296,13 +296,15 @@ function BlockEnd({ b, tone }: { b: End; tone: "make" | "use" }) {
       title={`${b.blockName} · ${b.role}`}
     >
       <span className="max-w-[17rem] truncate md:max-w-[10rem]">{b.blockName}</span>
-      <span className={tone === "make" ? "text-success" : "text-warning"}>{num(b.rate)}</span>
+      <span className={tone === "make" ? "text-success" : "text-warning"}>
+        {rateLabel(good, b.rate)}
+      </span>
       {b.role === "byproduct" && <Recycle className="size-3.5 text-surplus/80" />}
     </Link>
   );
 }
 
-function Balance({ net }: { net: number }) {
+function Balance({ good, net }: { good: string; net: number }) {
   const base = "shrink-0 px-1.5 py-0.5 whitespace-nowrap";
   if (Math.abs(net) <= 1e-6)
     return (
@@ -312,9 +314,15 @@ function Balance({ net }: { net: number }) {
     );
   if (net < 0)
     return (
-      <span className={`${base} bg-destructive/20 text-destructive`}>short {num(-net)}/s</span>
+      <span className={`${base} bg-destructive/20 text-destructive`}>
+        short {rateLabel(good, -net, { perSec: true })}
+      </span>
     );
-  return <span className={`${base} bg-surplus/15 text-surplus`}>+{num(net)}/s</span>;
+  return (
+    <span className={`${base} bg-surplus/15 text-surplus`}>
+      +{rateLabel(good, net, { perSec: true })}
+    </span>
+  );
 }
 
 // Past this many blocks on one side, collapse to a count (a heavy hitter like stone
@@ -324,11 +332,13 @@ const MANY_ENDS = 5;
 /** One side of a link — `made by`/`used by` — listing block pills, or a "N blocks"
  * count (expandable) when there are too many to read inline. */
 function Ends({
+  good,
   ends,
   total,
   tone,
   label,
 }: {
+  good: string;
   ends: End[];
   total: number;
   tone: "make" | "use";
@@ -350,7 +360,7 @@ function Ends({
           {ends.length} blocks
         </Button>
       ) : (
-        ends.map((b) => <BlockEnd key={`${b.blockId}-${b.role}`} b={b} tone={tone} />)
+        ends.map((b) => <BlockEnd key={`${b.blockId}-${b.role}`} good={good} b={b} tone={tone} />)
       )}
       {ends.length > MANY_ENDS && open && (
         <Button
@@ -362,7 +372,9 @@ function Ends({
           less
         </Button>
       )}
-      <span className="text-sm text-muted-foreground">= {num(total)}/s</span>
+      <span className="text-sm text-muted-foreground">
+        = {rateLabel(good, total, { perSec: true })}
+      </span>
     </span>
   );
 }
@@ -378,13 +390,13 @@ function LinkRow({ l, onScale }: { l: Link; onScale: () => void }) {
         <div className="min-w-0 flex-1">
           <Good good={l.good} display={l.display} kind={l.kind} />
         </div>
-        <Balance net={l.net} />
+        <Balance good={l.good} net={l.net} />
       </div>
       {/* the wiring */}
       <div className="flex flex-1 flex-wrap items-center gap-x-1.5 gap-y-1">
-        <Ends ends={l.producers} total={l.produced} tone="make" label="made by" />
+        <Ends good={l.good} ends={l.producers} total={l.produced} tone="make" label="made by" />
         <span className="px-1 text-border">·</span>
-        <Ends ends={l.consumers} total={l.consumed} tone="use" label="used by" />
+        <Ends good={l.good} ends={l.consumers} total={l.consumed} tone="use" label="used by" />
       </div>
       {short && (
         <Button
@@ -408,7 +420,9 @@ function OrphanRow({ l, mode }: { l: Link; mode: "unsourced" | "surplus" }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
       <Good good={l.good} display={l.display} kind={l.kind} />
-      <span className={mode === "unsourced" ? "text-warning" : "text-surplus"}>{num(total)}/s</span>
+      <span className={mode === "unsourced" ? "text-warning" : "text-surplus"}>
+        {rateLabel(l.good, total, { perSec: true })}
+      </span>
       {mode === "unsourced" &&
         (l.craftable ? (
           <Badge className="border-transparent bg-info/15 text-info">
@@ -421,6 +435,7 @@ function OrphanRow({ l, mode }: { l: Link; mode: "unsourced" | "surplus" }) {
       {ends.map((b) => (
         <BlockEnd
           key={`${b.blockId}-${b.role}`}
+          good={l.good}
           b={b}
           tone={mode === "unsourced" ? "use" : "make"}
         />

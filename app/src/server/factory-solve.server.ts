@@ -152,6 +152,8 @@ export async function factoryWhatIf(
       return {
         id: b.id,
         name: b.name,
+        // the block's primary good, so the UI can render energy rates as power
+        good: b.flows.find((f) => f.role === "primary" || f.role === "stock")?.item ?? null,
         currentRate: round(b.rate),
         requiredRate: round(b.rate * scale),
         scale: round(scale),

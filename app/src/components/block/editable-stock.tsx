@@ -2,6 +2,7 @@ import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Input } from "#/components/ui/input.tsx";
 import { formatQty } from "../../lib/format";
+import { parseRateInput } from "./format.ts";
 
 /** Stock-goal refill windows (#38): the machines are sized to rebuild the buffer
  * within the window (rate = stock / window). Click-to-cycle presets. */
@@ -50,8 +51,8 @@ export function EditableStock({
     );
   }
   const commit = () => {
-    const n = Number(draft);
-    if (Number.isFinite(n) && n > 0) onChange(n);
+    const parsed = parseRateInput(draft); // magnitude suffixes (k/M/G/T) welcome here too
+    if (parsed && parsed.value > 0) onChange(parsed.value);
     setEditing(false);
   };
   return (

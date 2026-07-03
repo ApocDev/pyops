@@ -2,7 +2,7 @@ import { Flame, Plus } from "lucide-react";
 import type { Disposition } from "../../solver/block";
 import { ItemHover } from "../../lib/recipe-card";
 import { Icon } from "../../lib/icons";
-import { num } from "./format.ts";
+import { rateLabel } from "./format.ts";
 
 /** A block item's role under the current solve — drives the chip colour so it's
  * obvious which flows are linked internally vs. need a recipe vs. spill out. */
@@ -83,7 +83,7 @@ export function ItemChip({
             e.preventDefault();
             onContext(e);
           }}
-          aria-label={`${display ?? name}${rate != null ? ` ${num(rate)}/s` : ""} · ${why}`}
+          aria-label={`${display ?? name}${rate != null ? ` ${rateLabel(name, rate, { perSec: true })}` : ""} · ${why}`}
           className={`flex items-center gap-1 px-1.5 py-1 text-sm hover:brightness-95 ${cls} ${
             disp ? "ring-2 ring-info/60" : ""
           }`}
@@ -98,7 +98,7 @@ export function ItemChip({
               />
             )}
           </span>
-          {rate != null && <span>{num(rate)}</span>}
+          {rate != null && <span>{rateLabel(name, rate)}</span>}
           {craftableImport && <Plus className="size-3.5 text-warning" strokeWidth={3} />}
         </button>
       </ItemHover>

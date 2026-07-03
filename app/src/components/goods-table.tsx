@@ -20,7 +20,7 @@ import { Badge } from "#/components/ui/badge.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
 import { Icon } from "../lib/icons";
-import { formatQty as num } from "../lib/format";
+import { rateLabel } from "../lib/format";
 
 export type GoodsRow = {
   item: string;
@@ -62,7 +62,15 @@ const HEAD_W: Record<string, string> = {
   actual: "w-24 text-right",
 };
 
-function ActualCell({ planned, actual }: { planned: number; actual: number | null }) {
+function ActualCell({
+  good,
+  planned,
+  actual,
+}: {
+  good: string;
+  planned: number;
+  actual: number | null;
+}) {
   if (actual == null) return <span className="text-muted-foreground/50">—</span>;
   let color = "text-muted-foreground";
   if (planned > 1e-6) {
@@ -70,8 +78,11 @@ function ActualCell({ planned, actual }: { planned: number; actual: number | nul
     color = ratio < 0.5 ? "text-destructive" : ratio < 0.9 ? "text-warning" : "text-success";
   }
   return (
-    <span className={color} title={`making ${num(actual)}/s · planned ${num(planned)}/s`}>
-      {num(actual)}
+    <span
+      className={color}
+      title={`making ${rateLabel(good, actual, { perSec: true })} · planned ${rateLabel(good, planned, { perSec: true })}`}
+    >
+      {rateLabel(good, actual)}
     </span>
   );
 }
@@ -218,10 +229,10 @@ export function GoodsSection({
               </span>
               <span className="grid grid-cols-2 gap-x-4 gap-y-0.5 pl-7 md:flex md:gap-2 md:pl-0">
                 <StatCell label="produced/s" layout="row" w="md:w-24" className="text-success">
-                  {num(r.produced)}
+                  {rateLabel(r.item, r.produced)}
                 </StatCell>
                 <StatCell label="consumed/s" layout="row" w="md:w-24" className="text-warning">
-                  {num(r.consumed)}
+                  {rateLabel(r.item, r.consumed)}
                 </StatCell>
                 <StatCell
                   label="net/s"
@@ -235,8 +246,7 @@ export function GoodsSection({
                         : "text-muted-foreground"
                   }`}
                 >
-                  {r.net > 0 ? "+" : ""}
-                  {num(r.net)}
+                  {rateLabel(r.item, r.net, { sign: true })}
                 </StatCell>
                 {showMet && (
                   <StatCell label="met" layout="row" w="md:w-14">
@@ -244,7 +254,7 @@ export function GoodsSection({
                   </StatCell>
                 )}
                 <StatCell label="actual/s" layout="row" w="md:w-24">
-                  <ActualCell planned={r.produced} actual={r.actualProduced} />
+                  <ActualCell good={r.item} planned={r.produced} actual={r.actualProduced} />
                 </StatCell>
               </span>
             </button>

@@ -22,7 +22,7 @@ export const Route = createFileRoute("/whatif")({
   ),
 });
 
-import { formatQty as num } from "../lib/format";
+import { rateLabel } from "../lib/format";
 
 /** Factory what-if: the whole factory solved as one block. Set a final
  * product's rate and see the per-block scale changes needed to satisfy every
@@ -175,14 +175,14 @@ function WhatIf() {
                 <span className="min-w-0 flex-1 truncate text-primary underline">{b.name}</span>
                 <span className="grid grid-cols-3 gap-x-3 md:flex">
                   <StatCell label="current/s" w="md:w-24" className="text-muted-foreground">
-                    {num(b.currentRate)}
+                    {rateLabel(b.good ?? "", b.currentRate)}
                   </StatCell>
                   <StatCell
                     label="required/s"
                     w="md:w-24"
                     className={`font-semibold ${b.delta > 0 ? "text-warning" : "text-info"}`}
                   >
-                    {num(b.requiredRate)}
+                    {rateLabel(b.good ?? "", b.requiredRate)}
                   </StatCell>
                   <StatCell label="×scale" w="md:w-20" className="text-muted-foreground">
                     ×{b.scale}
@@ -228,7 +228,7 @@ function WhatIf() {
                   <span className="min-w-0 flex-1 truncate" title={x.display}>
                     {x.display}
                   </span>
-                  <span className="text-surplus">+{num(x.projected)}</span>
+                  <span className="text-surplus">+{rateLabel(x.good, x.projected)}</span>
                   <span className="text-muted-foreground">/s</span>
                   {x.absorb ? (
                     <Link
@@ -284,11 +284,14 @@ function GoodsCard({
           <span
             key={x.good}
             className="inline-flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm"
-            title={x.display + (x.current != null ? ` · was ${num(x.current)}/s` : "")}
+            title={
+              x.display +
+              (x.current != null ? ` · was ${rateLabel(x.good, x.current, { perSec: true })}` : "")
+            }
           >
             <Icon kind={x.kind as "item" | "fluid"} name={x.good} size="sm" title={x.display} />
             <span>{x.display}</span>
-            <span className={color}>{num(x[field])}</span>
+            <span className={color}>{rateLabel(x.good, x[field])}</span>
             <span className="text-muted-foreground">/s</span>
           </span>
         ))}

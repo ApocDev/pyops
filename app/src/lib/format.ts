@@ -72,3 +72,41 @@ export function formatQty(n: number): string {
 
 /** A per-second rate: adaptive quantity + "/s". */
 export const formatRate = (n: number): string => `${formatQty(n)}/s`;
+
+/** Energy pseudo-fluids (1 unit = 1 MJ, so 1 unit/s = 1 MW): rates for these
+ * display as power, and inputs accept power units. */
+export const ENERGY_PSEUDO = new Set(["pyops-electricity", "pyops-heat"]);
+
+/** Display an energy pseudo-fluid rate (units/s) as power with the largest
+ * sensible unit and trimmed decimals: 5000/s → "5 GW". Watts are per-second by
+ * definition, so no /s suffix applies. */
+export const fmtPower = (unitsPerSec: number) => {
+  const w = unitsPerSec * 1e6;
+  const a = Math.abs(w);
+  const [div, suf] =
+    a >= 1e12
+      ? [1e12, "TW"]
+      : a >= 1e9
+        ? [1e9, "GW"]
+        : a >= 1e6
+          ? [1e6, "MW"]
+          : a >= 1e3
+            ? [1e3, "kW"]
+            : [1, "W"];
+  const m = w / div;
+  const s = Math.abs(m) >= 1000 ? m.toFixed(0) : m.toFixed(4).replace(/\.?0+$/, "");
+  return `${s} ${suf}`;
+};
+
+/** Rate text for a good wherever flows render: power units for the energy
+ * pseudo-fluids (never a /s suffix — watts are per-second), adaptive-precision
+ * quantity (+ optional /s) for everything else. */
+export const rateLabel = (
+  good: string,
+  rate: number,
+  opts?: { perSec?: boolean; sign?: boolean },
+) => {
+  const sign = opts?.sign && rate > 0 ? "+" : "";
+  if (ENERGY_PSEUDO.has(good)) return sign + fmtPower(rate);
+  return `${sign}${formatQty(rate)}${opts?.perSec ? "/s" : ""}`;
+};

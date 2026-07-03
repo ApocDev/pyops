@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card.t
 import { STOCK_WINDOW_DEFAULT } from "../../lib/goals";
 import { Icon } from "../../lib/icons";
 import { EditableRate } from "./editable-rate.tsx";
+import { ENERGY_PSEUDO } from "./format.ts";
 import { EditableStock } from "./editable-stock.tsx";
 import { LogiTag } from "./logi-tag.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
@@ -123,6 +124,7 @@ export function GoalCard({
                       value={goal.rate}
                       unit={goal.unit ?? "s"}
                       readOnly={isFirst && !!lockedInput}
+                      power={ENERGY_PSEUDO.has(g)}
                       onChange={(v) => doc.setGoalRate(g, v)}
                       onUnitChange={(u) => doc.setGoalUnit(g, u)}
                     />

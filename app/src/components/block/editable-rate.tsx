@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { RateUnit } from "../../db/schema";
 import { Input } from "#/components/ui/input.tsx";
-import { fmtRate } from "./format.ts";
+import { fmtPower, fmtRate, parseRateInput } from "./format.ts";
 
 /** Rate windows (#10): the display/input unit of a goal. The STORED rate stays
  * per-second (the solver's canonical unit) — these only convert at the UI edge. */
@@ -14,6 +14,7 @@ export function EditableRate({
   value,
   unit = "s",
   readOnly,
+  power,
   onChange,
   onUnitChange,
 }: {
@@ -22,6 +23,8 @@ export function EditableRate({
   /** display/input window — the value shown is `value × factor` ("60/min" = 1/s) */
   unit?: RateUnit;
   readOnly?: boolean;
+  /** energy pseudo-fluid (1 unit = 1 MJ): the input also accepts W/kW/MW/GW/TW */
+  power?: boolean;
   onChange: (v: number) => void;
   onUnitChange?: (u: RateUnit) => void;
 }) {
@@ -36,27 +39,39 @@ export function EditableRate({
         <button
           onClick={() => {
             if (readOnly) return;
-            setDraft(fmtRate(value * factor));
+            // edit the exact per-second number (power display is lossy-rounded)
+            setDraft(fmtRate(power ? value : value * factor));
             setEditing(true);
           }}
-          title={readOnly ? "sized by a locked input" : "click to edit the goal rate"}
+          title={
+            readOnly
+              ? "sized by a locked input"
+              : power
+                ? "click to edit the goal rate — accepts 500MW / 5GW / 5TW, or k/M/G/T"
+                : "click to edit the goal rate — accepts k/M/G/T suffixes"
+          }
           className={readOnly ? "text-muted-foreground" : "hover:text-info"}
         >
-          {fmtRate(value * factor)}
+          {power ? fmtPower(value) : fmtRate(value * factor)}
         </button>
-        <button
-          onClick={cycleUnit}
-          title="rate window — click to cycle per second / minute / hour"
-          className="text-muted-foreground hover:text-info"
-        >
-          /{unit}
-        </button>
+        {/* watts are already per-second — no rate window on power display */}
+        {!power && (
+          <button
+            onClick={cycleUnit}
+            title="rate window — click to cycle per second / minute / hour"
+            className="text-muted-foreground hover:text-info"
+          >
+            /{unit}
+          </button>
+        )}
       </span>
     );
   }
   const commit = () => {
-    const n = Number(draft);
-    if (Number.isFinite(n) && n >= 0) onChange(n / factor);
+    const parsed = parseRateInput(draft, power);
+    // a power-unit value is already per-second — the display window doesn't apply
+    if (parsed && parsed.value >= 0)
+      onChange(parsed.perSecond ? parsed.value : parsed.value / factor);
     setEditing(false);
   };
   return (
@@ -74,7 +89,7 @@ export function EditableRate({
         }}
         className="h-7 w-16 border-info/60 px-1 text-center"
       />
-      <span className="text-sm text-muted-foreground">/{unit}</span>
+      {!power && <span className="text-sm text-muted-foreground">/{unit}</span>}
     </span>
   );
 }

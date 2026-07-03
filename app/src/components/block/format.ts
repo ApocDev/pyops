@@ -2,24 +2,30 @@
  * quantity format; the rest are page-specific compactions. */
 import { formatQty } from "../../lib/format";
 
+export { ENERGY_PSEUDO, fmtPower, rateLabel } from "../../lib/format";
+
 export const num = formatQty; // adaptive precision (#74) — shared with every other table
 
 // goal-rate display: enough precision to be exact, trailing zeros trimmed
 export const fmtRate = (n: number) => {
   if (!Number.isFinite(n) || n === 0) return "0";
   if (Math.abs(n) < 0.0001) return formatQty(n); // below toFixed(4) — sig-figs, never "0"
-  const s = Math.abs(n) >= 1000 ? n.toFixed(0) : n.toFixed(4);
-  return s.replace(/\.?0+$/, "");
+  // large rates are whole numbers with NO decimal point — never run the
+  // zero-trimmer on them (it would eat integer zeros: 5000 → "5")
+  if (Math.abs(n) >= 1000) return n.toFixed(0);
+  return n.toFixed(4).replace(/\.?0+$/, ""); // trim only trailing DECIMAL zeros
 };
 
 export const fmtW = (w: number) =>
-  w >= 1e9
-    ? `${(w / 1e9).toFixed(2)} GW`
-    : w >= 1e6
-      ? `${(w / 1e6).toFixed(2)} MW`
-      : w >= 1e3
-        ? `${(w / 1e3).toFixed(0)} kW`
-        : `${w.toFixed(0)} W`;
+  w >= 1e12
+    ? `${(w / 1e12).toFixed(2)} TW`
+    : w >= 1e9
+      ? `${(w / 1e9).toFixed(2)} GW`
+      : w >= 1e6
+        ? `${(w / 1e6).toFixed(2)} MW`
+        : w >= 1e3
+          ? `${(w / 1e3).toFixed(0)} kW`
+          : `${w.toFixed(0)} W`;
 
 export const fmtJ = (j: number) =>
   j >= 1e9
@@ -67,3 +73,30 @@ export const fmtCount = (n: number) =>
           : n >= 1
             ? n.toFixed(1)
             : n.toFixed(2);
+
+const MAGNITUDE: Record<string, number> = { k: 1e3, m: 1e6, g: 1e9, t: 1e12 };
+// power → solver units/s (1 unit = 1 MJ): 1 MW = 1 unit/s
+const POWER: Record<string, number> = { w: 1e-6, kw: 1e-3, mw: 1, gw: 1e3, tw: 1e6 };
+
+/** Parse a rate-input string with optional suffix: magnitude (k/M/G/T — plain
+ * multipliers) always; power units (W/kW/MW/GW/TW) when `energy` (converted to
+ * solver units/s). A power-unit value is ALREADY per-second (`perSecond`), so
+ * the caller must not apply the /min·/h display-window factor to it. Returns
+ * null for unparseable input or an unknown suffix. */
+export function parseRateInput(
+  text: string,
+  energy = false,
+): { value: number; perSecond: boolean } | null {
+  const m = /^\s*(-?\d*\.?\d+)\s*([a-z]*)\s*$/i.exec(text);
+  if (!m) {
+    const n = Number(text); // fall back for exotic-but-valid forms like "1e3"
+    return Number.isFinite(n) ? { value: n, perSecond: false } : null;
+  }
+  const n = Number(m[1]);
+  if (!Number.isFinite(n)) return null;
+  const suf = m[2].toLowerCase();
+  if (!suf) return { value: n, perSecond: false };
+  if (energy && suf in POWER) return { value: n * POWER[suf], perSecond: true };
+  if (suf in MAGNITUDE) return { value: n * MAGNITUDE[suf], perSecond: false };
+  return null;
+}

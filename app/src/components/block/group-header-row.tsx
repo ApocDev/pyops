@@ -7,7 +7,7 @@ import { Icon } from "../../lib/icons";
 import { SortableRow } from "./sortable-row.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { SolveResult } from "./solve-view.ts";
-import { fmtW, num } from "./format.ts";
+import { fmtW, num, rateLabel } from "./format.ts";
 
 /** A sub-block's header row (#7): fold chevron, rename-in-place name, and — when
  * folded — the chain's net I/O ("ore in → plates out"), machines and power. */
@@ -94,14 +94,14 @@ export function GroupHeaderRow({
               {net.inputs.map((f) => (
                 <span key={f.name} className="flex items-center gap-1 bg-muted/50 px-1.5 py-0.5">
                   <Icon kind={f.kind as "item" | "fluid"} name={f.name} size="sm" />
-                  <span className="tabular-nums">{num(f.rate)}</span>
+                  <span className="tabular-nums">{rateLabel(f.name, f.rate)}</span>
                 </span>
               ))}
               <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
               {net.outputs.map((f) => (
                 <span key={f.name} className="flex items-center gap-1 bg-muted/50 px-1.5 py-0.5">
                   <Icon kind={f.kind as "item" | "fluid"} name={f.name} size="sm" />
-                  <span className="tabular-nums">{num(f.rate)}</span>
+                  <span className="tabular-nums">{rateLabel(f.name, f.rate)}</span>
                 </span>
               ))}
               {net.machines > 0 && (
