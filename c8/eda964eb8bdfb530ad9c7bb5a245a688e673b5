@@ -1,0 +1,29 @@
+app/src/lib/model-capabilities.ts
+  s_9be9645d11a3e7::t_9a396b5ef6733b 11-18
+app/src/server/agent.ts
+  s_5aa088c83df13c::t_7099f962ab5ad0 21-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "c8eda964eb8bdfb530ad9c7bb5a245a688e673b5",
+  "prompts": {},
+  "sessions": {
+    "s_5aa088c83df13c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a63f853387a684a3a",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

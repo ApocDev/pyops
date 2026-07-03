@@ -1,0 +1,29 @@
+app/pnpm-lock.yaml
+  s_9be9645d11a3e7::t_fdbad51466f99e 36,39,42,45,48,51,54,57,60,63,142,187,190,193
+app/package.json
+  s_b06fd5c7c0dd26::t_512aa624166df8 28-37,65,80-82,92-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "601e1f418a4cc4923befd5b970f6a2f4159d3b1e",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_b06fd5c7c0dd26": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ab814d791a0c44616",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
