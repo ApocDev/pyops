@@ -21,6 +21,22 @@ release-please-config.json
   "base_commit_sha": "3efaf35175f23cf256c39b5136cb377611e60ff9",
   "prompts": {},
   "sessions": {
+    "s_4b15f540ec769f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a5ec51233a12cb82c",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
     "s_ad8974a3b278d5": {
       "agent_id": {
         "tool": "claude",
