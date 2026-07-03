@@ -138,7 +138,7 @@ describe("diffBlockDocs", () => {
 });
 
 describe("diffRefNames", () => {
-  it("collects every internal name the diff mentions", () => {
+  it("collects every internal name the diff mentions, split by namespace (#113)", () => {
     const from = base({
       goals: [{ name: "plate", rate: 1 }],
       recipes: ["a", "old"],
@@ -152,17 +152,12 @@ describe("diffRefNames", () => {
       spoilRates: { meat: 1 },
     });
     const names = diffRefNames(diffBlockDocs(from, to));
-    for (const n of [
-      "plate",
-      "gear",
-      "old",
-      "new",
-      "a",
-      "furnace-1",
-      "furnace-2",
-      "speed-1",
-      "meat",
-    ])
-      expect(names).toContain(n);
+    // recipe rows + pick owners resolve against the recipe table…
+    for (const n of ["old", "new", "a"]) expect(names.recipes).toContain(n);
+    // …goals, machines, modules and spoil plans against items/fluids — a recipe
+    // sharing a good's internal name must not pull the good's display (#113)
+    for (const n of ["plate", "gear", "furnace-1", "furnace-2", "speed-1", "meat"])
+      expect(names.goods).toContain(n);
+    for (const n of ["plate", "gear", "meat"]) expect(names.recipes).not.toContain(n);
   });
 });

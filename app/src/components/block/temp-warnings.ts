@@ -15,10 +15,16 @@ const uniq = (vals: string[]) => [...new Set(vals)];
  * one tag per chip (label lists the temps/ranges, tooltip the full story). */
 export function rowTempWarnings(
   warnings: SolveResult["tempWarnings"] | undefined,
+  /** good (item/fluid) display names — for the warned fluid */
   display: Record<string, string> | undefined,
+  /** recipe display names — for the counterpart producer/consumer (#113:
+   * a recipe may share its internal name with a good, so the namespaces
+   * resolve through separate maps) */
+  recipeDisplay: Record<string, string> | undefined,
   recipe: string,
 ): { ingredient: Map<string, ChipTempWarning>; product: Map<string, ChipTempWarning> } {
   const disp = (n: string) => display?.[n] ?? n;
+  const rdisp = (n: string) => recipeDisplay?.[n] ?? n;
   const ingredient = new Map<string, ChipTempWarning>();
   const product = new Map<string, ChipTempWarning>();
   if (!warnings?.length) return { ingredient, product };
@@ -35,7 +41,7 @@ export function rowTempWarnings(
       title: ws
         .map(
           (w) =>
-            `${disp(w.producer)} makes ${disp(w.item)} at ${fmtTemp(w.temp)} — outside the ${w.needs} this recipe accepts. The solver pools all temperatures by name; in-game that part of the flow can't feed this machine.`,
+            `${rdisp(w.producer)} makes ${disp(w.item)} at ${fmtTemp(w.temp)} — outside the ${w.needs} this recipe accepts. The solver pools all temperatures by name; in-game that part of the flow can't feed this machine.`,
         )
         .join("\n"),
     });
@@ -46,7 +52,7 @@ export function rowTempWarnings(
       title: ws
         .map(
           (w) =>
-            `${disp(w.consumer)} only accepts ${disp(w.item)} at ${w.needs} — this recipe makes it at ${fmtTemp(w.temp)}. The solver pools all temperatures by name; in-game this output can't feed that machine.`,
+            `${rdisp(w.consumer)} only accepts ${disp(w.item)} at ${w.needs} — this recipe makes it at ${fmtTemp(w.temp)}. The solver pools all temperatures by name; in-game this output can't feed that machine.`,
         )
         .join("\n"),
     });

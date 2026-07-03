@@ -29,6 +29,11 @@
  * shapes (unfiltered burner → pyops-fluid-fuel pool draw, filtered burner →
  * pinned fluid, burns_fluid:false → temperature-fed, no fuel) and checks the
  * pool/pinned/none classification and MJ math.
+ *
+ * #113 — recipe/good display namespaces. Seeds Py's coal-gas chain verbatim
+ * (recipe `coal-gas` "Coal gas from coal" producing fluid `coal-gas` "Coal
+ * gas") and checks that the shared internal name resolves to each namespace's
+ * own display string instead of the last write winning.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import { switchDatabase } from "../db/index.server.ts";
@@ -487,5 +492,71 @@ describe("fluid-fueled machines (#25)", () => {
     expect(row.availableFuels).toEqual([]);
     // only the recipe's real ingredient imports — no uf6/pool/petroleum-gas fuel
     expect(res.imports.map((f) => f.name)).toEqual(["molten-fluoride-thorium"]);
+  });
+});
+
+describe("recipe/good display-name namespaces (#113)", () => {
+  let fx: TestDb;
+
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    // Py's coal-gas chain verbatim from py.db — the recipe and its main product
+    // share the internal name `coal-gas` but NOT the display string:
+    //   recipes:  coal-gas → display "Coal gas from coal", category distilator,
+    //             energy_required 3
+    //   fluids:   coal-gas → display "Coal gas"; tar → "Tar"
+    //   recipe_ingredients: coal-gas ← item coal 10
+    //   recipe_products:    coal-gas → fluid coal-gas 40, fluid tar 50,
+    //                       item iron-oxide 1, item coke 6
+    //   crafting_machines: distilator "Destructive distillation column MK 01",
+    //                      speed 1, 500 kW electric
+    fx.db.exec(`
+      INSERT INTO recipes (name, display, kind, category, energy_required, enabled, hidden)
+        VALUES ('coal-gas','Coal gas from coal','real','distilator',3,1,0);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
+        ('coal-gas',0,'item','coal',10);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+        ('coal-gas',0,'fluid','coal-gas',40),
+        ('coal-gas',1,'fluid','tar',50),
+        ('coal-gas',2,'item','iron-oxide',1),
+        ('coal-gas',3,'item','coke',6);
+      INSERT INTO items (name, display) VALUES
+        ('coal','Coal'),('iron-oxide','Iron oxide'),('coke','Coke');
+      INSERT INTO fluids (name, display) VALUES ('coal-gas','Coal gas'),('tar','Tar');
+      INSERT INTO crafting_machines (name, display, kind, crafting_speed, module_slots, energy_usage_w, energy_source)
+        VALUES ('distilator','Destructive distillation column MK 01','assembling-machine',1,1,500000,'electric');
+      INSERT INTO machine_categories (machine, category) VALUES ('distilator','distilator');
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+
+  afterEach(() => fx.cleanup());
+
+  it("a recipe sharing its product's internal name keeps its own display string", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "coal-gas", rate: 40 }],
+      recipes: ["coal-gas"],
+    });
+    // the recipe namespace answers with the recipe's display…
+    expect(res.recipeDisplay["coal-gas"]).toBe("Coal gas from coal");
+    // …and the good namespace with the fluid's — the pre-fix flat map let the
+    // goal/flow pass overwrite the recipe entry with "Coal gas"
+    expect(res.display["coal-gas"]).toBe("Coal gas");
+    // the solved row's own label is the recipe display too
+    expect(res.rows.find((r) => r.recipe === "coal-gas")?.display).toBe("Coal gas from coal");
+    // sanity: unrelated goods still map normally
+    expect(res.display["tar"]).toBe("Tar");
+    expect(res.recipeDisplay["tar"]).toBeUndefined();
+  });
+
+  it("a disabled recipe still maps its display through the recipe namespace", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "coal-gas", rate: 40 }],
+      recipes: ["coal-gas"],
+      disabledRecipes: ["coal-gas"],
+    });
+    expect(res.recipeDisplay["coal-gas"]).toBe("Coal gas from coal");
+    expect(res.display["coal-gas"]).toBe("Coal gas");
   });
 });

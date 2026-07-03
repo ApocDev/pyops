@@ -214,9 +214,9 @@ export function BalanceCard({
                   title="the solver links fluids by name and pools all temperatures — in-game this producer's output can't feed this consumer"
                 >
                   <AlertTriangle className="size-3.5 shrink-0" />{" "}
-                  {res.display?.[w.producer] ?? w.producer} makes {res.display?.[w.item] ?? w.item}{" "}
-                  at {fmtTemp(w.temp)}, but {res.display?.[w.consumer] ?? w.consumer} needs{" "}
-                  {w.needs}
+                  {res.recipeDisplay?.[w.producer] ?? w.producer} makes{" "}
+                  {res.display?.[w.item] ?? w.item} at {fmtTemp(w.temp)}, but{" "}
+                  {res.recipeDisplay?.[w.consumer] ?? w.consumer} needs {w.needs}
                 </div>
               ))}
             </div>

@@ -18,21 +18,26 @@ const goalLabel = (g: Goal) =>
 export function SnapshotDiffView({
   diff,
   refs,
+  recipeRefs,
   nameChange,
 }: {
   diff: BlockDiff;
+  /** good refs (goals, machines, fuels, modules, beacons, dispositions, spoil) */
   refs: Refs;
+  /** recipe refs — a separate namespace, since a recipe may share its internal
+   * name with the good it produces (recipe `coal-gas` vs fluid `coal-gas`, #113) */
+  recipeRefs: Refs;
   /** snapshot name vs the current editor name (the doc diff doesn't carry it) */
   nameChange: { from: string; to: string } | null;
 }) {
   const display = (n: string) => refs[n]?.display ?? n;
-  const NameChip = ({ name }: { name: string }) => {
-    const r = refs[name];
+  const NameChip = ({ name, recipe }: { name: string; recipe?: boolean }) => {
+    const r = (recipe ? recipeRefs : refs)[name];
     return (
       <span className="inline-flex min-w-0 items-center gap-1.5">
         {r && <Icon kind={r.kind} name={name} size="sm" />}
         <span className="truncate" title={name}>
-          {display(name)}
+          {r?.display ?? name}
         </span>
       </span>
     );
@@ -103,28 +108,28 @@ export function SnapshotDiffView({
           {diff.recipes.added.map((r) => (
             <Row
               key={`a-${r}`}
-              left={<NameChip name={r} />}
+              left={<NameChip name={r} recipe />}
               right={<span className="shrink-0 text-success">added</span>}
             />
           ))}
           {diff.recipes.removed.map((r) => (
             <Row
               key={`r-${r}`}
-              left={<NameChip name={r} />}
+              left={<NameChip name={r} recipe />}
               right={<span className="shrink-0 text-destructive">removed</span>}
             />
           ))}
           {diff.recipes.enabled.map((r) => (
             <Row
               key={`e-${r}`}
-              left={<NameChip name={r} />}
+              left={<NameChip name={r} recipe />}
               right={<span className="shrink-0 text-success">re-enabled</span>}
             />
           ))}
           {diff.recipes.disabled.map((r) => (
             <Row
               key={`d-${r}`}
-              left={<NameChip name={r} />}
+              left={<NameChip name={r} recipe />}
               right={<span className="shrink-0 text-warning">disabled</span>}
             />
           ))}
@@ -136,7 +141,7 @@ export function SnapshotDiffView({
           {diff.picks.map((p) => (
             <div key={p.recipe} className="py-0.5">
               <div className="text-sm">
-                <NameChip name={p.recipe} />
+                <NameChip name={p.recipe} recipe />
               </div>
               <div className="space-y-0.5 pl-4">
                 {p.machine && (

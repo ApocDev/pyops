@@ -115,11 +115,8 @@ export const classifyRefFn = createServerFn({ method: "GET" })
   .validator((data: string | { name: string; prefer?: "recipe" }) => data)
   .handler(async ({ data }) => {
     const name = typeof data === "string" ? data : data.name;
-    if (typeof data !== "string" && data.prefer === "recipe") {
-      const recipe = q.getRecipe(name);
-      if (recipe) return { kind: "recipe" as const, display: recipe.display ?? name };
-    }
-    return q.classifyRef(name);
+    const prefer = typeof data === "string" ? undefined : data.prefer;
+    return q.classifyRef(name, prefer);
   });
 
 export const recipesProducingFn = createServerFn({ method: "GET" })

@@ -261,6 +261,7 @@ function SnapshotRowDiff({
         <SnapshotDiffView
           diff={diff.data.diff}
           refs={diff.data.refs}
+          recipeRefs={diff.data.recipeRefs}
           nameChange={snapshotName !== currentName ? { from: snapshotName, to: currentName } : null}
         />
       )}

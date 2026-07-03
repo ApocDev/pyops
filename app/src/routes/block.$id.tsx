@@ -730,7 +730,7 @@ function Block({ blockId }: { blockId: number }) {
           x={rowMenu.x}
           y={rowMenu.y}
           recipe={rowMenu.name}
-          display={res?.display?.[rowMenu.name] ?? rowMenu.name}
+          display={res?.recipeDisplay?.[rowMenu.name] ?? rowMenu.name}
           groups={rowGroups}
           currentGroup={rowGroups.find((g) => g.id === recipeGroups[rowMenu.name]) ?? null}
           onNewGroup={() => createGroupFromRow(rowMenu.name)}
@@ -756,7 +756,7 @@ function Block({ blockId }: { blockId: number }) {
       {pickMachineFor && (
         <BuildingPickerDialog
           recipe={pickMachineFor}
-          recipeDisplay={res?.display?.[pickMachineFor] ?? pickMachineFor}
+          recipeDisplay={res?.recipeDisplay?.[pickMachineFor] ?? pickMachineFor}
           current={res?.rows?.find((r) => r.recipe === pickMachineFor)?.machine?.name ?? null}
           onPick={(m) => {
             pickMachine(pickMachineFor, m);
@@ -774,7 +774,7 @@ function Block({ blockId }: { blockId: number }) {
           return (
             <ModulesModal
               recipe={pickModulesFor}
-              recipeDisplay={res?.display?.[pickModulesFor] ?? pickModulesFor}
+              recipeDisplay={res?.recipeDisplay?.[pickModulesFor] ?? pickModulesFor}
               machineName={mr.machine.name}
               modules={moduleSel[pickModulesFor] ?? (mr.autoModules ? mr.modules : [])}
               beacons={beaconSel[pickModulesFor] ?? []}
@@ -793,7 +793,7 @@ function Block({ blockId }: { blockId: number }) {
           const fr = res?.rows?.find((r) => r.recipe === pickFuelFor);
           return (
             <FuelPickerDialog
-              recipeDisplay={res?.display?.[pickFuelFor] ?? pickFuelFor}
+              recipeDisplay={res?.recipeDisplay?.[pickFuelFor] ?? pickFuelFor}
               fuels={fr?.availableFuels ?? []}
               current={fr?.fuel?.chosen ?? null}
               onPick={(f) => {

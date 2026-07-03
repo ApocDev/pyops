@@ -97,7 +97,7 @@ export function RecipeGrid({
       setConfirmRemove(null);
       doc.dropRecipe(name);
       // label the save for the undo stack (#90) — display name when solved
-      doc.note(`Remove recipe "${res?.display?.[name] ?? name}"`);
+      doc.note(`Remove recipe "${res?.recipeDisplay?.[name] ?? name}"`);
       return;
     }
     setConfirmRemove(name);
@@ -213,7 +213,7 @@ export function RecipeGrid({
                 doc={doc}
                 name={name}
                 row={res?.rows?.find((r) => r.recipe === name)}
-                display={res?.display?.[name] ?? name}
+                display={res?.recipeDisplay?.[name] ?? name}
                 grouped={recipeGroups[name] != null}
                 off={off}
                 isUnused={!off && unused.has(name)}
@@ -224,7 +224,12 @@ export function RecipeGrid({
                 producible={producible}
                 logi={logi}
                 open={open}
-                tempWarnings={rowTempWarnings(res?.tempWarnings, res?.display, name)}
+                tempWarnings={rowTempWarnings(
+                  res?.tempWarnings,
+                  res?.display,
+                  res?.recipeDisplay,
+                  name,
+                )}
               />
             );
           })}

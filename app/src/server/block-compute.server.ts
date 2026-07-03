@@ -865,14 +865,19 @@ export async function computeBlock(rawData: SolveInput) {
     stuckItems = [...stuck];
   }
 
-  // display-name map for the names that appear in the result (target, recipes, flows)
+  // Display-name maps for the result — recipes and goods are SEPARATE namespaces
+  // (#113). Py routinely names a recipe after its main product (recipe `coal-gas`
+  // "Coal gas from coal" vs fluid `coal-gas` "Coal gas"), so one flat map would
+  // let whichever wrote last clobber the other; recipe rows then rendered the
+  // good's label. `display` holds goods (items/fluids), `recipeDisplay` recipes.
   const display: Record<string, string> = {};
-  for (const r of fetched) if (r.display) display[r.name] = r.display;
+  const recipeDisplay: Record<string, string> = {};
+  for (const r of fetched) if (r.display) recipeDisplay[r.name] = r.display;
   // Disabled recipes (#73) aren't in the solve, but their rows still render — map
   // their display names too so the UI never falls back to the raw recipe id.
   for (const name of disabled) {
     const d = q.getRecipe(name)?.display;
-    if (d) display[name] = d;
+    if (d) recipeDisplay[name] = d;
   }
   const itemDisp = (name: string) => q.getItem(name)?.display ?? q.getFluid(name)?.display ?? null;
   for (const name of [
@@ -909,6 +914,7 @@ export async function computeBlock(rawData: SolveInput) {
     exports,
     rows,
     display,
+    recipeDisplay,
     producible,
     stuckItems,
     power,

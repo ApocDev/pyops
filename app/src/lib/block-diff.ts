@@ -132,28 +132,32 @@ export function diffBlockDocs(from: BlockData, to: BlockData): BlockDiff {
   return { goals, recipes, picks, dispositions, spoilRates, unchanged };
 }
 
-/** Every internal name a diff references (goods, recipes, machines, fuels,
- * modules, beacons) — the set the UI needs display names/kinds for. */
-export function diffRefNames(diff: BlockDiff): string[] {
-  const names = new Set<string>();
-  for (const g of [...diff.goals.added, ...diff.goals.removed]) names.add(g.name);
-  for (const c of diff.goals.changed) names.add(c.name);
+/** Every internal name a diff references, split by NAMESPACE — `recipes` (recipe
+ * rows and pick owners) vs `goods` (goals, machines, fuels, modules, beacons,
+ * dispositions, spoil plans). Recipes and goods routinely share an internal name
+ * in Py (recipe `coal-gas` vs fluid `coal-gas`, #113), so the UI must resolve
+ * each set against its own table — one flat list would mislabel recipe refs. */
+export function diffRefNames(diff: BlockDiff): { recipes: string[]; goods: string[] } {
+  const goods = new Set<string>();
+  const recipeNames = new Set<string>();
+  for (const g of [...diff.goals.added, ...diff.goals.removed]) goods.add(g.name);
+  for (const c of diff.goals.changed) goods.add(c.name);
   for (const r of [
     ...diff.recipes.added,
     ...diff.recipes.removed,
     ...diff.recipes.enabled,
     ...diff.recipes.disabled,
   ])
-    names.add(r);
+    recipeNames.add(r);
   for (const p of diff.picks) {
-    names.add(p.recipe);
-    for (const v of [p.machine?.from, p.machine?.to, p.fuel?.from, p.fuel?.to]) if (v) names.add(v);
-    for (const m of [...(p.modules?.from ?? []), ...(p.modules?.to ?? [])]) names.add(m);
+    recipeNames.add(p.recipe);
+    for (const v of [p.machine?.from, p.machine?.to, p.fuel?.from, p.fuel?.to]) if (v) goods.add(v);
+    for (const m of [...(p.modules?.from ?? []), ...(p.modules?.to ?? [])]) goods.add(m);
     for (const b of [...(p.beacons?.from ?? []), ...(p.beacons?.to ?? [])]) {
-      names.add(b.beacon);
-      for (const m of b.modules) names.add(m);
+      goods.add(b.beacon);
+      for (const m of b.modules) goods.add(m);
     }
   }
-  for (const c of [...diff.dispositions, ...diff.spoilRates]) names.add(c.name);
-  return [...names].sort();
+  for (const c of [...diff.dispositions, ...diff.spoilRates]) goods.add(c.name);
+  return { recipes: [...recipeNames].sort(), goods: [...goods].sort() };
 }

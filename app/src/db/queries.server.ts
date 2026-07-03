@@ -2069,10 +2069,18 @@ export function spoilables(): Record<string, number> {
 
 /** Classify a bare name into item / fluid / recipe (+ display) so prose refs can
  * render with the right icon and hover. Item-first: names shared by an item and a
- * recipe (e.g. iron-plate) resolve to the item. Returns null for unknown names. */
+ * recipe (e.g. iron-plate) resolve to the item. Pass `prefer: "recipe"` when the
+ * caller KNOWS the name is a recipe ref (#113 — Py names recipes after their main
+ * product, so recipe `coal-gas` would otherwise resolve to the fluid's display).
+ * Returns null for unknown names. */
 export function classifyRef(
   name: string,
+  prefer?: "recipe",
 ): { kind: "item" | "fluid" | "recipe"; display: string } | null {
+  if (prefer === "recipe") {
+    const r = db.select({ d: recipes.display }).from(recipes).where(eq(recipes.name, name)).get();
+    if (r) return { kind: "recipe", display: r.d ?? name };
+  }
   const it = db.select({ d: items.display }).from(items).where(eq(items.name, name)).get();
   if (it) return { kind: "item", display: it.d ?? name };
   const fl = db.select({ d: fluids.display }).from(fluids).where(eq(fluids.name, name)).get();
