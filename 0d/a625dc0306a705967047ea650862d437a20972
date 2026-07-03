@@ -1,0 +1,21 @@
+app/src/solver/migrate.test.ts
+  s_9be9645d11a3e7::t_8a5179c7817a1f 1-82
+app/src/solver/migrate.ts
+  s_9be9645d11a3e7::t_74a08fe8dbffda 1-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0da625dc0306a705967047ea650862d437a20972",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
