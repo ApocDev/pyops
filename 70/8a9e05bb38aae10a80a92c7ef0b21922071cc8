@@ -1,0 +1,29 @@
+app/src/components/block/balance-card.tsx
+  s_9be9645d11a3e7::t_713ecd00aee8a7 153-155,227-239
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_a0c7e702d1cb5b 11,579-585,587,590-635,1033-1034
+app/src/solver/lp.ts
+  s_9be9645d11a3e7::t_1b17231bc31b56 46-56,245,249
+app/src/solver/temps.test.ts
+  s_9be9645d11a3e7::t_7deefacb469000 1-196
+app/src/solver/temps.ts
+  s_9be9645d11a3e7::t_a92771b0d16b00 1-204
+docs/solver.md
+  s_9be9645d11a3e7::t_cfea8b9c821c9c 51-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "708a9e05bb38aae10a80a92c7ef0b21922071cc8",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
