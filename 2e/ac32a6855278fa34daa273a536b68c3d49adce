@@ -1,0 +1,59 @@
+app/src/db/queries.test.ts
+  s_6f3a075e76a299::t_b5df04b6dffb44 17,212-231
+app/src/routes/block.tsx
+  s_9be9645d11a3e7::t_54bf917651496c 51-52,57,159-165,309-313,414-417,419-427,429,565,631-635,637-663,665-743,745-821
+app/src/routes/tasks.tsx
+  s_9be9645d11a3e7::t_af7c53140d0346 32,558,565-567,571,590-594,610-613,685-686,769-770,1099,1105,1109,1128-1129
+app/src/components/companion-mod-card.tsx
+  s_095bbbf350a386::t_2cd3ace93092d8 9,14,29-31,46,139,146-156
+app/src/components/confirm-dialog.test.tsx
+  s_095bbbf350a386::t_77b2ad52ceed52 1-40
+app/src/components/confirm-dialog.tsx
+  s_095bbbf350a386::t_35e081f3a2dad5 1-52
+app/src/components/project-switcher.tsx
+  s_095bbbf350a386::t_c3928a3ac14d80 4,7,24-27,52-58,60-62,96-99,117-132
+app/src/components/ui/alert-dialog.tsx
+  s_095bbbf350a386::t_1e531a746997d4 1-155
+app/src/db/queries.server.ts
+  s_095bbbf350a386::t_6e87d3dda7aaf7 1172-1181
+app/src/lib/delete-copy.test.ts
+  s_095bbbf350a386::t_d75ca11433c12e 1-37
+app/src/lib/delete-copy.ts
+  s_095bbbf350a386::t_6cf4cfedd3b41d 1-29
+app/src/lib/modules-modal.tsx
+  s_095bbbf350a386::t_def3cafe63b3d9 19,480-481,484,579
+app/src/routes/assistant.tsx
+  s_095bbbf350a386::t_7caee75db48883 33,37,89-90,127-135,196,223-238
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "2eac32a6855278fa34daa273a536b68c3d49adce",
+  "prompts": {},
+  "sessions": {
+    "s_095bbbf350a386": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a4e51a40605a96dcc",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_6f3a075e76a299": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f32cf8ec-d395-406e-810e-42185fe08278",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
