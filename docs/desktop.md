@@ -8,7 +8,7 @@ app. The shell is `app/src-tauri/` (`src/lib.rs` is the whole of it).
 
 ## How it runs
 
-The window *is* the web app: it loads the local Nitro server.
+The window _is_ the web app: it loads the local Nitro server.
 
 - **Dev** — `beforeDevCommand` (in `tauri.conf.json`) starts the server on port
   34115; Tauri waits for it and the window loads it. Run with `vp run tauri dev`
@@ -98,7 +98,7 @@ it's a build-only smoke test.
 
 **Release-notes polish**: right after release-please cuts the release, a step in
 the same job asks an LLM (via OpenRouter — the **`OPENROUTER_API_KEY` repo
-secret**; optional `RELEASE_NOTES_MODEL` repo *variable* to override the default
+secret**; optional `RELEASE_NOTES_MODEL` repo _variable_ to override the default
 small model) to rewrite the release body into a short friendly summary, keeping
 the raw changelog below a divider. It runs before the build/`latest-json` jobs,
 so the in-app update dialog — which renders `latest.json`'s `notes` — shows the
@@ -130,7 +130,7 @@ The app updates itself from GitHub Releases.
   `window.isTauri`**, so the browser build never loads it and the web app stays
   Tauri-agnostic (a `?mockUpdate=` dev switch previews the toast + dialog in `vp dev`).
 - **Why the built-in plugins, not custom commands:** the window loads the app over
-  HTTP, so Tauri treats that content as *remote* and won't let it call a command
+  HTTP, so Tauri treats that content as _remote_ and won't let it call a command
   without an explicit ACL grant. Custom app commands have no permission you can
   grant to remote content — but plugin commands do, so `capabilities/default.json`
   lists `updater:default` + `process:default` alongside the `remote.urls` rule for

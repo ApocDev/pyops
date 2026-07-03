@@ -1,8 +1,7 @@
 # Block solver
 
 Code: `app/src/solver/` (`lp.ts` — the LP core, `diagnose.ts` — root-cause
-cards, `migrate.ts` — the legacy-doc mapping; `block.ts`/`linalg.ts` are the
-retired v1 kept for reference), with effect aggregation in
+cards, `migrate.ts` — the legacy-doc mapping), with effect aggregation in
 `app/src/server/effects.ts` and the factory-level solver in
 `app/src/server/factory-solve.server.ts`.
 

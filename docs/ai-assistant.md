@@ -119,7 +119,7 @@ about "how do I make X":
   TURD master (looked up by master, recipe, or good): each branch's description,
   the recipes it swaps (old→new) or newly **unlocks**, and its always-on modules.
   It walks the tech-prerequisite graph, so unlike `availableTurds`/`turdConsistency`
-  (which key off recipe *replacements*) it also sees branches that grant a brand-new
+  (which key off recipe _replacements_) it also sees branches that grant a brand-new
   recipe. `recipeInfo.turd` returns the same full detail for every master touching a
   recipe. This is what the agent consults for "what does this TURD give / which
   branch is best" — never assume a master has a single choice.

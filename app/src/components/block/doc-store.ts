@@ -15,7 +15,7 @@
  */
 import { Store } from "@tanstack/store";
 import type { Goal, RateUnit } from "../../db/schema";
-import type { Disposition } from "../../solver/block";
+import type { Disposition } from "../../solver/migrate";
 import type { BeaconConfig } from "../../server/effects";
 import type { ReactorLayout } from "../../lib/reactor";
 import type { DocPin, SolveInput } from "../../server/block-compute.server.ts";

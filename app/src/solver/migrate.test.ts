@@ -1,7 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { migrateToLpInput } from "./migrate.ts";
 import { solveBlockLp, type RecipeDef } from "./lp.ts";
-import { solveBlock } from "./block.ts";
 
 const plate: RecipeDef = {
   name: "plate",
@@ -39,22 +38,6 @@ test("import/export overrides unlink; balance overrides mark made", () => {
     dispositions: { plate: "balance" }, // consumed-only, protected by balance
   });
   expect(out2.made).toEqual(["plate"]);
-});
-
-test("v1 and v2 agree on a plain chain (parity of the happy path)", async () => {
-  const v1input = { targets: [{ name: "gear", rate: 1 }], recipes: [gear, plate] };
-  const v1 = solveBlock(v1input);
-  const v2 = await solveBlockLp(migrateToLpInput(v1input));
-  expect(v1.status).toBe("solved");
-  expect(v2.status).toBe("solved");
-  const r1 = Object.fromEntries(v1.recipes.map((x) => [x.recipe, x.rate]));
-  const r2 = Object.fromEntries(v2.recipes.map((x) => [x.recipe, x.rate]));
-  expect(r2.plate).toBeCloseTo(r1.plate, 9);
-  expect(r2.gear).toBeCloseTo(r1.gear, 9);
-  expect(v2.imports.find((f) => f.name === "ore")?.rate).toBeCloseTo(
-    v1.imports.find((f) => f.name === "ore")!.rate,
-    9,
-  );
 });
 
 test("v2 solves what v1 could only relax: forced byproduct surplus", async () => {

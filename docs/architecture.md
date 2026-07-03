@@ -112,7 +112,7 @@ Two surfaces under **Settings › Backup & share**:
   because both directions move a whole file (`app/src/routes/api.backup.ts`,
   `app/src/server/backup.server.ts`).
 - **Block / plan JSON** — shareable, versioned envelopes (`{ pyops: 1, kind:
-  "block" | "plan", … }`) carrying a block's full editor doc (goals, recipes,
+"block" | "plan", … }`) carrying a block's full editor doc (goals, recipes,
   per-recipe picks) — a plan adds sidebar folders. The pure logic (validation,
   legacy-doc migration, name-collision suffixing) is `app/src/lib/plan-export.ts`;
   the db side is `app/src/server/export.server.ts` (server fns in

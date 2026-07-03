@@ -50,72 +50,72 @@ main). #91's LP core + IIS diagnosis + migration mapping are in-tree
 (src/solver/lp.ts, diagnose.ts, migrate.ts); block-compute/UI integration is
 the remaining work. Remaining:
 
-| Issue | Effort | Notes |
-|---|---|---|
-| #110 fluid-temp variants as distinct goods | L | YAFC-style (fluid, temperature) identity in the solve; range consumers pool matching variants. The cheap interim (per-producer temp warnings — S) has shipped; the full model lands with/after #91. |
-| #114 temperature-fed fluid energy sources | M | #25 follow-up: uf6 reactors / compost plants / solar tower drain their feed fluid by temp × heat capacity; currently unmodelled. Natural fit with/after #91's coefficient stage. |
-| #91 solver v2: LP (HiGHS) | XL | The wave's centerpiece; gate for #98, a foundation #76 wants, and the natural home for #110's range-pooling. Re-scoped 2026-07-03 after design discussion: LP core + gesture-derived block model (goals ≥ both directions, `made` set, count/share pins, dispositions deleted) + IIS root-cause diagnosis. Spec is the issue body. |
-| #98 whole-machine mode (MIP) | M | Integer building counts on top of #91. |
+| Issue                                      | Effort | Notes                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #110 fluid-temp variants as distinct goods | L      | YAFC-style (fluid, temperature) identity in the solve; range consumers pool matching variants. The cheap interim (per-producer temp warnings — S) has shipped; the full model lands with/after #91.                                                                                                                                |
+| #114 temperature-fed fluid energy sources  | M      | #25 follow-up: uf6 reactors / compost plants / solar tower drain their feed fluid by temp × heat capacity; currently unmodelled. Natural fit with/after #91's coefficient stage.                                                                                                                                                   |
+| #91 solver v2: LP (HiGHS)                  | XL     | The wave's centerpiece; gate for #98, a foundation #76 wants, and the natural home for #110's range-pooling. Re-scoped 2026-07-03 after design discussion: LP core + gesture-derived block model (goals ≥ both directions, `made` set, count/share pins, dispositions deleted) + IIS root-cause diagnosis. Spec is the issue body. |
+| #98 whole-machine mode (MIP)               | M      | Integer building counts on top of #91.                                                                                                                                                                                                                                                                                             |
 
 ## Wave 3 — assistant (closes epic #30 with #72 from Wave 0)
 
-| Issue | Effort | Notes |
-|---|---|---|
-| #11 coherence audit tool | M | Labeled `priority: next`. **Scope-check first**: the audit found `turdConsistency`'s factory-wide checks already cover part of this — confirm what's genuinely missing before building. |
-| #12 revise recipe set | M | Completes propose-then-apply beyond rate changes; the doc store's `hydrate()` makes live-editor updates work. |
-| #13 one-click follow-ups | S | Draft sub-block / route byproduct buttons on assistant output. |
-| #15 gameEval approval gate | M | Per-call approval UI for in-game Lua eval. |
-| #14 push block in-game | S | Cybersyn blueprint / bridge show from the assistant. |
+| Issue                      | Effort | Notes                                                                                                                                                                                   |
+| -------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #11 coherence audit tool   | M      | Labeled `priority: next`. **Scope-check first**: the audit found `turdConsistency`'s factory-wide checks already cover part of this — confirm what's genuinely missing before building. |
+| #12 revise recipe set      | M      | Completes propose-then-apply beyond rate changes; the doc store's `hydrate()` makes live-editor updates work.                                                                           |
+| #13 one-click follow-ups   | S      | Draft sub-block / route byproduct buttons on assistant output.                                                                                                                          |
+| #15 gameEval approval gate | M      | Per-call approval UI for in-game Lua eval.                                                                                                                                              |
+| #14 push block in-game     | S      | Cybersyn blueprint / bridge show from the assistant.                                                                                                                                    |
 
 ## Wave 4 — UI leverage (mostly epic #35)
 
 `#87 first` — three other issues want the primitive it extracts.
 
-| Issue | Effort | Notes |
-|---|---|---|
-| #87 shared filtered-list primitive | M | Six pages hand-roll search; consumed by #78's palette iteration, #97, #100. |
-| #97 recipe explorer | L | Ranked producers/consumers per good. |
-| #100 dependency explorer | L | Transitive requires / required-by. |
-| #80 Machines card on sortable table | M | Factory page consistency. |
-| #81 error/loading states | M | The issue's "zero isError checks" premise is stale (nine exist now); remaining: root-level errorComponent/pendingComponent + a shared convention for the rest, incl. the two hand-rolled overlays noted when #86 closed. |
-| #106 sticky page toolbars | S | |
-| #16 help drawers | L | Images, worked examples, deeper coverage. |
-| #101 sankey flow view | L | Visualization of solved block flows. |
-| #107 light theme pass | M | Last in the wave, so it sees every new surface. |
+| Issue                               | Effort | Notes                                                                                                                                                                                                                    |
+| ----------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| #87 shared filtered-list primitive  | M      | Six pages hand-roll search; consumed by #78's palette iteration, #97, #100.                                                                                                                                              |
+| #97 recipe explorer                 | L      | Ranked producers/consumers per good.                                                                                                                                                                                     |
+| #100 dependency explorer            | L      | Transitive requires / required-by.                                                                                                                                                                                       |
+| #80 Machines card on sortable table | M      | Factory page consistency.                                                                                                                                                                                                |
+| #81 error/loading states            | M      | The issue's "zero isError checks" premise is stale (nine exist now); remaining: root-level errorComponent/pendingComponent + a shared convention for the rest, incl. the two hand-rolled overlays noted when #86 closed. |
+| #106 sticky page toolbars           | S      |                                                                                                                                                                                                                          |
+| #16 help drawers                    | L      | Images, worked examples, deeper coverage.                                                                                                                                                                                |
+| #101 sankey flow view               | L      | Visualization of solved block flows.                                                                                                                                                                                     |
+| #107 light theme pass               | M      | Last in the wave, so it sees every new surface.                                                                                                                                                                          |
 
 ## Wave 5 — composition
 
-| Issue | Effort | Notes |
-|---|---|---|
-| #76 sub-blocks v2 | XL | Separately-solved modules with hidden internal goals. Deliberately after #91 (nested solves) and #90 (deep doc-model surgery with a safety net). Closes epic #33. |
+| Issue             | Effort | Notes                                                                                                                                                             |
+| ----------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #76 sub-blocks v2 | XL     | Separately-solved modules with hidden internal goals. Deliberately after #91 (nested solves) and #90 (deep doc-model surgery with a safety net). Closes epic #33. |
 
 ## Wave 6 — live data + mod batch (closes epic #34)
 
 Bridge + Lua context loads once; verification is hands-on in-game.
 
-| Issue | Effort | Notes |
-|---|---|---|
-| #109 mod UI design pass | L | The in-game panel design + completion (Blocks tab, summary layout, style pruning). Absorbs #4. Independent enough to pull forward whenever. |
-| #4 summary panel width | M | Folded into #109; the naive stretchable approach was tried and reverted — needs the layout rework. |
-| #88 below-plan alerts | M | Live-data alerts against planned rates. |
-| #3 select machine in-game → focus block | M | Bridge + protocol addition. |
-| #112 sync repeatable-tech levels | S | #92 follow-up: send force.mining_drill_productivity_bonus (or per-tech levels) over the bridge; PROTOCOL_VERSION bump. |
-| #102 train logistics math | L | Payload/cadence on factory links. |
-| #2 time-series metrics | XL | Prometheus-style live factory data; the wave's big one. |
+| Issue                                   | Effort | Notes                                                                                                                                       |
+| --------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| #109 mod UI design pass                 | L      | The in-game panel design + completion (Blocks tab, summary layout, style pruning). Absorbs #4. Independent enough to pull forward whenever. |
+| #4 summary panel width                  | M      | Folded into #109; the naive stretchable approach was tried and reverted — needs the layout rework.                                          |
+| #88 below-plan alerts                   | M      | Live-data alerts against planned rates.                                                                                                     |
+| #3 select machine in-game → focus block | M      | Bridge + protocol addition.                                                                                                                 |
+| #112 sync repeatable-tech levels        | S      | #92 follow-up: send force.mining_drill_productivity_bonus (or per-tech levels) over the bridge; PROTOCOL_VERSION bump.                      |
+| #102 train logistics math               | L      | Payload/cadence on factory links.                                                                                                           |
+| #2 time-series metrics                  | XL     | Prometheus-style live factory data; the wave's big one.                                                                                     |
 
 ## Wave 7 — strategic finisher
 
-| Issue | Effort | Notes |
-|---|---|---|
-| #24 quality support (epic) | XL | Broadening beyond Py. Everything before it makes it cheaper (LP solver, recipe synthesis coverage, data-gated UI per #68's shipped direction). Last on purpose. |
+| Issue                      | Effort | Notes                                                                                                                                                           |
+| -------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #24 quality support (epic) | XL     | Broadening beyond Py. Everything before it makes it cheaper (LP solver, recipe synthesis coverage, data-gated UI per #68's shipped direction). Last on purpose. |
 
 ## Epics — close as children land
 
-| Epic | State after this audit |
-|---|---|
-| #89 toolchain | children done; stays open as a standing bucket (#111 landed there) |
-| #31 planning model | **closed 2026-07-03** (#25 was the last child) |
-| #30 assistant | Wave 3 + #72 |
-| #33 composition | #76 + #85 |
-| #35 UI/UX polish | bulk of Waves 0/1/4 |
-| #34 live data | Wave 6 |
+| Epic               | State after this audit                                             |
+| ------------------ | ------------------------------------------------------------------ |
+| #89 toolchain      | children done; stays open as a standing bucket (#111 landed there) |
+| #31 planning model | **closed 2026-07-03** (#25 was the last child)                     |
+| #30 assistant      | Wave 3 + #72                                                       |
+| #33 composition    | #76 + #85                                                          |
+| #35 UI/UX polish   | bulk of Waves 0/1/4                                                |
+| #34 live data      | Wave 6                                                             |

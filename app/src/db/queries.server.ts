@@ -56,7 +56,6 @@ import type {
 } from "../lib/logistics.ts";
 import { goalNames, normalizeBlockData, primaryRate } from "../lib/goals.ts";
 import { prodScaledAmount } from "../lib/productivity.ts";
-import { relevantRecipes, type RecipeDef } from "../solver/block.ts";
 
 const recipeSummary = {
   name: recipes.name,
@@ -1162,42 +1161,15 @@ export function listBlocks() {
     for (const r of blockRecipes)
       for (const p of productsByRecipe.get(r) ?? []) makesInBlock.add(p);
     const unmadeGoals = goalNames(d).filter((g) => goodNames.has(g) && !makesInBlock.has(g));
-    // Recipes that can't reach any in-block goal — the solver pins these to 0 and
-    // the block still solves, so surface them here (mirrors the solver's check) or
-    // the sidebar would go green on a block full of dead recipes. Only meaningful
-    // when a goal is actually produced in-block; an explicit `balance` protects a
-    // recipe from being flagged.
-    let unusedCount = 0;
-    if (goalNames(d).some((g) => makesInBlock.has(g))) {
-      const pseudo: RecipeDef[] = blockRecipes.map((name) => ({
-        name,
-        energyRequired: 0,
-        ingredients: [...(ingredientsByRecipe.get(name) ?? [])].map((n) => ({
-          kind: "item",
-          name: n,
-          amount: 0,
-        })),
-        products: [...(productsByRecipe.get(name) ?? [])].map((n) => ({
-          kind: "item",
-          name: n,
-          amount: 0,
-        })),
-      }));
-      const relevant = relevantRecipes(pseudo, goalNames(d));
-      const balanced = new Set(
-        Object.entries(d.dispositions ?? {}).flatMap(([k, v]) => (v === "balance" ? [k] : [])),
-      );
-      unusedCount = pseudo.filter((r, i) => {
-        if (relevant.has(i)) return false;
-        const touches = (c: { name: string }) => balanced.has(c.name);
-        return !(balanced.size && (r.ingredients.some(touches) || r.products.some(touches)));
-      }).length;
-    }
+    // v2 (#91): made marks whose producer vanished (or was never added) — the
+    // same "unmade" condition the solve reports, derivable here without solving.
+    const unmadeMade = (d.made ?? []).filter((m) => !makesInBlock.has(m));
     const health: BlockHealth =
-      broken || solveStatus === "infeasible"
+      broken || solveStatus === "infeasible" || solveStatus === "error"
         ? "error"
         : unmadeGoals.length > 0 ||
-            unusedCount > 0 ||
+            unmadeMade.length > 0 ||
+            // stale pre-v2 statuses: the block re-solves (and re-caches) on open
             solveStatus === "relaxed" ||
             solveStatus === "underdetermined"
           ? "warn"
@@ -1207,7 +1179,7 @@ export function listBlocks() {
       broken,
       health,
       unmadeGoals,
-      unusedCount,
+      unmadeMade,
       // for the delete-block confirm (#83): what the deletion would destroy
       recipeCount: blockRecipes.length,
       goalCount: goalNames(d).length,

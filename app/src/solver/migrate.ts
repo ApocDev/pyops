@@ -19,6 +19,8 @@ import type { LpBlockInput, RecipeDef } from "./lp.ts";
  */
 
 export type V1Disposition = "balance" | "export" | "import";
+/** Alias kept for the doc/schema layer (the legacy field's value type). */
+export type Disposition = V1Disposition;
 
 export function migrateToLpInput(v1: {
   targets: { name: string; rate: number }[];

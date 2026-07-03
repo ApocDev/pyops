@@ -6,7 +6,8 @@
  * (`resolveAllBlocks`). Extracted from factorio.ts so the server-fn layer
  * stays client-importable while this module imports the query layer statically.
  */
-import type { Disposition, RecipeDef } from "../solver/block";
+import type { RecipeDef } from "../solver/lp";
+import type { Disposition } from "../solver/migrate";
 import { solveBlockLp, type LpBlockInput, type Pin } from "../solver/lp";
 import { diagnoseBlock, type DiagnosisCard } from "../solver/diagnose";
 import { migrateToLpInput } from "../solver/migrate";
