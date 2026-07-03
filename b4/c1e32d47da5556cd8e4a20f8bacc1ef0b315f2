@@ -1,0 +1,25 @@
+app/src/solver/lp.test.ts
+  s_9be9645d11a3e7::t_21bcd3bf390fc9 1-343
+app/src/solver/diagnose.test.ts
+  s_9be9645d11a3e7::t_904c148d1438cc 1-170
+app/src/solver/diagnose.ts
+  s_9be9645d11a3e7::t_cc58338f9c7934 1-157
+app/src/solver/lp.ts
+  s_9be9645d11a3e7::t_0ad7e3749a26d6 1-341
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b4c1e32d47da5556cd8e4a20f8bacc1ef0b315f2",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
