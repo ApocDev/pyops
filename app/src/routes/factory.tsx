@@ -20,11 +20,13 @@ import { HelpButton } from "#/components/help-drawer.tsx";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
-import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
+import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
+import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
+import { useFilteredList } from "../lib/use-filtered-list";
 import { StatCell } from "#/components/stat-cell.tsx";
 import { StatTableHeader } from "#/components/stat-table.tsx";
 import { GoodsSection } from "#/components/goods-table.tsx";
@@ -144,16 +146,18 @@ function FactoryPage() {
     }
     byItem.set(f.item, e);
   }
-  const rows = [...byItem.entries()]
-    .map(([item, e]) => ({
-      item,
-      ...e,
-      net: e.produced - e.consumed,
-      // the deficit list's severity axis: fraction of demand met (null = no demand)
-      pctMet: e.consumed > 1e-9 ? e.produced / e.consumed : null,
-      actualProduced: actualByItem.get(item)?.produced ?? null,
-    }))
-    .filter((r) => (r.display ?? r.item).toLowerCase().includes(search.toLowerCase()));
+  const allRows = [...byItem.entries()].map(([item, e]) => ({
+    item,
+    ...e,
+    net: e.produced - e.consumed,
+    // the deficit list's severity axis: fraction of demand met (null = no demand)
+    pctMet: e.consumed > 1e-9 ? e.produced / e.consumed : null,
+    actualProduced: actualByItem.get(item)?.produced ?? null,
+  }));
+  const rows = useFilteredList(allRows, search, {
+    display: (r) => r.display,
+    internal: (r) => r.item,
+  });
 
   const totalPowerW = (blocks.data ?? []).reduce((s, b) => s + (b.electricityW ?? 0), 0);
   const totalPollution = (blocks.data ?? []).reduce((s, b) => s + (b.pollutionPerMin ?? 0), 0);
@@ -194,9 +198,9 @@ function FactoryPage() {
                 what-if →
               </Link>
             </Button>
-            <Input
+            <FilterInput
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onValueChange={setSearch}
               placeholder="filter items…"
               className="w-64"
             />
@@ -331,15 +335,7 @@ function FactoryPage() {
         />
       )}
       {(totals.data?.length ?? 0) > 0 && rows.length === 0 && (
-        <EmptyState
-          title="No items match the filter"
-          description={`Nothing in the factory matches "${search}".`}
-          action={
-            <Button size="sm" variant="outline" onClick={() => setSearch("")}>
-              clear filter
-            </Button>
-          }
-        />
+        <FilterEmptyState query={search} onClear={() => setSearch("")} />
       )}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

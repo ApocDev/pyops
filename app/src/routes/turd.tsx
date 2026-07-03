@@ -8,10 +8,12 @@ import { Badge } from "#/components/ui/badge.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Card } from "#/components/ui/card.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
-import { Input } from "#/components/ui/input.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
+import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
+import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
+import { useFilteredList } from "../lib/use-filtered-list";
 import { useState } from "react";
 
 export const Route = createFileRoute("/turd")({
@@ -156,11 +158,12 @@ function TurdPage() {
     },
   });
 
-  const list = (upgrades.data ?? []).filter(
-    (u) =>
-      u.display.toLowerCase().includes(search.toLowerCase()) ||
-      u.subTechs.some((s) => s.display.toLowerCase().includes(search.toLowerCase())),
-  );
+  // a master matches when it or any of its branches does; internal tech names
+  // are the hidden fallback (useful when pasting a raw name from a doc/issue)
+  const list = useFilteredList(upgrades.data ?? [], search, {
+    display: (u) => [u.display, ...u.subTechs.map((s) => s.display)],
+    internal: (u) => [u.name, ...u.subTechs.map((s) => s.name)],
+  });
   const chosen = (upgrades.data ?? []).filter((u) => u.selected).length;
 
   return (
@@ -202,9 +205,9 @@ function TurdPage() {
         }
       >
         <div className="flex flex-wrap items-center gap-3">
-          <Input
+          <FilterInput
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onValueChange={setSearch}
             placeholder="filter upgrades…"
             className="w-64"
           />
@@ -250,14 +253,7 @@ function TurdPage() {
       )}
 
       {!upgrades.isLoading && (upgrades.data?.length ?? 0) > 0 && list.length === 0 && (
-        <EmptyState
-          title="No upgrades match your filter"
-          action={
-            <Button variant="outline" size="sm" onClick={() => setSearch("")}>
-              clear filter
-            </Button>
-          }
-        />
+        <FilterEmptyState query={search} onClear={() => setSearch("")} />
       )}
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">

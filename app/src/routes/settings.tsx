@@ -29,7 +29,10 @@ import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel, Label } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Switch } from "#/components/ui/switch.tsx";
+import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
+import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
+import { useFilteredList } from "../lib/use-filtered-list";
 import {
   formatQty,
   getCompactNumbers,
@@ -318,6 +321,8 @@ function ModsCard({
   mods: { name: string; enabled: boolean; version: string | null }[];
 }) {
   const [filter, setFilter] = useState("");
+  // a mod's id IS its user-facing name here (no localized display exists)
+  const shown = useFilteredList(mods, filter, { display: (m) => m.name });
   if (mods.length === 0) {
     return (
       <Card>
@@ -332,8 +337,6 @@ function ModsCard({
     );
   }
   const enabled = mods.filter((m) => m.enabled).length;
-  const q = filter.trim().toLowerCase();
-  const shown = q ? mods.filter((m) => m.name.toLowerCase().includes(q)) : mods;
   return (
     <Card>
       <CardHeader className="justify-between">
@@ -349,12 +352,7 @@ function ModsCard({
           What this project&apos;s reference data was dumped from — its provenance. Recorded on each
           sync.
         </p>
-        <Input
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="filter mods…"
-          className="w-full"
-        />
+        <FilterInput value={filter} onValueChange={setFilter} placeholder="filter mods…" />
         <div className="max-h-80 overflow-auto border border-border">
           {shown.map((m) => (
             <div
@@ -372,7 +370,9 @@ function ModsCard({
               {!m.enabled && <Badge className="shrink-0 px-1 py-0 text-xs">off</Badge>}
             </div>
           ))}
-          {shown.length === 0 && <div className="px-2 py-2 text-muted-foreground">no matches</div>}
+          {shown.length === 0 && (
+            <FilterEmptyState className="p-4" query={filter} onClear={() => setFilter("")} />
+          )}
         </div>
       </div>
     </Card>

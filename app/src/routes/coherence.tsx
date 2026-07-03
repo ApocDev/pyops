@@ -19,7 +19,10 @@ import { FieldLabel } from "#/components/ui/label.tsx";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "#/components/ui/sheet.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
+import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
+import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
+import { useFilteredList } from "../lib/use-filtered-list";
 
 export const Route = createFileRoute("/coherence")({
   component: () => (
@@ -44,6 +47,13 @@ type Link = {
   craftable?: boolean;
 };
 
+// links / unsourced / surplus all filter on the same fields: the localized
+// display name, with the internal good name as the hidden fallback
+const goodKeys = {
+  display: (l: { good: string; display: string | null }) => l.display,
+  internal: (l: { good: string; display: string | null }) => l.good,
+};
+
 /** Coherence — the factory as block-to-block wiring. Each shared good shows its
  * producer blocks → consumer blocks with the per-good balance, so rate mismatches
  * the aggregate ledger hides (a surplus here + a deficit there cancel) surface on
@@ -65,10 +75,18 @@ function CoherencePage() {
     }
   };
 
-  const match = (l: Link) => (l.display ?? l.good).toLowerCase().includes(search.toLowerCase());
-  const links = (data.data?.links ?? []).filter(match);
-  const unsourced = (data.data?.unsourced ?? []).filter(match);
-  const surplus = (data.data?.surplus ?? []).filter(match);
+  const links = useFilteredList(data.data?.links ?? [], search, goodKeys);
+  const unsourced = useFilteredList(data.data?.unsourced ?? [], search, goodKeys);
+  const surplus = useFilteredList(data.data?.surplus ?? [], search, goodKeys);
+  const anyData =
+    (data.data?.links.length ?? 0) + (data.data?.unsourced.length ?? 0) > 0 ||
+    (data.data?.surplus.length ?? 0) > 0;
+  const noMatches =
+    search.trim() !== "" &&
+    anyData &&
+    links.length === 0 &&
+    unsourced.length === 0 &&
+    surplus.length === 0;
   const shortLinks = links.filter((l) => l.net < -1e-6).sort((a, b) => a.net - b.net);
   const surplusLinks = links.filter((l) => l.net > 1e-6);
   const balancedLinks = links.filter((l) => Math.abs(l.net) <= 1e-6);
@@ -94,9 +112,9 @@ function CoherencePage() {
             >
               <Link to="/factory">totals →</Link>
             </Button>
-            <Input
+            <FilterInput
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onValueChange={setSearch}
               placeholder="filter goods…"
               className="w-64"
             />
@@ -181,6 +199,9 @@ function CoherencePage() {
           }
         />
       )}
+
+      {/* A filter that matches nothing must say so, not render a blank page. */}
+      {noMatches && <FilterEmptyState query={search} onClear={() => setSearch("")} />}
 
       {/* Problem-first: shorts (the point of the view) on top, balanced last. */}
       {shortLinks.length > 0 && (

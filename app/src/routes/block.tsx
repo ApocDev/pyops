@@ -51,12 +51,14 @@ import { Icon, IconProvider } from "../lib/icons";
 import { blockDeleteDescription } from "../lib/delete-copy";
 import { deletedToast, undoToast } from "../lib/undo-client";
 import { Button } from "#/components/ui/button.tsx";
-import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { ConfirmDialog } from "#/components/confirm-dialog.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
+import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
+import { FilterInput } from "#/components/filter-input.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
+import { useFilteredList } from "../lib/use-filtered-list";
 
 export const Route = createFileRoute("/block")({
   component: () => (
@@ -429,9 +431,9 @@ function Shell() {
     if (activeId === b.id) void navigate({ to: "/block" });
   };
 
-  const filtered = (blocks.data ?? []).filter((b) =>
-    b.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  // block names are user-typed (no internal-name fallback); the tree render
+  // regroups matches by folder, so ranking only reorders within a folder
+  const filtered = useFilteredList(blocks.data ?? [], search, { display: (b) => b.name });
 
   type Row = (typeof filtered)[number];
   type Group = NonNullable<typeof groups.data>[number];
@@ -668,11 +670,11 @@ function Shell() {
                 <Plus className="size-4" />
               </Button>
             </div>
-            <Input
+            <FilterInput
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onValueChange={setSearch}
               placeholder="search blocks…"
-              className="m-2 w-auto"
+              className="m-2"
             />
             <DndContext
               sensors={sensors}
@@ -712,15 +714,10 @@ function Shell() {
                     {childrenOf(null).map((g) => renderFolder(g, 0))}
                     {renderUngrouped()}
                     {filtered.length === 0 && (
-                      <EmptyState
+                      <FilterEmptyState
                         className="p-4"
-                        title="No matching blocks"
-                        description="Nothing matches this search."
-                        action={
-                          <Button variant="outline" size="sm" onClick={() => setSearch("")}>
-                            Clear search
-                          </Button>
-                        }
+                        query={search}
+                        onClear={() => setSearch("")}
                       />
                     )}
                   </>

@@ -10,8 +10,9 @@ import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
+import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
+import { FilterInput } from "#/components/filter-input.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
-import { Input } from "#/components/ui/input.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 
@@ -79,9 +80,9 @@ function Browse() {
                 </p>
               </HelpButton>
             </div>
-            <Input
+            <FilterInput
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onValueChange={setQuery}
               placeholder="search items & fluids…"
               autoFocus
             />
@@ -133,11 +134,7 @@ function Browse() {
               </Button>
             ))}
             {query && results.data?.length === 0 && (
-              <EmptyState
-                className="px-2 py-3"
-                title="No matches"
-                description="Try a different search term."
-              />
+              <FilterEmptyState className="px-2 py-3" query={query} onClear={() => setQuery("")} />
             )}
           </div>
         </>
