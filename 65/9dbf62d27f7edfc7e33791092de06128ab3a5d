@@ -1,0 +1,37 @@
+app/src/server/coherence-audit.server.ts
+  s_9be9645d11a3e7::t_89488420cdd432 1-151
+docs/ai-assistant.md
+  s_9be9645d11a3e7::t_56184a14819e2c 126-138
+app/src/routes/assistant.tsx
+  s_c7842965976508::t_e2bada57bfc832 1346
+app/src/server/agent-tools.server.ts
+  s_c7842965976508::t_7919071aa2737f 18,412,418-420,432-438,440-444,449-455,1206
+app/src/server/agent.ts
+  s_c7842965976508::t_19a8b888da41ee 62-63,102
+app/src/server/coherence-audit.test.ts
+  s_c7842965976508::t_438e9ddd44d645 1-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "659dbf62d27f7edfc7e33791092de06128ab3a5d",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_c7842965976508": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a1d179e529c21c33a",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
