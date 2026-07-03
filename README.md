@@ -63,6 +63,12 @@ source](#setup) to hack on it.
   palette from any page — or press `/` when you're not typing in a field. Fuzzy
   search across pages and factory blocks, plus quick actions (new block, new
   project); arrows + Enter to run, Esc to close.
+- **Back up & share.** **⚙ Settings › Backup & share** downloads the active
+  project's database as a one-file backup (and restores one as a new project), and
+  moves blocks between projects as versioned JSON — export the whole plan (blocks +
+  folders) there or a single block from the block editor's toolbar, then import it
+  anywhere: blocks come in as new copies (names suffixed on collision), and
+  anything the target's game data doesn't know is flagged instead of rejected.
 - **Use it on any screen.** The UI is responsive: the full desktop layout on a
   monitor, and on tablets, phones, and the Steam Deck the global nav and the
   block/browse/assistant/tasks sidebars collapse into drawers, dense tables reflow

@@ -99,3 +99,25 @@ cheap drift check (`app/src/server/db-migrations.server.ts`: bundled
 `drizzle/meta/_journal.json` vs the active db's `__drizzle_migrations` rows) and
 shows a "restart the app to apply" banner when any are pending; migrations are never
 auto-applied at runtime.
+
+## Export / import (#82)
+
+Two surfaces under **Settings › Backup & share**:
+
+- **Project backup** — the whole project as its `.db` file. `GET /api/backup`
+  streams an online-backup snapshot of the active db (better-sqlite3's backup API,
+  so it's consistent while the app runs); `POST /api/backup?name=…` installs an
+  uploaded db as a **new** project (validated, fresh id, never overwriting; the
+  bundled migrations upgrade an older backup on first connect). A route handler
+  because both directions move a whole file (`app/src/routes/api.backup.ts`,
+  `app/src/server/backup.server.ts`).
+- **Block / plan JSON** — shareable, versioned envelopes (`{ pyops: 1, kind:
+  "block" | "plan", … }`) carrying a block's full editor doc (goals, recipes,
+  per-recipe picks) — a plan adds sidebar folders. The pure logic (validation,
+  legacy-doc migration, name-collision suffixing) is `app/src/lib/plan-export.ts`;
+  the db side is `app/src/server/export.server.ts` (server fns in
+  `export-fns.ts`). Imports always create **new** blocks (suffixed names, remapped
+  folders) and re-solve them; references the target's data dump doesn't have are
+  flagged broken — the same degrade path as mod drift — never rejected. Single
+  blocks also export from the block editor's toolbar. Snapshots (#85) build on the
+  same serialization.
