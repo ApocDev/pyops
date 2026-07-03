@@ -54,6 +54,7 @@ import type {
   StackBonuses,
 } from "../lib/logistics.ts";
 import { goalNames, normalizeBlockData, primaryRate } from "../lib/goals.ts";
+import { prodScaledAmount } from "../lib/productivity.ts";
 import { relevantRecipes, type RecipeDef } from "../solver/block.ts";
 
 const recipeSummary = {
@@ -477,11 +478,11 @@ export function computeRecipeScenario(opts: {
   const outputs = r.products.map((p) => ({
     good: p.name,
     display: p.display ?? p.name,
+    // productivity scales only the non-ignored part of each product (#93)
     perSec:
       craftsPerSec *
-      avgAmount(p) *
-      (p.probability ?? 1) *
-      (p.ignoredByProductivity ? 1 : fx.prodMult),
+      prodScaledAmount(avgAmount(p), fx.prodMult, p.ignoredByProductivity) *
+      (p.probability ?? 1),
   }));
   const inputs = r.ingredients.map((c) => ({
     good: c.name,

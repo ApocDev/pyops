@@ -293,7 +293,16 @@ export function importFactorioDump(
             amount_max: (c.amount_max as number) ?? null,
             probability: (c.probability as number) ?? 1,
             temperature: (c.temperature as number) ?? null,
-            ignored_by_productivity: c.ignored_by_productivity ? 1 : 0,
+            // Factorio 2.0: an AMOUNT (the catalytic part of the product that
+            // productivity never multiplies), not a flag. Kovarex: u-235 out 41
+            // with ignored 40. Tolerate a legacy boolean `true` = all ignored.
+            ignored_by_productivity:
+              typeof c.ignored_by_productivity === "number"
+                ? c.ignored_by_productivity
+                : c.ignored_by_productivity
+                  ? (c.amount ??
+                    (((c.amount_min as number) ?? 0) + ((c.amount_max as number) ?? 0)) / 2)
+                  : 0,
           }),
         );
     }

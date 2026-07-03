@@ -9,6 +9,7 @@
 import { cycleItems, solveBlock, type Disposition, type RecipeDef } from "../solver/block";
 import { computeEffects, type BeaconConfig } from "./effects";
 import { resolveLogistics, rowLogistics } from "../lib/logistics";
+import { prodScaledAmount } from "../lib/productivity";
 import { goalNames, normalizeBlockData } from "../lib/goals";
 import { fmtTemp, fmtTempRange } from "../lib/format";
 import type { Goal } from "../db/schema.ts";
@@ -400,10 +401,13 @@ export async function computeBlock(rawData: SolveInput) {
           kind: c.kind,
           name: c.name,
           probability: c.probability,
-          amount:
-            (c.amount ??
-              (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0)) *
-            (c.ignoredByProductivity ? 1 : fx.prodMult),
+          // productivity scales only the non-ignored part of each product (#93)
+          amount: prodScaledAmount(
+            c.amount ??
+              (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0),
+            fx.prodMult,
+            c.ignoredByProductivity,
+          ),
         })),
         // ash/burnt result from self-fuel (not productivity-scaled — it's from burning)
         ...extraProducts,

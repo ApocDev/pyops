@@ -7,6 +7,7 @@ import { entityDetailFn, itemDetailFn, recipeDetailFn, techDetailFn } from "../s
 import { RawIcon as Icon, fmtSpoilTime } from "./icons";
 import { CursorCard, CursorHover } from "./hover";
 import { formatQty, formatRate } from "./format";
+import { prodScaledAmount } from "./productivity";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 
@@ -367,9 +368,9 @@ function RecipeList({
  * changes: which inputs/outputs are added, dropped, or re-sized, plus time. */
 
 type RecipeComp = Parameters<typeof Comp>[0];
-// products (not ingredients) additionally carry this — productivity doesn't apply
-// to ignored-by-productivity outputs like barrels/catalysts.
-type DiffInput = RecipeComp & { ignoredByProductivity?: boolean | null };
+// products (not ingredients) additionally carry this — the AMOUNT of the output
+// that is catalytic (barrels/catalyst returns), which productivity never scales (#93).
+type DiffInput = RecipeComp & { ignoredByProductivity?: number | null };
 // Always-on module effects a TURD choice grants; applied to the chosen recipe's
 // output rate (speed scales all outputs, productivity skips ignored ones).
 type RateBonus = { speed: number; prod: number };
@@ -405,8 +406,11 @@ function ioByName(
     let rate: number | null = null;
     if (withRate && time > 0) {
       const speedMult = bonus ? 1 + bonus.speed : 1;
-      const prodMult = bonus && !c.ignoredByProductivity ? 1 + bonus.prod : 1;
-      rate = ((compAmount(c) * (c.probability ?? 1)) / time) * speedMult * prodMult;
+      // productivity scales only the non-ignored part of the output (#93)
+      const amount = bonus
+        ? prodScaledAmount(compAmount(c), 1 + bonus.prod, c.ignoredByProductivity)
+        : compAmount(c);
+      rate = ((amount * (c.probability ?? 1)) / time) * speedMult;
     }
     m.set(c.name, { kind: c.kind, name: c.name, display: c.display, amount: compAmount(c), rate });
   }

@@ -93,7 +93,10 @@ export const recipeProducts = sqliteTable(
     amountMax: real("amount_max"),
     probability: real().notNull().default(1),
     temperature: real(), // exact produced temperature (fluids)
-    ignoredByProductivity: bool("ignored_by_productivity").notNull().default(false),
+    // AMOUNT of this product not scaled by productivity (Factorio 2.0 semantics:
+    // the first N units are catalytic — Kovarex outputs 41 u-235 with 40 ignored,
+    // so productivity applies to just 1 — see #93). NOT a flag.
+    ignoredByProductivity: real("ignored_by_productivity").notNull().default(0),
   },
   (t) => [
     primaryKey({ columns: [t.recipe, t.idx] }),

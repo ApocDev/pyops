@@ -90,7 +90,11 @@ sub-chain is the factory ledger's job.
 
 Module/beacon effects (`effects.ts`) apply **before** the solve:
 
-- **Productivity** scales a recipe's products (a real balance change).
+- **Productivity** scales a recipe's products (a real balance change). Per
+  Factorio 2.0, each product's `ignored_by_productivity` is an **amount**: that
+  many units are catalytic and stay unscaled, only the remainder is multiplied
+  (Kovarex: 41 U-235 out, 40 ignored; coal liquefaction: 90 heavy oil, 25
+  ignored). The shared math lives in `lib/productivity.ts` (#93).
 - **Speed** scales the machine count.
 - **Consumption** scales power/fuel.
 - **Pollution** scales the block's pollution budget (#23).

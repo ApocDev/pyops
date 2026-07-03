@@ -43,6 +43,13 @@
       "when": 1783050200687,
       "tag": "0005_add_block_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1783088069375,
+      "tag": "0006_ignored-by-productivity-amount",
+      "breakpoints": true
     }
   ]
 }
