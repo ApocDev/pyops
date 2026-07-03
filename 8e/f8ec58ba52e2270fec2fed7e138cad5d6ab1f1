@@ -1,0 +1,39 @@
+app/src/lib/block-doc.test.ts
+  s_9be9645d11a3e7::t_a0a5dfd7ccef32 1-66
+app/src/lib/block-doc.ts
+  s_9be9645d11a3e7::t_b095d69c526cfb 1-60
+app/src/routes/assistant.tsx
+  s_9be9645d11a3e7::t_32d6c53deee47a 44,1251-1252,1258-1263,1486-1493,1505-1507,1509-1510,1515-1517,1532,1535-1548,1550-1552,1576-1586,1591,1603-1605,1620-1622,1624-1630,1699-1703,1705-1711
+app/src/server/agent-tools.server.ts
+  s_9be9645d11a3e7::t_08cecda27731d2 718-727,734-743,746-747,750-762,769-771,779,783-793,797,802,822
+app/src/server/factorio.ts
+  s_9be9645d11a3e7::t_6cefd3e6d51702 12,492-519
+docs/ai-assistant.md
+  s_9be9645d11a3e7::t_73b09c680677ba 147-152,178-183
+app/src/server/agent.ts
+  s_c7842965976508::t_847bcd74c485f3 69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8ef8ec58ba52e2270fec2fed7e138cad5d6ab1f1",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_c7842965976508": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a1d179e529c21c33a",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
