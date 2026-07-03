@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, ChevronDown, Database, X } from "lucide-react";
-import {
-  createProjectFn,
-  listProjectsFn,
-  removeProjectFn,
-  setActiveProjectFn,
-} from "../server/factorio";
+import { listProjectsFn, removeProjectFn, setActiveProjectFn } from "../server/factorio";
+import { ProjectCreateDialog } from "./project-create-dialog.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import {
   DropdownMenu,
@@ -22,6 +18,7 @@ type Projects = Awaited<ReturnType<typeof listProjectsFn>>;
 export function ProjectSwitcher() {
   const [data, setData] = useState<Projects | null>(null);
   const [busy, setBusy] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     void listProjectsFn().then(setData);
@@ -33,16 +30,18 @@ export function ProjectSwitcher() {
     if (id === data?.active) return;
     setBusy(true);
     await setActiveProjectFn({ data: id });
+    // Full reload on purpose (#84). The server doesn't force this: the shared
+    // `db` proxy repoints in-process the moment setActiveProjectFn runs
+    // (src/db/index.server.ts, src/server/projects.server.ts), so the next
+    // server-fn call already reads the new project's database. The client is
+    // what can't switch softly — per-project data lives not only in react-query
+    // caches (invalidatable) but also in module-level caches (the icon manifest
+    // and spoilables in lib/icons.tsx are fetched once per page load) and in
+    // useEffect-owned local state across pages (block, assistant, tasks). A
+    // router.navigate + invalidateQueries would leave those surfaces showing —
+    // or writing edits against — the previous project's data. A reload is the
+    // one flush that covers all three.
     window.location.reload();
-  };
-  const create = async () => {
-    const name = window
-      .prompt("Project name? (each project is its own database — sync game data after creating)")
-      ?.trim();
-    if (!name) return;
-    setBusy(true);
-    await createProjectFn({ data: name });
-    window.location.assign("/settings?tab=data"); // fresh db: first stop is the sync page
   };
   const remove = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation(); // keep the row's select from firing
@@ -95,13 +94,14 @@ export function ProjectSwitcher() {
           ))}
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onSelect={() => void create()}
+            onSelect={() => setCreating(true)}
             className="text-info focus:text-info data-highlighted:text-info"
           >
             + new project…
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      {creating && <ProjectCreateDialog onClose={() => setCreating(false)} />}
     </div>
   );
 }

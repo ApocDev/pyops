@@ -66,13 +66,50 @@ describe("ProjectSwitcher", () => {
     await waitFor(() => expect(location.reload).toHaveBeenCalled());
   });
 
-  it("creates a project from the prompt and routes to the sync page", async () => {
-    vi.spyOn(window, "prompt").mockReturnValue("  Fresh Run  ");
-    const { findByTitle, getByText } = render(<ProjectSwitcher />);
+  it("creates a project through the dialog and routes to the sync page", async () => {
+    const { findByTitle, getByText, getByLabelText } = render(<ProjectSwitcher />);
     openMenu(await findByTitle(/project: Default/));
     fireEvent.click(getByText("+ new project…"));
+    // dialog is open: create is disabled until a name is typed (whitespace doesn't count)
+    const createBtn = getByText("Create project").closest("button")!;
+    expect(createBtn.disabled).toBe(true);
+    fireEvent.change(getByLabelText("Name"), { target: { value: "   " } });
+    expect(createBtn.disabled).toBe(true);
+    fireEvent.change(getByLabelText("Name"), { target: { value: "  Fresh Run  " } });
+    expect(createBtn.disabled).toBe(false);
+    fireEvent.click(createBtn);
     await waitFor(() => expect(createProject).toHaveBeenCalledWith({ data: "Fresh Run" }));
     await waitFor(() => expect(location.assign).toHaveBeenCalledWith("/settings?tab=data"));
+  });
+
+  it("submits the create dialog on Enter (form submit)", async () => {
+    const { findByTitle, getByText, getByLabelText } = render(<ProjectSwitcher />);
+    openMenu(await findByTitle(/project: Default/));
+    fireEvent.click(getByText("+ new project…"));
+    const input = getByLabelText("Name");
+    fireEvent.change(input, { target: { value: "Enter Run" } });
+    fireEvent.submit(input.closest("form")!);
+    await waitFor(() => expect(createProject).toHaveBeenCalledWith({ data: "Enter Run" }));
+  });
+
+  it("surfaces a create failure in the dialog instead of navigating", async () => {
+    createProject.mockRejectedValue(new Error("disk full"));
+    const { findByTitle, getByText, getByLabelText, findByText } = render(<ProjectSwitcher />);
+    openMenu(await findByTitle(/project: Default/));
+    fireEvent.click(getByText("+ new project…"));
+    fireEvent.change(getByLabelText("Name"), { target: { value: "Doomed" } });
+    fireEvent.click(getByText("Create project"));
+    expect(await findByText("disk full")).toBeTruthy();
+    expect(location.assign).not.toHaveBeenCalled();
+  });
+
+  it("cancels the create dialog without creating anything", async () => {
+    const { findByTitle, getByText, queryByText } = render(<ProjectSwitcher />);
+    openMenu(await findByTitle(/project: Default/));
+    fireEvent.click(getByText("+ new project…"));
+    fireEvent.click(getByText("Cancel"));
+    await waitFor(() => expect(queryByText("Create project")).toBeNull());
+    expect(createProject).not.toHaveBeenCalled();
   });
 
   it("offers remove only for non-default projects", async () => {
