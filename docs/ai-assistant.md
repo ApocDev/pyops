@@ -199,6 +199,15 @@ cache) and applies each resize through `setBlockRateFn`, exactly like a manually
 edited block. The agent is told to check each existing block's current
 `makes[].rate` and resize rather than duplicate when it's too small.
 
+Once a card's block exists in the store it can go **straight into the game**
+(#14): the draft card's post-create state, the revise card (its block already
+exists), and the plan card's created list each render a **Show in game** button
+(`components/assistant/show-in-game-button.tsx`) that pushes the block to the
+in-game build-sheet panel via `bridgeShowBlockFn` — the same panel whose
+building rows hand out the configured blueprint / request-combinator, so a plan
+flows from chat to construction. It reports "game not connected" when the
+bridge is down.
+
 Draft, update, and plan cards carry **one-click follow-up chips** (#13) built
 from the solved draft data: a **Draft \<good\> @ rate** chip per suggested
 sub-block and a **Route \<good\>** chip per byproduct

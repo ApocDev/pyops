@@ -33,6 +33,7 @@ import { Textarea } from "#/components/ui/textarea.tsx";
 import { ConfirmDialog } from "#/components/confirm-dialog.tsx";
 import { FollowUpChips, type FollowUp } from "#/components/assistant/follow-up-chips.tsx";
 import { GameEvalCard, type GameEvalProposal } from "#/components/assistant/game-eval-card.tsx";
+import { ShowInGameButton } from "#/components/assistant/show-in-game-button.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { ItemHover, RecipeHover } from "#/lib/recipe-card";
 import { formatRate } from "#/lib/format";
@@ -1473,7 +1474,9 @@ function BlockDraft({
   busy?: boolean;
 }) {
   const navigate = useNavigate();
-  const [status, setStatus] = useState<"idle" | "creating" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "creating" | "done" | "error">("idle");
+  // the saved block's id — unlocks the post-create in-game action (#14)
+  const [createdId, setCreatedId] = useState<number | null>(null);
 
   const create = async () => {
     setStatus("creating");
@@ -1493,6 +1496,8 @@ function BlockDraft({
           },
         },
       });
+      setCreatedId(id);
+      setStatus("done");
       await navigate({ to: "/block/$id", params: { id: String(id) } });
     } catch {
       setStatus("error");
@@ -1527,14 +1532,28 @@ function BlockDraft({
             </span>
           </span>
         </div>
-        <Button onClick={() => void create()} disabled={status === "creating"}>
-          {status === "creating" ? "Creating…" : "Create block →"}
+        <Button onClick={() => void create()} disabled={status === "creating" || status === "done"}>
+          {status === "creating" ? (
+            "Creating…"
+          ) : status === "done" ? (
+            <>
+              Created <Check className="size-3.5" />
+            </>
+          ) : (
+            "Create block →"
+          )}
         </Button>
       </div>
 
       {draft.notes && <p className="mt-2 text-sm text-muted-foreground">{draft.notes}</p>}
       <DraftRows draft={draft} />
       <FollowUpChips followUps={draftFollowUps(draft)} disabled={busy} onFollowUp={onFollowUp} />
+      {createdId != null && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-success">Created block #{createdId}.</span>
+          <ShowInGameButton blockId={createdId} />
+        </div>
+      )}
 
       {status === "error" && (
         <div className="mt-2 text-sm text-destructive">
@@ -1656,6 +1675,11 @@ function BlockUpdate({
       )}
       <DraftRows draft={draft} />
       <FollowUpChips followUps={draftFollowUps(draft)} disabled={busy} onFollowUp={onFollowUp} />
+      <div className="mt-2.5">
+        {/* the block already exists — pushable to the in-game build sheet (#14);
+            after Apply the sheet reflects the revised solve */}
+        <ShowInGameButton blockId={blockId} />
+      </div>
 
       {status === "error" && (
         <div className="mt-2 text-sm text-destructive">
@@ -1798,8 +1822,16 @@ function PlanDraft({
       )}
 
       {created.length > 0 && (
-        <div className="mt-3 text-sm text-success">
-          Created: {created.map((b) => `#${b.id} ${b.name}`).join(", ")}
+        <div className="mt-3">
+          <div className="text-sm text-success">
+            Created: {created.map((b) => `#${b.id} ${b.name}`).join(", ")}
+          </div>
+          {/* push any of the new blocks straight to the in-game build sheet (#14) */}
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {created.map((b) => (
+              <ShowInGameButton key={b.id} blockId={b.id} label={`#${b.id} in game`} />
+            ))}
+          </div>
         </div>
       )}
       {status === "error" && (
