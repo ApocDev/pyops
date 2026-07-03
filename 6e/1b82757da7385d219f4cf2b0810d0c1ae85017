@@ -1,0 +1,57 @@
+app/src/lib/undo-names.test.ts
+  s_9be9645d11a3e7::t_43786b7f4ffcf3 1-51
+README.md
+  s_17199c808cce12::t_7453d3c07dd9ec 65-71
+app/src/components/app-nav.tsx
+  s_17199c808cce12::t_248558c49946f5 10,78
+app/src/components/block/doc-store.ts
+  s_17199c808cce12::t_2662df8d5ea735 22,39-43,62,131,156-165
+app/src/components/block/goal-card.tsx
+  s_17199c808cce12::t_b910044a893449 95-99,132-136
+app/src/components/block/recipe-grid.tsx
+  s_17199c808cce12::t_aa86c5fa96b183 98-99
+app/src/components/command-palette.tsx
+  s_17199c808cce12::t_9c06f1f34fd33a 4,9,107-112
+app/src/components/nav-mobile.tsx
+  s_17199c808cce12::t_232f3091658114 8,60
+app/src/components/undo-button.tsx
+  s_17199c808cce12::t_005d07303d0efc 1-35
+app/src/components/undo-hotkey.tsx
+  s_17199c808cce12::t_f4bf305fa90d1f 1-14
+app/src/lib/block-editors.ts
+  s_17199c808cce12::t_327a75080b491f 1-38
+app/src/lib/undo-client.ts
+  s_17199c808cce12::t_bf33305383d956 1-72
+app/src/lib/undo-names.ts
+  s_17199c808cce12::t_a19a7be40c2514 1-35
+app/src/routes/__root.tsx
+  s_17199c808cce12::t_929f9c9919aba7 11,13,68-69
+app/src/routes/block.$id.tsx
+  s_17199c808cce12::t_ccb948920b6042 20,23-25,148-152,157,162-180,313-316,322-323,326-340,343,409-411
+docs/architecture.md
+  s_17199c808cce12::t_a264014726ffa6 156-173
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "6e1b82757da7385d219f4cf2b0810d0c1ae85017",
+  "prompts": {},
+  "sessions": {
+    "s_17199c808cce12": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a536c66ba7359ba34",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
