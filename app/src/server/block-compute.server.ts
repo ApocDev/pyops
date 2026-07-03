@@ -6,7 +6,21 @@
  * (`resolveAllBlocks`). Extracted from factorio.ts so the server-fn layer
  * stays client-importable while this module imports the query layer statically.
  */
-import { cycleItems, solveBlock, type Disposition, type RecipeDef } from "../solver/block";
+import {
+  cycleItems,
+  solveBlock,
+  type BlockInput,
+  type Disposition,
+  type RecipeDef,
+} from "../solver/block";
+
+/** Migration scaffolding (#91): observe the exact solver input computeBlock
+ * assembles, so the v1↔v2 side-by-side parity report runs both solvers on
+ * identical, fully effect-adjusted defs. Removed when v2 replaces v1. */
+let solveInputTap: ((input: BlockInput) => void) | null = null;
+export function setSolveInputTap(fn: ((input: BlockInput) => void) | null) {
+  solveInputTap = fn;
+}
 import { computeEffects, type BeaconConfig } from "./effects";
 import { resolveLogistics, rowLogistics } from "../lib/logistics";
 import { prodScaledAmount } from "../lib/productivity";
@@ -508,11 +522,13 @@ export async function computeBlock(rawData: SolveInput) {
         return [...merged.values()];
       })()
     : data.goals;
-  const result = solveBlock({
+  const v1Input = {
     targets,
     recipes: defs,
     dispositions: data.dispositions,
-  });
+  };
+  solveInputTap?.(v1Input);
+  const result = solveBlock(v1Input);
 
   // Per-recipe rows for the grid: each recipe's ingredients/products at the
   // solved run-rate, the chosen machine (override or fastest) with a real count
