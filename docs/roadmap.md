@@ -43,12 +43,12 @@ STAYS OPEN re-scoped to the remainder (goods search, recents, help sheet).
 
 ## Wave 2 — planner correctness (batch: solver + data context)
 
-Batch A landed 2026-07-03: #93, #92, #94, #96 (parallel worktree agents,
+Batch A landed 2026-07-03: #93, #92, #94, #96. Batch B landed 2026-07-03: #25
+(closed epic #31), #99, #110's interim temp warnings (parallel worktree agents,
 integrated + gated on main). Remaining:
 
 | Issue | Effort | Notes |
 |---|---|---|
-| #25 fluid-fuel energy commodity | L | `energy:fluid` fungible demand. **Closing this closes epic #31.** |
 | #110 fluid-temp variants as distinct goods | L | YAFC-style (fluid, temperature) identity in the solve; range consumers pool matching variants. The cheap interim (per-producer temp warnings — S) has shipped; the full model lands with/after #91. |
 | #91 solver v2: LP (HiGHS) | XL | The wave's centerpiece; gate for #98, a foundation #76 wants, and the natural home for #110's range-pooling. Re-scoped 2026-07-03 after design discussion: LP core + gesture-derived block model (goals ≥ both directions, `made` set, count/share pins, dispositions deleted) + IIS root-cause diagnosis. Spec is the issue body. |
 | #98 whole-machine mode (MIP) | M | Integer building counts on top of #91. |
@@ -109,7 +109,7 @@ Bridge + Lua context loads once; verification is hands-on in-game.
 | Epic | State after this audit |
 |---|---|
 | #89 toolchain | children done; stays open as a standing bucket (#111 landed there) |
-| #31 planning model | **one issue away** (#25) |
+| #31 planning model | **closed 2026-07-03** (#25 was the last child) |
 | #30 assistant | Wave 3 + #72 |
 | #33 composition | #76 + #85 |
 | #35 UI/UX polish | bulk of Waves 0/1/4 |
