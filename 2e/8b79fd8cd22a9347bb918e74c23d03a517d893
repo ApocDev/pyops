@@ -1,0 +1,23 @@
+docs/architecture.md
+  s_095bbbf350a386::t_fd30ede3055036 203-216
+docs/design.md
+  s_095bbbf350a386::t_6d15238afce7f6 109
+docs/roadmap.md
+  s_095bbbf350a386::t_a36f064dd47ed0 46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "2e8b79fd8cd22a9347bb918e74c23d03a517d893",
+  "prompts": {},
+  "sessions": {
+    "s_095bbbf350a386": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a4e51a40605a96dcc",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
