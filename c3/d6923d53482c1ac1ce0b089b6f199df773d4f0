@@ -1,0 +1,73 @@
+README.md
+  s_9be9645d11a3e7::t_e98538c214818f 134-139
+app/drizzle/0009_fluid-fuel-machines.sql
+  s_9be9645d11a3e7::t_a6bb2ab5ccede7 1-2
+app/drizzle/meta/0009_snapshot.json
+  s_9be9645d11a3e7::t_063d63b2325da4 1-2581
+app/drizzle/meta/_journal.json
+  s_9be9645d11a3e7::t_29e5c6ca3ddac7 67-73
+app/src/db/import-factorio.ts
+  s_9be9645d11a3e7::t_74216adaa01951 192,357-362,369-371,374-378,381
+app/src/db/schema.ts
+  s_9be9645d11a3e7::t_f1cebdf0b784be 136-145
+app/src/db/synthesize.test.ts
+  s_9be9645d11a3e7::t_d4e0f584c8ae67 2,340-443
+app/src/db/synthesize.ts
+  s_9be9645d11a3e7::t_e40739d5059c38 15-17,32-35,84,165-168,182-183,189-197,199,202,207-208,216-217,223-224,287,298-301,448-472,503-504,509,514-515,573-575,581,586-587,589
+app/src/lib/format.ts
+  s_9be9645d11a3e7::t_9b2cb061c46f6a 78
+app/src/lib/icons.tsx
+  s_9be9645d11a3e7::t_d64447a8bda8b5 2,150-154,207-208,210-211,214-216,220
+app/src/server/agent-tools.server.ts
+  s_9be9645d11a3e7::t_3cfa866b92bd72 31
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_c97c54f436b1a8 24-26,28-45,269-270,276-287,408-418,432-446,560-563,572-578,580-586,588-620,623-626,628-643,865-867,963,1013-1015
+app/src/server/block-compute.test.ts
+  s_9be9645d11a3e7::t_309cddd1c60042 201-326
+app/src/server/factory-solve.server.ts
+  s_9be9645d11a3e7::t_c41c858fe5f399 28-30
+docs/data-pipeline.md
+  s_9be9645d11a3e7::t_717d446dadfd09 107-124
+docs/solver.md
+  s_9be9645d11a3e7::t_04dada970575f4 52-66
+app/src/components/block/fuel-picker-dialog.tsx
+  s_60dddf0a5809f4::t_a50205959e3469 10-14,63,65,70-72
+app/src/components/block/recipe-row.tsx
+  s_8f2891f68edaae::t_224d9086163a4d 196-233
+app/src/db/queries.server.ts
+  s_8f2891f68edaae::t_6ed792f42d9380 183-184,201-237,1648,2988-2990
+app/src/server/factorio.ts
+  s_8f2891f68edaae::t_99518ea2b6e87a 50,552-556,558-562,585-587
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c3d6923d53482c1ac1ce0b089b6f199df773d4f0",
+  "prompts": {},
+  "sessions": {
+    "s_60dddf0a5809f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a123a54927f02fdd5",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_8f2891f68edaae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a4565eaa97df3b294",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
