@@ -1,5 +1,5 @@
 import { useStore } from "@tanstack/react-store";
-import { Check, Copy, Gamepad2, Grid2x2, Hammer, Power, Star } from "lucide-react";
+import { Check, Copy, Download, Gamepad2, Grid2x2, Hammer, Power, Star } from "lucide-react";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Input } from "#/components/ui/input.tsx";
@@ -33,6 +33,7 @@ export function BlockToolbar({
   blockEnabled,
   onToggleEnabled,
   onCopySetup,
+  onExport,
   showInGame,
   buildCost,
   onOpenIconPicker,
@@ -48,6 +49,8 @@ export function BlockToolbar({
   blockEnabled: boolean;
   onToggleEnabled: () => void;
   onCopySetup: () => void;
+  /** download this block as a shareable JSON file (#82) */
+  onExport: () => void;
   showInGame: { pending: boolean; sent: boolean | null; onShow: () => void };
   buildCost: SolveResult["buildCost"] | undefined;
   onOpenIconPicker: () => void;
@@ -109,6 +112,15 @@ export function BlockToolbar({
         className="text-muted-foreground"
       >
         <Copy className="size-4" />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon-sm"
+        onClick={onExport}
+        title="Export block — download this block as a shareable JSON file (import it from Settings → Backup & share)"
+        className="text-muted-foreground"
+      >
+        <Download className="size-4" />
       </Button>
       <Button
         variant="outline"
@@ -281,6 +293,13 @@ export function BlockToolbar({
             <li className="flex items-start gap-2">
               <Copy className="mt-0.5 size-4 shrink-0 text-foreground" />
               <span>copies this block&apos;s recipe/module setup to the clipboard;</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Download className="mt-0.5 size-4 shrink-0 text-foreground" />
+              <span>
+                exports this block as a shareable JSON file — import it into any project from{" "}
+                <span className="text-foreground">Settings → Backup &amp; share</span>;
+              </span>
             </li>
             <li className="flex items-start gap-2">
               <Gamepad2 className="mt-0.5 size-4 shrink-0 text-foreground" />

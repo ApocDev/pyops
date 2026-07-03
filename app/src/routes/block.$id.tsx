@@ -16,6 +16,9 @@ import {
   setBlockEnabledFn,
   solveBlockFn,
 } from "../server/factorio";
+import { exportBlockFn } from "../server/export-fns";
+import { downloadJson } from "../lib/download";
+import { exportFileName } from "../lib/plan-export";
 import { launchesForRate, resolveLogistics } from "../lib/logistics";
 import { IconProvider, useSpoilables } from "../lib/icons";
 import { ModulesModal } from "../lib/modules-modal";
@@ -150,6 +153,13 @@ function Block({ blockId }: { blockId: number }) {
     void navigator.clipboard?.writeText(
       JSON.stringify({ goals, recipes, disp, machineSel, fuelSel, moduleSel, beaconSel }, null, 2),
     );
+  };
+  // Export this block as a shareable JSON file (#82). Saves first so the file
+  // matches what's on screen, then downloads the versioned envelope.
+  const exportBlock = async () => {
+    await persist();
+    const env = await exportBlockFn({ data: blockId });
+    downloadJson(exportFileName(env), env);
   };
   // Push this block to the game as an in-game build sheet (buildings clickable for
   // a configured blueprint). Saves first so the mod renders the current solve.
@@ -506,6 +516,7 @@ function Block({ blockId }: { blockId: number }) {
         blockEnabled={blockEnabled}
         onToggleEnabled={toggleBlockEnabled}
         onCopySetup={copySetup}
+        onExport={() => void exportBlock()}
         showInGame={{
           pending: showInGame.isPending,
           sent: showInGame.data ? showInGame.data.sent : null,

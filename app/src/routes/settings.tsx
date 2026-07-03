@@ -15,6 +15,8 @@ import {
   setPlannerSettingsFn,
 } from "../server/factorio";
 import { BridgeCard } from "../components/bridge-card";
+import { BlockShareCard } from "../components/block-share-card.tsx";
+import { ProjectBackupCard } from "../components/project-backup-card.tsx";
 import { HorizonPicker } from "../components/horizon-picker";
 import { CompanionModCard } from "../components/companion-mod-card";
 import { DriftChanges } from "../components/drift-changes";
@@ -39,6 +41,7 @@ const TABS = [
   { id: "planning", label: "Planning" },
   { id: "data", label: "Game data" },
   { id: "link", label: "In-game link" },
+  { id: "backup", label: "Backup & share" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 const isTabId = (v: unknown): v is TabId => TABS.some((t) => t.id === v);
@@ -95,6 +98,12 @@ function SettingsPage() {
           <div className={cols}>
             <CompanionModCard />
             <BridgeCard />
+          </div>
+        )}
+        {tab === "backup" && (
+          <div className={cols}>
+            <ProjectBackupCard />
+            <BlockShareCard />
           </div>
         )}
       </div>

@@ -24,6 +24,7 @@ import { Route as BlockIndexRouteImport } from './routes/block.index'
 import { Route as IconsSplatRouteImport } from './routes/icons.$'
 import { Route as BlockIdRouteImport } from './routes/block.$id'
 import { Route as ApiChatRouteImport } from './routes/api.chat'
+import { Route as ApiBackupRouteImport } from './routes/api.backup'
 
 const WhatifRoute = WhatifRouteImport.update({
   id: '/whatif',
@@ -100,6 +101,11 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBackupRoute = ApiBackupRouteImport.update({
+  id: '/api/backup',
+  path: '/api/backup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRoute
   '/turd': typeof TurdRoute
   '/whatif': typeof WhatifRoute
+  '/api/backup': typeof ApiBackupRoute
   '/api/chat': typeof ApiChatRoute
   '/block/$id': typeof BlockIdRoute
   '/icons/$': typeof IconsSplatRoute
@@ -129,6 +136,7 @@ export interface FileRoutesByTo {
   '/tasks': typeof TasksRoute
   '/turd': typeof TurdRoute
   '/whatif': typeof WhatifRoute
+  '/api/backup': typeof ApiBackupRoute
   '/api/chat': typeof ApiChatRoute
   '/block/$id': typeof BlockIdRoute
   '/icons/$': typeof IconsSplatRoute
@@ -147,6 +155,7 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRoute
   '/turd': typeof TurdRoute
   '/whatif': typeof WhatifRoute
+  '/api/backup': typeof ApiBackupRoute
   '/api/chat': typeof ApiChatRoute
   '/block/$id': typeof BlockIdRoute
   '/icons/$': typeof IconsSplatRoute
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/turd'
     | '/whatif'
+    | '/api/backup'
     | '/api/chat'
     | '/block/$id'
     | '/icons/$'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/turd'
     | '/whatif'
+    | '/api/backup'
     | '/api/chat'
     | '/block/$id'
     | '/icons/$'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/turd'
     | '/whatif'
+    | '/api/backup'
     | '/api/chat'
     | '/block/$id'
     | '/icons/$'
@@ -217,6 +229,7 @@ export interface RootRouteChildren {
   TasksRoute: typeof TasksRoute
   TurdRoute: typeof TurdRoute
   WhatifRoute: typeof WhatifRoute
+  ApiBackupRoute: typeof ApiBackupRoute
   ApiChatRoute: typeof ApiChatRoute
   IconsSplatRoute: typeof IconsSplatRoute
 }
@@ -328,6 +341,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/backup': {
+      id: '/api/backup'
+      path: '/api/backup'
+      fullPath: '/api/backup'
+      preLoaderRoute: typeof ApiBackupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -355,6 +375,7 @@ const rootRouteChildren: RootRouteChildren = {
   TasksRoute: TasksRoute,
   TurdRoute: TurdRoute,
   WhatifRoute: WhatifRoute,
+  ApiBackupRoute: ApiBackupRoute,
   ApiChatRoute: ApiChatRoute,
   IconsSplatRoute: IconsSplatRoute,
 }

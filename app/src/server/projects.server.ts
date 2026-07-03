@@ -19,7 +19,7 @@ import { migrateToLatest } from "./provision.ts";
 
 export type Project = { id: string; name: string; dbFile: string; createdAt: string };
 
-const slugify = (s: string) =>
+export const slugify = (s: string) =>
   s
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
