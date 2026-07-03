@@ -8,6 +8,7 @@
  */
 import type { RecipeDef } from "../solver/lp";
 import type { Disposition } from "../solver/migrate";
+import { expandTemps } from "../solver/temps";
 import { solveBlockLp, type LpBlockInput, type Pin } from "../solver/lp";
 import { diagnoseBlock, type DiagnosisCard } from "../solver/diagnose";
 import { migrateToLpInput } from "../solver/migrate";
@@ -575,17 +576,63 @@ export async function computeBlock(rawData: SolveInput) {
         }),
       )
     : undefined;
+  // Fluid-temperature identity (#110): expand ranged fluids into variant/pool
+  // goods with selector pseudo-recipes — a pure input transformation; the LP
+  // core is untouched. `fold` maps synthetic goods/recipes back for display.
+  const { input: expandedInput, fold } = expandTemps({ goals, recipes: defs, made, pins }, (f) => {
+    const fl = q.getFluid(f);
+    return fl?.defaultTemperature ?? null;
+  });
   const lpInput: LpBlockInput = {
-    goals,
-    recipes: defs,
-    made,
-    pins,
+    ...expandedInput,
     ...(machineRates ? { machineRates } : {}),
   };
-  const result = await solveBlockLp(lpInput);
-  // root-cause cards for the balance card — every member is a clickable gesture
-  const diagnosis: DiagnosisCard[] =
-    result.status === "infeasible" ? await diagnoseBlock(lpInput) : [];
+  const rawResult = await solveBlockLp(lpInput);
+  // root-cause cards for the balance card — every member is a clickable gesture.
+  // Fold synthetic goods back to the bare fluid (the doc's made marks are bare
+  // names, so actions work) and keep the temperature as a display qualifier.
+  const diagnosis: (DiagnosisCard & {
+    members: { qualifier?: string | null }[];
+  })[] = (rawResult.status === "infeasible" ? await diagnoseBlock(lpInput) : []).map((c) => ({
+    members: c.members.map((m) => ({
+      ...m,
+      prov: "item" in m.prov ? { ...m.prov, item: fold.bare(m.prov.item) } : m.prov,
+      qualifier: "item" in m.prov ? fold.tempOf(m.prov.item) : null,
+    })),
+  }));
+  // fold the solve result: selector rows vanish; variant/pool flows merge onto
+  // the bare fluid name; unmade keeps the temp qualifier via the display map.
+  const foldFlows = (flows: { name: string; kind: string; rate: number }[]) => {
+    const merged = new Map<string, { kind: string; rate: number }>();
+    for (const f of flows) {
+      const bare = fold.bare(f.name);
+      const cur = merged.get(bare) ?? { kind: f.kind, rate: 0 };
+      cur.rate += f.rate;
+      merged.set(bare, cur);
+    }
+    return [...merged].map(([name, v]) => ({ name, ...v }));
+  };
+  // unmade entries fold to bare names (icons/actions resolve); the temperature
+  // qualifier survives in unmadeTemp for the strip label ("nothing makes water
+  // ≤101°" vs plain "water")
+  const unmadeTemp: Record<string, string> = {};
+  const unmadeBare = [
+    ...new Set(
+      (rawResult.unmade ?? []).map((u) => {
+        const bare = fold.bare(u);
+        const t = fold.tempOf(u);
+        if (t) unmadeTemp[bare] = t;
+        return bare;
+      }),
+    ),
+  ];
+  const result = {
+    ...rawResult,
+    ...(rawResult.unmade ? { unmade: unmadeBare } : {}),
+    recipes: rawResult.recipes.filter((r) => !fold.isSynthetic(r.recipe)),
+    imports: foldFlows(rawResult.imports),
+    exports: foldFlows(rawResult.exports),
+  };
 
   // Per-recipe rows for the grid: each recipe's ingredients/products at the
   // solved run-rate, the chosen machine (override or fastest) with a real count
@@ -983,6 +1030,8 @@ export async function computeBlock(rawData: SolveInput) {
     // the block's effective made set (explicit or migrated) — the editor
     // hydrates this into legacy docs so the next save persists it
     made,
+    // temperature qualifier per unmade item (#110): "water" unmade at "≤101°"
+    unmadeTemp,
     diagnosis,
     power,
     fuelItems,

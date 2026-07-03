@@ -150,6 +150,9 @@ export function BalanceCard({
                           <div key={mi} className="flex flex-wrap items-center gap-1.5">
                             <span>
                               made here: {res.display?.[prov.item] ?? prov.item}
+                              {"qualifier" in m && typeof m.qualifier === "string"
+                                ? ` at ${m.qualifier}`
+                                : ""}
                               {short}
                             </span>
                             <button
@@ -221,14 +224,19 @@ export function BalanceCard({
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-2">
                 {res.unmade.map((n) => (
-                  <ItemChip
-                    key={n}
-                    name={n}
-                    kind={kindOf(n)}
-                    display={res.display?.[n]}
-                    link="target"
-                    onClick={() => onMakeFor(n)}
-                  />
+                  <span key={n} className="inline-flex items-center gap-1">
+                    <ItemChip
+                      name={n}
+                      kind={kindOf(n)}
+                      display={res.display?.[n]}
+                      link="target"
+                      onClick={() => onMakeFor(n)}
+                    />
+                    {/* temperature qualifier (#110): which variant is missing */}
+                    {res.unmadeTemp?.[n] && (
+                      <span className="text-sm text-muted-foreground">at {res.unmadeTemp[n]}</span>
+                    )}
+                  </span>
                 ))}
               </div>
             </div>

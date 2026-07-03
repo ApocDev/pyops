@@ -43,8 +43,17 @@ export type Pin =
   /** "at most this rate" — a built-capacity ceiling; solver fits inside */
   | { kind: "cap"; recipe: string; rate: number }
   /** "this consumer takes `share` of `item`'s production" — base "remaining"
-   * applies the share after rate-pinned consumers' fixed intake is subtracted */
-  | { kind: "share"; item: string; recipe: string; share: number; base?: "total" | "remaining" };
+   * applies the share after rate-pinned consumers' fixed intake is subtracted.
+   * `ofItems` overrides the production base (used by the temperature expansion:
+   * the consumer eats a pool good, but the base is the real variants) */
+  | {
+      kind: "share";
+      item: string;
+      recipe: string;
+      share: number;
+      base?: "total" | "remaining";
+      ofItems?: string[];
+    };
 
 export type LpBlockInput = {
   /** rate > 0: produce ≥ rate/s in-block. rate < 0: consume ≥ |rate|/s (SINK). */
@@ -233,10 +242,11 @@ export function buildModel(input: LpBlockInput): BlockModel {
       }
     }
     // intake·x_i − share·Σ prod_coef·x = −share·fixedConsumed
+    const baseItems = new Set(p.ofItems ?? [p.item]);
     const parts = [term(intake, varOf(i))];
     recipes.forEach((r, j) => {
       const prod = r.products.reduce(
-        (s, pr) => (pr.name === p.item ? s + pr.amount * (pr.probability ?? 1) : s),
+        (s, pr) => (baseItems.has(pr.name) ? s + pr.amount * (pr.probability ?? 1) : s),
         0,
       );
       if (prod > 0) parts.push(term(-p.share * prod, varOf(j)));

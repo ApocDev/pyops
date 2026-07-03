@@ -48,6 +48,20 @@ single-`target` shape. The item rules:
   rates at solve time via the row's real per-building craft rate, so pins follow
   module/machine changes.
 
+**Fluid temperatures are real identities** (#110, `temps.ts`): when any enabled
+consumer declares an accepted temperature range, that fluid expands — each
+producer's output becomes a `(fluid, temperature)` variant (explicit product
+temperature, else the prototype default), each consumer range becomes a pool
+good, and zero-cost selector pseudo-recipes convert in-range variants into the
+pool, so a range consumer draws from any mix of acceptable temperatures (range
+POOLING, not YAFC's hard per-temperature split). A `made` mark expands to every
+variant and pool, so a pool with no in-range producer reads as unmade —
+"nothing makes water ≤101°" — and the interim per-producer warnings stay as the
+complementary explanation of *which* producer misses *which* consumer. Fluids
+no ranged consumer touches stay single bare goods (zero cost for most blocks);
+boundary flows fold back to the bare fluid name. The whole thing is a pure
+input transformation — the LP core never sees temperatures.
+
 There are no per-item dispositions and no relaxed/underdetermined states: the LP
 either **solves** or is **infeasible**, and infeasibility is diagnosed, never
 silently patched. `diagnose.ts` extracts root-cause cards: an elastic pass finds
