@@ -28,7 +28,7 @@ test("home renders the global nav", async ({ page }) => {
   expect(errors, errors.join("\n")).toEqual([]);
 });
 
-for (const route of ["/block", "/factory", "/coherence", "/browse", "/turd", "/tasks"]) {
+for (const route of ["/block", "/factory", "/coherence", "/browse", "/deps", "/turd", "/tasks"]) {
   test(`route ${route} loads without a page error`, async ({ page }) => {
     const errors = errorsFrom(page);
     const resp = await page.goto(route);

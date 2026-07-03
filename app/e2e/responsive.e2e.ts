@@ -38,6 +38,7 @@ const ROUTES = [
   "/block",
   "/factory",
   "/browse",
+  "/deps",
   "/coherence",
   "/turd",
   "/whatif",

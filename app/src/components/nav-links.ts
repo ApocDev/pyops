@@ -4,6 +4,7 @@ import {
   Factory,
   FlaskConical,
   ListChecks,
+  Network,
   Search,
   Settings,
   Sparkles,
@@ -18,6 +19,7 @@ export type NavLinkTo =
   | "/factory"
   | "/coherence"
   | "/browse"
+  | "/deps"
   | "/turd"
   | "/assistant"
   | "/tasks"
@@ -42,6 +44,7 @@ export const NAV_LINKS: NavLink[] = [
   { to: "/factory", label: "Factory", icon: Factory },
   { to: "/coherence", label: "Coherence", icon: ArrowLeftRight },
   { to: "/browse", label: "Browse", icon: Search },
+  { to: "/deps", label: "Deps", icon: Network },
   { to: "/turd", label: "TURD", icon: FlaskConical, capability: "hasTurd" },
   { to: "/assistant", label: "Assistant", icon: Sparkles },
   { to: "/tasks", label: "Tasks", icon: ListChecks },

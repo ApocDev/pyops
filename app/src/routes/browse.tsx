@@ -1,7 +1,7 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Droplet, Flame, Search } from "lucide-react";
+import { Droplet, Flame, Network, Search } from "lucide-react";
 import { browseDetailFn, searchAllFn, statsFn } from "../server/factorio";
 import { IconProvider, Icon } from "../lib/icons";
 import { recordRecent } from "../lib/recents";
@@ -203,6 +203,16 @@ function Browse() {
                     </span>
                   )}
                   {detail.data.item?.burntResult && ` · burns to ${detail.data.item.burntResult}`}
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto gap-1 px-1 py-0 font-normal text-info hover:text-info"
+                  >
+                    <Link to="/deps" search={{ sel: detail.data.name }}>
+                      <Network className="size-3.5" /> dependencies
+                    </Link>
+                  </Button>
                 </div>
               </div>
             </div>

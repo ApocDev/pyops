@@ -44,6 +44,11 @@ source](#setup) to hack on it.
   runs each recipe, and annotated with the share of input value a recipe destroys
   (both from the cost analysis) — with a filter over the lists, and every
   ingredient/product clickable to walk the recipe graph.
+- **Explore dependencies.** Pick any good or recipe and walk its full prerequisite
+  closure — what it _requires_ (down to raw resources) or what's _required by_ it —
+  as an expandable tree that keeps the and/or distinction (a good is made by any one
+  producer; a recipe needs all its ingredients), with collapsed branches showing the
+  size beneath them and locked recipes marked by the tech that gates them.
 - **Track TURD choices.** Py's "There's Usually a Recipe Difference" tech upgrades
   are first-class: each master shows every branch — its description, the recipes it
   swaps or newly unlocks, and a hover diff of what actually changes (inputs,

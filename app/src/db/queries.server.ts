@@ -2114,7 +2114,7 @@ export function clearExclusionCache() {
   _exclCache = null;
 }
 /** True if any exclusion glob matches any of the given fields (name/subgroup/category). */
-function isExcluded(...fields: (string | null | undefined)[]): boolean {
+export function isExcluded(...fields: (string | null | undefined)[]): boolean {
   const globs = exclusionGlobs();
   return fields.some((f) => f != null && globs.some((g) => g.test(f)));
 }
@@ -2591,6 +2591,18 @@ function computeAvail(
   const availableNow = reached && (!turd || turd.state !== "blocked");
   const buildableNow = reached && (!turd || turd.state === "active");
   return { research, needs, turd, availableNow, buildableNow };
+}
+
+/** Availability of one recipe vs the research horizon + TURD selections, with
+ * the unlocking techs' display names (for lock badges). Lighter than a full
+ * `recipeCandidates` row — used by the dependency explorer (#100). */
+export function recipeAvailability(
+  name: string,
+  enabled: boolean,
+): { avail: RecipeAvail; unlockedBy: string[] } {
+  const unlocks = recipeLockState(name);
+  const avail = computeAvail(enabled, unlocks, getResearchHorizon(), getTurdSelections());
+  return { avail, unlockedBy: enabled ? [] : unlocks.map((u) => u.display) };
 }
 
 /* ── Browser (items / fluids / recipes with full context) ───────────────────── */

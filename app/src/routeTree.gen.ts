@@ -15,6 +15,7 @@ import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as FactoryRouteImport } from './routes/factory'
+import { Route as DepsRouteImport } from './routes/deps'
 import { Route as CoherenceRouteImport } from './routes/coherence'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as BlockRouteImport } from './routes/block'
@@ -54,6 +55,11 @@ const McpRoute = McpRouteImport.update({
 const FactoryRoute = FactoryRouteImport.update({
   id: '/factory',
   path: '/factory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DepsRoute = DepsRouteImport.update({
+  id: '/deps',
+  path: '/deps',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CoherenceRoute = CoherenceRouteImport.update({
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/block': typeof BlockRouteWithChildren
   '/browse': typeof BrowseRoute
   '/coherence': typeof CoherenceRoute
+  '/deps': typeof DepsRoute
   '/factory': typeof FactoryRoute
   '/mcp': typeof McpRoute
   '/settings': typeof SettingsRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/assistant': typeof AssistantRoute
   '/browse': typeof BrowseRoute
   '/coherence': typeof CoherenceRoute
+  '/deps': typeof DepsRoute
   '/factory': typeof FactoryRoute
   '/mcp': typeof McpRoute
   '/settings': typeof SettingsRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/block': typeof BlockRouteWithChildren
   '/browse': typeof BrowseRoute
   '/coherence': typeof CoherenceRoute
+  '/deps': typeof DepsRoute
   '/factory': typeof FactoryRoute
   '/mcp': typeof McpRoute
   '/settings': typeof SettingsRoute
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/block'
     | '/browse'
     | '/coherence'
+    | '/deps'
     | '/factory'
     | '/mcp'
     | '/settings'
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/assistant'
     | '/browse'
     | '/coherence'
+    | '/deps'
     | '/factory'
     | '/mcp'
     | '/settings'
@@ -204,6 +215,7 @@ export interface FileRouteTypes {
     | '/block'
     | '/browse'
     | '/coherence'
+    | '/deps'
     | '/factory'
     | '/mcp'
     | '/settings'
@@ -223,6 +235,7 @@ export interface RootRouteChildren {
   BlockRoute: typeof BlockRouteWithChildren
   BrowseRoute: typeof BrowseRoute
   CoherenceRoute: typeof CoherenceRoute
+  DepsRoute: typeof DepsRoute
   FactoryRoute: typeof FactoryRoute
   McpRoute: typeof McpRoute
   SettingsRoute: typeof SettingsRoute
@@ -276,6 +289,13 @@ declare module '@tanstack/react-router' {
       path: '/factory'
       fullPath: '/factory'
       preLoaderRoute: typeof FactoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/deps': {
+      id: '/deps'
+      path: '/deps'
+      fullPath: '/deps'
+      preLoaderRoute: typeof DepsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/coherence': {
@@ -369,6 +389,7 @@ const rootRouteChildren: RootRouteChildren = {
   BlockRoute: BlockRouteWithChildren,
   BrowseRoute: BrowseRoute,
   CoherenceRoute: CoherenceRoute,
+  DepsRoute: DepsRoute,
   FactoryRoute: FactoryRoute,
   McpRoute: McpRoute,
   SettingsRoute: SettingsRoute,

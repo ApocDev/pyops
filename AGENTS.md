@@ -31,7 +31,7 @@ dev, a per-OS user-data dir for a packaged build, overridable via `PYOPS_DATA_DI
 ## App architecture (`app/src/`)
 
 - `routes/` — TanStack file-based routes. UI pages (`block`, `factory`, `browse`,
-  `whatif`, `coherence`, `turd`, `assistant`, `tasks`, …) plus API routes (`api.chat.ts`,
+  `deps`, `whatif`, `coherence`, `turd`, `assistant`, `tasks`, …) plus API routes (`api.chat.ts`,
   `mcp.ts`).
 - `server/` — server-side modules (run only on the backend):
   - `factorio.ts`, `dump.server.ts` — load/query the Factorio data dump.
