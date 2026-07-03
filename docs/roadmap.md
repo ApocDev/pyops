@@ -33,18 +33,13 @@ via parallel worktree agents, reviewed + live-verified on main). Follow-up filed
 #111 (dead package.json "pnpm" field) under epic #89, which stays open as the
 standing toolchain bucket.
 
-## Wave 1 — the safety net
+## Wave 1 — DONE (2026-07-03)
 
-The theme: after this wave, no edit in the planner is scary. Order matters
-(constraints above).
-
-| Issue | Effort | Notes |
-|---|---|---|
-| #78 command palette / hotkey layer | M | Pulled forward from UI polish: #90 needs its global-hotkey substrate. Ship the hotkey layer + a minimal palette; fancy search can iterate later. |
-| #82 export/import backup | L | Project backup + shareable block/plan JSON. Also the serialization groundwork #85 builds on, and cheap insurance for user data. |
-| #90 undo system | XL | The client prerequisite is **done** (doc store with clean `hydrate()`, shipped in v0.5.0 — see the issue comments). Remaining: the `undo_log` table + triggers migration, the mutation wrapper threaded through every mutating server fn (opt-out), action grouping, retention, Ctrl+Z + undo-menu UI, and pushing reverted docs into open editors. |
-| #83 destructive-action consistency | M | **Done**: `ui/alert-dialog.tsx` + `ConfirmDialog` replaced every `window.confirm` (block delete states recipe/goal counts; project/mod/chat dialogs say they're not undoable); small undo-logged deletes fire immediately with an Undo toast (`deletedToast` in `lib/undo-client.ts`). |
-| #85 plan snapshots | L | Named restore points, diff, restore-into-open-editor (same `hydrate()` plumbing as undo). Closes epic #33 together with #76. |
+The safety net shipped: #82 (backup/share, closed), #90 (undo — server core +
+Ctrl+Z UI + editor rehydration, closed), #85 (snapshots + diff, closed), #83
+(destructive-action consistency — AlertDialog, counts in delete copy, undo
+toasts; closes on push). #78 delivered its hotkey layer + minimal palette and
+STAYS OPEN re-scoped to the remainder (goods search, recents, help sheet).
 
 ## Wave 2 — planner correctness (batch: solver + data context)
 
