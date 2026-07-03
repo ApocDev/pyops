@@ -47,7 +47,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       `INSERT OR IGNORE INTO fluids (name,display,default_temperature,heat_capacity_j) VALUES (?,?,NULL,NULL)`,
     ),
     machine: db.prepare(
-      `INSERT OR REPLACE INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT OR REPLACE INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,neighbour_bonus) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
     ),
     machineCat: db.prepare(
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
@@ -111,6 +111,8 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
     allowedModuleCategories?: string[] | null;
     category: string;
     pollutionPerMin?: number | null;
+    /** reactors only (#94): extra heat per adjacent working reactor */
+    neighbourBonus?: number | null;
   }) => {
     ins.machine.run(
       m.name,
@@ -123,6 +125,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       m.pollutionPerMin ?? 0,
       null,
       m.allowedModuleCategories?.length ? JSON.stringify(m.allowedModuleCategories) : null,
+      m.neighbourBonus ?? null,
     );
     ins.machineCat.run(m.name, m.category);
     for (const fc of m.fuelCategories ?? []) ins.machineFuel.run(m.name, fc);
@@ -342,6 +345,9 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
         energySource: "burner",
         fuelCategories: arr<string>(es.fuel_categories),
         category: `heat:${name}`,
+        // extra heat per adjacent working reactor (#94) — engine default 1;
+        // Py's nuclear-reactor dumps an explicit 1 (+100% per neighbour)
+        neighbourBonus: typeof r.neighbour_bonus === "number" ? r.neighbour_bonus : 1,
       });
       recipe({
         name: `generate-heat-${name}`,

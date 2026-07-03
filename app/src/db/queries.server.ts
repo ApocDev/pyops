@@ -179,6 +179,7 @@ export function machinesForRecipe(recipeName: string) {
       pollutionPerMin: craftingMachines.pollutionPerMin,
       allowedEffects: craftingMachines.allowedEffects,
       allowedModuleCategories: craftingMachines.allowedModuleCategories,
+      neighbourBonus: craftingMachines.neighbourBonus,
     })
     .from(machineCategories)
     .innerJoin(craftingMachines, eq(craftingMachines.name, machineCategories.machine))

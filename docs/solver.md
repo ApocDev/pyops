@@ -49,6 +49,15 @@ which is correct: spoiled goods aren't available to other blocks.
 multiplier (per-fuel emissions multipliers are approximated as 1). Cached on the
 block like `electricity_w` and summed in the Factory header.
 
+Reactor rows honour the **neighbour bonus** (#94): each adjacent working reactor
+adds `neighbour_bonus` × base heat (Py's breeder reactor dumps `neighbour_bonus: 1`,
++100% per neighbour). The block doc can carry an assumed x×y farm per reactor row
+(`reactorLayouts`), and the row's `pyops-heat` output is scaled by the grid's
+average multiplier `1 + b·(4 − 2/x − 2/y)` (`app/src/lib/reactor.ts`) before the
+solve — so a 2×2 farm needs a third of the flat-rated reactors. Only heat scales;
+fuel burn stays per-reactor. No layout stored = 1×1 = no bonus. The row shows a
+layout chip with the multiplier and a preset picker.
+
 Rows can be grouped into **sub-blocks** (`rowGroups` + `recipeGroups` in the block
 doc) — named, collapsible groups the editor renders as one folded line with the
 chain's net flows (member products minus member ingredients; intermediates cancel).

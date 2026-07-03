@@ -89,6 +89,17 @@ describe("diffBlockDocs", () => {
     expect(p.beacons?.to[0].count).toBe(4);
   });
 
+  it("picks: reactor layout changes register, and equal layouts don't (#94)", () => {
+    const from = base({ recipes: ["r"] }); // no layout = 1×1 default
+    const to = base({ recipes: ["r"], reactorLayouts: { r: { x: 2, y: 2 } } });
+    const d = diffBlockDocs(from, to);
+    expect(d.picks[0]?.reactorLayout).toEqual({ from: null, to: { x: 2, y: 2 } });
+    expect(d.unchanged).toBe(false);
+    // identical layouts are not a change
+    const same = base({ recipes: ["r"], reactorLayouts: { r: { x: 2, y: 4 } } });
+    expect(diffBlockDocs(same, { ...same }).unchanged).toBe(true);
+  });
+
   it("picks: distinguishes auto (no entry) from an explicit empty module list", () => {
     const from = base({ recipes: ["a"] }); // auto-fill
     const to = base({ recipes: ["a"], modules: { a: [] } }); // explicitly none

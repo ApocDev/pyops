@@ -22,6 +22,11 @@ export type PickChange = {
   fuel?: { from: string | null; to: string | null };
   modules?: { from: string[] | null; to: string[] | null };
   beacons?: { from: BeaconConfig[]; to: BeaconConfig[] };
+  /** reactor farm layout (#94); null = the 1×1 default */
+  reactorLayout?: {
+    from: { x: number; y: number } | null;
+    to: { x: number; y: number } | null;
+  };
 };
 
 export type ValueChange<T> = { name: string; from: T | null; to: T | null };
@@ -92,7 +97,11 @@ export function diffBlockDocs(from: BlockData, to: BlockData): BlockDiff {
     const bFrom = from.beacons?.[r] ?? [];
     const bTo = to.beacons?.[r] ?? [];
     if (JSON.stringify(bFrom) !== JSON.stringify(bTo)) p.beacons = { from: bFrom, to: bTo };
-    if (p.machine || p.fuel || p.modules || p.beacons) picks.push(p);
+    const rlFrom = from.reactorLayouts?.[r] ?? null;
+    const rlTo = to.reactorLayouts?.[r] ?? null;
+    if (rlFrom?.x !== rlTo?.x || rlFrom?.y !== rlTo?.y)
+      p.reactorLayout = { from: rlFrom, to: rlTo };
+    if (p.machine || p.fuel || p.modules || p.beacons || p.reactorLayout) picks.push(p);
   }
 
   const diffMap = <T>(a: Record<string, T> = {}, b: Record<string, T> = {}): ValueChange<T>[] => {

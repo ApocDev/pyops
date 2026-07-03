@@ -82,6 +82,7 @@ function Block({ blockId }: { blockId: number }) {
     fuels: fuelSel,
     modules: moduleSel,
     beacons: beaconSel,
+    reactorLayouts, // reactor rows' assumed x×y farms (#94)
     blockName,
   } = s;
   const target = goals[0]?.name ?? ""; // the first goal's good (sizing anchor)
@@ -183,7 +184,11 @@ function Block({ blockId }: { blockId: number }) {
 
   const copySetup = () => {
     void navigator.clipboard?.writeText(
-      JSON.stringify({ goals, recipes, disp, machineSel, fuelSel, moduleSel, beaconSel }, null, 2),
+      JSON.stringify(
+        { goals, recipes, disp, machineSel, fuelSel, moduleSel, beaconSel, reactorLayouts },
+        null,
+        2,
+      ),
     );
   };
   // Export this block as a shareable JSON file (#82). Saves first so the file
@@ -296,6 +301,7 @@ function Block({ blockId }: { blockId: number }) {
       fuelSel,
       moduleSel,
       beaconSel,
+      reactorLayouts,
     ],
     queryFn: () => solveBlockFn({ data: solveInput }),
     enabled: goals.length > 0,

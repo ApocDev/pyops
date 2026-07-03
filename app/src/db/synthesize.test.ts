@@ -35,6 +35,25 @@ const raw = {
   "offshore-pump": {
     "offshore-pump": { pumping_speed: 20 },
   },
+  // Py's breeder reactor, exactly as data-raw dumps it (values from the Py dump:
+  // consumption 2GW, burner effectivity 2, neighbour_bonus 1) — plus a minimal
+  // second reactor that omits neighbour_bonus (the engine default is 1).
+  reactor: {
+    "nuclear-reactor": {
+      consumption: 2e9,
+      neighbour_bonus: 1,
+      energy_source: { type: "burner", effectivity: 2, fuel_categories: ["nuclear"] },
+    },
+    "half-bonus-reactor": {
+      consumption: 1e6,
+      neighbour_bonus: 0.5,
+      energy_source: { type: "burner", fuel_categories: ["chemical"] },
+    },
+    "default-bonus-reactor": {
+      consumption: 1e6,
+      energy_source: { type: "burner", fuel_categories: ["chemical"] },
+    },
+  },
 };
 const ctx = {
   display: () => null,
@@ -101,5 +120,32 @@ describe("synthesizePass2", () => {
         `SELECT amount FROM recipe_products WHERE recipe = 'pump-offshore-pump' AND name = 'water'`,
       ),
     ).toMatchObject({ amount: 1200 }); // 20 × 60
+  });
+
+  it("registers reactors with their heat recipe and neighbour bonus (#94)", () => {
+    synthesizePass2(fx.db, raw, ctx);
+    // machine: fuel draw = consumption / effectivity, neighbour_bonus persisted
+    expect(
+      get(
+        `SELECT kind, energy_usage_w w, neighbour_bonus nb FROM crafting_machines WHERE name = 'nuclear-reactor'`,
+      ),
+    ).toMatchObject({ kind: "reactor", w: 1e9, nb: 1 });
+    expect(
+      get(`SELECT neighbour_bonus nb FROM crafting_machines WHERE name = 'half-bonus-reactor'`),
+    ).toMatchObject({ nb: 0.5 });
+    // heat recipe: base (un-bonused) output in MW of pyops-heat
+    expect(
+      get(
+        `SELECT amount FROM recipe_products WHERE recipe = 'generate-heat-nuclear-reactor' AND name = ?`,
+        HEAT,
+      ),
+    ).toMatchObject({ amount: 2000 });
+  });
+
+  it("defaults a reactor's missing neighbour_bonus to the engine default of 1", () => {
+    synthesizePass2(fx.db, raw, ctx);
+    expect(
+      get(`SELECT neighbour_bonus nb FROM crafting_machines WHERE name = 'default-bonus-reactor'`),
+    ).toMatchObject({ nb: 1 });
   });
 });

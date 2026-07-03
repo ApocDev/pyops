@@ -18,6 +18,7 @@ import { ModulesChip } from "../../lib/modules-modal";
 import { SortableRow } from "./sortable-row.tsx";
 import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
 import { LogiTag } from "./logi-tag.tsx";
+import { ReactorLayoutChip } from "./reactor-layout-chip.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
 import { fmtW, num } from "./format.ts";
@@ -184,6 +185,13 @@ export function RecipeRow({
                   >
                     <Flame className="size-3.5" /> heat
                   </span>
+                )}
+                {/* reactor farm layout (#94): neighbour bonus scales heat output */}
+                {row.reactor && (
+                  <ReactorLayoutChip
+                    reactor={row.reactor}
+                    onPick={(l) => doc.setReactorLayout(name, l)}
+                  />
                 )}
                 {/* fuel: icon + rate; click = fuel picker */}
                 {row.fuel && (

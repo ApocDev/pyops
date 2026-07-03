@@ -107,7 +107,9 @@ deliberate choices:
 - **Energy is pseudo-fluids** — `pyops-electricity` and `pyops-heat` flow through
   the model as goods (1 unit = 1 MJ) so a reactor recipe gets sized to a block's
   heat draw, but they're filtered out of normal import/byproduct lists and surfaced
-  separately as power/heat in watts.
+  separately as power/heat in watts. Reactors also persist their prototype's
+  `neighbour_bonus` (`crafting_machines.neighbour_bonus`, #94) so the solver can
+  scale heat output for an assumed reactor-farm layout.
 - **Logistics prototypes** — `belts`, `loaders`, and `inserters` tables capture the
   bits needed to size belt/inserter counts per block row (the **Logistics** display,
   issue #21): belt/loader `speed`, and per-inserter `rotation_speed` /

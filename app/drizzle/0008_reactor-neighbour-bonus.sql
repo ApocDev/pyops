@@ -1,0 +1,1 @@
+ALTER TABLE `crafting_machines` ADD `neighbour_bonus` real;

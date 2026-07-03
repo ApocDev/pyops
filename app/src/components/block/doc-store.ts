@@ -17,6 +17,7 @@ import { Store } from "@tanstack/store";
 import type { Goal, RateUnit } from "../../db/schema";
 import type { Disposition } from "../../solver/block";
 import type { BeaconConfig } from "../../server/effects";
+import type { ReactorLayout } from "../../lib/reactor";
 import type { SolveInput } from "../../server/block-compute.server.ts";
 import { normalizeBlockData, STOCK_WINDOW_DEFAULT, type RawBlockData } from "../../lib/goals";
 import { mergeActionLabel } from "../../lib/undo-names";
@@ -53,6 +54,8 @@ export type BlockDocState = {
   fuels: Record<string, string>;
   modules: Record<string, string[]>;
   beacons: Record<string, BeaconConfig[]>;
+  /** reactor rows' assumed x×y farm (#94) — absent = 1×1, no neighbour bonus */
+  reactorLayouts: Record<string, ReactorLayout>;
   blockName: string;
 };
 
@@ -72,6 +75,7 @@ const EMPTY: BlockDocState = {
   fuels: {},
   modules: {},
   beacons: {},
+  reactorLayouts: {},
   blockName: "",
 };
 
@@ -91,6 +95,7 @@ export function solveInputOf(s: BlockDocState): SolveInput {
     ...(Object.keys(s.dispositions).length ? { dispositions: s.dispositions } : {}),
     ...(Object.keys(s.machines).length ? { machines: s.machines } : {}),
     ...(Object.keys(s.fuels).length ? { fuels: s.fuels } : {}),
+    ...(Object.keys(s.reactorLayouts).length ? { reactorLayouts: s.reactorLayouts } : {}),
     // module entries are kept even when EMPTY: an explicit [] means "no modules"
     // and suppresses auto-fill for that row ("reset to auto" deletes the key)
     ...(Object.keys(s.modules).length ? { modules: s.modules } : {}),
@@ -141,6 +146,7 @@ export function createBlockDocStore() {
       fuels: d.fuels ?? {},
       modules: d.modules ?? {},
       beacons: (d.beacons ?? {}) as Record<string, BeaconConfig[]>,
+      reactorLayouts: d.reactorLayouts ?? {},
       blockName: name,
     }));
   };
@@ -266,6 +272,7 @@ export function createBlockDocStore() {
           fuels: withoutKey(s.fuels, name),
           modules: withoutKey(s.modules, name),
           beacons: withoutKey(s.beacons, name),
+          reactorLayouts: withoutKey(s.reactorLayouts, name),
           recipeGroups,
           rowGroups: pruneGroups(recipes, recipeGroups, s.rowGroups),
         };
@@ -285,6 +292,15 @@ export function createBlockDocStore() {
       edit((s) => ({ machines: { ...s.machines, [recipe]: machine } })),
     pickFuel: (recipe: string, fuel: string) =>
       edit((s) => ({ fuels: { ...s.fuels, [recipe]: fuel } })),
+    /** Reactor farm layout (#94): the 1×1 default (or null) clears the key, so
+     * the stored doc only carries real bonus assumptions. */
+    setReactorLayout: (recipe: string, layout: ReactorLayout | null) =>
+      edit((s) => ({
+        reactorLayouts:
+          layout == null || (layout.x <= 1 && layout.y <= 1)
+            ? withoutKey(s.reactorLayouts, recipe)
+            : { ...s.reactorLayouts, [recipe]: layout },
+      })),
     setModules: (recipe: string, modules: string[], beacons: BeaconConfig[]) =>
       edit((s) => ({
         modules: { ...s.modules, [recipe]: modules },

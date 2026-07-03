@@ -125,6 +125,25 @@ describe("recipes", () => {
     doc.applyRecipeDefaults("coke", { machine: "coke-oven" });
     expect(doc.store.state.machines.coke).toBe("coke-oven"); // new row → applied
   });
+
+  it("setReactorLayout stores real farms; the 1×1 default (or null) clears (#94)", () => {
+    const doc = seeded();
+    doc.setReactorLayout("iron-plate", { x: 2, y: 4 });
+    expect(doc.store.state.reactorLayouts["iron-plate"]).toEqual({ x: 2, y: 4 });
+    expect(solveInputOf(doc.store.state).reactorLayouts).toEqual({
+      "iron-plate": { x: 2, y: 4 },
+    });
+    doc.setReactorLayout("iron-plate", { x: 1, y: 1 }); // back to the default
+    expect(doc.store.state.reactorLayouts).toEqual({});
+    expect(solveInputOf(doc.store.state).reactorLayouts).toBeUndefined();
+    doc.setReactorLayout("iron-plate", { x: 2, y: 2 });
+    doc.setReactorLayout("iron-plate", null); // explicit clear
+    expect(doc.store.state.reactorLayouts).toEqual({});
+    // dropRecipe cascades the layout away too
+    doc.setReactorLayout("coke", { x: 2, y: 2 });
+    doc.dropRecipe("coke");
+    expect(doc.store.state.reactorLayouts).toEqual({});
+  });
 });
 
 describe("dispositions & spoil plans", () => {

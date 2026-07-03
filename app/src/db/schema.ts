@@ -128,6 +128,11 @@ export const craftingMachines = sqliteTable("crafting_machines", {
   allowedModuleCategories: text("allowed_module_categories", { mode: "json" }).$type<
     string[] | null
   >(),
+  // Reactor neighbour bonus (#94): extra heat output per adjacent working
+  // reactor, from the ReactorPrototype (Py's nuclear-reactor dumps 1 = +100%).
+  // Only set for kind "reactor"; null elsewhere (and on pre-#94 imports, where
+  // the engine-default 1 applies).
+  neighbourBonus: real("neighbour_bonus"),
 });
 
 export const machineCategories = sqliteTable(
@@ -401,6 +406,9 @@ export type BlockData = {
   dispositions?: Record<string, string>;
   machines?: Record<string, string>; // recipe → chosen machine
   fuels?: Record<string, string>; // recipe → chosen fuel
+  // Reactor farm layout per reactor recipe row (#94): the assumed x×y grid whose
+  // neighbour bonus scales the row's heat output (absent = 1×1, no bonus).
+  reactorLayouts?: Record<string, { x: number; y: number }>;
   modules?: Record<string, string[]>; // recipe → modules in the machine's slots
   beacons?: Record<string, BeaconConfig[]>; // recipe → beacons affecting each machine
 };

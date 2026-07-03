@@ -7,6 +7,7 @@
 import type { Goal } from "../../db/schema.ts";
 import type { BlockDiff } from "../../lib/block-diff";
 import { Icon } from "../../lib/icons";
+import { fmtReactorLayout } from "../../lib/reactor";
 
 type Refs = Record<string, { kind: "item" | "fluid" | "recipe"; display: string }>;
 
@@ -176,6 +177,17 @@ export function SnapshotDiffView({
                     }
                   />
                 )}
+                {p.reactorLayout && (
+                  <Row
+                    left={<span className="text-muted-foreground">reactor layout</span>}
+                    right={
+                      <FromTo
+                        from={layoutLabel(p.reactorLayout.from)}
+                        to={layoutLabel(p.reactorLayout.to)}
+                      />
+                    }
+                  />
+                )}
               </div>
             </div>
           ))}
@@ -218,6 +230,8 @@ const moduleLabel = (m: string[] | null) =>
   m == null ? "auto" : m.length === 0 ? "none" : `${m.length} set`;
 const beaconLabel = (b: { count: number }[]) =>
   b.length === 0 ? "none" : `${b.reduce((s, x) => s + x.count, 0)} beacons`;
+const layoutLabel = (l: { x: number; y: number } | null) =>
+  l == null ? "1×1" : fmtReactorLayout(l);
 
 function DiffSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (

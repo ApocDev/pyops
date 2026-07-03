@@ -10,6 +10,7 @@ import { cycleItems, solveBlock, type Disposition, type RecipeDef } from "../sol
 import { computeEffects, type BeaconConfig } from "./effects";
 import { resolveLogistics, rowLogistics } from "../lib/logistics";
 import { prodScaledAmount } from "../lib/productivity";
+import { reactorHeatMultiplier, REACTOR_LAYOUT_DEFAULT, type ReactorLayout } from "../lib/reactor";
 import { goalNames, normalizeBlockData } from "../lib/goals";
 import { fmtTemp, fmtTempRange } from "../lib/format";
 import type { Goal } from "../db/schema.ts";
@@ -143,6 +144,9 @@ export type SolveInput = {
   dispositions?: Record<string, Disposition>;
   machines?: Record<string, string>; // recipe → chosen machine (else fastest)
   fuels?: Record<string, string>; // recipe → chosen fuel (else cheapest available)
+  // Reactor farm layout per reactor recipe row (#94): the assumed x×y grid whose
+  // neighbour bonus scales the row's heat output (absent = 1×1, no bonus).
+  reactorLayouts?: Record<string, ReactorLayout>;
   modules?: Record<string, string[]>; // recipe → modules in the machine's slots
   beacons?: Record<string, BeaconConfig[]>; // recipe → beacons affecting each machine
 };
@@ -402,6 +406,17 @@ export async function computeBlock(rawData: SolveInput) {
       const heatPerExec = (chosen.energyUsageW * fx.consMult * energyRequired) / (speed * 1e6);
       if (heatPerExec > 0) ingredients.push({ kind: "fluid", name: HEAT, amount: heatPerExec });
     }
+    // Reactor neighbour bonus (#94): each adjacent working reactor adds
+    // neighbour_bonus × base heat (Py's nuclear-reactor: 1 = +100%). The row's
+    // assumed x×y farm layout scales its pyops-heat output by the grid's average
+    // multiplier, so the solver needs fewer reactors. Only heat scales — the
+    // bonus is free output; fuel burn stays per-reactor (count-based, below).
+    // No layout stored = 1×1 = no bonus (the pre-#94 model). A null bonus (a
+    // pre-#94 import) falls back to the engine default of 1.
+    const heatMult =
+      chosen?.kind === "reactor"
+        ? reactorHeatMultiplier(chosen.neighbourBonus ?? 1, data.reactorLayouts?.[r.name])
+        : 1;
     return {
       name: r.name,
       energyRequired: r.energyRequired ?? 0.5,
@@ -411,13 +426,15 @@ export async function computeBlock(rawData: SolveInput) {
           kind: c.kind,
           name: c.name,
           probability: c.probability,
-          // productivity scales only the non-ignored part of each product (#93)
-          amount: prodScaledAmount(
-            c.amount ??
-              (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0),
-            fx.prodMult,
-            c.ignoredByProductivity,
-          ),
+          // productivity scales only the non-ignored part of each product (#93);
+          // reactor farm layouts then scale heat output only (#94)
+          amount:
+            prodScaledAmount(
+              c.amount ??
+                (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0),
+              fx.prodMult,
+              c.ignoredByProductivity,
+            ) * (c.name === HEAT ? heatMult : 1),
         })),
         // ash/burnt result from self-fuel (not productivity-scaled — it's from burning)
         ...extraProducts,
@@ -577,11 +594,27 @@ export async function computeBlock(rawData: SolveInput) {
           })()
         : null;
 
+    // Reactor rows (#94): surface the assumed layout + the multiplier it yields,
+    // so the row chip can show the math ("2×2 → ×3 heat") and offer the picker.
+    const reactor =
+      chosen?.kind === "reactor"
+        ? (() => {
+            const layout = data.reactorLayouts?.[rr.recipe] ?? REACTOR_LAYOUT_DEFAULT;
+            const neighbourBonus = chosen.neighbourBonus ?? 1;
+            return {
+              layout,
+              neighbourBonus,
+              multiplier: reactorHeatMultiplier(neighbourBonus, layout),
+            };
+          })()
+        : null;
+
     return {
       recipe: rr.recipe,
       display: def.display ?? rr.recipe,
       rate: rr.rate,
       spoil,
+      reactor,
       machine: chosen && {
         name: chosen.name,
         display: chosen.display,

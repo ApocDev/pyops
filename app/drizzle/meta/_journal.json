@@ -57,6 +57,13 @@
       "when": 1783089546781,
       "tag": "0007_research-productivity",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1783089935081,
+      "tag": "0008_reactor-neighbour-bonus",
+      "breakpoints": true
     }
   ]
 }
