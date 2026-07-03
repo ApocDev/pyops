@@ -111,3 +111,19 @@ describe("fmtPower", () => {
     expect(fmtPower(-5000)).toBe("-5 GW");
   });
 });
+
+describe("temperature labels", () => {
+  it("compacts >=1000 and keeps small values plain", async () => {
+    const { fmtTemp, fmtTempRange } = await import("../../lib/format");
+    expect(fmtTemp(4000)).toBe("4k°");
+    expect(fmtTemp(2500)).toBe("2.5k°");
+    expect(fmtTemp(125)).toBe("125°");
+    expect(fmtTemp(null)).toBeNull();
+    expect(fmtTempRange(4000, 4000)).toBe("4k°");
+    expect(fmtTempRange(null, 101)).toBe("≤101°");
+    expect(fmtTempRange(500, null)).toBe("≥500°");
+    expect(fmtTempRange(125, 999)).toBe("125–999°");
+    expect(fmtTempRange(1000, 4000)).toBe("1k–4k°");
+    expect(fmtTempRange(null, null)).toBeNull();
+  });
+});

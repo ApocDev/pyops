@@ -10,6 +10,7 @@ import { cycleItems, solveBlock, type Disposition, type RecipeDef } from "../sol
 import { computeEffects, type BeaconConfig } from "./effects";
 import { resolveLogistics, rowLogistics } from "../lib/logistics";
 import { goalNames, normalizeBlockData } from "../lib/goals";
+import { fmtTemp, fmtTempRange } from "../lib/format";
 import type { Goal } from "../db/schema.ts";
 import * as q from "../db/queries.server.ts";
 import { ensureBridge, sendToPeer } from "./bridge/server.ts";
@@ -595,6 +596,8 @@ export async function computeBlock(rawData: SolveInput) {
         kind: c.kind,
         display: c.display,
         rate: c.amount * rr.rate,
+        // accepted temperature range, for the chip label (fluids only)
+        temp: c.kind === "fluid" ? fmtTempRange(c.minTemp, c.maxTemp) : null,
       })),
       // product rates from the productivity-scaled defs (the real output)
       products: def.products.map((c, i) => ({
@@ -602,6 +605,8 @@ export async function computeBlock(rawData: SolveInput) {
         kind: c.kind,
         display: c.display,
         rate: (scaled.products[i]?.amount ?? 0) * (c.probability ?? 1) * rr.rate,
+        // produced temperature, for the chip label (fluids only)
+        temp: c.kind === "fluid" ? fmtTemp(c.temperature) : null,
       })),
     };
   });
@@ -691,12 +696,7 @@ export async function computeBlock(rawData: SolveInput) {
         tempWarnings.push({
           recipe: r.name,
           item: c.name,
-          needs:
-            c.minTemp != null && c.maxTemp != null
-              ? `${c.minTemp}–${c.maxTemp}°`
-              : c.minTemp != null
-                ? `≥${c.minTemp}°`
-                : `≤${c.maxTemp}°`,
+          needs: fmtTempRange(c.minTemp, c.maxTemp) ?? "any°",
           got: Array.from(new Set(got)),
         });
       }

@@ -263,6 +263,7 @@ export function RecipeRow({
                   kind={c.kind}
                   display={c.display}
                   rate={c.rate}
+                  temp={c.temp}
                   link={linkOf(c.name)}
                   craftable={producible.has(c.name)}
                   disp={disp[c.name]}
@@ -295,6 +296,7 @@ export function RecipeRow({
                   kind={c.kind}
                   display={c.display}
                   rate={c.rate}
+                  temp={c.temp}
                   link={linkOf(c.name)}
                   disp={disp[c.name]}
                   onClick={() => open.useFor(c.name)}

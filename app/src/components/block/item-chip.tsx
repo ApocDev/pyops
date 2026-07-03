@@ -35,6 +35,7 @@ export function ItemChip({
   kind,
   display,
   rate,
+  temp,
   link,
   craftable,
   fuel,
@@ -48,6 +49,8 @@ export function ItemChip({
   kind: string;
   display?: string | null;
   rate?: number;
+  /** temperature label for fluids ("125°", "≤101°") — shown after the rate */
+  temp?: string | null;
   link: Link;
   craftable?: boolean;
   fuel?: boolean;
@@ -99,6 +102,7 @@ export function ItemChip({
             )}
           </span>
           {rate != null && <span>{rateLabel(name, rate)}</span>}
+          {temp && <span className="text-sm text-muted-foreground">{temp}</span>}
           {craftableImport && <Plus className="size-3.5 text-warning" strokeWidth={3} />}
         </button>
       </ItemHover>

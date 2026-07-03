@@ -110,3 +110,20 @@ export const rateLabel = (
   if (ENERGY_PSEUDO.has(good)) return sign + fmtPower(rate);
   return `${sign}${formatQty(rate)}${opts?.perSec ? "/s" : ""}`;
 };
+
+// compact temperature values: 4000 → "4k", 2500 → "2.5k", 125 → "125"
+const tempVal = (t: number) =>
+  Math.abs(t) >= 1000 ? `${String(Math.round((t / 1000) * 10) / 10)}k` : String(t);
+
+/** A fluid's produced temperature as a chip label ("125°", "4k°"), or null when
+ * the recipe doesn't specify one (default-temp fluids stay unlabelled). */
+export const fmtTemp = (t?: number | null): string | null => (t == null ? null : `${tempVal(t)}°`);
+
+/** A consumer's accepted temperature range as a chip label: "4k°" (exact),
+ * "125–999°", "≥500°", "≤101°" — null when unconstrained. */
+export const fmtTempRange = (min?: number | null, max?: number | null): string | null => {
+  if (min == null && max == null) return null;
+  if (min != null && max != null)
+    return min === max ? `${tempVal(min)}°` : `${tempVal(min)}–${tempVal(max)}°`;
+  return min != null ? `≥${tempVal(min)}°` : `≤${tempVal(max!)}°`;
+};
