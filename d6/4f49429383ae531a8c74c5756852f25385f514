@@ -1,0 +1,55 @@
+app/src/components/block-share-card.tsx
+  s_9be9645d11a3e7::t_4dec03e1c87961 1-146
+app/src/components/project-backup-card.tsx
+  s_9be9645d11a3e7::t_3778e8c2f169bc 1-103
+app/src/lib/plan-export.test.ts
+  s_9be9645d11a3e7::t_ca08a68f5708ff 1-205
+app/src/lib/plan-export.ts
+  s_9be9645d11a3e7::t_47dca56b5a0652 1-199
+app/src/routeTree.gen.ts
+  s_9be9645d11a3e7::t_f790b48dba2d4f 27,104-108,122,139,158,178,195,213,232,344-350,378
+app/src/server/export.test.ts
+  s_9be9645d11a3e7::t_bac42440f51aab 1-149
+app/src/components/block/block-toolbar.tsx
+  s_11789d30c90708::t_ca2aa0664bd274 2,36,52-53,116-124,297-303
+app/src/lib/download.ts
+  s_11789d30c90708::t_6d55bf63c0c908 1-12
+app/src/routes/api.backup.ts
+  s_11789d30c90708::t_e73781cc3871bd 1-56
+app/src/routes/block.$id.tsx
+  s_11789d30c90708::t_f78010ffaac293 19-21,157-163,519
+app/src/routes/settings.tsx
+  s_11789d30c90708::t_2ce111c2b42bcb 18-19,44,103-108
+app/src/server/backup.server.ts
+  s_11789d30c90708::t_0d3ff17d30926e 1-119
+app/src/server/export-fns.ts
+  s_11789d30c90708::t_1f804ae28709bf 1-24
+app/src/server/export.server.ts
+  s_11789d30c90708::t_a03b9d9d6d5980 1-175
+app/src/server/projects.server.ts
+  s_11789d30c90708::t_4f26e25f06d3ce 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "d64f49429383ae531a8c74c5756852f25385f514",
+  "prompts": {},
+  "sessions": {
+    "s_11789d30c90708": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aa24d8c7148eca65d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
