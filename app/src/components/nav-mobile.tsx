@@ -5,6 +5,7 @@ import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { Button } from "./ui/button";
 import { SETTINGS_LINK, visibleNavLinks } from "./nav-links";
+import { UndoButton } from "./undo-button";
 import { HorizonMenu } from "./horizon-menu";
 import { LogisticsMenu } from "./logistics-menu";
 import { BridgeIndicator } from "./bridge-indicator";
@@ -56,6 +57,7 @@ export function NavMobile() {
             ))}
           </nav>
           <div className="flex shrink-0 flex-wrap items-center gap-1 border-t border-border p-2 font-mono">
+            <UndoButton />
             <HorizonMenu />
             <LogisticsMenu />
             <BridgeIndicator />

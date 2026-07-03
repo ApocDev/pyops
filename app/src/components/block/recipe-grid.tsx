@@ -95,6 +95,8 @@ export function RecipeGrid({
     if (confirmRemove === name) {
       setConfirmRemove(null);
       doc.dropRecipe(name);
+      // label the save for the undo stack (#90) — display name when solved
+      doc.note(`Remove recipe "${res?.display?.[name] ?? name}"`);
       return;
     }
     setConfirmRemove(name);

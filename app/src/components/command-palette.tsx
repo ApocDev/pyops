@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CornerDownLeft, Plus, type LucideIcon } from "lucide-react";
+import { CornerDownLeft, Plus, Undo2, type LucideIcon } from "lucide-react";
 import { SETTINGS_LINK, visibleNavLinks } from "./nav-links";
 import { ProjectCreateDialog } from "./project-create-dialog";
 import { rankMatches } from "../lib/command-search";
 import { useHotkey } from "../lib/hotkeys";
+import { runUndo } from "../lib/undo-client";
 import { Icon, IconProvider, type IconKind } from "../lib/icons";
 import { dataCapabilitiesFn, listBlocksFn, saveBlockFn } from "../server/factorio";
 import { Dialog, DialogContent, DialogTitle } from "#/components/ui/dialog.tsx";
@@ -102,6 +103,12 @@ export function CommandPalette() {
         label: "New project",
         glyph: Plus,
         run: () => setShowNewProject(true),
+      },
+      {
+        key: "action:undo",
+        label: "Undo last action",
+        glyph: Undo2,
+        run: () => runUndo(qc), // same path as Ctrl+Z / the nav button
       },
     ];
     return [

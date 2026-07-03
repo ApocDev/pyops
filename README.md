@@ -62,7 +62,13 @@ source](#setup) to hack on it.
 - **Jump anywhere from the keyboard.** **Ctrl+K** (Cmd+K on macOS) opens a command
   palette from any page — or press `/` when you're not typing in a field. Fuzzy
   search across pages and factory blocks, plus quick actions (new block, new
-  project); arrows + Enter to run, Esc to close.
+  project, undo); arrows + Enter to run, Esc to close.
+- **Undo your planning edits.** **Ctrl+Z** (Cmd+Z on macOS) reverts the last
+  planning action — block edits, deletions, applied plans — as whole steps, with
+  a multi-level stack per project. The ↶ button in the top bar shows what the
+  next undo will revert; a toast confirms each one. Inside a text field, Ctrl+Z
+  stays the field's native text undo. Open editors reload reverted blocks
+  automatically.
 - **Back up & share.** **⚙ Settings › Backup & share** downloads the active
   project's database as a one-file backup (and restores one as a new project), and
   moves blocks between projects as versioned JSON — export the whole plan (blocks +

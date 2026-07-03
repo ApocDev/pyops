@@ -7,6 +7,7 @@ import { HorizonMenu } from "./horizon-menu";
 import { LogisticsMenu } from "./logistics-menu";
 import { NavMobile } from "./nav-mobile";
 import { SETTINGS_LINK, visibleNavLinks } from "./nav-links";
+import { UndoButton } from "./undo-button";
 import { activeRunCount, subscribeRuns } from "../lib/chat-store";
 import { dataCapabilitiesFn, modDriftFn } from "../server/factorio";
 import { driftModal } from "../lib/drift-store";
@@ -74,6 +75,7 @@ export function AppNav() {
           </Link>
         ))}
         <span className="ml-auto flex items-stretch">
+          <UndoButton />
           <DataDriftIndicator />
           <RunIndicator />
           <HorizonMenu />

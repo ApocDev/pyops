@@ -153,3 +153,21 @@ editors can rehydrate. If a migration adds a column to a triggered table, that
 table's triggers must be regenerated in the same migration —
 `app/src/server/undo.test.ts` has a coverage check that fails when a trigger
 goes stale.
+
+On the client every undo trigger — Ctrl+Z (`components/undo-hotkey.tsx`, via
+the hotkey layer and deliberately **not** `allowInInputs`, so text fields keep
+native undo), the ↶ nav affordance (`components/undo-button.tsx`, tooltip =
+top-of-stack name, disabled at depth 0), and the palette's "Undo last action" —
+runs through `lib/undo-client.ts`'s `runUndo`: pop the stack, toast the result
+(the shared toast primitive: `components/ui/toast.tsx` + `lib/toast-store.ts`),
+invalidate the planning query families, and push the reverted doc into any open
+block editor via the open-editor registry (`lib/block-editors.ts`) — the editor
+registers a `hydrate` callback so its auto-save can't write pre-undo state
+back, and an `onDeleted` escape for when the undo reverted the block's
+creation. The editor also sends `baseUpdatedAt` (its hydration point) with
+every save; a `{ conflict }` rejection (another tab/undo/assistant write got
+there first) reloads the fresh doc and toasts instead of clobbering it. Editor
+saves name themselves on the stack where the call site knows what changed
+(`pendingAction` labels in the block doc store, merged by
+`lib/undo-names.ts`); the debounced auto-save otherwise stays generic
+(`Edit block "…"`).

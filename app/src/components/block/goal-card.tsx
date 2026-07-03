@@ -92,7 +92,11 @@ export function GoalCard({
                     </button>
                   )}
                   <button
-                    onClick={() => doc.removeGoal(g)}
+                    onClick={() => {
+                      doc.removeGoal(g);
+                      // label the save for the undo stack (#90)
+                      doc.note(`Remove goal "${res?.display?.[g] ?? g}"`);
+                    }}
                     title="remove this goal"
                     className="flex size-5 items-center justify-center bg-background text-muted-foreground shadow ring-1 ring-border hover:text-destructive"
                   >
@@ -125,7 +129,11 @@ export function GoalCard({
                       unit={goal.unit ?? "s"}
                       readOnly={isFirst && !!lockedInput}
                       power={ENERGY_PSEUDO.has(g)}
-                      onChange={(v) => doc.setGoalRate(g, v)}
+                      onChange={(v) => {
+                        doc.setGoalRate(g, v);
+                        // label the save for the undo stack (#90)
+                        doc.note(`Set "${res?.display?.[g] ?? g}" rate`);
+                      }}
                       onUnitChange={(u) => doc.setGoalUnit(g, u)}
                     />
                   </span>

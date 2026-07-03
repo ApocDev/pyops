@@ -19,6 +19,7 @@ import type { Disposition } from "../../solver/block";
 import type { BeaconConfig } from "../../server/effects";
 import type { SolveInput } from "../../server/block-compute.server.ts";
 import { normalizeBlockData, STOCK_WINDOW_DEFAULT, type RawBlockData } from "../../lib/goals";
+import { mergeActionLabel } from "../../lib/undo-names";
 import {
   joinGroup,
   leaveGroup,
@@ -35,6 +36,11 @@ export type BlockDocState = {
   hydrated: boolean;
   /** true only after a user edit (any mutating action); hydrate never sets it */
   dirty: boolean;
+  /** Undo-stack label for the edits pending save (#90) — set by `note()` from
+   * call sites that know what changed ('Add recipe "Auog paddock"'); null =
+   * the save uses its generic default. Merged across a debounced-save burst by
+   * `mergeActionLabel`; consumed (cleared) when a save starts. */
+  pendingAction: string | null;
   goals: Goal[];
   customIcon: { kind: string; name: string } | null;
   recipes: string[];
@@ -53,6 +59,7 @@ export type BlockDocState = {
 const EMPTY: BlockDocState = {
   hydrated: false,
   dirty: false,
+  pendingAction: null,
   goals: [],
   customIcon: null,
   recipes: [],
@@ -121,6 +128,7 @@ export function createBlockDocStore() {
     store.setState(() => ({
       hydrated: true,
       dirty: false,
+      pendingAction: null,
       goals: d.goals,
       customIcon: d.icon ?? null,
       recipes: ng.recipes,
@@ -144,6 +152,16 @@ export function createBlockDocStore() {
     markClean: () => store.setState((s) => (s.dirty ? { ...s, dirty: false } : s)),
     /** …and restore it if the save fails, so a later edit retries. */
     markDirty: () => store.setState((s) => (s.dirty ? s : { ...s, dirty: true })),
+
+    /* ── undo action labels (#90) ── */
+    /** Label the pending edits for the undo stack — called alongside notable
+     * mutations (recipe add/remove, goal changes) by call sites that have the
+     * display name at hand. Merged, not overwritten (see mergeActionLabel). */
+    note: (label: string) =>
+      store.setState((s) => ({ ...s, pendingAction: mergeActionLabel(s.pendingAction, label) })),
+    /** Consume the pending label when a save starts (it names that save). */
+    clearPendingAction: () =>
+      store.setState((s) => (s.pendingAction == null ? s : { ...s, pendingAction: null })),
 
     /* ── goals ── */
     // A new goal starts pinned to 1/s; duplicates are ignored.

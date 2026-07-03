@@ -17,8 +17,12 @@ import {
   solveBlockFn,
 } from "../server/factorio";
 import { exportBlockFn } from "../server/export-fns";
+import { registerBlockEditor } from "../lib/block-editors";
 import { downloadJson } from "../lib/download";
 import { exportFileName } from "../lib/plan-export";
+import { toast } from "../lib/toast-store";
+import { epochSeconds } from "../lib/undo-client";
+import { blockActionName } from "../lib/undo-names";
 import { launchesForRate, resolveLogistics } from "../lib/logistics";
 import { IconProvider, useSpoilables } from "../lib/icons";
 import { ModulesModal } from "../lib/modules-modal";
@@ -141,13 +145,38 @@ function Block({ blockId }: { blockId: number }) {
     gcTime: 0,
     staleTime: 0,
   });
+  // Save-conflict baseline (#90): the `updatedAt` of the row this editor last
+  // hydrated from / saved. Sent with every save so a stale editor (second tab,
+  // or one that idled through an undo/external write) is rejected + reloaded
+  // instead of clobbering the newer state wholesale.
+  const baseUpdatedAt = useRef<number | null>(null);
   useEffect(() => {
     if (s.hydrated || !loaded.data) return;
     // the store normalizes legacy doc shapes + drifted groups on hydrate
     doc.hydrate(loaded.data.data, loaded.data.name);
+    baseUpdatedAt.current = epochSeconds(loaded.data.updatedAt);
     setBlockEnabled(loaded.data.enabled ?? true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded.data]);
+
+  // Register with the open-editor registry (#90) so an external write to this
+  // block — an undo today, snapshot restore/assistant apply next — can push the
+  // fresh doc straight into this editor (hydrate leaves the doc clean, so the
+  // auto-save can't write the stale state back). If the external change removed
+  // the block entirely (undo of a create), leave rather than resurrect it.
+  useEffect(
+    () =>
+      registerBlockEditor(blockId, {
+        hydrate: (raw, name, at) => {
+          doc.hydrate(raw, name);
+          baseUpdatedAt.current = at;
+          setSaveState("idle");
+        },
+        onDeleted: () => void navigate({ to: "/block" }),
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [blockId],
+  );
 
   const copySetup = () => {
     void navigator.clipboard?.writeText(
@@ -281,16 +310,37 @@ function Block({ blockId }: { blockId: number }) {
     doc.markClean();
     setSaveState("saving");
     const cur = doc.store.state;
+    // the pending label (set by recipe add/remove & co.) names this save on the
+    // undo stack; consumed here so the next burst starts fresh
+    const actionName = blockActionName(cur.pendingAction, cur.blockName);
+    doc.clearPendingAction();
     return saveBlockFn({
       data: {
         id: blockId,
         name: cur.blockName.trim() || undefined,
         data: solveInputOf(cur),
+        ...(actionName ? { actionName } : {}),
+        baseUpdatedAt: baseUpdatedAt.current,
       },
     })
-      .then(() => {
+      .then(async (res) => {
+        if ("conflict" in res && res.conflict) {
+          // The stored row is newer than this editor's hydration point (another
+          // tab, an undo, an assistant write beat us to it): the save was NOT
+          // applied — reload the fresh doc instead of clobbering it.
+          const row = await loadBlockFn({ data: blockId });
+          if (row) {
+            doc.hydrate(row.data, row.name);
+            baseUpdatedAt.current = epochSeconds(row.updatedAt);
+          }
+          setSaveState("idle");
+          toast({ message: "Block changed elsewhere — reloaded." });
+          return;
+        }
+        baseUpdatedAt.current = res.updatedAt ?? null;
         setSaveState("saved");
         void qc.invalidateQueries({ queryKey: ["blocks"] });
+        void qc.invalidateQueries({ queryKey: ["undoStatus"] });
       })
       .catch(() => {
         retryHold.current = true;
@@ -356,6 +406,9 @@ function Block({ blockId }: { blockId: number }) {
 
   const add = (name: string) => {
     doc.addRecipe(name);
+    // label the save for the undo stack — the picker rows carry the display name
+    const display = picker.data?.find((c) => c.name === name)?.display;
+    doc.note(`Add recipe "${display ?? name}"`);
     setPickFor(null);
     // Bake the preferred (favorite, else lowest-tier/cheapest) building + fuel for
     // this recipe into the block's stored picks (#18). New recipes only — existing
