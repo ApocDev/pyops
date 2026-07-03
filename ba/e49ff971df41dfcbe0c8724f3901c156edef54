@@ -1,7 +1,25 @@
 ---
 {
   "schema_version": "authorship/3.0.0",
-  "git_ai_version": "1.6.5",
+  "git_ai_version": "1.6.10",
   "base_commit_sha": "bae49ff971df41dfcbe0c8724f3901c156edef54",
-  "prompts": {}
+  "prompts": {},
+  "sessions": {
+    "s_4c0dcc604f7f04": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a02c8cdce2ad89a76",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
 }
