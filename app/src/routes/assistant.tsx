@@ -41,6 +41,7 @@ import {
   saveBlockFn,
   setAiConfigFn,
   setBlockRateFn,
+  setBlockRecipesFn,
 } from "#/server/factorio";
 import {
   activeAssistantRunsFn,
@@ -1247,13 +1248,19 @@ type Draft = {
     }[];
   };
   invalid?: string[];
-  // Set when this draft is a reviseBlock proposal (resize an existing block)
-  // rather than a new block. `updateBlockId` is the block to apply the new rate to.
+  // Set when this draft is a reviseBlock proposal (revise an existing block)
+  // rather than a new block. `updateBlockId` is the block the change applies to.
   kind?: "update";
   updateBlockId?: number;
   blockName?: string;
   oldRate?: number;
   missing?: boolean;
+  error?: string;
+  // recipe-set revision (#12): the diff vs the stored block, and byproducts the
+  // block's current solve doesn't export (new dangling outputs to route)
+  recipesAdded?: string[];
+  recipesRemoved?: string[];
+  newByproducts?: string[];
 };
 
 type PlanDraftData = {
@@ -1476,8 +1483,14 @@ function BlockDraft({ draft }: { draft: Draft }) {
   );
 }
 
-/** A reviseBlock proposal: re-solve an existing block at a new rate. The user
- * clicks Apply to persist the new rate (setBlockRateFn re-solves + saves). */
+/** True when a reviseBlock proposal changes the block's recipe set (#12) — it
+ * then applies through setBlockRecipesFn instead of the rate-only path. */
+const changesRecipes = (draft: Draft) =>
+  (draft.recipesAdded?.length ?? 0) > 0 || (draft.recipesRemoved?.length ?? 0) > 0;
+
+/** A reviseBlock proposal: re-solve an existing block at a new rate and/or with
+ * a revised recipe set (#12). The user clicks Apply to persist (setBlockRateFn /
+ * setBlockRecipesFn re-solve + save). */
 function BlockUpdate({ draft }: { draft: Draft }) {
   const navigate = useNavigate();
   const [status, setStatus] = useState<"idle" | "applying" | "done" | "error">("idle");
@@ -1489,12 +1502,19 @@ function BlockUpdate({ draft }: { draft: Draft }) {
       </Callout>
     );
   }
+  if (draft.error) {
+    return <Callout tone="destructive">{draft.error}</Callout>;
+  }
   const blockId = draft.updateBlockId;
+  const recipeChange = changesRecipes(draft);
+  const rateChange = draft.oldRate == null || draft.oldRate !== draft.rate;
 
   const apply = async () => {
     setStatus("applying");
     try {
-      const res = await setBlockRateFn({ data: { blockId, rate: draft.rate } });
+      const res = recipeChange
+        ? await setBlockRecipesFn({ data: { blockId, recipes: draft.recipes, rate: draft.rate } })
+        : await setBlockRateFn({ data: { blockId, rate: draft.rate } });
       if (!res.ok) throw new Error("not ok");
       setStatus("done");
       await navigate({ to: "/block/$id", params: { id: String(blockId) } });
@@ -1509,16 +1529,29 @@ function BlockUpdate({ draft }: { draft: Draft }) {
         <div className="flex items-center gap-2 text-base font-semibold">
           <Icon kind="item" name={draft.target} size="md" noTitle />
           <span>
-            Resize block #{blockId}:{" "}
+            {recipeChange ? "Revise" : "Resize"} block #{blockId}:{" "}
             <span className="text-warning">{draft.blockName ?? draft.targetDisplay}</span>{" "}
             <span className="text-sm font-normal text-muted-foreground">
-              {draft.oldRate != null && (
+              {rateChange ? (
                 <>
-                  <span className="line-through">{draft.oldRate}/s</span>
-                  {" → "}
+                  {draft.oldRate != null && (
+                    <>
+                      <span className="line-through">{draft.oldRate}/s</span>
+                      {" → "}
+                    </>
+                  )}
+                  <span className="font-medium text-foreground">{draft.rate}/s</span>
+                </>
+              ) : (
+                <>@ {draft.rate}/s</>
+              )}
+              {recipeChange && (
+                <>
+                  {" · "}
+                  {draft.recipesAdded?.length ?? 0} added / {draft.recipesRemoved?.length ?? 0}{" "}
+                  removed
                 </>
               )}
-              <span className="font-medium text-foreground">{draft.rate}/s</span>
             </span>
           </span>
         </div>
@@ -1540,11 +1573,22 @@ function BlockUpdate({ draft }: { draft: Draft }) {
       </div>
 
       {draft.notes && <p className="mt-2 text-sm text-muted-foreground">{draft.notes}</p>}
+      {refRow("recipes added", draft.recipesAdded, "recipe")}
+      {refRow("recipes removed", draft.recipesRemoved, "recipe")}
+      {refRow(
+        <>
+          <AlertTriangle className="size-3.5" /> new byproducts this change introduces — route or
+          void them
+        </>,
+        draft.newByproducts,
+        undefined,
+        true,
+      )}
       <DraftRows draft={draft} />
 
       {status === "error" && (
         <div className="mt-2 text-sm text-destructive">
-          Couldn't apply the new rate — see console.
+          Couldn't apply the update — see console.
         </div>
       )}
     </div>
@@ -1556,7 +1600,9 @@ function PlanDraft({ plan }: { plan: PlanDraftData }) {
   const [status, setStatus] = useState<"idle" | "creating" | "done" | "error">("idle");
   const [created, setCreated] = useState<{ id: number; name: string }[]>([]);
 
-  const updates = (plan.updates ?? []).filter((u) => !u.missing && u.updateBlockId != null);
+  const updates = (plan.updates ?? []).filter(
+    (u) => !u.missing && !u.error && u.updateBlockId != null,
+  );
 
   const createAll = async () => {
     setStatus("creating");
@@ -1571,9 +1617,17 @@ function PlanDraft({ plan }: { plan: PlanDraftData }) {
         });
         made.push(res);
       }
-      // Apply the existing-block resizes (setBlockRateFn re-solves + persists each).
+      // Apply the existing-block revisions (each re-solves + persists): recipe
+      // revisions (#12) go through setBlockRecipesFn, rate-only ones keep the
+      // rate path.
       for (const u of updates) {
-        await setBlockRateFn({ data: { blockId: u.updateBlockId!, rate: u.rate } });
+        if (changesRecipes(u)) {
+          await setBlockRecipesFn({
+            data: { blockId: u.updateBlockId!, recipes: u.recipes, rate: u.rate },
+          });
+        } else {
+          await setBlockRateFn({ data: { blockId: u.updateBlockId!, rate: u.rate } });
+        }
       }
       setCreated(made);
       setStatus("done");
@@ -1642,8 +1696,19 @@ function PlanDraft({ plan }: { plan: PlanDraftData }) {
                 <summary className="cursor-pointer select-none text-sm font-medium">
                   #{u.updateBlockId} {u.blockName ?? u.targetDisplay ?? u.target}{" "}
                   <span className="text-sm font-normal text-muted-foreground">
-                    {u.oldRate != null && <span className="line-through">{u.oldRate}/s</span>} →{" "}
+                    {u.oldRate != null && u.oldRate !== u.rate && (
+                      <>
+                        <span className="line-through">{u.oldRate}/s</span> →{" "}
+                      </>
+                    )}
                     <span className="text-foreground">{u.rate}/s</span>
+                    {changesRecipes(u) && (
+                      <>
+                        {" · "}
+                        {u.recipesAdded?.length ?? 0} recipes added /{" "}
+                        {u.recipesRemoved?.length ?? 0} removed
+                      </>
+                    )}
                   </span>
                 </summary>
                 <PlanBlockPreview draft={u} />

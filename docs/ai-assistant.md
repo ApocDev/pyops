@@ -144,8 +144,12 @@ about "how do I make X":
   threshold plus a short override list classifies the common case. Per-block user
   pins override it.
 - **Draft-a-block** — assemble the reasoning into a reviewable single-block draft.
-- **Revise-a-block** — propose RAISING/LOWERING an _existing_ block's output rate
-  to meet new demand, instead of building a duplicate.
+- **Revise-a-block** — propose changing an _existing_ block: RAISE/LOWER its
+  output rate to meet new demand, and/or REPLACE its recipe set (#12 — e.g.
+  swap to a higher-yield variant), instead of building a duplicate. A recipe
+  revision re-solves the new set and returns the diff (recipes added/removed)
+  plus any byproducts the block's current solve doesn't export
+  (`newByproducts`), so closure damage is visible before the user applies.
 - **Draft-a-plan** — assemble several solved block drafts for one request (and,
   optionally, resizes of existing blocks), then let the user apply all of them in
   one action.
@@ -171,9 +175,12 @@ about "how do I make X":
   Factorio reload.
 
 Single-block drafts still use `submitBlock`. `reviseBlock` re-solves an existing
-block (looked up by its `factoryBlocks` id) at a new rate and returns an amber
-**Resize block #N: old → new /s** card with an **Apply update** button that calls
-`setBlockRateFn` (which re-solves and persists). Multi-output requests or requests
+block (looked up by its `factoryBlocks` id) at a new rate and/or with a revised
+recipe set and returns an amber **Resize/Revise block #N** card with an **Apply
+update** button: rate-only changes apply through `setBlockRateFn`, recipe
+revisions through `setBlockRecipesFn` (which swaps the doc's recipe list via
+`lib/block-doc.ts` `withRecipeSet` — pruning removed recipes' machine/module/
+pin config — then re-solves and persists). Multi-output requests or requests
 for complete supporting production use `submitPlan`, which returns a plan card
 with one preview per block, an optional **resize existing blocks** section, and a
 **Create N blocks · resize M** action. Creating a plan saves each proposed block

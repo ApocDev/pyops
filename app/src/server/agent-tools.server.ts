@@ -715,27 +715,60 @@ export const submitBlock = tool({
   execute: async (input) => buildBlockDraft(input),
 });
 
-/** Re-solve an existing block at a NEW rate (keeping its stored recipes/target)
- * and return it as an "update" draft the user approves before it's applied. */
-async function buildBlockUpdate({ blockId, rate, notes }: z.infer<typeof reviseBlockInput>) {
+/** Re-solve an existing block at a new rate and/or with a REVISED recipe set
+ * (#12) and return it as an "update" draft the user approves before it's
+ * applied. A recipe revision re-runs the closure check, so the draft carries the
+ * added/removed recipes and any byproducts the block didn't have before. */
+async function buildBlockUpdate({
+  blockId,
+  rate,
+  recipes,
+  notes,
+}: z.infer<typeof reviseBlockInput>) {
   const row = q.getBlock(blockId);
   if (!row) {
     return { ok: false, kind: "update" as const, updateBlockId: blockId, missing: true };
   }
   const data = normalizeBlockData(row.data);
   const primary = primaryGoal(data);
+  if (rate == null && recipes == null) {
+    return {
+      ok: false,
+      kind: "update" as const,
+      updateBlockId: blockId,
+      blockName: row.name,
+      error: "pass a new rate, a new recipe list, or both — nothing to revise otherwise",
+    };
+  }
+  const newRecipes = recipes ?? data.recipes;
   const draft = await buildBlockDraft({
     target: primary?.name ?? "",
-    rate,
-    recipes: data.recipes,
+    rate: rate ?? primaryRate(data),
+    recipes: newRecipes,
     notes,
   });
+  const oldSet = new Set(data.recipes);
+  const newSet = new Set(newRecipes);
+  const recipesAdded = newRecipes.filter((r) => !oldSet.has(r));
+  const recipesRemoved = data.recipes.filter((r) => !newSet.has(r));
+  // Byproducts the block's CURRENT solve doesn't export — new dangling outputs a
+  // recipe swap can introduce; the user sees them flagged before applying.
+  const oldOutputs = new Set(
+    q
+      .getBlockFlows(blockId)
+      .filter((f) => f.role !== "import")
+      .map((f) => f.item),
+  );
+  const newByproducts = draft.byproducts.map((b) => b.good).filter((g) => !oldOutputs.has(g));
   return {
     ...draft,
     kind: "update" as const,
     updateBlockId: blockId,
     blockName: row.name,
     oldRate: primaryRate(data),
+    recipesAdded,
+    recipesRemoved,
+    newByproducts,
   };
 }
 
@@ -743,20 +776,30 @@ const reviseBlockInput = z.object({
   blockId: z
     .number()
     .int()
-    .describe("id of the existing block to resize (the `id` from factoryBlocks)"),
+    .describe("id of the existing block to revise (the `id` from factoryBlocks)"),
   rate: z
     .number()
     .positive()
-    .describe("New target output rate for that block (items or fluid units per second)"),
+    .optional()
+    .describe(
+      "New target output rate (items or fluid units per second); omit to keep the current rate",
+    ),
+  recipes: z
+    .array(z.string())
+    .min(1)
+    .optional()
+    .describe(
+      "REPLACEMENT recipe list for the block — the COMPLETE new set, not a delta (start from the block's current recipes in factoryBlocks/chain data and add/remove/swap). Omit to keep the current recipes.",
+    ),
   notes: z
     .string()
     .optional()
-    .describe("Why the rate is changing (e.g. 'raise to feed py-science-1 at 1/s')"),
+    .describe("Why the block is changing (e.g. 'swap to the hot-air molten-iron variant')"),
 });
 
 export const reviseBlock = tool({
   description:
-    "Propose RAISING or LOWERING the output rate of an EXISTING block (by its factoryBlocks id) so it meets new demand — instead of building a duplicate. Re-solves the block's existing recipes at the new rate and returns the updated imports / byproducts / sub-block demand. The change is a PROPOSAL the user approves before it's applied. Use this when a good you need is already produced by a block but at too low a rate (common when scaling materials/mall blocks up to feed a new plan).",
+    "Propose changing an EXISTING block (by its factoryBlocks id) — its output RATE, its RECIPE SET, or both — instead of building a duplicate. Pass `rate` to raise/lower output to meet new demand; pass `recipes` (the complete replacement list) to add/remove/swap recipes (e.g. swap to a higher-yield variant, add a byproduct-consuming step). The block is RE-SOLVED with the change and returned as a PROPOSAL the user approves before it's applied: check the returned imports/byproducts for closure — a recipe change can open new imports or NEW dangling byproducts (returned in newByproducts; route them or say why they're fine BEFORE the user applies). Recipe revisions keep the block's other recipes' machine/module picks; removed recipes' picks are pruned on apply.",
   inputSchema: reviseBlockInput,
   execute: async (input) => buildBlockUpdate(input),
 });
@@ -776,7 +819,7 @@ export const submitPlan = tool({
       .array(reviseBlockInput)
       .optional()
       .describe(
-        "Existing blocks (by factoryBlocks id) to RESIZE to a new rate so they meet this plan's demand — instead of duplicating them. Use for already-built material/mall blocks that are too small.",
+        "Existing blocks (by factoryBlocks id) to REVISE for this plan — resize to a new rate and/or swap their recipe set — instead of duplicating them. Use for already-built material/mall blocks that are too small.",
       ),
     buildingMaterialsIncluded: z
       .boolean()

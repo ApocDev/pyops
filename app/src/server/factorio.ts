@@ -9,6 +9,7 @@ import {
   primaryRate,
   withPrimaryRate,
 } from "../lib/goals";
+import { withRecipeSet } from "../lib/block-doc";
 
 /**
  * Server functions exposing the query layer to the client. Server-only modules
@@ -479,6 +480,34 @@ export const setBlockRateFn = createServerFn({ method: "POST" })
     // Restore point (#85) before a structural apply (scale-to-demand, assistant resize).
     await captureSnapshot(data.blockId, { kind: "auto", label: "before resize" });
     await withUndoAction(`Set "${row.name}" rate`, () =>
+      persistBlock(
+        { id: row.id, name: row.name, iconKind: row.iconKind, iconName: row.iconName },
+        input,
+        r,
+      ),
+    );
+    return { ok: true };
+  });
+
+/** Apply an assistant recipe-set revision (#12): replace one block's recipe list
+ * (optionally re-rating its anchor goal too), re-solve, and persist — the same
+ * cache refresh as saveBlock. Per-recipe config for removed recipes is pruned
+ * (`withRecipeSet`); goals, made marks, and the rest of the doc survive. */
+export const setBlockRecipesFn = createServerFn({ method: "POST" })
+  .validator((d: { blockId: number; recipes: string[]; rate?: number }) => d)
+  .handler(async ({ data }) => {
+    const row = q.getBlock(data.blockId);
+    if (!row) return { ok: false };
+    let input = withRecipeSet(
+      normalizeBlockData(row.data as SolveInput),
+      data.recipes,
+    ) as SolveInput;
+    if (data.rate != null) input = withPrimaryRate(input, data.rate) as SolveInput;
+    const r = await computeBlock(input);
+    if (r.broken) return { ok: false, broken: true };
+    // Restore point (#85) before a structural apply (assistant recipe revision).
+    await captureSnapshot(data.blockId, { kind: "auto", label: "before recipe change" });
+    await withUndoAction(`Change "${row.name}" recipes`, () =>
       persistBlock(
         { id: row.id, name: row.name, iconKind: row.iconKind, iconName: row.iconName },
         input,
