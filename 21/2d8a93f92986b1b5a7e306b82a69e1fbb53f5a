@@ -1,0 +1,37 @@
+app/src/components/db-migrations-banner.tsx
+  s_9be9645d11a3e7::t_ed6c060969c481 1-28
+app/src/routes/__root.tsx
+  s_9be9645d11a3e7::t_57ceda3a2ab2bd 8,61
+app/src/server/db-migrations.server.ts
+  s_9be9645d11a3e7::t_08bf1d27975727 1-72
+app/src/server/db-migrations.ts
+  s_9be9645d11a3e7::t_1b1192be2638d6 1-12
+docs/architecture.md
+  s_9be9645d11a3e7::t_117bb7d50b3a20 95-101
+app/src/server/db-migrations.test.ts
+  s_42c403b6a676d4::t_1a3e1674c4a4eb 1-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "212d8a93f92986b1b5a7e306b82a69e1fbb53f5a",
+  "prompts": {},
+  "sessions": {
+    "s_42c403b6a676d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a3a26fc4d80f65e17",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
