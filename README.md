@@ -59,6 +59,10 @@ source](#setup) to hack on it.
   playing (with your location and selected entity as anchors), and can plan a
   Cybersyn request combinator for a station in-game. The assistant can also read
   the live factory through the bridge to ground its planning.
+- **Jump anywhere from the keyboard.** **Ctrl+K** (Cmd+K on macOS) opens a command
+  palette from any page — or press `/` when you're not typing in a field. Fuzzy
+  search across pages and factory blocks, plus quick actions (new block, new
+  project); arrows + Enter to run, Esc to close.
 - **Use it on any screen.** The UI is responsive: the full desktop layout on a
   monitor, and on tablets, phones, and the Steam Deck the global nav and the
   block/browse/assistant/tasks sidebars collapse into drawers, dense tables reflow
