@@ -1,0 +1,47 @@
+app/drizzle/0004_undo_log.sql
+  s_9be9645d11a3e7::t_e95f4701e5f2ca 1-112
+app/drizzle/meta/0004_snapshot.json
+  s_9be9645d11a3e7::t_7e8bb61cb7fb29 1-2415
+app/drizzle/meta/_journal.json
+  s_9be9645d11a3e7::t_d86c761e70e253 32-38
+app/src/db/schema.ts
+  s_9be9645d11a3e7::t_bcb7936d38afb6 602-646
+app/src/server/agent-tools.server.ts
+  s_9be9645d11a3e7::t_7847bc7cede142 25,846-853,868-870,878-881,896
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_704e00360d3b93 16,798-819,951-953,955-974
+app/src/server/bridge/handlers/handlers.test.ts
+  s_9be9645d11a3e7::t_2422fe8502bf59 26-29
+app/src/server/bridge/handlers/tasks.ts
+  s_9be9645d11a3e7::t_b200c0944d5532 13,37-49
+app/src/server/factorio.ts
+  s_9be9645d11a3e7::t_b61d566b326eb3 29,31-32,172-179,184,203-218,220-223,230-233,235,247-249,263-266,314-349,455-460,975-978,983-984,991,998,1005-1007,1013-1015,1020,1027
+app/src/server/tasks.ts
+  s_9be9645d11a3e7::t_2e91619ac0f61d 16,28-32,47,54,98-106,150-152,173-175,181,188,201-203,209,224-226,232,239
+app/src/server/undo-action.server.ts
+  s_9be9645d11a3e7::t_4d4fca33cab499 1-119
+app/src/server/undo.server.ts
+  s_9be9645d11a3e7::t_7a19f95de31c71 1-110
+app/src/server/undo.test.ts
+  s_9be9645d11a3e7::t_857351bc28b456 1-292
+app/src/server/undo.ts
+  s_9be9645d11a3e7::t_f1451e83154c73 1-20
+docs/architecture.md
+  s_9be9645d11a3e7::t_d5ded953fd94ad 124-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "9997173c09e66f4058cb3765fd343f27d837b9c7",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
