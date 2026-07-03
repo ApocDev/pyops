@@ -121,3 +121,35 @@ Two surfaces under **Settings › Backup & share**:
   flagged broken — the same degrade path as mod drift — never rejected. Single
   blocks also export from the block editor's toolbar. Snapshots (#85) build on the
   same serialization.
+
+## Undo (planning edits)
+
+Multi-level undo for planning edits, built on the canonical
+[SQLite trigger pattern](https://www.sqlite.org/undoredo.html): `AFTER
+INSERT/UPDATE/DELETE` triggers on the **user-planning tables only** (blocks,
+block_groups, module_presets, tasks, task_steps, task_links, notes — never
+imported reference data, live-state tables, or caches like
+`block_flows`/`block_machines`) write the inverse SQL of every row change into
+`undo_log`. The triggers live in a migration (`drizzle/0004_undo_log.sql` —
+hand-written there because drizzle can't model triggers) and only fire while a
+current-action marker row exists in `undo_current`, so any write that bypasses
+the wrapper is simply untracked (fail-soft), and the high-volume system writes
+are excluded by construction.
+
+One undo step = one user action: every mutating server-fn path runs through
+`withUndoAction(name, fn)` (`app/src/server/undo-action.server.ts`), which opens
+one action id + the marker, runs the mutation, and closes it — so "apply this
+plan" pops as a single undo. Tracking is opt-out: system writes to planning
+tables (cache re-solves, LLM-computed priorities, undo execution itself) pass
+`{ undo: false }`. Undo is linear (strictly top-of-stack), the last 50 actions
+are kept (trimmed on write), and the log is per project db.
+
+`undoLast()` (`app/src/server/undo.server.ts`, exposed as
+`undoStatusFn`/`undoLastFn` in `app/src/server/undo.ts`) executes the top
+action's inverse statements in one transaction without re-logging, then
+re-solves the touched blocks through the normal persist machinery so the
+untracked caches stay consistent, and returns the changed block ids so open
+editors can rehydrate. If a migration adds a column to a triggered table, that
+table's triggers must be regenerated in the same migration —
+`app/src/server/undo.test.ts` has a coverage check that fails when a trigger
+goes stale.
