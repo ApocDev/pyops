@@ -101,6 +101,7 @@ Reach for these before writing markup:
 | Action menu on a trigger | `DropdownMenu` (`ui/dropdown-menu.tsx`) — Radix; keyboard nav and outside-dismiss built in. |
 | Status chip / count | `Badge` — semantic tint via `className` (e.g. `bg-warning/15 text-warning border-transparent`). |
 | Status message / banner | `Callout` (`ui/callout.tsx`) — `tone` success/warning/info/destructive/primary, default icon per tone, optional `title`/`action`; `variant="strip"` for full-bleed rows inside cards. |
+| Transient feedback | `toast()` (`lib/toast-store.ts`) — non-blocking bottom-right queue rendered by the `Toaster` in `ui/toast.tsx` (mounted once in the root). Tones default/success/destructive, auto-dismiss, optional action button ("Undo", "Reload"); callable from anywhere, not just components. For feedback about a completed/failed action — anything needing a decision is a `Dialog`, anything persistent a `Callout`. |
 | Segmented choice / on-off toggle | `Button variant="toggle"` with `aria-pressed` — active state styles itself from the aria attribute. |
 | Micro caption over a field group | `FieldLabel` (`ui/label.tsx`) — the uppercase muted eyebrow; `Label` stays the `text-sm` form label. |
 | Panel with a title | `Card` + `CardHeader`/`CardTitle`/`CardContent`. |
