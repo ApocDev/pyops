@@ -1,0 +1,31 @@
+app/src/components/assistant/follow-up-chips.test.tsx
+  s_9be9645d11a3e7::t_567f9763a253e0 1-88
+app/src/routes/assistant.tsx
+  s_9be9645d11a3e7::t_7d103dad521d6f 34,444,899,906-907,922,1078-1083,1113-1115,1117-1119,1121-1128,1434-1453,1516,1535-1543,1637,1648-1656,1738,1772,1793-1801,1842
+app/src/components/assistant/follow-up-chips.tsx
+  s_c7842965976508::t_3f4e583cfcf6ee 1-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3b58baa4658735e9ac6155797ff22a43e8535c3f",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_c7842965976508": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a1d179e529c21c33a",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
