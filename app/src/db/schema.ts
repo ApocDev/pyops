@@ -418,6 +418,32 @@ export const blockGroups = sqliteTable("block_groups", {
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });
 
+/** Block snapshots (#85): named restore points for a block's full definition.
+ * `data` is the block's editor doc — the SAME serialization as the export
+ * envelope's `ExportedBlock.doc` (#82), with the face fields (name/icon/enabled)
+ * as columns, so a snapshot row converts to an exported block trivially.
+ * `kind` is "manual" (user-created, kept until deleted) or "auto" (taken before
+ * destructive/structural writes — delete, restore, resize, big edits — capped at
+ * the newest 20 per block). Rows deliberately survive block deletion, doubling
+ * as a recycle bin. No undo triggers: snapshot bookkeeping is not a planning
+ * edit (#90) — only a RESTORE (which writes the blocks table) is undoable. */
+export const blockSnapshots = sqliteTable(
+  "block_snapshots",
+  {
+    id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    blockId: integer("block_id").notNull(),
+    kind: text().notNull(), // "manual" | "auto"
+    label: text(), // user's label (manual) or what triggered it (auto)
+    name: text().notNull(), // block name at capture
+    iconKind: text("icon_kind"),
+    iconName: text("icon_name"),
+    enabled: bool("enabled").notNull().default(true),
+    data: text({ mode: "json" }).$type<BlockData>().notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  },
+  (t) => [index("block_snapshots_block_idx").on(t.blockId)],
+);
+
 /** TURD recipe replacements (exported by the pyops-dump helper as mod-data):
  * selecting `subTech` swaps `oldRecipe` for `newRecipe` in-game, so the old
  * one should be demoted in pickers once the choice is made. */

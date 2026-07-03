@@ -27,6 +27,7 @@ import { currentDatabaseFile } from "../db/index.server.ts";
 import { factoryWhatIf } from "./factory-solve.server.ts";
 import { APP_CONFIG_FILE, DATA_DIR, ICON_DATA_DIR, PROJECTS_DIR } from "./paths.server.ts";
 import { withUndoAction } from "./undo-action.server.ts";
+import { captureSnapshot } from "./snapshots.server.ts";
 import {
   blockSaveConflict,
   blockUpdatedAt,
@@ -221,6 +222,10 @@ export const saveBlockFn = createServerFn({ method: "POST" })
       const conflict = blockSaveConflict(data.id, data.baseUpdatedAt);
       if (conflict) return conflict;
     }
+    // Throttled restore point (#85): freeze the PRE-save state at most once per
+    // editing burst, so a big refactor can always be rolled back past undo's reach.
+    if (data.id != null)
+      await captureSnapshot(data.id, { kind: "auto", label: "before edit", throttle: true });
     const r = await computeBlock(data.data);
     const doc = normalizeBlockData(data.data) as SolveInput;
     const primary = primaryGoal(doc)?.name ?? "";
@@ -246,6 +251,9 @@ export const deleteBlockFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const row = q.getBlock(data);
     if (!row) return { ok: true };
+    // Restore point (#85): the snapshot survives the delete — a recycle bin
+    // beyond the undo stack's reach.
+    await captureSnapshot(data, { kind: "auto", label: "before delete" });
     await withUndoAction(`Delete block "${row.name}"`, () => q.deleteBlock(data));
     return { ok: true };
   });
@@ -452,6 +460,8 @@ export const setBlockRateFn = createServerFn({ method: "POST" })
     ) as SolveInput;
     const r = await computeBlock(input);
     if (r.broken) return { ok: false, broken: true };
+    // Restore point (#85) before a structural apply (scale-to-demand, assistant resize).
+    await captureSnapshot(data.blockId, { kind: "auto", label: "before resize" });
     await withUndoAction(`Set "${row.name}" rate`, () =>
       persistBlock(
         { id: row.id, name: row.name, iconKind: row.iconKind, iconName: row.iconName },

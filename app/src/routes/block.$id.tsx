@@ -40,6 +40,7 @@ import { GoalMenu } from "../components/block/goal-menu.tsx";
 import { RowMenu } from "../components/block/row-menu.tsx";
 import { GoodMenu } from "../components/block/good-menu.tsx";
 import { BlockToolbar } from "../components/block/block-toolbar.tsx";
+import { SnapshotSheet } from "../components/block/snapshot-sheet.tsx";
 import { GoalCard } from "../components/block/goal-card.tsx";
 import { BalanceCard } from "../components/block/balance-card.tsx";
 import { RecipeGrid } from "../components/block/recipe-grid.tsx";
@@ -110,6 +111,8 @@ function Block({ blockId }: { blockId: number }) {
   const [renamingGroup, setRenamingGroup] = useState<number | null>(null);
   // right-click menu on a recipe row (sub-block actions)
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; name: string } | null>(null);
+  // snapshot-history drawer (#85)
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const createGroupFromRow = (recipe: string) => setRenamingGroup(doc.createGroupFromRow(recipe)); // name it right away
   const removeFromGroup = doc.removeFromGroup;
@@ -570,6 +573,7 @@ function Block({ blockId }: { blockId: number }) {
         onToggleEnabled={toggleBlockEnabled}
         onCopySetup={copySetup}
         onExport={() => void exportBlock()}
+        onOpenHistory={() => setHistoryOpen(true)}
         showInGame={{
           pending: showInGame.isPending,
           sent: showInGame.data ? showInGame.data.sent : null,
@@ -807,6 +811,26 @@ function Block({ blockId }: { blockId: number }) {
             setSpoilDialog(null);
           }}
           onClose={() => setSpoilDialog(null)}
+        />
+      )}
+
+      {/* Snapshot history (#85): restore points with restore + diff-vs-current */}
+      {historyOpen && (
+        <SnapshotSheet
+          blockId={blockId}
+          onClose={() => setHistoryOpen(false)}
+          currentName={blockName}
+          currentDoc={solveInput}
+          persistNow={() => (doc.store.state.dirty ? persist() : Promise.resolve())}
+          onRestored={(r) => {
+            // push the restored definition into the open editor — clean, so the
+            // rehydrate can't trigger an auto-save of its own
+            doc.hydrate(r.doc, r.name);
+            setBlockEnabled(r.enabled);
+            // the restored name is authoritative; don't let auto-naming overwrite it
+            customDecided.current = true;
+            setNameCustom(r.name.trim().length > 0);
+          }}
         />
       )}
 

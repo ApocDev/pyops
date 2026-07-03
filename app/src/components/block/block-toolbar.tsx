@@ -1,5 +1,15 @@
 import { useStore } from "@tanstack/react-store";
-import { Check, Copy, Download, Gamepad2, Grid2x2, Hammer, Power, Star } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Download,
+  Gamepad2,
+  Grid2x2,
+  Hammer,
+  History,
+  Power,
+  Star,
+} from "lucide-react";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Input } from "#/components/ui/input.tsx";
@@ -34,6 +44,7 @@ export function BlockToolbar({
   onToggleEnabled,
   onCopySetup,
   onExport,
+  onOpenHistory,
   showInGame,
   buildCost,
   onOpenIconPicker,
@@ -51,6 +62,8 @@ export function BlockToolbar({
   onCopySetup: () => void;
   /** download this block as a shareable JSON file (#82) */
   onExport: () => void;
+  /** open the snapshot-history drawer (#85) */
+  onOpenHistory: () => void;
   showInGame: { pending: boolean; sent: boolean | null; onShow: () => void };
   buildCost: SolveResult["buildCost"] | undefined;
   onOpenIconPicker: () => void;
@@ -121,6 +134,15 @@ export function BlockToolbar({
         className="text-muted-foreground"
       >
         <Download className="size-4" />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon-sm"
+        onClick={onOpenHistory}
+        title="Snapshots — this block's restore points: snapshot now, diff against the current state, restore"
+        className="text-muted-foreground"
+      >
+        <History className="size-4" />
       </Button>
       <Button
         variant="outline"
@@ -299,6 +321,15 @@ export function BlockToolbar({
               <span>
                 exports this block as a shareable JSON file — import it into any project from{" "}
                 <span className="text-foreground">Settings → Backup &amp; share</span>;
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              <History className="mt-0.5 size-4 shrink-0 text-foreground" />
+              <span>
+                <span className="text-foreground">Snapshots</span> — this block&apos;s restore
+                points: take a named snapshot before a big refactor, diff any snapshot against the
+                current state, and restore it (automatic snapshots are also taken before deletes,
+                restores, and resizes);
               </span>
             </li>
             <li className="flex items-start gap-2">

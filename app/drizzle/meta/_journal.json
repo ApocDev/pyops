@@ -36,6 +36,13 @@
       "when": 1783047942312,
       "tag": "0004_undo_log",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1783050200687,
+      "tag": "0005_add_block_snapshots",
+      "breakpoints": true
     }
   ]
 }
