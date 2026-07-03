@@ -1,0 +1,53 @@
+app/drizzle/0005_add_block_snapshots.sql
+  s_9be9645d11a3e7::t_a6e9fd250e5d8e 1-14
+app/drizzle/meta/0005_snapshot.json
+  s_9be9645d11a3e7::t_fd8c939a6c0b10 1-2505
+app/drizzle/meta/_journal.json
+  s_9be9645d11a3e7::t_805b50c3f92f87 39-45
+app/src/components/block/block-toolbar.tsx
+  s_9be9645d11a3e7::t_8e8dbb4bf653cb 2-12,47,65-66,138-146,326-334
+app/src/components/block/snapshot-diff.tsx
+  s_9be9645d11a3e7::t_031288d32a1865 1-229
+app/src/components/block/snapshot-sheet.tsx
+  s_9be9645d11a3e7::t_94aacbf5109917 1-269
+app/src/lib/block-diff.test.ts
+  s_9be9645d11a3e7::t_7c9f319f650577 1-157
+app/src/lib/block-diff.ts
+  s_9be9645d11a3e7::t_1bd41f495a82f0 1-150
+app/src/routes/block.$id.tsx
+  s_9be9645d11a3e7::t_4610e238fcc513 39,110-111,523,764-783
+app/src/server/snapshot-fns.ts
+  s_9be9645d11a3e7::t_f8bee02c6911bb 1-59
+app/src/server/snapshots.test.ts
+  s_9be9645d11a3e7::t_1ddc51539bab29 1-240
+app/src/db/schema.ts
+  s_61e3d10b37cf80::t_04119696faad22 421-446
+app/src/server/factorio.ts
+  s_61e3d10b37cf80::t_5e8f2e554ceab5 30,225-228,254-256,463-464
+app/src/server/snapshots.server.ts
+  s_61e3d10b37cf80::t_d3612f58106a51 1-215
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "dc9108acc16045ea479c6b7758d261a14253ab4d",
+  "prompts": {},
+  "sessions": {
+    "s_61e3d10b37cf80": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a3a93339286feee5d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
