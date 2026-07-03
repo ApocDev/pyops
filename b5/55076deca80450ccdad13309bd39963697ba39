@@ -1,0 +1,59 @@
+README.md
+  s_aad89dfae48fc4::t_df61e833f773d4 64-69
+app/e2e/README.md
+  s_aad89dfae48fc4::t_563fc1fde2dde2 79-81
+app/e2e/mut/palette.e2e.ts
+  s_aad89dfae48fc4::t_cada2910bc6efc 6-9,14-17,89-156
+app/src/components/command-palette.tsx
+  s_aad89dfae48fc4::t_92ddd07bfec848 3-4,7,10,13,31-42,46-48,75-93,111-115,121-157,183-188,191,197,200,248,255-257,296,307-312,314,320
+app/src/components/shortcut-help-sheet.tsx
+  s_aad89dfae48fc4::t_2d573d74733ed8 1-79
+app/src/lib/hotkeys.test.ts
+  s_aad89dfae48fc4::t_741af42c5d6fe7 6,11,211-245
+app/src/lib/hotkeys.ts
+  s_4b15f540ec769f::t_992c7aa3dcd1f3 165-166,171-214
+app/src/lib/recents.test.ts
+  s_758187eabfe90c::t_40557cb7d65138 1-84
+app/src/lib/recents.ts
+  s_aad89dfae48fc4::t_89cc6d894ea044 1-75
+app/src/routes/__root.tsx
+  s_758187eabfe90c::t_244587dcdfb5fa 11,69
+app/src/routes/block.$id.tsx
+  s_aad89dfae48fc4::t_998debdb3b3fc4 27,169-171
+app/src/routes/browse.tsx
+  s_aad89dfae48fc4::t_7607ec104e37da 3,7,60-73
+docs/design.md
+  s_aad89dfae48fc4::t_2b7e14c01ae806 117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b555076deca80450ccdad13309bd39963697ba39",
+  "prompts": {},
+  "sessions": {
+    "s_4b15f540ec769f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a5ec51233a12cb82c",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_758187eabfe90c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a588a93f4286cca3d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_aad89dfae48fc4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aceb64b791005eeb5",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
