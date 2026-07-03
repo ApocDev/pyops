@@ -10,6 +10,7 @@
  */
 import * as t from "../../../db/tasks.server.ts";
 import type { TaskLink } from "../../../db/tasks.server.ts";
+import { withUndoAction } from "../../undo-action.server.ts";
 import type { BridgeRequest, BridgeResponse } from "../protocol.ts";
 
 export async function handleTaskCapture(req: BridgeRequest): Promise<BridgeResponse | null> {
@@ -33,17 +34,19 @@ export async function handleTaskCapture(req: BridgeRequest): Promise<BridgeRespo
     };
   }
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-  const { id, title: created } = t.captureTask({
-    text: text || title,
-    title: title || null,
-    body: typeof p.body === "string" ? p.body : null,
-    anchor: p.anchor !== false,
-    player: req.player ?? null,
-    surface: typeof p.surface === "string" ? p.surface : null,
-    x: num(p.x),
-    y: num(p.y),
-    entity: typeof p.entity === "string" ? p.entity : null,
-  });
+  const { id, title: created } = await withUndoAction("Capture task", () =>
+    t.captureTask({
+      text: text || title,
+      title: title || null,
+      body: typeof p.body === "string" ? p.body : null,
+      anchor: p.anchor !== false,
+      player: req.player ?? null,
+      surface: typeof p.surface === "string" ? p.surface : null,
+      x: num(p.x),
+      y: num(p.y),
+      entity: typeof p.entity === "string" ? p.entity : null,
+    }),
+  );
   return {
     type: "task.captured",
     request_id: req.request_id,

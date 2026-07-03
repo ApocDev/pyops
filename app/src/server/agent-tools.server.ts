@@ -22,6 +22,7 @@ import * as tasksDb from "../db/tasks.server.ts";
 import { requestFromMod } from "./bridge/inspect.ts";
 import { computeBlock, showBlockInGame, hideBlockInGame } from "./block-compute.server.ts";
 import { chooseModuleFill } from "./module-fill.server.ts";
+import { withUndoAction } from "./undo-action.server.ts";
 
 /** Electricity & heat are energy pseudo-fluids surfaced separately as powerW/heatW.
  * recipeIo (and thus the stoichiometric chainStatus) never lists them as recipe
@@ -842,10 +843,14 @@ export const createTask = tool({
     links: z.array(LINK_SHAPE).optional().describe("Entity references to attach as chips"),
   }),
   execute: async ({ title, body, parentId, steps, links }) => {
-    const t = tasksDb;
-    const id = t.createTask({ title, body, parentId: parentId ?? null });
-    for (const s of steps ?? []) if (s.trim()) t.addStep(id, s);
-    for (const l of links ?? []) t.addLink(id, l.kind, l.name);
+    // one undoable action for the whole tool call — task + steps + links (#90)
+    const id = await withUndoAction(`Assistant: create task "${title}"`, () => {
+      const t = tasksDb;
+      const taskId = t.createTask({ title, body, parentId: parentId ?? null });
+      for (const s of steps ?? []) if (s.trim()) t.addStep(taskId, s);
+      for (const l of links ?? []) t.addLink(taskId, l.kind, l.name);
+      return taskId;
+    });
     return { ok: true, id, title };
   },
 });
@@ -860,7 +865,9 @@ export const updateTask = tool({
     status: z.enum(["open", "in_progress", "done", "closed"]).optional(),
   }),
   execute: async ({ id, title, body, status }) => {
-    tasksDb.updateTask(id, { title, body, status });
+    await withUndoAction("Assistant: update task", () =>
+      tasksDb.updateTask(id, { title, body, status }),
+    );
     return { ok: true };
   },
 });
@@ -868,7 +875,10 @@ export const updateTask = tool({
 export const addTaskStep = tool({
   description: "Append a checklist step to an existing task.",
   inputSchema: z.object({ taskId: z.number().int(), text: z.string() }),
-  execute: async ({ taskId, text }) => ({ ok: true, id: tasksDb.addStep(taskId, text) }),
+  execute: async ({ taskId, text }) => ({
+    ok: true,
+    id: await withUndoAction("Assistant: add task step", () => tasksDb.addStep(taskId, text)),
+  }),
 });
 
 export const linkTask = tool({
@@ -883,7 +893,7 @@ export const linkTask = tool({
   }),
   execute: async ({ taskId, kind, name }) => ({
     ok: true,
-    id: tasksDb.addLink(taskId, kind, name),
+    id: await withUndoAction("Assistant: link task", () => tasksDb.addLink(taskId, kind, name)),
   }),
 });
 

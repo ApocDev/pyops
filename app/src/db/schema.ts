@@ -599,6 +599,51 @@ export const notes = sqliteTable("notes", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });
 
+/* ── Undo system (#90) ──────────────────────────────────────────────────
+ * Trigger-based inverse log per sqlite.org/undoredo.html: AFTER INSERT/UPDATE/
+ * DELETE triggers on the USER-PLANNING tables (blocks, block_groups,
+ * module_presets, tasks, task_steps, task_links, notes — never imported
+ * reference data, caches like block_flows/block_machines, or the undo tables
+ * themselves) write the inverse SQL statement into `undo_log`. The triggers
+ * live in the migration (drizzle can't model triggers); they only fire while a
+ * row exists in `undo_current` — the current-action marker opened by
+ * `withUndoAction` (server/undo.server.ts) — so any write that bypasses the
+ * wrapper is simply untracked (fail-soft), never logged as an orphan.
+ *
+ * NOTE: adding a column to a triggered table requires regenerating that
+ * table's triggers in the same migration — `undo.test.ts` has a coverage
+ * check that fails when a trigger goes stale. */
+
+/** One undo step = one user action (possibly many row changes). Linear stack:
+ * undo pops strictly from the top. Retention keeps the last 50. */
+export const undoActions = sqliteTable("undo_actions", {
+  id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text().notNull(), // human description ("Delete block \"Iron Pulp\"")
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+});
+
+/** Inverse statements, written by the triggers. Executing an action's rows in
+ * reverse id order inside one transaction reverts the action. `tbl`/`rowId`
+ * identify the touched row so undoLast can report changed block ids. */
+export const undoLog = sqliteTable(
+  "undo_log",
+  {
+    id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    actionId: integer("action_id").notNull(),
+    tbl: text().notNull(),
+    rowId: integer("row_id").notNull(),
+    stmt: text().notNull(), // the inverse SQL statement
+  },
+  (t) => [index("undo_log_action_idx").on(t.actionId)],
+);
+
+/** The current-action marker: at most one row (id = 1). Present only while a
+ * tracked `withUndoAction` runs; the triggers' WHEN clause checks it. */
+export const undoCurrent = sqliteTable("undo_current", {
+  id: integer({ mode: "number" }).primaryKey(),
+  actionId: integer("action_id").notNull(),
+});
+
 /** Entity links on a task: a polymorphic reference to a domain object, rendered
  * as an icon+display chip. `ref_kind` selects how `ref_name` resolves — an
  * internal name for item/fluid/recipe/technology, or the block id (as text) for

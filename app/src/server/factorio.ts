@@ -26,7 +26,10 @@ import { computeCostAnalysis } from "./cost-analysis.server.ts";
 import { currentDatabaseFile } from "../db/index.server.ts";
 import { factoryWhatIf } from "./factory-solve.server.ts";
 import { APP_CONFIG_FILE, DATA_DIR, ICON_DATA_DIR, PROJECTS_DIR } from "./paths.server.ts";
+import { withUndoAction } from "./undo-action.server.ts";
 import {
+  blockSaveConflict,
+  blockUpdatedAt,
   boundaryFlows,
   computeBlock,
   defaultFuel,
@@ -166,14 +169,19 @@ export const listModulePresetsFn = createServerFn({ method: "GET" }).handler(asy
 
 export const saveModulePresetFn = createServerFn({ method: "POST" })
   .validator((d: { name: string; modules: string[]; beacons: BeaconConfig[] }) => d)
-  .handler(async ({ data }) => ({
-    id: q.saveModulePreset(data.name.trim() || "Preset", data.modules, data.beacons),
-  }));
+  .handler(async ({ data }) => {
+    const name = data.name.trim() || "Preset";
+    return {
+      id: await withUndoAction(`Save module preset "${name}"`, () =>
+        q.saveModulePreset(name, data.modules, data.beacons),
+      ),
+    };
+  });
 
 export const deleteModulePresetFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => {
-    q.deleteModulePreset(data);
+    await withUndoAction("Delete module preset", () => q.deleteModulePreset(data));
     return { ok: true };
   });
 
@@ -192,20 +200,39 @@ export const bridgeShowBlockFn = createServerFn({ method: "POST" })
  * The name defaults to the target product; the icon columns cache the resolved
  * icon — the doc's explicit `icon` pick (#40) when set, else the first goal. */
 export const saveBlockFn = createServerFn({ method: "POST" })
-  .validator((d: { id?: number | null; name?: string; data: SolveInput }) => d)
+  .validator(
+    (d: {
+      id?: number | null;
+      name?: string;
+      data: SolveInput;
+      /** Custom undo-stack description ("Remove 3 recipes from Iron Pulp");
+       * defaults to Create/Edit block "<name>". */
+      actionName?: string;
+      /** Staleness guard (#90): the `updatedAt` (epoch seconds) of the row this
+       * editor hydrated from. When the stored row is NEWER, the save is
+       * rejected with `{ conflict: true }` — a stale editor (second tab, or one
+       * that idled through an undo/external write) must rehydrate instead of
+       * clobbering the newer state. Omit to skip the check (legacy behavior). */
+      baseUpdatedAt?: number | null;
+    }) => d,
+  )
   .handler(async ({ data }) => {
+    if (data.id != null && data.baseUpdatedAt != null) {
+      const conflict = blockSaveConflict(data.id, data.baseUpdatedAt);
+      if (conflict) return conflict;
+    }
     const r = await computeBlock(data.data);
     const doc = normalizeBlockData(data.data) as SolveInput;
     const primary = primaryGoal(doc)?.name ?? "";
     const targetKind = q.getFluid(primary) ? "fluid" : "item";
     const name = data.name?.trim() || r.display[primary] || primary || "New block";
     const icon = doc.icon ?? { kind: targetKind, name: primary };
-    const id = await persistBlock(
-      { id: data.id, name, iconKind: icon.kind, iconName: icon.name },
-      data.data,
-      r,
+    const action =
+      data.actionName ?? (data.id != null ? `Edit block "${name}"` : `Create block "${name}"`);
+    const id = await withUndoAction(action, () =>
+      persistBlock({ id: data.id, name, iconKind: icon.kind, iconName: icon.name }, data.data, r),
     );
-    return { id, name };
+    return { id, name, updatedAt: blockUpdatedAt(id) };
   });
 
 export const listBlocksFn = createServerFn({ method: "GET" }).handler(async () => q.listBlocks());
@@ -217,7 +244,9 @@ export const loadBlockFn = createServerFn({ method: "GET" })
 export const deleteBlockFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => {
-    q.deleteBlock(data);
+    const row = q.getBlock(data);
+    if (!row) return { ok: true };
+    await withUndoAction(`Delete block "${row.name}"`, () => q.deleteBlock(data));
     return { ok: true };
   });
 
@@ -231,7 +260,10 @@ export const deleteBlockIfEmptyFn = createServerFn({ method: "POST" })
     if (!row) return { deleted: false };
     const d = normalizeBlockData(row.data as SolveInput);
     const empty = goalNames(d).length === 0 && (d.recipes?.length ?? 0) === 0;
-    if (empty) q.deleteBlock(data);
+    // deliberately untracked (#90): reverting "closed an untouched New block
+    // tab" would be pure noise on the undo stack, and nothing is lost
+    if (empty)
+      await withUndoAction("discard empty block", () => q.deleteBlock(data), { undo: false });
     return { deleted: empty };
   });
 
@@ -279,31 +311,42 @@ export const productionComparisonFn = createServerFn({ method: "GET" }).handler(
 
 /** Re-solve every block and refresh its cached I/O flows + power, keeping its
  * identity (id/name/icon/data). Use after a solver change makes caches stale. */
-export const recomputeAllBlocksFn = createServerFn({ method: "POST" }).handler(async () => {
-  let ok = 0;
-  let broken = 0;
-  const failed: { id: number; name: string; error: string }[] = [];
-  for (const b of q.listBlocks()) {
-    const row = q.getBlock(b.id);
-    if (!row) continue;
-    try {
-      const data = row.data as SolveInput;
-      const r = await computeBlock(data);
-      // broken blocks keep their last-good cache (persistBlock passes null flows);
-      // count them separately so the caller can report what still needs attention
-      if (r.broken) broken++;
-      await persistBlock(
-        { id: row.id, name: row.name, iconKind: row.iconKind, iconName: row.iconName },
-        data,
-        r,
-      );
-      ok++;
-    } catch (e) {
-      failed.push({ id: b.id, name: b.name, error: e instanceof Error ? e.message : String(e) });
-    }
-  }
-  return { ok, broken, failed };
-});
+export const recomputeAllBlocksFn = createServerFn({ method: "POST" }).handler(async () =>
+  // system cache refresh, not a user edit — keep it off the undo stack (#90)
+  withUndoAction(
+    "recompute all blocks",
+    async () => {
+      let ok = 0;
+      let broken = 0;
+      const failed: { id: number; name: string; error: string }[] = [];
+      for (const b of q.listBlocks()) {
+        const row = q.getBlock(b.id);
+        if (!row) continue;
+        try {
+          const data = row.data as SolveInput;
+          const r = await computeBlock(data);
+          // broken blocks keep their last-good cache (persistBlock passes null flows);
+          // count them separately so the caller can report what still needs attention
+          if (r.broken) broken++;
+          await persistBlock(
+            { id: row.id, name: row.name, iconKind: row.iconKind, iconName: row.iconName },
+            data,
+            r,
+          );
+          ok++;
+        } catch (e) {
+          failed.push({
+            id: b.id,
+            name: b.name,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
+      return { ok, broken, failed };
+    },
+    { undo: false },
+  ),
+);
 
 /** Drill-down: blocks producing/consuming one good (for the factory resource view). */
 export const blocksForGoodFn = createServerFn({ method: "GET" })
@@ -409,10 +452,12 @@ export const setBlockRateFn = createServerFn({ method: "POST" })
     ) as SolveInput;
     const r = await computeBlock(input);
     if (r.broken) return { ok: false, broken: true };
-    await persistBlock(
-      { id: row.id, name: row.name, iconKind: row.iconKind, iconName: row.iconName },
-      input,
-      r,
+    await withUndoAction(`Set "${row.name}" rate`, () =>
+      persistBlock(
+        { id: row.id, name: row.name, iconKind: row.iconKind, iconName: row.iconName },
+        input,
+        r,
+      ),
     );
     return { ok: true };
   });
@@ -927,51 +972,59 @@ export const listGroupsFn = createServerFn({ method: "GET" }).handler(async () =
 
 export const createGroupFn = createServerFn({ method: "POST" })
   .validator((name: string) => name)
-  .handler(async ({ data }) => ({ id: q.createGroup(data.trim() || "New folder") }));
+  .handler(async ({ data }) => {
+    const name = data.trim() || "New folder";
+    return { id: await withUndoAction(`Create folder "${name}"`, () => q.createGroup(name)) };
+  });
 
 export const renameGroupFn = createServerFn({ method: "POST" })
   .validator((d: { id: number; name: string }) => d)
   .handler(async ({ data }) => {
-    q.renameGroup(data.id, data.name.trim() || "Folder");
+    const name = data.name.trim() || "Folder";
+    await withUndoAction(`Rename folder to "${name}"`, () => q.renameGroup(data.id, name));
     return { ok: true };
   });
 
 export const deleteGroupFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => {
-    q.deleteGroup(data);
+    await withUndoAction("Delete folder", () => q.deleteGroup(data));
     return { ok: true };
   });
 
 export const setBlockGroupFn = createServerFn({ method: "POST" })
   .validator((d: { blockId: number; groupId: number | null }) => d)
   .handler(async ({ data }) => {
-    q.setBlockGroup(data.blockId, data.groupId);
+    await withUndoAction("Move block to folder", () => q.setBlockGroup(data.blockId, data.groupId));
     return { ok: true };
   });
 
 export const setBlockEnabledFn = createServerFn({ method: "POST" })
   .validator((d: { blockId: number; enabled: boolean }) => d)
   .handler(async ({ data }) => {
-    q.setBlockEnabled(data.blockId, data.enabled);
+    await withUndoAction(data.enabled ? "Enable block" : "Disable block", () =>
+      q.setBlockEnabled(data.blockId, data.enabled),
+    );
     return { ok: true };
   });
 
 export const setGroupParentFn = createServerFn({ method: "POST" })
   .validator((d: { id: number; parentId: number | null }) => d)
-  .handler(async ({ data }) => ({ ok: q.setGroupParent(data.id, data.parentId) }));
+  .handler(async ({ data }) => ({
+    ok: await withUndoAction("Move folder", () => q.setGroupParent(data.id, data.parentId)),
+  }));
 
 export const setBlockOrderFn = createServerFn({ method: "POST" })
   .validator((ids: number[]) => ids)
   .handler(async ({ data }) => {
-    q.setBlockOrder(data);
+    await withUndoAction("Reorder blocks", () => q.setBlockOrder(data));
     return { ok: true };
   });
 
 export const setGroupOrderFn = createServerFn({ method: "POST" })
   .validator((ids: number[]) => ids)
   .handler(async ({ data }) => {
-    q.setGroupOrder(data);
+    await withUndoAction("Reorder folders", () => q.setGroupOrder(data));
     return { ok: true };
   });
 

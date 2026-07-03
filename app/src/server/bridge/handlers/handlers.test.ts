@@ -23,6 +23,10 @@ vi.mock("../../../db/queries.server.ts", () => ({
   metaSet: vi.fn(),
 }));
 vi.mock("../../block-compute.server.ts", () => ({ resolveAllBlocks: vi.fn() }));
+// pass-through: the undo wrapper's own behavior is covered by undo.test.ts
+vi.mock("../../undo-action.server.ts", () => ({
+  withUndoAction: vi.fn((_name: string, fn: () => unknown) => Promise.resolve(fn())),
+}));
 vi.mock("../../../db/tasks.server.ts", () => ({
   captureTask: vi.fn(() => ({ id: 7, title: "Build smelters" })),
   listTasks: vi.fn(() => []),

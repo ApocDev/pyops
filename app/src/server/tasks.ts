@@ -13,6 +13,7 @@ import { generateText } from "ai";
 import * as store from "../db/tasks.server.ts";
 import { resolveApiKey } from "./app-config.server.ts";
 import { getModel, reasoningProviderOptions } from "./agent.ts";
+import { withUndoAction } from "./undo-action.server.ts";
 
 /* ── tasks ──────────────────────────────────────────────────────────────────── */
 
@@ -24,7 +25,11 @@ export const getTaskFn = createServerFn({ method: "GET" })
 
 export const createTaskFn = createServerFn({ method: "POST" })
   .validator((d: { parentId?: number | null; title?: string }) => d)
-  .handler(async ({ data }) => ({ id: store.createTask(data) }));
+  .handler(async ({ data }) => ({
+    id: await withUndoAction(data.title ? `Create task "${data.title}"` : "Create task", () =>
+      store.createTask(data),
+    ),
+  }));
 
 export const updateTaskFn = createServerFn({ method: "POST" })
   .validator(
@@ -39,14 +44,14 @@ export const updateTaskFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { id, ...patch } = data;
-    store.updateTask(id, patch);
+    await withUndoAction("Edit task", () => store.updateTask(id, patch));
     return { ok: true };
   });
 
 export const deleteTaskFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => {
-    store.deleteTask(data);
+    await withUndoAction("Delete task", () => store.deleteTask(data));
     return { ok: true };
   });
 
@@ -90,8 +95,15 @@ export const prioritizeTasksFn = createServerFn({ method: "POST" }).handler(asyn
     const valid = new Set(input.map((i) => i.id));
     const rankings = (parsed.rankings ?? []).filter((r) => valid.has(r.id));
     if (!rankings.length) return { ok: false as const, error: "model returned no rankings" };
-    store.setPriorities(
-      rankings.map((r) => ({ id: r.id, priority: r.priority, reason: r.reason ?? null })),
+    // advisory computed state (recomputable), not a user edit — keep it off the
+    // undo stack (#90)
+    await withUndoAction(
+      "prioritize tasks",
+      () =>
+        store.setPriorities(
+          rankings.map((r) => ({ id: r.id, priority: r.priority, reason: r.reason ?? null })),
+        ),
+      { undo: false },
     );
     return { ok: true as const, count: rankings.length };
   } catch (e) {
@@ -135,7 +147,9 @@ export const enrichTaskFn = createServerFn({ method: "POST" })
       const title = typeof parsed.title === "string" ? parsed.title.trim() : "";
       const body = typeof parsed.body === "string" ? parsed.body : "";
       if (!title && !body) return { ok: false as const, error: "model returned nothing usable" };
-      store.updateTask(data, { title: title || task.title, body: body || task.body });
+      await withUndoAction("Enrich task", () =>
+        store.updateTask(data, { title: title || task.title, body: body || task.body }),
+      );
       return { ok: true as const, title: title || task.title };
     } catch (e) {
       return { ok: false as const, error: e instanceof Error ? e.message : "enrichment failed" };
@@ -156,20 +170,22 @@ function extractJsonObject(text: string): string {
 
 export const addStepFn = createServerFn({ method: "POST" })
   .validator((d: { taskId: number; text: string }) => d)
-  .handler(async ({ data }) => ({ id: store.addStep(data.taskId, data.text) }));
+  .handler(async ({ data }) => ({
+    id: await withUndoAction("Add task step", () => store.addStep(data.taskId, data.text)),
+  }));
 
 export const updateStepFn = createServerFn({ method: "POST" })
   .validator((d: { id: number; text?: string; done?: boolean }) => d)
   .handler(async ({ data }) => {
     const { id, ...patch } = data;
-    store.updateStep(id, patch);
+    await withUndoAction("Edit task step", () => store.updateStep(id, patch));
     return { ok: true };
   });
 
 export const deleteStepFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => {
-    store.deleteStep(data);
+    await withUndoAction("Delete task step", () => store.deleteStep(data));
     return { ok: true };
   });
 
@@ -182,13 +198,15 @@ export const searchLinkTargetsFn = createServerFn({ method: "GET" })
 export const addLinkFn = createServerFn({ method: "POST" })
   .validator((d: { taskId: number; kind: RefKind; refName: string }) => d)
   .handler(async ({ data }) => ({
-    id: store.addLink(data.taskId, data.kind, data.refName),
+    id: await withUndoAction("Link task", () =>
+      store.addLink(data.taskId, data.kind, data.refName),
+    ),
   }));
 
 export const removeLinkFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => {
-    store.removeLink(data);
+    await withUndoAction("Remove task link", () => store.removeLink(data));
     return { ok: true };
   });
 
@@ -203,19 +221,21 @@ export const listNotesFn = createServerFn({ method: "GET" }).handler(async () =>
 
 export const createNoteFn = createServerFn({ method: "POST" })
   .validator((d: { title?: string; body?: string }) => d)
-  .handler(async ({ data }) => ({ id: store.createNote(data) }));
+  .handler(async ({ data }) => ({
+    id: await withUndoAction("Create note", () => store.createNote(data)),
+  }));
 
 export const updateNoteFn = createServerFn({ method: "POST" })
   .validator((d: { id: number; title?: string | null; body?: string | null }) => d)
   .handler(async ({ data }) => {
     const { id, ...patch } = data;
-    store.updateNote(id, patch);
+    await withUndoAction("Edit note", () => store.updateNote(id, patch));
     return { ok: true };
   });
 
 export const deleteNoteFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => {
-    store.deleteNote(data);
+    await withUndoAction("Delete note", () => store.deleteNote(data));
     return { ok: true };
   });

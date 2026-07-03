@@ -13,6 +13,7 @@ import { goalNames, normalizeBlockData } from "../lib/goals";
 import { fmtTemp, fmtTempRange } from "../lib/format";
 import type { Goal } from "../db/schema.ts";
 import * as q from "../db/queries.server.ts";
+import { withUndoAction } from "./undo-action.server.ts";
 import { ensureBridge, sendToPeer } from "./bridge/server.ts";
 
 /** Pseudo-fluids modeling energy flows (1 unit = 1 MJ → rate/s = MW). Electricity
@@ -794,6 +795,28 @@ export async function persistBlock(
   );
 }
 
+/** A block row's `updatedAt` as epoch seconds (the editor's hydration point). */
+export function blockUpdatedAt(id: number): number | null {
+  const row = q.getBlock(id);
+  return row?.updatedAt ? Math.floor(row.updatedAt.getTime() / 1000) : null;
+}
+
+/** Multi-tab / undo staleness guard (#90): when the stored block row is NEWER
+ * than `baseUpdatedAt` (the row the editor hydrated from, epoch seconds), the
+ * save must be rejected — a stale editor (second tab, or one that idled through
+ * an undo/external write) would otherwise clobber the newer state wholesale.
+ * Returns the conflict payload to send back, or null when the save may proceed. */
+export function blockSaveConflict(
+  id: number,
+  baseUpdatedAt: number,
+): { conflict: true; id: number; name: string; updatedAt: number } | null {
+  const cur = q.getBlock(id);
+  const curAt = cur?.updatedAt ? Math.floor(cur.updatedAt.getTime() / 1000) : null;
+  if (cur && curAt != null && curAt > baseUpdatedAt)
+    return { conflict: true, id: cur.id, name: cur.name, updatedAt: curAt };
+  return null;
+}
+
 /** Push a block's solved summary to the game so the mod can render an in-game
  * build sheet (Helmod-style): the buildings + counts (each clickable for a
  * configured blueprint), plus inputs/outputs and power. Fire-and-forget; returns
@@ -925,20 +948,28 @@ export async function hideBlockInGame() {
 }
 
 /** Re-solve every saved block and refresh its cached flows — used after a
- * global change (TURD selection, research). Returns how many were re-solved. */
+ * global change (TURD selection, research). Returns how many were re-solved.
+ * A system cache refresh, not a user edit: it runs with undo tracking OFF so
+ * the wholesale block-row rewrites never land on the undo stack (#90). */
 export async function resolveAllBlocks() {
-  const all = q.listBlocks();
-  for (const b of all) {
-    const row = q.getBlock(b.id);
-    if (!row) continue;
-    const data = row.data as SolveInput;
-    const r = await computeBlock(data);
-    // broken blocks keep their last-good cache (persistBlock passes null flows)
-    await persistBlock(
-      { id: b.id, name: row.name, iconKind: row.iconKind, iconName: row.iconName },
-      data,
-      r,
-    );
-  }
-  return all.length;
+  return withUndoAction(
+    "resolve all blocks",
+    async () => {
+      const all = q.listBlocks();
+      for (const b of all) {
+        const row = q.getBlock(b.id);
+        if (!row) continue;
+        const data = row.data as SolveInput;
+        const r = await computeBlock(data);
+        // broken blocks keep their last-good cache (persistBlock passes null flows)
+        await persistBlock(
+          { id: b.id, name: row.name, iconKind: row.iconKind, iconName: row.iconName },
+          data,
+          r,
+        );
+      }
+      return all.length;
+    },
+    { undo: false },
+  );
 }
