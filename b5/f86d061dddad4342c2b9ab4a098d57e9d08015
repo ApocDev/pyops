@@ -1,0 +1,47 @@
+app/src/components/goods-table.tsx
+  s_9be9645d11a3e7::t_41a31594750a3e 16,20,23,58-62,124-125,161
+app/src/lib/machine-count.test.ts
+  s_9be9645d11a3e7::t_8d8664e5435a3c 1-38
+app/src/routes/turd.tsx
+  s_9be9645d11a3e7::t_c0dd0336615f87 17
+app/e2e/factory-machines.e2e.ts
+  s_4b15f540ec769f::t_5e9197646a11dd 1-65
+app/src/components/factory/machines-card.tsx
+  s_4b15f540ec769f::t_e32c1ff56dc025 1-228
+app/src/components/stat-sort-header.tsx
+  s_4b15f540ec769f::t_7427cbe8ee323c 1-51
+app/src/lib/format.ts
+  s_4b15f540ec769f::t_3bd863455d59ec 76-83
+app/src/lib/machine-count.ts
+  s_4b15f540ec769f::t_4b498e143e2d27 1-19
+app/src/lib/use-table-prefs.ts
+  s_4b15f540ec769f::t_51701e8af4c9cd 1-46
+app/src/routes/factory.tsx
+  s_4b15f540ec769f::t_766982a2f6f6e5 31,41,379-385
+docs/design.md
+  s_4b15f540ec769f::t_eea8b44dd4638a 118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b5f86d061dddad4342c2b9ab4a098d57e9d08015",
+  "prompts": {},
+  "sessions": {
+    "s_4b15f540ec769f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a5ec51233a12cb82c",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
