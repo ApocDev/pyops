@@ -49,8 +49,9 @@ dev, a per-OS user-data dir for a packaged build, overridable via `PYOPS_DATA_DI
   reports fractional building counts.
 - `db/` — Drizzle ORM over `better-sqlite3`. `schema.ts` is the source of truth;
   `import-factorio.ts` loads the dump; `synthesize.ts` builds pass-2 synthetic
-  recipes (mining/boiling/burning/spoiling, temperature variants). Quality is
-  intentionally not modelled (Py has none); fluid temperatures **are**.
+  recipes (mining/boiling/burning/spoiling/planting/rocket-launch, temperature
+  variants). Quality is intentionally not modelled (Py has none); fluid
+  temperatures **are**.
 - `lib/`, `components/` — React UI (shadcn/Radix + Tailwind v4).
 
 ## Build & verify (the `app/` toolchain)

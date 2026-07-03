@@ -18,8 +18,8 @@ orchestrated end-to-end from **Settings › Game data** in the UI
 3. **Disable the helper mod again** — it must never be active during normal play.
 4. **Import** the dump into SQLite (`app/src/db/import-factorio.ts`), then
    synthesize the recipes the engine doesn't model as recipes: mining, boiling,
-   burning, spoiling, and per-temperature fluid variants
-   (`app/src/db/synthesize.ts`).
+   burning, spoiling, planting (agricultural towers), rocket launches, and
+   per-temperature fluid variants (`app/src/db/synthesize.ts`).
 5. **Rebuild the icon atlas** (`buildIconAtlas`, `app/src/server/icon-atlas.ts`):
    pack the dumped sprites into content-hash-deduped 4096² sheets + a
    `(type, name) → slot` manifest, written to the data dir's `icon-data/`. The app
