@@ -1,0 +1,21 @@
+README.md
+  s_e22e05e91345be::t_66301dd131ddad 62-65
+docs/design.md
+  s_e22e05e91345be::t_d0861dbffc5bc6 114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "7c8e940b5bcff6349adaf44eaadac52fe91ca065",
+  "prompts": {},
+  "sessions": {
+    "s_e22e05e91345be": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-abd3c1a71b74f59c9",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
