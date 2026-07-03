@@ -1,0 +1,41 @@
+app/src/server/agent-tools.server.ts
+  s_9be9645d11a3e7::t_4180eeb1ffeab3 27-29,31-36,621,624
+app/src/server/agent-tools.test.ts
+  s_9be9645d11a3e7::t_525a889c199db5 1-97
+app/src/server/block-compute.test.ts
+  s_9be9645d11a3e7::t_9a1ce54640c27a 32-39,45,500-601
+app/src/server/factory-solve.server.ts
+  s_9be9645d11a3e7::t_5f6257605ed637 26-32
+README.md
+  s_af2318e964c488::t_7fd54d1fcb73c5 139-143
+app/src/server/agent.ts
+  s_af2318e964c488::t_e5cfa125765d10 105
+app/src/server/factory-solve.test.ts
+  s_af2318e964c488::t_ba4b94c458b6f5 65-156
+docs/solver.md
+  s_af2318e964c488::t_a5638365127994 67-76,164-171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6e13841d2868fff5bf6ffe64926777f52184788b",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_af2318e964c488": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a2e3e8a59232fcdce",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
