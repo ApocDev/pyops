@@ -6,6 +6,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import * as b from "./server.ts";
+import { requestFromMod } from "./inspect.ts";
 import { factorioLaunchInfo, launchFactorio } from "../factorio-launch.server.ts";
 
 /** Ensure the bridge is listening and return its status. Calling this from the
@@ -32,6 +33,21 @@ export const bridgeLocateFn = createServerFn({ method: "POST" })
     return {
       sent: b.sendToPeer({ type: "cmd.locate", payload: { name: data.name, kind: data.kind } }),
     };
+  });
+
+/** Run a user-APPROVED Lua snippet in the game (#15) — the apply half of the
+ * assistant's gameEval propose-then-approve gate. Only the chat card's Run
+ * button calls this; the agent tool itself never executes. The mod refuses when
+ * its `pyops-allow-eval` setting is off (defense in depth). */
+export const bridgeEvalFn = createServerFn({ method: "POST" })
+  .validator((d: { code: string }) => d)
+  .handler(async ({ data }) => {
+    try {
+      const r = await requestFromMod("cmd.eval", { code: data.code }, 8000);
+      return r as { ok: boolean; result?: string; error?: string };
+    } catch (e) {
+      return { ok: false as const, error: e instanceof Error ? e.message : "bridge error" };
+    }
   });
 
 /** State for the "Launch Factorio" button: binary path, Steam-vs-standalone, and

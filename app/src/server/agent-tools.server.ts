@@ -1036,9 +1036,39 @@ export const gameProduction = tool({
   },
 });
 
+/** The in-app assistant's gameEval is gated (#15): the tool call does NOT run
+ * the Lua — it returns the snippet as a PROPOSAL the chat UI renders with a
+ * per-call Run/Dismiss control. Only the user's explicit Run sends `cmd.eval`
+ * over the bridge (`bridgeEvalFn`), which is what makes "the player is in
+ * control" true and lets the agent request careful in-game WRITE actions too. */
 export const gameEval = tool({
   description:
-    "READ live game state via Lua (run in the game by the mod) — for grounding/tracing when the structured game tools (gameContext/inspectArea/findEntities/production) aren't enough: an entity's status/recipe/inventory, fluidbox contents, force/research data, ad-hoc counts. USE IT READ-ONLY: inspect, never mutate — do NOT call destroy/insert/remove/set_*/clear or anything that changes the world. `player` is pre-bound; a bare expression is auto-returned; returns a string repr. Single-player only. Examples: `player.selected.status`, `player.selected.get_recipe().name`, `#player.surface.find_entities_filtered{type='lab'}`, `player.force.technologies['automation'].researched`.",
+    "PROPOSE a Lua snippet to run in the live game (via the companion mod). The snippet is NOT executed by this call: it's shown to the user in the chat with a Run button — every call needs their explicit per-call approval, and they can share the output back with you afterwards. Use it when the structured game tools (gameContext/inspectArea/findEntities/production) aren't enough: deeper reads (an entity's status/recipe/inventory, fluidbox contents, force/research data, ad-hoc counts) or — with the user clearly asking for it — careful in-game write actions (set research, fix an entity's state). Keep each snippet small, single-purpose, and explain what it does in `note`; NEVER bundle unrelated changes. `player` is pre-bound; a bare expression is auto-returned; the result is a string repr. Single-player only. Examples: `player.selected.status`, `#player.surface.find_entities_filtered{type='lab'}`, `player.force.technologies['automation'].researched`. After proposing, tell the user what the snippet does and wait — do NOT assume it ran.",
+  inputSchema: z.object({
+    code: z
+      .string()
+      .describe("Lua chunk — a bare expression, or statements with an explicit return"),
+    note: z
+      .string()
+      .optional()
+      .describe("One line for the user: what this snippet does and why (shown on the card)"),
+  }),
+  execute: async ({ code, note }) => ({
+    proposed: true as const,
+    code,
+    note: note ?? null,
+    status:
+      "awaiting user approval — the snippet runs only if the user clicks Run in the chat; they may share the result with you afterwards",
+  }),
+});
+
+/** Ungated eval for the MCP surface (developer debugging drives the running
+ * game directly — there's no chat UI to approve through). Same body the chat
+ * tool had before the #15 gate; the mod-side `pyops-allow-eval` setting is the
+ * kill switch for both paths. */
+const gameEvalDirect = tool({
+  description:
+    "Run a Lua chunk in the live game (via the companion mod) and return a string repr of the result — full game access, can mutate state. Developer/debugging surface (MCP): there is no approval UI here, so use deliberately. `player` is pre-bound; a bare expression is auto-returned. Single-player only. Examples: `player.selected.status`, `#player.surface.find_entities_filtered{type='lab'}`.",
   inputSchema: z.object({
     code: z
       .string()
@@ -1264,10 +1294,9 @@ export const agentTools = {
   gameInspectArea,
   gameFindEntities,
   gameProduction,
-  // Lua eval — framed READ-ONLY for the assistant (see its description + the
-  // system prompt). It's not *enforced* read-only (the mod runs whatever Lua), so
-  // the guardrail is convention, acceptable here because it's a local
-  // single-player game. Over MCP (developer debugging) it's used with full power.
+  // Lua eval — GATED for the assistant (#15): the tool only PROPOSES the
+  // snippet; the chat UI's per-call Run button executes it (bridgeEvalFn). The
+  // mod-side `pyops-allow-eval` setting is the defense-in-depth kill switch.
   gameEval,
   // Capture the game (GUI included) to a PNG path — for live in-game UI design.
   gameScreenshot,
@@ -1276,4 +1305,12 @@ export const agentTools = {
   // Drive the in-game summary panel for self-testing (open a block / close it).
   gameShowBlock,
   gameCloseSummary,
+};
+
+/** The MCP surface's tool set: identical except gameEval executes DIRECTLY —
+ * MCP is the developer-debugging front door (an external agent driving the
+ * running game), where there is no chat UI to route an approval through. */
+export const mcpTools = {
+  ...agentTools,
+  gameEval: gameEvalDirect,
 };

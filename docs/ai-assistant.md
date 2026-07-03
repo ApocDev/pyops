@@ -165,11 +165,21 @@ about "how do I make X":
   `gameFindEntities`, `gameProduction` query the _running_ factory through the
   bridge (app→mod→Factorio), so the agent can ground a task in real evidence
   ("what's built here", "is X actually being made"). Bounded and structured; they
-  return a clear error when the companion mod isn't connected. Two lower-level
-  tools back the same bridge for developer debugging (used primarily over MCP):
-  `gameEval` runs a Lua chunk in the game for deeper reads (framed read-only by
-  convention, not enforced — fine for a local single-player game), and
-  `gameScreenshot` captures the game (GUI included) to a PNG path, optionally
+  return a clear error when the companion mod isn't connected.
+- **In-game Lua eval, gated per call** (#15) — the in-app assistant's `gameEval`
+  does **not** execute: it returns the snippet as a _proposal_, rendered in the
+  chat as a card (`components/assistant/game-eval-card.tsx`) showing the exact
+  Lua and its `note`, with **Run in game** / **Dismiss** controls. Only the
+  user's Run sends `cmd.eval` over the bridge (`bridgeEvalFn` in
+  `server/bridge/fns.ts`); the result shows inline with a "Share result with
+  assistant" chip that feeds it back into the chat. This makes per-call consent
+  real and lets the agent request careful in-game _write_ actions too. The MCP
+  surface swaps in a direct-executing variant (`mcpTools` in
+  `agent-tools.server.ts`) — developer debugging has no chat UI to approve
+  through. Defense in depth: the mod's `pyops-allow-eval` per-user setting
+  (default on) refuses every `cmd.eval` when off — including the app's
+  screenshot capture, which rides on eval.
+- `gameScreenshot` captures the game (GUI included) to a PNG path, optionally
   auto-cropped to a top-level GUI element (`panel`) or an explicit `crop`/`scale`
   — built for designing the in-game panel live (snap, look, tweak) without a
   Factorio reload.

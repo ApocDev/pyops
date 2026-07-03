@@ -32,6 +32,7 @@ import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Textarea } from "#/components/ui/textarea.tsx";
 import { ConfirmDialog } from "#/components/confirm-dialog.tsx";
 import { FollowUpChips, type FollowUp } from "#/components/assistant/follow-up-chips.tsx";
+import { GameEvalCard, type GameEvalProposal } from "#/components/assistant/game-eval-card.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { ItemHover, RecipeHover } from "#/lib/recipe-card";
 import { formatRate } from "#/lib/format";
@@ -374,7 +375,10 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
         ((p.type === "tool-submitBlock" ||
           p.type === "tool-submitPlan" ||
           p.type === "tool-reviseBlock") &&
-          p.state === "output-available"),
+          p.state === "output-available") ||
+        // a gameEval proposal is a deliberate stop: the turn waits on the user's
+        // per-call approval (#15), it didn't run out of steps
+        isEvalProposal(p),
     );
 
   // Follow the stream: keep pinned to the bottom as content arrives, but don't
@@ -1059,6 +1063,13 @@ function textOfMessage(message: ChatMessage) {
     .trim();
 }
 
+// a gameEval PROPOSAL (#15) renders as an approval card, not tool machinery;
+// legacy transcripts may hold pre-gate outputs ({ ok, … }) — those stay chips
+const isEvalProposal = (part: any) =>
+  part.type === "tool-gameEval" &&
+  part.state === "output-available" &&
+  (part.output as { proposed?: boolean } | null)?.proposed === true;
+
 const isToolPart = (part: any) =>
   (part.type.startsWith("tool-") || part.type === "dynamic-tool") &&
   !(
@@ -1066,7 +1077,8 @@ const isToolPart = (part: any) =>
       part.type === "tool-submitPlan" ||
       part.type === "tool-reviseBlock") &&
     part.state === "output-available"
-  );
+  ) &&
+  !isEvalProposal(part);
 
 // Per-step machinery that sits between tool calls. Reasoning is rendered below.
 const isMachineryPart = (part: any) => part.type === "step-start";
@@ -1123,6 +1135,15 @@ function renderParts(
           key={i}
           plan={part.output as PlanDraftData}
           onFollowUp={onFollowUp}
+          busy={busy}
+        />,
+      );
+    } else if (isEvalProposal(part)) {
+      out.push(
+        <GameEvalCard
+          key={i}
+          proposal={(part as { output: unknown }).output as GameEvalProposal}
+          onShareResult={onFollowUp}
           busy={busy}
         />,
       );

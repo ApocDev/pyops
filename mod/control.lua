@@ -569,6 +569,14 @@ local function lua_repr(value, depth)
 end
 
 local function eval_lua(player, payload)
+  -- Kill switch (#15): the per-user pyops-allow-eval setting (default on)
+  -- refuses every app-driven eval — defense in depth behind the app's per-call
+  -- approval UI. Checked here so it covers every cmd.eval sender (assistant
+  -- approvals, MCP debugging, screenshot capture).
+  local allow = player.mod_settings["pyops-allow-eval"]
+  if allow and allow.value == false then
+    return { ok = false, error = "Lua eval is disabled by the 'Allow app-driven Lua eval' mod setting" }
+  end
   payload = payload or {}
   local code = payload.code
   if type(code) ~= "string" or code == "" then

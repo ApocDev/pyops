@@ -1,8 +1,9 @@
 /**
  * MCP endpoint (`POST /mcp`) — exposes the planning agent's tool set to EXTERNAL
  * MCP clients (e.g. Claude driving the running game to debug the integration),
- * not just the in-app assistant. Same tool bodies as `server/agent-tools.ts`,
- * including the read-only live game-world tools and the task tools.
+ * not just the in-app assistant. Same tool bodies as `server/agent-tools.ts`
+ * (via `mcpTools`), including the live game-world tools and the task tools;
+ * gameEval executes directly here instead of returning a chat proposal (#15).
  *
  * The agent tools are dynamically imported inside the (server-only) handler so
  * better-sqlite3 / the dgram bridge never reach the client bundle.
@@ -12,7 +13,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { ZodRawShape } from "zod";
 
 import { handleMcpRequest } from "#/utils/mcp-handler";
-import { agentTools } from "#/server/agent-tools.server.ts";
+import { mcpTools } from "#/server/agent-tools.server.ts";
 
 /** Minimal shape we rely on from an AI-SDK `tool()` to bridge it to MCP. */
 type AiTool = {
@@ -27,7 +28,9 @@ let serverPromise: Promise<McpServer> | null = null;
 function getServer(): Promise<McpServer> {
   serverPromise ??= (async () => {
     const server = new McpServer({ name: "pyops", version: "1.0.0" });
-    for (const [name, raw] of Object.entries(agentTools)) {
+    // mcpTools = agentTools except gameEval executes directly (#15): MCP is the
+    // developer-debugging surface, with no chat UI to route an approval through.
+    for (const [name, raw] of Object.entries(mcpTools)) {
       const t = raw as AiTool;
       if (!t.execute) continue;
       const exec = t.execute;
