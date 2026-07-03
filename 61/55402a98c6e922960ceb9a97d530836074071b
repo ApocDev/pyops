@@ -1,0 +1,33 @@
+app/src/components/assistant/show-in-game-button.tsx
+  s_9be9645d11a3e7::t_329b6f0cb80d88 1-53
+app/src/components/assistant/show-in-game-button.test.tsx
+  s_c7842965976508::t_ba560c6f3bbb61 1-38
+app/src/routes/assistant.tsx
+  s_c7842965976508::t_4c1de5682e0146 36,1477-1479,1499-1500,1535-1544,1551-1556,1678-1682,1825-1834
+docs/ai-assistant.md
+  s_c7842965976508::t_f45204ccd8e746 202-210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6155402a98c6e922960ceb9a97d530836074071b",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_c7842965976508": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a1d179e529c21c33a",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
