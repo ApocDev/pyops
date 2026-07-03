@@ -21,11 +21,27 @@ docs/desktop.md
   "base_commit_sha": "d233756a4b9568ac25bb0519e08bb85029a28a9c",
   "prompts": {},
   "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
     "s_ad8974a3b278d5": {
       "agent_id": {
         "tool": "claude",
         "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
         "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_c7842965976508": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a1d179e529c21c33a",
+        "model": "unknown"
       },
       "human_author": "ApocDev <apocdev@gmail.com>"
     }
