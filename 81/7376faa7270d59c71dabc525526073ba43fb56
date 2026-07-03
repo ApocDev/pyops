@@ -1,0 +1,29 @@
+.github/workflows/ci.yml
+  s_9be9645d11a3e7::t_57121835247735 22
+.github/workflows/mod-test.yml
+  s_9be9645d11a3e7::t_9e80065c0521b9 23
+.github/workflows/release.yml
+  s_9be9645d11a3e7::t_10be9d3634fd52 16,109-110,112-114,116-120,122-123,125,157
+AGENTS.md
+  s_9be9645d11a3e7::t_85e9068c774d63 89
+CHANGELOG.md
+  s_9be9645d11a3e7::t_c563255c578f17 7-40,44-50,56,62,68,74,80,86,92,98-136,140-157
+README.md
+  s_9be9645d11a3e7::t_d1c011911f4959 163,318-323,325
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "817376faa7270d59c71dabc525526073ba43fb56",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
