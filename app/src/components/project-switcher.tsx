@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Check, ChevronDown, Database, X } from "lucide-react";
 import { listProjectsFn, removeProjectFn, setActiveProjectFn } from "../server/factorio";
+import { toast } from "../lib/toast-store";
 import { ProjectCreateDialog } from "./project-create-dialog.tsx";
 import { Button } from "#/components/ui/button.tsx";
+import { ConfirmDialog } from "#/components/confirm-dialog.tsx";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +21,10 @@ export function ProjectSwitcher() {
   const [data, setData] = useState<Projects | null>(null);
   const [busy, setBusy] = useState(false);
   const [creating, setCreating] = useState(false);
+  // project awaiting remove confirmation — drives the ConfirmDialog. Removal is
+  // file-level (not in the undo log), so it gets a real confirm and its toast
+  // has no Undo button (#83).
+  const [removing, setRemoving] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     void listProjectsFn().then(setData);
@@ -43,13 +49,17 @@ export function ProjectSwitcher() {
     // one flush that covers all three.
     window.location.reload();
   };
-  const remove = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // keep the row's select from firing
-    if (!window.confirm("Remove this project from the list? Its database file is kept on disk."))
+  const remove = async (p: { id: string; name: string }) => {
+    setRemoving(null);
+    await removeProjectFn({ data: p.id });
+    // removing the active project switches back to default — reload for the
+    // same reasons as switchTo (the toast wouldn't survive it anyway)
+    if (p.id === data?.active) {
+      window.location.reload();
       return;
-    await removeProjectFn({ data: id });
-    if (id === data?.active) window.location.reload();
-    else setData(await listProjectsFn());
+    }
+    toast({ message: `Removed project "${p.name}" — its database file is kept on disk` });
+    setData(await listProjectsFn());
   };
 
   return (
@@ -83,7 +93,10 @@ export function ProjectSwitcher() {
                 <span
                   role="button"
                   tabIndex={-1}
-                  onClick={(e) => void remove(p.id, e)}
+                  onClick={(e) => {
+                    e.stopPropagation(); // keep the row's select from firing
+                    setRemoving({ id: p.id, name: p.name });
+                  }}
                   className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
                   title="remove from list (db file kept)"
                 >
@@ -101,6 +114,22 @@ export function ProjectSwitcher() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <ConfirmDialog
+        open={removing != null}
+        onOpenChange={(open) => {
+          if (!open) setRemoving(null);
+        }}
+        title="Remove project"
+        description={
+          removing
+            ? `Remove "${removing.name}" from the project list? This can't be undone from the app. Nothing is deleted — its database file is kept on disk, moved into the projects/_removed folder.`
+            : ""
+        }
+        confirmLabel="Remove project"
+        onConfirm={() => {
+          if (removing) void remove(removing);
+        }}
+      />
       {creating && <ProjectCreateDialog onClose={() => setCreating(false)} />}
     </div>
   );

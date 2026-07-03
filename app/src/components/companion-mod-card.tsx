@@ -6,10 +6,12 @@ import {
   uninstallCompanionFn,
 } from "../server/companion-mod-fns";
 import type { CompanionPlatform, InstallMethod } from "../server/companion-mod.server.ts";
+import { toast } from "../lib/toast-store";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
+import { ConfirmDialog } from "#/components/confirm-dialog.tsx";
 
 const PLATFORM_LABEL: Record<CompanionPlatform, string> = {
   linux: "Linux",
@@ -24,6 +26,9 @@ export function CompanionModCard() {
   const qc = useQueryClient();
   const status = useQuery({ queryKey: ["companionStatus"], queryFn: () => companionStatusFn() });
   const [err, setErr] = useState<string | null>(null);
+  // Remove goes through a confirm dialog (#83) — it isn't in the undo log, so
+  // the post-remove toast has no Undo button.
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   const refresh = () => void qc.invalidateQueries({ queryKey: ["companionStatus"] });
   const install = useMutation({
@@ -38,6 +43,7 @@ export function CompanionModCard() {
     mutationFn: () => uninstallCompanionFn(),
     onSuccess: () => {
       setErr(null);
+      toast({ message: "Companion mod removed from the Factorio mods folder" });
       refresh();
     },
     onError: (e) => setErr(e instanceof Error ? e.message : String(e)),
@@ -130,13 +136,24 @@ export function CompanionModCard() {
           {s?.installed && (
             <Button
               variant="outline"
-              onClick={() => remove.mutate()}
+              onClick={() => setConfirmRemove(true)}
               disabled={busy}
               className="text-muted-foreground hover:text-destructive"
             >
               {remove.isPending ? "removing…" : "Remove"}
             </Button>
           )}
+          <ConfirmDialog
+            open={confirmRemove}
+            onOpenChange={setConfirmRemove}
+            title="Remove companion mod"
+            description={`Remove the ${s?.method === "symlink" ? "link to PyOps' mod" : "copied mod"} from the Factorio mods folder? The in-game panel, live bridge, and data sync stop working until you reinstall it (one click here).`}
+            confirmLabel="Remove mod"
+            onConfirm={() => {
+              setConfirmRemove(false);
+              remove.mutate();
+            }}
+          />
         </div>
 
         <p className="text-sm text-muted-foreground">

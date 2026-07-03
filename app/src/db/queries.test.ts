@@ -14,6 +14,7 @@ import {
   listBlocks,
   listGroups,
   machineSufficiency,
+  saveBlockRow,
   setBlockGroup,
   setBuiltMachines,
   setGroupParent,
@@ -206,6 +207,26 @@ describe("nested folders", () => {
     expect(parentOf.get(b)).toBe(a);
     expect(parentOf.get(c)).toBe(b);
     expect(parentOf.get(a)).toBe(null);
+  });
+
+  it("listBlocks reports recipe/goal counts for the delete-block confirm", () => {
+    const id = saveBlockRow(
+      {
+        name: "plates",
+        iconKind: null,
+        iconName: null,
+        data: {
+          goals: [{ name: "plate", rate: 1 }],
+          recipes: ["smelt-plate", "make-gear"],
+        },
+        electricityW: null,
+        dataFingerprint: null,
+      },
+      null,
+    );
+    const byId = new Map(listBlocks().map((b) => [b.id, b]));
+    expect(byId.get(1)).toMatchObject({ recipeCount: 0, goalCount: 0 }); // seeded '{}' block
+    expect(byId.get(id)).toMatchObject({ recipeCount: 2, goalCount: 1 });
   });
 
   it("deleteGroup moves child folders and blocks up to the parent", () => {

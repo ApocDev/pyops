@@ -48,10 +48,13 @@ import {
   X,
 } from "lucide-react";
 import { Icon, IconProvider } from "../lib/icons";
+import { blockDeleteDescription } from "../lib/delete-copy";
+import { deletedToast, undoToast } from "../lib/undo-client";
 import { Button } from "#/components/ui/button.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { ConfirmDialog } from "#/components/confirm-dialog.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 
@@ -153,6 +156,13 @@ function Shell() {
   const [tabDragOver, setTabDragOver] = useState<number | null>(null);
   const tabsHydrated = useRef(false); // gate persistence until the saved tabs are restored
   const activeEditorRef = useRef<ActiveEditorState | null>(null); // live state of the open editor
+  // block awaiting delete confirmation (the sidebar ×) — drives the ConfirmDialog
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: number;
+    name: string;
+    recipeCount: number;
+    goalCount: number;
+  } | null>(null);
   const refresh = () => void qc.invalidateQueries({ queryKey: ["blocks"] });
   const refreshGroups = () => void qc.invalidateQueries({ queryKey: ["groups"] });
 
@@ -296,9 +306,11 @@ function Shell() {
     await renameGroupFn({ data: { id, name } });
     refreshGroups();
   };
-  const deleteFolder = async (id: number) => {
-    if (!window.confirm("Delete folder? Its blocks and subfolders move up to its parent.")) return;
-    await deleteGroupFn({ data: id });
+  // No confirm — deleting a folder destroys nothing (its blocks and subfolders
+  // move up to its parent) and the undo toast covers a misclick (#83).
+  const deleteFolder = async (g: { id: number; name: string }) => {
+    await deleteGroupFn({ data: g.id });
+    undoToast(qc, `Deleted folder "${g.name}" — its blocks moved up`);
     refreshGroups();
     refresh();
   };
@@ -399,13 +411,22 @@ function Shell() {
       return next;
     });
   };
-  const del = async (id: number, e: React.MouseEvent) => {
+  // Deleting a block is the big destructive action here: a proper confirm
+  // dialog stating what's destroyed (#83), then an undo toast — the deletion
+  // is logged server-side, so Undo restores the whole block.
+  const del = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm("Delete this block permanently?")) return;
-    await deleteBlockFn({ data: id });
-    setOpenTabs((t) => t.filter((x) => x !== id));
+    setPendingDelete(byId.get(id) ?? null);
+  };
+  const confirmDelete = async () => {
+    const b = pendingDelete;
+    if (!b) return;
+    setPendingDelete(null);
+    await deleteBlockFn({ data: b.id });
+    deletedToast(qc, b.name);
+    setOpenTabs((t) => t.filter((x) => x !== b.id));
     void qc.invalidateQueries({ queryKey: ["blocks"] });
-    if (activeId === id) void navigate({ to: "/block" });
+    if (activeId === b.id) void navigate({ to: "/block" });
   };
 
   const filtered = (blocks.data ?? []).filter((b) =>
@@ -541,7 +562,7 @@ function Shell() {
           <button
             className="px-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
             title="delete folder"
-            onClick={() => deleteFolder(group.id)}
+            onClick={() => void deleteFolder(group)}
           >
             <X className="size-3.5" />
           </button>
@@ -607,176 +628,196 @@ function Shell() {
   };
 
   return (
-    <SidebarShell
-      className="bg-background font-mono text-foreground"
-      width="w-64"
-      label="Blocks"
-      sidebar={
-        <>
-          <div className="flex items-center gap-2 border-b border-border px-2 py-2">
-            <FieldLabel className="font-semibold">Blocks ({blocks.data?.length ?? 0})</FieldLabel>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              onClick={newFolder}
-              title="new folder"
-              className="ml-auto"
-            >
-              <FolderPlus className="size-4" />
-            </Button>
-            <Button size="icon-sm" onClick={() => void newBlock()} title="new block">
-              <Plus className="size-4" />
-            </Button>
-          </div>
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="search blocks…"
-            className="m-2 w-auto"
-          />
-          <DndContext
-            sensors={sensors}
-            collisionDetection={pointerWithin}
-            onDragStart={onDragStart}
-            onDragOver={onDragOver}
-            onDragEnd={onDragEnd}
-            onDragCancel={endDrag}
-          >
-            <div className="flex-1 overflow-auto px-1 pb-2">
-              {blocks.isPending ? (
-                <div className="space-y-1.5 px-2 py-2">
-                  <Skeleton className="h-6 w-full" />
-                  <Skeleton className="h-6 w-full" />
-                  <Skeleton className="h-6 w-4/5" />
-                  <Skeleton className="h-6 w-full" />
-                </div>
-              ) : (blocks.data?.length ?? 0) === 0 ? (
-                <EmptyState
-                  className="p-4"
-                  icon={Boxes}
-                  title="No blocks yet"
-                  description={
-                    <>
-                      Create your first block with the{" "}
-                      <Plus className="inline size-3.5" aria-label="new block" /> button above.
-                    </>
-                  }
-                  action={
-                    <Button size="sm" onClick={() => void newBlock()}>
-                      <Plus /> New block
-                    </Button>
-                  }
-                />
-              ) : (
-                <>
-                  {childrenOf(null).map((g) => renderFolder(g, 0))}
-                  {renderUngrouped()}
-                  {filtered.length === 0 && (
-                    <EmptyState
-                      className="p-4"
-                      title="No matching blocks"
-                      description="Nothing matches this search."
-                      action={
-                        <Button variant="outline" size="sm" onClick={() => setSearch("")}>
-                          Clear search
-                        </Button>
-                      }
-                    />
-                  )}
-                </>
-              )}
-            </div>
-            <DragOverlay dropAnimation={null}>{dragPreview()}</DragOverlay>
-          </DndContext>
-        </>
-      }
-    >
-      {/* Main — open-block tabs + the active editor */}
-      <div
-        className="flex items-stretch gap-px overflow-x-auto border-b border-border bg-card"
-        // middle-click the empty strip = new block (browser-style)
-        onAuxClick={(e) => {
-          if (e.button === 1 && e.target === e.currentTarget) void newBlock();
+    <>
+      <ConfirmDialog
+        open={pendingDelete != null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
         }}
-        onMouseDown={(e) => {
-          if (e.button === 1 && e.target === e.currentTarget) e.preventDefault();
-        }}
-      >
-        {openTabs.map((id) => {
-          const b = byId.get(id);
-          const active = activeId === id;
-          return (
-            <button
-              key={id}
-              draggable
-              onClick={() => open(id)}
-              // middle-click a tab = close it; suppress the autoscroll cursor
-              onAuxClick={(e) => {
-                if (e.button === 1) closeTab(id, e);
-              }}
-              onMouseDown={(e) => {
-                if (e.button === 1) e.preventDefault();
-              }}
-              onDragStart={() => {
-                tabDragId.current = id;
-              }}
-              onDragOver={(e) => {
-                if (tabDragId.current == null) return;
-                e.preventDefault();
-                if (tabDragOver !== id) setTabDragOver(id);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (tabDragId.current != null) moveTab(tabDragId.current, id);
-                tabDragId.current = null;
-                setTabDragOver(null);
-              }}
-              onDragEnd={() => {
-                tabDragId.current = null;
-                setTabDragOver(null);
-              }}
-              className={`flex shrink-0 items-center gap-1.5 border-t-2 px-3 py-1.5 text-sm ${active ? "border-primary bg-background text-foreground" : "border-transparent text-muted-foreground hover:bg-muted"} ${tabDragOver === id ? "bg-primary/15" : ""}`}
-            >
-              {b?.iconName && (
-                <Icon
-                  kind={(b.iconKind ?? "item") as IconKind}
-                  name={b.iconName}
-                  size="sm"
-                  noTitle
-                  noHover
-                />
-              )}
-              <span className={`max-w-[10rem] truncate ${b ? healthText(b.health) : ""}`}>
-                {b?.name ?? `#${id}`}
-              </span>
-              {b && healthBadge(b.health, blockHealthTip(b))}
-              <span
-                role="button"
-                tabIndex={-1}
-                onClick={(e) => closeTab(id, e)}
-                className="flex items-center px-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+        title="Delete block"
+        description={
+          pendingDelete
+            ? blockDeleteDescription(
+                pendingDelete.name,
+                pendingDelete.recipeCount,
+                pendingDelete.goalCount,
+              )
+            : ""
+        }
+        confirmLabel="Delete block"
+        onConfirm={() => void confirmDelete()}
+      />
+      <SidebarShell
+        className="bg-background font-mono text-foreground"
+        width="w-64"
+        label="Blocks"
+        sidebar={
+          <>
+            <div className="flex items-center gap-2 border-b border-border px-2 py-2">
+              <FieldLabel className="font-semibold">Blocks ({blocks.data?.length ?? 0})</FieldLabel>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                onClick={newFolder}
+                title="new folder"
+                className="ml-auto"
               >
-                <X className="size-3.5" />
-              </span>
-            </button>
-          );
-        })}
-        <button
-          onClick={() => void newBlock()}
-          title="new block (or middle-click the empty tab strip)"
-          className="flex shrink-0 items-center px-3 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                <FolderPlus className="size-4" />
+              </Button>
+              <Button size="icon-sm" onClick={() => void newBlock()} title="new block">
+                <Plus className="size-4" />
+              </Button>
+            </div>
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="search blocks…"
+              className="m-2 w-auto"
+            />
+            <DndContext
+              sensors={sensors}
+              collisionDetection={pointerWithin}
+              onDragStart={onDragStart}
+              onDragOver={onDragOver}
+              onDragEnd={onDragEnd}
+              onDragCancel={endDrag}
+            >
+              <div className="flex-1 overflow-auto px-1 pb-2">
+                {blocks.isPending ? (
+                  <div className="space-y-1.5 px-2 py-2">
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-4/5" />
+                    <Skeleton className="h-6 w-full" />
+                  </div>
+                ) : (blocks.data?.length ?? 0) === 0 ? (
+                  <EmptyState
+                    className="p-4"
+                    icon={Boxes}
+                    title="No blocks yet"
+                    description={
+                      <>
+                        Create your first block with the{" "}
+                        <Plus className="inline size-3.5" aria-label="new block" /> button above.
+                      </>
+                    }
+                    action={
+                      <Button size="sm" onClick={() => void newBlock()}>
+                        <Plus /> New block
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <>
+                    {childrenOf(null).map((g) => renderFolder(g, 0))}
+                    {renderUngrouped()}
+                    {filtered.length === 0 && (
+                      <EmptyState
+                        className="p-4"
+                        title="No matching blocks"
+                        description="Nothing matches this search."
+                        action={
+                          <Button variant="outline" size="sm" onClick={() => setSearch("")}>
+                            Clear search
+                          </Button>
+                        }
+                      />
+                    )}
+                  </>
+                )}
+              </div>
+              <DragOverlay dropAnimation={null}>{dragPreview()}</DragOverlay>
+            </DndContext>
+          </>
+        }
+      >
+        {/* Main — open-block tabs + the active editor */}
+        <div
+          className="flex items-stretch gap-px overflow-x-auto border-b border-border bg-card"
+          // middle-click the empty strip = new block (browser-style)
+          onAuxClick={(e) => {
+            if (e.button === 1 && e.target === e.currentTarget) void newBlock();
+          }}
+          onMouseDown={(e) => {
+            if (e.button === 1 && e.target === e.currentTarget) e.preventDefault();
+          }}
         >
-          <Plus className="size-4" />
-        </button>
-        {openTabs.length === 0 && (
-          <div className="px-3 py-1.5 text-sm text-muted-foreground">no open blocks</div>
-        )}
-      </div>
-      <div className="min-h-0 flex-1 overflow-auto">
-        <ActiveEditorRefContext.Provider value={activeEditorRef}>
-          <Outlet />
-        </ActiveEditorRefContext.Provider>
-      </div>
-    </SidebarShell>
+          {openTabs.map((id) => {
+            const b = byId.get(id);
+            const active = activeId === id;
+            return (
+              <button
+                key={id}
+                draggable
+                onClick={() => open(id)}
+                // middle-click a tab = close it; suppress the autoscroll cursor
+                onAuxClick={(e) => {
+                  if (e.button === 1) closeTab(id, e);
+                }}
+                onMouseDown={(e) => {
+                  if (e.button === 1) e.preventDefault();
+                }}
+                onDragStart={() => {
+                  tabDragId.current = id;
+                }}
+                onDragOver={(e) => {
+                  if (tabDragId.current == null) return;
+                  e.preventDefault();
+                  if (tabDragOver !== id) setTabDragOver(id);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (tabDragId.current != null) moveTab(tabDragId.current, id);
+                  tabDragId.current = null;
+                  setTabDragOver(null);
+                }}
+                onDragEnd={() => {
+                  tabDragId.current = null;
+                  setTabDragOver(null);
+                }}
+                className={`flex shrink-0 items-center gap-1.5 border-t-2 px-3 py-1.5 text-sm ${active ? "border-primary bg-background text-foreground" : "border-transparent text-muted-foreground hover:bg-muted"} ${tabDragOver === id ? "bg-primary/15" : ""}`}
+              >
+                {b?.iconName && (
+                  <Icon
+                    kind={(b.iconKind ?? "item") as IconKind}
+                    name={b.iconName}
+                    size="sm"
+                    noTitle
+                    noHover
+                  />
+                )}
+                <span className={`max-w-[10rem] truncate ${b ? healthText(b.health) : ""}`}>
+                  {b?.name ?? `#${id}`}
+                </span>
+                {b && healthBadge(b.health, blockHealthTip(b))}
+                <span
+                  role="button"
+                  tabIndex={-1}
+                  onClick={(e) => closeTab(id, e)}
+                  className="flex items-center px-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <X className="size-3.5" />
+                </span>
+              </button>
+            );
+          })}
+          <button
+            onClick={() => void newBlock()}
+            title="new block (or middle-click the empty tab strip)"
+            className="flex shrink-0 items-center px-3 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Plus className="size-4" />
+          </button>
+          {openTabs.length === 0 && (
+            <div className="px-3 py-1.5 text-sm text-muted-foreground">no open blocks</div>
+          )}
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto">
+          <ActiveEditorRefContext.Provider value={activeEditorRef}>
+            <Outlet />
+          </ActiveEditorRefContext.Provider>
+        </div>
+      </SidebarShell>
+    </>
   );
 }

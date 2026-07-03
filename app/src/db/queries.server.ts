@@ -1169,7 +1169,16 @@ export function listBlocks() {
             solveStatus === "underdetermined"
           ? "warn"
           : "ok";
-    return { ...b, broken, health, unmadeGoals, unusedCount };
+    return {
+      ...b,
+      broken,
+      health,
+      unmadeGoals,
+      unusedCount,
+      // for the delete-block confirm (#83): what the deletion would destroy
+      recipeCount: blockRecipes.length,
+      goalCount: goalNames(d).length,
+    };
   });
 }
 

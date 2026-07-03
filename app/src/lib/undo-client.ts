@@ -9,6 +9,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import { openBlockEditor } from "./block-editors";
+import { deletedMessage } from "./delete-copy";
 import { toast } from "./toast-store";
 import { undoToastMessage } from "./undo-names";
 import { loadBlockFn } from "../server/factorio";
@@ -36,6 +37,28 @@ export function epochSeconds(at: Date | string | null | undefined): number | nul
   if (at == null) return null;
   const ms = at instanceof Date ? at.getTime() : new Date(at).getTime();
   return Number.isNaN(ms) ? null : Math.floor(ms / 1000);
+}
+
+/**
+ * Post-delete toast (#83): reports what was just deleted, with an Undo button
+ * that is simply a shortcut into the undo system. Only for deletes the server
+ * logged via `withUndoAction` — a delete that isn't in the undo log (project
+ * removal, conversation delete) toasts without an action instead.
+ */
+export function deletedToast(qc: QueryClient, label: string): void {
+  undoToast(qc, deletedMessage(label));
+}
+
+/** A toast whose action button is a shortcut to the undo system, for undoable
+ * mutations whose message needs more than the standard `Deleted "X"`. Also
+ * refreshes the nav undo affordance so its tooltip names this action right
+ * away instead of waiting out its poll interval. */
+export function undoToast(qc: QueryClient, message: string): void {
+  toast({
+    message,
+    action: { label: "Undo", onClick: () => void runUndo(qc) },
+  });
+  void qc.invalidateQueries({ queryKey: ["undoStatus"] });
 }
 
 let inFlight = false;

@@ -30,9 +30,11 @@ import { Callout } from "#/components/ui/callout.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Textarea } from "#/components/ui/textarea.tsx";
+import { ConfirmDialog } from "#/components/confirm-dialog.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { ItemHover, RecipeHover } from "#/lib/recipe-card";
 import { formatRate } from "#/lib/format";
+import { toast } from "#/lib/toast-store";
 import {
   aiConfigFn,
   classifyRefFn,
@@ -84,6 +86,8 @@ function AssistantShell() {
   // Every chat opened this session stays mounted (hidden when inactive) so
   // switching the active chat never stops an in-flight run.
   const [openIds, setOpenIds] = useState<string[]>([]);
+  // chat awaiting delete confirmation — drives the ConfirmDialog
+  const [removing, setRemoving] = useState<{ id: string; title: string | null } | null>(null);
 
   // the active chat lives in the URL (linkable); mint one if absent
   useEffect(() => {
@@ -120,12 +124,15 @@ function AssistantShell() {
     await renameConversationFn({ data: { id, title: t } });
     refreshList();
   };
-  const remove = async (id: string) => {
-    if (!window.confirm("Delete this conversation?")) return;
-    dropChat(id);
-    await deleteConversationFn({ data: id });
-    setOpenIds((ids) => ids.filter((x) => x !== id));
-    if (id === selected) newChat();
+  // Chat deletion is permanent (conversations aren't in the undo log), so it
+  // gets a real confirm dialog and its toast has no Undo button (#83).
+  const remove = async (conv: { id: string; title: string | null }) => {
+    setRemoving(null);
+    dropChat(conv.id);
+    await deleteConversationFn({ data: conv.id });
+    toast({ message: `Deleted chat "${conv.title ?? "Untitled"}"` });
+    setOpenIds((ids) => ids.filter((x) => x !== conv.id));
+    if (conv.id === selected) newChat();
     refreshList();
   };
 
@@ -186,7 +193,7 @@ function AssistantShell() {
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  onClick={() => void remove(conv.id)}
+                  onClick={() => setRemoving({ id: conv.id, title: conv.title })}
                   title="delete"
                   className="hidden text-muted-foreground group-hover:inline-flex hover:text-destructive"
                 >
@@ -213,6 +220,22 @@ function AssistantShell() {
           <ChatPane key={id} id={id} active={id === selected} />
         ))}
         {openIds.length === 0 && <ChatPaneSkeleton />}
+        <ConfirmDialog
+          open={removing != null}
+          onOpenChange={(open) => {
+            if (!open) setRemoving(null);
+          }}
+          title="Delete chat"
+          description={
+            removing
+              ? `Delete "${removing.title ?? "Untitled"}"? Its messages are removed permanently — chats aren't covered by undo.`
+              : ""
+          }
+          confirmLabel="Delete chat"
+          onConfirm={() => {
+            if (removing) void remove(removing);
+          }}
+        />
       </div>
     </SidebarShell>
   );

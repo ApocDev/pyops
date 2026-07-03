@@ -16,6 +16,7 @@ import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { CursorHover } from "./hover";
 import { Icon } from "./icons";
+import { deletedToast } from "./undo-client";
 
 /**
  * Module + beacon loadout for one recipe row.
@@ -476,9 +477,11 @@ export function ModulesModal({
     await saveModulePresetFn({ data: { name, modules, beacons } });
     void qc.invalidateQueries({ queryKey: ["modulePresets"] });
   };
-  const deletePreset = async (id: number, e: React.MouseEvent) => {
+  // No confirm (#83) — preset deletion is undo-logged; the toast's Undo restores it.
+  const deletePreset = async (id: number, name: string, e: React.MouseEvent) => {
     e.stopPropagation();
     await deleteModulePresetFn({ data: id });
+    deletedToast(qc, name);
     void qc.invalidateQueries({ queryKey: ["modulePresets"] });
   };
 
@@ -573,7 +576,7 @@ export function ModulesModal({
                     <span
                       role="button"
                       tabIndex={-1}
-                      onClick={(e) => deletePreset(p.id, e)}
+                      onClick={(e) => void deletePreset(p.id, p.name, e)}
                       className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
                     >
                       <X className="size-3.5" />

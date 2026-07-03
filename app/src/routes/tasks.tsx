@@ -29,6 +29,7 @@ import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Textarea } from "#/components/ui/textarea.tsx";
 import { Icon, IconProvider } from "#/lib/icons";
+import { deletedToast, undoToast } from "#/lib/undo-client";
 import {
   addLinkFn,
   addStepFn,
@@ -554,15 +555,20 @@ function TaskDetail({
     ...LIVE_QUERY,
   });
   const navigate = useNavigate();
+  const qc = useQueryClient();
 
   const save = useMutation({
     mutationFn: (patch: { title?: string | null; body?: string | null; status?: TaskStatus }) =>
       updateTaskFn({ data: { id, ...patch } }),
     onSuccess: onChanged,
   });
+  // Task/subtask/step deletion happens immediately, no confirm (#83): the
+  // server logs it to the undo log, so the toast's Undo restores everything
+  // (a task comes back with its subtasks and steps).
   const removeTask = useMutation({
     mutationFn: () => deleteTaskFn({ data: id }),
     onSuccess: () => {
+      deletedToast(qc, task.data?.title || "Untitled task");
       onChanged();
       void navigate({ to: "/tasks", search: { tab: "tasks" } });
     },
@@ -581,8 +587,11 @@ function TaskDetail({
     onSuccess: onChanged,
   });
   const removeChild = useMutation({
-    mutationFn: (childId: number) => deleteTaskFn({ data: childId }),
-    onSuccess: onChanged,
+    mutationFn: (child: { id: number; title: string | null }) => deleteTaskFn({ data: child.id }),
+    onSuccess: (_res, child) => {
+      deletedToast(qc, child.title || "Untitled task");
+      onChanged();
+    },
   });
   const addChild = useMutation({
     mutationFn: (title: string) => createTaskFn({ data: { parentId: id, title } }),
@@ -598,7 +607,10 @@ function TaskDetail({
   });
   const removeStep = useMutation({
     mutationFn: (stepId: number) => deleteStepFn({ data: stepId }),
-    onSuccess: onChanged,
+    onSuccess: () => {
+      undoToast(qc, "Deleted step");
+      onChanged();
+    },
   });
 
   const [title, setTitle] = useState("");
@@ -670,10 +682,8 @@ function TaskDetail({
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={() =>
-            window.confirm("Delete this task and all its subtasks?") && removeTask.mutate()
-          }
-          title="delete task"
+          onClick={() => removeTask.mutate()}
+          title="delete task (undoable)"
           className="shrink-0 text-muted-foreground hover:text-destructive"
         >
           <Trash2 />
@@ -756,11 +766,8 @@ function TaskDetail({
               <Button
                 variant="ghost"
                 size="icon-xs"
-                onClick={() =>
-                  window.confirm("Delete this subtask and its subtasks?") &&
-                  removeChild.mutate(c.id)
-                }
-                title="delete subtask"
+                onClick={() => removeChild.mutate({ id: c.id, title: c.title })}
+                title="delete subtask (undoable)"
                 className="hidden shrink-0 text-muted-foreground group-hover:inline-flex hover:text-destructive"
               >
                 <Trash2 className="size-3.5" />
@@ -1089,14 +1096,17 @@ function NoteDetail({
 }) {
   const [title, setTitle] = useState(note.title ?? "");
   const [body, setBody] = useState(note.body ?? "");
+  const qc = useQueryClient();
   const save = useMutation({
     mutationFn: (patch: { title?: string | null; body?: string | null }) =>
       updateNoteFn({ data: { id: note.id, ...patch } }),
     onSuccess: onChanged,
   });
+  // No confirm (#83) — note deletion is undo-logged; the toast's Undo restores it.
   const remove = useMutation({
     mutationFn: () => deleteNoteFn({ data: note.id }),
     onSuccess: () => {
+      deletedToast(qc, note.title || "Untitled note");
       onChanged();
       onDeleted();
     },
@@ -1115,8 +1125,8 @@ function NoteDetail({
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={() => window.confirm("Delete this note?") && remove.mutate()}
-          title="delete note"
+          onClick={() => remove.mutate()}
+          title="delete note (undoable)"
           className="shrink-0 text-muted-foreground hover:text-destructive"
         >
           <X />
