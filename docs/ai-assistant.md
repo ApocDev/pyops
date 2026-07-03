@@ -189,6 +189,13 @@ cache) and applies each resize through `setBlockRateFn`, exactly like a manually
 edited block. The agent is told to check each existing block's current
 `makes[].rate` and resize rather than duplicate when it's too small.
 
+Draft, update, and plan cards carry **one-click follow-up chips** (#13) built
+from the solved draft data: a **Draft \<good\> @ rate** chip per suggested
+sub-block and a **Route \<good\>** chip per byproduct
+(`components/assistant/follow-up-chips.tsx`). Clicking one sends the matching
+request as the next chat message (disabled while a run is in flight), so the
+"draft super-alloy @ 3.3/s next" advice is actionable without retyping.
+
 When the user asks to include building materials, the agent is expected to add
 support blocks for the items needed to build the chosen machines and logistics
 along the way, not only the science/production recipe ingredients. That includes

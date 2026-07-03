@@ -31,6 +31,7 @@ import { Input } from "#/components/ui/input.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Textarea } from "#/components/ui/textarea.tsx";
 import { ConfirmDialog } from "#/components/confirm-dialog.tsx";
+import { FollowUpChips, type FollowUp } from "#/components/assistant/follow-up-chips.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { ItemHover, RecipeHover } from "#/lib/recipe-card";
 import { formatRate } from "#/lib/format";
@@ -440,6 +441,7 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
               onEdit={m.role === "user" ? () => edit(m) : undefined}
               onRetry={m.role === "assistant" ? () => void retryInChat(chat.id, m.id) : undefined}
               onBranch={() => void branch(m.id)}
+              onFollowUp={submit}
             />
           ))}
 
@@ -894,12 +896,15 @@ function Message({
   onEdit,
   onRetry,
   onBranch,
+  onFollowUp,
 }: {
   message: ChatMessage;
   busy: boolean;
   onEdit?: () => void;
   onRetry?: () => void;
   onBranch: () => void;
+  /** send a one-click follow-up (draft sub-block / route byproduct, #13) */
+  onFollowUp?: (text: string) => void;
 }) {
   const isUser = message.role === "user";
   const compaction = compactionData(message);
@@ -914,7 +919,7 @@ function Message({
         {compaction ? (
           <CompactionNotice message={message} compaction={compaction} />
         ) : (
-          renderParts(message.parts, isUser)
+          renderParts(message.parts, isUser, onFollowUp, busy)
         )}
         <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100">
           {onEdit && (
@@ -1070,7 +1075,12 @@ const isMachineryPart = (part: any) => part.type === "step-start";
  * single expandable "N tool calls" group so the transcript isn't dominated by
  * machinery most readers don't care about. Step-start parts between tool calls
  * don't break the run; rendered reasoning, text answers, and block drafts do. */
-function renderParts(parts: ChatMessage["parts"], isUser: boolean): ReactNode[] {
+function renderParts(
+  parts: ChatMessage["parts"],
+  isUser: boolean,
+  onFollowUp?: (text: string) => void,
+  busy?: boolean,
+): ReactNode[] {
   const out: ReactNode[] = [];
   let run: { part: any; i: number }[] = [];
   const flush = () => {
@@ -1100,11 +1110,22 @@ function renderParts(parts: ChatMessage["parts"], isUser: boolean): ReactNode[] 
     } else if (part.type === "reasoning") {
       out.push(<ReasoningBlock key={i} text={part.text ?? ""} state={part.state} />);
     } else if (part.type === "tool-submitBlock" && part.state === "output-available") {
-      out.push(<BlockDraft key={i} draft={part.output as Draft} />);
+      out.push(
+        <BlockDraft key={i} draft={part.output as Draft} onFollowUp={onFollowUp} busy={busy} />,
+      );
     } else if (part.type === "tool-reviseBlock" && part.state === "output-available") {
-      out.push(<BlockUpdate key={i} draft={part.output as Draft} />);
+      out.push(
+        <BlockUpdate key={i} draft={part.output as Draft} onFollowUp={onFollowUp} busy={busy} />,
+      );
     } else if (part.type === "tool-submitPlan" && part.state === "output-available") {
-      out.push(<PlanDraft key={i} plan={part.output as PlanDraftData} />);
+      out.push(
+        <PlanDraft
+          key={i}
+          plan={part.output as PlanDraftData}
+          onFollowUp={onFollowUp}
+          busy={busy}
+        />,
+      );
     }
   });
   flush();
@@ -1410,7 +1431,26 @@ function DraftRows({ draft }: { draft: Draft }) {
   );
 }
 
-function BlockDraft({ draft }: { draft: Draft }) {
+/** One-click follow-ups (#13): a "Draft <good> @ rate" chip per suggested
+ * sub-block and a "Route <good>" chip per byproduct. */
+const draftFollowUps = (draft: Draft): FollowUp[] => [
+  ...(draft.subBlocksNeeded ?? []).map((s) => ({
+    kind: "draft" as const,
+    good: s.good,
+    rate: s.rate,
+  })),
+  ...(draft.byproducts ?? []).map((b) => ({ kind: "route" as const, good: b.good, rate: b.rate })),
+];
+
+function BlockDraft({
+  draft,
+  onFollowUp,
+  busy,
+}: {
+  draft: Draft;
+  onFollowUp?: (text: string) => void;
+  busy?: boolean;
+}) {
   const navigate = useNavigate();
   const [status, setStatus] = useState<"idle" | "creating" | "error">("idle");
 
@@ -1473,6 +1513,7 @@ function BlockDraft({ draft }: { draft: Draft }) {
 
       {draft.notes && <p className="mt-2 text-sm text-muted-foreground">{draft.notes}</p>}
       <DraftRows draft={draft} />
+      <FollowUpChips followUps={draftFollowUps(draft)} disabled={busy} onFollowUp={onFollowUp} />
 
       {status === "error" && (
         <div className="mt-2 text-sm text-destructive">
@@ -1491,7 +1532,15 @@ const changesRecipes = (draft: Draft) =>
 /** A reviseBlock proposal: re-solve an existing block at a new rate and/or with
  * a revised recipe set (#12). The user clicks Apply to persist (setBlockRateFn /
  * setBlockRecipesFn re-solve + save). */
-function BlockUpdate({ draft }: { draft: Draft }) {
+function BlockUpdate({
+  draft,
+  onFollowUp,
+  busy,
+}: {
+  draft: Draft;
+  onFollowUp?: (text: string) => void;
+  busy?: boolean;
+}) {
   const navigate = useNavigate();
   const [status, setStatus] = useState<"idle" | "applying" | "done" | "error">("idle");
 
@@ -1585,6 +1634,7 @@ function BlockUpdate({ draft }: { draft: Draft }) {
         true,
       )}
       <DraftRows draft={draft} />
+      <FollowUpChips followUps={draftFollowUps(draft)} disabled={busy} onFollowUp={onFollowUp} />
 
       {status === "error" && (
         <div className="mt-2 text-sm text-destructive">
@@ -1595,7 +1645,15 @@ function BlockUpdate({ draft }: { draft: Draft }) {
   );
 }
 
-function PlanDraft({ plan }: { plan: PlanDraftData }) {
+function PlanDraft({
+  plan,
+  onFollowUp,
+  busy,
+}: {
+  plan: PlanDraftData;
+  onFollowUp?: (text: string) => void;
+  busy?: boolean;
+}) {
   const navigate = useNavigate();
   const [status, setStatus] = useState<"idle" | "creating" | "done" | "error">("idle");
   const [created, setCreated] = useState<{ id: number; name: string }[]>([]);
@@ -1677,7 +1735,7 @@ function PlanDraft({ plan }: { plan: PlanDraftData }) {
                 @ {draft.rate}/s · {draft.recipes.length} recipes
               </span>
             </summary>
-            <PlanBlockPreview draft={draft} />
+            <PlanBlockPreview draft={draft} onFollowUp={onFollowUp} busy={busy} />
           </details>
         ))}
       </div>
@@ -1711,7 +1769,7 @@ function PlanDraft({ plan }: { plan: PlanDraftData }) {
                     )}
                   </span>
                 </summary>
-                <PlanBlockPreview draft={u} />
+                <PlanBlockPreview draft={u} onFollowUp={onFollowUp} busy={busy} />
               </details>
             ))}
           </div>
@@ -1732,7 +1790,15 @@ function PlanDraft({ plan }: { plan: PlanDraftData }) {
   );
 }
 
-function PlanBlockPreview({ draft }: { draft: Draft }) {
+function PlanBlockPreview({
+  draft,
+  onFollowUp,
+  busy,
+}: {
+  draft: Draft;
+  onFollowUp?: (text: string) => void;
+  busy?: boolean;
+}) {
   return (
     <div className="mt-2 space-y-2 text-sm">
       {draft.notes && <p className="text-muted-foreground">{draft.notes}</p>}
@@ -1773,6 +1839,7 @@ function PlanBlockPreview({ draft }: { draft: Draft }) {
           </div>
         </div>
       )}
+      <FollowUpChips followUps={draftFollowUps(draft)} disabled={busy} onFollowUp={onFollowUp} />
     </div>
   );
 }
