@@ -1,0 +1,21 @@
+AGENTS.md
+  s_9be9645d11a3e7::t_501d2b31489cc6 52-54
+docs/data-pipeline.md
+  s_9be9645d11a3e7::t_3bc2d2cbc4ff69 21-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "43239da575cf3024c77eb71e4b29bbf0135676db",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

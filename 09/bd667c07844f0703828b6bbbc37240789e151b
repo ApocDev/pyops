@@ -1,0 +1,23 @@
+app/src/db/import-factorio.ts
+  s_9be9645d11a3e7::t_971c2824a3568e 4,523
+app/src/db/synthesize.test.ts
+  s_9be9645d11a3e7::t_95cc4dd562826f 58-107,202-339
+app/src/db/synthesize.ts
+  s_9be9645d11a3e7::t_ed78d0ee7f537e 16-21,39-59,71,92-101,117-123,140,205,224,434-557
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "09bd667c07844f0703828b6bbbc37240789e151b",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
