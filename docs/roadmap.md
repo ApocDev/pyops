@@ -44,13 +44,14 @@ STAYS OPEN re-scoped to the remainder (goods search, recents, help sheet).
 ## Wave 2 — planner correctness (batch: solver + data context)
 
 Batch A landed 2026-07-03: #93, #92, #94, #96. Batch B landed 2026-07-03: #25
-(closed epic #31), #99, #110's interim temp warnings (parallel worktree agents,
-integrated + gated on main). Remaining:
+(closed epic #31), #99, #110's interim temp warnings. Batch C landed
+2026-07-03: #113, #115 (all parallel worktree agents, integrated + gated on
+main). #91's LP core + IIS diagnosis + migration mapping are in-tree
+(src/solver/lp.ts, diagnose.ts, migrate.ts); block-compute/UI integration is
+the remaining work. Remaining:
 
 | Issue | Effort | Notes |
 |---|---|---|
-| #113 display map collides on shared item/recipe names | S | Pre-existing bug surfaced by #99's e2e; recipe rows can render the good's label. |
-| #115 fluid-fuel pool at factory scale | M | #25 follow-up decided 2026-07-03: demand stays automatic, supply is an explicit conversion + export, MJ leaves FREE_GOODS and matches block-to-block. Independent of #91. |
 | #110 fluid-temp variants as distinct goods | L | YAFC-style (fluid, temperature) identity in the solve; range consumers pool matching variants. The cheap interim (per-producer temp warnings — S) has shipped; the full model lands with/after #91. |
 | #114 temperature-fed fluid energy sources | M | #25 follow-up: uf6 reactors / compost plants / solar tower drain their feed fluid by temp × heat capacity; currently unmodelled. Natural fit with/after #91's coefficient stage. |
 | #91 solver v2: LP (HiGHS) | XL | The wave's centerpiece; gate for #98, a foundation #76 wants, and the natural home for #110's range-pooling. Re-scoped 2026-07-03 after design discussion: LP core + gesture-derived block model (goals ≥ both directions, `made` set, count/share pins, dispositions deleted) + IIS root-cause diagnosis. Spec is the issue body. |
