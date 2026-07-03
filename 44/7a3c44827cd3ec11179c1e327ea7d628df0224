@@ -1,7 +1,37 @@
+app/src/lib/modules-modal.tsx
+  s_9be9645d11a3e7::t_0eea2217bbb609 365-366
+app/src/server/factorio.ts
+  s_4c0dcc604f7f04::t_be039429c19135 262
 ---
 {
   "schema_version": "authorship/3.0.0",
-  "git_ai_version": "1.6.5",
+  "git_ai_version": "1.6.10",
   "base_commit_sha": "447a3c44827cd3ec11179c1e327ea7d628df0224",
-  "prompts": {}
+  "prompts": {},
+  "sessions": {
+    "s_4c0dcc604f7f04": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a02c8cdce2ad89a76",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_60dddf0a5809f4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a123a54927f02fdd5",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
 }
