@@ -1,0 +1,39 @@
+app/src/components/block/doc-store.ts
+  s_9be9645d11a3e7::t_a388425aeda88e 18
+app/src/db/queries.server.ts
+  s_9be9645d11a3e7::t_9f61220f5855f6 1164-1166,1168,1171-1172,1182
+app/src/routes/block.tsx
+  s_9be9645d11a3e7::t_8c7ddec85dd03b 463-464
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_47f27b10ffeb3e 9-10
+app/src/solver/migrate.ts
+  s_9be9645d11a3e7::t_0c6f710e9a4ebd 22-23
+docs/ai-assistant.md
+  s_9be9645d11a3e7::t_8dd3c84231e158 122
+docs/architecture.md
+  s_9be9645d11a3e7::t_81a93f381405eb 115
+docs/design.md
+  s_9be9645d11a3e7::t_744f7cd4d43cbb 33-38,48-57,95-117,138,150-151
+docs/desktop.md
+  s_9be9645d11a3e7::t_48b010bfaa60e0 11,101,133
+docs/roadmap.md
+  s_9be9645d11a3e7::t_f0ee89c466047a 53-58,62-68,74-84,88-90,96-104,108-110,114-121
+docs/solver.md
+  s_9be9645d11a3e7::t_e5311d252b980c 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2fd5e71a203fe413055ca9f43c34bbb2327c33c1",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
