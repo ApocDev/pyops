@@ -76,7 +76,9 @@ from inside `app/`:
   DB; the **mutating** specs in `e2e/mut/` (command palette, undo, snapshots,
   destructive-action dialogs, backup/share, project dialog) run against a second
   dev server whose `PYOPS_DATA_DIR` is a seeded scratch copy of that data, so
-  they can edit/delete freely. See `app/e2e/README.md`.
+  they can edit/delete freely. See `app/e2e/README.md`. **A user-facing feature
+  ships with e2e coverage of its main flow** — extend the matching `mut/` spec
+  (or add one) as part of the change, not after.
 - DB schema: edit `src/db/schema.ts`, then `vp run db:generate <name>` to write a
   migration under `drizzle/` (a name is required, so files stay meaningful).
   `server/provision.ts` applies the migrations **in-process** on first connect to
