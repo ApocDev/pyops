@@ -1,0 +1,57 @@
+AGENTS.md
+  s_9be9645d11a3e7::t_04ec8d091afdbc 34
+README.md
+  s_9be9645d11a3e7::t_a4607a97cb8a47 41-45
+app/src/components/deps/deps-filter-results.tsx
+  s_9be9645d11a3e7::t_1e3b8eb2bff36d 1-98
+app/src/components/deps/deps-node.tsx
+  s_9be9645d11a3e7::t_42a21b2901fa5e 1-239
+app/src/components/nav-links.ts
+  s_9be9645d11a3e7::t_795ba46026e3d8 7,22,47
+app/src/routeTree.gen.ts
+  s_9be9645d11a3e7::t_e54a96701b5a3d 18,60-64,122,140,160,181,199,218,238,294-300,392
+app/src/routes/browse.tsx
+  s_9be9645d11a3e7::t_d6daf01ca9b5d6 1,4,192-201
+app/src/routes/deps.tsx
+  s_9be9645d11a3e7::t_e3f748aaaa1f1c 1-217
+app/src/server/deps.server.ts
+  s_9be9645d11a3e7::t_bbdca6b773b954 1-413
+app/src/server/deps.test.ts
+  s_9be9645d11a3e7::t_6ec352d2a50b78 1-179
+app/src/server/deps.ts
+  s_9be9645d11a3e7::t_198ab98778cf74 1-30
+app/e2e/deps.e2e.ts
+  s_758187eabfe90c::t_1274d1cbf9c7b2 1-44
+app/e2e/responsive.e2e.ts
+  s_758187eabfe90c::t_0759089f2505e7 41
+app/e2e/smoke.e2e.ts
+  s_758187eabfe90c::t_8236d13e7ee5e7 31
+app/src/components/deps/deps-tree-pane.tsx
+  s_758187eabfe90c::t_f5e994b4279a96 1-185
+app/src/db/queries.server.ts
+  s_758187eabfe90c::t_6daa7b6adb1b3a 2117,2596-2607
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ca49b773e031e3b6ecc01d32309c74826805a11c",
+  "prompts": {},
+  "sessions": {
+    "s_758187eabfe90c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a588a93f4286cca3d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
