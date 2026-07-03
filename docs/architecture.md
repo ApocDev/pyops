@@ -122,6 +122,35 @@ Two surfaces under **Settings › Backup & share**:
   blocks also export from the block editor's toolbar. Snapshots (#85) build on the
   same serialization.
 
+## Block snapshots (#85)
+
+Per-block restore points, complementing undo (which unwinds recent edits):
+a snapshot freezes a block's full definition — the face (name/icon/enabled) as
+columns plus the editor doc as JSON, the **same serialization as the export
+envelope's block** — into a `block_snapshots` row. Two kinds:
+
+- **manual** — the user's named points ("Snapshot now" in the block editor's
+  history drawer, label optional), kept until deleted.
+- **auto** — taken silently before destructive/structural writes: block delete,
+  snapshot restore, scale-to-demand/assistant resizes, and (throttled to one per
+  10-minute editing burst) ordinary saves. Capped at the newest 20 per block,
+  pruned on write; deduped against the newest snapshot so repeat operations
+  don't stack identical rows.
+
+The logic lives in `app/src/server/snapshots.server.ts` (server fns in
+`snapshot-fns.ts`); the drawer is `app/src/components/block/snapshot-sheet.tsx`.
+**Restore** replaces the block's definition in place (identity — id, folder,
+sort order — preserved): it auto-snapshots the current state first, re-solves
+through the normal persist machinery, and runs as ONE tracked undo action, so a
+restore is both undoable and re-restorable. **Diff** (`app/src/lib/block-diff.ts`,
+pure) compares a snapshot against the live editor doc — goals added/removed/
+re-rated, recipes added/removed/toggled, machine/fuel/module/beacon picks,
+dispositions, spoil plans — rendered in the scale-plan drawer's from → to
+language with display names resolved server-side. Snapshot bookkeeping itself is
+not a planning edit: `block_snapshots` carries no undo triggers and every
+capture runs `{ undo: false }`, and rows deliberately survive block deletion
+(a recycle bin; restore-from-deleted UI is future work).
+
 ## Undo (planning edits)
 
 Multi-level undo for planning edits, built on the canonical

@@ -75,6 +75,14 @@ source](#setup) to hack on it.
   folders) there or a single block from the block editor's toolbar, then import it
   anywhere: blocks come in as new copies (names suffixed on collision), and
   anything the target's game data doesn't know is flagged instead of rejected.
+- **Snapshots: restore points per block.** The block editor's history drawer keeps
+  named restore points beyond undo's reach: take a manual snapshot before a big
+  refactor (label optional), and automatic ones are taken silently before deletes,
+  restores, resizes, and — throttled — ordinary edits (newest 20 per block; manual
+  ones stay until deleted). Any snapshot can be diffed against the current state
+  (goals, recipes, machines/modules, dispositions, spoil plans) and restored — a
+  restore snapshots first and is itself a single undoable action, and snapshots of
+  deleted blocks are kept as a recycle bin.
 - **Use it on any screen.** The UI is responsive: the full desktop layout on a
   monitor, and on tablets, phones, and the Steam Deck the global nav and the
   block/browse/assistant/tasks sidebars collapse into drawers, dense tables reflow
