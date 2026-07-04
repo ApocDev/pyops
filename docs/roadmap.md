@@ -61,14 +61,12 @@ mod-side kill switch still want a live pass (API key + game).
 
 ## Wave 4 — UI leverage (mostly epic #35)
 
-`#87 first` — three other issues want the primitive it extracts.
+Batch A landed 2026-07-03: #87 (filtered-list primitive), #97 (recipe
+explorer), #100 (dependency explorer), #80 (sortable machines table), and the
+#78 palette remainder. Remaining:
 
 | Issue                               | Effort | Notes                                                                                                                                                                                                                    |
 | ----------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| #87 shared filtered-list primitive  | M      | Six pages hand-roll search; consumed by #78's palette iteration, #97, #100.                                                                                                                                              |
-| #97 recipe explorer                 | L      | Ranked producers/consumers per good.                                                                                                                                                                                     |
-| #100 dependency explorer            | L      | Transitive requires / required-by.                                                                                                                                                                                       |
-| #80 Machines card on sortable table | M      | Factory page consistency.                                                                                                                                                                                                |
 | #81 error/loading states            | M      | The issue's "zero isError checks" premise is stale (nine exist now); remaining: root-level errorComponent/pendingComponent + a shared convention for the rest, incl. the two hand-rolled overlays noted when #86 closed. |
 | #106 sticky page toolbars           | S      |                                                                                                                                                                                                                          |
 | #16 help drawers                    | L      | Images, worked examples, deeper coverage.                                                                                                                                                                                |
