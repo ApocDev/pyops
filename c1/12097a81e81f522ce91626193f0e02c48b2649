@@ -1,0 +1,21 @@
+app/src/server/module-fill.test.ts
+  s_9be9645d11a3e7::t_98dbbc90f113dc 102-147
+app/src/server/module-fill.server.ts
+  s_9be9645d11a3e7::t_40ba0d5e895c48 72-75,77,85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c112097a81e81f522ce91626193f0e02c48b2649",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
