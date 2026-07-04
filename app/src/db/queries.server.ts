@@ -559,6 +559,35 @@ export function computeRecipeScenario(opts: {
  * machine's slots, modules that fit those slots, the placeable beacon variants,
  * and the modules that fit each beacon (machine + beacon restrictions both apply
  * since the beacon transmits its effects into the machine). */
+
+/** Every hand-placeable module, one table scan (hidden modules are TURD
+ * internals — game-inserted, never hand-placed). block-compute fetches this
+ * once per solve and filters per row, instead of paying modulePickerData's
+ * full-table rescan for every recipe. */
+export function placeableModules() {
+  return db
+    .select()
+    .from(modules)
+    .where(eq(modules.hidden, false))
+    .orderBy(modules.category, modules.tier, modules.name)
+    .all();
+}
+
+/** The picker's placement rules for one (machine, recipe) pair, as a reusable
+ * predicate — single source of truth shared by modulePickerData and the
+ * per-solve suggestion pools, so a template/suggestion can never place a
+ * module the picker wouldn't offer. */
+export function modulePlacementFilter(
+  machine: { allowedModuleCategories: string[] | null; allowedEffects: string[] | null },
+  recipe: { allowedModuleCategories: string[] | null; allowProductivity: boolean },
+): (mod: ModuleRow) => boolean {
+  return (mod) =>
+    categoryAllowed(mod, machine.allowedModuleCategories) &&
+    categoryAllowed(mod, recipe.allowedModuleCategories) &&
+    effectsAllowed(mod, machine.allowedEffects) &&
+    (mod.effProductivity <= 0 || recipe.allowProductivity);
+}
+
 export function modulePickerData(recipeName: string, machineName: string) {
   const r = db
     .select({
@@ -571,21 +600,9 @@ export function modulePickerData(recipeName: string, machineName: string) {
   const m = db.select().from(craftingMachines).where(eq(craftingMachines.name, machineName)).get();
   if (!r || !m) return null;
 
-  // hidden modules are TURD internals — game-inserted, never hand-placed
-  const allModules = db
-    .select()
-    .from(modules)
-    .where(eq(modules.hidden, false))
-    .orderBy(modules.category, modules.tier, modules.name)
-    .all();
+  const allModules = placeableModules();
   const prodOk = (mod: ModuleRow) => mod.effProductivity <= 0 || r.allowProductivity;
-  const machineModules = allModules.filter(
-    (mod) =>
-      categoryAllowed(mod, m.allowedModuleCategories) &&
-      categoryAllowed(mod, r.allowedModuleCategories) &&
-      effectsAllowed(mod, m.allowedEffects) &&
-      prodOk(mod),
-  );
+  const machineModules = allModules.filter(modulePlacementFilter(m, r));
 
   const beaconRows = db
     .select()

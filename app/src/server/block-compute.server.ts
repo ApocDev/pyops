@@ -311,16 +311,27 @@ export async function computeBlock(rawData: SolveInput) {
   // Favorites are baked into a block's stored picks at recipe-add time, so the
   // solve fallback here stays favorite-independent (lowest tier / cheapest fuel).
   const favoriteFuels = q.getFavoriteFuels();
+  // One module-table scan + one availability pass per solve, filtered per row
+  // in JS — modulePickerData per row re-scans modules AND beacons every call,
+  // which measured ~37% of the whole solve on a 22-row block. Lazy: blocks
+  // with no module-capable rows never pay it.
+  let placeableCache: { mods: ReturnType<typeof q.placeableModules>; avail: Set<string> } | null =
+    null;
+  const placeable = () =>
+    (placeableCache ??= (() => {
+      const mods = q.placeableModules();
+      // only modules unlocked in the research horizon (mirrors machine gating);
+      // this also excludes creative/editor modules (nothing produces them)
+      return { mods, avail: q.availableModuleItems(mods.map((m) => m.name)) };
+    })());
   const autoPool = (
     r: (typeof fetched)[number],
     chosen: ReturnType<typeof q.machinesForRecipe>[number],
   ) => {
     if (!(fillMiners || r.kind !== "mining")) return [];
-    const eligible = q.modulePickerData(r.name, chosen.name)?.modules ?? [];
-    // only modules unlocked in the research horizon (mirrors machine gating);
-    // this also excludes creative/editor modules (nothing produces them)
-    const avail = q.availableModuleItems(eligible.map((m) => m.name));
-    return eligible.filter((m) => avail.has(m.name));
+    const { mods, avail } = placeable();
+    const fits = q.modulePlacementFilter(chosen, r);
+    return mods.filter((m) => fits(m) && avail.has(m.name));
   };
 
   // Machine eligibility: in NOW mode the default pick is restricted to buildings
