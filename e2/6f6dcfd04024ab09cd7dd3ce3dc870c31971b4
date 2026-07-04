@@ -1,0 +1,37 @@
+app/src/components/block/pin-dialog.tsx
+  s_9be9645d11a3e7::t_51158383a1fc4d 18
+app/src/components/block/row-menu.tsx
+  s_9be9645d11a3e7::t_01a6794c2031d3 31
+app/src/components/factory/machines-card.tsx
+  s_9be9645d11a3e7::t_0322e573a47269 73
+app/src/lib/machine-count.test.ts
+  s_9be9645d11a3e7::t_cd1d6e51d6fc67 6
+app/src/lib/machine-count.ts
+  s_9be9645d11a3e7::t_c40ca0aafb5b53 4,13
+app/src/routes/block.$id.tsx
+  s_9be9645d11a3e7::t_9e7d21673f08ca 121
+app/src/solver/lp.test.ts
+  s_9be9645d11a3e7::t_f9f84a261b9c00 347-363,365-367,370-372,375-387,389
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_7b926fdcac6fe9 628-630,643,666,764-766
+app/src/solver/lp.ts
+  s_9be9645d11a3e7::t_3da5da5f42e195 96,98-101,273,284,308,336-345,349-355,359-361
+app/src/solver/subblock.ts
+  s_9be9645d11a3e7::t_50eda17863c430 29,104,160-162,188,197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e26f6dcfd04024ab09cd7dd3ce3dc870c31971b4",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
