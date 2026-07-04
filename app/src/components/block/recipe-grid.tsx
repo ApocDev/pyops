@@ -48,6 +48,7 @@ export function RecipeGrid({
   open,
   renamingGroup,
   onRenamingGroupChange,
+  focusRecipe,
 }: {
   doc: BlockDocStore;
   blockId: number;
@@ -61,6 +62,8 @@ export function RecipeGrid({
    * from this row" (in the row context menu) starts a rename on creation */
   renamingGroup: number | null;
   onRenamingGroupChange: (id: number | null) => void;
+  /** recipe row to ring + scroll to, set when a flow-view node is clicked (#101) */
+  focusRecipe?: string | null;
 }) {
   const recipes = useStore(doc.store, (s) => s.recipes);
   const rowGroups = useStore(doc.store, (s) => s.rowGroups);
@@ -221,6 +224,7 @@ export function RecipeGrid({
                 producible={producible}
                 logi={logi}
                 open={open}
+                highlight={focusRecipe === name}
                 tempWarnings={rowTempWarnings(
                   res?.tempWarnings,
                   res?.display,

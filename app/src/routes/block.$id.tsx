@@ -28,6 +28,8 @@ import { recordRecent } from "../lib/recents";
 import { IconProvider, useSpoilables } from "../lib/icons";
 import { ModulesModal } from "../lib/modules-modal";
 import { Callout } from "#/components/ui/callout.tsx";
+import { Button } from "#/components/ui/button.tsx";
+import { Table2, Workflow } from "lucide-react";
 
 import { BlockTasks } from "../components/block/block-tasks.tsx";
 import { type Link as ItemLink } from "../components/block/item-chip.tsx";
@@ -46,6 +48,7 @@ import { SnapshotSheet } from "../components/block/snapshot-sheet.tsx";
 import { GoalCard } from "../components/block/goal-card.tsx";
 import { BalanceCard } from "../components/block/balance-card.tsx";
 import { RecipeGrid } from "../components/block/recipe-grid.tsx";
+import { BlockFlowView } from "../components/block/block-flow-view.tsx";
 import type { LogiView } from "../components/block/solve-view.ts";
 
 export const Route = createFileRoute("/block/$id")({ component: BlockRoute });
@@ -120,6 +123,15 @@ function Block({ blockId }: { blockId: number }) {
   const [pinFor, setPinFor] = useState<string | null>(null);
   // snapshot-history drawer (#85)
   const [historyOpen, setHistoryOpen] = useState(false);
+  // recipe table vs. sankey/flow view (#101); `focusRecipe` briefly rings a row
+  // when a flow node is clicked (cleared on a timer so it doesn't stick).
+  const [view, setView] = useState<"table" | "flow">("table");
+  const [focusRecipe, setFocusRecipe] = useState<string | null>(null);
+  const focusRow = (recipe: string) => {
+    setView("table");
+    setFocusRecipe(recipe);
+    setTimeout(() => setFocusRecipe((cur) => (cur === recipe ? null : cur)), 2500);
+  };
 
   const createGroupFromRow = (recipe: string) => setRenamingGroup(doc.createGroupFromRow(recipe)); // name it right away
   const removeFromGroup = doc.removeFromGroup;
@@ -688,25 +700,53 @@ function Block({ blockId }: { blockId: number }) {
 
       <BlockTasks blockId={blockId} />
 
-      <RecipeGrid
-        doc={doc}
-        blockId={blockId}
-        res={res}
-        linkOf={linkOf}
-        producible={producible}
-        logi={logi}
-        open={{
-          makeFor,
-          useFor,
-          ctxMenu: openCtxMenu,
-          rowMenu: (e, name) => setRowMenu({ x: e.clientX, y: e.clientY, name }),
-          machinePicker: setPickMachineFor,
-          fuelPicker: setPickFuelFor,
-          modulesPicker: setPickModulesFor,
-        }}
-        renamingGroup={renamingGroup}
-        onRenamingGroupChange={setRenamingGroup}
-      />
+      {/* Recipe table ↔ flow diagram (#101). A segmented toggle; the flow view
+          is a read-only alternative rendering of the same solve. */}
+      <div className="mb-2 flex items-center gap-1">
+        <Button
+          variant="toggle"
+          size="sm"
+          aria-pressed={view === "table"}
+          onClick={() => setView("table")}
+        >
+          <Table2 className="size-4" />
+          Table
+        </Button>
+        <Button
+          variant="toggle"
+          size="sm"
+          aria-pressed={view === "flow"}
+          onClick={() => setView("flow")}
+        >
+          <Workflow className="size-4" />
+          Flow
+        </Button>
+      </div>
+
+      {view === "flow" ? (
+        <BlockFlowView res={res} goalNames={goalNames} onSelectRecipe={focusRow} />
+      ) : (
+        <RecipeGrid
+          doc={doc}
+          blockId={blockId}
+          res={res}
+          linkOf={linkOf}
+          producible={producible}
+          logi={logi}
+          focusRecipe={focusRecipe}
+          open={{
+            makeFor,
+            useFor,
+            ctxMenu: openCtxMenu,
+            rowMenu: (e, name) => setRowMenu({ x: e.clientX, y: e.clientY, name }),
+            machinePicker: setPickMachineFor,
+            fuelPicker: setPickFuelFor,
+            modulesPicker: setPickModulesFor,
+          }}
+          renamingGroup={renamingGroup}
+          onRenamingGroupChange={setRenamingGroup}
+        />
+      )}
 
       {/* Goal-item picker — add a new goal, or change an existing goal's item. */}
       {goalPicker && (

@@ -172,6 +172,15 @@ into **sub-blocks**: right-click a recipe's name to start a named group, add row
 and collapse it to a single line showing the chain's net flows (inputs → outputs,
 intermediates cancelled), machines and power. Purely visual — the solve is unchanged.
 
+Switch the recipe table to a **flow view** (the Table / Flow toggle) to see the
+block as a diagram instead of a list: recipes are nodes (icon + building count),
+imports enter at the left, byproducts and the goal output leave at the right, and
+every item flow is a link whose width tracks its solved rate. Py's recycle loops
+are drawn as dashed back-edges rather than assumed away, so the trunk and the
+loops are both legible in a 20-recipe block. Hover a node for its rich card, hover
+a link for the good + rate, and click a recipe node to jump back to its row in the
+table.
+
 Deliberate-spoilage steps (the uranium chain's decay, nagesium and friends) show their
 **storage buffer** right on the row: how many items sit mid-spoil at the solved
 throughput (`rate × spoil time`) and roughly how many stacks that is — the "how many

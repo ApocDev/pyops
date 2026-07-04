@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import {
@@ -60,6 +61,7 @@ export function RecipeRow({
   logi,
   open,
   tempWarnings,
+  highlight,
 }: {
   doc: BlockDocStore;
   name: string;
@@ -81,6 +83,8 @@ export function RecipeRow({
   open: RowOverlayOpeners;
   /** per-chip fluid-temperature mismatches touching this row (#110 interim) */
   tempWarnings: { ingredient: Map<string, ChipTempWarning>; product: Map<string, ChipTempWarning> };
+  /** briefly ring + scroll this row into view — set when a flow node targets it (#101) */
+  highlight?: boolean;
 }) {
   const rowPin = useStore(doc.store, (s) =>
     s.pins.find((p) => p.kind !== "share" && p.recipe === name),
@@ -92,11 +96,16 @@ export function RecipeRow({
   // v2 solver (#91): rates are ≥ 0 by construction. A row at exactly 0 is
   // idle — nothing in the block pulls it (not an error; often a parked option).
   const idle = !off && row != null && Math.abs(row.rate) < 1e-9;
+  const rowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (highlight) rowRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [highlight]);
   return (
     <SortableRow key={name} id={name}>
       {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
         <div
-          className={`${gridClass} relative border-t border-border ${grouped ? "border-l-2 border-l-primary/50" : ""}  ${off ? "bg-muted/30" : ""} ${isDragging ? "bg-card shadow-lg" : ""}`}
+          ref={rowRef}
+          className={`${gridClass} relative border-t border-border ${grouped ? "border-l-2 border-l-primary/50" : ""}  ${off ? "bg-muted/30" : ""} ${isDragging ? "bg-card shadow-lg" : ""} ${highlight ? "ring-2 ring-primary ring-inset" : ""}`}
         >
           <RecipeHover name={name} className="flex min-w-0 items-center gap-2">
             <span
