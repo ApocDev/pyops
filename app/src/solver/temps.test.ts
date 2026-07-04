@@ -41,10 +41,11 @@ test("fluids without ranged consumers pass through untouched", () => {
   expect(fold.isSynthetic("anything")).toBe(false);
 });
 
-test("an out-of-range producer cannot feed a ranged consumer — the pool reads unmade", async () => {
-  // only dt-he3 (3000°) present, generator needs 4000°: with neutron made, the
-  // 4000° pool has no producer → reported unmade; the block imports the pool
-  // (temperature is then the player's problem, stated honestly)
+test("an out-of-range producer cannot feed a ranged consumer — the pool imports", async () => {
+  // only dt-he3 (3000°) present, generator needs 4000°: the 4000° pool has no
+  // in-block producer, so it degrades to an IMPORT (a made mark that can't be
+  // honored is a silent import, #91). The temperature mismatch is surfaced
+  // separately by the per-producer temp warnings, not by a double nag here.
   const { res, fold } = solve(
     [dtHe3, mdh4000],
     [{ name: "pyops-electricity", rate: 9600000 }],
@@ -52,10 +53,10 @@ test("an out-of-range producer cannot feed a ranged consumer — the pool reads 
   );
   const r = await res;
   expect(r.status).toBe("solved");
-  const unmade = (r.unmade ?? []).map((u) => `${fold.bare(u)} ${fold.tempOf(u) ?? ""}`.trim());
-  expect(unmade).toContain("neutron 4000°");
-  // nothing pulls dt-he3 (its 3000° output can't feed the generator): it
-  // honestly idles instead of running for an exportable byproduct
+  expect(r.unmade ?? []).toEqual([]); // no unmade nag
+  const imports = r.imports.map((f) => `${fold.bare(f.name)} ${fold.tempOf(f.name) ?? ""}`.trim());
+  expect(imports).toContain("neutron 4000°"); // the generator imports the temp it needs
+  // nothing pulls dt-he3 (its 3000° output can't feed the generator): it idles
   const rates = Object.fromEntries(r.recipes.map((x) => [x.recipe, x.rate]));
   expect(rates["dt-he3"]).toBeCloseTo(0);
 });
@@ -114,14 +115,25 @@ test("a goal on an expanded fluid is satisfied by any temperature, variants stay
     ingredients: [{ kind: "fluid", name: "water", amount: 10, maxTemp: 101 }],
     products: [{ kind: "item", name: "gel", amount: 1 }],
   };
-  const { res, fold } = solve([boil, cold], [{ name: "water", rate: 175 }], ["water"]);
+  // gel is a goal too, so the cold consumer actually runs (needs ≤101° water)
+  const { res, fold } = solve(
+    [boil, cold],
+    [
+      { name: "water", rate: 175 },
+      { name: "gel", rate: 1 },
+    ],
+    ["water"],
+  );
   const r = await res;
   expect(r.status).toBe("solved");
   const rates = Object.fromEntries(r.recipes.map((x) => [x.recipe, x.rate]));
-  expect(rates["boil"]).toBeCloseTo(1); // goal met by the 125° variant
-  // the ≤101° pool has no in-range producer → unmade, its consumer imports
-  const unmade = (r.unmade ?? []).map((u) => `${fold.bare(u)} ${fold.tempOf(u) ?? ""}`.trim());
-  expect(unmade).toContain("water ≤101°");
+  expect(rates["boil"]).toBeCloseTo(1); // water goal met by the 125° variant
+  expect(rates["cold-process"]).toBeCloseTo(1); // gel goal drives the ≤101° draw
+  // the ≤101° pool has no in-range producer → it imports silently (no nag);
+  // the cold consumer draws its ≤101° water from the boundary
+  expect(r.unmade ?? []).toEqual([]);
+  const imports = r.imports.map((f) => `${fold.bare(f.name)} ${fold.tempOf(f.name) ?? ""}`.trim());
+  expect(imports).toContain("water ≤101°");
 });
 
 test("share pins follow the consumer onto its pool", async () => {

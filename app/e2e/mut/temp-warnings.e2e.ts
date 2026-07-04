@@ -49,8 +49,6 @@ test("fluid-temp mismatch flags the 3000° producer feeding a 4000° generator",
 
   // add b-h (neutron @4000°, satisfies the generator): the dt-he3 mismatch
   // must STAY flagged — one matching producer used to mask it entirely.
-  // Target the generator row's linked ingredient chip: the balance card's
-  // "made in this block" strip also has a Neutron button (it unmarks — #91).
   await page
     .getByRole("button", { name: /^Neutron.*linked/ })
     .first()

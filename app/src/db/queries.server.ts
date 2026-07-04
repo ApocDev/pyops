@@ -1163,14 +1163,12 @@ export function listBlocks() {
     for (const r of blockRecipes)
       for (const p of productsByRecipe.get(r) ?? []) makesInBlock.add(p);
     const unmadeGoals = goalNames(d).filter((g) => goodNames.has(g) && !makesInBlock.has(g));
-    // v2 (#91): made marks whose producer vanished (or was never added) — the
-    // same "unmade" condition the solve reports, derivable here without solving.
-    const unmadeMade = (d.made ?? []).filter((m) => !makesInBlock.has(m));
+    // NB: a made mark with no producer is NOT a health problem (#91 nitpick) — it
+    // degrades silently to an import in the solve, so it doesn't tint the block.
     const health: BlockHealth =
       broken || solveStatus === "infeasible" || solveStatus === "error"
         ? "error"
         : unmadeGoals.length > 0 ||
-            unmadeMade.length > 0 ||
             // stale pre-v2 statuses: the block re-solves (and re-caches) on open
             solveStatus === "relaxed" ||
             solveStatus === "underdetermined"
@@ -1181,7 +1179,6 @@ export function listBlocks() {
       broken,
       health,
       unmadeGoals,
-      unmadeMade,
       // for the delete-block confirm (#83): what the deletion would destroy
       recipeCount: blockRecipes.length,
       goalCount: goalNames(d).length,

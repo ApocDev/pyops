@@ -88,9 +88,11 @@ export type LpBlockResult = {
   recipes: { recipe: string; rate: number; machines1x: number }[];
   imports: Flow[];
   exports: Flow[];
-  /** produce goals nothing in-block makes, and `made` items with no producer.
-   * Their constraints are dropped (reported, not enforced) so the rest of the
-   * block still solves — the UI flags exactly these with "add a producer". */
+  /** produce goals nothing in-block makes — the constraint is dropped (reported,
+   * not enforced) so the rest of the block still solves and the UI flags exactly
+   * these with "add a recipe". A `made` mark with no producer is NOT listed here:
+   * it degrades silently to an import (a mark that can't be honored is a
+   * non-event, not a warning). */
   unmade?: string[];
   /** whole-machine mode (#98): recipe → integer building count (the ceiling
    * the solve committed to; the recipe's rate may leave it partly idle) */
@@ -187,7 +189,11 @@ export function buildModel(input: LpBlockInput): BlockModel {
     const c = coeff[item];
     if (!c) continue; // stale mark on an item nothing touches — inert
     if (!produced[item]) {
-      unmade.push(item); // marked made but no producer: report, don't zero consumers
+      // marked made but nothing in-block produces it: degrade silently to an
+      // import (net < 0). A made mark is a soft "cover this here" — when it
+      // can't be honored the graceful answer is to import, NOT to nag. Only a
+      // GOAL with no producer earns the "add a recipe" flag (the user asked
+      // for that output); a made mark that can't be met is a non-event.
       continue;
     }
     constraints.push({

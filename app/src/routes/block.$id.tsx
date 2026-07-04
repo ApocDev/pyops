@@ -514,8 +514,9 @@ function Block({ blockId }: { blockId: number }) {
         : "text-warning";
 
   // Block health for the title tint (mirrors the sidebar verdict): red for broken
-  // refs / infeasible / solver error, amber for unmade goals or made marks /
-  // temperature mismatches, none when clean.
+  // refs / infeasible / solver error, amber for goals with no recipe or
+  // temperature mismatches, none when clean. (A made mark with no producer is
+  // not a warning — it just imports.)
   const editorHealth: "error" | "warn" | null = !res
     ? null
     : res.broken || res.status === "infeasible" || res.status === "error"

@@ -1,5 +1,5 @@
 import { useStore } from "@tanstack/react-store";
-import { AlertTriangle, Cloud, Flame, Lock, Plus, Timer, X, Zap } from "lucide-react";
+import { AlertTriangle, Cloud, Flame, Lock, Plus, Timer, Zap } from "lucide-react";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
@@ -12,7 +12,7 @@ import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
 import { fmtW, num } from "./format.ts";
 
-/** The Block balance card: solve status, made-here and planned-spoil strips,
+/** The Block balance card: solve status, the planned-spoil strip,
  * the root-cause (IIS) cards on an infeasible solve, the unmade/temperature
  * warnings, the power line, and the imports/exports chip lists with the
  * sizing-lock controls. */
@@ -53,7 +53,6 @@ export function BalanceCard({
   ) => void;
   onOpenSpoilDialog: (name: string) => void;
 }) {
-  const made = useStore(doc.store, (s) => s.made);
   const spoilRates = useStore(doc.store, (s) => s.spoilRates);
   const spoilables = useSpoilables();
   return (
@@ -67,38 +66,10 @@ export function BalanceCard({
           </span>
         )}
       </CardHeader>
-      {/* Made-here marks (#91) — the block's claimed in-block production. Always
-          visible when any exist (even on an infeasible solve) so a mark can
-          never soft-lock the block: click × to unmark (the item goes free —
-          imports its shortfall, exports its surplus). */}
-      {!!made?.size && (
-        <Callout tone="info" icon={null} className="mx-3 mt-2 px-2 py-1.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <span>made in this block:</span>
-            {[...made]
-              .sort((a, b) => a.localeCompare(b))
-              .map((name) => (
-                <button
-                  key={name}
-                  onClick={() => {
-                    doc.unmark(name);
-                    doc.note(`Unmark "${res?.display?.[name] ?? name}" (import instead)`);
-                  }}
-                  title="production here covers consumption (surplus exports). Click to unmark — the item imports instead."
-                  className="inline-flex items-center gap-1 bg-success/15 px-1.5 py-0.5 text-success ring-1 ring-success/30 hover:brightness-110"
-                >
-                  <Icon
-                    kind={kindOf(name)}
-                    name={name}
-                    size="sm"
-                    title={res?.display?.[name] ?? name}
-                  />
-                  {res?.display?.[name] ?? name} <X className="size-3" />
-                </button>
-              ))}
-          </div>
-        </Callout>
-      )}
+      {/* The made set (#91) drives the solve but isn't listed here — the recipe
+          rows already show what's produced in-block (linked green chips). Toggle
+          a good's made state from its right-click menu; the IIS cards below
+          offer "import it instead" per made item when a block is infeasible. */}
       {/* Planned spoil losses (#20) — always visible when set: the pinned
           surplus never reaches the boundary flows (it rots), so without this
           strip a planned loss would be invisible. */}

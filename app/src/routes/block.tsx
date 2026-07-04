@@ -462,9 +462,7 @@ function Shell() {
         ? "this block has no exact solution — open to fix"
         : b.unmadeGoals.length
           ? `${b.unmadeGoals.length} goal${b.unmadeGoals.length === 1 ? "" : "s"} with no recipe yet — open to add one`
-          : b.unmadeMade.length
-            ? `${b.unmadeMade.length} made-here item${b.unmadeMade.length === 1 ? "" : "s"} with no producer — open to fix`
-            : "this block needs attention — open to see";
+          : "this block needs attention — open to see";
   // worst health among every block in a folder subtree (errors dominate warnings),
   // so a problem nested anywhere bubbles up to the folder header.
   const groupHealth = (groupId: number): Health => {

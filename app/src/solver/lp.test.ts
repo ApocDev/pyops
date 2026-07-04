@@ -216,14 +216,16 @@ test("unmade produce goal is reported, not enforced — the rest still solves", 
   expect(rate(res).gear).toBeCloseTo(1);
 });
 
-test("made mark with no producer is reported and dropped, consumers keep running", async () => {
+test("made mark with no producer degrades silently to an import (no unmade nag)", async () => {
   const res = await solveBlockLp({
     goals: [{ name: "gear", rate: 1 }],
     recipes: [gear],
     made: ["plate"], // no plate producer in the block
   });
   expect(res.status).toBe("solved");
-  expect(res.unmade).toEqual(["plate"]);
+  // a made mark that can't be honored just imports — NOT reported as unmade
+  // (only a produce goal with no producer earns that flag)
+  expect(res.unmade).toBeUndefined();
   expect(flow(res.imports, "plate")).toBeCloseTo(2);
 });
 
