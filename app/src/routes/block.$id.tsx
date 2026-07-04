@@ -338,6 +338,11 @@ function Block({ blockId }: { blockId: number }) {
     // keep the last result while a re-solve is in flight — otherwise every edit
     // briefly unmounts everything derived from `res` (incl. open modals)
     placeholderData: keepPreviousData,
+    // the key embeds the whole doc, so every edit mints a NEW cache entry; the
+    // default 5-min gcTime would hoard dozens of full solve payloads during
+    // active editing on a big block — a short lifetime keeps back/forward snappy
+    // without the hoard
+    gcTime: 30_000,
   });
   // Legacy-doc migration (#91): a pre-#91 doc has no `made` set, so the server
   // derives one from its old dispositions and echoes it on the result. Adopt it
