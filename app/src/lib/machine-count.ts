@@ -1,7 +1,7 @@
 /**
  * Machine-count rendering helpers. Block solves report machine counts that are
  * either fractional (the default solve — 7.28 assemblers is the exact ratio) or
- * integer (whole-machine mode, #98) — both flow into the factory machines
+ * integer (from the game's built counts) — both flow into the factory machines
  * table, so it renders each sanely: integers plain, fractions at adaptive
  * precision with the whole-machine build target alongside.
  */
@@ -10,7 +10,7 @@ import { formatQty } from "./format";
 /** Whole machines you must place to cover a (possibly fractional) requirement. */
 export const wholeMachines = (n: number): number => Math.ceil(n - 1e-6);
 
-/** True when a count is (numerically) a whole number — whole-machine-mode
+/** True when a count is (numerically) a whole number — the game's built-count
  * blocks and built counts from the game; fractional solves are not. */
 export const isWholeCount = (n: number): boolean => Math.abs(n - Math.round(n)) < 1e-6;
 

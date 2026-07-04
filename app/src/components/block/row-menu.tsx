@@ -28,7 +28,7 @@ export function RowMenu({
   onNewGroup: () => void;
   onJoinGroup: (groupId: number) => void;
   onLeaveGroup: () => void;
-  /** open the pin editor (#91/#98): fixed/cap counts, input shares */
+  /** open the pin editor (#91): fixed/cap counts, input shares */
   onOpenPins: () => void;
   onClose: () => void;
 }) {

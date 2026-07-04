@@ -70,7 +70,7 @@ const HEAD_W: Record<string, string> = {
   short: "w-24 justify-end",
 };
 
-/** A required count: whole-machine blocks (#98) show the integer as-is;
+/** A required count: whole (built) counts show the integer as-is;
  * fractional solves show the exact ratio with the build target in the title. */
 function RequiredCount({ n }: { n: number }) {
   if (isWholeCount(n)) return <>{fmtMachineCount(n)}</>;

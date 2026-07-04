@@ -451,9 +451,6 @@ export type BlockData = {
     | { kind: "count" | "cap"; recipe: string; count: number }
     | { kind: "share"; recipe: string; item: string; share: number; base?: "total" | "remaining" }
   )[];
-  // Whole-machine mode (#98): building counts are integers the solve commits
-  // to (rows may idle; rates stay exact). Off = exact fractional counts.
-  wholeMachines?: boolean;
   machines?: Record<string, string>; // recipe → chosen machine
   fuels?: Record<string, string>; // recipe → chosen fuel
   // Reactor farm layout per reactor recipe row (#94): the assumed x×y grid whose

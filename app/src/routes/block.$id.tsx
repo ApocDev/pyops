@@ -81,7 +81,6 @@ function Block({ blockId }: { blockId: number }) {
     recipes,
     made,
     pins,
-    wholeMachines,
     spoilRates,
     rowGroups,
     recipeGroups,
@@ -119,7 +118,7 @@ function Block({ blockId }: { blockId: number }) {
   const [renamingGroup, setRenamingGroup] = useState<number | null>(null);
   // right-click menu on a recipe row (sub-block actions)
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; name: string } | null>(null);
-  // pin editor (#91/#98): the recipe whose pins are being edited
+  // pin editor (#91): the recipe whose pins are being edited
   const [pinFor, setPinFor] = useState<string | null>(null);
   // snapshot-history drawer (#85)
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -328,7 +327,6 @@ function Block({ blockId }: { blockId: number }) {
       spoilRates,
       made,
       pins,
-      wholeMachines,
       machineSel,
       fuelSel,
       moduleSel,

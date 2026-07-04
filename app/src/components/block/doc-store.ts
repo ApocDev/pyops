@@ -50,8 +50,6 @@ export type BlockDocState = {
   made: ReadonlySet<string> | null;
   /** per-row pins (#91): fixed/cap building counts, consumer shares */
   pins: DocPin[];
-  /** whole-machine mode (#98): integer building counts per row */
-  wholeMachines: boolean;
   /** legacy dispositions payload, kept verbatim until `made` is adopted so the
    * server keeps deriving from it; dropped from the doc after adoption */
   dispositions: Record<string, Disposition>;
@@ -77,7 +75,6 @@ const EMPTY: BlockDocState = {
   disabled: new Set(),
   made: null,
   pins: [],
-  wholeMachines: false,
   dispositions: {},
   spoilRates: {},
   rowGroups: [],
@@ -107,7 +104,6 @@ export function solveInputOf(s: BlockDocState): SolveInput {
     // shipping their dispositions so the server can derive
     ...(s.made ? { made: [...s.made].sort() } : {}),
     ...(s.pins.length ? { pins: s.pins } : {}),
-    ...(s.wholeMachines ? { wholeMachines: true } : {}),
     ...(!s.made && Object.keys(s.dispositions).length ? { dispositions: s.dispositions } : {}),
     ...(Object.keys(s.machines).length ? { machines: s.machines } : {}),
     ...(Object.keys(s.fuels).length ? { fuels: s.fuels } : {}),
@@ -158,7 +154,6 @@ export function createBlockDocStore() {
       disabled: new Set(d.disabledRecipes ?? []),
       made: d.made ? new Set(d.made) : null,
       pins: d.pins ?? [],
-      wholeMachines: d.wholeMachines ?? false,
       dispositions: (d.dispositions ?? {}) as Record<string, Disposition>,
       spoilRates: d.spoilRates ?? {},
       machines: d.machines ?? {},
@@ -375,8 +370,6 @@ export function createBlockDocStore() {
           pin,
         ],
       })),
-    /** whole-machine mode (#98): integer building counts on every row */
-    setWholeMachines: (on: boolean) => edit(() => ({ wholeMachines: on })),
     clearPin: (recipe: string, share?: { item: string }) =>
       edit((s) => ({
         pins: s.pins.filter((p) =>

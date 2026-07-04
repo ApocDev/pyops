@@ -15,7 +15,7 @@ import { Icon } from "../../lib/icons";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { SolveResult } from "./solve-view.ts";
 
-/** Pin editor for one recipe row (#91/#98): fixed building count (always run
+/** Pin editor for one recipe row (#91): fixed building count (always run
  * exactly N — supply-push), built cap (at most N — the reality ceiling), and
  * consumer share pins (this row takes a % of an ingredient's in-block
  * production — the byproduct-routing gesture). One count-or-cap pin per row;

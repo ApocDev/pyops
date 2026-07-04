@@ -26,14 +26,7 @@
  * isolation (subblock.test.ts), including the flat-equivalence property: a
  * 2-level compose reproduces the equivalent flat block's boundary flows.
  */
-import {
-  solveBlockLp,
-  type Flow,
-  type LpBlockInput,
-  type LpBlockResult,
-  type Pin,
-  type RecipeDef,
-} from "./lp.ts";
+import { solveBlockLp, type Flow, type LpBlockResult, type Pin, type RecipeDef } from "./lp.ts";
 import { expandTemps, type TempFold } from "./temps.ts";
 
 /** Flows below this are solver noise, not real boundary traffic. */
@@ -86,12 +79,6 @@ export type SubBlockSolve = {
 };
 
 const byName = (a: { name: string }, b: { name: string }) => (a.name < b.name ? -1 : 1);
-const pickRates = (all: Record<string, number> | undefined, names: Set<string>) => {
-  if (!all) return undefined;
-  const out: Record<string, number> = {};
-  for (const [k, v] of Object.entries(all)) if (names.has(k)) out[k] = v;
-  return Object.keys(out).length ? out : undefined;
-};
 
 /** Every good any recipe in `defs` produces (amount > 0). The auto-`made` set for
  * a module: it covers its own intermediates and only imports true raws. */
@@ -108,18 +95,13 @@ export async function solveSubBlock(
   group: ComposedGroup,
   defs: RecipeDef[],
   defaultTemp: (fluid: string) => number | null,
-  machineRates?: Record<string, number>,
 ): Promise<SubBlockSolve> {
   const made = group.made ?? producedGoods(defs);
   const { input, fold } = expandTemps(
     { goals: group.goals, recipes: defs, made, pins: group.pins ?? [] },
     defaultTemp,
   );
-  const lpInput: LpBlockInput = {
-    ...input,
-    ...(machineRates ? { machineRates } : {}),
-  };
-  const result = await solveBlockLp(lpInput);
+  const result = await solveBlockLp(input);
 
   // Boundary contract: the RAW net per good over the (temp-expanded) member
   // recipes at the solved rates, folded to bare fluid names. Taking the raw net
@@ -175,19 +157,17 @@ export async function solveSubBlock(
 
 /** Solve every composed group and assemble the parent's recipe set: the parent
  * keeps its own (non-member) recipes and gains one synthetic recipe per module.
- * Member recipes, pins, and whole-machine rates are routed into their module.
- * Returns everything the caller needs to run the parent solve and then scale
- * each module's member rows by the parent's chosen run-rate of its synthetic. */
+ * Member recipes and pins are routed into their module. Returns everything the
+ * caller needs to run the parent solve and then scale each module's member rows
+ * by the parent's chosen run-rate of its synthetic. */
 export async function composeSubBlocks(args: {
   defs: RecipeDef[];
   groups: ComposedGroup[];
   pins: Pin[];
-  machineRates?: Record<string, number>;
   defaultTemp: (fluid: string) => number | null;
 }): Promise<{
   parentDefs: RecipeDef[];
   parentPins: Pin[];
-  parentMachineRates?: Record<string, number>;
   subs: SubBlockSolve[];
   /** live member recipe → its group id */
   memberGroupOf: Map<string, number>;
@@ -204,14 +184,8 @@ export async function composeSubBlocks(args: {
     const memberSet = new Set(members);
     const memberDefs = members.map((m) => defByName.get(m)!);
     const memberPins = args.pins.filter((p) => memberSet.has(p.recipe));
-    const memberRates = pickRates(args.machineRates, memberSet);
     subs.push(
-      await solveSubBlock(
-        { ...g, members, pins: memberPins },
-        memberDefs,
-        args.defaultTemp,
-        memberRates,
-      ),
+      await solveSubBlock({ ...g, members, pins: memberPins }, memberDefs, args.defaultTemp),
     );
   }
 
@@ -220,9 +194,5 @@ export async function composeSubBlocks(args: {
     ...subs.map((s) => s.synthetic),
   ];
   const parentPins = args.pins.filter((p) => !memberGroupOf.has(p.recipe));
-  const parentMachineRates = pickRates(
-    args.machineRates,
-    new Set(parentDefs.map((d) => d.name).filter((n) => !isSyntheticSubName(n))),
-  );
-  return { parentDefs, parentPins, parentMachineRates, subs, memberGroupOf };
+  return { parentDefs, parentPins, subs, memberGroupOf };
 }

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { fmtMachineCount, isWholeCount, wholeMachines } from "./machine-count";
 
 /** Machine counts arrive in two shapes (#80): fractional from the default solve
- * (7.28 assemblers) and integer from whole-machine mode (#98) or the game's
+ * (7.28 assemblers) and integer from the game's
  * built counts. Both must render sanely. */
 describe("machine-count helpers", () => {
   it("renders whole counts plain — no fake decimals", () => {

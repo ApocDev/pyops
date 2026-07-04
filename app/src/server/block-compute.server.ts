@@ -224,9 +224,6 @@ export type SolveInput = {
    * count = always run exactly N buildings; cap = at most N buildings (built
    * ceiling); share = this consumer takes a % of the item's production. */
   pins?: DocPin[];
-  /** whole-machine mode (#98): every row's building count is an integer the
-   * solve commits to (machines may idle); rates stay exact. */
-  wholeMachines?: boolean;
   machines?: Record<string, string>; // recipe → chosen machine (else fastest)
   fuels?: Record<string, string>; // recipe → chosen fuel (else cheapest available)
   // Reactor farm layout per reactor recipe row (#94): the assumed x×y grid whose
@@ -625,22 +622,12 @@ export async function computeBlock(rawData: SolveInput) {
       rate: p.count * perBuilding,
     });
   }
-  // whole-machine mode (#98): hand the LP each row's real per-building rate so
-  // it can commit to integer counts
-  const machineRates = data.wholeMachines
-    ? Object.fromEntries(
-        defs.flatMap((d) => {
-          const per = craftRate(d.name);
-          return per != null && per > 0 ? [[d.name, per]] : [];
-        }),
-      )
-    : undefined;
   const defaultTemp = (f: string) => q.getFluid(f)?.defaultTemperature ?? null;
   // Sub-blocks v2 (#76): a COMPOSED group is solved as its own module and pulled
   // out of the parent solve, replaced by a synthetic recipe carrying only its
-  // boundary contract (net imports → net exports). Member recipes, pins and
-  // whole-machine rates route into their module; the parent solves normally over
-  // its own recipes + these synthetics. Display-only groups (#7) are untouched.
+  // boundary contract (net imports → net exports). Member recipes and pins route
+  // into their module; the parent solves normally over its own recipes + these
+  // synthetics. Display-only groups (#7) are untouched.
   const composedGroups: ComposedGroup[] = (data.rowGroups ?? [])
     .filter((g) => g.composed)
     .map((g) => ({
@@ -653,11 +640,10 @@ export async function computeBlock(rawData: SolveInput) {
       ...(g.made ? { made: g.made } : {}),
     }));
   const compose = composedGroups.length
-    ? await composeSubBlocks({ defs, groups: composedGroups, pins, machineRates, defaultTemp })
+    ? await composeSubBlocks({ defs, groups: composedGroups, pins, defaultTemp })
     : {
         parentDefs: defs,
         parentPins: pins,
-        parentMachineRates: machineRates,
         subs: [] as SubBlockSolve[],
         memberGroupOf: new Map<string, number>(),
       };
@@ -677,10 +663,7 @@ export async function computeBlock(rawData: SolveInput) {
     { goals, recipes: compose.parentDefs, made: parentMade, pins: compose.parentPins },
     defaultTemp,
   );
-  const lpInput: LpBlockInput = {
-    ...expandedInput,
-    ...(compose.parentMachineRates ? { machineRates: compose.parentMachineRates } : {}),
-  };
+  const lpInput: LpBlockInput = expandedInput;
   const rawResult = await solveBlockLp(lpInput);
   // root-cause cards for the balance card — every member is a clickable gesture.
   // Fold synthetic goods back to the bare fluid (the doc's made marks are bare
@@ -778,9 +761,9 @@ export async function computeBlock(rawData: SolveInput) {
       autoModules,
     } = setup.get(rr.recipe)!;
     const speed = (chosen?.craftingSpeed ?? 1) * fx.speedMult;
-    // whole-machine mode (#98): the LP committed to an integer count (the row
-    // may idle); otherwise the exact fractional requirement
-    const count = result.wholeMachines?.[rr.recipe] ?? rr.machines1x / speed;
+    // fractional building requirement (machine-seconds/sec ÷ speed); the UI
+    // shows this and the whole-machine build target alongside it
+    const count = rr.machines1x / speed;
     const powerW = (chosen?.energyUsageW ?? 0) * count * fx.consMult;
     const pollutionPerMin =
       (chosen?.pollutionPerMin ?? 0) * Math.max(0, count) * fx.consMult * fx.pollutionMult;

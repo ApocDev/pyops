@@ -344,34 +344,47 @@ test("mass conservation: every item's flows balance on a cyclic Py-style chain",
   expect(netLight).toBeCloseTo(25, 9); // goal binds exactly (ε-cost pushes down)
 });
 
-test("whole-machine mode (#98): integer counts land on the ceiling, rates stay exact", async () => {
-  // goal needs 1 exec/s; one building does 0.3 exec/s → 4 buildings (ceil 3.33)
+test("near-cancellation dust is not a phantom flow (block-20 water case)", async () => {
+  // a pump makes 1200 water/exec, a barreler consumes 50/exec at rate 5.5 →
+  // 275 water demanded; the pump covers it exactly. HiGHS' ~1e-7 rate error ×
+  // the 1200 coefficient would otherwise leak a ~0.0004 phantom water export —
+  // the relative dust floor drops it.
+  const pump: RecipeDef = {
+    name: "pump",
+    energyRequired: 1,
+    ingredients: [],
+    products: [{ kind: "fluid", name: "water", amount: 1200 }],
+  };
+  const barrel: RecipeDef = {
+    name: "barrel",
+    energyRequired: 0.2,
+    ingredients: [{ kind: "fluid", name: "water", amount: 50 }],
+    products: [{ kind: "item", name: "water-barrel", amount: 1 }],
+  };
   const res = await solveBlockLp({
-    goals: [{ name: "plate", rate: 1 }],
-    recipes: [plate],
-    machineRates: { plate: 0.3 },
+    goals: [{ name: "water-barrel", rate: 5.5 }],
+    recipes: [pump, barrel],
+    made: ["water"],
   });
   expect(res.status).toBe("solved");
-  expect(res.recipes[0].rate).toBeCloseTo(1); // demand exact — machines idle a bit
-  expect(res.wholeMachines).toEqual({ plate: 4 });
+  // no phantom water export, and water isn't imported either — it's covered
+  expect(flow(res.exports, "water")).toBeUndefined();
+  expect(flow(res.imports, "water")).toBeUndefined();
 });
 
-test("whole-machine mode composes with a built cap: infeasible when the ceiling can't fit", async () => {
-  const res = await solveBlockLp({
-    goals: [{ name: "plate", rate: 1 }],
-    recipes: [plate],
-    machineRates: { plate: 0.3 },
-    pins: [{ kind: "cap", recipe: "plate", rate: 0.9 }], // 3 buildings' worth
-  });
-  expect(res.status).toBe("infeasible");
-});
-
-test("whole-machine mode: an exact fit needs no extra building", async () => {
-  const res = await solveBlockLp({
-    goals: [{ name: "plate", rate: 1 }],
-    recipes: [plate],
-    machineRates: { plate: 0.25 },
-  });
+test("a real small net survives the dust floor (not everything tiny is dropped)", async () => {
+  // a recipe makes 1000 X and consumes 999 X (net +1, a real 0.1% surplus) —
+  // gross 1999, net 1, ratio 5e-4 >> the 1e-5 dust floor, so it stays an export
+  const r: RecipeDef = {
+    name: "loop",
+    energyRequired: 1,
+    ingredients: [{ kind: "item", name: "x", amount: 999 }],
+    products: [
+      { kind: "item", name: "x", amount: 1000 },
+      { kind: "item", name: "y", amount: 1 },
+    ],
+  };
+  const res = await solveBlockLp({ goals: [{ name: "y", rate: 1 }], recipes: [r], made: ["x"] });
   expect(res.status).toBe("solved");
-  expect(res.wholeMachines).toEqual({ plate: 4 }); // 1 / 0.25 exactly
+  expect(flow(res.exports, "x")).toBeCloseTo(1);
 });
