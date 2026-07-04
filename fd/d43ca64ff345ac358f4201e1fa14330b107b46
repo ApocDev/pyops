@@ -1,0 +1,43 @@
+app/src/components/block/block-toolbar.tsx
+  s_9be9645d11a3e7::t_db2a023eeaaa5b 11,47,65-66,133-143
+app/src/components/block/doc-store.ts
+  s_9be9645d11a3e7::t_9d6d15273a0e14 337-340
+app/src/components/block/recipe-grid.tsx
+  s_9be9645d11a3e7::t_7022c56b0f98c8 229
+app/src/routes/block.$id.tsx
+  s_9be9645d11a3e7::t_503ec9f2d3fe32 516-539,672,797,900,903
+app/src/routes/settings.tsx
+  s_9be9645d11a3e7::t_18051ec79fc4b9 442-445,481-485,494,503
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_88515f8dc9c931 298-306,308,356,359-360,378-386,396-398,697-703,706-707,710-711,713,715,745-750,943-944,1184-1186
+app/src/server/module-presets.server.ts
+  s_9be9645d11a3e7::t_e30030767421d0 21,108
+app/e2e/mut/module-autofill.e2e.ts
+  s_9be9645d11a3e7::t_1d1b4401795923 1-51
+app/e2e/mut/module-presets.e2e.ts
+  s_9be9645d11a3e7::t_73052922242051 27
+app/src/components/block/recipe-row.tsx
+  s_9be9645d11a3e7::t_f192c54c4253d6 10,44-45,68,92-93,296-305
+app/src/lib/modules-modal.tsx
+  s_9be9645d11a3e7::t_d4b63e2b75cb6f 3,89,118,170,416,426-427,529-546,548-555
+app/src/server/agent-tools.server.ts
+  s_9be9645d11a3e7::t_ca33f31486d10f 621-624,626-629,633-640
+docs/solver.md
+  s_9be9645d11a3e7::t_8b95bddb4b8ee8 238-257
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "fdd43ca64ff345ac358f4201e1fa14330b107b46",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
