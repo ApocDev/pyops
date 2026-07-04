@@ -21,3 +21,6 @@ dev.db-shm
 dev.db-wal
 projects/
 projects.json
+
+# Playwright artifacts when run from app/ (the suite normally runs from app/e2e)
+test-results/
