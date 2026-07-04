@@ -81,26 +81,5 @@
     "vite-plus": "^0.2.1",
     "vitest": "npm:@voidzero-dev/vite-plus-test@^0.1.24"
   },
-  "packageManager": "pnpm@11.5.3",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "lightningcss",
-      "better-sqlite3"
-    ],
-    "overrides": {
-      "vite": "npm:@voidzero-dev/vite-plus-core@^0.2.1",
-      "vitest": "npm:@voidzero-dev/vite-plus-test@^0.1.24"
-    },
-    "peerDependencyRules": {
-      "allowAny": [
-        "vite",
-        "vitest"
-      ],
-      "allowedVersions": {
-        "vite": "*",
-        "vitest": "*"
-      }
-    }
-  }
+  "packageManager": "pnpm@11.5.3"
 }
