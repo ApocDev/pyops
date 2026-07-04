@@ -1,0 +1,23 @@
+README.md
+  s_9be9645d11a3e7::t_19701eaa36c330 7-10,12-16,22-39,45-46,49-50,53,57-58,63,67,71-74,76-79,81-83,94,96-97,99-100,106-107,109-113,119-124
+docs/bridge.md
+  s_9be9645d11a3e7::t_4647402ae6735d 126-155
+docs/configuration.md
+  s_9be9645d11a3e7::t_f246fd11c422b3 1-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1815b4881884e380e344eeeeaf0747e16775570f",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
