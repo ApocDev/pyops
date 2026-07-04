@@ -123,6 +123,39 @@ describe("pickAutoModules", () => {
     expect(fill).toEqual(["speed-3", "speed-3"]);
   });
 
+  it("holds the suggestion steady within 1% of a parked whole count (#117)", () => {
+    const strong = mod("speed-3", { effSpeed: 0.5, effConsumption: 0.7 });
+    // parked at exactly 2.0 buildings with 2 strong slots: 2 speed reach 1 machine
+    const parked = pickAutoModules({
+      slots: 2,
+      allowProductivity: false,
+      pool: [strong, eff],
+      baseCount: 2.0,
+      baseSpeedMult: 1,
+    });
+    expect(parked).toEqual(["speed-3", "speed-3"]);
+    // a 0.05% drift (2.001) must not flip the split — without the tolerance the
+    // floor jumps to 2 and the pick collapses to a single speed module
+    const drifted = pickAutoModules({
+      slots: 2,
+      allowProductivity: false,
+      pool: [strong, eff],
+      baseCount: 2.001,
+      baseSpeedMult: 1,
+    });
+    expect(drifted).toEqual(parked);
+    // well past the band (2.5 → 2 speed only reaches 1.25) the floor is honestly
+    // 2 machines, reached with one module — the flip is a real decision change
+    const past = pickAutoModules({
+      slots: 2,
+      allowProductivity: false,
+      pool: [strong, eff],
+      baseCount: 2.5,
+      baseSpeedMult: 1,
+    });
+    expect(past).toEqual(["speed-3", "eff-1"]);
+  });
+
   it("returns nothing for an empty pool or zero slots", () => {
     expect(
       pickAutoModules({

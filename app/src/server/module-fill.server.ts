@@ -58,11 +58,17 @@ export function pickAutoModules(opts: {
 
   // count(k) for k speed modules: count ∝ 1/speedMult; each module adds effSpeed.
   const countAt = (k: number) => (baseCount * baseSpeedMult) / (baseSpeedMult + k * speed.effSpeed);
-  const floor = Math.ceil(countAt(slots) - 1e-9); // best achievable whole count
+  // 1% overload tolerance: a count a hair over a whole number reads as that
+  // whole. Users park blocks at round counts/rates; without the band, drifting
+  // from 2.000 to 2.001 buildings flips the whole-count floor and with it the
+  // suggested speed/efficiency split (#117). One percent of a machine is well
+  // inside LP dust and real-world uptime slack.
+  const TOL = 0.01;
+  const floor = Math.ceil(countAt(slots) * (1 - TOL) - 1e-9); // best achievable whole count
   // fewest speed modules that still reach that whole count — including zero
   let k = slots;
   for (let i = 0; i <= slots; i++) {
-    if (countAt(i) <= floor + 1e-9) {
+    if (countAt(i) <= floor * (1 + TOL) + 1e-9) {
       k = i;
       break;
     }

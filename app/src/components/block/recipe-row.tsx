@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import {
@@ -92,6 +92,19 @@ export function RecipeRow({
   /** show the ambient ✨ suggestion hint (Settings toggle; apply paths always work) */
   moduleHints?: boolean;
 }) {
+  // Debounce the suggestion hint (#117): the suggested fill recomputes per
+  // solve, so it can flip while a rate is being dragged. The sparkle only
+  // appears once the suggestion has held still for a beat — mid-edit churn
+  // hides it instead of blinking it.
+  const suggestionKey = row?.suggestedModules?.join("\u0001") ?? "";
+  const [settledSuggestion, setSettledSuggestion] = useState(false);
+  useEffect(() => {
+    setSettledSuggestion(false);
+    if (!suggestionKey) return;
+    const t = setTimeout(() => setSettledSuggestion(true), 600);
+    return () => clearTimeout(t);
+  }, [suggestionKey]);
+
   const rowPin = useStore(doc.store, (s) =>
     s.pins.find((p) => p.kind !== "share" && p.recipe === name),
   ) as { kind: "count" | "cap"; count: number } | undefined;
@@ -294,7 +307,7 @@ export function RecipeRow({
                   onClick={() => open.modulesPicker(name)}
                 />
                 {/* auto-fill hint: a better fill exists — click applies it */}
-                {moduleHints && row.suggestedModules && (
+                {moduleHints && settledSuggestion && (
                   <button
                     onClick={() => open.applyModuleFill(name)}
                     title="better modules available — click to apply the suggested fill (open the modules dialog to preview it)"
