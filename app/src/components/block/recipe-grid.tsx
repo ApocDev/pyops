@@ -191,6 +191,8 @@ export function RecipeGrid({
                   doc={doc}
                   group={entry.group}
                   resRows={res?.rows}
+                  sub={res?.subBlocks?.find((s) => s.id === entry.group.id)}
+                  display={res?.display}
                   folded={!!foldedGroups[entry.group.id]}
                   renaming={renamingGroup === entry.group.id}
                   onToggleFold={() => toggleFold(entry.group.id)}

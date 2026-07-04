@@ -10,6 +10,12 @@ import type { RecipeDef } from "../solver/lp";
 import type { Disposition } from "../solver/migrate";
 import { expandTemps } from "../solver/temps";
 import { solveBlockLp, type LpBlockInput, type Pin } from "../solver/lp";
+import {
+  composeSubBlocks,
+  isSyntheticSubName,
+  type ComposedGroup,
+  type SubBlockSolve,
+} from "../solver/subblock";
 import { diagnoseBlock, type DiagnosisCard } from "../solver/diagnose";
 import { migrateToLpInput } from "../solver/migrate";
 
@@ -203,8 +209,9 @@ export type SolveInput = {
   icon?: { kind: string; name: string }; // explicit block icon (#40); unset = first goal's
   recipes: string[];
   disabledRecipes?: string[]; // recipes kept in the block but excluded from the solve (#73)
-  rowGroups?: { id: number; name: string }[]; // sub-block groups (#7), display-only
-  recipeGroups?: Record<string, number>; // recipe → sub-block group id (#7)
+  // sub-block groups (#7 display-only, #76 composed) + recipe → group id
+  rowGroups?: { id: number; name: string; composed?: boolean; goals?: Goal[]; made?: string[] }[];
+  recipeGroups?: Record<string, number>; // recipe → sub-block group id
   spoilRates?: Record<string, number>; // item → planned rot rate /s (#20), extra pinned surplus
   /** legacy per-item overrides (pre-#91 docs) — migrated to `made` on read; new
    * docs never write this */
@@ -628,16 +635,51 @@ export async function computeBlock(rawData: SolveInput) {
         }),
       )
     : undefined;
+  const defaultTemp = (f: string) => q.getFluid(f)?.defaultTemperature ?? null;
+  // Sub-blocks v2 (#76): a COMPOSED group is solved as its own module and pulled
+  // out of the parent solve, replaced by a synthetic recipe carrying only its
+  // boundary contract (net imports → net exports). Member recipes, pins and
+  // whole-machine rates route into their module; the parent solves normally over
+  // its own recipes + these synthetics. Display-only groups (#7) are untouched.
+  const composedGroups: ComposedGroup[] = (data.rowGroups ?? [])
+    .filter((g) => g.composed)
+    .map((g) => ({
+      id: g.id,
+      name: g.name,
+      members: Object.entries(data.recipeGroups ?? {})
+        .filter(([, gid]) => gid === g.id)
+        .map(([r]) => r),
+      goals: (g.goals ?? []).map((x) => ({ name: x.name, rate: x.rate })),
+      ...(g.made ? { made: g.made } : {}),
+    }));
+  const compose = composedGroups.length
+    ? await composeSubBlocks({ defs, groups: composedGroups, pins, machineRates, defaultTemp })
+    : {
+        parentDefs: defs,
+        parentPins: pins,
+        parentMachineRates: machineRates,
+        subs: [] as SubBlockSolve[],
+        memberGroupOf: new Map<string, number>(),
+      };
+  // Each composed module's OUTPUT good is claimed `made` at the parent (net ≥ 0):
+  // the module is the committed in-block source, so the minimizing objective can't
+  // idle it and import the good instead. Only the module's declared goals are made
+  // — its forced co-products stay free, so they export as byproducts or feed a
+  // parent consumer. Not persisted: the block's own `made` (echoed for migration)
+  // is unchanged.
+  const parentMade = compose.subs.length
+    ? [...new Set([...made, ...composedGroups.flatMap((g) => g.goals.map((x) => x.name))])]
+    : made;
   // Fluid-temperature identity (#110): expand ranged fluids into variant/pool
   // goods with selector pseudo-recipes — a pure input transformation; the LP
   // core is untouched. `fold` maps synthetic goods/recipes back for display.
-  const { input: expandedInput, fold } = expandTemps({ goals, recipes: defs, made, pins }, (f) => {
-    const fl = q.getFluid(f);
-    return fl?.defaultTemperature ?? null;
-  });
+  const { input: expandedInput, fold } = expandTemps(
+    { goals, recipes: compose.parentDefs, made: parentMade, pins: compose.parentPins },
+    defaultTemp,
+  );
   const lpInput: LpBlockInput = {
     ...expandedInput,
-    ...(machineRates ? { machineRates } : {}),
+    ...(compose.parentMachineRates ? { machineRates: compose.parentMachineRates } : {}),
   };
   const rawResult = await solveBlockLp(lpInput);
   // root-cause cards for the balance card — every member is a clickable gesture.
@@ -678,10 +720,32 @@ export async function computeBlock(rawData: SolveInput) {
       }),
     ),
   ];
+  // #76: fold each composed module's members back into the row set at their
+  // EFFECTIVE rate = the module's nested run-rate × the parent's chosen run-rate
+  // of that module's synthetic recipe. The synthetic recipes themselves never
+  // render (the group header stands in for them); a module's goals/made with no
+  // in-module producer surface in `unmade` alongside the parent's.
+  const parentRecipes = rawResult.recipes.filter((r) => !fold.isSynthetic(r.recipe));
+  const synRateOf = new Map(parentRecipes.map((r) => [r.recipe, r.rate]));
+  const memberRows: { recipe: string; rate: number; machines1x: number }[] = [];
+  const subUnmade: string[] = [];
+  for (const sub of compose.subs) {
+    const sr = synRateOf.get(sub.synthetic.name) ?? 0;
+    for (const rr of sub.result.recipes) {
+      if (sub.fold.isSynthetic(rr.recipe)) continue; // temp selectors inside the module
+      memberRows.push({ recipe: rr.recipe, rate: rr.rate * sr, machines1x: rr.machines1x * sr });
+    }
+    for (const u of sub.unmade) subUnmade.push(u);
+  }
+  const solvedRecipes = [
+    ...parentRecipes.filter((r) => !isSyntheticSubName(r.recipe)),
+    ...memberRows,
+  ];
+  const allUnmade = [...new Set([...unmadeBare, ...subUnmade])];
   const result = {
     ...rawResult,
-    ...(rawResult.unmade ? { unmade: unmadeBare } : {}),
-    recipes: rawResult.recipes.filter((r) => !fold.isSynthetic(r.recipe)),
+    ...(allUnmade.length ? { unmade: allUnmade } : {}),
+    recipes: solvedRecipes,
     imports: foldFlows(rawResult.imports),
     exports: foldFlows(rawResult.exports),
   };
@@ -1071,6 +1135,9 @@ export async function computeBlock(rawData: SolveInput) {
     // internally-linked fluids named by a temperature warning aren't in the
     // flows above — map them too so the warning text shows localized names
     ...tempWarnings.map((w) => w.item),
+    // #76: a composed module's contract goods (some fully consumed inside, so
+    // absent from the parent flows) need labels for the sub-block header
+    ...compose.subs.flatMap((s) => [...s.imports, ...s.exports].map((f) => f.name)),
   ]) {
     const d = itemDisp(name);
     if (d) display[name] = d;
@@ -1091,11 +1158,26 @@ export async function computeBlock(rawData: SolveInput) {
       );
   const buildCost = q.buildCost([...buildingCounts].map(([name, count]) => ({ name, count })));
 
+  // #76: per composed sub-block, its solve status and boundary contract — the
+  // group header renders the module face (contract + an infeasible badge). The
+  // member rows themselves are already in `rows` at their effective rate.
+  const subBlocks = compose.subs.map((s) => ({
+    id: s.id,
+    name: s.name,
+    status: s.status,
+    ...(s.message ? { message: s.message } : {}),
+    machineSeconds: s.machineSeconds,
+    imports: s.imports,
+    exports: s.exports,
+    unmade: s.unmade,
+  }));
+
   return {
     ...result,
     imports,
     exports,
     rows,
+    subBlocks,
     display,
     recipeDisplay,
     producible,

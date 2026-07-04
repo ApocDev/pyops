@@ -410,6 +410,23 @@ export function createBlockDocStore() {
     },
     renameGroup: (id: number, name: string) =>
       edit((s) => ({ rowGroups: s.rowGroups.map((g) => (g.id === id ? { ...g, name } : g)) })),
+    /* ── composed sub-blocks (#76) ── */
+    /** Promote a group to a real, separately-solved module with the given internal
+     * output goals (defaulted by the caller to the group's current net outputs). */
+    composeGroup: (id: number, goals: Goal[]) =>
+      edit((s) => ({
+        rowGroups: s.rowGroups.map((g) => (g.id === id ? { ...g, composed: true, goals } : g)),
+      })),
+    /** Demote a module back to a display-only fold — drop its internal goals/made. */
+    uncomposeGroup: (id: number) =>
+      edit((s) => ({
+        rowGroups: s.rowGroups.map((g) => (g.id === id ? { id: g.id, name: g.name } : g)),
+      })),
+    /** Edit a composed module's internal output goals. */
+    setGroupGoals: (id: number, goals: Goal[]) =>
+      edit((s) => ({
+        rowGroups: s.rowGroups.map((g) => (g.id === id ? { ...g, goals } : g)),
+      })),
     /** Dissolve a group — its rows stay, just ungrouped. */
     ungroupRows: (id: number) =>
       edit((s) => ({

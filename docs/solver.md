@@ -142,8 +142,39 @@ layout chip with the multiplier and a preset picker.
 Rows can be grouped into **sub-blocks** (`rowGroups` + `recipeGroups` in the block
 doc) — named, collapsible groups the editor renders as one folded line with the
 chain's net flows (member products minus member ingredients; intermediates cancel).
-Display-only: the groups never reach the solver, which sees the same flat recipe set
-either way (`app/src/lib/row-groups.ts` holds the pure grouping/net-flow logic).
+By default (#7) they're **display-only**: the groups never reach the solver, which
+sees the same flat recipe set either way (`app/src/lib/row-groups.ts` holds the pure
+grouping/net-flow logic).
+
+A group can be **promoted to a real, separately-solved module** (#76, `composed`
+on the group + its own internal `goals`; `app/src/solver/subblock.ts`). A composed
+sub-block is solved with `solveBlockLp` exactly like a top-level block — its
+internal goals size it and its `made` set (auto = every good a member produces, so
+it makes its own intermediates) keeps the intermediates hidden. Its net imports/
+exports at the solved rates (temperatures folded to bare fluids) become a synthetic
+"recipe" whose ingredients = the module's imports, products = its net exports
+**including its goal output**, and `energyRequired` = the module's machine-seconds,
+so the parent's objective weighs the module's real cost. The parent then solves
+normally over its own recipes + these synthetic sub-block recipes, scaling each
+module as one black box; a member's row still renders at its effective rate
+(nested run-rate × the parent's chosen run-rate of the synthetic). The member
+recipes, their pins, and whole-machine rates route into the module's solve; the
+module's goal goods are claimed `made` at the parent so the minimizing objective
+can't idle the module and import the good instead. The internal goals are **not**
+parent goals — the module never looks like a factory-level producer of its goal —
+but forced co-products stay on the contract, so they export as byproducts and the
+factory coherence/byproduct model still sees them. A sub-block is a subset of one
+parent block's recipes, solved first in isolation, so it can never depend on its
+parent: the whole thing is deterministic and cycle-safe. The nested-solve contract
+is unit-tested in `subblock.test.ts`, including a 2-level compose reproducing the
+equivalent flat block's boundary flows.
+
+Deferred for now (#76): the module carries only `goals` (its `made` is auto-derived,
+not user-editable per group); a sub-block's own infeasibility surfaces as a status
+badge on its header and, when its output can't be produced, as a parent-level
+shortfall — it does not yet get its own IIS diagnosis cards. Sub-blocks don't nest
+(a group's members are plain recipes, never other groups), and `spoilRates` stay a
+parent-level concern.
 
 A goal that **no recipe in the block makes** (an unfinished block, or one whose
 producer vanished after a data migration) is _not_ enforced — that would zero

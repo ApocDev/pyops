@@ -4,9 +4,26 @@
  * `recipes[]` order. Invariant: a group's members are CONTIGUOUS in that order
  * (joins move the row adjacent), so a group renders as one span anchored at its
  * first member. Pure module — no React, no db — unit-tested in row-groups.test.ts.
+ *
+ * A group can be PROMOTED to a real sub-block (#76, `composed`) — see solver/subblock.ts.
  */
+import type { Goal } from "../db/schema.ts";
 
-export type RowGroup = { id: number; name: string };
+export type RowGroup = {
+  id: number;
+  name: string;
+  /** #76: promote from a display-only fold to a REAL, separately-solved module —
+   * the group solves as its own block and exposes only its boundary contract to
+   * the parent. Absent/false keeps the #7 display-only behavior. */
+  composed?: boolean;
+  /** the module's internal output goals (hidden from the factory): they size the
+   * module and pick which good is its output. Only used when `composed`. */
+  goals?: Goal[];
+  /** items the module claims in-block production for; absent = auto (every good a
+   * member produces, so the module makes its own intermediates). Only used when
+   * `composed`. */
+  made?: string[];
+};
 /** recipe name → group id */
 export type GroupAssign = Record<string, number>;
 

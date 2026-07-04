@@ -420,10 +420,18 @@ export type BlockData = {
   // they contribute no flows or machine counts. Used to A/B two recipes or to
   // stage future rows without deleting them.
   disabledRecipes?: string[];
-  // Sub-blocks (#7): named, collapsible groups of recipe rows — display-only,
-  // the solve is untouched. `recipeGroups` maps recipe → group id; members are
-  // kept contiguous in `recipes` order (see lib/row-groups.ts).
-  rowGroups?: { id: number; name: string }[];
+  // Sub-blocks (#7): named, collapsible groups of recipe rows. `recipeGroups`
+  // maps recipe → group id; members are kept contiguous in `recipes` order (see
+  // lib/row-groups.ts). Display-only by default; a group can be PROMOTED to a
+  // real, separately-solved module (#76, `composed`) with its own hidden internal
+  // goals — the parent then consumes only its boundary contract (solver/subblock.ts).
+  rowGroups?: {
+    id: number;
+    name: string;
+    composed?: boolean;
+    goals?: Goal[];
+    made?: string[];
+  }[];
   recipeGroups?: Record<string, number>;
   // Planned spoil losses (#20): item → expected rot rate (/s). Fed to the solver
   // as extra pinned surplus, so production is sized to cover what spoils away.
