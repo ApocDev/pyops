@@ -357,27 +357,36 @@ export function createBlockDocStore() {
         next.delete(name);
         return { made: next, dispositions: {} };
       }),
-    /** Set/replace a row pin: one count-or-cap pin per recipe, one share pin
-     * per (recipe, item) edge. */
+    /** Set/replace a row pin: one count-or-cap pin per recipe, one edge pin
+     * (share OR drain) per (recipe, item). */
     setPin: (pin: DocPin) =>
-      edit((s) => ({
-        pins: [
-          ...s.pins.filter((p) =>
-            pin.kind === "share"
-              ? !(p.kind === "share" && p.recipe === pin.recipe && p.item === pin.item)
-              : !(p.kind !== "share" && p.recipe === pin.recipe),
+      edit((s) => {
+        const isEdge = (p: DocPin) => p.kind === "share" || p.kind === "drain";
+        return {
+          pins: [
+            ...s.pins.filter((p) =>
+              isEdge(pin)
+                ? !(isEdge(p) && p.recipe === pin.recipe && p.item === pin.item)
+                : !(!isEdge(p) && p.recipe === pin.recipe),
+            ),
+            pin,
+          ],
+        };
+      }),
+    /** Remove every drain pin on a good (from the IIS card's one-click fix). */
+    clearDrains: (item: string) =>
+      edit((s) => ({ pins: s.pins.filter((p) => !(p.kind === "drain" && p.item === item)) })),
+    clearPin: (recipe: string, edge?: { item: string }) =>
+      edit((s) => {
+        const isEdge = (p: DocPin) => p.kind === "share" || p.kind === "drain";
+        return {
+          pins: s.pins.filter((p) =>
+            edge
+              ? !(isEdge(p) && p.recipe === recipe && p.item === edge.item)
+              : !(!isEdge(p) && p.recipe === recipe),
           ),
-          pin,
-        ],
-      })),
-    clearPin: (recipe: string, share?: { item: string }) =>
-      edit((s) => ({
-        pins: s.pins.filter((p) =>
-          share
-            ? !(p.kind === "share" && p.recipe === recipe && p.item === share.item)
-            : !(p.kind !== "share" && p.recipe === recipe),
-        ),
-      })),
+        };
+      }),
     // Planned spoil loss (#20): rate == null (or <= 0) clears the plan.
     setSpoilRate: (name: string, rate: number | null) =>
       edit((s) => ({

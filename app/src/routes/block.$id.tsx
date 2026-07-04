@@ -455,10 +455,33 @@ function Block({ blockId }: { blockId: number }) {
     doc.addRecipe(name);
     // Adding a producer via an item's chip is the linking gesture (#91): the
     // block now claims in-block production for that item. Goal items skip the
-    // mark (a goal already links itself); consume-mode adds (routing a
-    // byproduct) and search-adds never link anything implicitly.
+    // mark (a goal already links itself); search-adds never link implicitly.
     if (pickFor?.mode === "produce" && !goals.some((g) => g.name === pickFor.name))
       doc.markMade(pickFor.name);
+    // Adding a CONSUMER via a byproduct's chip means "deal with MY surplus":
+    // mark the good made — without this, a reprocessing recipe lets the plan
+    // IMPORT the byproduct and shut down the real producers (the block-27
+    // failure). A reprocessor then absorbs surplus on its own (recycling is
+    // cheaper than making more). A pure SINK (void: no products, or only
+    // returning less of the same good) makes nothing the objective wants, so
+    // it also gets a drain pin — "this good's surplus must be consumed here"
+    // (net = 0) — or it would idle at 0 with the export untouched.
+    if (pickFor?.mode === "consume") {
+      const good = pickFor.name;
+      if (!goals.some((g) => g.name === good)) doc.markMade(good);
+      const cand = picker.data?.find((c) => c.name === name);
+      const intake = cand?.ingredients
+        .filter((c) => c.name === good)
+        .reduce((s, c) => s + (c.amount ?? 0), 0);
+      const sameGoodOut = cand?.products
+        .filter((c) => c.name === good)
+        .reduce((s, c) => s + (c.amount ?? 0), 0);
+      const isSink =
+        cand != null &&
+        (cand.products.length === 0 ||
+          (cand.products.every((c) => c.name === good) && (sameGoodOut ?? 0) < (intake ?? 0)));
+      if (isSink) doc.setPin({ kind: "drain", recipe: name, item: good });
+    }
     // label the save for the undo stack — the picker rows carry the display name
     const display = picker.data?.find((c) => c.name === name)?.display;
     doc.note(`Add recipe "${display ?? name}"`);

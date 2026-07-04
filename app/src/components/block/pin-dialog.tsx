@@ -39,6 +39,10 @@ export function PinDialog({
     (p): p is { kind: "share"; recipe: string; item: string; share: number } =>
       p.kind === "share" && p.recipe === recipe,
   );
+  const drainPins = pins.filter(
+    (p): p is { kind: "drain"; recipe: string; item: string } =>
+      p.kind === "drain" && p.recipe === recipe,
+  );
   const display = res?.recipeDisplay?.[recipe] ?? recipe;
   const row = res?.rows.find((r) => r.recipe === recipe);
   const [kind, setKind] = useState<"count" | "cap">(rowPin?.kind ?? "count");
@@ -174,6 +178,25 @@ export function PinDialog({
                   route
                 </Button>
               </div>
+              {drainPins.length > 0 && (
+                <div className="mt-1 flex flex-col gap-0.5 text-muted-foreground">
+                  {drainPins.map((p) => (
+                    <span key={p.item} className="flex items-center gap-1.5">
+                      drains all surplus {label(p.item)} (nothing exports)
+                      <button
+                        onClick={() => {
+                          doc.clearPin(recipe, { item: p.item });
+                          doc.note(`Stop draining "${label(p.item)}" into "${display}"`);
+                          onClose();
+                        }}
+                        className="text-muted-foreground underline hover:text-foreground"
+                      >
+                        clear
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
               {sharePins.length > 0 && (
                 <div className="mt-1 flex flex-col gap-0.5 text-muted-foreground">
                   {sharePins.map((p) => (

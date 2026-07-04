@@ -147,6 +147,27 @@ export function BalanceCard({
                             )}
                           </div>
                         );
+                      if (prov.type === "drain")
+                        return (
+                          <div key={mi} className="flex flex-wrap items-center gap-1.5">
+                            <span>
+                              surplus of {res.display?.[prov.item] ?? prov.item} must be consumed
+                              here (drain)
+                              {short}
+                            </span>
+                            <button
+                              onClick={() => {
+                                doc.clearDrains(prov.item);
+                                doc.note(
+                                  `Stop draining "${res.display?.[prov.item] ?? prov.item}"`,
+                                );
+                              }}
+                              className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
+                            >
+                              allow export instead
+                            </button>
+                          </div>
+                        );
                       // pin members: name the recipe + offer one-click removal
                       const label =
                         prov.type === "pin-share"
@@ -290,6 +311,21 @@ export function BalanceCard({
                         {/* Locked-as-block-driver state (set via right-click → "Size block by this
                             input"): edit its rate inline + an unlock control. The toggle itself
                             lives in the context menu, so non-locked rows stay uncluttered. */}
+                        {/* the block imports this while an in-block recipe
+                            produces it — usually the import-instead-of-make
+                            trap (block 27); one click claims it in-block */}
+                        {res.importedProducible?.includes(f.name) && (
+                          <button
+                            title="an enabled recipe in this block produces this good, but the plan imports it. Click to mark it made in-block (production must cover consumption)."
+                            onClick={() => {
+                              doc.markMade(f.name);
+                              doc.note(`Mark "${res.display?.[f.name] ?? f.name}" made in-block`);
+                            }}
+                            className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
+                          >
+                            made here? · make in-block
+                          </button>
+                        )}
                         {lockedInput === f.name && (
                           <>
                             <Input

@@ -24,7 +24,9 @@ import { migrateToLpInput } from "../solver/migrate";
  * per-building craft rate, so module/beacon changes re-derive the rate. */
 export type DocPin =
   | { kind: "count" | "cap"; recipe: string; count: number }
-  | { kind: "share"; recipe: string; item: string; share: number; base?: "total" | "remaining" };
+  | { kind: "share"; recipe: string; item: string; share: number; base?: "total" | "remaining" }
+  /** this recipe absorbs the item's surplus (net = 0) — byproduct disposal */
+  | { kind: "drain"; recipe: string; item: string };
 import { computeEffects, type BeaconConfig } from "./effects";
 import { resolveLogistics, rowLogistics } from "../lib/logistics";
 import { prodScaledAmount } from "../lib/productivity";
@@ -609,7 +611,13 @@ export async function computeBlock(rawData: SolveInput) {
     return speed / Math.max(1e-9, def.energyRequired ?? 0.5);
   };
   const pins: Pin[] = [];
+  // drain pins constrain the ITEM (net = 0), not a recipe rate — collected
+  // separately; the recipe on the pin is provenance for the UI badge
+  const drains = [
+    ...new Set((data.pins ?? []).flatMap((p) => (p.kind === "drain" ? [p.item] : []))),
+  ];
   for (const p of data.pins ?? []) {
+    if (p.kind === "drain") continue;
     if (p.kind === "share") {
       pins.push({ kind: "share", item: p.item, recipe: p.recipe, share: p.share, base: p.base });
       continue;
@@ -660,7 +668,7 @@ export async function computeBlock(rawData: SolveInput) {
   // goods with selector pseudo-recipes — a pure input transformation; the LP
   // core is untouched. `fold` maps synthetic goods/recipes back for display.
   const { input: expandedInput, fold } = expandTemps(
-    { goals, recipes: compose.parentDefs, made: parentMade, pins: compose.parentPins },
+    { goals, recipes: compose.parentDefs, made: parentMade, pins: compose.parentPins, drains },
     defaultTemp,
   );
   const lpInput: LpBlockInput = expandedInput;
@@ -1033,6 +1041,19 @@ export async function computeBlock(rawData: SolveInput) {
   const fuelItems = [...fuelTotals.keys()]; // for the 🔥 tag in the UI
   const burntItems = [...burntTotals.keys()]; // ash / depleted cells from burning
 
+  // Imports of a good some enabled recipe IN THIS BLOCK produces — the
+  // tell-tale of a plan importing instead of making (a free byproduct + a
+  // reprocessing recipe lets the LP import the byproduct and idle the real
+  // producers). The chip offers one click to mark the good made.
+  const inBlockProducerGoods = new Set(
+    compose.parentDefs.flatMap((d) =>
+      d.products.flatMap((p) => (p.amount > 0 ? [fold.bare(p.name)] : [])),
+    ),
+  );
+  const importedProducible = imports
+    .map((f) => f.name)
+    .filter((n) => inBlockProducerGoods.has(n) && !n.startsWith("pyops-"));
+
   // Which imports are craftable in-block (a recipe exists to make them) vs. true
   // raws (nothing produces them — you must supply them). Drives the import tint.
   const producible = imports
@@ -1164,6 +1185,8 @@ export async function computeBlock(rawData: SolveInput) {
     display,
     recipeDisplay,
     producible,
+    // imports the block could be making itself (see above) — chip warning + fix
+    importedProducible,
     // the block's effective made set (explicit or migrated) — the editor
     // hydrates this into legacy docs so the next save persists it
     made,

@@ -63,12 +63,18 @@ export type LpBlockInput = {
    * implicitly made; listing them again is harmless. */
   made?: string[];
   pins?: Pin[];
+  /** items whose surplus must be consumed in-block (net = 0): the
+   * byproduct-drain gesture. Implies made; a designated sink/reprocessor
+   * absorbs exactly the surplus, existing consumers unaffected. A produce-goal
+   * item is never drained (the goal's ≥ takes precedence). */
+  drains?: string[];
 };
 
 /** The user gesture a constraint came from — the unit of diagnosis. */
 export type Provenance =
   | { type: "goal"; item: string; rate: number }
   | { type: "made"; item: string }
+  | { type: "drain"; item: string }
   | { type: "pin-rate"; recipe: string; rate: number }
   | { type: "pin-cap"; recipe: string; rate: number }
   | { type: "pin-share"; item: string; recipe: string; share: number };
@@ -133,7 +139,8 @@ const cname = (s: string) => s.replace(/[^A-Za-z0-9]/g, "_");
  * named rows — not Bounds entries — so diagnosis can slack and name them. */
 export function buildModel(input: LpBlockInput): BlockModel {
   const { recipes, goals } = input;
-  const madeSet = new Set(input.made ?? []);
+  const drainSet = new Set(input.drains ?? []);
+  const madeSet = new Set([...(input.made ?? []), ...drainSet]);
   const pins = input.pins ?? [];
   const n = recipes.length;
 
@@ -191,12 +198,16 @@ export function buildModel(input: LpBlockInput): BlockModel {
       // for that output); a made mark that can't be met is a non-event.
       continue;
     }
+    // a drained item is net = 0: its surplus MUST be consumed in-block (the
+    // byproduct-disposal gesture — a pure sink produces nothing the objective
+    // wants, so only an equality makes it run); plain made is net ≥ 0
+    const drained = drainSet.has(item);
     constraints.push({
-      id: `made_${cname(item)}`,
+      id: `${drained ? "drain" : "made"}_${cname(item)}`,
       parts: netParts(c),
-      op: ">=",
+      op: drained ? "=" : ">=",
       rhs: 0,
-      prov: { type: "made", item },
+      prov: drained ? { type: "drain", item } : { type: "made", item },
     });
   }
 

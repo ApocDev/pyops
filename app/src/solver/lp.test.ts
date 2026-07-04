@@ -388,3 +388,126 @@ test("a real small net survives the dust floor (not everything tiny is dropped)"
   expect(res.status).toBe("solved");
   expect(flow(res.exports, "x")).toBeCloseTo(1);
 });
+
+test("a drain forces a pure sink to absorb exactly the surplus (block-27 void case)", async () => {
+  // screen makes plate + byprod; the void consumes byprod and makes nothing.
+  // Without a drain the void idles (it costs machines and produces nothing);
+  // with a drain (net = 0 on byprod) it runs at exactly the surplus.
+  const screen: RecipeDef = {
+    name: "screen",
+    energyRequired: 1,
+    ingredients: [{ kind: "item", name: "ore", amount: 4 }],
+    products: [
+      { kind: "item", name: "plate", amount: 2 },
+      { kind: "item", name: "byprod", amount: 1 },
+    ],
+  };
+  const voidR: RecipeDef = {
+    name: "void",
+    energyRequired: 1,
+    ingredients: [{ kind: "item", name: "byprod", amount: 5 }],
+    products: [],
+  };
+  const noDrain = await solveBlockLp({
+    goals: [{ name: "plate", rate: 10 }],
+    recipes: [screen, voidR],
+    made: ["byprod"],
+  });
+  expect(noDrain.status).toBe("solved");
+  expect(rate(noDrain).void).toBeCloseTo(0); // idles — nothing wants its output
+  expect(flow(noDrain.exports, "byprod")).toBeCloseTo(5);
+
+  const drained = await solveBlockLp({
+    goals: [{ name: "plate", rate: 10 }],
+    recipes: [screen, voidR],
+    drains: ["byprod"],
+  });
+  expect(drained.status).toBe("solved");
+  expect(rate(drained).void).toBeCloseTo(1); // 5 byprod/s ÷ 5 per exec
+  expect(flow(drained.exports, "byprod")).toBeUndefined(); // fully consumed
+  expect(rate(drained).screen).toBeCloseTo(5); // the main chain is untouched
+});
+
+test("a drain coexists with demand-driven consumers (only the SURPLUS is drained)", async () => {
+  // byprod feeds a real consumer (2/s) and the rest must drain into the void
+  const screen: RecipeDef = {
+    name: "screen",
+    energyRequired: 1,
+    ingredients: [{ kind: "item", name: "ore", amount: 4 }],
+    products: [
+      { kind: "item", name: "plate", amount: 2 },
+      { kind: "item", name: "byprod", amount: 1 },
+    ],
+  };
+  const user: RecipeDef = {
+    name: "user",
+    energyRequired: 1,
+    ingredients: [{ kind: "item", name: "byprod", amount: 2 }],
+    products: [{ kind: "item", name: "widget", amount: 1 }],
+  };
+  const voidR: RecipeDef = {
+    name: "void",
+    energyRequired: 1,
+    ingredients: [{ kind: "item", name: "byprod", amount: 1 }],
+    products: [],
+  };
+  const res = await solveBlockLp({
+    goals: [
+      { name: "plate", rate: 10 },
+      { name: "widget", rate: 1 },
+    ],
+    recipes: [screen, user, voidR],
+    drains: ["byprod"],
+  });
+  expect(res.status).toBe("solved");
+  // the invariant: NO byprod escapes — every unit is consumed in-block. The
+  // objective may prefer running the useful consumer harder (exporting extra
+  // widgets) over building void machines; both honor the drain.
+  expect(flow(res.exports, "byprod")).toBeUndefined();
+  expect(flow(res.imports, "byprod")).toBeUndefined();
+  const absorbed = 2 * rate(res).user + 1 * rate(res).void;
+  expect(absorbed).toBeCloseTo(5); // exactly the 5/s produced
+  expect(rate(res).user).toBeGreaterThanOrEqual(1); // its goal still holds
+});
+
+test("made blocks the import-and-restructure trap (block-27 recycler case)", async () => {
+  // mine → screen makes plate + grade2 byproduct; crush recycles grade2 → 2 ore.
+  // grade2 FREE: the LP imports grade2 and shuts the mine off (the bug).
+  // grade2 MADE: the recycler only eats in-block surplus; mining merely trims.
+  const mine: RecipeDef = {
+    name: "mine",
+    energyRequired: 2,
+    ingredients: [],
+    products: [{ kind: "item", name: "ore", amount: 1 }],
+  };
+  const screen: RecipeDef = {
+    name: "screen",
+    energyRequired: 1,
+    ingredients: [{ kind: "item", name: "ore", amount: 4 }],
+    products: [
+      { kind: "item", name: "plate", amount: 2 },
+      { kind: "item", name: "grade2", amount: 1 },
+    ],
+  };
+  const crush: RecipeDef = {
+    name: "crush",
+    energyRequired: 1,
+    ingredients: [{ kind: "item", name: "grade2", amount: 1 }],
+    products: [{ kind: "item", name: "ore", amount: 2 }],
+  };
+  const input = {
+    goals: [{ name: "plate", rate: 10 }],
+    recipes: [mine, screen, crush],
+    made: ["ore"],
+  };
+  const free = await solveBlockLp(input);
+  expect(free.status).toBe("solved");
+  expect(rate(free).mine).toBeCloseTo(0); // the trap: grade2 imported, mine dead
+  expect(flow(free.imports, "grade2")).toBeGreaterThan(0);
+
+  const fixed = await solveBlockLp({ ...input, made: ["ore", "grade2"] });
+  expect(fixed.status).toBe("solved");
+  expect(flow(fixed.imports, "grade2")).toBeUndefined(); // no import allowed
+  expect(rate(fixed).mine).toBeGreaterThan(0); // mining lives, merely trimmed
+  expect(rate(fixed).crush).toBeGreaterThan(0); // surplus recycled
+});

@@ -450,6 +450,9 @@ export type BlockData = {
   pins?: (
     | { kind: "count" | "cap"; recipe: string; count: number }
     | { kind: "share"; recipe: string; item: string; share: number; base?: "total" | "remaining" }
+    // drain: this recipe absorbs the item's surplus (net = 0 on the item) —
+    // the byproduct-disposal gesture; the recipe names the designated sink
+    | { kind: "drain"; recipe: string; item: string }
   )[];
   machines?: Record<string, string>; // recipe → chosen machine
   fuels?: Record<string, string>; // recipe → chosen fuel

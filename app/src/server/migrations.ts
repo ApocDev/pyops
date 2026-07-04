@@ -106,7 +106,7 @@ export function applyRenames(
     // item for shares) — a prototype rename must follow them all
     made: d.made?.map(good),
     pins: d.pins?.map((p) =>
-      p.kind === "share"
+      p.kind === "share" || p.kind === "drain"
         ? { ...p, recipe: recipe(p.recipe), item: good(p.item) }
         : { ...p, recipe: recipe(p.recipe) },
     ),

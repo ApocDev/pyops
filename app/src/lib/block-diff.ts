@@ -129,11 +129,13 @@ export function diffBlockDocs(from: BlockData, to: BlockData): BlockDiff {
   }
   // pins (#91): keyed per recipe(+item for shares); value compared structurally
   const pinKey = (p: NonNullable<BlockData["pins"]>[number]) =>
-    p.kind === "share" ? `${p.recipe} « ${p.item}` : p.recipe;
+    p.kind === "share" || p.kind === "drain" ? `${p.recipe} « ${p.item}` : p.recipe;
   const pinVal = (p: NonNullable<BlockData["pins"]>[number]) =>
     p.kind === "share"
       ? `${Math.round(p.share * 100)}%${p.base === "total" ? " of total" : ""}`
-      : `${p.kind} ${p.count}`;
+      : p.kind === "drain"
+        ? "drains surplus"
+        : `${p.kind} ${p.count}`;
   const pinsA = Object.fromEntries((from.pins ?? []).map((p) => [pinKey(p), pinVal(p)]));
   const pinsB = Object.fromEntries((to.pins ?? []).map((p) => [pinKey(p), pinVal(p)]));
   const pins = diffMap(pinsA, pinsB);

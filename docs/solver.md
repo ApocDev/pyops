@@ -39,6 +39,17 @@ single-`target` shape. The item rules:
 - Every **other item is free**: consumption imports, surplus exports, and an
   incidental byproduct just offsets the import — a 0.02/s side-product of
   something else is never scaled up to cover a 10/s demand.
+- **Draining a byproduct**: adding a consumer through a byproduct's chip marks
+  the good made AND — when the chosen recipe is a pure sink (a void: no
+  products, or only returning less of the same good) — records a **drain**
+  (`net = 0`): the surplus must be consumed in-block, which is what forces a
+  void to run at all (it produces nothing the objective wants). A reprocessing
+  consumer needs no drain — once the good is made (import forbidden), recycling
+  the surplus is cheaper than making more, so the optimizer uses it; without
+  the made mark it would instead IMPORT the byproduct and idle the real
+  producers. The solve also reports `importedProducible` — imports of goods an
+  enabled in-block recipe produces, the tell-tale of that trap — and the import
+  chip offers one click to claim the good in-block.
 - **Pins** (`pins` in the doc, in building counts) constrain single rows:
   `count` = always run exactly N buildings (supply-push — this is how byproducts
   route into in-block consumers), `cap` = at most N (a built-capacity ceiling;

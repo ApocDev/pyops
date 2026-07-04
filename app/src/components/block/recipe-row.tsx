@@ -91,7 +91,8 @@ export function RecipeRow({
   ) as { kind: "count" | "cap"; count: number } | undefined;
   const shareCount = useStore(
     doc.store,
-    (s) => s.pins.filter((p) => p.kind === "share" && p.recipe === name).length,
+    (s) =>
+      s.pins.filter((p) => (p.kind === "share" || p.kind === "drain") && p.recipe === name).length,
   );
   // v2 solver (#91): rates are ≥ 0 by construction. A row at exactly 0 is
   // idle — nothing in the block pulls it (not an error; often a parked option).

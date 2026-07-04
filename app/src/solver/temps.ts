@@ -63,10 +63,12 @@ export function expandTemps(
     recipes: TempRecipeDef[];
     made: string[];
     pins: Pin[];
+    drains?: string[];
   },
   defaultTemp: (fluid: string) => number | null,
 ): { input: LpBlockInput; fold: TempFold } {
   const { recipes, goals, made, pins } = input;
+  const drains = input.drains ?? [];
 
   // which fluids expand: an enabled consumer declares a range
   const ranged = new Set<string>();
@@ -77,7 +79,7 @@ export function expandTemps(
 
   if (!ranged.size) {
     return {
-      input: { goals, recipes: recipes as RecipeDef[], made, pins },
+      input: { goals, recipes: recipes as RecipeDef[], made, pins, drains },
       fold: { isSynthetic: () => false, bare: (g) => g, tempOf: () => null },
     };
   }
@@ -156,6 +158,18 @@ export function expandTemps(
     if (ranged.has(g.name) && g.rate >= 0)
       for (const t of variants.get(g.name) ?? []) outMade.push(variantKey(g.name, t));
 
+  // a drained fluid's surplus must vanish per-variant AND per-pool
+  const outDrains: string[] = [];
+  for (const m of drains) {
+    if (!ranged.has(m)) {
+      outDrains.push(m);
+      continue;
+    }
+    for (const t of variants.get(m) ?? []) outDrains.push(variantKey(m, t));
+    const goalPool = goalRates.has(m) ? poolKey(m, -Infinity, Infinity) : null;
+    for (const [pKey, p] of pools) if (p.fluid === m && pKey !== goalPool) outDrains.push(pKey);
+  }
+
   // share pins on an expanded fluid: the consumer now eats its POOL good, but
   // the share's production base must stay the REAL in-range variants — the
   // pool's own producers are demand-driven selectors, which would let the
@@ -181,6 +195,7 @@ export function expandTemps(
       recipes: outDefs as RecipeDef[],
       made: [...new Set(outMade)],
       pins: outPins,
+      drains: [...new Set(outDrains)],
     },
     fold: {
       isSynthetic: (recipe) => selNames.has(recipe) || recipe.startsWith(SEL),
