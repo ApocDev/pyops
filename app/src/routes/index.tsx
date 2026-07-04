@@ -6,6 +6,7 @@ import { Card } from "#/components/ui/card.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
+import { QueryError } from "#/components/query-error.tsx";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -16,6 +17,8 @@ function Home() {
   const stats = useQuery({ queryKey: ["stats"], queryFn: () => statsFn() });
   const blocks = useQuery({ queryKey: ["blocks"], queryFn: () => listBlocksFn() });
   const totals = useQuery({ queryKey: ["factoryTotals"], queryFn: () => factoryTotalsFn() });
+
+  const failed = stats.isError || blocks.isError || totals.isError;
 
   const deficits = (() => {
     const net = new Map<string, number>();
@@ -48,14 +51,27 @@ function Home() {
         }
       />
 
+      {failed && (
+        <QueryError
+          title="Couldn’t load your factory summary"
+          message="The backend may be starting up or unreachable."
+          onRetry={() => {
+            void stats.refetch();
+            void blocks.refetch();
+            void totals.refetch();
+          }}
+          className="mb-3"
+        />
+      )}
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Link to="/block" className={tile}>
           <span className="flex items-center gap-1.5 font-semibold">
             <Blocks className="size-4" /> Blocks
           </span>
           <span className="text-sm text-muted-foreground">
-            {blocks.data?.length ?? "…"} production block(s) — design chains, pick machines,
-            modules, beacons
+            {blocks.isError ? "—" : (blocks.data?.length ?? "…")} production block(s) — design
+            chains, pick machines, modules, beacons
           </span>
         </Link>
         <Link to="/factory" className={tile}>
@@ -72,8 +88,12 @@ function Home() {
             <Search className="size-4" /> Browse
           </span>
           <span className="text-sm text-muted-foreground">
-            {stats.data ? `${stats.data.recipes.toLocaleString()} recipes` : "…"} — items, fluids,
-            used-in / produced-by
+            {stats.isError
+              ? "—"
+              : stats.data
+                ? `${stats.data.recipes.toLocaleString()} recipes`
+                : "…"}{" "}
+            — items, fluids, used-in / produced-by
           </span>
         </Link>
         <Link to="/turd" className={tile}>

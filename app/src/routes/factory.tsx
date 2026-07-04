@@ -22,7 +22,9 @@ import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { Sheet, SheetContent, SheetTitle } from "#/components/ui/sheet.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
+import { QueryError } from "#/components/query-error.tsx";
 import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
@@ -312,9 +314,11 @@ function FactoryPage() {
         </div>
       )}
       {totals.isError && (
-        <div className="text-sm text-destructive">
-          failed to load factory totals — {totals.error?.message}
-        </div>
+        <QueryError
+          title="Couldn’t load factory totals"
+          message={totals.error instanceof Error ? totals.error.message : undefined}
+          onRetry={() => void totals.refetch()}
+        />
       )}
       {!totals.isLoading && !totals.isError && (totals.data?.length ?? 0) === 0 && (
         <EmptyState
@@ -378,9 +382,12 @@ function FactoryPage() {
 
       {machines.isLoading && <Skeleton className="mt-4 h-40 max-w-3xl" />}
       {machines.isError && (
-        <div className="mt-4 text-sm text-destructive">
-          failed to load machine status — {machines.error?.message}
-        </div>
+        <QueryError
+          title="Couldn’t load machine status"
+          message={machines.error instanceof Error ? machines.error.message : undefined}
+          onRetry={() => void machines.refetch()}
+          className="mt-4"
+        />
       )}
       {machines.data && <MachinesCard data={machines.data} />}
 
@@ -582,12 +589,14 @@ function ResourceDrawer({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40" />
-      <aside
-        onClick={(e) => e.stopPropagation()}
-        className="relative flex w-96 max-w-[90vw] flex-col border-l border-border bg-background shadow-xl"
-      >
+    <Sheet
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <SheetContent side="right" showClose={false} className="w-96 max-w-[90vw] bg-background p-0">
+        <SheetTitle className="sr-only">{label}</SheetTitle>
         <div className="flex items-center gap-2 border-b border-border px-3 py-3">
           <Icon kind={kind as "item" | "fluid"} name={item} size="md" />
           <ItemHover name={item} kind={kind as "item" | "fluid"} className="min-w-0 flex-1">
@@ -640,9 +649,11 @@ function ResourceDrawer({
               </div>
             </div>
           ) : detail.isError ? (
-            <div className="text-sm text-destructive">
-              failed to load blocks for this good — {detail.error?.message}
-            </div>
+            <QueryError
+              title="Couldn’t load blocks for this good"
+              message={detail.error instanceof Error ? detail.error.message : undefined}
+              onRetry={() => void detail.refetch()}
+            />
           ) : (
             <>
               <List
@@ -684,7 +695,7 @@ function ResourceDrawer({
             )
           )}
         </div>
-      </aside>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

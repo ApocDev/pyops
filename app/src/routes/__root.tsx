@@ -8,6 +8,8 @@ import { AppNav } from "../components/app-nav";
 import { CommandPalette } from "../components/command-palette";
 import { DbMigrationsBanner } from "../components/db-migrations-banner";
 import { DriftModal } from "../components/drift-modal";
+import { RouteError } from "../components/route-error";
+import { RoutePending } from "../components/route-pending";
 import { ShortcutHelpSheet } from "../components/shortcut-help-sheet";
 import { UndoHotkey } from "../components/undo-hotkey";
 import { UpdatePrompt } from "../components/update-prompt";
@@ -50,6 +52,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       },
     ],
   }),
+  errorComponent: RouteError,
+  pendingComponent: RoutePending,
   shellComponent: RootDocument,
 });
 

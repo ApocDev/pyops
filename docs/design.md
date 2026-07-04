@@ -110,10 +110,12 @@ Reach for these before writing markup:
 | Slide-over / drawer / collapsed rail | `Sheet`. |
 | Page title row + toolbar | `PageHeader` (`components/page-header.tsx`). |
 | "Nothing here yet" | `EmptyState` (`components/empty-state.tsx`). |
+| Loading / error / empty for a query | `QueryBoundary` (`components/query-boundary.tsx`) — wrap a `useQuery`; it renders a `Skeleton` while loading, a retryable `QueryError` on failure, an optional `EmptyState`, then `children(data)`. Don't hand-roll the four branches. |
+| Retryable error surface | `QueryError` (`components/query-error.tsx`) — a destructive `Callout` that names what failed with a "Retry" button (wire to `refetch`). For a whole-route (thrown) failure the router's `RouteError` (`components/route-error.tsx`, the root `errorComponent`) catches it; `RoutePending` (`components/route-pending.tsx`) is the root `pendingComponent`. |
 | Search box over a list | `FilterInput` (`components/filter-input.tsx`) + `useFilteredList` (`lib/use-filtered-list.ts`) + `FilterEmptyState` (`components/filter-empty-state.tsx`) — the one filtered-list anatomy (#87): localized display names first, internal names as a hidden fallback, results ranked by the command palette's scorer (`lib/command-search.ts`), and a "no matches for X" state with a clear-filter action. Don't hand-roll `useState` + `toLowerCase().includes(…)`. |
 | Loading placeholder | `Skeleton` (`ui/skeleton.tsx`). |
 | Hover detail | `CursorHover`/`CursorCard` (`lib/hover.tsx`) — the app's one tooltip system. |
-| Right-click menu | `ContextMenu`/`ContextMenuItem` (`components/context-menu.tsx`) — anchored panel + backdrop; items are icon+label rows. |
+| Right-click menu | `ContextMenu`/`ContextMenuItem` (`components/context-menu.tsx`) — a Radix `DropdownMenu` anchored at the pointer (Escape-to-close, focus/roving, `role="menu"`, click-away for free); items are icon+label rows. |
 | Keyboard shortcut | `useHotkey` (`lib/hotkeys.ts`) — the one global hotkey registry. `mod+` combos resolve to Cmd on macOS / Ctrl elsewhere; combos are suppressed while focus is in a text field unless the registration opts in with `allowInInputs` (reserved for app-global chords like Ctrl+K). Every registration carries a `description`, rendered by the shortcut help sheet (`components/shortcut-help-sheet.tsx` — `?` or the palette's "Keyboard shortcuts" entry). Don't hand-roll `window.addEventListener("keydown", …)` for shortcuts. |
 | Tabular goods/rates/stats | `GoodsSection` (`components/goods-table.tsx`) + `StatCell`, with `StatTableHeader` (`components/stat-table.tsx`) for a static header row or `StatSortHeader` (`components/stat-sort-header.tsx`) for a click-to-sort one (headless TanStack Table owns the sort state; `usePersistedSorting`/`usePersistedFold` in `lib/use-table-prefs.ts` remember the choice per browser — see `goods-table.tsx` and the factory `MachinesCard`). The app's one data-table anatomy: a muted `hidden md:flex` header row, then rows with a lead cell (icon + truncating name, `flex-1`) and fixed-width right-aligned `StatCell` columns that collapse to a labeled grid on mobile. New tables follow it; prose tables in assistant markdown are the one exception. |
 
@@ -169,12 +171,20 @@ Every async surface ships all three states — a surface that renders blank whil
 loading, empty, or failed is a bug:
 
 - **Loading**: `Skeleton` blocks that approximate the final layout (no spinner
-  walls, no layout jump). Route-level data uses the route's `pendingComponent`.
+  walls, no layout jump). Route-level data uses the route's `pendingComponent`
+  (the root default is `RoutePending`).
 - **Empty**: `EmptyState` with a title, one sentence of guidance, and — when the
   user can fix the emptiness — an action (`Button` or link). "No results" from a
   filter says so and offers to clear the filter.
-- **Error**: say what failed, inline where the data would be (route-level:
-  `errorComponent`). Use `text-destructive` + retry affordance where sensible.
+- **Error**: say what failed, inline where the data would be. Use `QueryError`
+  (or wrap the whole query in `QueryBoundary`) for a `text-destructive` message
+  with a retry that calls `refetch`. A thrown loader/render error escalates to
+  the root `errorComponent` (`RouteError`) rather than a white screen.
+
+The house convention for an in-body query is `QueryBoundary` — it renders the
+loading/error/empty/data branches from one `useQuery` so pages don't re-derive
+them. Reach for the raw `Skeleton`/`QueryError`/`EmptyState` primitives directly
+only when a surface needs a bespoke layout.
 
 Affordances: interactive elements get visible hover (`hover:bg-muted` family)
 and focus (`focus-visible:ring-1 ring-ring/50` — baked into the primitives)

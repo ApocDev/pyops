@@ -1,12 +1,20 @@
 import * as React from "react";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "#/components/ui/dropdown-menu.tsx";
 import { cn } from "#/lib/utils.ts";
 
 /**
- * Minimal right-click context menu shell (docs/design.md): a full-viewport
- * invisible backdrop that dismisses on click / second right-click, plus a
- * square-cornered panel positioned at the pointer, sharing Select's popover
- * surface. Callers own the open state and render `{menu && <ContextMenu …>}`.
+ * Right-click context menu shell (docs/design.md): a Radix `DropdownMenu`
+ * anchored at the pointer, so Escape-to-close, focus containment/roving,
+ * `role="menu"` semantics, and click-away come from the primitive rather than a
+ * hand-rolled backdrop (#86). Callers stay declarative — own the open state and
+ * render `{menu && <ContextMenu x y onClose>…</ContextMenu>}`; a second
+ * right-click still dismisses.
  */
 function ContextMenu({
   x,
@@ -22,29 +30,36 @@ function ContextMenu({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <div
-        className="fixed inset-0 z-40"
-        onClick={onClose}
+    <DropdownMenu
+      open
+      modal={false}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      {/* A zero-size anchor at the pointer; Radix positions the menu against it
+          and keeps it on-screen (collision handling the old backdrop lacked). */}
+      <DropdownMenuTrigger asChild>
+        <span aria-hidden className="pointer-events-none fixed" style={{ left: x, top: y }} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        side="bottom"
+        sideOffset={0}
+        alignOffset={0}
+        className={cn("min-w-48", className)}
         onContextMenu={(e) => {
           e.preventDefault();
           onClose();
         }}
-      />
-      <div
-        className={cn(
-          "fixed z-50 min-w-48 overflow-hidden bg-popover py-1 text-popover-foreground shadow-md ring-1 ring-foreground/10",
-          className,
-        )}
-        style={{ left: x, top: y }}
       >
         {children}
-      </div>
-    </>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
-/** One row in a ContextMenu: icon + label, full-width hover target. */
+/** One row in a ContextMenu: icon + label, full-width hover/highlight target. */
 function ContextMenuItem({
   children,
   onClick,
@@ -57,16 +72,12 @@ function ContextMenuItem({
   className?: string;
 }) {
   return (
-    <button
+    <DropdownMenuItem
       onClick={onClick}
-      className={cn(
-        "flex w-full items-center gap-2 px-3 py-1 text-left text-sm hover:bg-muted",
-        active && "text-info",
-        className,
-      )}
+      className={cn("gap-2 px-3 py-1 text-sm", active && "text-info", className)}
     >
       {children}
-    </button>
+    </DropdownMenuItem>
   );
 }
 
