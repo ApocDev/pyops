@@ -63,14 +63,13 @@ mod-side kill switch still want a live pass (API key + game).
 
 Batch A landed 2026-07-03: #87 (filtered-list primitive), #97 (recipe
 explorer), #100 (dependency explorer), #80 (sortable machines table), and the
-#78 palette remainder. Remaining:
+#78 palette remainder. Batch B landed 2026-07-03: #81 (shared query/route
+error+loading convention), #106 (sticky page headers), #101 (block
+sankey/flow view). Remaining:
 
 | Issue                               | Effort | Notes                                                                                                                                                                                                                    |
 | ----------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| #81 error/loading states            | M      | The issue's "zero isError checks" premise is stale (nine exist now); remaining: root-level errorComponent/pendingComponent + a shared convention for the rest, incl. the two hand-rolled overlays noted when #86 closed. |
-| #106 sticky page toolbars           | S      |                                                                                                                                                                                                                          |
 | #16 help drawers                    | L      | Images, worked examples, deeper coverage.                                                                                                                                                                                |
-| #101 sankey flow view               | L      | Visualization of solved block flows.                                                                                                                                                                                     |
 | #107 light theme pass               | M      | Last in the wave, so it sees every new surface.                                                                                                                                                                          |
 
 ## Wave 5 — composition
