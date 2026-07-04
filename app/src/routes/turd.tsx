@@ -195,6 +195,19 @@ function TurdPage() {
                 </li>
               </ul>
             </div>
+            <div>
+              <div className="font-semibold text-foreground">Worked example</div>
+              <p className="mt-1">
+                The Dhilmo TURD&apos;s <span className="text-foreground">double intake</span> branch
+                swaps that recipe&apos;s saline-water input for plain{" "}
+                <span className="text-foreground">water + salt</span> — the Dhilmo output is
+                unchanged, but the upstream demand shifts. Pick it here and every block that makes
+                Dhilmo re-solves to draw water and salt instead of saline water; on Factory and
+                Coherence you&apos;ll then see the saline-water demand drop and new water/salt
+                demand appear. Because the swap is one-time and near-permanent, decide it before you
+                build out the upstream supply.
+              </p>
+            </div>
           </HelpButton>
         }
       >

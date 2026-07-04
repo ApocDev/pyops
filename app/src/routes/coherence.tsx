@@ -171,6 +171,21 @@ function CoherencePage() {
                 up&quot; opens a planner — pick which producer block grows, set a new target rate,
                 preview the buildings, power and inputs it&apos;ll need, then apply.
               </p>
+              <div>
+                <div className="font-semibold text-foreground">Worked example — scale stone</div>
+                <p className="mt-1">
+                  Your stone block makes <span className="text-foreground">40/s</span>; two
+                  consumers pull <span className="text-foreground">35/s</span> and{" "}
+                  <span className="text-foreground">20/s</span> — 55/s total. Stone shows{" "}
+                  <span className="text-destructive">Short 15/s</span>. Open scale-up on that block
+                  and set the target to <span className="text-foreground">60/s</span> (55 plus a
+                  little headroom). It re-solves the block at the new rate — machine-seconds scale
+                  ~1.5×, so roughly{" "}
+                  <span className="text-foreground">+50% drills, power, and ore draw</span> — and
+                  shows the preview before you apply. Applying saves the block; the edge flips to{" "}
+                  <span className="text-success">Balanced</span>.
+                </p>
+              </div>
               <p>
                 Sides with many blocks (a heavy hitter like stone or electricity) collapse to a
                 count — click <span className="text-foreground">N blocks</span> to expand.

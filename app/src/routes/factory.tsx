@@ -275,6 +275,18 @@ function FactoryPage() {
                 </ul>
               </div>
               <div>
+                <div className="font-semibold text-foreground">Worked example — the ranking</div>
+                <p className="mt-1">
+                  Two deficits: a heavy fluid consumed 200/s but produced 180/s (90% met, −20/s),
+                  and a niche intermediate consumed 4/s with nothing making it (0% met, −4/s). The
+                  bigger raw number is the fluid, but the intermediate ranks{" "}
+                  <span className="text-foreground">first</span> — it&apos;s{" "}
+                  <span className="text-foreground">fully starved</span>, so whatever depends on it
+                  is completely blocked, while the fluid is only 10% short. Build the starved thing
+                  first.
+                </p>
+              </div>
+              <div>
                 <div className="font-semibold text-foreground">Toolbar (top-right)</div>
                 <ul className="mt-1 list-disc space-y-1 pl-5">
                   <li>

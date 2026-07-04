@@ -85,6 +85,26 @@ function WhatIf() {
                   </li>
                 </ul>
               </div>
+              <div>
+                <div className="font-semibold text-foreground">Worked example</div>
+                <p className="mt-1">
+                  Say your automation-science block currently runs at{" "}
+                  <span className="text-foreground">0.5/s</span> and you want{" "}
+                  <span className="text-foreground">1/s</span>. Set its target to 1 and the cascade
+                  updates: <span className="text-foreground">Block changes</span> lists that block
+                  at <span className="text-foreground">×2</span>, plus every upstream block that
+                  feeds it rescaled to match; <span className="text-foreground">Raw inputs</span>{" "}
+                  shows the new draw (current vs projected) so you can check a mine or import can
+                  keep up. Nothing is saved until you open a listed block and apply its new rate.
+                </p>
+              </div>
+              <p>
+                <span className="text-foreground">The solve pill</span> (next to this button)
+                reports the whole-factory solve. <span className="text-foreground">Optimal</span>{" "}
+                means it found a consistent set of rates; any other status means the target
+                can&apos;t be met with the current recipes and blocks — treat it as a prompt to add
+                a producer or relax the target, and open the affected block to see why.
+              </p>
             </HelpButton>
           </>
         }

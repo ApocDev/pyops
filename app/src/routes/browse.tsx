@@ -92,6 +92,17 @@ function Browse() {
                   <span className="text-foreground">internal names</span> that blocks and the
                   assistant refer to (e.g. <span className="text-foreground">iron-pulp-07</span>).
                 </p>
+                <p>
+                  <span className="text-foreground">Worked example.</span> Search{" "}
+                  <span className="text-foreground">iron plate</span> and pick it:{" "}
+                  <span className="text-foreground">Produced by</span> lists every recipe that makes
+                  it (Py often has several tiers), and{" "}
+                  <span className="text-foreground">Consumed by</span> lists where it&apos;s used.
+                  Click any ingredient or product chip in a recipe to jump to that good and keep
+                  walking upstream — that&apos;s how you trace a chain back to raw ores. A good
+                  that&apos;s a fuel or carries a fuel value shows it inline (with its heat energy),
+                  so you can tell at a glance whether it burns.
+                </p>
               </HelpButton>
             </div>
             <FilterInput

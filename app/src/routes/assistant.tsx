@@ -34,6 +34,7 @@ import { ConfirmDialog } from "#/components/confirm-dialog.tsx";
 import { FollowUpChips, type FollowUp } from "#/components/assistant/follow-up-chips.tsx";
 import { GameEvalCard, type GameEvalProposal } from "#/components/assistant/game-eval-card.tsx";
 import { ShowInGameButton } from "#/components/assistant/show-in-game-button.tsx";
+import { HelpButton } from "#/components/help-drawer.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { ItemHover, RecipeHover } from "#/lib/recipe-card";
 import { formatRate } from "#/lib/format";
@@ -411,8 +412,97 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
 
   return (
     <div className={`h-full min-w-0 flex-1 flex-col ${active ? "flex" : "hidden"}`}>
-      <div className="flex shrink-0 items-center border-b border-border bg-card px-6 py-2">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-card px-6 py-2">
         <div className="text-sm font-semibold text-foreground">PyOps Assistant</div>
+        <div className="ml-auto">
+          <HelpButton title="What is the Assistant?">
+            <p>
+              A planning agent for Pyanodons. Ask it to trace a chain, decide{" "}
+              <span className="text-foreground">build vs import</span>, find a use for a byproduct,
+              or <span className="text-foreground">draft a whole production block</span> for you.
+              Answers are grounded in the loaded data — it reads the same recipes, tiers, and TURD
+              state the rest of the app does, not its training memory.
+            </p>
+            <div>
+              <div className="font-semibold text-foreground">What it can read</div>
+              <p className="mt-1">
+                It has read-only tools over your project: search goods, inspect a recipe&apos;s
+                inputs/outputs and machines, walk a chain, size a recipe at a target rate, list a
+                good&apos;s producers/consumers and byproduct sinks, run the coherence audit, read
+                your existing blocks, and check TURD consistency. When the game is linked it can
+                also inspect the live world (context, entities, production). None of this changes
+                anything.
+              </p>
+            </div>
+            <div>
+              <div className="font-semibold text-foreground">Propose, then apply</div>
+              <p className="mt-1">
+                Every write is a <span className="text-foreground">proposal you confirm</span> — the
+                assistant never edits your factory on its own. It surfaces:
+              </p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                <li>
+                  <span className="text-foreground">Draft a block</span> — a card for one target
+                  (recipes, solved imports, byproducts, power, suggested sub-blocks). Nothing is
+                  saved until you click <span className="text-foreground">Create block</span>.
+                </li>
+                <li>
+                  <span className="text-foreground">Draft a plan</span> — several blocks at once for
+                  a larger goal (e.g. a science pack end to end), each its own card.
+                </li>
+                <li>
+                  <span className="text-foreground">Revise a block</span> — a proposed change to an
+                  existing block&apos;s target rate or recipe set, shown as a diff against what
+                  you&apos;ve stored, applied only on your confirm.
+                </li>
+              </ul>
+            </div>
+            <p>
+              <span className="text-foreground">Worked example.</span> Ask &quot;draft a block:
+              250/s iron plate using the high-tier chain&quot; and it picks the recipes, solves the
+              block, and hands back a card: the imports it needs at their per-second rates, any
+              byproducts to route, and a &quot;draft each sub-block at its rate&quot; follow-up
+              list. One click creates the block and opens it.
+            </p>
+            <p>
+              <span className="text-foreground">Backtick chips.</span> In answers, an item, fluid,
+              or recipe shows as a small{" "}
+              <span className="text-foreground">icon + localized name</span> chip. Hover it for the
+              full recipe/good card — the raw internal name (e.g.{" "}
+              <span className="text-foreground">iron-pulp-07</span>) sits underneath for lookups.
+            </p>
+            <p>
+              <span className="text-foreground">In-game code is gated.</span> If the assistant wants
+              to run a Lua snippet against the live game it only <em>proposes</em> it — you press{" "}
+              <span className="text-foreground">Run</span> on the card. Nothing executes without
+              that click.
+            </p>
+            <div>
+              <div className="font-semibold text-foreground">The input bar</div>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                <li>
+                  The <span className="text-foreground">ring</span> shows how full the model&apos;s
+                  context window is; click it to compact older messages.
+                </li>
+                <li>
+                  <span className="text-foreground">Model</span> and{" "}
+                  <span className="text-foreground">reasoning effort</span> are per-chat overrides —
+                  set a default in Settings → Assistant.
+                </li>
+                <li>
+                  Hover a message for <span className="text-foreground">edit</span>,{" "}
+                  <span className="text-foreground">retry</span>, and{" "}
+                  <span className="text-foreground">branch</span> (fork the conversation from that
+                  point).
+                </li>
+              </ul>
+            </div>
+            <p>
+              Needs an <span className="text-foreground">OpenRouter API key</span> (Settings →
+              Assistant, or the <code className="font-mono">OPENROUTER_API_KEY</code> env var).
+            </p>
+          </HelpButton>
+        </div>
       </div>
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
         <div className="mx-auto w-full max-w-6xl space-y-4 px-6 py-4">

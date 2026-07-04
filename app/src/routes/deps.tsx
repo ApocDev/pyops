@@ -93,6 +93,15 @@ function Deps() {
                   Collapsed branches show the size of what&apos;s beneath (&quot;12 goods via 4
                   recipes&quot;); locked recipes are marked with the tech that gates them.
                 </p>
+                <p>
+                  <span className="text-foreground">Worked example.</span> Pick a good and switch to{" "}
+                  <span className="text-foreground">required by</span> to ask &quot;what breaks if I
+                  can&apos;t make this?&quot; — the tree fans out to every downstream recipe and
+                  good that depends on it. Switch to{" "}
+                  <span className="text-foreground">requires</span> and you get the opposite: the
+                  full shopping list of prerequisites to unlock before that good is buildable. A
+                  locked branch shows the gating tech, so you can read a plan straight off the tree.
+                </p>
               </HelpButton>
             </div>
             <FilterInput
