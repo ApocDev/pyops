@@ -59,17 +59,16 @@ chips, #15 per-call gameEval approval gate (+ a pyops-allow-eval mod kill
 switch), #14 push created blocks in-game. Conversational round-trips and the
 mod-side kill switch still want a live pass (API key + game).
 
-## Wave 4 — UI leverage (mostly epic #35)
+## Wave 4 — DONE except #107's visual pass (2026-07-03)
 
 Batch A landed 2026-07-03: #87 (filtered-list primitive), #97 (recipe
 explorer), #100 (dependency explorer), #80 (sortable machines table), and the
 #78 palette remainder. Batch B landed 2026-07-03: #81 (shared query/route
 error+loading convention), #106 (sticky page headers), #101 (block
-sankey/flow view). Remaining:
-
-| Issue                               | Effort | Notes                                                                                                                                                                                                                    |
-| ----------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| #107 light theme pass               | M      | Last in the wave, so it sees every new surface.                                                                                                                                                                          |
+sankey/flow view). #16 (help drawers) landed with Wave 5. **#107** (light theme)
+shipped its mechanism — a working light/dark/system toggle — but STAYS OPEN for
+the human visual contrast pass across every route (inherently a screenshot
+review; light mode is now reachable to do it).
 
 ## Wave 5 — DONE (2026-07-03)
 
