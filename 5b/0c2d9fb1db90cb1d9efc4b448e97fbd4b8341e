@@ -1,0 +1,47 @@
+app/src/components/block/doc-store.ts
+  s_9be9645d11a3e7::t_02ae0ce4bf891e 413-429
+app/src/components/block/group-header-row.tsx
+  s_9be9645d11a3e7::t_7fa810caca0d8d 1,3-12,15,19,24-28,33-34,43-46,56,58-73,75-79,82-95,97-129,131-175,177-209,211-224,226
+app/src/solver/subblock.ts
+  s_9be9645d11a3e7::t_ad4de4c88c85f0 1-228
+app/e2e/mut/subblock.e2e.ts
+  s_6ed7dfd73f5bc9::t_951745c4db07b1 1-72
+app/src/components/block/group-compose-dialog.tsx
+  s_6ed7dfd73f5bc9::t_aec07e7fbd77fa 1-108
+app/src/components/block/recipe-grid.tsx
+  s_6ed7dfd73f5bc9::t_1724a0ea8b0492 194-195
+app/src/db/schema.ts
+  s_6ed7dfd73f5bc9::t_64ee523d0cfda3 423-434
+app/src/lib/row-groups.ts
+  s_6ed7dfd73f5bc9::t_6d60b29d8546bb 7-8,10,12-26
+app/src/server/block-compute.server.ts
+  s_6ed7dfd73f5bc9::t_95d3ad273e61a6 13-18,212-214,638-672,676-679,682,723-744,747-748,1138-1140,1161-1174,1180
+app/src/solver/subblock.test.ts
+  s_6ed7dfd73f5bc9::t_2949bf2ecf3c04 1-163
+docs/solver.md
+  s_6ed7dfd73f5bc9::t_8cce9414098a18 145-177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5b0c2d9fb1db90cb1d9efc4b448e97fbd4b8341e",
+  "prompts": {},
+  "sessions": {
+    "s_6ed7dfd73f5bc9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a879c71ccdbb0990e",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
