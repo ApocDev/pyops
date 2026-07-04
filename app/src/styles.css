@@ -159,7 +159,10 @@ body,
    regardless of the preset's @import order. The @layer/@apply version was being
    overridden, which left body text/borders falling back to currentColor. */
 html {
-  color-scheme: dark; /* native controls + scrollbars render dark */
+  /* color-scheme is set by the pre-paint theme script + lib/theme.ts (#107),
+     following the light/dark/system preference; dark is the fallback here for
+     the brief moment before that runs. */
+  color-scheme: dark;
   font-family: var(--font-mono);
   /* Themed scrollbars: thin, muted thumb on a transparent track — Chromium's
      stock grey glows against the dark theme. Inherits to every scrollable. */

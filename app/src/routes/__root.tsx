@@ -62,6 +62,18 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="en" className="dark">
       <head>
         <HeadContent />
+        {/* Pre-paint theme (#107): correct the SSR'd `dark` class before first
+            paint from the stored pyops.theme preference, so switching to light /
+            system never flashes the wrong palette. Mirrors lib/theme.ts. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var p=localStorage.getItem('pyops.theme')||'dark';" +
+              "var d=p==='dark'||(p==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);" +
+              "var r=document.documentElement;r.classList.toggle('dark',d);" +
+              "r.style.colorScheme=d?'dark':'light';}catch(e){}})();",
+          }}
+        />
       </head>
       <body>
         <div className="flex h-screen flex-col">

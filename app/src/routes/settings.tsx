@@ -39,6 +39,14 @@ import {
   setCompactNumbers,
   subscribeNumberFormat,
 } from "../lib/format";
+import { getTheme, setTheme, subscribeTheme, type ThemePref } from "../lib/theme";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "#/components/ui/select.tsx";
 
 const TABS = [
   { id: "planning", label: "Planning" },
@@ -394,12 +402,31 @@ const PAYBACK_PRESETS = [
  * not project data — it changes nothing about the plan, only how it reads. */
 function DisplayCard() {
   const compact = useSyncExternalStore(subscribeNumberFormat, getCompactNumbers, () => true);
+  const theme = useSyncExternalStore(subscribeTheme, getTheme, () => "dark" as ThemePref);
   return (
     <Card>
       <CardHeader>
         <CardTitle>Display</CardTitle>
       </CardHeader>
       <div className="space-y-3 px-3 pb-3">
+        <label className="flex items-center justify-between gap-3">
+          <span>
+            Theme
+            <span className="block text-sm text-muted-foreground">
+              light, dark, or follow your system setting
+            </span>
+          </span>
+          <Select value={theme} onValueChange={(v) => setTheme(v as ThemePref)}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="dark">Dark</SelectItem>
+              <SelectItem value="light">Light</SelectItem>
+              <SelectItem value="system">System</SelectItem>
+            </SelectContent>
+          </Select>
+        </label>
         <label className="flex items-center justify-between gap-3">
           <span>
             Compact large numbers

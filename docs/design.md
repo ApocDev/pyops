@@ -43,7 +43,13 @@ If you're unsure whether something is fine print, it isn't — use `text-sm`.
 
 Use theme tokens only. Never raw palette classes (`text-emerald-300`,
 `bg-zinc-800`) or hex values — they don't adapt to light/dark and drift shade by
-shade. The tokens (defined in `styles.css`, light + dark values each):
+shade. The tokens (defined in `styles.css`, `:root` = light, `.dark` = dark).
+The active theme is a per-browser preference (light / dark / **system**) — set
+in Settings → Display, stored at `pyops.theme`, applied by `lib/theme.ts` (which
+toggles the `.dark` class + `color-scheme`) with a pre-paint script in the root
+document that reads it before first paint so switching never flashes. Dark is
+the default and the mode the UI is tuned in first; new surfaces must read
+correctly in both (that's what token-only buys you). The tokens:
 
 | Token | Meaning in PyOps |
 | --- | --- |
