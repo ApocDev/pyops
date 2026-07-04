@@ -1,0 +1,21 @@
+app/test-results/.last-run.json
+  s_9be9645d11a3e7::t_8dcb555002b86b 1-4
+app/src/components/block/balance-card.tsx
+  s_9be9645d11a3e7::t_44976c4e72dea1 2,15,69-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "51cf62fd1988db0d152b5d41e3b38f58e3bea70b",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
