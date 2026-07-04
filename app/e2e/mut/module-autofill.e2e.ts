@@ -8,13 +8,21 @@ import { addGoal, createBlock } from "./helpers";
  * toolbar's whole-block apply; clicking the hint bakes the suggestion into the
  * doc as ordinary stored picks, after which both affordances disappear.
  *
- * Uses "Coal gas from coal" (distilator, 1 slot, allow_productivity) — the
- * suggestion is a productivity fill as long as any prod module is unlocked in
- * the seeded project's research horizon.
+ * Uses "Coal gas from coal" (distilator, 1 slot, allow_productivity). The
+ * suggestion pool only contains modules unlocked in the research horizon, so
+ * the spec first pins the horizon to FUTURE — every producible module counts —
+ * making the hint deterministic regardless of the seed's research state. The
+ * scratch data dir is reseeded per run, so no restore is needed.
  */
 test("module auto-fill: fresh row suggests, hint click applies, affordances clear", async ({
   page,
 }) => {
+  await page.goto("/settings");
+  const future = page.getByRole("button", { name: "Future", exact: true });
+  await expect(future).toBeVisible();
+  await future.click();
+  await expect(future).toHaveAttribute("aria-pressed", "true");
+
   await createBlock(page);
   await addGoal(page, "coal gas", "Coal gas");
   await page.locator('button[title^="click to add a recipe that makes this goal"]').click();
