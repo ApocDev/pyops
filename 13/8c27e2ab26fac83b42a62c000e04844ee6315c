@@ -1,0 +1,45 @@
+app/e2e/deps.e2e.ts
+  s_9be9645d11a3e7::t_f87fb9df2e038d 13-18,23-29,31
+app/src/components/block/balance-card.tsx
+  s_9be9645d11a3e7::t_94bca7f4c41a13 150-170,314-328
+app/src/components/block/doc-store.ts
+  s_9be9645d11a3e7::t_bbb37ee53f332d 360-361,363-386,388-389
+app/src/components/block/pin-dialog.tsx
+  s_9be9645d11a3e7::t_9e30573cb4d447 42-45,181-199
+app/src/components/block/recipe-row.tsx
+  s_9be9645d11a3e7::t_83d8c9cc2dc59d 94-95
+app/src/db/schema.ts
+  s_9be9645d11a3e7::t_508b4ecde1db02 453-455
+app/src/lib/block-diff.ts
+  s_9be9645d11a3e7::t_8fe53bad7be82d 132,136-138
+app/src/routes/block.$id.tsx
+  s_9be9645d11a3e7::t_05d753d57b7bee 458,461-484
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_8dab8ac76aab2d 27-29,614-618,620,671,1044-1056,1188-1189
+app/src/server/migrations.ts
+  s_9be9645d11a3e7::t_61f0775643c4b1 109
+app/src/solver/lp.test.ts
+  s_9be9645d11a3e7::t_8e5fde17716e7e 391-513
+app/src/solver/lp.ts
+  s_9be9645d11a3e7::t_60a629dd7d4fec 66-70,77,142-143,201-204,206,208,210
+app/src/solver/temps.ts
+  s_9be9645d11a3e7::t_c4f9eed47f58d9 66,71,82,161-172,198
+docs/solver.md
+  s_9be9645d11a3e7::t_7a50c98ea2c455 42-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "138c27e2ab26fac83b42a62c000e04844ee6315c",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
