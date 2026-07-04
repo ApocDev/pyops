@@ -19,6 +19,22 @@ app/src/lib/updater.ts
   "base_commit_sha": "2129056803b4cc53fd6c2b096d5f01b157f1f550",
   "prompts": {},
   "sessions": {
+    "s_6ed7dfd73f5bc9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a879c71ccdbb0990e",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
     "s_ad8974a3b278d5": {
       "agent_id": {
         "tool": "claude",
