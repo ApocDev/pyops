@@ -69,14 +69,16 @@ sankey/flow view). Remaining:
 
 | Issue                               | Effort | Notes                                                                                                                                                                                                                    |
 | ----------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| #16 help drawers                    | L      | Images, worked examples, deeper coverage.                                                                                                                                                                                |
 | #107 light theme pass               | M      | Last in the wave, so it sees every new surface.                                                                                                                                                                          |
 
-## Wave 5 — composition
+## Wave 5 — DONE (2026-07-03)
 
-| Issue             | Effort | Notes                                                                                                                                                             |
-| ----------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #76 sub-blocks v2 | XL     | Separately-solved modules with hidden internal goals. Deliberately after #91 (nested solves) and #90 (deep doc-model surgery with a safety net). Closes epic #33. |
+#76 sub-blocks v2 landed: a display-only row group can be promoted to a
+separately-solved composed module whose only parent-facing surface is its
+boundary contract (nested solveBlockLp → synthetic recipe the parent solves
+over). Closes epic #33. Deferred follow-ups noted in docs/solver.md
+(user-editable per-group made, sub-block IIS cards, nested sub-blocks, sub-block
+spoilRates).
 
 ## Wave 6 — live data + mod batch (closes epic #34)
 
