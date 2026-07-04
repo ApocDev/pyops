@@ -123,4 +123,33 @@ so no admin/Developer Mode) or a plain **copy**. It detects current install stat
 (linked / copied / broken / out-of-date) and only ever removes a target it can
 prove is ours (a symlink, or a directory whose `info.json` name is `pyops`). The
 target is always `<mods>/pyops` — the folder name must equal the mod's info.json
-name. You can still install by hand; see the README.
+name.
+
+To install by hand instead, link or copy `mod/` into your mods folder as a folder
+named `pyops`, from the repo root:
+
+```bash
+# Linux
+ln -s "$PWD/mod" ~/.factorio/mods/pyops
+# macOS
+ln -s "$PWD/mod" ~/"Library/Application Support/factorio/mods/pyops"
+```
+
+```powershell
+# Windows (PowerShell) — directory junction, no admin needed:
+New-Item -ItemType Junction -Path "$env:APPDATA\Factorio\mods\pyops" -Target "$PWD\mod"
+```
+
+Or copy the `mod` folder in and rename the copy to `pyops` (re-copy after updates).
+
+### Launching the game
+
+Easiest: **Launch Factorio** in the **Live bridge** card — it starts the game with
+`--enable-lua-udp` on a free port (through Steam if that's your copy, so cloud
+saves / overlay / achievements keep working). To start it yourself, add
+`--enable-lua-udp 37658` (Steam: right-click the game → Properties → Launch
+Options). That port is the socket Factorio **binds for itself**, so it must be a
+_different_ free port than the app's bridge port (`PYOPS_BRIDGE_PORT`, default
+`37657`) — the two can't share one loopback UDP port. Leave the mod's **PyOps
+bridge UDP port** setting at the app's port. With PyOps running, the in-game panel
+connects automatically — there's no toggle to flip.
