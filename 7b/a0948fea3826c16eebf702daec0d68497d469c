@@ -1,0 +1,47 @@
+app/src/components/block/flow-graph.test.ts
+  s_9be9645d11a3e7::t_7ed6c2bd63135a 1-156
+app/src/components/block/flow-graph.ts
+  s_9be9645d11a3e7::t_c51465dcec33ae 1-307
+app/src/components/block/flow-layout.ts
+  s_9be9645d11a3e7::t_4428f7186d2cab 1-141
+app/src/components/block/block-flow-view.tsx
+  s_5b7c526ea4de24::t_cc1517c555c0c9 1-229
+app/src/components/block/recipe-grid.tsx
+  s_5b7c526ea4de24::t_001212d34fa98a 51,65-66,227
+app/src/components/block/recipe-row.tsx
+  s_5b7c526ea4de24::t_82ed78816a1951 1,64,86-87,99-102,107-108
+app/src/routes/block.$id.tsx
+  s_3515b430556291::t_764db037f63606 31-32,51,126-134,703-749
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7ba0948fea3826c16eebf702daec0d68497d469c",
+  "prompts": {},
+  "sessions": {
+    "s_3515b430556291": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a4bb3f6400fbf1ad8",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_5b7c526ea4de24": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a6da060213e8c91b6",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
