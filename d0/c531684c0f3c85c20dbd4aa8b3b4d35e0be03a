@@ -1,5 +1,7 @@
 app/src/components/update-prompt.tsx
   s_ad8974a3b278d5::t_005fbf6bc2428a 19-29,70,117
+app/src/server/cost-analysis.test.ts
+  s_aad89dfae48fc4::t_01973b7244fd45 78,80-81
 ---
 {
   "schema_version": "authorship/3.0.0",
@@ -7,10 +9,42 @@ app/src/components/update-prompt.tsx
   "base_commit_sha": "d0c531684c0f3c85c20dbd4aa8b3b4d35e0be03a",
   "prompts": {},
   "sessions": {
+    "s_4b15f540ec769f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a5ec51233a12cb82c",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_aad89dfae48fc4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aceb64b791005eeb5",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
     "s_ad8974a3b278d5": {
       "agent_id": {
         "tool": "claude",
         "id": "8a6a7e88-ead0-4bb1-bc8a-932de001d6c6",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_dd5253c3a3da73": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ae4fb273cdf66f64a",
         "model": "unknown"
       },
       "human_author": "ApocDev <apocdev@gmail.com>"
