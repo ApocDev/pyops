@@ -1,0 +1,23 @@
+app/src/components/block/recipe-row.tsx
+  s_9be9645d11a3e7::t_39bf890d22f69a 1,95-107,310
+app/src/server/module-fill.server.ts
+  s_9be9645d11a3e7::t_ddaf31dcf96ecd 61-67,71
+app/src/server/module-fill.test.ts
+  s_9be9645d11a3e7::t_c2fba76e7fcd12 126-158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b1881c73498bb19b3a90cf5c66397ca88e9f87fe",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
