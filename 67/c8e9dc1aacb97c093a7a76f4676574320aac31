@@ -1,0 +1,33 @@
+app/e2e/help.e2e.ts
+  s_9be9645d11a3e7::t_ed972e6da30b18 1-38
+app/src/routes/assistant.tsx
+  s_9be9645d11a3e7::t_4a4c2d6cbbd17e 37,415,417-505
+app/src/routes/browse.tsx
+  s_9be9645d11a3e7::t_a1fabd939ad541 95-105
+app/src/routes/coherence.tsx
+  s_9be9645d11a3e7::t_faf4309e1b967e 174-188
+app/src/routes/deps.tsx
+  s_9be9645d11a3e7::t_0023982c254259 96-104
+app/src/routes/factory.tsx
+  s_9be9645d11a3e7::t_ea92e3ea025d18 277-288
+app/src/routes/turd.tsx
+  s_9be9645d11a3e7::t_9c74155803e0fb 198-210
+app/src/routes/whatif.tsx
+  s_9be9645d11a3e7::t_0c99fbf92db144 88-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "67c8e9dc1aacb97c093a7a76f4676574320aac31",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
