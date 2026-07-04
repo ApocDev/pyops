@@ -1,0 +1,23 @@
+app/src/components/block/block-toolbar.tsx
+  s_9be9645d11a3e7::t_b4bf51d1ce6b6c 294-295
+app/src/components/block/balance-card.tsx
+  s_9be9645d11a3e7::t_367e6844652a4c 245,256
+app/src/routes/browse.tsx
+  s_9be9645d11a3e7::t_042c37565e4259 86-87,90,98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "01a051cdc2f84fbd43ce5a4ba51bf3efa34f8c43",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
