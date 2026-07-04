@@ -69,8 +69,12 @@ export async function chooseModuleFill(rows: Rows): Promise<ModuleFill> {
     const base = 1 + (row.effects?.speed ?? 0);
     const countAt = (k: number) => (baseCount * base) / (base + k * speed.effSpeed);
     const floor = Math.ceil(countAt(slots) - 1e-9); // best achievable whole count
+    // Fewest speed modules that still reach that whole count — INCLUDING zero:
+    // when the count is already under the floor (0.8 buildings), or the modules
+    // are too weak to shave a whole building (1.92 → 1.1 never reaches 1), any
+    // speed module is pure waste and every slot goes to efficiency.
     let k = slots;
-    for (let i = 1; i <= slots; i++) {
+    for (let i = 0; i <= slots; i++) {
       if (countAt(i) <= floor + 1e-9) {
         k = i;
         break;
@@ -78,7 +82,7 @@ export async function chooseModuleFill(rows: Rows): Promise<ModuleFill> {
     }
     const fill = Array<string>(k).fill(speed.name);
     if (slots - k > 0 && eff) fill.push(...Array<string>(slots - k).fill(eff.name));
-    modules[row.recipe] = fill;
+    if (fill.length) modules[row.recipe] = fill;
   }
 
   return { modules, machines };
