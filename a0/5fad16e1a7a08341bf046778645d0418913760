@@ -1,0 +1,47 @@
+app/src/components/query-boundary.test.tsx
+  s_9be9645d11a3e7::t_c8e55df2103cb6 1-110
+app/src/components/query-boundary.tsx
+  s_9be9645d11a3e7::t_88aa63352c67de 1-66
+app/src/routes/factory.tsx
+  s_9be9645d11a3e7::t_2084ab7ebac28d 25,27,317-321,385-390,592-599,652-656,698-699
+app/src/routes/index.tsx
+  s_9be9645d11a3e7::t_1c4d59259f91dc 9,21-22,54-66,73-74,91-96
+app/e2e/mut/overlays.e2e.ts
+  s_3515b430556291::t_34ebe1a097d0b6 1-36
+app/src/components/context-menu.tsx
+  s_3515b430556291::t_7425564b6e1308 3-8,12-17,33-50,57-58,62,75,77,80
+app/src/components/query-error.tsx
+  s_3515b430556291::t_f65e9b71a684be 1-45
+app/src/components/route-error.tsx
+  s_3515b430556291::t_c64c1680c1916a 1-47
+app/src/components/route-pending.tsx
+  s_3515b430556291::t_7a6ca56f6e6b07 1-21
+app/src/routes/__root.tsx
+  s_3515b430556291::t_9ad1a16ce67f84 11-12,55-56
+docs/design.md
+  s_3515b430556291::t_089f69e3b04718 113-114,118,174-175,179-187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a05fad16e1a7a08341bf046778645d0418913760",
+  "prompts": {},
+  "sessions": {
+    "s_3515b430556291": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a4bb3f6400fbf1ad8",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
