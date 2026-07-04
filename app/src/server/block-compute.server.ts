@@ -239,17 +239,6 @@ export type SolveInput = {
 /** Core block computation (solve → machines/fuel/power, fuel/ash folded into the
  * boundary flows). Shared by the live solve and block saving so both use one path. */
 export async function computeBlock(rawData: SolveInput) {
-  const pass1 = await computeBlockPass(rawData);
-  if (!pass1.autoPicks) return pass1;
-  // auto-fill pass 2: re-solve with the speed/efficiency picks decided from
-  // pass 1's solved building counts (see the decision block in computeBlockPass)
-  return computeBlockPass(rawData, { modules: pass1.autoPicks });
-}
-
-async function computeBlockPass(
-  rawData: SolveInput,
-  autoPass?: { modules: Record<string, string[]> },
-) {
   // Tolerate the legacy { target, rate, extraGoals } shape from older saved docs.
   const data = normalizeBlockData(rawData) as SolveInput;
 
@@ -306,16 +295,17 @@ async function computeBlockPass(
     });
   };
 
-  // Module auto-fill: rows with NO manual module config get modules picked by
-  // the direct algorithm in module-fill.server.ts — best productivity where the
-  // recipe allows it, otherwise the fewest speed modules that reach the
-  // smallest whole building count with the rest on efficiency. Prod needs no
-  // count and applies right here in setup; speed/efficiency need the SOLVED
-  // building counts, so pass 1 solves prod-only, decides the split, and
-  // re-enters computeBlock once with `autoPass` carrying the picks. An explicit
-  // (even empty) module list always wins.
+  // Module auto-fill is SUGGESTED, never applied: each row gets a
+  // `suggestedModules` fill computed post-solve by the direct algorithm in
+  // module-fill.server.ts (best productivity where the recipe allows it,
+  // otherwise the fewest speed modules that reach the smallest whole building
+  // count with the rest on efficiency). The UI hints when a row's stored fill
+  // differs and offers one-click apply (per row and whole block) — the solve
+  // itself only ever uses the doc's stored modules, so plans don't rearrange
+  // themselves when research unlocks better tiers or counts drift across a
+  // whole-building boundary.
   const settings = q.metaAll();
-  const autofillOn = (settings.autofill ?? "1") !== "0";
+  const moduleHints = (settings.autofill ?? "1") !== "0"; // hint visibility only
   const fillMiners = settings.autofill_miners === "1";
   // Preferred fuels per category (for marking the favorite in the fuel picker).
   // Favorites are baked into a block's stored picks at recipe-add time, so the
@@ -363,31 +353,11 @@ async function computeBlockPass(
       const fallback = pickDefaultMachine(pool);
       const chosen = machines.find((m) => m.name === data.machines?.[r.name]) ?? fallback ?? null;
       const manual = data.modules?.[r.name];
-      let machineModules = (manual ?? [])
+      const machineModules = (manual ?? [])
         .filter((n) => moduleDb.has(n))
         .slice(0, chosen?.moduleSlots ?? 0);
-      // a row is auto-MANAGED whenever it has no manual config — even when the
-      // algorithm picks no module ("none is worth it" must still read as auto)
-      const autoManaged =
-        manual === undefined && autofillOn && chosen != null && chosen.moduleSlots > 0;
-      let autoSpeedPool: ReturnType<typeof autoPool> = [];
-      if (autoManaged) {
-        const pool = autoPool(r, chosen!);
-        if (r.allowProductivity && pool.some((m) => m.effProductivity > 0)) {
-          machineModules = pickAutoModules({
-            slots: chosen!.moduleSlots,
-            allowProductivity: true,
-            pool,
-            baseCount: 0,
-            baseSpeedMult: 1,
-          });
-        } else if (pool.length) {
-          // speed/efficiency needs the solved building count — pass 2 (below)
-          machineModules = autoPass?.modules[r.name] ?? [];
-          autoSpeedPool = pool;
-        }
-        for (const [name, mod] of q.getModules(machineModules)) moduleDb.set(name, mod);
-      }
+      // modules the suggestion may draw from (empty when the row can't take any)
+      const suggestPool = chosen && chosen.moduleSlots > 0 ? autoPool(r, chosen) : [];
       const beaconCfgs = (data.beacons?.[r.name] ?? []).filter(
         (b) => beaconDb.has(b.beacon) && b.count > 0,
       );
@@ -405,6 +375,15 @@ async function computeBlockPass(
           maxProductivity: r.maximumProductivity,
         },
       );
+      // the module-LESS speed multiplier (beacons + TURD only) — the suggestion
+      // algorithm sizes its speed-vs-efficiency split against this baseline
+      const bareSpeedMult = machineModules.length
+        ? computeEffects(r.allowProductivity, [], beaconCfgs, moduleDb, beaconDb, turdModules, {
+            recipeProd: researchProd.recipes.get(r.name) ?? 0,
+            miningProd: r.kind === "mining" ? researchProd.mining : 0,
+            maxProductivity: r.maximumProductivity,
+          }).speedMult
+        : effects.speedMult;
       return [
         r.name,
         {
@@ -414,8 +393,9 @@ async function computeBlockPass(
           beaconCfgs,
           turdModules,
           effects,
-          autoModules: autoManaged,
-          autoSpeedPool,
+          suggestPool,
+          bareSpeedMult,
+          allowProductivity: r.allowProductivity,
         },
       ] as const;
     }),
@@ -714,28 +694,26 @@ async function computeBlockPass(
     exports: foldFlows(rawResult.exports),
   };
 
-  // ── auto-fill: decide the speed → floor → efficiency split ─────────────────
-  // The whole-count decision needs the SOLVED building counts, which this pass
-  // just produced for module-less rows (beacons/TURD are in effects, so speed
-  // beacons lower baseCount and auto sheds now-redundant speed modules). The
-  // picks ride back on `autoPicks`; computeBlock re-enters once with them.
-  let autoPicks: Record<string, string[]> | undefined;
-  if (!autoPass && autofillOn && rawResult.status === "solved") {
-    const picks: Record<string, string[]> = {};
+  // ── module suggestions: what the auto-fill algorithm WOULD pick ────────────
+  // Computed against the row's module-less baseline (beacons/TURD included, so
+  // planting speed beacons updates the suggestion) from the counts this solve
+  // just produced. Never applied here — the UI hints when a row's stored fill
+  // differs and applies on an explicit click.
+  const suggested = new Map<string, string[]>();
+  if (rawResult.status === "solved") {
     for (const rr of result.recipes) {
       const s = setup.get(rr.recipe);
-      if (!s?.autoSpeedPool.length || !s.chosen) continue;
-      const baseCount = rr.machines1x / ((s.chosen.craftingSpeed ?? 1) * s.effects.speedMult);
+      if (!s?.suggestPool.length || !s.chosen) continue;
+      const baseCount = rr.machines1x / ((s.chosen.craftingSpeed ?? 1) * s.bareSpeedMult);
       const fill = pickAutoModules({
         slots: s.chosen.moduleSlots,
-        allowProductivity: false,
-        pool: s.autoSpeedPool,
+        allowProductivity: s.allowProductivity,
+        pool: s.suggestPool,
         baseCount,
-        baseSpeedMult: s.effects.speedMult,
+        baseSpeedMult: s.bareSpeedMult,
       });
-      if (fill.length) picks[rr.recipe] = fill;
+      if (fill.length) suggested.set(rr.recipe, fill);
     }
-    if (Object.keys(picks).length) autoPicks = picks;
   }
 
   // Per-recipe rows for the grid: each recipe's ingredients/products at the
@@ -763,8 +741,13 @@ async function computeBlockPass(
       beaconCfgs,
       turdModules,
       effects: fx,
-      autoModules,
     } = setup.get(rr.recipe)!;
+    // the suggested fill, only when it differs from what's stored (order-blind)
+    const sug = suggested.get(rr.recipe);
+    const suggestedModules =
+      sug && [...sug].sort().join("\u0001") !== [...machineModules].sort().join("\u0001")
+        ? sug
+        : undefined;
     const speed = (chosen?.craftingSpeed ?? 1) * fx.speedMult;
     // fractional building requirement (machine-seconds/sec ÷ speed); the UI
     // shows this and the whole-machine build target alongside it
@@ -957,7 +940,8 @@ async function computeBlockPass(
       fuel,
       availableFuels,
       modules: machineModules,
-      autoModules,
+      // a better fill exists (per the auto algorithm) — hint + one-click apply
+      suggestedModules,
       turdModules: turdModules.map((m) => ({ name: m.name, display: m.display })),
       beacons: beaconCfgs,
       beaconPowerW,
@@ -1197,9 +1181,9 @@ async function computeBlockPass(
     buildCost,
     broken,
     missing,
-    // non-empty ONLY on a pass-1 result that computeBlock immediately discards
-    // (it re-enters with these picks applied); results callers see never set it
-    autoPicks,
+    // module-suggestion hints are a per-project preference (Settings) — the
+    // rows always carry suggestedModules; this only gates the ambient icon
+    moduleHints,
   };
 }
 

@@ -235,21 +235,26 @@ Factorio's clamps are respected: speed, consumption, and pollution multipliers
 bottom out at 0.2, productivity caps at the recipe's `maximum_productivity`
 (+300% by default — but Py raises it to 1e6 on nearly every recipe).
 
-**Module auto-fill** (`module-fill.server.ts`): a row with no manual module
-config gets modules picked automatically (Settings → Module auto-fill, on by
-default; manual configs — including an explicitly empty list — always win).
-The algorithm is direct, not payback economics: if the recipe allows
-productivity, every slot gets the best unlocked prod module; otherwise the row
-gets the **fewest speed modules that reach the smallest whole building count**,
-with the remaining slots on efficiency — past that floor, extra speed only
-shaves fractions of a building you can't build, so those slots cut power
-instead. Zero speed modules is a real answer (a row already under the floor, or
-modules too weak to save a whole machine, fills all-efficiency). The building
-count comes from the solve, so `computeBlock` runs two passes: pass 1 solves
-with prod fills only, decides the speed/efficiency split from the solved counts
-(beacon and TURD speed included — planting speed beacons makes auto shed
-now-redundant speed modules), and re-enters once with the picks applied. The
-assistant's draft-a-block harvests the same picks and pins them into the draft.
+**Module auto-fill** (`module-fill.server.ts`) is **suggested, never applied**:
+the solve only ever uses the doc's stored module picks, so a plan never
+rearranges its modules behind the player's back (research unlocking a better
+tier, or a count drifting across a whole-building boundary, changes the
+_suggestion_, not the block). Each solve computes a per-row suggested fill by a
+direct algorithm — no payback economics: if the recipe allows productivity,
+every slot gets the best unlocked prod module; otherwise the row gets the
+**fewest speed modules that reach the smallest whole building count**, with the
+remaining slots on efficiency — past that floor, extra speed only shaves
+fractions of a building you can't build, so those slots cut power instead.
+Zero speed modules is a real answer (a row already under the floor, or modules
+too weak to save a whole machine, suggests all-efficiency). The split is sized
+against the row's module-less baseline with beacon and TURD speed included, so
+planting speed beacons updates the suggestion to shed now-redundant speed
+modules. Rows whose stored fill differs from the suggestion carry
+`suggestedModules`; the UI shows a ✨ hint (gated by the Settings toggle) with
+one-click apply, the modules dialog previews the suggestion, and the block
+toolbar applies all suggestions at once (confirming when it would overwrite
+rows that already have modules). The assistant's draft-a-block adopts the
+suggestions as the draft's explicit picks and re-solves with them.
 
 **Research-driven productivity** (#92) is folded into the same effects stage,
 gated by the research horizon exactly like machine availability (everything in

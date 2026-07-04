@@ -334,8 +334,10 @@ export function createBlockDocStore() {
         modules: { ...s.modules, [recipe]: modules },
         beacons: { ...s.beacons, [recipe]: beacons },
       })),
-    // "reset to auto" deletes the key — an explicit [] would mean "no modules"
-    resetModules: (recipe: string) => edit((s) => ({ modules: withoutKey(s.modules, recipe) })),
+    /** Apply auto-fill suggestions (hint click / whole-block button) as ordinary
+     * stored picks — modules only; beacon configs stay as they are. */
+    applyModuleFills: (fills: Record<string, string[]>) =>
+      edit((s) => ({ modules: { ...s.modules, ...fills } })),
 
     /* ── made marks & pins (#91) ── */
     /** Adopt the server-derived made set for a legacy doc — NOT a user edit

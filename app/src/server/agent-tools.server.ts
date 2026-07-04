@@ -618,17 +618,26 @@ async function buildBlockDraft({
     machines: {},
   };
   try {
-    // computeBlock auto-fills modules itself (prod where allowed, else
-    // speed→floor→efficiency, per the planner setting); harvest the picks so
-    // the draft doc pins them explicitly alongside the machine they were sized for.
+    // computeBlock only SUGGESTS modules (the UI applies them on click); a
+    // drafted block should arrive filled, so adopt the suggestions as the
+    // draft's explicit picks (pinning the machine they were sized for) and
+    // re-solve so counts/power/imports reflect them.
     const goals = [{ name: target, rate }];
-    const solved = await computeBlock({ goals, recipes });
-    for (const row of solved.rows) {
-      if (row.autoModules && row.modules.length && row.machine) {
-        moduleFill.modules[row.recipe] = row.modules;
+    const provisional = await computeBlock({ goals, recipes });
+    for (const row of provisional.rows) {
+      if (row.suggestedModules?.length && row.machine) {
+        moduleFill.modules[row.recipe] = row.suggestedModules;
         moduleFill.machines[row.recipe] = row.machine.name;
       }
     }
+    const solved = Object.keys(moduleFill.modules).length
+      ? await computeBlock({
+          goals,
+          recipes,
+          modules: moduleFill.modules,
+          machines: moduleFill.machines,
+        })
+      : provisional;
     for (const f of solved.imports) rates.set(f.name, +f.rate.toFixed(3));
     for (const f of solved.exports) rates.set(f.name, +f.rate.toFixed(3));
     powerW = solved.power?.totalW ?? null;

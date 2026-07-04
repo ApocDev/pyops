@@ -8,6 +8,7 @@ import {
   Hammer,
   History,
   Power,
+  Sparkles,
   Star,
 } from "lucide-react";
 import { Badge } from "#/components/ui/badge.tsx";
@@ -43,6 +44,7 @@ export function BlockToolbar({
   blockEnabled,
   onToggleEnabled,
   onCopySetup,
+  autoFill,
   onExport,
   onOpenHistory,
   showInGame,
@@ -60,6 +62,8 @@ export function BlockToolbar({
   blockEnabled: boolean;
   onToggleEnabled: () => void;
   onCopySetup: () => void;
+  /** whole-block module auto-fill: rows with a differing suggested fill + apply */
+  autoFill: { count: number; onApply: () => void };
   /** download this block as a shareable JSON file (#82) */
   onExport: () => void;
   /** open the snapshot-history drawer (#85) */
@@ -126,6 +130,17 @@ export function BlockToolbar({
       >
         <Copy className="size-4" />
       </Button>
+      {autoFill.count > 0 && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={autoFill.onApply}
+          title={`Auto-fill modules — apply the suggested fill (prod where allowed, else speed to the whole-machine floor, rest efficiency) to ${autoFill.count} row${autoFill.count === 1 ? "" : "s"}`}
+          className="text-info"
+        >
+          <Sparkles className="size-4" /> {autoFill.count}
+        </Button>
+      )}
       <Button
         variant="outline"
         size="icon-sm"

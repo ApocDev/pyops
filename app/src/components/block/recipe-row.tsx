@@ -7,6 +7,7 @@ import {
   Flame,
   GripVertical,
   Power,
+  Sparkles,
   Timer,
   X,
   Zap,
@@ -40,6 +41,8 @@ export type RowOverlayOpeners = {
   machinePicker: (recipe: string) => void;
   fuelPicker: (recipe: string) => void;
   modulesPicker: (recipe: string) => void;
+  /** apply the row's suggested module fill (the ✨ hint) as its stored picks */
+  applyModuleFill: (recipe: string) => void;
 };
 
 /** One live recipe row of the grid: name + solved rate, machine/fuel/module
@@ -62,6 +65,7 @@ export function RecipeRow({
   open,
   tempWarnings,
   highlight,
+  moduleHints,
 }: {
   doc: BlockDocStore;
   name: string;
@@ -85,6 +89,8 @@ export function RecipeRow({
   tempWarnings: { ingredient: Map<string, ChipTempWarning>; product: Map<string, ChipTempWarning> };
   /** briefly ring + scroll this row into view — set when a flow node targets it (#101) */
   highlight?: boolean;
+  /** show the ambient ✨ suggestion hint (Settings toggle; apply paths always work) */
+  moduleHints?: boolean;
 }) {
   const rowPin = useStore(doc.store, (s) =>
     s.pins.find((p) => p.kind !== "share" && p.recipe === name),
@@ -285,9 +291,18 @@ export function RecipeRow({
                   beacons={row.beacons}
                   slots={row.machine.moduleSlots ?? 0}
                   effects={row.effects}
-                  auto={row.autoModules}
                   onClick={() => open.modulesPicker(name)}
                 />
+                {/* auto-fill hint: a better fill exists — click applies it */}
+                {moduleHints && row.suggestedModules && (
+                  <button
+                    onClick={() => open.applyModuleFill(name)}
+                    title="better modules available — click to apply the suggested fill (open the modules dialog to preview it)"
+                    className="flex items-center px-1 py-1 text-info hover:bg-accent"
+                  >
+                    <Sparkles className="size-3.5" />
+                  </button>
+                )}
                 {/* TURD: hidden modules the selected upgrades insert (no slot cost) */}
                 {row.turdModules.length > 0 && (
                   <Link

@@ -513,6 +513,30 @@ function Block({ blockId }: { blockId: number }) {
   }, [autoAddRecipe]);
   const res = solve.data;
 
+  // Auto-fill (suggestions → stored picks): apply one row's suggested modules,
+  // or every row's at once from the toolbar. Suggestions are computed by the
+  // solve but NEVER applied by it — these clicks are the only apply paths.
+  const applyModuleFill = (recipe: string) => {
+    const r = res?.rows?.find((x) => x.recipe === recipe);
+    if (r?.suggestedModules) doc.applyModuleFills({ [recipe]: r.suggestedModules });
+  };
+  const suggestedRows = (res?.rows ?? []).filter((r) => r.suggestedModules);
+  const autoFillAll = () => {
+    if (!suggestedRows.length) return;
+    // overwriting rows that already have modules deserves a beat of caution
+    const overwriting = suggestedRows.filter((r) => r.modules.length).length;
+    if (
+      overwriting &&
+      !window.confirm(
+        `Replace the module fill on ${overwriting} row${overwriting === 1 ? "" : "s"} that already ${overwriting === 1 ? "has" : "have"} modules? (Undo reverts it.)`,
+      )
+    )
+      return;
+    doc.applyModuleFills(
+      Object.fromEntries(suggestedRows.map((r) => [r.recipe, r.suggestedModules!])),
+    );
+  };
+
   // "Size by input": locking an import makes the Goal read-only and drives the
   // block's size from that input's rate instead. The solve is linear in the target,
   // so target = desired × rate / currentImportRate. This effect re-applies the lock
@@ -645,6 +669,7 @@ function Block({ blockId }: { blockId: number }) {
         blockEnabled={blockEnabled}
         onToggleEnabled={toggleBlockEnabled}
         onCopySetup={copySetup}
+        autoFill={{ count: suggestedRows.length, onApply: autoFillAll }}
         onExport={() => void exportBlock()}
         onOpenHistory={() => setHistoryOpen(true)}
         showInGame={{
@@ -769,6 +794,7 @@ function Block({ blockId }: { blockId: number }) {
             machinePicker: setPickMachineFor,
             fuelPicker: setPickFuelFor,
             modulesPicker: setPickModulesFor,
+            applyModuleFill,
           }}
           renamingGroup={renamingGroup}
           onRenamingGroupChange={setRenamingGroup}
@@ -871,12 +897,11 @@ function Block({ blockId }: { blockId: number }) {
               recipe={pickModulesFor}
               recipeDisplay={res?.recipeDisplay?.[pickModulesFor] ?? pickModulesFor}
               machineName={mr.machine.name}
-              modules={moduleSel[pickModulesFor] ?? (mr.autoModules ? mr.modules : [])}
+              modules={moduleSel[pickModulesFor] ?? mr.modules}
               beacons={beaconSel[pickModulesFor] ?? []}
               effects={mr.effects}
-              auto={mr.autoModules && moduleSel[pickModulesFor] === undefined}
+              suggested={mr.suggestedModules}
               onChange={(mods, bcns) => doc.setModules(pickModulesFor, mods, bcns)}
-              onReset={() => doc.resetModules(pickModulesFor)}
               onClose={() => setPickModulesFor(null)}
             />
           );

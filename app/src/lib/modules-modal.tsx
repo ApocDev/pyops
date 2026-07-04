@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Ban, Minus, Plus, RotateCcw, SquarePlus, Star, X } from "lucide-react";
+import { Ban, Minus, Plus, Sparkles, SquarePlus, Star, X } from "lucide-react";
 import {
   deleteModulePresetFn,
   moduleInfoFn,
@@ -68,14 +68,12 @@ export function ModulesChip({
   beacons,
   slots,
   effects,
-  auto,
   onClick,
 }: {
   modules: string[];
   beacons: BeaconConfig[];
   slots: number;
   effects?: RowEffects;
-  auto?: boolean;
   onClick: () => void;
 }) {
   if (slots <= 0 && !beacons.length && !modules.length) return null;
@@ -88,13 +86,7 @@ export function ModulesChip({
       onClick={onClick}
       // Empty state keeps a plain caption; a configured loadout shows the rich
       // ModuleLoadoutCard hover (below) instead of a flat "+X% speed" title.
-      title={
-        empty
-          ? auto
-            ? "auto-managed — no module helps here · click to override"
-            : "no modules — click to configure"
-          : undefined
-      }
+      title={empty ? "no modules — click to configure" : undefined}
       // Raw button on purpose: a compact icon-tile chip living inside a dense
       // grid cell — the Button primitive's h-8 box would break the row density.
       className={`flex items-center gap-1 px-1.5 py-1 text-sm hover:bg-accent ${
@@ -104,7 +96,6 @@ export function ModulesChip({
       }`}
     >
       {empty && <SquarePlus className="size-4" />}
-      {auto && <span className="text-sm text-info">A</span>}
       {grouped.map(([n, c]) => (
         <span key={n} className="flex items-center">
           <Icon kind="item" name={n} size="sm" noHover />
@@ -124,7 +115,7 @@ export function ModulesChip({
   if (empty) return button;
   return (
     <CursorHover
-      card={<ModuleLoadoutCard modules={modules} beacons={beacons} effects={effects} auto={auto} />}
+      card={<ModuleLoadoutCard modules={modules} beacons={beacons} effects={effects} />}
       z={70}
     >
       {button}
@@ -152,12 +143,10 @@ function ModuleLoadoutCard({
   modules,
   beacons,
   effects,
-  auto,
 }: {
   modules: string[];
   beacons: BeaconConfig[];
   effects?: RowEffects;
-  auto?: boolean;
 }) {
   const names = useMemo(
     () => [...new Set([...modules, ...beacons.flatMap((b) => b.modules)])],
@@ -178,10 +167,7 @@ function ModuleLoadoutCard({
   if (effects?.consumption) total.push(`${pct(effects.consumption)} energy`);
   return (
     <div className="w-72 border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
-      <div className="flex items-center gap-2 font-semibold">
-        Module loadout
-        {auto && <span className="bg-info/15 px-1 text-xs font-normal text-info">auto</span>}
-      </div>
+      <div className="flex items-center gap-2 font-semibold">Module loadout</div>
       {total.length > 0 && (
         <div className="mt-0.5 flex flex-wrap gap-x-3 text-muted-foreground">
           {total.map((t) => (
@@ -427,9 +413,8 @@ export function ModulesModal({
   modules,
   beacons,
   effects,
-  auto,
+  suggested,
   onChange,
-  onReset,
   onClose,
 }: {
   recipe: string;
@@ -438,9 +423,9 @@ export function ModulesModal({
   modules: string[];
   beacons: BeaconConfig[];
   effects?: RowEffects;
-  auto?: boolean;
+  /** the auto-fill algorithm's pick, when it differs from the current fill */
+  suggested?: string[];
   onChange: (modules: string[], beacons: BeaconConfig[]) => void;
-  onReset?: () => void;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
@@ -541,27 +526,33 @@ export function ModulesModal({
                 )}
               </div>
 
-              {/* auto-fill state */}
-              {(auto || onReset) && (
-                <div className="flex items-center gap-2 text-sm">
-                  {auto ? (
-                    <span className="text-info" title="chosen by the module auto-fill">
-                      A auto-managed{modules.length === 0 ? " — no module helps here" : ""} — any
-                      edit takes manual control
+              {/* auto-fill suggestion: what the algorithm would pick (prod where
+                  allowed, else speed to the whole-count floor, rest efficiency) */}
+              {suggested && (
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span
+                    className="flex items-center gap-1 text-info"
+                    title="the auto-fill pick for this row's current building count and beacons"
+                  >
+                    <Sparkles className="size-3.5" /> suggested
+                  </span>
+                  {[
+                    ...suggested
+                      .reduce((m, n) => m.set(n, (m.get(n) ?? 0) + 1), new Map<string, number>())
+                      .entries(),
+                  ].map(([n, c]) => (
+                    <span key={n} className="flex items-center">
+                      <Icon kind="item" name={n} size="sm" />
+                      {c > 1 && <span className="text-sm">×{c}</span>}
                     </span>
-                  ) : (
-                    onReset && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={onReset}
-                        className="border-dashed text-muted-foreground"
-                        title="drop the manual config and let auto-fill choose again"
-                      >
-                        <RotateCcw className="size-3.5" /> reset to auto
-                      </Button>
-                    )
-                  )}
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onChange(suggested.slice(0, slots), beacons)}
+                  >
+                    apply
+                  </Button>
                 </div>
               )}
 

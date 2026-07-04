@@ -439,10 +439,10 @@ function DisplayCard() {
   );
 }
 
-/** Module auto-fill settings: rows without a manual module config get modules
- * picked automatically — productivity where the recipe allows it, otherwise the
- * fewest speed modules that reach the smallest whole building count, with the
- * remaining slots on efficiency. */
+/** Module auto-fill settings: the solve suggests a fill per row (productivity
+ * where allowed, else the fewest speed modules that reach the smallest whole
+ * building count, rest efficiency) — applied only by explicit click, never
+ * automatically. This card controls the ambient hints. */
 function PlannerCard() {
   const qc = useQueryClient();
   const settings = useQuery({ queryKey: ["plannerSettings"], queryFn: () => plannerSettingsFn() });
@@ -478,10 +478,11 @@ function PlannerCard() {
       </CardHeader>
       <div className="space-y-3 px-3 pb-3">
         <p className="text-sm text-muted-foreground">
-          Rows without manual modules get modules picked automatically: productivity in every slot
-          where the recipe allows it, otherwise just enough speed modules to reach the smallest
-          whole building count with the rest on efficiency. Speed beacons count toward that target,
-          so beaconed rows shed speed modules they no longer need. Manual configs always win.
+          Every solve computes a suggested fill per row — productivity where the recipe allows it,
+          otherwise just enough speed modules to reach the smallest whole building count with the
+          rest on efficiency (speed beacons count toward that target). Suggestions are never applied
+          on their own: rows whose current setup differs show a ✨ hint you can click, and the block
+          header offers a whole-block apply.
         </p>
         <Label>
           <Checkbox
@@ -490,7 +491,7 @@ function PlannerCard() {
               save.mutate({ autofill: checked === true, fillMiners: s.fillMiners })
             }
           />
-          auto-fill modules
+          show suggestion hints on recipe rows
         </Label>
         <Label>
           <Checkbox
@@ -499,7 +500,7 @@ function PlannerCard() {
               save.mutate({ autofill: s.autofill, fillMiners: checked === true })
             }
           />
-          also fill mining drills
+          also suggest for mining drills
         </Label>
         {save.isError && (
           <p className="text-sm text-destructive">save failed: {save.error.message}</p>
