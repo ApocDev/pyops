@@ -14,10 +14,11 @@ test("a good's context menu opens as a role=menu and dismisses on Escape / outsi
   await createBlock(page);
   await addGoal(page); // goal: Iron plate
 
-  const goalCell = page.locator('[title*="right-click for options"]').first();
+  // the goal cell wraps the goal's icon+rate; right-click opens the GoalMenu
+  const goalCell = page
+    .locator('[title="click to add a recipe that makes this goal (right-click to change the item)"]')
+    .first();
   await expect(goalCell).toBeVisible();
-
-  // right-click opens the GoalMenu with proper menu semantics
   await goalCell.click({ button: "right" });
   const menu = page.getByRole("menu");
   await expect(menu).toBeVisible();

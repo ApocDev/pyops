@@ -126,7 +126,11 @@ Reach for these before writing markup:
   header away; toolbars that drive the content below them stay visible
   (sticky or in the fixed header region).
 - Every route starts with one `PageHeader` (title, optional description,
-  right-aligned actions, toolbar as children). No per-page heading styles.
+  right-aligned actions, toolbar as children). No per-page heading styles. It is
+  **sticky** to the top of its scroll container (opaque `bg-background`, a bottom
+  rule, `z-20` above row-hover/sticky-subheader layers), so the title and toolbar
+  stay reachable on long pages. Its edge-to-edge bleed assumes the header sits
+  directly inside a `p-4` scroll region — keep every route on that invariant.
 - List-plus-detail pages use `SidebarShell` (rail on desktop, drawer on mobile).
 
 ## Form factors
