@@ -1,0 +1,25 @@
+app/e2e/mut/overlays.e2e.ts
+  s_9be9645d11a3e7::t_1e6dcd7ea5f636 17-20
+app/e2e/sticky-header.e2e.ts
+  s_9be9645d11a3e7::t_af4fbff3ddaba0 1-70
+app/src/components/page-header.tsx
+  s_9be9645d11a3e7::t_5c672480f3048d 9-17,33-38
+docs/design.md
+  s_9be9645d11a3e7::t_92dc89fe5a13d3 129-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8a45d043819558c45e9dd4fedf0409b3679c81a2",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
