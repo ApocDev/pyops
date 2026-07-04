@@ -11,6 +11,22 @@ app/src/components/update-prompt.tsx
   "base_commit_sha": "cba65cdf0449857dae7a8deedfeb135db9d28d3b",
   "prompts": {},
   "sessions": {
+    "s_758187eabfe90c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a588a93f4286cca3d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
     "s_ad8974a3b278d5": {
       "agent_id": {
         "tool": "claude",
