@@ -291,8 +291,8 @@ export function BlockToolbar({
           production must cover consumption, surplus exports, and it never imports. Everything else
           is free — consumption imports, and an incidental byproduct just offsets the import
           (it&apos;s never scaled up to cover demand). The solver picks the cheapest run-rates
-          (fewest machine-seconds) satisfying the goals, marks, and pins — it handles Py&apos;s
-          cyclic recipe chains, and identical inputs always solve identically.
+          (fewest machine-seconds) satisfying the goals, marks, and pins — it handles cyclic recipe
+          chains, and identical inputs always solve identically.
         </p>
         <p>
           <span className="text-foreground">You drive it, not an optimizer.</span> You choose the

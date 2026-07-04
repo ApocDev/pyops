@@ -83,12 +83,11 @@ function Browse() {
               <HelpButton title="What is Browse?">
                 <p>
                   Search every <span className="text-foreground">item and fluid</span> in the loaded
-                  Pyanodons data. Pick one to see its recipes — what makes it, what it&apos;s used
-                  in — plus its properties (stack size, fuel value, spoilage, temperatures, and so
-                  on).
+                  Factorio data. Pick one to see its recipes — what makes it, what it&apos;s used in
+                  — plus its properties (stack size, fuel value, spoilage, temperatures, and so on).
                 </p>
                 <p>
-                  Use it to explore Py&apos;s tangled recipe graph, and to find the{" "}
+                  Use it to explore the recipe graph, and to find the{" "}
                   <span className="text-foreground">internal names</span> that blocks and the
                   assistant refer to (e.g. <span className="text-foreground">iron-pulp-07</span>).
                 </p>
@@ -96,7 +95,7 @@ function Browse() {
                   <span className="text-foreground">Worked example.</span> Search{" "}
                   <span className="text-foreground">iron plate</span> and pick it:{" "}
                   <span className="text-foreground">Produced by</span> lists every recipe that makes
-                  it (Py often has several tiers), and{" "}
+                  it (overhaul mods often have several tiers), and{" "}
                   <span className="text-foreground">Consumed by</span> lists where it&apos;s used.
                   Click any ingredient or product chip in a recipe to jump to that good and keep
                   walking upstream — that&apos;s how you trace a chain back to raw ores. A good

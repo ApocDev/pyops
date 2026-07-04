@@ -242,7 +242,7 @@ export function BalanceCard({
                 {Math.abs(res.power.pollutionPerMin) > 0.005 && (
                   <span
                     className={`flex items-center gap-1 ${res.power.pollutionPerMin < 0 ? "text-success" : "text-warning/80"}`}
-                    title="pollution per minute from this block's machines (base emissions × energy-consumption × pollution module effects; fuel-type multipliers not modelled). Negative = net absorption — Py forestry and plantations soak pollution like trees."
+                    title="pollution per minute from this block's machines (base emissions × energy-consumption × pollution module effects; fuel-type multipliers not modelled). Negative = net absorption — some buildings (forestry, plantations) soak pollution like trees."
                   >
                     <Cloud className="size-3.5" /> {num(Math.abs(res.power.pollutionPerMin))}
                     <span className="text-muted-foreground">
@@ -253,7 +253,7 @@ export function BalanceCard({
                 {res.power.heatW > 0 && (
                   <span
                     className="flex items-center gap-1 text-warning"
-                    title="Heat-powered buildings (Py hard mode). Heat doesn't travel far (~15 tiles), so a heat source — e.g. a py-heat-exchanger — must be built LOCAL to this block."
+                    title="Heat-powered buildings. Heat doesn't travel far (~15 tiles), so a heat source (e.g. a heat exchanger) must be built LOCAL to this block."
                   >
                     <Flame className="size-3.5" /> {fmtW(res.power.heatW)}{" "}
                     <span className="text-muted-foreground">heat · local source needed</span>
