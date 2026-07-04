@@ -1,5 +1,7 @@
 app/src-tauri/capabilities/default.json
   s_ad8974a3b278d5::t_fff4c477ce70c1 7
+app/src/routes/index.tsx
+  s_9be9645d11a3e7::t_1c4d59259f91dc 42
 ---
 {
   "schema_version": "authorship/3.0.0",
@@ -7,6 +9,22 @@ app/src-tauri/capabilities/default.json
   "base_commit_sha": "993ece0f31bc3c8df02fb1e45516f42febd1836d",
   "prompts": {},
   "sessions": {
+    "s_3515b430556291": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a4bb3f6400fbf1ad8",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
     "s_ad8974a3b278d5": {
       "agent_id": {
         "tool": "claude",
