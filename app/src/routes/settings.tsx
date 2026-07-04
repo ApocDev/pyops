@@ -9,7 +9,6 @@ import {
   exclusionsFn,
   modDriftFn,
   plannerSettingsFn,
-  recomputeCostsFn,
   setAiConfigFn,
   setExclusionsFn,
   setPlannerSettingsFn,
@@ -387,17 +386,6 @@ function ModsCard({
   );
 }
 
-const PAYBACK_PRESETS = [
-  { label: "off", value: 0 },
-  { label: "10 min", value: 600 },
-  { label: "1 h", value: 3600 },
-  { label: "4 h", value: 14400 },
-  { label: "12 h", value: 43200 },
-];
-
-/** Module auto-fill settings (YAFC's "fill modules with payback time"): rows
- * without a manual module config get the most economical module, judged by
- * the cost analysis. Short payback favors speed, long favors productivity. */
 /** Display preferences (#74): how numbers render. Per-browser (localStorage),
  * not project data — it changes nothing about the plan, only how it reads. */
 function DisplayCard() {
@@ -451,24 +439,21 @@ function DisplayCard() {
   );
 }
 
+/** Module auto-fill settings: rows without a manual module config get modules
+ * picked automatically — productivity where the recipe allows it, otherwise the
+ * fewest speed modules that reach the smallest whole building count, with the
+ * remaining slots on efficiency. */
 function PlannerCard() {
   const qc = useQueryClient();
   const settings = useQuery({ queryKey: ["plannerSettings"], queryFn: () => plannerSettingsFn() });
   const save = useMutation({
-    mutationFn: (d: {
-      autofillPayback: number;
-      fillMiners: boolean;
-      spoilImportCutoffSec?: number;
-    }) => setPlannerSettingsFn({ data: d }),
+    mutationFn: (d: { autofill: boolean; fillMiners: boolean; spoilImportCutoffSec?: number }) =>
+      setPlannerSettingsFn({ data: d }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["plannerSettings"] });
       void qc.invalidateQueries({ queryKey: ["solve"] });
       void qc.invalidateQueries({ queryKey: ["blocks"] });
     },
-  });
-  const recompute = useMutation({
-    mutationFn: () => recomputeCostsFn(),
-    onSuccess: () => void qc.invalidateQueries(),
   });
   const s = settings.data;
   if (!s) {
@@ -488,69 +473,36 @@ function PlannerCard() {
 
   return (
     <Card>
-      <CardHeader className="justify-between">
+      <CardHeader>
         <CardTitle>Module auto-fill</CardTitle>
-        {!s.costsComputed && (
-          <Button
-            variant="link"
-            onClick={() => recompute.mutate()}
-            disabled={recompute.isPending}
-            className="h-auto p-0 text-info underline"
-          >
-            {recompute.isPending ? "computing cost analysis…" : "compute cost analysis first"}
-          </Button>
-        )}
       </CardHeader>
       <div className="space-y-3 px-3 pb-3">
         <p className="text-sm text-muted-foreground">
-          Rows without manual modules get the most economical one (by cost analysis), filled in
-          every slot. The payback window is how long a module has to earn its own cost — short
-          favors speed, long favors productivity. Manual configs always win.
+          Rows without manual modules get modules picked automatically: productivity in every slot
+          where the recipe allows it, otherwise just enough speed modules to reach the smallest
+          whole building count with the rest on efficiency. Speed beacons count toward that target,
+          so beaconed rows shed speed modules they no longer need. Manual configs always win.
         </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <span>payback</span>
-          <Input
-            type="number"
-            value={s.autofillPayback}
-            min={0}
-            step={60}
-            onChange={(e) =>
-              save.mutate({
-                autofillPayback: Number(e.target.value) || 0,
-                fillMiners: s.fillMiners,
-              })
+        <Label>
+          <Checkbox
+            checked={s.autofill}
+            onCheckedChange={(checked) =>
+              save.mutate({ autofill: checked === true, fillMiners: s.fillMiners })
             }
-            className="w-28"
           />
-          <span className="text-muted-foreground">s</span>
-          {PAYBACK_PRESETS.map((p) => (
-            <Button
-              key={p.label}
-              variant="toggle"
-              size="sm"
-              aria-pressed={s.autofillPayback === p.value}
-              onClick={() => save.mutate({ autofillPayback: p.value, fillMiners: s.fillMiners })}
-            >
-              {p.label}
-            </Button>
-          ))}
-        </div>
+          auto-fill modules
+        </Label>
         <Label>
           <Checkbox
             checked={s.fillMiners}
             onCheckedChange={(checked) =>
-              save.mutate({ autofillPayback: s.autofillPayback, fillMiners: checked === true })
+              save.mutate({ autofill: s.autofill, fillMiners: checked === true })
             }
           />
           also fill mining drills
         </Label>
         {save.isError && (
           <p className="text-sm text-destructive">save failed: {save.error.message}</p>
-        )}
-        {recompute.isError && (
-          <p className="text-sm text-destructive">
-            cost analysis failed: {recompute.error.message}
-          </p>
         )}
 
         <div className="border-t border-border pt-3">
@@ -563,7 +515,7 @@ function PlannerCard() {
               step={30}
               onChange={(e) =>
                 save.mutate({
-                  autofillPayback: s.autofillPayback,
+                  autofill: s.autofill,
                   fillMiners: s.fillMiners,
                   spoilImportCutoffSec: Number(e.target.value) || 0,
                 })

@@ -1,148 +1,146 @@
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { chooseModuleFill } from "./module-fill.server.ts";
+import { describe, expect, it } from "vite-plus/test";
+import { pickAutoModules, type ModuleCandidate } from "./module-fill.server.ts";
 
-// module-fill dynamically imports ../db/queries.ts; mock it so the test stays
-// pure (no db, no Factorio dump). We only need modulePickerData + availableModuleItems.
-vi.mock("../db/queries.server.ts", () => ({
-  modulePickerData: vi.fn(),
-  availableModuleItems: vi.fn(),
-}));
-const { modulePickerData, availableModuleItems } = await import("../db/queries.server.ts");
-const mockPicker = vi.mocked(modulePickerData);
-const mockAvail = vi.mocked(availableModuleItems);
-
-type Rows = Parameters<typeof chooseModuleFill>[0];
-const mod = (
-  name: string,
-  eff: Partial<{ effSpeed: number; effProductivity: number; effConsumption: number }>,
-) => ({
+const mod = (name: string, eff: Partial<Omit<ModuleCandidate, "name">>): ModuleCandidate => ({
   name,
   effSpeed: 0,
   effProductivity: 0,
   effConsumption: 0,
   ...eff,
 });
-const row = (
-  recipe: string,
-  machine: { name: string; moduleSlots: number; count: number } | null,
-  speed = 0,
-) => ({ recipe, machine, effects: { speed } }) as unknown as Rows[number];
 
-beforeEach(() => {
-  mockPicker.mockReset();
-  mockAvail.mockReset();
-  // by default every requested module is available
-  mockAvail.mockImplementation((names: string[]) => new Set(names));
-});
+const prod = mod("prod-1", { effProductivity: 0.04, effSpeed: -0.05, effConsumption: 0.4 });
+const prod2 = mod("prod-2", { effProductivity: 0.06, effSpeed: -0.05, effConsumption: 0.6 });
+const speed = mod("speed-1", { effSpeed: 0.2, effConsumption: 0.5 });
+const eff = mod("eff-1", { effConsumption: -0.3 });
 
-describe("chooseModuleFill", () => {
-  it("fills every slot with the best productivity module when allowed", async () => {
-    mockPicker.mockReturnValue({
+describe("pickAutoModules", () => {
+  it("fills every slot with the best productivity module when allowed", () => {
+    const fill = pickAutoModules({
+      slots: 3,
       allowProductivity: true,
-      modules: [
-        mod("prod-1", { effProductivity: 0.04, effSpeed: -0.05 }),
-        mod("prod-2", { effProductivity: 0.1, effSpeed: -0.15 }),
-      ],
-    } as unknown as ReturnType<typeof modulePickerData>);
-
-    const out = await chooseModuleFill([
-      row("smelt", { name: "furnace", moduleSlots: 2, count: 5 }),
-    ]);
-    expect(out.modules.smelt).toEqual(["prod-2", "prod-2"]); // best prod, all slots
-    expect(out.machines.smelt).toBe("furnace"); // machine pinned
+      pool: [prod, prod2, speed, eff],
+      baseCount: 4.2,
+      baseSpeedMult: 1,
+    });
+    expect(fill).toEqual(["prod-2", "prod-2", "prod-2"]);
   });
 
-  it("uses speed up to the whole-building floor, then fills the rest with efficiency", async () => {
-    mockPicker.mockReturnValue({
+  it("uses all speed slots when every one still shaves toward the floor", () => {
+    // 3.4 buildings, 4 slots of +20%: floor = ceil(3.4/1.8) = 2; only k=4
+    // reaches it (3.4/1.6 = 2.125 at k=3) → all four slots go to speed
+    const fill = pickAutoModules({
+      slots: 4,
       allowProductivity: false,
-      modules: [
-        mod("speed-1", { effSpeed: 0.5, effConsumption: 0.5 }),
-        mod("eff-1", { effConsumption: -0.3 }),
-      ],
-    } as unknown as ReturnType<typeof modulePickerData>);
-
-    // 4 slots, base count 10, speed +0.5 each:
-    //   count(3) = 10/(1+1.5) = 4 → floor 4; count(2)=5 > 4, so k = 3 speed + 1 eff
-    const out = await chooseModuleFill([
-      row("assemble", { name: "assembler", moduleSlots: 4, count: 10 }),
-    ]);
-    expect(out.modules.assemble).toEqual(["speed-1", "speed-1", "speed-1", "eff-1"]);
+      pool: [speed, eff],
+      baseCount: 3.4,
+      baseSpeedMult: 1,
+    });
+    expect(fill).toEqual(["speed-1", "speed-1", "speed-1", "speed-1"]);
   });
 
-  it("fills with efficiency when no speed module exists and prod isn't allowed", async () => {
-    mockPicker.mockReturnValue({
+  it("stops adding speed once the floor is reached and fills the rest with efficiency", () => {
+    // 1.92 buildings, strong +50% modules: floor = ceil(1.92/3) = 1;
+    // k=2 → 1.92/2 = 0.96 ≤ 1 → 2 speed + 2 efficiency
+    const strong = mod("speed-3", { effSpeed: 0.5, effConsumption: 0.7 });
+    const fill = pickAutoModules({
+      slots: 4,
       allowProductivity: false,
-      modules: [mod("eff-1", { effConsumption: -0.3 })],
-    } as unknown as ReturnType<typeof modulePickerData>);
-
-    const out = await chooseModuleFill([row("mix", { name: "mixer", moduleSlots: 2, count: 3 })]);
-    expect(out.modules.mix).toEqual(["eff-1", "eff-1"]);
+      pool: [strong, eff],
+      baseCount: 1.92,
+      baseSpeedMult: 1,
+    });
+    expect(fill).toEqual(["speed-3", "speed-3", "eff-1", "eff-1"]);
   });
 
-  it("skips machines with no module slots", async () => {
-    const out = await chooseModuleFill([row("hand", { name: "burner", moduleSlots: 0, count: 4 })]);
-    expect(out.modules).toEqual({});
-    expect(out.machines).toEqual({});
-    expect(mockPicker).not.toHaveBeenCalled();
+  it("goes all-efficiency when the row is already under one building", () => {
+    const fill = pickAutoModules({
+      slots: 2,
+      allowProductivity: false,
+      pool: [speed, eff],
+      baseCount: 0.8,
+      baseSpeedMult: 1,
+    });
+    expect(fill).toEqual(["eff-1", "eff-1"]);
   });
 
-  it("skips a recipe when none of its modules are available in the horizon", async () => {
-    mockPicker.mockReturnValue({
+  it("goes all-efficiency when speed modules are too weak to shave a whole building", () => {
+    // 1.92 buildings, 2 slots of +10%: best case 1.92/1.2 = 1.6 → floor 2 —
+    // zero speed modules already achieve 2 buildings, so speed is pure waste
+    const weak = mod("speed-0", { effSpeed: 0.1, effConsumption: 0.3 });
+    const fill = pickAutoModules({
+      slots: 2,
+      allowProductivity: false,
+      pool: [weak, eff],
+      baseCount: 1.92,
+      baseSpeedMult: 1,
+    });
+    expect(fill).toEqual(["eff-1", "eff-1"]);
+  });
+
+  it("counts beacon speed toward the floor (beaconed rows shed speed modules)", () => {
+    // 2 slots of +20%, 2.8 buildings, no beacons: floor = ceil(2.8/1.4) = 2,
+    // reached only with both slots on speed
+    const noBeacons = pickAutoModules({
+      slots: 2,
+      allowProductivity: false,
+      pool: [speed, eff],
+      baseCount: 2.8,
+      baseSpeedMult: 1,
+    });
+    expect(noBeacons).toEqual(["speed-1", "speed-1"]);
+    // the same row beaconed to ×2 speed solved to 0.9 buildings — speed can't
+    // shave anything below 1, so every slot cuts power instead
+    const beaconed = pickAutoModules({
+      slots: 2,
+      allowProductivity: false,
+      pool: [speed, eff],
+      baseCount: 0.9,
+      baseSpeedMult: 2,
+    });
+    expect(beaconed).toEqual(["eff-1", "eff-1"]);
+  });
+
+  it("falls back to speed→efficiency when prod is allowed but no prod module exists", () => {
+    const fill = pickAutoModules({
+      slots: 2,
       allowProductivity: true,
-      modules: [mod("prod-9", { effProductivity: 0.2 })],
-    } as unknown as ReturnType<typeof modulePickerData>);
-    mockAvail.mockReturnValue(new Set()); // nothing unlocked
-
-    const out = await chooseModuleFill([
-      row("smelt", { name: "furnace", moduleSlots: 2, count: 5 }),
-    ]);
-    expect(out.modules).toEqual({});
-    expect(out.machines).toEqual({});
+      pool: [speed, eff],
+      baseCount: 0.5,
+      baseSpeedMult: 1,
+    });
+    expect(fill).toEqual(["eff-1", "eff-1"]);
   });
 
-  it("a count already under 1 building gets NO speed — all slots efficiency", async () => {
-    mockPicker.mockReturnValue({
+  it("leaves slots empty past the floor when there is no efficiency module", () => {
+    const fill = pickAutoModules({
+      slots: 4,
       allowProductivity: false,
-      modules: [
-        mod("speed-1", { effSpeed: 0.5, effConsumption: 0.7 }),
-        mod("eff-1", { effConsumption: -0.3 }),
-      ],
-    } as unknown as ReturnType<typeof modulePickerData>);
-
-    // 0.8 buildings: it's 1 machine with or without speed — speed is pure waste
-    const out = await chooseModuleFill([row("mix", { name: "mixer", moduleSlots: 4, count: 0.8 })]);
-    expect(out.modules.mix).toEqual(["eff-1", "eff-1", "eff-1", "eff-1"]);
+      pool: [mod("speed-3", { effSpeed: 0.5, effConsumption: 0.7 })],
+      baseCount: 1.92,
+      baseSpeedMult: 1,
+    });
+    expect(fill).toEqual(["speed-3", "speed-3"]);
   });
 
-  it("speed too weak to shave a whole building gets NO speed — all efficiency", async () => {
-    mockPicker.mockReturnValue({
-      allowProductivity: false,
-      modules: [
-        // +10% each: 1.92 → 1.75 → 1.6 → 1.48 → 1.37 — ceil stays 2 at every k
-        mod("speed-1", { effSpeed: 0.1, effConsumption: 0.7 }),
-        mod("eff-1", { effConsumption: -0.3 }),
-      ],
-    } as unknown as ReturnType<typeof modulePickerData>);
-
-    const out = await chooseModuleFill([
-      row("press", { name: "press", moduleSlots: 4, count: 1.92 }),
-    ]);
-    expect(out.modules.press).toEqual(["eff-1", "eff-1", "eff-1", "eff-1"]);
-  });
-
-  it("strong speed that DOES shave a building is used minimally, rest efficiency", async () => {
-    mockPicker.mockReturnValue({
-      allowProductivity: false,
-      modules: [
-        // +50% each: 1.92 → 1.28 → 0.96 (ceil 1 at k=2) → 2 speed + 2 eff
-        mod("speed-1", { effSpeed: 0.5, effConsumption: 0.7 }),
-        mod("eff-1", { effConsumption: -0.3 }),
-      ],
-    } as unknown as ReturnType<typeof modulePickerData>);
-
-    const out = await chooseModuleFill([
-      row("press", { name: "press", moduleSlots: 4, count: 1.92 }),
-    ]);
-    expect(out.modules.press).toEqual(["speed-1", "speed-1", "eff-1", "eff-1"]);
+  it("returns nothing for an empty pool or zero slots", () => {
+    expect(
+      pickAutoModules({
+        slots: 0,
+        allowProductivity: false,
+        pool: [speed],
+        baseCount: 3,
+        baseSpeedMult: 1,
+      }),
+    ).toEqual([]);
+    expect(
+      pickAutoModules({
+        slots: 2,
+        allowProductivity: false,
+        pool: [],
+        baseCount: 3,
+        baseSpeedMult: 1,
+      }),
+    ).toEqual([]);
   });
 });

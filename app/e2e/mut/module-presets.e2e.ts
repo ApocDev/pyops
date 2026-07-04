@@ -16,6 +16,17 @@ test("module template: save → set default → auto-applies to a new compatible
 }) => {
   const presetName = uniqueName("Prod everywhere");
 
+  // Module auto-fill (on by default) would give the fresh row a loadout of its
+  // own — switch it off so this spec exercises the empty → hand-configured →
+  // preset path. The scratch data dir is reseeded per run, so no restore needed.
+  await page.goto("/settings");
+  const autofill = page.getByRole("checkbox", { name: "auto-fill modules" });
+  await expect(autofill).toBeVisible();
+  if (await autofill.isChecked()) {
+    await autofill.click();
+    await expect(autofill).not.toBeChecked();
+  }
+
   // ── block 1: configure a loadout by hand and save it as a default template ──
   await createBlock(page);
   await addGoal(page, "coal gas", "Coal gas");
@@ -24,8 +35,7 @@ test("module template: save → set default → auto-applies to a new compatible
   await picker.getByRole("button", { name: "Coal gas from coal" }).click();
   await expect(picker).toBeHidden();
 
-  // the fresh row has no loadout — open the modules dialog
-  // (title differs with the payback auto-fill on/off, so match both)
+  // the fresh row has no loadout (auto-fill is off) — open the modules dialog
   const emptyChip = page.locator(
     'button[title*="click to configure"], button[title*="click to override"]',
   );

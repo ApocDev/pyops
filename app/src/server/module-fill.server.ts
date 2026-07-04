@@ -1,89 +1,73 @@
 /**
- * Opinionated module auto-fill for planned blocks — "use the best modules you
- * have," not YAFC's payback economics. Given a module-less provisional solve
- * (computeBlock rows), it picks modules per recipe:
+ * Module auto-fill — the direct algorithm ("use the best modules you have,"
+ * no payback economics). Given one row's machine + the modules placeable in it,
+ * pick a fill:
  *
- *  - Recipe allows productivity → fill every slot with the best unlocked prod
- *    module (Py's deep chains almost always want yield; the resulting slower
- *    machine — hence higher building count — is honest, and speed beacons to
- *    claw it back are a deferred follow-up).
+ *  - Recipe allows productivity → fill every slot with the best prod module
+ *    (Py's deep chains almost always want yield; the resulting slower machine —
+ *    hence higher building count — is honest).
  *  - Otherwise → the fewest SPEED modules needed to reach the smallest whole
  *    building count, then fill the remaining slots with EFFICIENCY. Past the
  *    whole-count floor extra speed only shaves fractional buildings you can't
- *    realise, so those slots are better spent cutting power.
+ *    realise, so those slots are better spent cutting power. Zero speed modules
+ *    is a real answer: a row already under the floor (0.8 buildings), or one
+ *    whose modules are too weak to shave a whole building (1.92 → 1.1 never
+ *    reaches 1), fills every slot with efficiency.
  *
- * Only modules that are unlocked in the current horizon are considered
- * (availableModuleItems). TURD beacons are applied separately by the solver and
- * never count against slots, so they're untouched here.
+ * The building count is beacon-aware: `baseCount`/`baseSpeedMult` come from a
+ * solve WITHOUT machine modules but WITH the row's beacons and TURD bonuses, so
+ * planting speed beacons makes auto shed now-redundant speed modules on the
+ * next solve. computeBlock drives this in two passes (prod needs no count and
+ * applies immediately; speed/efficiency re-enter with the solved counts).
  */
-import * as q from "../db/queries.server.ts";
-import type { computeBlock } from "./block-compute.server.ts";
-
-type Rows = Awaited<ReturnType<typeof computeBlock>>["rows"];
-
-export type ModuleFill = {
-  modules: Record<string, string[]>;
-  machines: Record<string, string>;
+export type ModuleCandidate = {
+  name: string;
+  effSpeed: number;
+  effProductivity: number;
+  effConsumption: number;
 };
 
-export async function chooseModuleFill(rows: Rows): Promise<ModuleFill> {
-  const modules: Record<string, string[]> = {};
-  const machines: Record<string, string> = {};
+export function pickAutoModules(opts: {
+  slots: number;
+  /** recipe allows productivity (pool is already filtered to placeable modules) */
+  allowProductivity: boolean;
+  /** placeable + unlocked modules for this (recipe, machine) */
+  pool: ModuleCandidate[];
+  /** fractional buildings with NO machine modules (beacons/TURD included) */
+  baseCount: number;
+  /** the speed multiplier that produced baseCount: 1 + beacon/TURD speed bonus */
+  baseSpeedMult: number;
+}): string[] {
+  const { slots, pool, baseCount, baseSpeedMult } = opts;
+  if (slots < 1 || !pool.length) return [];
 
-  for (const row of rows) {
-    const m = row.machine;
-    if (!m || !m.moduleSlots || m.moduleSlots < 1) continue;
-    const slots = m.moduleSlots;
-    const picker = q.modulePickerData(row.recipe, m.name);
-    if (!picker) continue;
-    const avail = q.availableModuleItems(picker.modules.map((x) => x.name));
-    const pool = picker.modules.filter((x) => avail.has(x.name));
-    if (!pool.length) continue;
-    // pin the machine the modules were sized for, so the block stays self-consistent
-    machines[row.recipe] = m.name;
-
-    // Productivity path: best prod module in every slot.
-    if (picker.allowProductivity) {
-      const prod = pool
-        .filter((x) => x.effProductivity > 0)
-        .sort((a, b) => b.effProductivity - a.effProductivity)[0];
-      if (prod) {
-        modules[row.recipe] = Array<string>(slots).fill(prod.name);
-        continue;
-      }
-    }
-
-    // Speed → floor → efficiency path.
-    const speed = pool.filter((x) => x.effSpeed > 0).sort((a, b) => b.effSpeed - a.effSpeed)[0];
-    const eff = pool
-      .filter((x) => x.effConsumption < 0)
-      .sort((a, b) => a.effConsumption - b.effConsumption)[0]; // most negative = best
-    if (!speed) {
-      if (eff) modules[row.recipe] = Array<string>(slots).fill(eff.name);
-      continue;
-    }
-    const baseCount = m.count ?? 0;
-    if (baseCount <= 0) continue;
-    // count(k) for k speed modules: count ∝ 1/speedMult. base mult here is the
-    // module-less solve's (TURD speed only); each speed module adds its effSpeed.
-    const base = 1 + (row.effects?.speed ?? 0);
-    const countAt = (k: number) => (baseCount * base) / (base + k * speed.effSpeed);
-    const floor = Math.ceil(countAt(slots) - 1e-9); // best achievable whole count
-    // Fewest speed modules that still reach that whole count — INCLUDING zero:
-    // when the count is already under the floor (0.8 buildings), or the modules
-    // are too weak to shave a whole building (1.92 → 1.1 never reaches 1), any
-    // speed module is pure waste and every slot goes to efficiency.
-    let k = slots;
-    for (let i = 0; i <= slots; i++) {
-      if (countAt(i) <= floor + 1e-9) {
-        k = i;
-        break;
-      }
-    }
-    const fill = Array<string>(k).fill(speed.name);
-    if (slots - k > 0 && eff) fill.push(...Array<string>(slots - k).fill(eff.name));
-    if (fill.length) modules[row.recipe] = fill;
+  if (opts.allowProductivity) {
+    const prod = pool
+      .filter((x) => x.effProductivity > 0)
+      .sort((a, b) => b.effProductivity - a.effProductivity)[0];
+    if (prod) return Array<string>(slots).fill(prod.name);
   }
 
-  return { modules, machines };
+  const speed = pool.filter((x) => x.effSpeed > 0).sort((a, b) => b.effSpeed - a.effSpeed)[0];
+  const eff = pool
+    .filter((x) => x.effConsumption < 0)
+    .sort((a, b) => a.effConsumption - b.effConsumption)[0]; // most negative = best
+  const allEff = eff ? Array<string>(slots).fill(eff.name) : [];
+  // no speed module, or an idle row (count 0 — speed can't help): all efficiency
+  if (!speed || baseCount <= 0) return allEff;
+
+  // count(k) for k speed modules: count ∝ 1/speedMult; each module adds effSpeed.
+  const countAt = (k: number) => (baseCount * baseSpeedMult) / (baseSpeedMult + k * speed.effSpeed);
+  const floor = Math.ceil(countAt(slots) - 1e-9); // best achievable whole count
+  // fewest speed modules that still reach that whole count — including zero
+  let k = slots;
+  for (let i = 0; i <= slots; i++) {
+    if (countAt(i) <= floor + 1e-9) {
+      k = i;
+      break;
+    }
+  }
+  const fill = Array<string>(k).fill(speed.name);
+  if (slots - k > 0 && eff) fill.push(...Array<string>(slots - k).fill(eff.name));
+  return fill;
 }

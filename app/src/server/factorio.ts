@@ -543,19 +543,16 @@ export const removeProjectFn = createServerFn({ method: "POST" })
 export const plannerSettingsFn = createServerFn({ method: "GET" }).handler(async () => {
   const m = q.metaAll();
   return {
-    autofillPayback: Number(m.autofill_payback ?? 0),
+    autofill: (m.autofill ?? "1") !== "0",
     fillMiners: m.autofill_miners === "1",
     spoilImportCutoffSec: Number(m.spoil_import_cutoff_sec ?? 300),
-    costsComputed: q.costAnalysisCount() > 0,
   };
 });
 
 export const setPlannerSettingsFn = createServerFn({ method: "POST" })
-  .validator(
-    (d: { autofillPayback: number; fillMiners: boolean; spoilImportCutoffSec?: number }) => d,
-  )
+  .validator((d: { autofill: boolean; fillMiners: boolean; spoilImportCutoffSec?: number }) => d)
   .handler(async ({ data }) => {
-    q.metaSet("autofill_payback", String(Math.max(0, data.autofillPayback)));
+    q.metaSet("autofill", data.autofill ? "1" : "0");
     q.metaSet("autofill_miners", data.fillMiners ? "1" : "0");
     if (data.spoilImportCutoffSec != null)
       q.metaSet("spoil_import_cutoff_sec", String(Math.max(0, data.spoilImportCutoffSec)));

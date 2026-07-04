@@ -18,7 +18,7 @@
  * the first compatible default (name order) is baked into the row's stored
  * picks (see recipeDefaultsFn), exactly like favorite machines/fuels (#18) —
  * per-row overrides always win, and no compatible default means the row stays
- * unset and the payback auto-fill takes over.
+ * unset and the module auto-fill takes over.
  */
 import * as q from "../db/queries.server.ts";
 import type { BeaconConfig } from "./effects";
@@ -105,7 +105,7 @@ export function presetsForRow(recipe: string, machine: string) {
 
 /** The loadout a NEW row should start with: the first compatible default
  * preset (name order), its module list truncated to the machine's slots.
- * Null → no compatible default; the row falls back to the payback auto-fill. */
+ * Null → no compatible default; the row falls back to the module auto-fill. */
 export function defaultPresetLoadout(recipe: string, machine: string): PresetLoadout | null {
   const defaults = q.listModulePresets().filter((p) => p.isDefault);
   if (!defaults.length) return null;

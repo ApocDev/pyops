@@ -22,7 +22,6 @@ import * as q from "../db/queries.server.ts";
 import * as tasksDb from "../db/tasks.server.ts";
 import { requestFromMod } from "./bridge/inspect.ts";
 import { computeBlock, showBlockInGame, hideBlockInGame } from "./block-compute.server.ts";
-import { chooseModuleFill } from "./module-fill.server.ts";
 import { withUndoAction } from "./undo-action.server.ts";
 
 /** Energy pseudo-fluids. The stoichiometric chainStatus filters all three: recipes
@@ -619,20 +618,17 @@ async function buildBlockDraft({
     machines: {},
   };
   try {
-    // First solve module-less to get per-recipe machines + base building counts,
-    // then auto-fill modules ("best available": prod where allowed, else
-    // speed→floor→efficiency) and re-solve so counts/power/imports reflect them.
+    // computeBlock auto-fills modules itself (prod where allowed, else
+    // speed→floor→efficiency, per the planner setting); harvest the picks so
+    // the draft doc pins them explicitly alongside the machine they were sized for.
     const goals = [{ name: target, rate }];
-    const provisional = await computeBlock({ goals, recipes });
-    moduleFill = await chooseModuleFill(provisional.rows);
-    const solved = Object.keys(moduleFill.modules).length
-      ? await computeBlock({
-          goals,
-          recipes,
-          modules: moduleFill.modules,
-          machines: moduleFill.machines,
-        })
-      : provisional;
+    const solved = await computeBlock({ goals, recipes });
+    for (const row of solved.rows) {
+      if (row.autoModules && row.modules.length && row.machine) {
+        moduleFill.modules[row.recipe] = row.modules;
+        moduleFill.machines[row.recipe] = row.machine.name;
+      }
+    }
     for (const f of solved.imports) rates.set(f.name, +f.rate.toFixed(3));
     for (const f of solved.exports) rates.set(f.name, +f.rate.toFixed(3));
     powerW = solved.power?.totalW ?? null;

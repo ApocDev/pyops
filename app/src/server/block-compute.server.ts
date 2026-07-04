@@ -28,6 +28,7 @@ export type DocPin =
   /** this recipe absorbs the item's surplus (net = 0) — byproduct disposal */
   | { kind: "drain"; recipe: string; item: string };
 import { computeEffects, type BeaconConfig } from "./effects";
+import { pickAutoModules } from "./module-fill.server.ts";
 import { resolveLogistics, rowLogistics } from "../lib/logistics";
 import { prodScaledAmount } from "../lib/productivity";
 import { reactorHeatMultiplier, REACTOR_LAYOUT_DEFAULT, type ReactorLayout } from "../lib/reactor";
@@ -238,6 +239,17 @@ export type SolveInput = {
 /** Core block computation (solve → machines/fuel/power, fuel/ash folded into the
  * boundary flows). Shared by the live solve and block saving so both use one path. */
 export async function computeBlock(rawData: SolveInput) {
+  const pass1 = await computeBlockPass(rawData);
+  if (!pass1.autoPicks) return pass1;
+  // auto-fill pass 2: re-solve with the speed/efficiency picks decided from
+  // pass 1's solved building counts (see the decision block in computeBlockPass)
+  return computeBlockPass(rawData, { modules: pass1.autoPicks });
+}
+
+async function computeBlockPass(
+  rawData: SolveInput,
+  autoPass?: { modules: Record<string, string[]> },
+) {
   // Tolerate the legacy { target, rate, extraGoals } shape from older saved docs.
   const data = normalizeBlockData(rawData) as SolveInput;
 
@@ -294,82 +306,31 @@ export async function computeBlock(rawData: SolveInput) {
     });
   };
 
-  // YAFC-style module auto-fill (ModuleFillerParameters.AutoFillModules): when
-  // a row has NO manual module config, pick the module with the best economy
-  //   prod% × recipeCost/time + speed% × machineCost/payback − consumption% × energyCost/s
-  // among modules whose own cost pays back within the configured window, and
-  // fill every slot with it. An explicit (even empty) module list always wins.
+  // Module auto-fill: rows with NO manual module config get modules picked by
+  // the direct algorithm in module-fill.server.ts — best productivity where the
+  // recipe allows it, otherwise the fewest speed modules that reach the
+  // smallest whole building count with the rest on efficiency. Prod needs no
+  // count and applies right here in setup; speed/efficiency need the SOLVED
+  // building counts, so pass 1 solves prod-only, decides the split, and
+  // re-enters computeBlock once with `autoPass` carrying the picks. An explicit
+  // (even empty) module list always wins.
   const settings = q.metaAll();
-  const payback = Number(settings.autofill_payback ?? 0); // seconds; 0 = off
+  const autofillOn = (settings.autofill ?? "1") !== "0";
   const fillMiners = settings.autofill_miners === "1";
   // Preferred fuels per category (for marking the favorite in the fuel picker).
   // Favorites are baked into a block's stored picks at recipe-add time, so the
   // solve fallback here stays favorite-independent (lowest tier / cheapest fuel).
   const favoriteFuels = q.getFavoriteFuels();
-  const recipeCostMap =
-    payback > 0 ? q.recipeCosts(fetched.map((r) => r.name)) : new Map<string, number>();
-  const autoFill = (
+  const autoPool = (
     r: (typeof fetched)[number],
     chosen: ReturnType<typeof q.machinesForRecipe>[number],
-  ): string | null => {
-    if (!(fillMiners || r.kind !== "mining")) return null;
-    let eligible = q.modulePickerData(r.name, chosen.name)?.modules ?? [];
-    // never auto-pick creative/editor modules (nothing reachable produces them)
-    const obtainable = q.obtainableGoods(eligible.map((m) => m.name));
-    eligible = eligible.filter((m) => obtainable.has(m.name));
-    if (!eligible.length) return null;
-
-    const time = r.energyRequired ?? 0.5;
-    const recipeCost = recipeCostMap.get(r.name) ?? 0;
-    const costs = q.goodCosts([chosen.name, ...eligible.map((m) => m.name), "pyops-electricity"]);
-    const productivityEconomy = recipeCost / time;
-    const speedEconomy = Math.max(1e-4, costs.get(chosen.name) ?? 0) / payback;
-    // energy cost per second per building: electricity at its LP price, or the
-    // default fuel at its price for burners
-    let effectivityEconomy = 0;
-    if (chosen.energySource === "electric") {
-      effectivityEconomy =
-        ((chosen.energyUsageW ?? 0) / 1e6) * Math.max(0, costs.get("pyops-electricity") ?? 0);
-    } else if (chosen.energySource === "burner") {
-      const all = q.fuelsForCategories(chosen.fuelCategories);
-      const pick = all.find((f) => f.name === data.fuels?.[r.name]) ?? defaultFuel(all);
-      if (pick?.fuelValueJ) {
-        const perSec = (chosen.energyUsageW ?? 0) / pick.fuelValueJ;
-        effectivityEconomy = perSec * Math.max(0, q.goodCosts([pick.name]).get(pick.name) ?? 0);
-      }
-    } else if (chosen.energySource === "fluid") {
-      const f = fluidFueling(chosen);
-      const pick = f.mode === "pinned" ? q.fluidFuelEntry(f.fluid) : null;
-      if (f.mode === "pool") {
-        // MJ/s drawn from the pool, at the pool's LP price per MJ
-        effectivityEconomy =
-          ((chosen.energyUsageW ?? 0) / 1e6) *
-          Math.max(0, q.goodCosts([FLUID_FUEL]).get(FLUID_FUEL) ?? 0);
-      } else if (pick?.fuelValueJ) {
-        const perSec = (chosen.energyUsageW ?? 0) / pick.fuelValueJ;
-        effectivityEconomy = perSec * Math.max(0, q.goodCosts([pick.name]).get(pick.name) ?? 0);
-      } else if (f.mode === "temperature" && f.perSec == null && f.energyJ && chosen.energyUsageW) {
-        // #114: only ENERGY-FOLLOWING drains benefit from consumption modules;
-        // fixed-rate ones (perSec set) consume the same regardless
-        const perSec = chosen.energyUsageW / f.energyJ;
-        effectivityEconomy = perSec * Math.max(0, q.goodCosts([f.fluid]).get(f.fluid) ?? 0);
-      }
-    }
-
-    let best: string | null = null;
-    let bestEconomy = 0;
-    for (const m of eligible) {
-      const economy =
-        m.effProductivity * productivityEconomy +
-        m.effSpeed * speedEconomy -
-        m.effConsumption * effectivityEconomy;
-      const moduleCost = Math.max(0, costs.get(m.name) ?? 0);
-      if (economy > bestEconomy && moduleCost / economy <= payback) {
-        bestEconomy = economy;
-        best = m.name;
-      }
-    }
-    return best;
+  ) => {
+    if (!(fillMiners || r.kind !== "mining")) return [];
+    const eligible = q.modulePickerData(r.name, chosen.name)?.modules ?? [];
+    // only modules unlocked in the research horizon (mirrors machine gating);
+    // this also excludes creative/editor modules (nothing produces them)
+    const avail = q.availableModuleItems(eligible.map((m) => m.name));
+    return eligible.filter((m) => avail.has(m.name));
   };
 
   // Machine eligibility: in NOW mode the default pick is restricted to buildings
@@ -406,15 +367,26 @@ export async function computeBlock(rawData: SolveInput) {
         .filter((n) => moduleDb.has(n))
         .slice(0, chosen?.moduleSlots ?? 0);
       // a row is auto-MANAGED whenever it has no manual config — even when the
-      // economy picks no module ("none is worth it" must still read as auto)
+      // algorithm picks no module ("none is worth it" must still read as auto)
       const autoManaged =
-        manual === undefined && payback > 0 && chosen != null && chosen.moduleSlots > 0;
+        manual === undefined && autofillOn && chosen != null && chosen.moduleSlots > 0;
+      let autoSpeedPool: ReturnType<typeof autoPool> = [];
       if (autoManaged) {
-        const autoModule = autoFill(r, chosen!);
-        if (autoModule) {
-          machineModules = Array(chosen!.moduleSlots).fill(autoModule) as string[];
-          for (const [name, mod] of q.getModules([autoModule])) moduleDb.set(name, mod);
+        const pool = autoPool(r, chosen!);
+        if (r.allowProductivity && pool.some((m) => m.effProductivity > 0)) {
+          machineModules = pickAutoModules({
+            slots: chosen!.moduleSlots,
+            allowProductivity: true,
+            pool,
+            baseCount: 0,
+            baseSpeedMult: 1,
+          });
+        } else if (pool.length) {
+          // speed/efficiency needs the solved building count — pass 2 (below)
+          machineModules = autoPass?.modules[r.name] ?? [];
+          autoSpeedPool = pool;
         }
+        for (const [name, mod] of q.getModules(machineModules)) moduleDb.set(name, mod);
       }
       const beaconCfgs = (data.beacons?.[r.name] ?? []).filter(
         (b) => beaconDb.has(b.beacon) && b.count > 0,
@@ -443,6 +415,7 @@ export async function computeBlock(rawData: SolveInput) {
           turdModules,
           effects,
           autoModules: autoManaged,
+          autoSpeedPool,
         },
       ] as const;
     }),
@@ -740,6 +713,30 @@ export async function computeBlock(rawData: SolveInput) {
     imports: foldFlows(rawResult.imports),
     exports: foldFlows(rawResult.exports),
   };
+
+  // ── auto-fill: decide the speed → floor → efficiency split ─────────────────
+  // The whole-count decision needs the SOLVED building counts, which this pass
+  // just produced for module-less rows (beacons/TURD are in effects, so speed
+  // beacons lower baseCount and auto sheds now-redundant speed modules). The
+  // picks ride back on `autoPicks`; computeBlock re-enters once with them.
+  let autoPicks: Record<string, string[]> | undefined;
+  if (!autoPass && autofillOn && rawResult.status === "solved") {
+    const picks: Record<string, string[]> = {};
+    for (const rr of result.recipes) {
+      const s = setup.get(rr.recipe);
+      if (!s?.autoSpeedPool.length || !s.chosen) continue;
+      const baseCount = rr.machines1x / ((s.chosen.craftingSpeed ?? 1) * s.effects.speedMult);
+      const fill = pickAutoModules({
+        slots: s.chosen.moduleSlots,
+        allowProductivity: false,
+        pool: s.autoSpeedPool,
+        baseCount,
+        baseSpeedMult: s.effects.speedMult,
+      });
+      if (fill.length) picks[rr.recipe] = fill;
+    }
+    if (Object.keys(picks).length) autoPicks = picks;
+  }
 
   // Per-recipe rows for the grid: each recipe's ingredients/products at the
   // solved run-rate, the chosen machine (override or fastest) with a real count
@@ -1200,6 +1197,9 @@ export async function computeBlock(rawData: SolveInput) {
     buildCost,
     broken,
     missing,
+    // non-empty ONLY on a pass-1 result that computeBlock immediately discards
+    // (it re-enters with these picks applied); results callers see never set it
+    autoPicks,
   };
 }
 

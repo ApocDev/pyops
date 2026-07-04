@@ -91,7 +91,7 @@ export function ModulesChip({
       title={
         empty
           ? auto
-            ? "auto-managed — no module is worth it here (payback economy) · click to override"
+            ? "auto-managed — no module helps here · click to override"
             : "no modules — click to configure"
           : undefined
       }
@@ -545,9 +545,9 @@ export function ModulesModal({
               {(auto || onReset) && (
                 <div className="flex items-center gap-2 text-sm">
                   {auto ? (
-                    <span className="text-info" title="chosen by the payback-economy auto-fill">
-                      A auto-managed{modules.length === 0 ? " — no module pays back here" : ""} —
-                      any edit takes manual control
+                    <span className="text-info" title="chosen by the module auto-fill">
+                      A auto-managed{modules.length === 0 ? " — no module helps here" : ""} — any
+                      edit takes manual control
                     </span>
                   ) : (
                     onReset && (
