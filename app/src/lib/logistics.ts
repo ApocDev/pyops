@@ -190,7 +190,13 @@ export function rowLogistics(
 ): RowLogistics | null {
   if (!r.belt) return null;
   const belts = beltsForRate(rate, r.belt, r.placedStack);
-  const perBuilding = machineCount > 0 ? rate / machineCount : rate;
+  // Per BUILT machine (ceil), not per fractional machine: a mall row at 0.05
+  // buildings would otherwise size inserters for one machine running at 100%
+  // speed (13/s of feed → "19 inserters"), when the machine's input buffer
+  // absorbs bursts and the average flow is what the inserters must sustain.
+  // Matches the belts figure, which also sizes on average flow.
+  const builtMachines = Math.ceil(Math.max(0, machineCount) - 1e-9);
+  const perBuilding = builtMachines > 0 ? rate / builtMachines : rate;
   if (r.moverKind === "loader") {
     if (!r.loader) return null;
     return {
