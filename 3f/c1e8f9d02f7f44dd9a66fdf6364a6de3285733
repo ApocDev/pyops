@@ -1,0 +1,25 @@
+app/e2e/mut/count-pin.e2e.ts
+  s_9be9645d11a3e7::t_c5b24d459c6aeb 1-40
+app/src/components/block/editable-count.tsx
+  s_9be9645d11a3e7::t_a0087354951945 1-89
+app/src/components/block/recipe-row.tsx
+  s_9be9645d11a3e7::t_0cf4bd13f10f20 20,47-48,199-223,232
+app/src/routes/block.$id.tsx
+  s_9be9645d11a3e7::t_8de0d7787bc8bc 809
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3fc1e8f9d02f7f44dd9a66fdf6364a6de3285733",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
