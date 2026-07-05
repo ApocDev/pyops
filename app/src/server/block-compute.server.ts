@@ -559,7 +559,29 @@ export async function computeBlock(rawData: SolveInput) {
   // Explicit doc state wins; a legacy doc (no `made`) derives it from its old
   // dispositions via the migration mapping the parity report validated. The
   // derived set is echoed back on the result so the editor persists it.
-  const goals = targets.map((t) => ({ name: t.name, rate: t.rate }));
+  // Supply-push (#121): a COUNT pin on a recipe that PRODUCES a pinned goal good
+  // re-states the block's size from that building count, so the goal's rate stops
+  // forcing total output. Without this the two fight — 2 foundries make 0.133/s,
+  // a 0.14/s goal needs 2.1, and an exact-count pin plus a ≥-floor can't both
+  // hold → a spurious infeasibility over a rounding sliver. Only COUNT pins (exact
+  // "I built N of these") relax the goal, and only on a producer OF that goal; a
+  // CAP pin ("at most N") is a ceiling the goal may legitimately exceed, so its
+  // shortfall must still flag, and a count pin on a mid-chain row stays a hard
+  // constraint that can honestly conflict. The doc goal is untouched (naming,
+  // rollups); only the solver floor is relaxed, and `goalSuperseded` reports the
+  // gap so the UI can note "N buildings make X/s; your target needs M".
+  const productsByRecipe = new Map(defs.map((d) => [d.name, d.products.map((p) => p.name)]));
+  const supersededGoals = new Map<string, { recipe: string; count: number }>();
+  for (const p of data.pins ?? []) {
+    if (p.kind !== "count") continue;
+    for (const prod of productsByRecipe.get(p.recipe) ?? [])
+      if (targets.some((t) => t.name === prod && t.rate != null) && !supersededGoals.has(prod))
+        supersededGoals.set(prod, { recipe: p.recipe, count: p.count });
+  }
+  const goals = targets.map((t) => ({
+    name: t.name,
+    rate: supersededGoals.has(t.name) ? 0 : t.rate,
+  }));
   const made =
     data.made ??
     migrateToLpInput({ targets: goals, recipes: defs, dispositions: data.dispositions }).made ??
@@ -594,6 +616,26 @@ export async function computeBlock(rawData: SolveInput) {
       rate: p.count * perBuilding,
     });
   }
+  // Gap report for each superseded goal: what the pinned buildings actually make
+  // (exact, since a count pin fixes the rate) vs the original target, and how many
+  // whole buildings the target WOULD need — the UI shows this as a soft note so
+  // the relaxation isn't silent ("2 foundries make 0.13/s; 0.14/s needs 3").
+  const goalSuperseded = [...supersededGoals].flatMap(([item, { recipe, count }]) => {
+    const goalRate = targets.find((t) => t.name === item)?.rate ?? 0;
+    const def = defs.find((d) => d.name === recipe);
+    const perCraft = def?.products.filter((c) => c.name === item).reduce((s, c) => s + c.amount, 0);
+    const perBuilding = (perCraft ?? 0) * (craftRate(recipe) ?? 0);
+    if (perBuilding <= 0) return [];
+    return [
+      {
+        item,
+        goalRate,
+        pinnedCount: count,
+        actualRate: perBuilding * count,
+        buildingsForGoal: Math.ceil(goalRate / perBuilding - 1e-9),
+      },
+    ];
+  });
   const defaultTemp = (f: string) => q.getFluid(f)?.defaultTemperature ?? null;
   // Sub-blocks v2 (#76): a COMPOSED group is solved as its own module and pulled
   // out of the parent solve, replaced by a synthetic recipe carrying only its
@@ -1184,6 +1226,8 @@ export async function computeBlock(rawData: SolveInput) {
     made,
     // temperature qualifier per unmade item (#110): "water" unmade at "≤101°"
     unmadeTemp,
+    // goals whose rate a count pin superseded (#121) — the soft supply-push note
+    goalSuperseded,
     diagnosis,
     power,
     fuelItems,

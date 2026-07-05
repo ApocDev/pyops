@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card.t
 import { STOCK_WINDOW_DEFAULT } from "../../lib/goals";
 import { Icon } from "../../lib/icons";
 import { EditableRate } from "./editable-rate.tsx";
-import { ENERGY_PSEUDO } from "./format.ts";
+import { ENERGY_PSEUDO, num } from "./format.ts";
 import { EditableStock } from "./editable-stock.tsx";
 import { LogiTag } from "./logi-tag.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
@@ -166,6 +166,23 @@ export function GoalCard({
                     launch={logi.launchInfo(g, Math.abs(goal.rate))}
                   />
                 )}
+                {/* supply-push note (#121): a count pin on this goal's producer
+                    drives output — the goal rate no longer binds. Show what the
+                    pinned buildings make, and (if short) what the target needs. */}
+                {(() => {
+                  const ss = res?.goalSuperseded?.find((x) => x.item === g);
+                  if (!ss) return null;
+                  const short = ss.actualRate < ss.goalRate - 1e-9;
+                  return (
+                    <span
+                      className="flex items-center gap-0.5 text-sm text-info"
+                      title={`This goal's producer is pinned to ${ss.pinnedCount} building${ss.pinnedCount === 1 ? "" : "s"}, so the count drives output and the ${num(ss.goalRate)}/s target no longer binds.${short ? ` Reaching ${num(ss.goalRate)}/s would take ${ss.buildingsForGoal} buildings.` : ""}`}
+                    >
+                      <Lock className="size-3" /> pinned {ss.pinnedCount} → {num(ss.actualRate)}/s
+                      {short && ` · ${num(ss.goalRate)}/s needs ${ss.buildingsForGoal}`}
+                    </span>
+                  );
+                })()}
               </div>
             );
           })}

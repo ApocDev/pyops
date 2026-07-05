@@ -65,6 +65,16 @@ single-`target` shape. The item rules:
   applies it after count-pinned consumers' fixed intake). Counts convert to
   rates at solve time via the row's real per-building craft rate, so pins follow
   module/machine changes.
+- **Count pins supersede a goal they produce** (#121): a `count` pin on a recipe
+  that makes a pinned goal good re-states the block's size from that building
+  count, so the goal's rate floor stops binding — the pin drives output. Without
+  this the two fight (2 foundries make 0.13/s, a 0.14/s goal needs 2.1, and
+  exact-count + ≥-floor can't both hold → a spurious infeasible). Only `count`
+  pins on a goal *producer* relax the goal; a `cap` there still lets the
+  shortfall flag, and a count pin on a mid-chain row stays a hard constraint that
+  can honestly conflict. The doc goal is untouched (naming, rollups) — only the
+  solver floor relaxes, and `goalSuperseded` reports the gap so the goal card can
+  note "pinned N → X/s; R/s needs M".
 
 **Fluid temperatures are real identities** (#110, `temps.ts`): when any enabled
 consumer declares an accepted temperature range, that fluid expands — each

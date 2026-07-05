@@ -791,3 +791,67 @@ describe("fluid-fuel supplier designation (#115)", () => {
     expect(res.imports.map((f) => f.name)).not.toContain("pyops-fluid-fuel");
   });
 });
+
+describe("count pin supersedes a goal it produces (#121)", () => {
+  let fx: TestDb;
+
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    // steel from iron: 1 iron -> 1 steel, 1s craft, foundry at speed 1 → one
+    // building makes exactly 1 steel/s. A second recipe makes iron, so a count
+    // pin can be placed on a NON-goal producer too.
+    fx.db.exec(`
+      INSERT INTO recipes (name, kind, category, energy_required, allow_productivity, enabled, hidden) VALUES
+        ('mk-steel','real','smelting',1,0,1,0),
+        ('mk-iron','real','smelting',1,0,1,0);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES ('mk-steel',0,'item','iron',1);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+        ('mk-steel',0,'item','steel',1),
+        ('mk-iron',0,'item','iron',1);
+      INSERT INTO items (name, display) VALUES ('iron','Iron'),('steel','Steel');
+      INSERT INTO crafting_machines (name, kind, crafting_speed, module_slots, energy_usage_w, energy_source)
+        VALUES ('foundry','assembling-machine',1,0,100000,'electric');
+      INSERT INTO machine_categories (machine, category) VALUES ('foundry','smelting'),('mk-iron','smelting');
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+
+  afterEach(() => fx.cleanup());
+
+  it("relaxes the goal so a count pin drives output instead of fighting it", async () => {
+    // one foundry = 1 steel/s; pin 2 → 2 steel/s. Goal 2.5/s would need 3.
+    const res = await computeBlock({
+      goals: [{ name: "steel", rate: 2.5 }],
+      recipes: ["mk-steel", "mk-iron"],
+      pins: [{ kind: "count", recipe: "mk-steel", count: 2 }],
+    });
+    expect(res.status).toBe("solved"); // NOT infeasible over the 0.5/s gap
+    expect(res.rows.find((r) => r.recipe === "mk-steel")?.rate).toBeCloseTo(2);
+    expect(res.goalSuperseded).toEqual([
+      { item: "steel", goalRate: 2.5, pinnedCount: 2, actualRate: 2, buildingsForGoal: 3 },
+    ]);
+  });
+
+  it("a CAP pin does NOT supersede — the goal still binds and the shortfall flags", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "steel", rate: 2.5 }],
+      recipes: ["mk-steel", "mk-iron"],
+      pins: [{ kind: "cap", recipe: "mk-steel", count: 2 }],
+    });
+    expect(res.status).toBe("infeasible"); // 2.5/s needs 3 buildings, cap says ≤ 2
+    expect(res.goalSuperseded).toEqual([]);
+  });
+
+  it("a count pin on a NON-goal producer leaves the goal binding", async () => {
+    // pin iron production; steel goal is unrelated and must still be met exactly
+    const res = await computeBlock({
+      goals: [{ name: "steel", rate: 1.5 }],
+      recipes: ["mk-steel", "mk-iron"],
+      pins: [{ kind: "count", recipe: "mk-iron", count: 5 }],
+    });
+    expect(res.status).toBe("solved");
+    expect(res.goalSuperseded).toEqual([]);
+    expect(res.rows.find((r) => r.recipe === "mk-steel")?.rate).toBeCloseTo(1.5); // goal still drives
+  });
+});
