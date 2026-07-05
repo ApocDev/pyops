@@ -160,6 +160,13 @@ local function give_blueprint(player, build)
   if not pcall(set_entities, true) then
     pcall(set_entities, false)
   end
+  -- Temporary cursor stack (the vanilla Ctrl+C mechanism): dropping the cursor
+  -- (Q / placing done) DELETES the blueprint instead of stashing it in the
+  -- player's inventory — without this every factory click left a blueprint
+  -- copy behind.
+  if cursor.valid_for_read and cursor.is_blueprint then
+    player.cursor_stack_temporary = true
+  end
 end
 
 -- ── GUI ─────────────────────────────────────────────────────────────────────
