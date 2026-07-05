@@ -1,0 +1,25 @@
+app/src/lib/sink-classify.ts
+  s_9be9645d11a3e7::t_6029fabe31e58b 1-32
+app/src/routes/block.$id.tsx
+  s_9be9645d11a3e7::t_b49034d42ceb0b 21,470-481,486-499
+app/src/lib/sink-classify.test.ts
+  s_9be9645d11a3e7::t_35d23cc564ad11 1-86
+docs/solver.md
+  s_9be9645d11a3e7::t_0bfefb02bf214e 43-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "278edb192487de5186ccd62c2e647b678ba130ce",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
