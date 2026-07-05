@@ -40,16 +40,23 @@ single-`target` shape. The item rules:
   incidental byproduct just offsets the import — a 0.02/s side-product of
   something else is never scaled up to cover a 10/s demand.
 - **Draining a byproduct**: adding a consumer through a byproduct's chip marks
-  the good made AND — when the chosen recipe is a pure sink (a void: no
-  products, or only returning less of the same good) — records a **drain**
-  (`net = 0`): the surplus must be consumed in-block, which is what forces a
-  void to run at all (it produces nothing the objective wants). A reprocessing
-  consumer needs no drain — once the good is made (import forbidden), recycling
-  the surplus is cheaper than making more, so the optimizer uses it; without
-  the made mark it would instead IMPORT the byproduct and idle the real
-  producers. The solve also reports `importedProducible` — imports of goods an
-  enabled in-block recipe produces, the tell-tale of that trap — and the import
-  chip offers one click to claim the good in-block.
+  the good made AND — when the chosen recipe is a **terminal sink** — records a
+  **drain** (`net = 0`): the surplus must be consumed in-block, which is what
+  forces a void to run at all (it produces nothing the objective wants).
+  Terminal means the recipe net-consumes the good and none of its *other*
+  products feeds anything else in the block — everything it makes leaves
+  (`lib/sink-classify.ts`, `drainsOnConsume`, tested). That single test is the
+  line between "consume my surplus" and "restructure production": a void like
+  coal-gas → ash (nothing here uses ash) drains and runs; a reprocessor whose
+  output re-enters the chain (block 27's grade-2 → grade-3, which the chain
+  consumes) is only marked made, never drained, so forcing it can't cascade.
+  A reprocessing consumer needs no drain — once the good is made (import
+  forbidden), recycling the surplus is cheaper than making more, so the
+  optimizer uses it; without the made mark it would instead IMPORT the
+  byproduct and idle the real producers. The solve also reports
+  `importedProducible` — imports of goods an enabled in-block recipe produces,
+  the tell-tale of that trap — and the import chip offers one click to claim
+  the good in-block.
 - **Pins** (`pins` in the doc, in building counts) constrain single rows:
   `count` = always run exactly N buildings (supply-push — this is how byproducts
   route into in-block consumers), `cap` = at most N (a built-capacity ceiling;

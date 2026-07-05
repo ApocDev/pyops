@@ -18,6 +18,7 @@ import {
 } from "../server/factorio";
 import { exportBlockFn } from "../server/export-fns";
 import { registerBlockEditor } from "../lib/block-editors";
+import { drainsOnConsume } from "../lib/sink-classify";
 import { downloadJson } from "../lib/download";
 import { exportFileName } from "../lib/plan-export";
 import { toast } from "../lib/toast-store";
@@ -466,26 +467,36 @@ function Block({ blockId }: { blockId: number }) {
     // Adding a CONSUMER via a byproduct's chip means "deal with MY surplus":
     // mark the good made — without this, a reprocessing recipe lets the plan
     // IMPORT the byproduct and shut down the real producers (the block-27
-    // failure). A reprocessor then absorbs surplus on its own (recycling is
-    // cheaper than making more). A pure SINK (void: no products, or only
-    // returning less of the same good) makes nothing the objective wants, so
-    // it also gets a drain pin — "this good's surplus must be consumed here"
-    // (net = 0) — or it would idle at 0 with the export untouched.
+    // failure). Then, when the consumer is a TERMINAL sink, also DRAIN the good
+    // (net = 0 → the surplus must be consumed in-block, not vented) so the sink
+    // actually runs instead of idling at 0 next to an untouched export.
+    //
+    // Terminal = the consumer net-consumes the good AND none of its OTHER
+    // products feeds anything else in this block (they all leave). That's the
+    // line between "consume the surplus" and "restructure production": a pure
+    // void (coal-gas → ash, and nothing here uses ash) drains cleanly; a
+    // reprocessor whose output re-enters the chain (block 27's grade-2 →
+    // grade-3, which the chain consumes) is only marked made, never drained,
+    // so forcing it can't cascade. Read from the CURRENT solve (the block
+    // before this add), so newly-added terminal products still read as leaving.
     if (pickFor?.mode === "consume") {
       const good = pickFor.name;
       if (!goals.some((g) => g.name === good)) doc.markMade(good);
       const cand = picker.data?.find((c) => c.name === name);
-      const intake = cand?.ingredients
-        .filter((c) => c.name === good)
-        .reduce((s, c) => s + (c.amount ?? 0), 0);
-      const sameGoodOut = cand?.products
-        .filter((c) => c.name === good)
-        .reduce((s, c) => s + (c.amount ?? 0), 0);
-      const isSink =
-        cand != null &&
-        (cand.products.length === 0 ||
-          (cand.products.every((c) => c.name === good) && (sameGoodOut ?? 0) < (intake ?? 0)));
-      if (isSink) doc.setPin({ kind: "drain", recipe: name, item: good });
+      if (cand) {
+        const consumedInBlock = new Set(
+          (res?.rows ?? []).flatMap((row) => row.ingredients.map((i) => i.name)),
+        );
+        if (
+          drainsOnConsume({
+            good,
+            ingredients: cand.ingredients,
+            products: cand.products,
+            consumedInBlock,
+          })
+        )
+          doc.setPin({ kind: "drain", recipe: name, item: good });
+      }
     }
     // label the save for the undo stack — the picker rows carry the display name
     const display = picker.data?.find((c) => c.name === name)?.display;
