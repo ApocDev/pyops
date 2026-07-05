@@ -1,0 +1,23 @@
+app/src/server/block-compute.test.ts
+  s_9be9645d11a3e7::t_084bcb1f0681ab 794-857
+app/src/components/block/goal-card.tsx
+  s_9be9645d11a3e7::t_1228157812a88e 7,169-185
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_a2dd220aec7316 562-584,619-638,1229-1230
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e2ff2ab658a9ce1eb12baccda352fb3361b86188",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
