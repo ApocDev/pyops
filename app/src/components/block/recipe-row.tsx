@@ -17,6 +17,7 @@ import { FieldLabel } from "#/components/ui/label.tsx";
 import { RecipeHover } from "../../lib/recipe-card";
 import { fmtSpoilTime, Icon } from "../../lib/icons";
 import { ModulesChip } from "../../lib/modules-modal";
+import { EditableCount } from "./editable-count.tsx";
 import { SortableRow } from "./sortable-row.tsx";
 import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
 import { LogiTag } from "./logi-tag.tsx";
@@ -43,6 +44,8 @@ export type RowOverlayOpeners = {
   modulesPicker: (recipe: string) => void;
   /** apply the row's suggested module fill (the ✨ hint) as its stored picks */
   applyModuleFill: (recipe: string) => void;
+  /** open the Pins dialog for a row (used to edit a cap from the count cell) */
+  pinsFor: (recipe: string) => void;
 };
 
 /** One live recipe row of the grid: name + solved rate, machine/fuel/module
@@ -193,27 +196,31 @@ export function RecipeRow({
             <FieldLabel className="w-full md:hidden">Machines</FieldLabel>
             {row?.machine ? (
               <>
-                {/* building: icon + count; hover = name/speed, click = picker */}
-                <button
-                  onClick={() => open.machinePicker(name)}
-                  title={`${row.machine.display ?? row.machine.name} · ${num(row.machine.craftingSpeed ?? 1)}× speed · click to change building`}
-                  className={cellChip}
-                >
-                  <Icon kind="entity" name={row.machine.name} size="md" />
-                  <span className="font-semibold text-foreground">{num(row.machine.count)}</span>
-                  {rowPin && (
-                    <span
-                      className="bg-info/20 px-1 text-sm text-info ring-1 ring-info/40"
-                      title={
-                        rowPin.kind === "count"
-                          ? `pinned: always run exactly ${rowPin.count} buildings (right-click the row → Pins to change)`
-                          : `capped: at most ${rowPin.count} buildings built (right-click the row → Pins to change)`
-                      }
-                    >
-                      {rowPin.kind === "count" ? "=" : "≤"}
-                      {rowPin.count}
-                    </span>
-                  )}
+                {/* building cell: icon → picker, count → click-to-fix. The count's
+                    own TINT carries the pin state (info = fixed, warning = capped),
+                    so no separate =N badge. Share routing keeps its % marker (it's
+                    about ingredients, not the building count). */}
+                <span className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm">
+                  <button
+                    onClick={() => open.machinePicker(name)}
+                    title={`${row.machine.display ?? row.machine.name} · ${num(row.machine.craftingSpeed ?? 1)}× speed · click to change building`}
+                    className="flex items-center hover:brightness-125"
+                  >
+                    <Icon kind="entity" name={row.machine.name} size="md" />
+                  </button>
+                  <EditableCount
+                    count={row.machine.count}
+                    pin={rowPin}
+                    onSetCount={(n) => {
+                      doc.setPin({ kind: "count", recipe: name, count: n });
+                      doc.note(`Fix "${display}" at ${n} buildings`);
+                    }}
+                    onClear={() => {
+                      doc.clearPin(name);
+                      doc.note(`Unfix "${display}" building count`);
+                    }}
+                    onOpenPins={() => open.pinsFor(name)}
+                  />
                   {shareCount > 0 && (
                     <span
                       className="bg-info/20 px-1 text-sm text-info ring-1 ring-info/40"
@@ -222,7 +229,7 @@ export function RecipeRow({
                       %
                     </span>
                   )}
-                </button>
+                </span>
                 {/* electricity, when the machine draws power */}
                 {row.machine.energySource === "electric" && (
                   <span

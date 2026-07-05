@@ -28,8 +28,10 @@ test("reactor row: picking a 2×2 farm scales heat ×3 and persists", async ({ p
   await page.locator('button[title^="click to add a recipe that makes this goal"]').click();
   await expect(page.getByText("Breeder reactor heat")).toBeVisible();
 
-  // flat-rated (1×1): 6 GW ÷ 2 GW per reactor = 3 reactors, chip shows no bonus
-  const machineChip = page.locator('button[title*="click to change building"]');
+  // flat-rated (1×1): 6 GW ÷ 2 GW per reactor = 3 reactors, chip shows no bonus.
+  // The building count is now its own click-to-fix field (#121) beside the
+  // machine icon — unpinned here, so it carries the "click to fix" title.
+  const machineChip = page.locator('button[title="click to fix the building count"]');
   await expect(machineChip).toContainText("3");
   const layoutChip = page.locator('button[title^="reactor farm"]');
   await expect(layoutChip).toContainText("1×1");

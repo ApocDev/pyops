@@ -806,6 +806,7 @@ function Block({ blockId }: { blockId: number }) {
             fuelPicker: setPickFuelFor,
             modulesPicker: setPickModulesFor,
             applyModuleFill,
+            pinsFor: setPinFor,
           }}
           renamingGroup={renamingGroup}
           onRenamingGroupChange={setRenamingGroup}
