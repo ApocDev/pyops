@@ -1274,9 +1274,11 @@ export async function showBlockInGame(id: number) {
   const logistics = logi.belt
     ? { belt: logi.belt.name, mover: moverName ?? null, moverKind: logi.moverKind }
     : null;
-  // Honour the same independent show toggles as the web Logistics control, so a
-  // belts-only (or inserters-only) setup carries through to the in-game readout
-  // instead of always emitting both.
+  // The web Logistics control's picks (belt tier, inserter vs loader, stacking)
+  // size the counts, but its SHOW toggles do not gate them: the in-game panel
+  // has its own toggle button, and slaving the payload to the web display prefs
+  // made that button dead until belts were also switched on in the web (the
+  // prefs default off, so out of the box the toggle rendered nothing).
   const good = (
     c: { name: string; kind: string; rate: number },
     machineCount: number,
@@ -1295,8 +1297,8 @@ export async function showBlockInGame(id: number) {
     const rl = rowLogistics(logi, c.rate, machineCount);
     if (!rl) return base;
     // belts size the whole flow; inserters are per-building (recipe rows only)
-    if (ctx.prefs.showBelts) base.belts = rl.belts;
-    if (ctx.prefs.showInserters && machineCount > 0) base.inserters = rl.devices;
+    base.belts = rl.belts;
+    if (machineCount > 0) base.inserters = rl.devices;
     return base;
   };
   const goods = (arr: { name: string; kind: string; rate: number }[], machineCount: number) =>
