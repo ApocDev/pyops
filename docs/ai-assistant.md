@@ -171,7 +171,7 @@ about "how do I make X":
   once a plan's blocks are chosen, then decide per machine item whether an
   existing mall block supplies it, an existing block should be resized
   (`reviseBlock`/plan `updates`), or it needs its own new block.
-- **Tasks** — `listTasks`/`getTask` read the user's planning to-do tree;
+- **Tasks & notes** — `listTasks`/`getTask` read the user's planning to-do tree;
   `createTask` files one (with optional checklist steps and entity links);
   `updateTask`/`addTaskStep`/`linkTask` edit it. Unlike block drafts, these apply
   **directly** (low-stakes, reversible on the Tasks page), so the agent can file a
@@ -179,6 +179,13 @@ about "how do I make X":
   left, checking `listTasks` first to avoid duplicates. A separate **Enhance**
   action on a task (`enrichTaskFn`, not an agent tool) rewrites a rough capture's
   title/body into something sharper while preserving the original intent.
+  `listNotes` (#128) is a **read-only** sibling over the separate `notes` table
+  (`db/tasks.server.ts`'s `listNotes()`) — a flat, deliberately-dumb scratch
+  surface (title + freeform body, no steps, no tree) the user writes for
+  themselves. It returns every note's `{ id, title, body }` in one call (the
+  table is small — no pagination). Writing/editing notes is out of scope for the
+  agent: Tasks already cover assistant-initiated follow-ups, and notes stay the
+  user's own space.
 - **Live game-world (read-only)** — `gameContext`, `gameInspectArea`,
   `gameFindEntities`, `gameProduction` query the _running_ factory through the
   bridge (app→mod→Factorio), so the agent can ground a task in real evidence

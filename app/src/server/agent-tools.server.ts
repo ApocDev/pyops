@@ -1041,6 +1041,13 @@ export const linkTask = tool({
   }),
 });
 
+export const listNotes = tool({
+  description:
+    "List the user's scratch notes: id, title, body. Notes are a small, freeform surface for their own goals/decisions/reminders — separate from the task tree and NOT assistant-writable. Consult this for planning context (e.g. before answering 'what should I do next'); never propose creating or editing a note.",
+  inputSchema: z.object({}),
+  execute: async () => tasksDb.listNotes().map((n) => ({ id: n.id, title: n.title, body: n.body })),
+});
+
 /* ── Read-only game-world tools: inspect the LIVE factory via the bridge
  * (app → mod → Factorio). All bounded and structured — no whole-map dumps. They
  * require the companion mod connected; otherwise they return a clear error. Use
@@ -1372,6 +1379,7 @@ export const agentTools = {
   updateTask,
   addTaskStep,
   linkTask,
+  listNotes,
   gameContext,
   gameInspectArea,
   gameFindEntities,
