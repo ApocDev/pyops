@@ -48,4 +48,11 @@ describe("gameEval approval gate (#15)", () => {
     expect(requestFromMod).toHaveBeenCalledWith("cmd.eval", { code: "game.tick" }, 8000);
     expect(res).toEqual({ ok: true, result: "42" });
   });
+
+  it("the dev-loop helpers are MCP-only — not in the in-app agent's tool set", () => {
+    for (const name of ["gameScreenshot", "gameReloadMods", "gameShowBlock", "gameCloseSummary"]) {
+      expect(agentTools).not.toHaveProperty(name);
+      expect(mcpTools).toHaveProperty(name);
+    }
+  });
 });

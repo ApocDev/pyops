@@ -21,7 +21,12 @@ import { normalizeBlockData, primaryGoal, primaryRate } from "../lib/goals.ts";
 import * as q from "../db/queries.server.ts";
 import * as tasksDb from "../db/tasks.server.ts";
 import { requestFromMod } from "./bridge/inspect.ts";
-import { computeBlock, showBlockInGame, hideBlockInGame } from "./block-compute.server.ts";
+import {
+  computeBlock,
+  showBlockInGame,
+  hideBlockInGame,
+  machineReqs,
+} from "./block-compute.server.ts";
 import { withUndoAction } from "./undo-action.server.ts";
 
 /** Energy pseudo-fluids. The stoichiometric chainStatus filters all three: recipes
@@ -613,6 +618,7 @@ async function buildBlockDraft({
   let heatW: number | null = null;
   let solvedImportNames: string[] | null = null;
   let solvedByproductNames: string[] | null = null;
+  let buildings: { recipe: string; machine: string; count: number }[] = [];
   let moduleFill: { modules: Record<string, string[]>; machines: Record<string, string> } = {
     modules: {},
     machines: {},
@@ -646,6 +652,11 @@ async function buildBlockDraft({
     solvedByproductNames = solved.exports
       .map((f) => f.name)
       .filter((n) => !POWER_PSEUDO.has(n) && n !== target);
+    buildings = machineReqs(solved.rows).map((b) => ({
+      recipe: b.recipe,
+      machine: b.machine,
+      count: +b.count.toFixed(2),
+    }));
   } catch {
     /* keep going with stoichiometric fallback */
   }
@@ -680,6 +691,10 @@ async function buildBlockDraft({
     recipes,
     modules: moduleFill.modules,
     machines: moduleFill.machines,
+    // solved building count per recipe (rounded), from computeBlock's machine
+    // counts — lets the agent report/aggregate machine needs without a second
+    // solve (see buildingBill for cross-block aggregation)
+    buildings,
     notes: notes ?? null,
     powerW,
     heatW,
@@ -698,7 +713,7 @@ async function buildBlockDraft({
 
 export const submitBlock = tool({
   description:
-    "Finalize your proposed production block for ONE target, bounded at its seams. Call ONCE at the end. The block's open inputs are its imports; each import is either already made by an existing block (reuse it) or is a commodity/raw. List in subBlocksNeeded any seam goods that deserve their OWN block next (the decomposition follow-ups). It SOLVES the block, so imports / byproducts / sub-blocks come back with their actual per-second RATES — use those: tell the user to draft each sub-block at its rate (e.g. 'super-alloy block @ 3.3/s'). Returns imports split into from-existing-block vs external, byproducts, and power.",
+    "Finalize your proposed production block for ONE target, bounded at its seams. Call ONCE at the end. The block's open inputs are its imports; each import is either already made by an existing block (reuse it) or is a commodity/raw. List in subBlocksNeeded any seam goods that deserve their OWN block next (the decomposition follow-ups). It SOLVES the block, so imports / byproducts / sub-blocks / buildings come back with their actual per-second RATES / counts — use those: tell the user to draft each sub-block at its rate (e.g. 'super-alloy block @ 3.3/s'). Returns imports split into from-existing-block vs external, byproducts, power, and `buildings` — each recipe's machine + solved building count (module/TURD-beacon effects already folded in). For a machine-only bill across MULTIPLE blocks (e.g. 'include the buildings to build this'), use buildingBill instead.",
   inputSchema: z.object({
     target: z.string().describe("Internal name of the good this block produces"),
     rate: z.number().positive().describe("Target output rate (items or fluid units per second)"),
@@ -804,14 +819,14 @@ const reviseBlockInput = z.object({
 
 export const reviseBlock = tool({
   description:
-    "Propose changing an EXISTING block (by its factoryBlocks id) — its output RATE, its RECIPE SET, or both — instead of building a duplicate. Pass `rate` to raise/lower output to meet new demand; pass `recipes` (the complete replacement list) to add/remove/swap recipes (e.g. swap to a higher-yield variant, add a byproduct-consuming step). The block is RE-SOLVED with the change and returned as a PROPOSAL the user approves before it's applied: check the returned imports/byproducts for closure — a recipe change can open new imports or NEW dangling byproducts (returned in newByproducts; route them or say why they're fine BEFORE the user applies). Recipe revisions keep the block's other recipes' machine/module picks; removed recipes' picks are pruned on apply.",
+    "Propose changing an EXISTING block (by its factoryBlocks id) — its output RATE, its RECIPE SET, or both — instead of building a duplicate. Pass `rate` to raise/lower output to meet new demand; pass `recipes` (the complete replacement list) to add/remove/swap recipes (e.g. swap to a higher-yield variant, add a byproduct-consuming step). The block is RE-SOLVED with the change and returned as a PROPOSAL the user approves before it's applied: check the returned imports/byproducts for closure — a recipe change can open new imports or NEW dangling byproducts (returned in newByproducts; route them or say why they're fine BEFORE the user applies). Recipe revisions keep the block's other recipes' machine/module picks; removed recipes' picks are pruned on apply. Also returns `buildings` — the resized block's solved recipe→machine→count list.",
   inputSchema: reviseBlockInput,
   execute: async (input) => buildBlockUpdate(input),
 });
 
 export const submitPlan = tool({
   description:
-    "Finalize a MULTI-BLOCK production plan for one user request. Use when the user asks for multiple products/rates, all supporting sub-blocks, or building/material supply such as steel, circuits, machines, belts, inserters, pipes, and power/utility items. Each block is solved independently and returned as a reviewable draft; include dependency notes and remaining external imports. Prefer focused reusable blocks over one giant block.",
+    "Finalize a MULTI-BLOCK production plan for one user request. Use when the user asks for multiple products/rates, all supporting sub-blocks, or building/material supply such as steel, circuits, machines, belts, inserters, pipes, and power/utility items. Each block is solved independently and returned as a reviewable draft (including its own `buildings` — recipe→machine→solved count); include dependency notes and remaining external imports. Prefer focused reusable blocks over one giant block. Call buildingBill separately once the plan's blocks are chosen if you need the CROSS-BLOCK machine bill (whole-machine totals + how to build each machine) for 'include the buildings' requests.",
   inputSchema: z.object({
     title: z.string().describe("Short display title for the whole plan"),
     objective: z.string().describe("User-facing summary of what this plan satisfies"),
@@ -853,6 +868,63 @@ export const submitPlan = tool({
       turd: q.checkTurdConsistency(recipes),
       invalid: [...new Set(drafts.flatMap((d) => d.invalid ?? []))],
     };
+  },
+});
+
+const buildingBillBlockInput = z.object({
+  name: z.string().optional().describe("Optional label; not used in the solve"),
+  target: z.string().describe("Internal name of the good this block produces"),
+  rate: z.number().positive().describe("Target output rate (items or fluid units per second)"),
+  recipes: z.array(z.string()).min(1).describe("The complete recipe list for THIS block"),
+});
+
+export const buildingBill = tool({
+  description:
+    "THE tool for 'include the buildings/machines needed to build this' — a cross-block MACHINE bill. Give the same blocks you're drafting/planning (target, rate, recipes — same shape as submitPlan's blocks); each is solved independently (a failing block is skipped with a note in `skipped`, not a hard error) and every recipe's machine requirement is CEILED to a whole building before being summed across ALL blocks — you build whole machines, so a 2.3 + 1.4 need doesn't round to 4 the way raw fractional counts would. Returns `machines`, sorted by count descending: each entry maps the machine ENTITY to the ITEM that places it (`item`, null with a note if no such item exists), its total whole-building count, and up to 2 top `producers` (same shape as recipeOptions) for how to make that item. Call this after you've picked each block's recipes (before or after submitPlan) — then for EACH machine item decide: an existing mall/materials block already supplies it (import), an existing block should be resized to cover it (reviseBlock / a plan `updates` entry), or it needs its own new block. Machine items ONLY — this does not estimate belts/inserters/logistics.",
+  inputSchema: z.object({
+    blocks: z
+      .array(buildingBillBlockInput)
+      .min(1)
+      .max(20)
+      .describe("The plan's blocks (or a single block) to total machine requirements across"),
+  }),
+  execute: async ({ blocks }) => {
+    const totals = new Map<string, number>(); // machine entity -> whole-building count
+    const skipped: { target: string; error: string }[] = [];
+    for (const block of blocks) {
+      try {
+        const solved = await computeBlock({
+          goals: [{ name: block.target, rate: block.rate }],
+          recipes: block.recipes,
+        });
+        for (const b of machineReqs(solved.rows)) {
+          const count = Math.ceil(b.count - 1e-9); // whole machines per block, THEN sum
+          if (count <= 0) continue;
+          totals.set(b.machine, (totals.get(b.machine) ?? 0) + count);
+        }
+      } catch (e) {
+        skipped.push({
+          target: block.target,
+          error: e instanceof Error ? e.message : "solve failed",
+        });
+      }
+    }
+    const machines = [...totals.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([entity, count]) => {
+        const item = q.getItem(entity);
+        return {
+          item: item ? entity : null,
+          display: item?.display ?? entity,
+          entity,
+          count,
+          producers: item ? optionsFor(q, entity, "produce", 2) : [],
+          ...(item
+            ? {}
+            : { note: "no matching item prototype — can't be crafted/placed as an item" }),
+        };
+      });
+    return { machines, skipped };
   },
 });
 
@@ -1268,9 +1340,13 @@ export const gameCloseSummary = tool({
   },
 });
 
-/** The full tool set for the planning agent: read-only data tools, block/plan
- * draft proposals (propose-then-apply), the tasks surface, read-only live
- * game-world inspection, and developer loop helpers — all via the bridge. */
+/** The full tool set for the in-app planning agent: read-only data tools,
+ * block/plan draft proposals (propose-then-apply), the buildings bill, the
+ * tasks surface, and read-only live game-world inspection via the bridge.
+ * gameScreenshot/gameReloadMods/gameShowBlock/gameCloseSummary are NOT here —
+ * they're developer/debugging loop helpers (a local PNG path the in-app chat
+ * can't consume, and dev-reload/self-test actions this assistant shouldn't
+ * drive) and live only on the MCP surface below. */
 export const agentTools = {
   searchGoods,
   factoryBlocks,
@@ -1289,6 +1365,7 @@ export const agentTools = {
   submitBlock,
   reviseBlock,
   submitPlan,
+  buildingBill,
   listTasks,
   getTask,
   createTask,
@@ -1303,19 +1380,19 @@ export const agentTools = {
   // snippet; the chat UI's per-call Run button executes it (bridgeEvalFn). The
   // mod-side `pyops-allow-eval` setting is the defense-in-depth kill switch.
   gameEval,
-  // Capture the game (GUI included) to a PNG path — for live in-game UI design.
-  gameScreenshot,
-  // Reload the loaded mods without desktop/window automation.
-  gameReloadMods,
-  // Drive the in-game summary panel for self-testing (open a block / close it).
-  gameShowBlock,
-  gameCloseSummary,
 };
 
-/** The MCP surface's tool set: identical except gameEval executes DIRECTLY —
- * MCP is the developer-debugging front door (an external agent driving the
- * running game), where there is no chat UI to route an approval through. */
+/** The MCP surface's tool set: everything the in-app agent has, gameEval
+ * swapped for the DIRECT-executing variant (MCP is the developer-debugging
+ * front door — no chat UI to route a per-call approval through), plus the
+ * developer-only live-loop helpers the in-app assistant doesn't get: a
+ * screenshot tool returning a local PNG path, mod reload, and the in-game
+ * summary-panel show/close pair used for self-testing the mod's UI. */
 export const mcpTools = {
   ...agentTools,
   gameEval: gameEvalDirect,
+  gameScreenshot,
+  gameReloadMods,
+  gameShowBlock,
+  gameCloseSummary,
 };

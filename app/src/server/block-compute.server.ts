@@ -197,8 +197,12 @@ export function goalFlows(
 /** Machine requirement to cache for a solved block: how many of each machine the
  * block runs, keyed by the RECIPE it runs (so built-vs-required can compare per
  * recipe, not just per machine). Fractional — the theoretical count; the UI ceils
- * when comparing against what's built. */
-function machineReqs(rows: { recipe: string; machine?: { name: string; count: number } | null }[]) {
+ * when comparing against what's built. Exported for the agent tools (draft
+ * `buildings` field, `buildingBill`), which reuse it against `computeBlock`'s
+ * solved rows instead of re-deriving machine counts. */
+export function machineReqs(
+  rows: { recipe: string; machine?: { name: string; count: number } | null }[],
+) {
   const totals = new Map<string, { machine: string; recipe: string; count: number }>();
   for (const row of rows) {
     if (!row.machine || row.machine.count <= 0) continue;
