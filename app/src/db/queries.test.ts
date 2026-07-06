@@ -374,7 +374,9 @@ describe("recipeCandidates availability: prerequisite-gated techs (empty own cos
         ('t-prereq','py-science-pack-1',1)
     `);
     // t-exotic has NO own science cost — it's gated purely through its prerequisite
-    db.run(sql`INSERT INTO tech_prerequisites (technology, prerequisite) VALUES ('t-exotic','t-prereq')`);
+    db.run(
+      sql`INSERT INTO tech_prerequisites (technology, prerequisite) VALUES ('t-exotic','t-prereq')`,
+    );
     db.run(sql`
       INSERT INTO tech_unlocks (technology, recipe) VALUES
         ('t-basic','circuit-basic'),
