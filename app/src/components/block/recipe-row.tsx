@@ -241,10 +241,10 @@ export function RecipeRow({
                 )}
                 {row.machine.energySource === "heat" && (
                   <span
-                    title="heat-powered — fed by an upstream reactor"
-                    className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm"
+                    title="heat draw — must be delivered by a reactor in this block (heat doesn't travel between blocks)"
+                    className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-warning"
                   >
-                    <Flame className="size-3.5" /> heat
+                    <Flame className="size-3.5" /> {fmtW(row.machine.powerW)}
                   </span>
                 )}
                 {/* reactor farm layout (#94): neighbour bonus scales heat output */}
