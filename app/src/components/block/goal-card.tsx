@@ -167,19 +167,19 @@ export function GoalCard({
                   />
                 )}
                 {/* supply-push note (#121): a count pin on this goal's producer
-                    drives output — the goal rate no longer binds. Show what the
-                    pinned buildings make, and (if short) what the target needs. */}
+                    drives output — the goal rate no longer binds. Terse: a lock +
+                    the pin's actual rate, colored amber when it falls short of the
+                    target; the tooltip carries the full explanation. */}
                 {(() => {
                   const ss = res?.goalSuperseded?.find((x) => x.item === g);
                   if (!ss) return null;
                   const short = ss.actualRate < ss.goalRate - 1e-9;
                   return (
                     <span
-                      className="flex items-center gap-0.5 text-sm text-info"
-                      title={`This goal's producer is pinned to ${ss.pinnedCount} building${ss.pinnedCount === 1 ? "" : "s"}, so the count drives output and the ${num(ss.goalRate)}/s target no longer binds.${short ? ` Reaching ${num(ss.goalRate)}/s would take ${ss.buildingsForGoal} buildings.` : ""}`}
+                      className={`flex items-center gap-0.5 text-sm ${short ? "text-warning" : "text-info"}`}
+                      title={`Pinned to ${ss.pinnedCount} building${ss.pinnedCount === 1 ? "" : "s"} — the count drives output, so the ${num(ss.goalRate)}/s target no longer binds.${short ? ` Reaching it would take ${ss.buildingsForGoal} buildings.` : ""}`}
                     >
-                      <Lock className="size-3" /> pinned {ss.pinnedCount} → {num(ss.actualRate)}/s
-                      {short && ` · ${num(ss.goalRate)}/s needs ${ss.buildingsForGoal}`}
+                      <Lock className="size-3" /> {num(ss.actualRate)}/s
                     </span>
                   );
                 })()}

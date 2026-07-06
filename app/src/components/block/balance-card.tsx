@@ -1,5 +1,5 @@
 import { useStore } from "@tanstack/react-store";
-import { AlertTriangle, Cloud, Flame, Lock, Plus, Timer, Zap } from "lucide-react";
+import { AlertTriangle, Cloud, Lock, Timer } from "lucide-react";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
@@ -10,12 +10,13 @@ import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
 import { LogiTag } from "./logi-tag.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
-import { fmtW, num } from "./format.ts";
+import { num } from "./format.ts";
 
-/** The Block balance card: solve status, the planned-spoil strip,
- * the root-cause (IIS) cards on an infeasible solve, the unmade/temperature
- * warnings, the power line, and the imports/exports chip lists with the
- * sizing-lock controls. */
+/** The Block balance card: solve status + pollution in the header, the
+ * planned-spoil strip, the root-cause (IIS) cards on an infeasible solve, the
+ * unmade/temperature warnings, and the imports/exports chip lists with the
+ * sizing-lock controls. Electricity and heat aren't summarised here — both
+ * surface as their own import chips (pyops-electricity / pyops-heat). */
 export function BalanceCard({
   doc,
   res,
@@ -59,12 +60,25 @@ export function BalanceCard({
     <Card className="lg:col-span-2">
       <CardHeader className="justify-between">
         <CardTitle>Block balance</CardTitle>
-        {res && (
-          <span className={statusColor}>
-            {res.status}
-            {res.message ? ` — ${res.message}` : ""}
-          </span>
-        )}
+        <div className="flex items-center gap-4 text-sm">
+          {/* Pollution rides in the header (#23) to save a whole body row —
+              electricity/heat aren't shown here at all: both surface as their
+              own import chips below (pyops-electricity / pyops-heat). */}
+          {res && Math.abs(res.power.pollutionPerMin) > 0.005 && (
+            <span
+              className={`flex items-center gap-1 ${res.power.pollutionPerMin < 0 ? "text-success" : "text-warning/80"}`}
+              title="pollution per minute from this block's machines (base emissions × energy-consumption × pollution module effects; fuel-type multipliers not modelled). Negative = net absorption — some buildings (forestry, plantations) soak pollution like trees."
+            >
+              <Cloud className="size-3.5" /> {num(Math.abs(res.power.pollutionPerMin))}/min
+            </span>
+          )}
+          {res && (
+            <span className={statusColor}>
+              {res.status}
+              {res.message ? ` — ${res.message}` : ""}
+            </span>
+          )}
+        </div>
       </CardHeader>
       {/* The made set (#91) drives the solve but isn't listed here — the recipe
           rows already show what's produced in-block (linked green chips). Toggle
@@ -249,47 +263,9 @@ export function BalanceCard({
               ))}
             </div>
           )}
-          {res &&
-            (res.power.totalW > 0 ||
-              res.power.heatW > 0 ||
-              Math.abs(res.power.pollutionPerMin) > 0.005) && (
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-border px-3 py-2 text-sm">
-                {res.power.totalW > 0 && (
-                  <span className="flex items-center gap-1 text-info">
-                    <Zap className="size-3.5" /> {fmtW(res.power.totalW)}{" "}
-                    <span className="text-muted-foreground">electric</span>
-                  </span>
-                )}
-                {Math.abs(res.power.pollutionPerMin) > 0.005 && (
-                  <span
-                    className={`flex items-center gap-1 ${res.power.pollutionPerMin < 0 ? "text-success" : "text-warning/80"}`}
-                    title="pollution per minute from this block's machines (base emissions × energy-consumption × pollution module effects; fuel-type multipliers not modelled). Negative = net absorption — some buildings (forestry, plantations) soak pollution like trees."
-                  >
-                    <Cloud className="size-3.5" /> {num(Math.abs(res.power.pollutionPerMin))}
-                    <span className="text-muted-foreground">
-                      pollution/min{res.power.pollutionPerMin < 0 ? " absorbed" : ""}
-                    </span>
-                  </span>
-                )}
-                {res.power.heatW > 0 && (
-                  <span
-                    className="flex items-center gap-1 text-warning"
-                    title="Heat-powered buildings. Heat doesn't travel far (~15 tiles), so a heat source (e.g. a heat exchanger) must be built LOCAL to this block."
-                  >
-                    <Flame className="size-3.5" /> {fmtW(res.power.heatW)}{" "}
-                    <span className="text-muted-foreground">heat · local source needed</span>
-                  </span>
-                )}
-              </div>
-            )}
           <div className={`grid gap-4 p-3 ${res?.exports.length ? "grid-cols-2" : "grid-cols-1"}`}>
             <div>
-              <div className="mb-1 text-sm font-semibold text-warning">
-                Imports — bring these in{" "}
-                <span className="inline-flex items-center gap-0.5 font-normal text-muted-foreground">
-                  (dashed <Plus className="inline size-3" /> = craftable in-block)
-                </span>
-              </div>
+              <div className="mb-1 text-sm font-semibold text-warning">Imports</div>
               <div className="flex flex-wrap gap-x-3 gap-y-2">
                 {res?.imports.length ? (
                   res.imports.map((f) => (
@@ -369,9 +345,7 @@ export function BalanceCard({
             </div>
             {!!res?.exports.length && (
               <div>
-                <div className="mb-1 text-sm font-semibold text-surplus">
-                  Exports — surplus, nothing consumes these
-                </div>
+                <div className="mb-1 text-sm font-semibold text-surplus">Exports</div>
                 <div className="flex flex-wrap gap-x-3 gap-y-2">
                   {res.exports.map((f) => (
                     <span key={f.name} className="flex flex-col items-start gap-1.5">
