@@ -1,0 +1,21 @@
+app/src/server/block-compute.server.ts
+  s_9be9645d11a3e7::t_fdf75b4d4b6e52 153-162,171-178
+app/src/server/block-compute.test.ts
+  s_9be9645d11a3e7::t_eda1204fd3d510 793-805
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e9bd2fb200a26d1b2e3e39d872f6da3949cc69e0",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
