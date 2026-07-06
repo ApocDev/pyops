@@ -1175,11 +1175,25 @@ export function listBlocks() {
     const blockRecipes = d.recipes ?? [];
     const broken =
       blockRecipes.some((r) => !recipeNames.has(r)) || goalNames(d).some((g) => !goodNames.has(g));
-    // a goal is "unmade" when it still exists but no recipe in the block produces it
+    // A goal is "unmet" when it still exists but nothing in the block satisfies
+    // it. Direction depends on the goal: a produce goal (rate ≥ 0, incl.
+    // keep-in-stock) needs a recipe that MAKES it; a SINK goal (rate < 0,
+    // "consume N/s" — e.g. a kerogen-disposal block) needs a recipe that
+    // CONSUMES it. Flagging a sink by "no producer" is wrong — it never has one.
     const makesInBlock = new Set<string>();
-    for (const r of blockRecipes)
+    const consumesInBlock = new Set<string>();
+    for (const r of blockRecipes) {
       for (const p of productsByRecipe.get(r) ?? []) makesInBlock.add(p);
-    const unmadeGoals = goalNames(d).filter((g) => goodNames.has(g) && !makesInBlock.has(g));
+      for (const i of ingredientsByRecipe.get(r) ?? []) consumesInBlock.add(i);
+    }
+    const seenGoal = new Set<string>();
+    const unmadeGoals: string[] = [];
+    for (const g of d.goals ?? []) {
+      if (!g.name || seenGoal.has(g.name) || !goodNames.has(g.name)) continue;
+      seenGoal.add(g.name);
+      const satisfied = (g.rate ?? 0) < 0 ? consumesInBlock.has(g.name) : makesInBlock.has(g.name);
+      if (!satisfied) unmadeGoals.push(g.name);
+    }
     // NB: a made mark with no producer is NOT a health problem (#91 nitpick) — it
     // degrades silently to an import in the solve, so it doesn't tint the block.
     const health: BlockHealth =

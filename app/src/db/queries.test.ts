@@ -312,3 +312,41 @@ describe("productivityBonuses (research horizon gated)", () => {
     expect(b.recipes.size).toBe(0);
   });
 });
+
+describe("listBlocks health: sink goals need a consumer, not a producer", () => {
+  const save = (name: string, data: Record<string, unknown>) =>
+    saveBlockRow(
+      { name, iconKind: null, iconName: null, data, electricityW: null, dataFingerprint: null },
+      null,
+    );
+  const health = (id: number) => new Map(listBlocks().map((b) => [b.id, b])).get(id)!;
+
+  it("a SINK goal (rate < 0) is satisfied by a CONSUMER in the block", () => {
+    // dispose of plate: make-gear consumes it → the sink is met, no warning
+    const id = save("dispose", { goals: [{ name: "plate", rate: -1 }], recipes: ["make-gear"] });
+    const b = health(id);
+    expect(b.unmadeGoals).toEqual([]);
+    expect(b.health).toBe("ok");
+  });
+
+  it("a SINK goal with no consumer in the block is flagged unmet", () => {
+    // smelt-plate PRODUCES plate but nothing consumes it → the sink can't run
+    const id = save("no-consumer", {
+      goals: [{ name: "plate", rate: -1 }],
+      recipes: ["smelt-plate"],
+    });
+    const b = health(id);
+    expect(b.unmadeGoals).toEqual(["plate"]);
+    expect(b.health).toBe("warn");
+  });
+
+  it("a PRODUCE goal (rate ≥ 0) still needs a producer, not a consumer", () => {
+    const ok = save("make", { goals: [{ name: "plate", rate: 1 }], recipes: ["smelt-plate"] });
+    const bad = save("consume-only", {
+      goals: [{ name: "plate", rate: 1 }],
+      recipes: ["make-gear"],
+    });
+    expect(health(ok).unmadeGoals).toEqual([]);
+    expect(health(bad).unmadeGoals).toEqual(["plate"]);
+  });
+});
