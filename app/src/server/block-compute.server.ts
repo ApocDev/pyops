@@ -150,16 +150,16 @@ export function pickDefaultMachine<
  * block as a consumer of the good, not a negative producer. A stock goal (#38)
  * exports at role "stock" — primary-like everywhere, but factory views can mark
  * it as a buffer-refill demand rather than continuous throughput. */
-function targetBoundaryFlow(item: string, kind: string, rate: number, stock?: boolean) {
-  return rate >= 0
-    ? { item, kind, role: stock ? "stock" : "primary", rate }
-    : { item, kind, role: "import", rate: -rate };
-}
-
-/** The full cached boundary-flow list for a solved block: the goals (each a primary
- * output sized to its rate), the surplus byproducts, and the imports. Centralized so
- * every save path emits the same shape. The solver excludes goals from its own
- * exports, so they never double-count here. */
+/** The full cached boundary-flow list for a solved block: the produce/stock
+ * goals (each a primary output sized to its rate), the surplus byproducts, and
+ * the imports. Centralized so every save path emits the same shape.
+ *
+ * Only PRODUCE/stock goals (rate ≥ 0) are emitted as goal-flows: the solver
+ * excludes them from its own exports, so this is where the produced output
+ * enters the cache. A SINK goal (rate < 0, "consume N/s") is NOT emitted — the
+ * solver already reports the consumed good in `r.imports` at its true net rate,
+ * so adding a goal-flow too would list the block twice as a consumer and
+ * double-count the demand in the factory totals. */
 export function boundaryFlows(
   goals: { name: string; kind: string; rate: number; stock?: boolean }[],
   r: {
@@ -168,7 +168,14 @@ export function boundaryFlows(
   },
 ) {
   return [
-    ...goals.map((g) => targetBoundaryFlow(g.name, g.kind, g.rate, g.stock)),
+    ...goals
+      .filter((g) => g.rate >= 0)
+      .map((g) => ({
+        item: g.name,
+        kind: g.kind,
+        role: g.stock ? "stock" : "primary",
+        rate: g.rate,
+      })),
     ...r.exports.map((f) => ({ item: f.name, kind: f.kind, role: "byproduct", rate: f.rate })),
     ...r.imports.map((f) => ({ item: f.name, kind: f.kind, role: "import", rate: f.rate })),
   ];

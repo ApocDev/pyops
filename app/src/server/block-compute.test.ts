@@ -790,6 +790,19 @@ describe("fluid-fuel supplier designation (#115)", () => {
     expect(res.exports.map((f) => f.name)).not.toContain("pyops-fluid-fuel");
     expect(res.imports.map((f) => f.name)).not.toContain("pyops-fluid-fuel");
   });
+
+  it("a SINK goal caches the consumed good ONCE — not a duplicate import (block-34 bug)", async () => {
+    // consume 5 kerosene/s (a disposal block): burn-fluid-kerosene burns it.
+    // The solver imports kerosene to feed the burn; the goal must NOT also emit
+    // a kerosene import, or the factory view lists the block twice as a consumer.
+    const input = { goals: [{ name: "kerosene", rate: -5 }], recipes: ["burn-fluid-kerosene"] };
+    const res = await computeBlock(input);
+    expect(res.status).toBe("solved");
+    expect(res.imports.find((f) => f.name === "kerosene")?.rate).toBeCloseTo(5);
+    const flows = boundaryFlows(goalFlows(input), res);
+    const kero = flows.filter((f) => f.item === "kerosene");
+    expect(kero).toEqual([{ item: "kerosene", kind: "fluid", role: "import", rate: 5 }]); // exactly one
+  });
 });
 
 describe("count pin supersedes a goal it produces (#121)", () => {
