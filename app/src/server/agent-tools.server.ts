@@ -16,6 +16,7 @@ import { z } from "zod";
 
 import { classifyAdditive } from "./additives.ts";
 import { coherenceAudit as runCoherenceAudit, isVoidRecipeFor } from "./coherence-audit.server.ts";
+import { factoryWhatIf } from "./factory-solve.server.ts";
 import { normalizeBlockData, primaryGoal, primaryRate } from "../lib/goals.ts";
 
 import * as q from "../db/queries.server.ts";
@@ -1007,6 +1008,68 @@ export const buildingBill = tool({
   },
 });
 
+const whatIfOverride = z.object({
+  good: z
+    .string()
+    .describe("Internal item/fluid name whose rate to override, e.g. 'py-science-pack-1'"),
+  rate: z
+    .number()
+    .min(0)
+    .describe("New target rate (items or fluid units per second) for this good"),
+});
+
+export const whatIf = tool({
+  description:
+    "Factory-WIDE demand-override simulation — 'if I set <good> to N/s, what changes?'. Give one or more {good, rate} overrides for FINAL PRODUCTS (a primary output nothing else consumes — check factoryBlocks/coherenceAudit if unsure); overriding a good another block still consumes has NO effect and comes back in `ignoredOverrides`, not silently applied. Solves the whole factory as one LP (every block's cached flows at a scale factor) and returns `blocksToResize` — every block whose rate must change as a result, INCLUDING the ripple through upstream blocks that feed it, sorted by size of change — each entry's `blockId`+`rate` is ready to pass STRAIGHT into reviseBlock or a submitPlan `updates` entry, no relabeling needed. Also returns `demands` (every final product's current vs. target, including ones you left alone), `rawsNeeded` (external draw current vs. projected), and `overproduced` (byproduct surplus the ripple creates or grows, each with an `absorb` hint — an existing sink block + the scale to soak it up — when one exists). `status` is the LP solve status; anything but 'Optimal' means the override can't be fully met with the current blocks/recipes — say so and treat it as a prompt to add a producer. Report-only: never writes anything, purely a what-if. Pairs with the scale-up-don't-duplicate guidance — this gives it exact numbers.",
+  inputSchema: z.object({
+    overrides: z
+      .array(whatIfOverride)
+      .min(1)
+      .max(20)
+      .describe(
+        "Demand overrides to simulate; every other final product stays at its current rate",
+      ),
+  }),
+  execute: async ({ overrides }) => {
+    const demandOverrides = Object.fromEntries(overrides.map((o) => [o.good, o.rate]));
+    const result = await factoryWhatIf(q.blocksWithFlows(), demandOverrides);
+
+    const blocksToResize = result.blocks
+      .filter((b) => Math.abs(b.delta) > 1e-3)
+      .map((b) => ({
+        blockId: b.id,
+        name: b.name,
+        good: b.good,
+        currentRate: b.currentRate,
+        rate: b.requiredRate,
+        scale: b.scale,
+        delta: b.delta,
+      }));
+
+    const appliedGoods = new Set(result.demands.map((d) => d.good));
+    const ignoredOverrides = overrides
+      .filter((o) => !appliedGoods.has(o.good))
+      .map((o) => ({
+        good: o.good,
+        note: "not recognized as a final product (either consumed by another block, or never produced) — overriding it has no effect on the solve; use reviseBlock directly on its producing block instead",
+      }));
+
+    return {
+      status: result.status,
+      blocksToResize,
+      ignoredOverrides,
+      demands: result.demands,
+      rawsNeeded: result.raws.filter((r) => r.projected > 1e-3),
+      overproduced: result.overproduced.map((o) => ({
+        ...o,
+        absorb: o.absorb
+          ? { blockId: o.absorb.id, name: o.absorb.name, scale: o.absorb.scale }
+          : null,
+      })),
+    };
+  },
+});
+
 export const logisticsFor = tool({
   description:
     "Belts and inserters/loaders needed to move a good at a given rate — the logistics half buildingBill deliberately leaves out (#126). For an ITEM: every belt tier UNLOCKED under the research horizon with the whole belt count + saturation (how full the built belts run — reads directly as 'can one yellow belt feed this?'), and every unlocked inserter/loader with the whole-device count to move the rate through ONE feed point. Counts already reflect researched belt/inserter/bulk-inserter stack bonuses — the same math as the block editor's per-row logistics readout (#21). For a FLUID, returns kind:'fluid' with a note — pipe throughput isn't modelled, so only call this for items. Pair with buildingBill for full construction coverage: machines from buildingBill, belts/inserters/loaders from this, one call per good/rate you need covered.",
@@ -1499,6 +1562,7 @@ export const agentTools = {
   reviseBlock,
   submitPlan,
   buildingBill,
+  whatIf,
   logisticsFor,
   blockBuildStatus,
   listTasks,

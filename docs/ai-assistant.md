@@ -166,6 +166,24 @@ about "how do I make X":
   it matches Py's `*-pyvoid*` venting/sinkhole/incineration families without
   name-matching. `byproductSinks` uses the same classifier to list
   `voidOptions` separately from real consumers.
+- **Factory-wide demand-override simulation** (`whatIf`,
+  `app/src/server/factory-solve.server.ts`'s `factoryWhatIf`, #127) — the
+  same LP the What-if page (`routes/whatif.tsx`) uses, exposed as a tool:
+  given one or more `{good, rate}` overrides, it treats every block as a
+  fixed-ratio super-recipe and solves for the scale factor each needs,
+  reporting `blocksToResize` (every block whose rate changes, INCLUDING the
+  ripple through upstream feeder blocks, each entry's `blockId`+`rate` ready
+  to pass straight into `reviseBlock`/a `submitPlan` `updates` entry),
+  `rawsNeeded` (external draw current vs. projected), and `overproduced`
+  (byproduct surplus the ripple creates, with an `absorb` hint naming an
+  existing sink block when one exists). Because the underlying solver only
+  honors an override on a good classified as a `demand` (a primary output
+  nothing else consumes — see the module's `classify` helper), overriding a
+  good another block still consumes is a silent no-op in the LP; the tool
+  detects this (the good is absent from the solved `demands` list) and
+  surfaces it in `ignoredOverrides` rather than returning a misleadingly
+  unchanged result. Report-only, like the page it mirrors — it never writes;
+  the agent still has to call `reviseBlock`/`submitPlan` to apply anything.
 - **Additive/commodity classifier** (`app/src/server/additives.ts`) — decides
   whether an input should be _imported_ (a cross-cutting commodity like an acid,
   gas, or solvent — stop recursing) or _built_ (part of the target's own lineage —
