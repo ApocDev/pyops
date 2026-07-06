@@ -1,0 +1,31 @@
+app/src/db/queries.server.ts
+  s_221bb38510e17a::t_053e465eb8ae0a 2029-2036,2095-2098,2922-2929,2942,2946-2947,2949-2950,2962-2963,2965-2970,2972-2975
+app/src/server/agent-tools-research.test.ts
+  s_221bb38510e17a::t_6834829f7986dd 29,40-41,203-247
+app/src/server/agent-tools.server.ts
+  s_d69bddb27118c0::t_a7bf4a968f3270 247-249,639,646-654,656,671-672,681-682,1144,1153-1159,1161,1170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7fca79c1d20550ba2d3df7cccb1c3ed718b2cf1d",
+  "prompts": {},
+  "sessions": {
+    "s_221bb38510e17a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2a60526-18c5-40ca-841e-fb6b390e49dd",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_d69bddb27118c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-acd4eee5a732d5ecf",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
