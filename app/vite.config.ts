@@ -12,6 +12,7 @@ import { createReadStream, statSync } from "node:fs";
 import { extname, join } from "node:path";
 
 const isVpLint = process.env.VP_COMMAND === "lint";
+const isVitest = process.env.VITEST === "true";
 
 // Dev: let the dev server be reached through a tunnel (see scripts/tunnel-dev).
 // Vite rejects requests whose Host header isn't localhost ("Blocked request. This
@@ -127,17 +128,18 @@ const config = defineConfig({
   // while tunnels (e.g. tailscale funnel) dial IPv4 `127.0.0.1` → 502. The
   // allowedHosts list above still gates which Host headers are served.
   server: { host: true, allowedHosts },
-  plugins: isVpLint
-    ? []
-    : [
-        serveIconsDev(),
-        devtools(),
-        nitro({ rollupConfig: { external: [/^@sentry\//] } }),
-        tailwindcss(),
-        tanstackStart(),
-        viteReact(),
-        babel({ presets: [reactCompilerPreset()] }),
-      ],
+  plugins:
+    isVpLint || isVitest
+      ? []
+      : [
+          serveIconsDev(),
+          devtools(),
+          nitro({ rollupConfig: { external: [/^@sentry\//] } }),
+          tailwindcss(),
+          tanstackStart(),
+          viteReact(),
+          babel({ presets: [reactCompilerPreset()] }),
+        ],
 });
 
 export default config;

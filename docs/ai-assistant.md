@@ -153,6 +153,24 @@ about "how do I make X":
 - **Draft-a-plan** — assemble several solved block drafts for one request (and,
   optionally, resizes of existing blocks), then let the user apply all of them in
   one action.
+- **Solved building counts** — `submitBlock`/`reviseBlock`/`submitPlan` no longer
+  discard the machine counts `computeBlock` already solves: every draft carries a
+  `buildings` field, `{ recipe, machine, count }[]` (fractional, module/TURD-beacon
+  effects folded in — the same counts the block editor shows). **`buildingBill`**
+  is the cross-block machine BILL for "include the buildings needed to build
+  this": given the same `{ target, rate, recipes }[]` shape as `submitPlan`'s
+  blocks, it solves each independently (a failing block is skipped into
+  `skipped`, not a hard error), CEILS each block's per-recipe machine count to a
+  whole building, then sums by machine entity across every block. Each machine
+  entity is mapped to the ITEM that places it (`q.getItem(entity)`; Factorio's
+  convention is entity name == item name — there's no separate `place_result`
+  column in the schema, so `item` comes back `null` with a note if no matching
+  item prototype exists) and given its top 1–2 producing recipes (`optionsFor`,
+  the same shape `recipeOptions` uses). Belts/inserters/logistics are
+  deliberately out of scope — machine items only. The agent is told to call this
+  once a plan's blocks are chosen, then decide per machine item whether an
+  existing mall block supplies it, an existing block should be resized
+  (`reviseBlock`/plan `updates`), or it needs its own new block.
 - **Tasks** — `listTasks`/`getTask` read the user's planning to-do tree;
   `createTask` files one (with optional checklist steps and entity links);
   `updateTask`/`addTaskStep`/`linkTask` edit it. Unlike block drafts, these apply
@@ -174,15 +192,27 @@ about "how do I make X":
   `server/bridge/fns.ts`); the result shows inline with a "Share result with
   assistant" chip that feeds it back into the chat. This makes per-call consent
   real and lets the agent request careful in-game _write_ actions too. The MCP
-  surface swaps in a direct-executing variant (`mcpTools` in
-  `agent-tools.server.ts`) — developer debugging has no chat UI to approve
-  through. Defense in depth: the mod's `pyops-allow-eval` per-user setting
-  (default on) refuses every `cmd.eval` when off — including the app's
-  screenshot capture, which rides on eval.
+  surface swaps in a direct-executing variant (`gameEvalDirect`, exposed as
+  `mcpTools.gameEval`) — developer debugging has no chat UI to approve through.
+  Defense in depth: the mod's `pyops-allow-eval` per-user setting (default on)
+  refuses every `cmd.eval` when off — including the MCP screenshot capture
+  below, which rides on eval.
+
+**Developer/MCP-only tools.** `gameScreenshot`, `gameReloadMods`, `gameShowBlock`,
+and `gameCloseSummary` are **not** in the in-app assistant's tool set
+(`agentTools`) — only on the MCP surface (`mcpTools`, see below). The in-app chat
+can't consume a local PNG path, and ordinary planning shouldn't trigger a mod
+reload or drive the in-game summary panel open/closed; these are for an external
+agent (e.g. Claude over MCP) debugging the mod/bridge integration directly:
 - `gameScreenshot` captures the game (GUI included) to a PNG path, optionally
   auto-cropped to a top-level GUI element (`panel`) or an explicit `crop`/`scale`
   — built for designing the in-game panel live (snap, look, tweak) without a
   Factorio reload.
+- `gameReloadMods` asks the connected mod to call `game.reload_mods()` after a
+  mod-code edit, for a screenshot → tweak → reload loop.
+- `gameShowBlock`/`gameCloseSummary` push a saved block to (or close) the
+  in-game Helmod-style summary panel, exactly like the web "show in game"
+  button — for self-testing the mod's UI via screenshots.
 
 Single-block drafts still use `submitBlock`. `reviseBlock` re-solves an existing
 block (looked up by its `factoryBlocks` id) at a new rate and/or with a revised
@@ -215,21 +245,27 @@ sub-block and a **Route \<good\>** chip per byproduct
 request as the next chat message (disabled while a run is in flight), so the
 "draft super-alloy @ 3.3/s next" advice is actionable without retyping.
 
-When the user asks to include building materials, the agent is expected to add
-support blocks for the items needed to build the chosen machines and logistics
-along the way, not only the science/production recipe ingredients. That includes
-things like steel, circuits, belts, inserters, pipes, assembling machines,
-furnaces, labs, and Py equivalents when those are part of the selected chain.
-Raw resources, electricity, and broad commodities remain imports unless the user
-specifically asks to produce them too.
+When the user asks to include building materials or construction coverage, the
+agent is expected to call `buildingBill` with the plan's blocks and cover the
+MACHINE ITEMS it returns — not silently reinterpret the request down to just raw
+recipe ingredients. For each machine item it decides: an existing mall block
+already supplies it (import), an existing block should be resized
+(`reviseBlock`/plan `updates`), or it needs its own new block; a large bill is
+grouped by shared material chains (steel/circuits/gears feeding several machine
+types) rather than dropped silently. Raw resources, electricity, and broad
+commodities remain imports unless the user specifically asks to produce them
+too. The agent is also told not to defer this (or byproduct routing) to a
+follow-up question — a requested plan ships complete, in the same turn.
 
-The same tool bodies back two front doors: the in-app agent and the MCP route
-(`routes/mcp.ts`), which registers **every** tool in `agentTools` for external
-MCP clients over `POST /mcp` (JSON-RPC). This lets an external agent — e.g.
-Claude driving the _running game_ via the read-only game-world tools — exercise
-and debug the integration directly, not just the in-app assistant. The handler
-(`utils/mcp-handler.ts`) is single-shot per request and waits for the tool's
-real async result (db / bridge / LLM), so slow tools work.
+The same tool bodies back two front doors: the in-app agent (`agentTools`) and
+the MCP route (`routes/mcp.ts`), which registers **every** tool in `mcpTools` —
+`agentTools` plus the developer-only tools above and the direct-executing
+`gameEval` — for external MCP clients over `POST /mcp` (JSON-RPC). This lets an
+external agent — e.g. Claude driving the _running game_ via the read-only
+game-world tools, screenshotting the mod's UI, or reloading mods after an edit —
+exercise and debug the integration directly, not just the in-app assistant. The
+handler (`utils/mcp-handler.ts`) is single-shot per request and waits for the
+tool's real async result (db / bridge / LLM), so slow tools work.
 
 The repo ships project-scoped MCP client config for Codex (`.codex/config.toml`)
 and Claude Code (`.mcp.json`). Both point at `http://localhost:3000/mcp`, so run
