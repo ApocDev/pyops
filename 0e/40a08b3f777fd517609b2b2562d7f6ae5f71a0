@@ -1,0 +1,29 @@
+app/vite.config.ts
+  s_ed875643360a55::t_0b030116df0cfc 15,131-142
+docs/ai-assistant.md
+  s_0aa645836083b8::t_6187c23c1dcf7f 156-173,195-206,211-215,248-268
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0e40a08b3f777fd517609b2b2562d7f6ae5f71a0",
+  "prompts": {},
+  "sessions": {
+    "s_0aa645836083b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aab25196247e00453",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_ed875643360a55": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f379e-10bc-7c40-bfc4-168ede4dbe85",
+        "model": "gpt-5.5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
