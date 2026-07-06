@@ -115,6 +115,14 @@ about "how do I make X":
 - **Fuzzy name resolution** — map a loose item/recipe name to a stable internal
   handle.
 - **Recipe-candidate ranking** — find and rank the recipes that produce a good.
+  Each candidate's `machine` names the building a draft would ACTUALLY solve
+  with: the user's stored category favorite (`q.getFavoriteMachines`, the
+  building-picker star), else the same low-tier `pickDefaultMachine` fallback
+  `computeBlock`/`recipeDefaultsFn` use — never just "the fastest" (#130). Its
+  availability note ("needs `<tech>`") is judged against that resolved machine,
+  since that's what actually gates the draft. `fastestMachine` is surfaced
+  separately, and only when it differs from the resolved pick, so the tier
+  ladder stays visible without misattributing the availability gate.
 - **TURD choices** (`turdChoices`) — the full mutually-exclusive branch set of a
   TURD master (looked up by master, recipe, or good): each branch's description,
   the recipes it swaps (old→new) or newly **unlocks**, and its always-on modules.

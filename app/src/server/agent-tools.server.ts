@@ -26,6 +26,7 @@ import {
   showBlockInGame,
   hideBlockInGame,
   machineReqs,
+  pickDefaultMachine,
 } from "./block-compute.server.ts";
 import { withUndoAction } from "./undo-action.server.ts";
 
@@ -183,31 +184,46 @@ function optionsFor(
   direction: "produce" | "consume",
   limit: number,
 ) {
+  // Restrict the favorite/fallback search to unlocked machines exactly like
+  // computeBlock/recipeDefaultsFn do (future-horizon planning leaves every
+  // machine on the table; now/target restricts to what's actually unlocked).
+  const restrict = q.getResearchHorizon().mode !== "future";
   return q
     .recipeCandidates(good, direction)
     .slice(0, limit)
     .map((r) => {
-      // representative building: the fastest machine in the recipe's category,
-      // annotated with its OWN availability (top-tier machines are tech-gated too).
+      // Representative building: the SAME favorite-then-fallback resolution
+      // computeBlock/recipeDefaultsFn use when a recipe row is set up, so the
+      // machine named here is the one a draft would really solve with (#130)
+      // — not just the fastest tier in the category. Availability is judged
+      // against THIS machine, since that's what actually gates buildability.
       const machines = q.machineOptionsForRecipe(r.name);
-      const best = machines.length
+      const pool =
+        restrict && machines.some((m) => m.availableNow)
+          ? machines.filter((m) => m.availableNow)
+          : machines;
+      const favorite = pool.find((m) => m.favorite) ?? null;
+      const resolved = favorite ?? pickDefaultMachine(pool) ?? null;
+      const fastest = machines.length
         ? machines.reduce((a, b) => (b.craftingSpeed > a.craftingSpeed ? b : a))
         : null;
-      const avail = best
-        ? best.startEnabled
+      const describe = (m: NonNullable<typeof resolved>) => {
+        const avail = m.startEnabled
           ? "available"
-          : best.unlockedBy.length
-            ? `needs ${best.unlockedBy
+          : m.unlockedBy.length
+            ? `needs ${m.unlockedBy
                 .map((u) => u.display ?? u.tech)
                 .slice(0, 2)
                 .join(", ")}`
-            : "unreachable"
-        : null;
-      const machine = best
-        ? `${best.display ?? best.name} · ${best.craftingSpeed}× · ${best.moduleSlots} mod slots` +
-          `${best.energyUsageW ? ` · ${Math.round(best.energyUsageW / 1000)}kW` : ""}` +
-          ` · ${avail}` +
-          `${machines.length > 1 ? ` (+${machines.length - 1} tiers)` : ""}`
+            : "unreachable";
+        return (
+          `${m.display ?? m.name} · ${m.craftingSpeed}× · ${m.moduleSlots} mod slots` +
+          `${m.energyUsageW ? ` · ${Math.round(m.energyUsageW / 1000)}kW` : ""}` +
+          ` · ${avail}`
+        );
+      };
+      const machine = resolved
+        ? describe(resolved) + `${machines.length > 1 ? ` (+${machines.length - 1} tiers)` : ""}`
         : null;
       return {
         recipe: r.name,
@@ -224,7 +240,10 @@ function optionsFor(
               : "unreachable",
         cost: r.cost,
         prod: r.allowProductivity, // can run productivity modules — often the deciding factor at scale
-        machine, // building · craft speed · module slots · power
+        machine, // building the draft actually uses: favorite → else low-tier fallback (#130)
+        machineFavorite: favorite ? true : undefined, // true iff resolved via the user's stored favorite
+        fastestMachine:
+          fastest && resolved && fastest.name !== resolved.name ? describe(fastest) : undefined,
         // availability vs the user's planning horizon (now vs future)
         availableNow: r.avail.availableNow, // research reached, turd not blocked (pickable counts)
         buildableNow: r.avail.buildableNow, // stricter: turd ACTIVE — no unmade pick (NOW planning)
@@ -249,7 +268,7 @@ function optionsFor(
 
 export const recipeOptions = tool({
   description:
-    "List the recipes that PRODUCE (or CONSUME) a good, ranked the way the picker ranks them: available first (cheapest by cost analysis within a tier), then tech-locked, then unselected TURD choices, with barrel fill/empty last. Each candidate already includes its inputs (in), outputs (out), lock state, cost, and unlocking tech — so you rarely need recipeInfo afterward. Cost is an LP shadow price — a HINT for tie-breaking, NOT the deciding factor: the right recipe is usually about the correct production TIER and chain, not the cheapest. To resolve SEVERAL goods at once, prefer recipeOptionsBatch.",
+    "List the recipes that PRODUCE (or CONSUME) a good, ranked the way the picker ranks them: available first (cheapest by cost analysis within a tier), then tech-locked, then unselected TURD choices, with barrel fill/empty last. Each candidate already includes its inputs (in), outputs (out), lock state, cost, and unlocking tech — so you rarely need recipeInfo afterward. Cost is an LP shadow price — a HINT for tie-breaking, NOT the deciding factor: the right recipe is usually about the correct production TIER and chain, not the cheapest. `machine` names the building a draft would ACTUALLY solve with — the user's stored favorite for this recipe's category, else the same safe low-tier fallback `computeBlock` defaults to (never necessarily the fastest); its availability note (\"needs <tech>\") describes THIS machine, since that's what really gates buildability. `fastestMachine` is included only when a strictly faster tier exists beyond that pick, so you can still see whether upgrading the favorite is worth it. To resolve SEVERAL goods at once, prefer recipeOptionsBatch.",
   inputSchema: z.object({
     good: z.string().describe("Internal good name (from searchGoods), e.g. 'molten-iron'"),
     direction: z
