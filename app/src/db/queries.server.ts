@@ -54,6 +54,13 @@ import type {
   LogisticsContext,
   StackBonuses,
 } from "../lib/logistics.ts";
+import {
+  placedBeltStack,
+  beltsForRate,
+  loadersForRate,
+  insertersForRate,
+  inserterHandStack,
+} from "../lib/logistics.ts";
 import { goalNames, normalizeBlockData, primaryRate } from "../lib/goals.ts";
 import { prodScaledAmount } from "../lib/productivity.ts";
 import { wholeMachines } from "../lib/machine-count.ts";
@@ -258,12 +265,15 @@ export function availableMachines(machineNames: string[]): Set<string> {
   return out;
 }
 
-/** Which of the given module items are UNLOCKED in the current horizon — a module
- * is available if some recipe producing it is reached. In NOW mode this is the
+/** Which of the given items are UNLOCKED in the current horizon — an item is
+ * available if some recipe producing it is reached. In NOW mode this is the
  * strict buildableNow (no unmade TURD pick); in target/future, availableNow.
- * Drives the agent's module auto-fill so it only places modules you can actually
- * have. See [[turd-planning-model]] for the buildableNow vs availableNow split. */
-export function availableModuleItems(names: string[]): Set<string> {
+ * Generic over any item set: drives the agent's module auto-fill (so it only
+ * places modules you can actually have) and `logisticsForGood`'s belt/loader/
+ * inserter tier gating (belt/loader/inserter entities are themselves crafted
+ * items). See [[turd-planning-model]] for the buildableNow vs availableNow
+ * split. */
+export function unlockedItems(names: string[]): Set<string> {
   if (!names.length) return new Set();
   const h = getResearchHorizon();
   // FUTURE mode plans against the whole tech tree — anything producible is fair
@@ -2515,6 +2525,110 @@ export function logisticsContext(): LogisticsContext {
     options,
     rocketLiftWeight: Number(m.rocket_lift_weight ?? 1_000_000),
     defaultItemWeight: Number(m.default_item_weight ?? 100),
+  };
+}
+
+export type LogisticsForGood =
+  | { good: string; display: string; kind: "fluid"; rate: number; note: string }
+  | {
+      good: string;
+      display: string;
+      kind: "item";
+      rate: number;
+      beltStack: number; // effective placed-stack from current research (belts + loaders)
+      bonuses: StackBonuses;
+      belts: { belt: string; display: string | null; count: number; saturation: number }[];
+      inserters: { inserter: string; display: string | null; handStack: number; count: number }[];
+      loaders: { loader: string; display: string | null; count: number }[];
+      note?: string;
+    };
+
+/** Belts + inserters/loaders to move ONE good at ONE rate, gated to entities
+ * UNLOCKED under the research horizon (same `unlockedItems` gating as
+ * `availableMachines` — belt/loader/inserter entities are themselves crafted
+ * items). Unlike the block editor's manual belt/mover PICKER
+ * (`logisticsOptions`/`components/logistics-menu.tsx`, which shows every
+ * tier unfiltered), this answers "what CAN carry this rate right now" — every
+ * unlocked belt tier's whole-belt count + saturation (how full the built belts
+ * run — the direct "can one yellow belt feed this?" answer), and every
+ * unlocked inserter/loader's whole-device count to move the rate through one
+ * feed point. Stack sizes reflect the researched belt/inserter/bulk-inserter
+ * bonuses (`stackBonuses`), the same math `resolveLogistics`/`rowLogistics`
+ * use for the block editor's per-row readout (#21) — evaluated across every
+ * unlocked tier instead of the user's one selected pick. Fluids short-circuit
+ * to a note: pipe throughput isn't modelled (#126). */
+export function logisticsForGood(good: string, rate: number): LogisticsForGood | { error: string } {
+  const item = getItem(good);
+  const fluid = getFluid(good);
+  if (!item && !fluid) return { error: `no good '${good}'` };
+  const display = item?.display ?? fluid?.display ?? good;
+  if (!item) {
+    return {
+      good,
+      display,
+      kind: "fluid",
+      rate,
+      note: "fluid — pipe throughput isn't modelled; belts/inserters/loaders apply to items only",
+    };
+  }
+
+  const options = logisticsOptions();
+  const bonuses = stackBonuses();
+  const names = [...options.belts, ...options.loaders, ...options.inserters].map((o) => o.name);
+  const unlocked = unlockedItems(names);
+  const placedStack = placedBeltStack(bonuses.belt, true);
+
+  const belts = options.belts
+    .filter((b) => unlocked.has(b.name))
+    .map((b) => {
+      const need = beltsForRate(rate, b, placedStack);
+      const count = Math.max(0, Math.ceil(need - 1e-9));
+      return {
+        belt: b.name,
+        display: b.display,
+        count,
+        saturation: count > 0 ? Number((need / count).toFixed(3)) : 0,
+      };
+    });
+
+  const loaders = options.loaders
+    .filter((l) => unlocked.has(l.name))
+    .map((l) => {
+      const need = loadersForRate(rate, l, placedStack);
+      return { loader: l.name, display: l.display, count: Math.max(0, Math.ceil(need - 1e-9)) };
+    });
+
+  const inserters = options.inserters
+    .filter((i) => unlocked.has(i.name))
+    .map((i) => {
+      const handStack = inserterHandStack(i, bonuses);
+      const need = insertersForRate(rate, i, handStack);
+      return {
+        inserter: i.name,
+        display: i.display,
+        handStack,
+        count: Math.max(0, Math.ceil(need - 1e-9)),
+      };
+    });
+
+  const notes = [
+    belts.length === 0 && "no belt tier is unlocked yet under the current research horizon",
+    inserters.length === 0 &&
+      loaders.length === 0 &&
+      "no inserter or loader is unlocked yet under the current research horizon",
+  ].filter((x): x is string => !!x);
+
+  return {
+    good,
+    display,
+    kind: "item",
+    rate,
+    beltStack: placedStack,
+    bonuses,
+    belts,
+    inserters,
+    loaders,
+    ...(notes.length ? { note: notes.join("; ") } : {}),
   };
 }
 

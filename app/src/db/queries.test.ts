@@ -14,6 +14,7 @@ import {
   goodGraphCounts,
   listBlocks,
   listGroups,
+  logisticsForGood,
   machineSufficiency,
   productivityBonuses,
   recipeCandidates,
@@ -498,5 +499,83 @@ describe("blockBuildStatus", () => {
 
   it("returns empty for an unknown block id", () => {
     expect(blockBuildStatus(999999)).toEqual([]);
+  });
+});
+
+describe("logisticsForGood (#126): belts/inserters gated to unlocked tiers", () => {
+  const seed = () => {
+    db.run(sql`
+      INSERT INTO items (name, display) VALUES
+        ('transport-belt','Transport belt'),
+        ('fast-transport-belt','Fast transport belt'),
+        ('inserter','Inserter'),
+        ('fast-inserter','Fast inserter')
+    `);
+    db.run(sql`
+      INSERT INTO belts (name, display, speed) VALUES
+        ('transport-belt','Transport belt',0.03125),
+        ('fast-transport-belt','Fast transport belt',0.0625)
+    `);
+    db.run(sql`
+      INSERT INTO inserters
+        (name, display, rotation_speed, extension_speed, pickup_x, pickup_y, drop_x, drop_y, bulk, base_stack_bonus, max_belt_stack_size)
+      VALUES
+        ('inserter','Inserter',0.02,0.035,0,-1,0,1.19921875,0,0,1),
+        ('fast-inserter','Fast inserter',0.04,0.1,0,-1,0,1.19921875,0,0,1)
+    `);
+    db.run(sql`
+      INSERT INTO recipes (name, kind, category, energy_required, enabled, hidden) VALUES
+        ('craft-transport-belt','real','crafting',0.5,1,0),
+        ('craft-inserter','real','crafting',0.5,1,0),
+        ('craft-fast-transport-belt','real','crafting',0.5,0,0),
+        ('craft-fast-inserter','real','crafting',0.5,0,0)
+    `);
+    db.run(sql`
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+        ('craft-transport-belt',0,'item','transport-belt',1),
+        ('craft-inserter',0,'item','inserter',1),
+        ('craft-fast-transport-belt',0,'item','fast-transport-belt',1),
+        ('craft-fast-inserter',0,'item','fast-inserter',1)
+    `);
+    db.run(sql`
+      INSERT INTO tech_unlocks (technology, recipe) VALUES
+        ('logistics-2','craft-fast-transport-belt'),
+        ('logistics-2','craft-fast-inserter')
+    `);
+    db.run(sql`
+      INSERT INTO tech_ingredients (technology, name, amount) VALUES
+        ('logistics-2','logistic-science-pack',1)
+    `);
+  };
+
+  it("NOW mode: only the reachable tier is unlocked, math matches the pure lib formulas", () => {
+    seed();
+    setResearchHorizon({ mode: "now", packs: [], researched: [] });
+    const r = logisticsForGood("plate", 22.5);
+    if (!("kind" in r) || r.kind !== "item") throw new Error("expected item result");
+    expect(r.belts.map((b) => b.belt)).toEqual(["transport-belt"]); // fast tier gated out
+    expect(r.belts[0].count).toBe(2); // ceil(22.5 / (0.03125*480*1))
+    expect(r.belts[0].saturation).toBeCloseTo(0.75, 3);
+    expect(r.inserters.map((i) => i.inserter)).toEqual(["inserter"]); // fast-inserter gated out
+    expect(r.inserters[0].count).toBe(19); // ceil(22.5 / 1.2)
+  });
+
+  it("FUTURE mode: tech-unlockable tiers count even though unreached", () => {
+    seed();
+    setResearchHorizon({ mode: "future" });
+    const r = logisticsForGood("plate", 22.5);
+    if (!("kind" in r) || r.kind !== "item") throw new Error("expected item result");
+    expect(r.belts.map((b) => b.belt)).toEqual(["transport-belt", "fast-transport-belt"]);
+    expect(r.inserters.map((i) => i.inserter)).toEqual(["inserter", "fast-inserter"]);
+  });
+
+  it("a fluid short-circuits to a note, no belt/inserter math", () => {
+    db.run(sql`INSERT INTO fluids (name, display) VALUES ('molten-iron','Molten iron')`);
+    const r = logisticsForGood("molten-iron", 10);
+    expect(r).toMatchObject({ kind: "fluid", good: "molten-iron", display: "Molten iron" });
+  });
+
+  it("errors on an unknown good", () => {
+    expect(logisticsForGood("no-such-good", 5)).toEqual({ error: "no good 'no-such-good'" });
   });
 });

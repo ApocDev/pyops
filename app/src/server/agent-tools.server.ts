@@ -1007,6 +1007,25 @@ export const buildingBill = tool({
   },
 });
 
+export const logisticsFor = tool({
+  description:
+    "Belts and inserters/loaders needed to move a good at a given rate — the logistics half buildingBill deliberately leaves out (#126). For an ITEM: every belt tier UNLOCKED under the research horizon with the whole belt count + saturation (how full the built belts run — reads directly as 'can one yellow belt feed this?'), and every unlocked inserter/loader with the whole-device count to move the rate through ONE feed point. Counts already reflect researched belt/inserter/bulk-inserter stack bonuses — the same math as the block editor's per-row logistics readout (#21). For a FLUID, returns kind:'fluid' with a note — pipe throughput isn't modelled, so only call this for items. Pair with buildingBill for full construction coverage: machines from buildingBill, belts/inserters/loaders from this, one call per good/rate you need covered.",
+  inputSchema: z.object({
+    good: z
+      .string()
+      .describe(
+        "Internal item/fluid name to move, e.g. 'iron-plate' (resolve via searchGoods first)",
+      ),
+    rate: z
+      .number()
+      .positive()
+      .describe(
+        "Target throughput, items/second (or fluid units/second — a fluid short-circuits to a note)",
+      ),
+  }),
+  execute: async ({ good, rate }) => q.logisticsForGood(good, rate),
+});
+
 export const blockBuildStatus = tool({
   description:
     "Built-vs-required MACHINE status for blocks that ALREADY EXIST, from the last synced game state — the answer to 'what's left to build for the coke block' / 'which blocks are under-built'. Works OFFLINE: reads the block's cached solved machine requirement (block_machines, CEILED to whole buildings — same source submitBlock's `buildings` field reports) against the synced built-machine snapshot (built_machines); no live bridge call, no re-solve. STALE the moment the player places/removes something in-game until their next save-load or Sync in the PyOps panel — check `syncedAt` and say how old it is if it matters, or if it's null say no sync has ever happened. Pass `blockId` (a factoryBlocks id) for one block's full breakdown (returned even if fully built or the block is disabled); omit it to list every ENABLED block with a shortfall, worst-missing first. Each `recipes` row is the machine + recipe + required whole-building count + built count + missing delta; `built`/`missing` come back null on a row whose machine type never reports a recipe to the game (boilers/generators/reactors/offshore-pumps — e.g. a local heat-source reactor) — those are instead summarized once per machine in `machineFallback` (requiredTotal/builtTotal/missing), since the game can't tell you which recipe it's running. Built counts are FORCE-WIDE, not block-scoped: if two blocks share the exact same machine+recipe, each independently compares against the same built count. For a NEW plan's cross-block machine bill use buildingBill instead — this tool audits blocks that already exist.",
@@ -1480,6 +1499,7 @@ export const agentTools = {
   reviseBlock,
   submitPlan,
   buildingBill,
+  logisticsFor,
   blockBuildStatus,
   listTasks,
   getTask,

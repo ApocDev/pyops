@@ -201,6 +201,22 @@ about "how do I make X":
   once a plan's blocks are chosen, then decide per machine item whether an
   existing mall block supplies it, an existing block should be resized
   (`reviseBlock`/plan `updates`), or it needs its own new block.
+- **Belts/inserters for one good** (`logisticsFor`, #126) — the logistics half
+  `buildingBill` deliberately leaves out: given `{ good, rate }`, for an ITEM it
+  returns every belt tier UNLOCKED under the research horizon (the same
+  `unlockedItems` gating `availableMachines`/module auto-fill use — belt/loader/
+  inserter entities are themselves crafted items) with its whole belt count and
+  saturation (how full the built belts run, so "can one yellow belt feed this?"
+  reads straight off the first row), and every unlocked inserter/loader with the
+  whole-device count to move the rate through one feed point. Stack sizes
+  reflect the researched belt/inserter/bulk-inserter bonuses (`tech_stack_bonuses`)
+  via the same `placedBeltStack`/`inserterHandStack` math the block editor's
+  per-row logistics readout uses (#21, `lib/logistics.ts`) — evaluated across
+  every unlocked tier instead of the user's one selected pick (unlike the
+  editor's manual belt/mover picker, which is intentionally unfiltered). A FLUID
+  short-circuits to `{ kind: 'fluid', note }` — pipe throughput isn't modelled.
+  Pair with `buildingBill` for full construction coverage: machines from
+  `buildingBill`, belts/inserters/loaders from this.
 - **Built-vs-required status** (`blockBuildStatus`, #123) — audits blocks that
   already exist, from the last synced game state: per block, per recipe, the
   machine, the required WHOLE-building count (ceiled from `block_machines`'
@@ -330,7 +346,11 @@ grouped by shared material chains (steel/circuits/gears feeding several machine
 types) rather than dropped silently. Raw resources, electricity, and broad
 commodities remain imports unless the user specifically asks to produce them
 too. The agent is also told not to defer this (or byproduct routing) to a
-follow-up question — a requested plan ships complete, in the same turn.
+follow-up question — a requested plan ships complete, in the same turn. When
+the request separately asks for belts/inserters/logistics coverage too, the
+agent additionally calls `logisticsFor` per relevant good/rate and reports both
+halves together — machines from `buildingBill`, belts/inserters/loaders from
+`logisticsFor`.
 
 The same tool bodies back two front doors: the in-app agent (`agentTools`) and
 the MCP route (`routes/mcp.ts`), which registers **every** tool in `mcpTools` —

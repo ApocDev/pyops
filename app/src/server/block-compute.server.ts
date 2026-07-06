@@ -333,7 +333,7 @@ export async function computeBlock(rawData: SolveInput) {
       const mods = q.placeableModules();
       // only modules unlocked in the research horizon (mirrors machine gating);
       // this also excludes creative/editor modules (nothing produces them)
-      return { mods, avail: q.availableModuleItems(mods.map((m) => m.name)) };
+      return { mods, avail: q.unlockedItems(mods.map((m) => m.name)) };
     })());
   const autoPool = (
     r: (typeof fetched)[number],
