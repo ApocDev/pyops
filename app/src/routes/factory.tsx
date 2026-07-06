@@ -160,10 +160,17 @@ function FactoryPage() {
   // of stock goals would otherwise flood the surplus list. Own section below.
   // (A stock good that's also genuinely consumed can still show as a deficit.)
   const stockOnly = (r: (typeof rows)[number]) => r.stock && r.otherProduced <= 1e-9;
-  const deficits = rows.filter((r) => r.net < -1e-6);
-  const stockBuffers = rows.filter((r) => r.net >= -1e-6 && stockOnly(r));
-  const surpluses = rows.filter((r) => r.net > 1e-6 && !stockOnly(r));
-  const balanced = rows.filter((r) => Math.abs(r.net) <= 1e-6 && !stockOnly(r));
+  // Classify by a RELATIVE floor, not an absolute epsilon: a producer block
+  // sized to a hand-typed goal rate (0.083/s) against a consumer's exact need
+  // (0.0833/s) nets a constant sub-percent residual across the factory. Under 1%
+  // of the good's throughput that's rounding noise, not an actionable imbalance —
+  // it belongs in "balanced", not "build these next".
+  const meaningful = (r: (typeof rows)[number]) =>
+    Math.abs(r.net) > Math.max(1e-6, 1e-2 * Math.max(r.produced, r.consumed));
+  const deficits = rows.filter((r) => r.net < 0 && meaningful(r));
+  const surpluses = rows.filter((r) => r.net > 0 && meaningful(r) && !stockOnly(r));
+  const stockBuffers = rows.filter((r) => stockOnly(r) && !(r.net < 0 && meaningful(r)));
+  const balanced = rows.filter((r) => !stockOnly(r) && !meaningful(r));
 
   return (
     <div className="p-4 font-mono text-foreground">
