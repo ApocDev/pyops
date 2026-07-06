@@ -1679,6 +1679,61 @@ export function factoryCoherence() {
   return { links, unsourced, surplus };
 }
 
+/** Electricity pseudo-good name (see synthesize.ts's ELECTRICITY const) —
+ * literal here rather than a shared import, matching the local-constant style
+ * already used in coherence-audit.server.ts (AUDIT_FREE) and
+ * agent-tools.server.ts (POWER_PSEUDO). */
+const ELECTRICITY = "pyops-electricity";
+
+/** Factory-wide ELECTRIC power rollup (#129), per enabled block: cached
+ * consumption (`electricityW` — the same cache the Factory page's header sums,
+ * see routes/factory.tsx's totalPowerW — no re-solve) and generation.
+ *
+ * A block's net PRODUCTION of the `pyops-electricity` pseudo-good is already
+ * tracked in `block_flows` from its last real solve — a `kind: "generating"`
+ * recipe (turbine/generator/solar-panel/burner-generator, see synthesize.ts)
+ * nets a positive export there as a PRODUCER-end row (role "primary" / "stock"
+ * / "byproduct" — never "import"). So a generator block is identifiable today
+ * with no new convention: just read the flow that already exists. Flow rates
+ * for this pseudo-good are stored in MW (1 unit = 1 MJ); electricityW is
+ * Watts, so generation is scaled ×1e6 to match.
+ *
+ * consumesW and generatesW are computed INDEPENDENTLY per block (electricityW
+ * is gross internal machine draw; generatesW is the net declared/exported
+ * production) — a block can be nonzero in both (e.g. a reactor block that
+ * draws power for its own auxiliary machines while its reactor recipe nets a
+ * declared export). Do not net them per block; only the factory-wide totals
+ * are meaningful to compare. */
+export function factoryPower(): {
+  blockId: number;
+  name: string;
+  consumesW: number;
+  generatesW: number;
+}[] {
+  const bs = db
+    .select({ id: blocks.id, name: blocks.name, electricityW: blocks.electricityW })
+    .from(blocks)
+    .where(eq(blocks.enabled, true)) // disabled blocks (#73) don't count factory-wide
+    .orderBy(blocks.sortOrder, blocks.name)
+    .all();
+  const gen = new Map<number, number>();
+  for (const f of db
+    .select({ blockId: blockFlows.blockId, role: blockFlows.role, rate: blockFlows.rate })
+    .from(blockFlows)
+    .innerJoin(blocks, eq(blocks.id, blockFlows.blockId))
+    .where(and(eq(blockFlows.item, ELECTRICITY), eq(blocks.enabled, true)))
+    .all()) {
+    if (f.role === "import") continue; // consumer end — not generation
+    gen.set(f.blockId, (gen.get(f.blockId) ?? 0) + f.rate * 1e6); // MW -> W
+  }
+  return bs.map((b) => ({
+    blockId: b.id,
+    name: b.name,
+    consumesW: b.electricityW ?? 0,
+    generatesW: gen.get(b.id) ?? 0,
+  }));
+}
+
 /** Fuel options for a recipe's burner machines, each with its ash (burntResult)
  * and energy. null when the recipe runs on electric machines (no fuel choice). */
 export function fuelOptionsForRecipe(recipeName: string) {

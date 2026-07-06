@@ -1008,6 +1008,42 @@ export const buildingBill = tool({
   },
 });
 
+export const factoryPower = tool({
+  description:
+    "Factory-WIDE electric power rollup — total demand vs generation across every existing (enabled) block, in ONE call (no required arguments). DEMAND is each block's cached machine draw (electricityW — the same figure the Factory page's header totals; no re-solve). GENERATION is each block's NET production of the pyops-electricity pseudo-good — already tracked from that block's last real solve (a generating recipe: turbine/generator/solar-panel/burner-generator), so a 'power block' is identified with no extra work from you. Returns blocks (count considered), totalDemandW, totalGenerationW, netW (generation minus demand — negative means the factory doesn't generate enough to cover its own draw), topConsumers (up to `limit` blocks sorted by draw descending), and generators (every block with nonzero net generation, sorted descending). A block CAN appear on both lists (e.g. a reactor block that also draws power for its own auxiliary machines) — consumption and generation are computed independently per block, so don't net them per-block; only compare the two TOTALS. Heat is intentionally NOT covered here — it's a short-range (~15 tile), block-LOCAL mechanic in Py hard mode with no cross-block rollup; read a block's own heatW from submitBlock/reviseBlock instead.",
+  inputSchema: z.object({
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(30)
+      .default(10)
+      .describe("Max blocks to list in topConsumers"),
+  }),
+  execute: async ({ limit }) => {
+    const rows = q.factoryPower();
+    const totalDemandW = rows.reduce((s, r) => s + r.consumesW, 0);
+    const totalGenerationW = rows.reduce((s, r) => s + r.generatesW, 0);
+    const topConsumers = rows
+      .filter((r) => r.consumesW > 0)
+      .sort((a, b) => b.consumesW - a.consumesW)
+      .slice(0, limit)
+      .map((r) => ({ blockId: r.blockId, name: r.name, watts: r.consumesW }));
+    const generators = rows
+      .filter((r) => r.generatesW > 0)
+      .sort((a, b) => b.generatesW - a.generatesW)
+      .map((r) => ({ blockId: r.blockId, name: r.name, watts: r.generatesW }));
+    return {
+      blocks: rows.length,
+      totalDemandW,
+      totalGenerationW,
+      netW: totalGenerationW - totalDemandW,
+      topConsumers,
+      generators,
+    };
+  },
+});
+
 const whatIfOverride = z.object({
   good: z
     .string()
@@ -1562,6 +1598,7 @@ export const agentTools = {
   reviseBlock,
   submitPlan,
   buildingBill,
+  factoryPower,
   whatIf,
   logisticsFor,
   blockBuildStatus,

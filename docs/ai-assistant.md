@@ -219,6 +219,23 @@ about "how do I make X":
   once a plan's blocks are chosen, then decide per machine item whether an
   existing mall block supplies it, an existing block should be resized
   (`reviseBlock`/plan `updates`), or it needs its own new block.
+- **Factory-wide power rollup** (`factoryPower`, #129) — total electric DEMAND
+  vs GENERATION across every enabled block, in one call. Demand reuses each
+  block's cached `electricityW` (the same figure the Factory page's header
+  totals — no re-solve). Generation reads the `pyops-electricity` pseudo-good's
+  PRODUCER-end flow (`block_flows` role `primary`/`stock`/`byproduct`, never
+  `import`) already recorded from each block's last real solve — a block whose
+  recipes include a `kind: "generating"` recipe (turbine, generator, solar
+  panel, burner-generator, …) nets a positive export there, so a "power block"
+  is identified with no new convention. Returns `totalDemandW`/
+  `totalGenerationW`/`netW` plus `topConsumers` (top `limit` blocks by draw)
+  and `generators` (every net-producing block). A block can appear on BOTH
+  lists (e.g. a reactor block that also draws power for its own auxiliary
+  machines) — demand and generation are computed independently per block, so
+  only the two TOTALS should be compared, never a per-block net. Heat is
+  intentionally NOT rolled up here — it's a short-range (~15 tile), block-local
+  mechanic (Py hard mode); read a block's `heatW` from its own solve
+  (`submitBlock`/`reviseBlock`) instead.
 - **Belts/inserters for one good** (`logisticsFor`, #126) — the logistics half
   `buildingBill` deliberately leaves out: given `{ good, rate }`, for an ITEM it
   returns every belt tier UNLOCKED under the research horizon (the same
