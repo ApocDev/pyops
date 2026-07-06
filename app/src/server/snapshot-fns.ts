@@ -54,12 +54,18 @@ export const snapshotDiffFn = createServerFn({ method: "POST" })
     // named after its product (recipe `coal-gas` vs fluid `coal-gas`) must show
     // its OWN display string, so recipe refs classify recipe-first.
     const names = diffRefNames(diff);
-    const refs: Record<string, { kind: "item" | "fluid" | "recipe"; display: string }> = {};
+    const refs: Record<
+      string,
+      { kind: "item" | "fluid" | "recipe" | "technology"; display: string }
+    > = {};
     for (const name of names.goods) {
       const c = q.classifyRef(name);
       if (c) refs[name] = c;
     }
-    const recipeRefs: Record<string, { kind: "item" | "fluid" | "recipe"; display: string }> = {};
+    const recipeRefs: Record<
+      string,
+      { kind: "item" | "fluid" | "recipe" | "technology"; display: string }
+    > = {};
     for (const name of names.recipes) {
       const c = q.classifyRef(name, "recipe");
       if (c) recipeRefs[name] = c;

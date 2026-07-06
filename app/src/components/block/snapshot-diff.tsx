@@ -9,7 +9,7 @@ import type { BlockDiff } from "../../lib/block-diff";
 import { Icon } from "../../lib/icons";
 import { fmtReactorLayout } from "../../lib/reactor";
 
-type Refs = Record<string, { kind: "item" | "fluid" | "recipe"; display: string }>;
+type Refs = Record<string, { kind: "item" | "fluid" | "recipe" | "technology"; display: string }>;
 
 const fmtRate = (n: number) => String(+n.toFixed(3));
 const goalLabel = (g: Goal) =>

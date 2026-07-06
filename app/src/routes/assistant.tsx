@@ -36,7 +36,7 @@ import { GameEvalCard, type GameEvalProposal } from "#/components/assistant/game
 import { ShowInGameButton } from "#/components/assistant/show-in-game-button.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
-import { ItemHover, RecipeHover } from "#/lib/recipe-card";
+import { ItemHover, RecipeHover, TechHover } from "#/lib/recipe-card";
 import { formatRate } from "#/lib/format";
 import { toast } from "#/lib/toast-store";
 import {
@@ -1280,18 +1280,27 @@ function Ref({ name, prefer }: { name: string; prefer?: "recipe" }) {
 
   // In a recipe list the names are recipes by construction (even iron-plate, which
   // also resolves as an item) — honour the caller's preference.
-  const kind: "item" | "fluid" | "recipe" = prefer === "recipe" ? "recipe" : data.kind;
+  const kind: "item" | "fluid" | "recipe" | "technology" =
+    prefer === "recipe" ? "recipe" : data.kind;
   const chip = (
     <span className="inline-flex items-center gap-1 bg-muted/60 px-1 py-0.5 align-middle font-mono text-[0.85em] hover:bg-muted">
       <Icon kind={kind} name={name} size="sm" noHover />
       <span>{data.display}</span>
     </span>
   );
-  return kind === "recipe" ? (
-    <RecipeHover name={name} className="inline-block cursor-help">
-      {chip}
-    </RecipeHover>
-  ) : (
+  if (kind === "recipe")
+    return (
+      <RecipeHover name={name} className="inline-block cursor-help">
+        {chip}
+      </RecipeHover>
+    );
+  if (kind === "technology")
+    return (
+      <TechHover name={name} className="inline-block cursor-help">
+        {chip}
+      </TechHover>
+    );
+  return (
     <ItemHover name={name} kind={kind} className="inline-block cursor-help">
       {chip}
     </ItemHover>

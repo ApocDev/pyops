@@ -2087,7 +2087,7 @@ export function spoilables(): Record<string, number> {
 export function classifyRef(
   name: string,
   prefer?: "recipe",
-): { kind: "item" | "fluid" | "recipe"; display: string } | null {
+): { kind: "item" | "fluid" | "recipe" | "technology"; display: string } | null {
   if (prefer === "recipe") {
     const r = db.select({ d: recipes.display }).from(recipes).where(eq(recipes.name, name)).get();
     if (r) return { kind: "recipe", display: r.d ?? name };
@@ -2098,6 +2098,14 @@ export function classifyRef(
   if (fl) return { kind: "fluid", display: fl.d ?? name };
   const r = db.select({ d: recipes.display }).from(recipes).where(eq(recipes.name, name)).get();
   if (r) return { kind: "recipe", display: r.d ?? name };
+  // Technologies resolve LAST so a good/recipe of the same name keeps priority —
+  // lets the assistant chip a research name (`electronics`) as an icon too.
+  const t = db
+    .select({ d: technologies.display })
+    .from(technologies)
+    .where(eq(technologies.name, name))
+    .get();
+  if (t) return { kind: "technology", display: t.d ?? name };
   return null;
 }
 

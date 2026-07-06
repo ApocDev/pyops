@@ -134,7 +134,7 @@ export const goodInfoFn = createServerFn({ method: "GET" })
     for (const n of data) {
       const c = q.classifyRef(n);
       out[n] =
-        c && c.kind !== "recipe"
+        c && (c.kind === "item" || c.kind === "fluid")
           ? { kind: c.kind, display: c.display }
           : { kind: "item", display: n };
     }
