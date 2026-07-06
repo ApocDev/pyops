@@ -1,0 +1,21 @@
+app/src/db/queries.server.ts
+  s_9be9645d11a3e7::t_943edcfe8d3513 12,2251,2275,2352-2390,2575-2580,2629-2635
+app/src/db/queries.test.ts
+  s_9be9645d11a3e7::t_f864e5abdba03b 18,354-418
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e18679db0ed0e3b8de7139c320391dbc7cc8d17a",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
