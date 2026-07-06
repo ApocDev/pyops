@@ -2026,8 +2026,14 @@ function withBuiltStatus(
  * before this tool's own ceiling). Passing `blockId` always returns that
  * block, even fully-built or disabled (a deliberate ask); with no id, only
  * enabled blocks with `totalMissing > 0` come back, worst-missing first
- * (mirrors every other factory-wide rollup's enabled-only convention). */
-export function blockBuildStatus(blockId?: number): {
+ * (mirrors every other factory-wide rollup's enabled-only convention).
+ * `limit` bounds the no-id listing mode only (ignored when `blockId` is
+ * given) — each block also carries its own nested `recipes`/`machineFallback`
+ * arrays, so an unbounded listing grows as blocks x recipes-per-block. */
+export function blockBuildStatus(
+  blockId?: number,
+  limit?: number,
+): {
   blockId: number;
   block: string;
   enabled: boolean;
@@ -2086,7 +2092,10 @@ export function blockBuildStatus(blockId?: number): {
   });
 
   if (blockId != null) return result;
-  return result.filter((r) => r.totalMissing > 0).sort((a, b) => b.totalMissing - a.totalMissing);
+  const worst = result
+    .filter((r) => r.totalMissing > 0)
+    .sort((a, b) => b.totalMissing - a.totalMissing);
+  return limit != null ? worst.slice(0, limit) : worst;
 }
 
 /* ── Live production statistics (actual rates from the game) ──────────────────── */
@@ -2910,6 +2919,14 @@ export function researchPath(target: string): ResearchPathResult {
   const item = !techRow && !recipeRow ? getItem(target) : null;
   const fluid = !techRow && !recipeRow && !item ? getFluid(target) : null;
 
+  // The REAL researched-tech state (bridge-synced or manually marked) — used
+  // below so a target already covered by it reports alreadyUnlocked, even
+  // when the static enabled/producing.some(enabled) columns (start-enabled
+  // only) haven't caught up. Must be checked up front, not just later inside
+  // orderTechSteps, or a target whose sole unlocking tech is already
+  // researched would fall through to a nonsensical zero-step "route".
+  const researched = syncedResearchedTechs();
+
   let targetKind: "technology" | "recipe" | "good";
   let targetDisplay: string;
   let targetTech: string | null = null;
@@ -2922,16 +2939,16 @@ export function researchPath(target: string): ResearchPathResult {
     targetDisplay = techRow.display ?? target;
     targetTech = techRow.name;
     targetTechDisplay = techRow.display ?? target;
+    alreadyUnlocked = researched.has(techRow.name);
   } else if (recipeRow) {
     targetKind = "recipe";
     targetDisplay = recipeRow.display ?? target;
-    if (recipeRow.enabled) {
+    const ranked = rankUnlockTechs([target]);
+    if (recipeRow.enabled || ranked.some((r) => researched.has(r.tech))) {
       alreadyUnlocked = true;
+    } else if (!ranked.length) {
+      return empty("recipe", `recipe '${target}' is disabled and no technology unlocks it`);
     } else {
-      const ranked = rankUnlockTechs([target]);
-      if (!ranked.length) {
-        return empty("recipe", `recipe '${target}' is disabled and no technology unlocks it`);
-      }
       targetTech = ranked[0].tech;
       targetTechDisplay = ranked[0].display ?? ranked[0].tech;
       alternateRoutes = ranked
@@ -2942,22 +2959,20 @@ export function researchPath(target: string): ResearchPathResult {
     targetKind = "good";
     targetDisplay = item?.display ?? fluid?.display ?? target;
     const producing = recipesProducing(target);
-    if (producing.some((r) => r.enabled)) {
+    const ranked = producing.length ? rankUnlockTechs(producing.map((r) => r.name)) : [];
+    if (producing.some((r) => r.enabled) || ranked.some((r) => researched.has(r.tech))) {
       alreadyUnlocked = true;
-    } else if (producing.length) {
-      const ranked = rankUnlockTechs(producing.map((r) => r.name));
-      if (ranked.length) {
-        targetTech = ranked[0].tech;
-        targetTechDisplay = ranked[0].display ?? ranked[0].tech;
-        alternateRoutes = ranked
-          .slice(1)
-          .map((r) => ({ tech: r.tech, display: r.display ?? r.tech }));
-      }
-      // else: producing recipes exist but none is enabled/tech-unlocked —
-      // currently unreachable; report as no targetTech, not an error.
+    } else if (ranked.length) {
+      targetTech = ranked[0].tech;
+      targetTechDisplay = ranked[0].display ?? ranked[0].tech;
+      alternateRoutes = ranked
+        .slice(1)
+        .map((r) => ({ tech: r.tech, display: r.display ?? r.tech }));
     }
-    // else: nothing produces it at all (raw resource/import) — same "no
-    // targetTech" answer.
+    // else (ranked.length === 0): either nothing produces it at all (raw
+    // resource/import), or producing recipes exist but none is enabled/tech-
+    // unlocked (currently unreachable) — either way, report as no targetTech,
+    // not an error.
   } else {
     return empty(null, `no technology, recipe, or good named '${target}'`);
   }
@@ -2978,7 +2993,6 @@ export function researchPath(target: string): ResearchPathResult {
     };
   }
 
-  const researched = syncedResearchedTechs();
   const selections = getTurdSelections();
   const { steps: techNames, turdGatesNeeded } = orderTechSteps(targetTech, researched, selections);
 

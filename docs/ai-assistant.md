@@ -121,8 +121,15 @@ about "how do I make X":
   `computeBlock`/`recipeDefaultsFn` use — never just "the fastest" (#130). Its
   availability note ("needs `<tech>`") is judged against that resolved machine,
   since that's what actually gates the draft. `fastestMachine` is surfaced
-  separately, and only when it differs from the resolved pick, so the tier
-  ladder stays visible without misattributing the availability gate.
+  separately, and only when a tier exists that's **strictly faster**
+  (`craftingSpeed` greater, not just a different name) than the resolved pick —
+  a same-speed tier tie must not be misreported as an upgrade — so the
+  tier ladder stays visible without misattributing the availability gate. When
+  the research horizon isn't `future`, the favorite/fallback pool itself is
+  first restricted to machines the horizon already reaches (`availableNow`) —
+  the same restriction `computeBlock`/`recipeDefaultsFn` apply — so a locked
+  favorite falls through to the unlocked fallback instead of naming an
+  unbuildable machine (#130).
 - **TURD choices** (`turdChoices`) — the full mutually-exclusive branch set of a
   TURD master (looked up by master, recipe, or good): each branch's description,
   the recipes it swaps (old→new) or newly **unlocks**, and its always-on modules.
@@ -136,12 +143,16 @@ about "how do I make X":
   an item/fluid good — resolved in that priority), returns the **not-yet-researched**
   prerequisite closure in **dependency order** (prerequisites first, the tech that
   actually unlocks the target last), each step with its own science-pack cost, plus
-  the total cost per pack across the whole path. It always reads the REAL
+  `totalCost` summed across the WHOLE path. It always reads the REAL
   researched-tech state synced from the connected save (or marked manually in
   Settings) — independent of the current planning-horizon mode, which governs
   recipe *availability*, not what's already done. `alreadyUnlocked` means the
-  target (or, for a good, one of its producing recipes) is already start-enabled —
-  nothing to research. A recipe/good reachable by more than one tech reports the
+  target is already covered: either start-enabled (the static column), OR
+  already covered by that synced researched-tech state — e.g. a recipe whose
+  `enabled` column hasn't caught up, or a technology target itself already
+  researched — checked up front, not only inside the step-ordering walk, so a
+  target you already have never comes back with a nonsensical zero-step
+  "route". A recipe/good reachable by more than one tech reports the
   cheapest (lowest-tier) route as `targetTech` and the others as `alternateRoutes`
   (name only — call the tool again with one of those to expand it). Pyanodons'
   `turd-select-*` gate technologies (a TURD branch pick, not a science action —
@@ -149,7 +160,12 @@ about "how do I make X":
   step list and instead surfaced in `turdGatesNeeded` when the branch isn't
   already selected (`pickable` = master undecided; `blocked` = a different
   branch is already chosen, needing a respec) — same non-committal framing as
-  `availableTurds`/`turdConsistency`. This is the natural companion to
+  `availableTurds`/`turdConsistency`. The tool's `limit` (default 40) bounds
+  the `steps` list to the entries closest to the target, dropping the earliest/
+  most-foundational ones first and reporting the drop count in `stepsOmitted`
+  — `totalCost` always sums the whole path regardless, so the reported total
+  stays correct even when a deep, mostly-unresearched target's closure runs
+  into the hundreds of techs. This is the natural companion to
   TARGET-mode plans: state the research route ("research `electronics` →
   `battery-mk01`, ~40 `py-science-pack-1` total") instead of just naming gating
   packs.
@@ -261,9 +277,12 @@ about "how do I make X":
   save-load/Sync in the PyOps panel, so the tool returns `syncedAt`/
   `syncedCount` and its description tells the agent to flag staleness. Pass a
   `blockId` (a `factoryBlocks` id) for one block's full breakdown, even fully
-  built or disabled; omit it to list every **enabled** block with a shortfall,
-  worst-missing first, matching every other factory-wide rollup's
-  enabled-only convention. Built counts are force-wide (`built_machines` has
+  built or disabled (`limit` is ignored in this mode); omit it to list up to
+  `limit` (1–30, default 10) **enabled** blocks with a shortfall, worst-missing
+  first, matching every other factory-wide rollup's enabled-only convention
+  and bounding the same nested `recipes`/`machineFallback` payload that made
+  an unlimited listing unbounded on a factory with many under-built blocks.
+  Built counts are force-wide (`built_machines` has
   no block association), so two blocks sharing the identical machine+recipe
   each compare independently against the same built count. Machines whose
   entity type never reports a recipe to the game — boilers, generators,

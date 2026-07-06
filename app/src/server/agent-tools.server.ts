@@ -244,7 +244,9 @@ function optionsFor(
         machine, // building the draft actually uses: favorite → else low-tier fallback (#130)
         machineFavorite: favorite ? true : undefined, // true iff resolved via the user's stored favorite
         fastestMachine:
-          fastest && resolved && fastest.name !== resolved.name ? describe(fastest) : undefined,
+          fastest && resolved && fastest.craftingSpeed > resolved.craftingSpeed
+            ? describe(fastest)
+            : undefined,
         // availability vs the user's planning horizon (now vs future)
         availableNow: r.avail.availableNow, // research reached, turd not blocked (pickable counts)
         buildableNow: r.avail.buildableNow, // stricter: turd ACTIVE — no unmade pick (NOW planning)
@@ -634,15 +636,24 @@ export const turdChoices = tool({
 
 export const researchPath = tool({
   description:
-    "Prerequisite closure and science cost to unlock a TARGET — a technology, a recipe, or an item/fluid good (whichever it is, in that priority; resolve fuzzy names via searchGoods first). Returns the NOT-yet-researched techs in DEPENDENCY order (prerequisites first, the tech that actually unlocks the target last), each with its OWN science-pack cost, plus totalPacks summed across the whole path — the number to report for 'research X, ~N packs total'. Respects the REAL researched state synced from the connected save (or manually marked in Settings), independent of the current planning-horizon mode. alreadyUnlocked=true means nothing to research (a start-enabled recipe/good already covers it). For a recipe/good with more than one unlocking tech, targetTech is the cheapest (lowest-tier) route and alternateRoutes lists the others by name — call this again with one of those tech names if you want ITS path instead. turdGatesNeeded lists any TURD branch this path also needs picked (state 'pickable' = master undecided, free choice; 'blocked' = a DIFFERENT branch is already selected on that master — this route needs a respec) — same as elsewhere, a TURD pick is the user's call, never something this tool applies. Use this to state a plan's research route instead of just naming gating packs.",
+    "Prerequisite closure and science cost to unlock a TARGET — a technology, a recipe, or an item/fluid good (whichever it is, in that priority; resolve fuzzy names via searchGoods first). Returns the NOT-yet-researched techs in DEPENDENCY order (prerequisites first, the tech that actually unlocks the target last), each with its OWN science-pack cost, plus totalCost summed across the WHOLE path (even when `steps` is truncated by `limit`) — the number to report for 'research X, ~N packs total'. Respects the REAL researched state synced from the connected save (or manually marked in Settings), independent of the current planning-horizon mode. alreadyUnlocked=true means nothing to research (a start-enabled recipe/good already covers it). For a recipe/good with more than one unlocking tech, targetTech is the cheapest (lowest-tier) route and alternateRoutes lists the others by name — call this again with one of those tech names if you want ITS path instead. turdGatesNeeded lists any TURD branch this path also needs picked (state 'pickable' = master undecided, free choice; 'blocked' = a DIFFERENT branch is already selected on that master — this route needs a respec) — same as elsewhere, a TURD pick is the user's call, never something this tool applies. Use this to state a plan's research route instead of just naming gating packs.",
   inputSchema: z.object({
     target: z
       .string()
       .describe(
         "Internal name of a technology (e.g. 'electronics'), a recipe (e.g. 'battery-mk01'), or an item/fluid good (e.g. 'processing-unit')",
       ),
+    limit: z
+      .number()
+      .int()
+      .min(5)
+      .max(150)
+      .default(40)
+      .describe(
+        "Max steps to list, keeping the ones closest to the target (dropping the earliest/most-foundational ones first when the path is deep); totalCost always sums the WHOLE path regardless",
+      ),
   }),
-  execute: async ({ target }) => {
+  execute: async ({ target, limit }) => {
     const r = q.researchPath(target);
     if (!r.ok) return { ok: false, target, error: r.error };
     if (r.alreadyUnlocked || !r.targetTech) {
@@ -657,6 +668,8 @@ export const researchPath = tool({
           : "no tech unlocks this (raw resource, or currently unreachable)",
       };
     }
+    const truncated = r.steps.length > limit;
+    const shown = truncated ? r.steps.slice(r.steps.length - limit) : r.steps;
     return {
       ok: true,
       target,
@@ -665,7 +678,8 @@ export const researchPath = tool({
       targetTech: r.targetTech,
       targetTechDisplay: r.targetTechDisplay,
       alternateRoutes: r.alternateRoutes.length ? r.alternateRoutes : undefined,
-      steps: r.steps.map((s) => ({ tech: s.tech, display: s.display, cost: io(s.packs) })),
+      steps: shown.map((s) => ({ tech: s.tech, display: s.display, cost: io(s.packs) })),
+      stepsOmitted: truncated ? r.steps.length - shown.length : undefined,
       totalCost: io(r.totalPacks),
       turdGatesNeeded: r.turdGatesNeeded.length ? r.turdGatesNeeded : undefined,
     };
@@ -1127,7 +1141,7 @@ export const logisticsFor = tool({
 
 export const blockBuildStatus = tool({
   description:
-    "Built-vs-required MACHINE status for blocks that ALREADY EXIST, from the last synced game state — the answer to 'what's left to build for the coke block' / 'which blocks are under-built'. Works OFFLINE: reads the block's cached solved machine requirement (block_machines, CEILED to whole buildings — same source submitBlock's `buildings` field reports) against the synced built-machine snapshot (built_machines); no live bridge call, no re-solve. STALE the moment the player places/removes something in-game until their next save-load or Sync in the PyOps panel — check `syncedAt` and say how old it is if it matters, or if it's null say no sync has ever happened. Pass `blockId` (a factoryBlocks id) for one block's full breakdown (returned even if fully built or the block is disabled); omit it to list every ENABLED block with a shortfall, worst-missing first. Each `recipes` row is the machine + recipe + required whole-building count + built count + missing delta; `built`/`missing` come back null on a row whose machine type never reports a recipe to the game (boilers/generators/reactors/offshore-pumps — e.g. a local heat-source reactor) — those are instead summarized once per machine in `machineFallback` (requiredTotal/builtTotal/missing), since the game can't tell you which recipe it's running. Built counts are FORCE-WIDE, not block-scoped: if two blocks share the exact same machine+recipe, each independently compares against the same built count. For a NEW plan's cross-block machine bill use buildingBill instead — this tool audits blocks that already exist.",
+    "Built-vs-required MACHINE status for blocks that ALREADY EXIST, from the last synced game state — the answer to 'what's left to build for the coke block' / 'which blocks are under-built'. Works OFFLINE: reads the block's cached solved machine requirement (block_machines, CEILED to whole buildings — same source submitBlock's `buildings` field reports) against the synced built-machine snapshot (built_machines); no live bridge call, no re-solve. STALE the moment the player places/removes something in-game until their next save-load or Sync in the PyOps panel — check `syncedAt` and say how old it is if it matters, or if it's null say no sync has ever happened. Pass `blockId` (a factoryBlocks id) for one block's full breakdown (returned even if fully built or the block is disabled, and `limit` is ignored); omit it to list up to `limit` ENABLED blocks with a shortfall, worst-missing first. Each `recipes` row is the machine + recipe + required whole-building count + built count + missing delta; `built`/`missing` come back null on a row whose machine type never reports a recipe to the game (boilers/generators/reactors/offshore-pumps — e.g. a local heat-source reactor) — those are instead summarized once per machine in `machineFallback` (requiredTotal/builtTotal/missing), since the game can't tell you which recipe it's running. Built counts are FORCE-WIDE, not block-scoped: if two blocks share the exact same machine+recipe, each independently compares against the same built count. For a NEW plan's cross-block machine bill use buildingBill instead — this tool audits blocks that already exist.",
   inputSchema: z.object({
     blockId: z
       .number()
@@ -1136,8 +1150,15 @@ export const blockBuildStatus = tool({
       .describe(
         "A factoryBlocks id to check ONE specific block (returned even if fully built or disabled); omit to list every ENABLED block with a shortfall, worst-missing first.",
       ),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(30)
+      .default(10)
+      .describe("Max blocks to list when omitting blockId (ignored when blockId is given)"),
   }),
-  execute: async ({ blockId }) => {
+  execute: async ({ blockId, limit }) => {
     if (blockId != null && !q.getBlock(blockId)) {
       return { ok: false, error: "no such block", blocks: [] };
     }
@@ -1146,7 +1167,7 @@ export const blockBuildStatus = tool({
       ok: true,
       syncedAt: meta.built_synced_at ?? null,
       syncedCount: meta.built_synced_count ? Number(meta.built_synced_count) : null,
-      blocks: q.blockBuildStatus(blockId),
+      blocks: q.blockBuildStatus(blockId, blockId != null ? undefined : limit),
     };
   },
 });

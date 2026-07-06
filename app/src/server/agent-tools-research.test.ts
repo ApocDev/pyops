@@ -26,6 +26,7 @@ type Result = {
   targetTechDisplay?: string;
   alternateRoutes?: { tech: string; display: string }[];
   steps?: { tech: string; display: string; cost: string }[];
+  stepsOmitted?: number;
   totalCost?: string;
   turdGatesNeeded?: {
     subTech: string;
@@ -36,8 +37,8 @@ type Result = {
   }[];
 };
 
-const run = async (target: string): Promise<Result> =>
-  (await researchPath.execute!({ target }, { toolCallId: "test", messages: [] })) as Result;
+const run = async (target: string, limit = 40): Promise<Result> =>
+  (await researchPath.execute!({ target, limit }, { toolCallId: "test", messages: [] })) as Result;
 
 describe("researchPath", () => {
   let fx: TestDb;
@@ -198,5 +199,50 @@ describe("researchPath", () => {
     expect(r.alreadyUnlocked).toBe(false);
     expect(r.targetTech).toBeUndefined();
     expect(r.note).toContain("no tech unlocks this");
+  });
+
+  it("reports a technology target as alreadyUnlocked once it's synced-researched (#129)", async () => {
+    setResearchHorizon({ researched: ["t-root"] });
+    const r = await run("t-root");
+    expect(r.ok).toBe(true);
+    expect(r.alreadyUnlocked).toBe(true);
+    expect(r.steps).toBeUndefined();
+  });
+
+  it("reports a start-disabled recipe as alreadyUnlocked once its unlocking tech is synced-researched (#129)", async () => {
+    // circuit-basic's enabled column stays false (a real save doesn't rewrite
+    // that static column) even though t-leaf has actually been researched.
+    setResearchHorizon({ researched: ["t-root", "t-mid", "t-leaf"] });
+    const r = await run("circuit-basic");
+    expect(r.ok).toBe(true);
+    expect(r.alreadyUnlocked).toBe(true);
+    expect(r.steps).toBeUndefined();
+  });
+
+  it("reports a good as alreadyUnlocked once its only unlocking tech is synced-researched (#129)", async () => {
+    db.run(sql`INSERT INTO items (name, display) VALUES ('gated-circuit','Gated circuit')`);
+    db.run(sql`
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+        ('circuit-basic',1,'item','gated-circuit',1)
+    `);
+    setResearchHorizon({ researched: ["t-root", "t-mid", "t-leaf"] });
+    const r = await run("gated-circuit");
+    expect(r.ok).toBe(true);
+    expect(r.alreadyUnlocked).toBe(true);
+    expect(r.steps).toBeUndefined();
+  });
+
+  it("truncates a deep path to `limit`, keeping the steps closest to the target", async () => {
+    const r = await run("t-leaf", 2);
+    expect(r.steps?.map((s) => s.tech)).toEqual(["t-mid", "t-leaf"]);
+    expect(r.stepsOmitted).toBe(1);
+    // totalCost still sums the WHOLE path, not just the shown steps
+    expect(r.totalCost).toBe("30 automation-science-pack + 20 py-science-pack-1");
+  });
+
+  it("omits stepsOmitted when the path fits within `limit`", async () => {
+    const r = await run("t-leaf", 40);
+    expect(r.steps).toHaveLength(3);
+    expect(r.stepsOmitted).toBeUndefined();
   });
 });

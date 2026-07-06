@@ -40,8 +40,11 @@ type Result = {
   }[];
 };
 
-const status = async (blockId?: number): Promise<Result> =>
-  (await blockBuildStatus.execute!({ blockId }, { toolCallId: "test", messages: [] })) as Result;
+const status = async (blockId?: number, limit = 10): Promise<Result> =>
+  (await blockBuildStatus.execute!(
+    { blockId, limit },
+    { toolCallId: "test", messages: [] },
+  )) as Result;
 
 describe("blockBuildStatus tool", () => {
   let fx: TestDb;
@@ -101,6 +104,17 @@ describe("blockBuildStatus tool", () => {
     expect(res.blocks.map((b) => b.blockId)).toEqual([1, 4]);
     expect(res.blocks[0].totalMissing).toBe(6);
     expect(res.blocks[1].totalMissing).toBe(1);
+  });
+
+  it("caps the no-blockId listing at `limit` (#127)", async () => {
+    const res = await status(undefined, 1);
+    expect(res.blocks.map((b) => b.blockId)).toEqual([1]);
+  });
+
+  it("ignores `limit` when an explicit blockId is given", async () => {
+    const res = await status(1, 1);
+    expect(res.blocks).toHaveLength(1);
+    expect(res.blocks[0].blockId).toBe(1);
   });
 
   it("an explicit blockId still returns a disabled block, exposing the shared-built-count caveat", async () => {
