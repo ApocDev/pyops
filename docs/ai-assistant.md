@@ -131,6 +131,28 @@ about "how do I make X":
   recipe. `recipeInfo.turd` returns the same full detail for every master touching a
   recipe. This is what the agent consults for "what does this TURD give / which
   branch is best" — never assume a master has a single choice.
+- **Research path** (`researchPath`, `app/src/db/queries.server.ts` `researchPath`/
+  `orderTechSteps`/`rankUnlockTechs`) — given a target (a technology, a recipe, or
+  an item/fluid good — resolved in that priority), returns the **not-yet-researched**
+  prerequisite closure in **dependency order** (prerequisites first, the tech that
+  actually unlocks the target last), each step with its own science-pack cost, plus
+  the total cost per pack across the whole path. It always reads the REAL
+  researched-tech state synced from the connected save (or marked manually in
+  Settings) — independent of the current planning-horizon mode, which governs
+  recipe *availability*, not what's already done. `alreadyUnlocked` means the
+  target (or, for a good, one of its producing recipes) is already start-enabled —
+  nothing to research. A recipe/good reachable by more than one tech reports the
+  cheapest (lowest-tier) route as `targetTech` and the others as `alternateRoutes`
+  (name only — call the tool again with one of those to expand it). Pyanodons'
+  `turd-select-*` gate technologies (a TURD branch pick, not a science action —
+  verified zero cost, zero prerequisites of their own) are excluded from the
+  step list and instead surfaced in `turdGatesNeeded` when the branch isn't
+  already selected (`pickable` = master undecided; `blocked` = a different
+  branch is already chosen, needing a respec) — same non-committal framing as
+  `availableTurds`/`turdConsistency`. This is the natural companion to
+  TARGET-mode plans: state the research route ("research `electronics` →
+  `battery-mk01`, ~40 `py-science-pack-1` total") instead of just naming gating
+  packs.
 - **Factory-wide coherence audit** (`coherenceAudit`,
   `app/src/server/coherence-audit.server.ts`, #11) — the cross-block balance in
   one call, reusing the Coherence page's wiring query: under-supplied goods

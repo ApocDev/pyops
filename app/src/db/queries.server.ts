@@ -2529,6 +2529,17 @@ export type ResearchHorizon = {
   targetTech: string | null; // the tech that unlocks the target (mode = target)
 };
 
+/** A tech's own direct prerequisites (one level). Shared by techPrereqClosure
+ * and orderTechSteps. */
+function directPrereqs(tech: string): string[] {
+  return db
+    .select({ p: techPrerequisites.prerequisite })
+    .from(techPrerequisites)
+    .where(eq(techPrerequisites.technology, tech))
+    .all()
+    .map((r) => r.p);
+}
+
 /** Every tech in a tech's prerequisite closure — the tech itself plus all ancestors. */
 function techPrereqClosure(root: string): Set<string> {
   const seen = new Set<string>();
@@ -2537,13 +2548,7 @@ function techPrereqClosure(root: string): Set<string> {
     const t = stack.pop()!;
     if (seen.has(t)) continue;
     seen.add(t);
-    for (const r of db
-      .select({ p: techPrerequisites.prerequisite })
-      .from(techPrerequisites)
-      .where(eq(techPrerequisites.technology, t))
-      .all()) {
-      if (!seen.has(r.p)) stack.push(r.p);
-    }
+    for (const p of directPrereqs(t)) if (!seen.has(p)) stack.push(p);
   }
   return seen;
 }
@@ -2600,29 +2605,243 @@ function setDiff(a: Set<string>, b: ReadonlySet<string>): Set<string> {
   return out;
 }
 
-/** The technology that first lets you make a good: among the techs unlocking a
- * recipe that produces it, the lowest-tier one (fewest distinct science packs in
- * its prerequisite closure, ties broken by name). null if it's start-craftable or
- * nothing unlocks it. */
-export function unlockTechForGood(good: string): { tech: string; display: string | null } | null {
-  const recipeNames = recipesProducing(good).map((r) => r.name);
-  if (!recipeNames.length) return null;
+/** Every tech that unlocks at least one of the given recipes, ranked by tier
+ * (fewest distinct science packs in ITS OWN prerequisite closure, ties by
+ * name — cheapest/lowest route first). Shared by unlockTechForGood (single
+ * best) and researchPath (best + alternates). */
+function rankUnlockTechs(
+  recipeNames: string[],
+): { tech: string; display: string | null; tier: number }[] {
+  if (!recipeNames.length) return [];
   const techNames = db
     .selectDistinct({ t: techUnlocks.technology })
     .from(techUnlocks)
     .where(inArray(techUnlocks.recipe, recipeNames))
     .all()
     .map((r) => r.t);
-  if (!techNames.length) return null;
-  const best = techNames
-    .map((t) => ({ t, tier: packsForTechs(techPrereqClosure(t)).size }))
-    .sort((a, b) => a.tier - b.tier || (a.t < b.t ? -1 : 1))[0].t;
-  const disp = db
-    .select({ d: technologies.display })
+  if (!techNames.length) return [];
+  const ranked = techNames
+    .map((t) => ({ tech: t, tier: packsForTechs(techPrereqClosure(t)).size }))
+    .sort((a, b) => a.tier - b.tier || a.tech.localeCompare(b.tech));
+  const disp = techDisplays(ranked.map((r) => r.tech));
+  return ranked.map((r) => ({ ...r, display: disp.get(r.tech) ?? null }));
+}
+
+/** The technology that first lets you make a good: among the techs unlocking a
+ * recipe that produces it, the lowest-tier one (fewest distinct science packs in
+ * its prerequisite closure, ties broken by name). null if it's start-craftable or
+ * nothing unlocks it. */
+export function unlockTechForGood(good: string): { tech: string; display: string | null } | null {
+  const ranked = rankUnlockTechs(recipesProducing(good).map((r) => r.name));
+  return ranked.length
+    ? { tech: ranked[0].tech, display: ranked[0].display ?? ranked[0].tech }
+    : null;
+}
+
+export type ResearchPathTurdGate = {
+  subTech: string;
+  subTechDisplay: string;
+  master: string | null;
+  masterDisplay: string | null;
+  state: "pickable" | "blocked";
+};
+
+/** Prereqs-first (topological) order of the NOT-yet-researched tech closure
+ * reaching `root`. Stops recursing at a researched tech (its subtree is done —
+ * researched techs are prerequisite-closed, see reachMissingPacks) and at a
+ * turd-select-* gate (not a science step — surfaced separately when the
+ * branch isn't already ACTIVE; verified against the real dump that these
+ * gates have zero prerequisites and zero science cost of their own). */
+function orderTechSteps(
+  root: string,
+  researched: ReadonlySet<string>,
+  selections: Map<string, string>,
+): { steps: string[]; turdGatesNeeded: ResearchPathTurdGate[] } {
+  const steps: string[] = [];
+  const turdGatesNeeded: ResearchPathTurdGate[] = [];
+  const visited = new Set<string>();
+  const visit = (t: string) => {
+    if (visited.has(t)) return;
+    visited.add(t);
+    if (t.startsWith("turd-select-")) {
+      const sub = t.slice("turd-select-".length);
+      const master = turdMasterOf(sub);
+      const state = turdStateFor(sub, master?.name ?? null, selections);
+      if (state !== "active") {
+        turdGatesNeeded.push({
+          subTech: sub,
+          subTechDisplay: techDisplays([sub]).get(sub) ?? sub,
+          master: master?.name ?? null,
+          masterDisplay: master?.display ?? null,
+          state,
+        });
+      }
+      return;
+    }
+    if (researched.has(t)) return;
+    for (const p of directPrereqs(t)) visit(p);
+    steps.push(t);
+  };
+  visit(root);
+  return { steps, turdGatesNeeded };
+}
+
+export type ResearchPathStep = {
+  tech: string;
+  display: string;
+  packs: { name: string; amount: number }[]; // this tech's OWN unit.ingredients
+};
+
+export type ResearchPathResult = {
+  ok: boolean;
+  target: string;
+  targetKind: "technology" | "recipe" | "good" | null;
+  targetDisplay: string;
+  targetTech: string | null;
+  targetTechDisplay: string | null;
+  alreadyUnlocked: boolean;
+  alternateRoutes: { tech: string; display: string }[];
+  steps: ResearchPathStep[]; // not-yet-researched closure, dependency order, target LAST
+  totalPacks: { name: string; amount: number }[]; // summed across `steps`
+  turdGatesNeeded: ResearchPathTurdGate[];
+  error?: string;
+};
+
+/** Prerequisite closure + science cost to unlock a TARGET (a technology, a
+ * recipe, or an item/fluid good — resolved in that priority). Always reads
+ * the REAL researched-tech state synced from the connected save (or marked
+ * manually in Settings) — independent of the current planning-horizon mode,
+ * which governs recipe *availability*, not what's already done. See
+ * `syncedResearchedTechs`. */
+export function researchPath(target: string): ResearchPathResult {
+  const empty = (
+    targetKind: ResearchPathResult["targetKind"],
+    error?: string,
+  ): ResearchPathResult => ({
+    ok: !error,
+    target,
+    targetKind,
+    targetDisplay: target,
+    targetTech: null,
+    targetTechDisplay: null,
+    alreadyUnlocked: false,
+    alternateRoutes: [],
+    steps: [],
+    totalPacks: [],
+    turdGatesNeeded: [],
+    ...(error ? { error } : {}),
+  });
+
+  const techRow = db
+    .select({ name: technologies.name, display: technologies.display })
     .from(technologies)
-    .where(eq(technologies.name, best))
+    .where(eq(technologies.name, target))
     .get();
-  return { tech: best, display: disp?.d ?? best };
+  const recipeRow = !techRow ? getRecipe(target) : null;
+  const item = !techRow && !recipeRow ? getItem(target) : null;
+  const fluid = !techRow && !recipeRow && !item ? getFluid(target) : null;
+
+  let targetKind: "technology" | "recipe" | "good";
+  let targetDisplay: string;
+  let targetTech: string | null = null;
+  let targetTechDisplay: string | null = null;
+  let alreadyUnlocked = false;
+  let alternateRoutes: { tech: string; display: string }[] = [];
+
+  if (techRow) {
+    targetKind = "technology";
+    targetDisplay = techRow.display ?? target;
+    targetTech = techRow.name;
+    targetTechDisplay = techRow.display ?? target;
+  } else if (recipeRow) {
+    targetKind = "recipe";
+    targetDisplay = recipeRow.display ?? target;
+    if (recipeRow.enabled) {
+      alreadyUnlocked = true;
+    } else {
+      const ranked = rankUnlockTechs([target]);
+      if (!ranked.length) {
+        return empty("recipe", `recipe '${target}' is disabled and no technology unlocks it`);
+      }
+      targetTech = ranked[0].tech;
+      targetTechDisplay = ranked[0].display ?? ranked[0].tech;
+      alternateRoutes = ranked
+        .slice(1)
+        .map((r) => ({ tech: r.tech, display: r.display ?? r.tech }));
+    }
+  } else if (item || fluid) {
+    targetKind = "good";
+    targetDisplay = item?.display ?? fluid?.display ?? target;
+    const producing = recipesProducing(target);
+    if (producing.some((r) => r.enabled)) {
+      alreadyUnlocked = true;
+    } else if (producing.length) {
+      const ranked = rankUnlockTechs(producing.map((r) => r.name));
+      if (ranked.length) {
+        targetTech = ranked[0].tech;
+        targetTechDisplay = ranked[0].display ?? ranked[0].tech;
+        alternateRoutes = ranked
+          .slice(1)
+          .map((r) => ({ tech: r.tech, display: r.display ?? r.tech }));
+      }
+      // else: producing recipes exist but none is enabled/tech-unlocked —
+      // currently unreachable; report as no targetTech, not an error.
+    }
+    // else: nothing produces it at all (raw resource/import) — same "no
+    // targetTech" answer.
+  } else {
+    return empty(null, `no technology, recipe, or good named '${target}'`);
+  }
+
+  if (alreadyUnlocked || !targetTech) {
+    return {
+      ok: true,
+      target,
+      targetKind,
+      targetDisplay,
+      targetTech,
+      targetTechDisplay,
+      alreadyUnlocked,
+      alternateRoutes,
+      steps: [],
+      totalPacks: [],
+      turdGatesNeeded: [],
+    };
+  }
+
+  const researched = syncedResearchedTechs();
+  const selections = getTurdSelections();
+  const { steps: techNames, turdGatesNeeded } = orderTechSteps(targetTech, researched, selections);
+
+  const totals = new Map<string, number>();
+  const steps: ResearchPathStep[] = techNames.map((t) => {
+    const disp = techDisplays([t]).get(t) ?? t;
+    const packs = db
+      .select({ name: techIngredients.name, amount: techIngredients.amount })
+      .from(techIngredients)
+      .where(eq(techIngredients.technology, t))
+      .all();
+    for (const p of packs) totals.set(p.name, (totals.get(p.name) ?? 0) + p.amount);
+    return { tech: t, display: disp, packs };
+  });
+
+  const totalPacks = [...totals.entries()]
+    .map(([name, amount]) => ({ name, amount: +amount.toFixed(2) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return {
+    ok: true,
+    target,
+    targetKind,
+    targetDisplay,
+    targetTech,
+    targetTechDisplay,
+    alreadyUnlocked: false,
+    alternateRoutes,
+    steps,
+    totalPacks,
+    turdGatesNeeded,
+  };
 }
 
 let _horizonCache: ResearchHorizon | null = null;
@@ -2668,6 +2887,20 @@ export function setResearchHorizon(x: {
   if (x.target !== undefined) metaSet("horizon_target", x.target ?? "");
   _horizonCache = null;
 }
+
+/** The tech set actually completed (bridge-synced from the save, or manually
+ * marked in Settings) — regardless of the current planning-horizon MODE. Unlike
+ * getResearchHorizon().researched, which "target" mode deliberately zeroes for
+ * its own gating logic, researchPath always wants the real state. */
+export function syncedResearchedTechs(): Set<string> {
+  const raw = metaAll().researched_techs;
+  try {
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
 /** Search technologies by name/display (for the researched-tech picker) —
  * excludes the internal turd-select-* prerequisite techs. */
 export function searchTechs(query: string, limit = 30): { name: string; display: string | null }[] {

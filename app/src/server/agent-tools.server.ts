@@ -631,6 +631,46 @@ export const turdChoices = tool({
   },
 });
 
+export const researchPath = tool({
+  description:
+    "Prerequisite closure and science cost to unlock a TARGET — a technology, a recipe, or an item/fluid good (whichever it is, in that priority; resolve fuzzy names via searchGoods first). Returns the NOT-yet-researched techs in DEPENDENCY order (prerequisites first, the tech that actually unlocks the target last), each with its OWN science-pack cost, plus totalPacks summed across the whole path — the number to report for 'research X, ~N packs total'. Respects the REAL researched state synced from the connected save (or manually marked in Settings), independent of the current planning-horizon mode. alreadyUnlocked=true means nothing to research (a start-enabled recipe/good already covers it). For a recipe/good with more than one unlocking tech, targetTech is the cheapest (lowest-tier) route and alternateRoutes lists the others by name — call this again with one of those tech names if you want ITS path instead. turdGatesNeeded lists any TURD branch this path also needs picked (state 'pickable' = master undecided, free choice; 'blocked' = a DIFFERENT branch is already selected on that master — this route needs a respec) — same as elsewhere, a TURD pick is the user's call, never something this tool applies. Use this to state a plan's research route instead of just naming gating packs.",
+  inputSchema: z.object({
+    target: z
+      .string()
+      .describe(
+        "Internal name of a technology (e.g. 'electronics'), a recipe (e.g. 'battery-mk01'), or an item/fluid good (e.g. 'processing-unit')",
+      ),
+  }),
+  execute: async ({ target }) => {
+    const r = q.researchPath(target);
+    if (!r.ok) return { ok: false, target, error: r.error };
+    if (r.alreadyUnlocked || !r.targetTech) {
+      return {
+        ok: true,
+        target,
+        kind: r.targetKind,
+        display: r.targetDisplay,
+        alreadyUnlocked: r.alreadyUnlocked,
+        note: r.alreadyUnlocked
+          ? "already unlocked — nothing to research"
+          : "no tech unlocks this (raw resource, or currently unreachable)",
+      };
+    }
+    return {
+      ok: true,
+      target,
+      kind: r.targetKind,
+      display: r.targetDisplay,
+      targetTech: r.targetTech,
+      targetTechDisplay: r.targetTechDisplay,
+      alternateRoutes: r.alternateRoutes.length ? r.alternateRoutes : undefined,
+      steps: r.steps.map((s) => ({ tech: s.tech, display: s.display, cost: io(s.packs) })),
+      totalCost: io(r.totalPacks),
+      turdGatesNeeded: r.turdGatesNeeded.length ? r.turdGatesNeeded : undefined,
+    };
+  },
+});
+
 const blockDraftInput = z.object({
   name: z.string().optional().describe("Optional display name for this block"),
   target: z.string().describe("Internal name of the good this block produces"),
@@ -1434,6 +1474,7 @@ export const agentTools = {
   turdConsistency,
   availableTurds,
   turdChoices,
+  researchPath,
   chainStatus,
   submitBlock,
   reviseBlock,
