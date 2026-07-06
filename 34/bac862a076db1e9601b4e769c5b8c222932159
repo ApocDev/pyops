@@ -1,0 +1,39 @@
+app/src/db/queries.server.ts
+  s_221bb38510e17a::t_64adc47ae65b58 57-63,268-269,271-276,2531-2634
+app/src/server/agent-tools.server.ts
+  s_221bb38510e17a::t_542dedaf7bd2b8 1010-1028,1502
+app/src/db/queries.test.ts
+  s_073a5b87e727a8::t_f2bc7a80429468 17,504-581
+app/src/server/agent-tools-logistics.test.ts
+  s_073a5b87e727a8::t_818ad3b88aa637 1-59
+app/src/server/agent.ts
+  s_073a5b87e727a8::t_9614038a7d2ce6 56,134-138,152-155
+app/src/server/block-compute.server.ts
+  s_073a5b87e727a8::t_de0d70d5b751e7 336
+docs/ai-assistant.md
+  s_073a5b87e727a8::t_587409245f7c1c 204-219,349-353
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "34bac862a076db1e9601b4e769c5b8c222932159",
+  "prompts": {},
+  "sessions": {
+    "s_073a5b87e727a8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-abf0a1db9cc4ba360",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_221bb38510e17a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2a60526-18c5-40ca-841e-fb6b390e49dd",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
