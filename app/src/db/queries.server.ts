@@ -1902,6 +1902,60 @@ export function getProductionStats() {
   return db.select().from(productionStats).all();
 }
 
+/** Actual produced/consumed rates for specific goods, resolved with kind/display —
+ * the batch-lookup form of getProductionStats, keyed to the assistant's
+ * productionStats tool. setProductionStats always replaces the FULL snapshot and
+ * drops near-zero rows before inserting (see its comment), so once any sync has
+ * landed, a good's absence from productionStats means ~0 produced AND ~0 consumed
+ * — not "unknown". The only real unknown is whether a sync has EVER landed at
+ * all; callers should pair this with metaAll().stats_synced_at. */
+export function productionStatsFor(goods: string[]): {
+  name: string;
+  display: string | null;
+  kind: "item" | "fluid" | null;
+  produced: number;
+  consumed: number;
+}[] {
+  const uniq = [...new Set(goods)];
+  if (!uniq.length) return [];
+  const itemRows = db
+    .select({ name: items.name, display: items.display })
+    .from(items)
+    .where(inArray(items.name, uniq))
+    .all();
+  const fluidRows = db
+    .select({ name: fluids.name, display: fluids.display })
+    .from(fluids)
+    .where(inArray(fluids.name, uniq))
+    .all();
+  const itemMap = new Map(itemRows.map((r) => [r.name, r.display]));
+  const fluidMap = new Map(fluidRows.map((r) => [r.name, r.display]));
+  const statMap = new Map(
+    db
+      .select()
+      .from(productionStats)
+      .where(inArray(productionStats.name, uniq))
+      .all()
+      .map((s) => [s.name, s]),
+  );
+  return uniq.map((name) => {
+    const isItem = itemMap.has(name);
+    const isFluid = !isItem && fluidMap.has(name);
+    const s = statMap.get(name);
+    return {
+      name,
+      display: isItem ? (itemMap.get(name) ?? null) : isFluid ? (fluidMap.get(name) ?? null) : null,
+      kind: isItem
+        ? "item"
+        : isFluid
+          ? "fluid"
+          : ((s?.kind as "item" | "fluid" | undefined) ?? null),
+      produced: s?.produced ?? 0,
+      consumed: s?.consumed ?? 0,
+    };
+  });
+}
+
 /** The factory ledger (planned per-item produced/consumed/net) joined with the
  * live actual production/consumption from the game. Items appear if they're
  * planned (in any block flow) or actually flowing in-game. `actualProduced` is

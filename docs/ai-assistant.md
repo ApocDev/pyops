@@ -186,6 +186,21 @@ about "how do I make X":
   table is small — no pagination). Writing/editing notes is out of scope for the
   agent: Tasks already cover assistant-initiated follow-ups, and notes stay the
   user's own space.
+- **Synced production stats** (`productionStats`) — batched actual produced/consumed
+  per good (items or fluid /s, force-wide) read from the `production_stats` table
+  (`db/queries.server.ts` `productionStatsFor`/`getProductionStats`/
+  `setProductionStats`), which the mod keeps as a full-replace snapshot via
+  `state.stats` (`server/bridge/handlers/stats.ts`) — pushed periodically while
+  playing and refreshed on every save-load resync. Works with the game closed,
+  unlike the live tools below. Because the snapshot is a full replace that drops
+  near-zero rows before inserting, a good's absence once a sync has landed means
+  ~0 flow, not "unknown" — the result carries `syncedAt`/`syncedCount` (from
+  `meta.stats_synced_at`/`stats_synced_count`, the same fields
+  `productionComparisonFn` already surfaces to the factory ledger UI) so the
+  agent can tell a real "nothing's flowing" from "never synced". `gameProduction`
+  (below) stays the LIVE source of truth when the companion mod is connected —
+  prefer it when the bridge is up; reach for `productionStats` when it isn't, or
+  to check many goods (e.g. a plan's imports) in one batch.
 - **Live game-world (read-only)** — `gameContext`, `gameInspectArea`,
   `gameFindEntities`, `gameProduction` query the _running_ factory through the
   bridge (app→mod→Factorio), so the agent can ground a task in real evidence

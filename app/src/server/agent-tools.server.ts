@@ -411,6 +411,26 @@ export const goodInfo = tool({
   },
 });
 
+export const productionStats = tool({
+  description:
+    "Actual per-second production/consumption for goods, from the SYNCED game stats (production_stats — refreshed by the mod's periodic push while playing, and on every save-load resync). Works even with the game closed. Returns each good's kind/display plus produced (items|fluid/s actually made) and consumed (actually used), and a batch-level syncedAt (ISO timestamp of the last sync, null if none has EVER landed) + syncedCount. Absence of nonzero flow for a good you know exists is a real signal ONLY once syncedAt is non-null — if syncedAt is null, treat all-zero results as unknown, not confirmed-idle. gameProduction remains the LIVE source of truth when the companion mod is connected right now (more current, but requires the bridge up) — prefer it when available; use productionStats when the game is closed, or to check many goods at once (e.g. auditing a plan's imports in one batch).",
+  inputSchema: z.object({
+    goods: z
+      .array(z.string())
+      .min(1)
+      .max(30)
+      .describe("Internal item/fluid names to report, e.g. ['iron-plate','sulfuric-acid']"),
+  }),
+  execute: async ({ goods }) => {
+    const meta = q.metaAll();
+    return {
+      syncedAt: meta.stats_synced_at ?? null,
+      syncedCount: meta.stats_synced_count ? Number(meta.stats_synced_count) : null,
+      stats: q.productionStatsFor(goods),
+    };
+  },
+});
+
 export const byproductSinks = tool({
   description:
     "Where a byproduct can GO — for routing the outputs a block produces but doesn't consume (tailings, ash, sludge, off-gases). Returns recipes that PRODUCTIVELY consume the good (with what they make + availability), existing blocks that already IMPORT it (route the byproduct there), and — separately — voidOptions: the vent/void/incinerate disposal recipes that just destroy it. Prefer routing to a real consumer; voiding is the fallback when nothing useful consumes it. Only when there's no consumer AND no void does it need storage/buffering. Use this on each byproduct from chainStatus so the block's waste has a home.",
@@ -1363,6 +1383,7 @@ export const agentTools = {
   recipeInfo,
   calcRecipe,
   goodInfo,
+  productionStats,
   byproductSinks,
   coherenceAudit,
   turdConsistency,
