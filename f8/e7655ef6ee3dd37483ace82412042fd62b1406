@@ -1,0 +1,33 @@
+app/src/server/agent-tools.server.ts
+  s_221bb38510e17a::t_d2f1a3640e4b4f 19,1011-1072,1565
+app/src/server/agent-tools-whatif.test.ts
+  s_0ec3ea4f1e95d9::t_e1c7f25ea25518 1-124
+app/src/server/agent.ts
+  s_0ec3ea4f1e95d9::t_a5678e4502a0cf 56
+docs/ai-assistant.md
+  s_0ec3ea4f1e95d9::t_7cd2816fe6c4a0 169-186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f8e7655ef6ee3dd37483ace82412042fd62b1406",
+  "prompts": {},
+  "sessions": {
+    "s_0ec3ea4f1e95d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ad9ffde745f17dce4",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_221bb38510e17a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2a60526-18c5-40ca-841e-fb6b390e49dd",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
