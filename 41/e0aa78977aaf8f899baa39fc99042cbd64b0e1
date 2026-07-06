@@ -1,0 +1,19 @@
+app/e2e/mut/reactor-layout.e2e.ts
+  s_9be9645d11a3e7::t_e7f38d8f9a8045 2,6-15,33-34,36-44,47-48,50-52,57,62-63,71-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "41e0aa78977aaf8f899baa39fc99042cbd64b0e1",
+  "prompts": {},
+  "sessions": {
+    "s_9be9645d11a3e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9c9a8f1-e097-4977-8603-8dd66b1947ce",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
