@@ -9,7 +9,7 @@
  */
 import { createHash } from "node:crypto";
 import { and, eq, inArray, isNotNull, sql, type AnyColumn } from "drizzle-orm";
-import { db } from "./index.server.ts";
+import { currentDatabaseFile, db } from "./index.server.ts";
 import {
   recipes,
   recipeIngredients,
@@ -2248,14 +2248,7 @@ export function stackBonuses(): StackBonuses {
   const h = getResearchHorizon();
   const out: StackBonuses = { belt: 0, inserter: 0, bulkInserter: 0 };
   for (const r of db.select().from(techStackBonuses).all()) {
-    if (h.mode !== "future") {
-      const science = db
-        .select({ name: techIngredients.name })
-        .from(techIngredients)
-        .where(eq(techIngredients.technology, r.technology))
-        .all();
-      if (!techReachedByScience(r.technology, science, h)) continue;
-    }
+    if (h.mode !== "future" && !techReachedByScience(r.technology, h)) continue;
     if (r.effect === "belt") out.belt += r.modifier;
     else if (r.effect === "inserter") out.inserter += r.modifier;
     else if (r.effect === "bulk-inserter") out.bulkInserter += r.modifier;
@@ -2279,14 +2272,7 @@ export function productivityBonuses(): ProductivityBonuses {
   const h = getResearchHorizon();
   const out: ProductivityBonuses = { mining: 0, recipes: new Map() };
   for (const r of db.select().from(techProductivityBonuses).all()) {
-    if (h.mode !== "future") {
-      const science = db
-        .select({ name: techIngredients.name })
-        .from(techIngredients)
-        .where(eq(techIngredients.technology, r.technology))
-        .all();
-      if (!techReachedByScience(r.technology, science, h)) continue;
-    }
+    if (h.mode !== "future" && !techReachedByScience(r.technology, h)) continue;
     if (r.recipe === "") out.mining += r.modifier;
     else out.recipes.set(r.recipe, (out.recipes.get(r.recipe) ?? 0) + r.modifier);
   }
@@ -2361,6 +2347,45 @@ function packsForTechs(techs: Set<string>): Set<string> {
       .all()
       .map((r) => r.n),
   );
+}
+
+/** A tech's full prerequisite closure (techs + the union of their science
+ * packs), memoized per active project db — the tech graph is static data, only
+ * changing on a data re-import (like `_horizonCache`, which caches the target's
+ * closure the same way). File-keyed so a project switch reads the right graph. */
+const _closureCache = new Map<string, Map<string, { techs: Set<string>; packs: Set<string> }>>();
+function techClosure(tech: string): { techs: Set<string>; packs: Set<string> } {
+  const file = currentDatabaseFile();
+  let byTech = _closureCache.get(file);
+  if (!byTech) _closureCache.set(file, (byTech = new Map()));
+  let e = byTech.get(tech);
+  if (!e) {
+    const techs = techPrereqClosure(tech);
+    byTech.set(tech, (e = { techs, packs: packsForTechs(techs) }));
+  }
+  return e;
+}
+
+/** Science packs still missing to reach `tech` under the horizon: the packs of
+ * its prerequisite closure MINUS what's already researched, minus what the
+ * horizon supplies. Empty = reachable. Checking the tech's OWN cost alone was
+ * wrong — a tech gated purely through prerequisites has an empty own cost (e.g.
+ * TURD-unlocked `neuron`), so it vacuously read as reachable at any tier; and in
+ * NOW mode a researched prerequisite shouldn't demand its pack again. */
+function reachMissingPacks(tech: string, h: ResearchHorizon): string[] {
+  if (h.researched.has(tech)) return [];
+  const { techs, packs } = techClosure(tech);
+  // researched techs are prerequisite-closed, so dropping them from the closure
+  // prunes their (already-done) subtrees; only the unresearched frontier's packs
+  // must be supplied. Target mode has no researched set → the full closure.
+  const relevant = h.researched.size ? packsForTechs(setDiff(techs, h.researched)) : packs;
+  return [...relevant].filter((p) => !h.packs.has(p));
+}
+
+function setDiff(a: Set<string>, b: ReadonlySet<string>): Set<string> {
+  const out = new Set<string>();
+  for (const x of a) if (!b.has(x)) out.add(x);
+  return out;
 }
 
 /** The technology that first lets you make a good: among the techs unlocking a
@@ -2547,15 +2572,12 @@ export function allSciencePacks(): string[] {
   return packs.sort((a, b) => tier.get(a)! - tier.get(b)! || a.localeCompare(b));
 }
 
-/** A tech is "reached" if explicitly researched, or all its science packs are
- * within your available set (you produce them, so you'll research it in time). */
-function techReachedByScience(
-  tech: string,
-  science: { name: string }[],
-  h: ResearchHorizon,
-): boolean {
-  if (h.researched.has(tech)) return true;
-  return science.every((s) => h.packs.has(s.name));
+/** A tech is "reached" if explicitly researched, or every science pack in its
+ * full prerequisite closure is within your available set (you produce them, so
+ * you'll research it in time). See reachMissingPacks for why the closure — not
+ * the tech's own cost — is the correct gate. */
+function techReachedByScience(tech: string, h: ResearchHorizon): boolean {
+  return reachMissingPacks(tech, h).length === 0;
 }
 
 /** TURD choice state for a sub-tech given current selections:
@@ -2603,14 +2625,14 @@ function computeAvail(
   let research: RecipeAvail["research"];
   let needs: string[] = [];
   if (enabled) research = "enabled";
-  else if (unlocks.some((u) => techReachedByScience(u.tech, u.science, h))) research = "available";
   else {
-    research = "needs-research";
-    needs = [
-      ...new Set(
-        unlocks.flatMap((u) => u.science.map((s) => s.name)).filter((p) => !h.packs.has(p)),
-      ),
-    ];
+    // reachable via ANY unlocking tech; else the missing packs across all of them
+    const missing = unlocks.map((u) => reachMissingPacks(u.tech, h));
+    if (missing.some((m) => m.length === 0)) research = "available";
+    else {
+      research = "needs-research";
+      needs = [...new Set(missing.flat())];
+    }
   }
   const reached = research !== "needs-research";
   // availableNow: a 'pickable' (researched-but-undecided) master counts — picking

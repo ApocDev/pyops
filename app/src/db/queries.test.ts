@@ -15,6 +15,7 @@ import {
   listGroups,
   machineSufficiency,
   productivityBonuses,
+  recipeCandidates,
   saveBlockRow,
   setBlockGroup,
   setBuiltMachines,
@@ -348,5 +349,70 @@ describe("listBlocks health: sink goals need a consumer, not a producer", () => 
     });
     expect(health(ok).unmadeGoals).toEqual([]);
     expect(health(bad).unmadeGoals).toEqual(["plate"]);
+  });
+});
+
+describe("recipeCandidates availability: prerequisite-gated techs (empty own cost)", () => {
+  const seed = () => {
+    db.run(sql`
+      INSERT INTO items (name, display) VALUES ('circuit','Circuit')
+    `);
+    db.run(sql`
+      INSERT INTO recipes (name, kind, hidden, enabled) VALUES ('circuit-basic','real',0,0),('circuit-exotic','real',0,0)
+    `);
+    db.run(sql`
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+        ('circuit-basic',0,'item','circuit',1),
+        ('circuit-exotic',0,'item','circuit',1)
+    `);
+    db.run(sql`
+      INSERT INTO technologies (name, display) VALUES ('t-basic','Basic'),('t-exotic','Exotic'),('t-prereq','Prereq')
+    `);
+    db.run(sql`
+      INSERT INTO tech_ingredients (technology, name, amount) VALUES
+        ('t-basic','automation-science-pack',1),
+        ('t-prereq','py-science-pack-1',1)
+    `);
+    // t-exotic has NO own science cost — it's gated purely through its prerequisite
+    db.run(sql`INSERT INTO tech_prerequisites (technology, prerequisite) VALUES ('t-exotic','t-prereq')`);
+    db.run(sql`
+      INSERT INTO tech_unlocks (technology, recipe) VALUES
+        ('t-basic','circuit-basic'),
+        ('t-exotic','circuit-exotic')
+    `);
+  };
+
+  it("a tech with empty own cost is gated by its prerequisites, not vacuously reachable", () => {
+    seed();
+    // the horizon supplies only automation science (the basic tier)
+    setResearchHorizon({ mode: "now", packs: ["automation-science-pack"], researched: [] });
+    const cands = recipeCandidates("circuit", "produce");
+    const basic = cands.find((c) => c.name === "circuit-basic")!;
+    const exotic = cands.find((c) => c.name === "circuit-exotic")!;
+    // basic (automation only) is available now
+    expect(basic.avail.research).toBe("available");
+    expect(basic.avail.availableNow).toBe(true);
+    // exotic's unlocking tech has an EMPTY own cost but its prereq needs
+    // py-science-1 — before the fix [].every() made it vacuously "available"
+    expect(exotic.avail.research).toBe("needs-research");
+    expect(exotic.avail.availableNow).toBe(false);
+    expect(exotic.avail.needs).toContain("py-science-pack-1");
+    // so the basic recipe ranks ABOVE the exotic one
+    expect(cands.findIndex((c) => c.name === "circuit-basic")).toBeLessThan(
+      cands.findIndex((c) => c.name === "circuit-exotic"),
+    );
+  });
+
+  it("a researched prerequisite is not re-demanded (NOW mode)", () => {
+    seed();
+    // you produce only automation science, but t-prereq is already researched →
+    // t-exotic is now reachable (its remaining frontier costs nothing you lack)
+    setResearchHorizon({
+      mode: "now",
+      packs: ["automation-science-pack"],
+      researched: ["t-prereq"],
+    });
+    const exotic = recipeCandidates("circuit", "produce").find((c) => c.name === "circuit-exotic")!;
+    expect(exotic.avail.research).toBe("available");
   });
 });
