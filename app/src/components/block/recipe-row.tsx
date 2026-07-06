@@ -200,7 +200,7 @@ export function RecipeRow({
                     own TINT carries the pin state (info = fixed, warning = capped),
                     so no separate =N badge. Share routing keeps its % marker (it's
                     about ingredients, not the building count). */}
-                <span className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm">
+                <span className="flex items-center gap-2 bg-muted/50 px-1.5 py-1 text-sm">
                   <button
                     onClick={() => open.machinePicker(name)}
                     title={`${row.machine.display ?? row.machine.name} · ${num(row.machine.craftingSpeed ?? 1)}× speed · click to change building`}
