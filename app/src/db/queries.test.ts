@@ -314,7 +314,7 @@ describe("productivityBonuses (research horizon gated)", () => {
 });
 
 describe("listBlocks health: sink goals need a consumer, not a producer", () => {
-  const save = (name: string, data: Record<string, unknown>) =>
+  const save = (name: string, data: Parameters<typeof saveBlockRow>[0]["data"]) =>
     saveBlockRow(
       { name, iconKind: null, iconName: null, data, electricityW: null, dataFingerprint: null },
       null,
