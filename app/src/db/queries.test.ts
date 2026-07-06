@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import { db, switchDatabase } from "./index.server.ts";
 import {
+  blockBuildStatus,
   blockMissingRefs,
   blockReferenceFingerprint,
   buildCost,
@@ -416,5 +417,86 @@ describe("recipeCandidates availability: prerequisite-gated techs (empty own cos
     });
     const exotic = recipeCandidates("circuit", "produce").find((c) => c.name === "circuit-exotic")!;
     expect(exotic.avail.research).toBe("available");
+  });
+});
+
+describe("blockBuildStatus", () => {
+  // block 1 ('smelting', furnace/smelt-plate/10) comes from the top-level fixture.
+  beforeEach(() => {
+    db.run(
+      sql`INSERT INTO crafting_machines (name, kind, crafting_speed) VALUES ('reactor','reactor',1)`,
+    );
+
+    // block 2: enabled, SAME machine+recipe as block 1, comfortably covered
+    // by the shared built count once it lands
+    db.run(sql`INSERT INTO blocks (id, name, data, enabled) VALUES (2,'copper','{}',1)`);
+    db.run(
+      sql`INSERT INTO block_machines (block_id, machine, recipe, count) VALUES (2,'furnace','smelt-plate',2)`,
+    );
+
+    // block 3: disabled, would be under-built if it counted
+    db.run(sql`INSERT INTO blocks (id, name, data, enabled) VALUES (3,'spare','{}',0)`);
+    db.run(
+      sql`INSERT INTO block_machines (block_id, machine, recipe, count) VALUES (3,'furnace','smelt-plate',20)`,
+    );
+
+    // block 4: a recipe-blind machine (reactor / local heat source)
+    db.run(sql`INSERT INTO blocks (id, name, data, enabled) VALUES (4,'heat','{}',1)`);
+    db.run(
+      sql`INSERT INTO block_machines (block_id, machine, recipe, count) VALUES (4,'reactor','generate-heat-py-burner',1.5)`,
+    );
+
+    setBuiltMachines([
+      { machine: "furnace", recipe: "smelt-plate", count: 7 },
+      { machine: "reactor", recipe: "", count: 1 },
+    ]);
+  });
+
+  it("reports required (ceiled)/built/missing for one block", () => {
+    const res = blockBuildStatus(1);
+    expect(res).toHaveLength(1);
+    expect(res[0].recipes[0]).toEqual({
+      recipe: "smelt-plate",
+      machine: "furnace",
+      required: 10,
+      built: 7,
+      missing: 3,
+    });
+    expect(res[0].totalMissing).toBe(3);
+  });
+
+  it("with no blockId, lists only enabled blocks with a shortfall, worst-missing first", () => {
+    const res = blockBuildStatus();
+    expect(res.map((b) => b.blockId)).toEqual([1, 4]);
+    expect(res[0].totalMissing).toBe(3);
+    expect(res[1].totalMissing).toBe(1);
+  });
+
+  it("an explicit blockId still returns a disabled block, exposing the shared-built-count caveat", () => {
+    const res = blockBuildStatus(3);
+    expect(res).toHaveLength(1);
+    expect(res[0].enabled).toBe(false);
+    // required 20 vs. the SAME shared built count of 7 block 1 also saw
+    expect(res[0].recipes[0].missing).toBe(13);
+  });
+
+  it("falls back to a machine-level total for a recipe-blind machine (reactor)", () => {
+    const res = blockBuildStatus(4);
+    expect(res).toHaveLength(1);
+    expect(res[0].recipes[0]).toEqual({
+      recipe: "generate-heat-py-burner",
+      machine: "reactor",
+      required: 2, // ceil(1.5)
+      built: null,
+      missing: null,
+    });
+    expect(res[0].machineFallback).toEqual([
+      { machine: "reactor", requiredTotal: 2, builtTotal: 1, missing: 1 },
+    ]);
+    expect(res[0].totalMissing).toBe(1);
+  });
+
+  it("returns empty for an unknown block id", () => {
+    expect(blockBuildStatus(999999)).toEqual([]);
   });
 });

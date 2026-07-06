@@ -56,6 +56,7 @@ import type {
 } from "../lib/logistics.ts";
 import { goalNames, normalizeBlockData, primaryRate } from "../lib/goals.ts";
 import { prodScaledAmount } from "../lib/productivity.ts";
+import { wholeMachines } from "../lib/machine-count.ts";
 
 const recipeSummary = {
   name: recipes.name,
@@ -1872,6 +1873,155 @@ export function machineSufficiency() {
     })
     .filter((m) => m.requiredTotal > 1e-6 || m.builtTotal > 0)
     .sort((a, b) => b.short - a.short || b.requiredTotal - a.requiredTotal);
+}
+
+/** Per-machine built-vs-required rows for a SET of required rows, reusing
+ * machineSufficiency's exact-match / machine-total-fallback split (see its
+ * comment above) but returning a FLAT per-recipe list instead of a per-machine
+ * tree — blockBuildStatus wants "per recipe" rows (#123), not a nested
+ * breakdown. `built`/`missing` come back `null` on a row whose machine type
+ * never reports a recipe in built_machines (boilers/generators/reactors/
+ * offshore-pumps — see mod/control.lua's RECIPE_TYPES) — those rows are instead
+ * rolled into `machineFallback`, one entry per such machine, comparing its
+ * TOTAL required (across all its recipe rows here) against its TOTAL built. */
+function withBuiltStatus(
+  reqRows: { machine: string; recipe: string; required: number }[],
+  builtRows: { name: string; recipe: string; count: number }[],
+): {
+  recipes: {
+    recipe: string;
+    machine: string;
+    required: number;
+    built: number | null;
+    missing: number | null;
+  }[];
+  machineFallback: {
+    machine: string;
+    requiredTotal: number;
+    builtTotal: number;
+    missing: number;
+  }[];
+  totalMissing: number;
+} {
+  const machines = new Set(reqRows.map((r) => r.machine));
+  const recipes: {
+    recipe: string;
+    machine: string;
+    required: number;
+    built: number | null;
+    missing: number | null;
+  }[] = [];
+  const machineFallback: {
+    machine: string;
+    requiredTotal: number;
+    builtTotal: number;
+    missing: number;
+  }[] = [];
+  let totalMissing = 0;
+  for (const machine of machines) {
+    const rows = reqRows.filter((r) => r.machine === machine);
+    const built = builtRows.filter((b) => b.name === machine);
+    const recipeAware = built.some((b) => b.recipe !== "");
+    if (recipeAware) {
+      for (const r of rows) {
+        const have = built.find((b) => b.recipe === r.recipe)?.count ?? 0;
+        const missing = Math.max(0, r.required - have);
+        recipes.push({ recipe: r.recipe, machine, required: r.required, built: have, missing });
+        totalMissing += missing;
+      }
+    } else {
+      const requiredTotal = rows.reduce((s, r) => s + r.required, 0);
+      const builtTotal = built.reduce((s, b) => s + b.count, 0);
+      const missing = Math.max(0, requiredTotal - builtTotal);
+      for (const r of rows)
+        recipes.push({
+          recipe: r.recipe,
+          machine,
+          required: r.required,
+          built: null,
+          missing: null,
+        });
+      machineFallback.push({ machine, requiredTotal, builtTotal, missing });
+      totalMissing += missing;
+    }
+  }
+  return { recipes, machineFallback, totalMissing };
+}
+
+/** Built-vs-required MACHINE status for ONE block (or, with no id, every
+ * ENABLED block currently under-built) — #123. Unlike machineSufficiency
+ * (which sums the REQUIRED side across every block to answer "how many
+ * total"), this scopes the required side to a single block's block_machines
+ * rows: "what's left to build for THIS block." Built counts are still the
+ * same force-wide built_machines snapshot — two blocks sharing the exact
+ * same (machine, recipe) will each independently compare against the same
+ * built count (a real limitation of the data model, not fixed here).
+ * `required` is a WHOLE-BUILDING count (ceiled from block_machines' solved
+ * fractional count — same source submitBlock's `buildings` field reports,
+ * before this tool's own ceiling). Passing `blockId` always returns that
+ * block, even fully-built or disabled (a deliberate ask); with no id, only
+ * enabled blocks with `totalMissing > 0` come back, worst-missing first
+ * (mirrors every other factory-wide rollup's enabled-only convention). */
+export function blockBuildStatus(blockId?: number): {
+  blockId: number;
+  block: string;
+  enabled: boolean;
+  totalMissing: number;
+  recipes: {
+    recipe: string;
+    machine: string;
+    required: number;
+    built: number | null;
+    missing: number | null;
+  }[];
+  machineFallback?: {
+    machine: string;
+    requiredTotal: number;
+    builtTotal: number;
+    missing: number;
+  }[];
+}[] {
+  const bs =
+    blockId != null
+      ? db
+          .select({ id: blocks.id, name: blocks.name, enabled: blocks.enabled })
+          .from(blocks)
+          .where(eq(blocks.id, blockId))
+          .all()
+      : db
+          .select({ id: blocks.id, name: blocks.name, enabled: blocks.enabled })
+          .from(blocks)
+          .where(eq(blocks.enabled, true))
+          .orderBy(blocks.sortOrder, blocks.name)
+          .all();
+  if (!bs.length) return [];
+
+  const builtRows = db.select().from(builtMachines).all();
+  const result = bs.map((b) => {
+    const reqRows = db
+      .select({
+        machine: blockMachines.machine,
+        recipe: blockMachines.recipe,
+        count: blockMachines.count,
+      })
+      .from(blockMachines)
+      .where(eq(blockMachines.blockId, b.id))
+      .all()
+      .map((r) => ({ machine: r.machine, recipe: r.recipe, required: wholeMachines(r.count) }));
+    const { recipes, machineFallback, totalMissing } = withBuiltStatus(reqRows, builtRows);
+    recipes.sort((x, y) => (y.missing ?? 0) - (x.missing ?? 0) || y.required - x.required);
+    return {
+      blockId: b.id,
+      block: b.name,
+      enabled: b.enabled,
+      totalMissing,
+      recipes,
+      ...(machineFallback.length ? { machineFallback } : {}),
+    };
+  });
+
+  if (blockId != null) return result;
+  return result.filter((r) => r.totalMissing > 0).sort((a, b) => b.totalMissing - a.totalMissing);
 }
 
 /* ── Live production statistics (actual rates from the game) ──────────────────── */

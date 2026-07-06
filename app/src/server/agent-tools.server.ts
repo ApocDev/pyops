@@ -948,6 +948,32 @@ export const buildingBill = tool({
   },
 });
 
+export const blockBuildStatus = tool({
+  description:
+    "Built-vs-required MACHINE status for blocks that ALREADY EXIST, from the last synced game state — the answer to 'what's left to build for the coke block' / 'which blocks are under-built'. Works OFFLINE: reads the block's cached solved machine requirement (block_machines, CEILED to whole buildings — same source submitBlock's `buildings` field reports) against the synced built-machine snapshot (built_machines); no live bridge call, no re-solve. STALE the moment the player places/removes something in-game until their next save-load or Sync in the PyOps panel — check `syncedAt` and say how old it is if it matters, or if it's null say no sync has ever happened. Pass `blockId` (a factoryBlocks id) for one block's full breakdown (returned even if fully built or the block is disabled); omit it to list every ENABLED block with a shortfall, worst-missing first. Each `recipes` row is the machine + recipe + required whole-building count + built count + missing delta; `built`/`missing` come back null on a row whose machine type never reports a recipe to the game (boilers/generators/reactors/offshore-pumps — e.g. a local heat-source reactor) — those are instead summarized once per machine in `machineFallback` (requiredTotal/builtTotal/missing), since the game can't tell you which recipe it's running. Built counts are FORCE-WIDE, not block-scoped: if two blocks share the exact same machine+recipe, each independently compares against the same built count. For a NEW plan's cross-block machine bill use buildingBill instead — this tool audits blocks that already exist.",
+  inputSchema: z.object({
+    blockId: z
+      .number()
+      .int()
+      .optional()
+      .describe(
+        "A factoryBlocks id to check ONE specific block (returned even if fully built or disabled); omit to list every ENABLED block with a shortfall, worst-missing first.",
+      ),
+  }),
+  execute: async ({ blockId }) => {
+    if (blockId != null && !q.getBlock(blockId)) {
+      return { ok: false, error: "no such block", blocks: [] };
+    }
+    const meta = q.metaAll();
+    return {
+      ok: true,
+      syncedAt: meta.built_synced_at ?? null,
+      syncedCount: meta.built_synced_count ? Number(meta.built_synced_count) : null,
+      blocks: q.blockBuildStatus(blockId),
+    };
+  },
+});
+
 /* ── Tasks & notes: let the agent read/file/link the project's planning
  * tasks. Unlike block drafts (propose-then-apply), task writes are low-stakes and
  * reversible (the user edits/deletes them on the Tasks page), so they apply
@@ -1394,6 +1420,7 @@ export const agentTools = {
   reviseBlock,
   submitPlan,
   buildingBill,
+  blockBuildStatus,
   listTasks,
   getTask,
   createTask,

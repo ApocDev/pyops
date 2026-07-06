@@ -171,6 +171,29 @@ about "how do I make X":
   once a plan's blocks are chosen, then decide per machine item whether an
   existing mall block supplies it, an existing block should be resized
   (`reviseBlock`/plan `updates`), or it needs its own new block.
+- **Built-vs-required status** (`blockBuildStatus`, #123) — audits blocks that
+  already exist, from the last synced game state: per block, per recipe, the
+  machine, the required WHOLE-building count (ceiled from `block_machines`'
+  cached solved count — the same source `buildings` reports), the built count
+  from `built_machines`, and the missing delta. Works entirely offline (no
+  bridge round-trip, no re-solve) — the answer is only as fresh as the last
+  save-load/Sync in the PyOps panel, so the tool returns `syncedAt`/
+  `syncedCount` and its description tells the agent to flag staleness. Pass a
+  `blockId` (a `factoryBlocks` id) for one block's full breakdown, even fully
+  built or disabled; omit it to list every **enabled** block with a shortfall,
+  worst-missing first, matching every other factory-wide rollup's
+  enabled-only convention. Built counts are force-wide (`built_machines` has
+  no block association), so two blocks sharing the identical machine+recipe
+  each compare independently against the same built count. Machines whose
+  entity type never reports a recipe to the game — boilers, generators,
+  reactors, offshore-pumps (`mod/control.lua`'s `RECIPE_TYPES`, e.g. a
+  `generate-heat-*` local heat source) — come back with `built`/`missing`
+  null on their `recipes` rows and are instead summarized once per machine in
+  `machineFallback`, mirroring `machineSufficiency`'s existing
+  recipe-aware/machine-total fallback (`queries.server.ts`) rather than
+  silently misreporting them as permanently missing. The system prompt steers
+  the agent here instead of `gameEval`/`gameProduction` for "what's built"
+  questions, since this tool works even when the bridge is disconnected.
 - **Tasks & notes** — `listTasks`/`getTask` read the user's planning to-do tree;
   `createTask` files one (with optional checklist steps and entity links);
   `updateTask`/`addTaskStep`/`linkTask` edit it. Unlike block drafts, these apply
