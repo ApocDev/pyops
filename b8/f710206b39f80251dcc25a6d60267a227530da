@@ -1,0 +1,37 @@
+app/src/server/agent-tools.server.ts
+  s_221bb38510e17a::t_33cbc6f408cd9a 20-26,525-532,574,701-738,740-834,847-849,857,894-900,926-927,957-980,1033,1040,1085-1114,1118,1130,1132-1133,1141
+app/src/routes/assistant.tsx
+  s_ebbb125d5cb98b::t_9638de784a2399 40-41,1357-1359,1365-1367,1429-1436,1475-1500,1510,1629,1859,1999
+app/src/server/agent-tools-buildings.test.ts
+  s_ebbb125d5cb98b::t_6b61f8c3309605 23,122-196
+app/src/server/agent-tools-goals.test.ts
+  s_ebbb125d5cb98b::t_b8a459810e61fa 1-183
+app/src/server/agent.ts
+  s_ebbb125d5cb98b::t_f25afa7703f077 56,58,133-140,148-166,182-188
+docs/ai-assistant.md
+  s_ebbb125d5cb98b::t_127363121c9a91 211-231,240-271,411-420
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b8f710206b39f80251dcc25a6d60267a227530da",
+  "prompts": {},
+  "sessions": {
+    "s_221bb38510e17a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2a60526-18c5-40ca-841e-fb6b390e49dd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_ebbb125d5cb98b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aee9f85297bd881c8",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
