@@ -208,6 +208,27 @@ about "how do I make X":
   threshold plus a short override list classifies the common case. Per-block user
   pins override it.
 - **Draft-a-block** — assemble the reasoning into a reviewable single-block draft.
+- **Multi-goal + keep-in-stock goals** (#38) — `blockDraftInput` (shared by
+  `submitBlock`'s and `submitPlan`'s blocks) accepts either the legacy single
+  `target`+`rate` shorthand or a `goals` array of `{ name, rate? , stock?,
+  window? }`: each goal is EITHER a throughput `rate` OR a keep-in-stock
+  `stock` amount (+ optional refill `window` seconds, default 600 —
+  `STOCK_WINDOW_DEFAULT` in `lib/goals.ts`). A stock goal's solver rate is
+  DERIVED as `stock/window` (`resolveGoals` in `agent-tools.server.ts`) — a
+  buffer-refill rate, never a fabricated continuous one — which is the correct
+  primitive for a construction/mall block ("keep 80 vrauks-paddock on hand")
+  that has no honest per-second production rate. `goals[0]` (or the legacy
+  `target`) still anchors the block's naming/sizing and the draft's
+  `target`/`rate`/`targetDisplay` fields, so existing UI/back-compat code that
+  only reads those keeps working; the draft's new `goals` array is what the
+  apply path (`routes/assistant.tsx`) actually persists into `BlockData.goals`,
+  stock/window included. `buildingBillBlockInput` accepts the same `goals`
+  shape, so a mall block's several stock goals are all reflected in its machine
+  bill too. `reviseBlockInput` stays rate/recipes-only by design (#38 scoped
+  down): `rate` re-rates only the block's anchor goal, and `buildBlockUpdate`
+  preserves the rest of its stored `goals` — including any stock ones — via
+  `withPrimaryRate` (`lib/goals.ts`) rather than collapsing the block to a
+  single goal.
 - **Revise-a-block** — propose changing an _existing_ block: RAISE/LOWER its
   output rate to meet new demand, and/or REPLACE its recipe set (#12 — e.g.
   swap to a higher-yield variant), instead of building a duplicate. A recipe
@@ -216,25 +237,38 @@ about "how do I make X":
   (`newByproducts`), so closure damage is visible before the user applies.
 - **Draft-a-plan** — assemble several solved block drafts for one request (and,
   optionally, resizes of existing blocks), then let the user apply all of them in
-  one action.
-- **Solved building counts** — `submitBlock`/`reviseBlock`/`submitPlan` no longer
-  discard the machine counts `computeBlock` already solves: every draft carries a
-  `buildings` field, `{ recipe, machine, count }[]` (fractional, module/TURD-beacon
-  effects folded in — the same counts the block editor shows). **`buildingBill`**
-  is the cross-block machine BILL for "include the buildings needed to build
-  this": given the same `{ target, rate, recipes }[]` shape as `submitPlan`'s
-  blocks, it solves each independently (a failing block is skipped into
-  `skipped`, not a hard error), CEILS each block's per-recipe machine count to a
-  whole building, then sums by machine entity across every block. Each machine
-  entity is mapped to the ITEM that places it (`q.getItem(entity)`; Factorio's
-  convention is entity name == item name — there's no separate `place_result`
-  column in the schema, so `item` comes back `null` with a note if no matching
-  item prototype exists) and given its top 1–2 producing recipes (`optionsFor`,
-  the same shape `recipeOptions` uses). Belts/inserters/logistics are
-  deliberately out of scope — machine items only. The agent is told to call this
-  once a plan's blocks are chosen, then decide per machine item whether an
-  existing mall block supplies it, an existing block should be resized
-  (`reviseBlock`/plan `updates`), or it needs its own new block.
+  one action. When a block is a building/mall-supply block, the system prompt
+  steers the agent to give it keep-in-stock goals (seeded from `buildingBill`'s
+  machine `count`) instead of a fabricated rate, and to recurse into each
+  machine's own intermediates as further blocks/plan entries.
+- **Solved building counts, module-filled and shared** — `submitBlock`/
+  `reviseBlock`/`submitPlan` no longer discard the machine counts `computeBlock`
+  already solves: every draft carries a `buildings` field, `{ recipe, machine,
+  count }[]` (fractional, module/TURD-beacon effects folded in — the same
+  counts the block editor shows). The two-pass solve that fills each row's
+  module slots with `computeBlock`'s own suggestions (adopt → re-solve) is
+  factored into one shared helper, `solveWithModuleFill` — used by BOTH the
+  block-draft path AND `buildingBill`, so the two tools' counts always AGREE
+  for the same recipes. Before this fix `buildingBill` ran a bare
+  `computeBlock({ goals, recipes })` with no module pass, which for Py's
+  creature/farm buildings (intentionally near-useless unmoduled — vrauks
+  paddocks, tree farms) inflated its reported count by roughly 10-15× versus
+  the same block's `submitBlock` draft. **`buildingBill`** is the cross-block
+  machine BILL for "include the buildings needed to build this": given the
+  same `{ target, rate, recipes }[]` shape as `submitPlan`'s blocks (or the
+  `goals` array, see above), it solves each independently with the shared
+  module fill (a failing block is skipped into `skipped`, not a hard error),
+  CEILS each block's per-recipe machine count to a whole building, then sums by
+  machine entity across every block. Each machine entity is mapped to the ITEM
+  that places it (`q.getItem(entity)`; Factorio's convention is entity name ==
+  item name — there's no separate `place_result` column in the schema, so
+  `item` comes back `null` with a note if no matching item prototype exists)
+  and given its top 1–2 producing recipes (`optionsFor`, the same shape
+  `recipeOptions` uses). Belts/inserters/logistics are deliberately out of
+  scope — machine items only. The agent is told to call this once a plan's
+  blocks are chosen, then decide per machine item whether an existing mall
+  block supplies it, an existing block should be resized (`reviseBlock`/plan
+  `updates`), or it needs its own new block, sized with a keep-in-stock goal.
 - **Factory-wide power rollup** (`factoryPower`, #129) — total electric DEMAND
   vs GENERATION across every enabled block, in one call. Demand reuses each
   block's cached `electricityW` (the same figure the Factory page's header
@@ -373,6 +407,16 @@ through the normal block save path (solved flows, machine requirements, power,
 cache) and applies each resize through `setBlockRateFn`, exactly like a manually
 edited block. The agent is told to check each existing block's current
 `makes[].rate` and resize rather than duplicate when it's too small.
+
+Both apply paths persist a draft's FULL `goals` array (#38), not just its
+`target`/`rate`: `routes/assistant.tsx`'s single-block **Create block** handler
+and the plan card's **Create N blocks** handler both build `BlockData.goals`
+from the draft's `goals` (falling back to a synthesized single goal for an
+older cached draft that predates the field), so a keep-in-stock goal's
+`stock`/`window` survive into the saved block exactly as the schema (`Goal` in
+`db/schema.ts`) expects. The draft card itself renders every goal (not just the
+anchor) when a block has more than one, showing a stock goal as "keep N
+(refill Xm)" instead of a rate.
 
 Once a card's block exists in the store it can go **straight into the game**
 (#14): the draft card's post-create state, the revise card (its block already

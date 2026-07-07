@@ -17,7 +17,13 @@ import { z } from "zod";
 import { classifyAdditive } from "./additives.ts";
 import { coherenceAudit as runCoherenceAudit, isVoidRecipeFor } from "./coherence-audit.server.ts";
 import { factoryWhatIf } from "./factory-solve.server.ts";
-import { normalizeBlockData, primaryGoal, primaryRate } from "../lib/goals.ts";
+import {
+  normalizeBlockData,
+  primaryGoal,
+  primaryRate,
+  STOCK_WINDOW_DEFAULT,
+  withPrimaryRate,
+} from "../lib/goals.ts";
 
 import * as q from "../db/queries.server.ts";
 import * as tasksDb from "../db/tasks.server.ts";
@@ -516,8 +522,14 @@ async function recipeIo(q: typeof import("../db/queries.server.ts"), name: strin
 }
 
 /** The closure computation behind chainStatus — a plain function so submitBlock
- * can reuse it with full types (not via the tool's loosely-typed execute). */
-async function computeChainStatus(recipes: string[], target: string) {
+ * can reuse it with full types (not via the tool's loosely-typed execute).
+ * `targets` accepts one good (chainStatus's single `target`) or several (a
+ * multi-goal block draft, #38) — every target good is excluded from
+ * `byproducts`, not just the first. */
+async function computeChainStatus(recipes: string[], targets: string | string[]) {
+  const targetList = Array.isArray(targets) ? targets : [targets];
+  const targetSet = new Set(targetList);
+  const target = targetList[0] ?? "";
   const produced = new Map<string, number>(); // good -> max single-recipe output amount (size hint)
   const consumed = new Map<string, number>(); // good -> max single-recipe input amount
   const invalid: string[] = [];
@@ -559,7 +571,7 @@ async function computeChainStatus(recipes: string[], target: string) {
     });
   }
   const byproducts = [...produced.keys()].filter(
-    (g) => !consumed.has(g) && g !== target && !PSEUDO_GOODS.has(g),
+    (g) => !consumed.has(g) && !targetSet.has(g) && !PSEUDO_GOODS.has(g),
   );
   openInputs.sort((a, b) => Number(a.additive) - Number(b.additive)); // build-needed first
   return {
@@ -686,26 +698,140 @@ export const researchPath = tool({
   },
 });
 
-const blockDraftInput = z.object({
-  name: z.string().optional().describe("Optional display name for this block"),
-  target: z.string().describe("Internal name of the good this block produces"),
-  rate: z.number().positive().describe("Target output rate (items or fluid units per second)"),
-  recipes: z.array(z.string()).min(1).describe("The complete recipe list for THIS block"),
-  subBlocksNeeded: z.array(z.string()).optional().describe("Seam goods for follow-up blocks"),
-  notes: z
-    .string()
-    .optional()
-    .describe("Short rationale: tier choices, where you cut, reused blocks, byproducts"),
-});
+/** One output goal in a block draft's request (#38): EITHER a throughput
+ * `rate` OR a keep-IN-STOCK `stock` amount (+ optional refill `window`,
+ * seconds — defaults to 10 min). A stock goal's solver rate is DERIVED
+ * (stock/window), never a fabricated continuous rate — the right primitive
+ * for a construction/mall block ("keep 80 vrauks-paddock on hand"). */
+const blockGoalInput = z
+  .object({
+    name: z.string().describe("Internal name of the good this goal targets"),
+    rate: z
+      .number()
+      .positive()
+      .optional()
+      .describe(
+        "Target throughput (items or fluid units per second). Omit for a keep-in-stock goal (`stock`).",
+      ),
+    stock: z
+      .number()
+      .positive()
+      .optional()
+      .describe(
+        "Keep-in-stock amount instead of a throughput target — 'keep N on hand'. The solver rate is " +
+          "DERIVED as stock/window (a buffer-refill rate), never a fabricated continuous rate. Use for " +
+          "building/mall-supply goals (e.g. seed `stock` from buildingBill's machine `count` to keep " +
+          "that many vrauks-paddock/cages/furnaces on hand) instead of guessing a rate.",
+      ),
+    window: z
+      .number()
+      .positive()
+      .default(STOCK_WINDOW_DEFAULT)
+      .describe(
+        "Refill window in seconds for a stock goal (default 600 = 10 min) — machines are sized to " +
+          "rebuild the buffer within this window. Ignored without `stock`.",
+      ),
+  })
+  .refine((g) => (g.rate != null && g.rate > 0) || (g.stock != null && g.stock > 0), {
+    message: "each goal needs a positive `rate` or a positive `stock`",
+  });
+type BlockGoalInput = z.infer<typeof blockGoalInput>;
 
-async function buildBlockDraft({
-  target,
-  rate,
-  recipes,
-  subBlocksNeeded,
-  notes,
-}: z.infer<typeof blockDraftInput>) {
-  const status = await computeChainStatus(recipes, target);
+/** A resolved goal ready for computeBlock: name + solver rate (derived from
+ * stock/window when it's a stock goal), plus stock/window kept for the draft
+ * return (so the apply path can persist them). */
+type ResolvedGoal = { name: string; rate: number; stock?: number; window?: number };
+
+/** Resolve a block-draft's goal input to solver-ready goals — either the
+ * `goals` array (#38, multi-goal + stock support) or the legacy single
+ * `target`+`rate` shorthand. `goals[0]` (or `target`) anchors naming/sizing. */
+function resolveGoals(input: {
+  target?: string;
+  rate?: number;
+  goals?: BlockGoalInput[];
+}): ResolvedGoal[] {
+  if (input.goals?.length) {
+    return input.goals.map((g) => {
+      const window = g.window ?? STOCK_WINDOW_DEFAULT;
+      const rate = g.rate ?? g.stock! / window;
+      return { name: g.name, rate, ...(g.stock != null ? { stock: g.stock, window } : {}) };
+    });
+  }
+  return [{ name: input.target ?? "", rate: input.rate ?? 1 }];
+}
+
+const blockDraftInput = z
+  .object({
+    name: z.string().optional().describe("Optional display name for this block"),
+    target: z
+      .string()
+      .optional()
+      .describe(
+        "Internal name of the good this block produces — shorthand for a single goal " +
+          "(goals[0].name). Omit when passing `goals`.",
+      ),
+    rate: z
+      .number()
+      .positive()
+      .optional()
+      .describe(
+        "Target output rate for `target` (items or fluid units per second) — shorthand for " +
+          "goals[0].rate. Omit when passing `goals`.",
+      ),
+    goals: z
+      .array(blockGoalInput)
+      .min(1)
+      .optional()
+      .describe(
+        "Multiple output goals for this block (#38) — goals[0] anchors its naming/sizing. Each goal " +
+          "is EITHER a throughput `rate` OR a keep-in-stock `stock` (+ optional `window` seconds, " +
+          "default 600) — a building/mall-supply block holds SEVERAL 'keep N of this building on " +
+          "hand' goals at once. Prefer this over the legacy `target`+`rate` shorthand whenever the " +
+          "block has more than one output or any stock goal.",
+      ),
+    recipes: z.array(z.string()).min(1).describe("The complete recipe list for THIS block"),
+    subBlocksNeeded: z.array(z.string()).optional().describe("Seam goods for follow-up blocks"),
+    notes: z
+      .string()
+      .optional()
+      .describe("Short rationale: tier choices, where you cut, reused blocks, byproducts"),
+  })
+  .refine((v) => (v.goals?.length ?? 0) > 0 || (v.target != null && v.rate != null), {
+    message: "pass either `goals` (at least one) or both `target` and `rate`",
+  });
+
+/** Two-pass module-fill solve shared by every block draft/bill tool
+ * (submitBlock/reviseBlock/submitPlan AND buildingBill): computeBlock only
+ * SUGGESTS modules (the UI applies them on click), so a drafted/billed block
+ * must adopt the suggestions as explicit picks (pinning the machine they were
+ * sized for) and re-solve so counts/power/imports reflect them. Before this was
+ * shared, buildingBill skipped this second pass entirely — its bare
+ * `computeBlock({goals, recipes})` under-counted Py's creature/farm buildings
+ * (intentionally near-useless unmoduled) by ~10-15x and disagreed with
+ * submitBlock's own (already module-filled) counts for the same recipes. */
+async function solveWithModuleFill(goals: { name: string; rate: number }[], recipes: string[]) {
+  const provisional = await computeBlock({ goals, recipes });
+  const modules: Record<string, string[]> = {};
+  const machines: Record<string, string> = {};
+  for (const row of provisional.rows) {
+    if (row.suggestedModules?.length && row.machine) {
+      modules[row.recipe] = row.suggestedModules;
+      machines[row.recipe] = row.machine.name;
+    }
+  }
+  const solved = Object.keys(modules).length
+    ? await computeBlock({ goals, recipes, modules, machines })
+    : provisional;
+  return { solved, modules, machines };
+}
+
+async function buildBlockDraft(input: z.infer<typeof blockDraftInput>) {
+  const { recipes, subBlocksNeeded, notes } = input;
+  const resolved = resolveGoals(input);
+  const target = resolved[0]?.name ?? "";
+  const rate = resolved[0]?.rate ?? 0;
+  const goalNames = resolved.map((g) => g.name);
+  const status = await computeChainStatus(recipes, goalNames);
   const suppliers = q.goodSuppliers();
   const rates = new Map<string, number>();
   let powerW: number | null = null;
@@ -718,26 +844,9 @@ async function buildBlockDraft({
     machines: {},
   };
   try {
-    // computeBlock only SUGGESTS modules (the UI applies them on click); a
-    // drafted block should arrive filled, so adopt the suggestions as the
-    // draft's explicit picks (pinning the machine they were sized for) and
-    // re-solve so counts/power/imports reflect them.
-    const goals = [{ name: target, rate }];
-    const provisional = await computeBlock({ goals, recipes });
-    for (const row of provisional.rows) {
-      if (row.suggestedModules?.length && row.machine) {
-        moduleFill.modules[row.recipe] = row.suggestedModules;
-        moduleFill.machines[row.recipe] = row.machine.name;
-      }
-    }
-    const solved = Object.keys(moduleFill.modules).length
-      ? await computeBlock({
-          goals,
-          recipes,
-          modules: moduleFill.modules,
-          machines: moduleFill.machines,
-        })
-      : provisional;
+    const goals = resolved.map((g) => ({ name: g.name, rate: g.rate }));
+    const { solved, modules, machines } = await solveWithModuleFill(goals, recipes);
+    moduleFill = { modules, machines };
     for (const f of solved.imports) rates.set(f.name, +f.rate.toFixed(3));
     for (const f of solved.exports) rates.set(f.name, +f.rate.toFixed(3));
     powerW = solved.power?.totalW ?? null;
@@ -745,7 +854,7 @@ async function buildBlockDraft({
     solvedImportNames = solved.imports.map((f) => f.name).filter((n) => !POWER_PSEUDO.has(n));
     solvedByproductNames = solved.exports
       .map((f) => f.name)
-      .filter((n) => !POWER_PSEUDO.has(n) && n !== target);
+      .filter((n) => !POWER_PSEUDO.has(n) && !goalNames.includes(n));
     buildings = machineReqs(solved.rows).map((b) => ({
       recipe: b.recipe,
       machine: b.machine,
@@ -782,6 +891,13 @@ async function buildBlockDraft({
     target,
     targetDisplay: q.getItem(target)?.display ?? q.getFluid(target)?.display ?? target,
     rate,
+    // full goal set (#38): name/rate + stock/window when it's a keep-in-stock
+    // goal — the apply path (assistant.tsx) persists THIS, not just target/rate.
+    goals: resolved.map((g) => ({
+      name: g.name,
+      rate: g.rate,
+      ...(g.stock != null ? { stock: g.stock, window: g.window } : {}),
+    })),
     recipes,
     modules: moduleFill.modules,
     machines: moduleFill.machines,
@@ -807,25 +923,8 @@ async function buildBlockDraft({
 
 export const submitBlock = tool({
   description:
-    "Finalize your proposed production block for ONE target, bounded at its seams. Call ONCE at the end. The block's open inputs are its imports; each import is either already made by an existing block (reuse it) or is a commodity/raw. List in subBlocksNeeded any seam goods that deserve their OWN block next (the decomposition follow-ups). It SOLVES the block, so imports / byproducts / sub-blocks / buildings come back with their actual per-second RATES / counts — use those: tell the user to draft each sub-block at its rate (e.g. 'super-alloy block @ 3.3/s'). Returns imports split into from-existing-block vs external, byproducts, power, and `buildings` — each recipe's machine + solved building count (module/TURD-beacon effects already folded in). For a machine-only bill across MULTIPLE blocks (e.g. 'include the buildings to build this'), use buildingBill instead.",
-  inputSchema: z.object({
-    target: z.string().describe("Internal name of the good this block produces"),
-    rate: z.number().positive().describe("Target output rate (items or fluid units per second)"),
-    recipes: z
-      .array(z.string())
-      .min(1)
-      .describe("The complete recipe list for THIS block (down to its seams)"),
-    subBlocksNeeded: z
-      .array(z.string())
-      .optional()
-      .describe(
-        "Seam goods that should become their own block next (not commodities/raws) — the decomposition follow-ups",
-      ),
-    notes: z
-      .string()
-      .optional()
-      .describe("Short rationale: tier choices, where you cut (seams), reused blocks, byproducts"),
-  }),
+    "Finalize your proposed production block for ONE target, bounded at its seams. Call ONCE at the end. The block's open inputs are its imports; each import is either already made by an existing block (reuse it) or is a commodity/raw. List in subBlocksNeeded any seam goods that deserve their OWN block next (the decomposition follow-ups). Accepts either the single `target`+`rate` shorthand OR a `goals` array (#38) for MULTIPLE outputs, each a throughput rate or a keep-IN-STOCK amount (+window) — the right primitive for a building/mall-supply block ('keep 80 vrauks-paddock on hand') instead of a fabricated continuous rate; goals[0] anchors naming/sizing. It SOLVES the block (module slots auto-filled — see 'MODULES' below), so imports / byproducts / sub-blocks / buildings come back with their actual per-second RATES / counts — use those: tell the user to draft each sub-block at its rate (e.g. 'super-alloy block @ 3.3/s'). Returns imports split into from-existing-block vs external, byproducts, power, and `buildings` — each recipe's machine + solved building count, MODULE-FILLED (the same counts buildingBill reports for the same recipes — no more disagreeing between the two tools). For a machine-only bill across MULTIPLE blocks (e.g. 'include the buildings to build this'), use buildingBill instead.",
+  inputSchema: blockDraftInput,
   execute: async (input) => buildBlockDraft(input),
 });
 
@@ -855,12 +954,30 @@ async function buildBlockUpdate({
     };
   }
   const newRecipes = recipes ?? data.recipes;
-  const draft = await buildBlockDraft({
-    target: primary?.name ?? "",
-    rate: rate ?? primaryRate(data),
-    recipes: newRecipes,
-    notes,
-  });
+  // Re-rate the anchor goal but PRESERVE the rest of the block's goals — including
+  // any keep-in-stock ones (#38) — so this preview solve (and what setBlockRateFn/
+  // setBlockRecipesFn actually persist via the same withPrimaryRate) agree on what
+  // the block produces. Scoped down deliberately: reviseBlock re-rates the anchor,
+  // it doesn't let the assistant restructure a block's whole goal set.
+  const rerated = rate != null ? withPrimaryRate(data, rate) : data;
+  const preservedGoals = (rerated.goals ?? [])
+    .filter((g) => g.name)
+    .map((g) => ({
+      name: g.name,
+      rate: g.rate,
+      window: g.window ?? STOCK_WINDOW_DEFAULT,
+      ...(g.stock != null ? { stock: g.stock } : {}),
+    }));
+  const draft = await buildBlockDraft(
+    preservedGoals.length
+      ? { goals: preservedGoals, recipes: newRecipes, notes }
+      : {
+          target: primary?.name ?? "",
+          rate: rate ?? primaryRate(data),
+          recipes: newRecipes,
+          notes,
+        },
+  );
   const oldSet = new Set(data.recipes);
   const newSet = new Set(newRecipes);
   const recipesAdded = newRecipes.filter((r) => !oldSet.has(r));
@@ -913,14 +1030,14 @@ const reviseBlockInput = z.object({
 
 export const reviseBlock = tool({
   description:
-    "Propose changing an EXISTING block (by its factoryBlocks id) — its output RATE, its RECIPE SET, or both — instead of building a duplicate. Pass `rate` to raise/lower output to meet new demand; pass `recipes` (the complete replacement list) to add/remove/swap recipes (e.g. swap to a higher-yield variant, add a byproduct-consuming step). The block is RE-SOLVED with the change and returned as a PROPOSAL the user approves before it's applied: check the returned imports/byproducts for closure — a recipe change can open new imports or NEW dangling byproducts (returned in newByproducts; route them or say why they're fine BEFORE the user applies). Recipe revisions keep the block's other recipes' machine/module picks; removed recipes' picks are pruned on apply. Also returns `buildings` — the resized block's solved recipe→machine→count list.",
+    "Propose changing an EXISTING block (by its factoryBlocks id) — its output RATE, its RECIPE SET, or both — instead of building a duplicate. Pass `rate` to raise/lower output to meet new demand; pass `recipes` (the complete replacement list) to add/remove/swap recipes (e.g. swap to a higher-yield variant, add a byproduct-consuming step). `rate` only re-rates the block's ANCHOR (first) goal — any other goals it already has, including keep-in-stock ones (#38), are PRESERVED, not collapsed to a single goal. The block is RE-SOLVED with the change and returned as a PROPOSAL the user approves before it's applied: check the returned imports/byproducts for closure — a recipe change can open new imports or NEW dangling byproducts (returned in newByproducts; route them or say why they're fine BEFORE the user applies). Recipe revisions keep the block's other recipes' machine/module picks; removed recipes' picks are pruned on apply. Also returns `buildings` — the resized block's solved recipe→machine→count list, module-filled the same way submitBlock/buildingBill are.",
   inputSchema: reviseBlockInput,
   execute: async (input) => buildBlockUpdate(input),
 });
 
 export const submitPlan = tool({
   description:
-    "Finalize a MULTI-BLOCK production plan for one user request. Use when the user asks for multiple products/rates, all supporting sub-blocks, or building/material supply such as steel, circuits, machines, belts, inserters, pipes, and power/utility items. Each block is solved independently and returned as a reviewable draft (including its own `buildings` — recipe→machine→solved count); include dependency notes and remaining external imports. Prefer focused reusable blocks over one giant block. Call buildingBill separately once the plan's blocks are chosen if you need the CROSS-BLOCK machine bill (whole-machine totals + how to build each machine) for 'include the buildings' requests.",
+    "Finalize a MULTI-BLOCK production plan for one user request. Use when the user asks for multiple products/rates, all supporting sub-blocks, or building/material supply such as steel, circuits, machines, belts, inserters, pipes, and power/utility items. Each block is solved independently (same `target`+`rate` shorthand or multi-goal/stock `goals` array as submitBlock — see its description) and returned as a reviewable draft (including its own module-filled `buildings` — recipe→machine→solved count); include dependency notes and remaining external imports. Prefer focused reusable blocks over one giant block. Call buildingBill separately once the plan's blocks are chosen if you need the CROSS-BLOCK machine bill (whole-machine totals + how to build each machine, same module-filled counts) for 'include the buildings' requests.",
   inputSchema: z.object({
     title: z.string().describe("Short display title for the whole plan"),
     objective: z.string().describe("User-facing summary of what this plan satisfies"),
@@ -965,16 +1082,40 @@ export const submitPlan = tool({
   },
 });
 
-const buildingBillBlockInput = z.object({
-  name: z.string().optional().describe("Optional label; not used in the solve"),
-  target: z.string().describe("Internal name of the good this block produces"),
-  rate: z.number().positive().describe("Target output rate (items or fluid units per second)"),
-  recipes: z.array(z.string()).min(1).describe("The complete recipe list for THIS block"),
-});
+const buildingBillBlockInput = z
+  .object({
+    name: z.string().optional().describe("Optional label; not used in the solve"),
+    target: z
+      .string()
+      .optional()
+      .describe(
+        "Internal name of the good this block produces — shorthand for goals[0].name. Omit when passing `goals`.",
+      ),
+    rate: z
+      .number()
+      .positive()
+      .optional()
+      .describe(
+        "Target output rate for `target` — shorthand for goals[0].rate. Omit when passing `goals`.",
+      ),
+    goals: z
+      .array(blockGoalInput)
+      .min(1)
+      .optional()
+      .describe(
+        "Multiple output goals for this block, same shape as submitBlock/submitPlan — include any " +
+          "keep-in-stock goals here too so the machine bill reflects them (a mall block's several " +
+          "'keep N on hand' goals all feed into its machine counts).",
+      ),
+    recipes: z.array(z.string()).min(1).describe("The complete recipe list for THIS block"),
+  })
+  .refine((v) => (v.goals?.length ?? 0) > 0 || (v.target != null && v.rate != null), {
+    message: "pass either `goals` (at least one) or both `target` and `rate`",
+  });
 
 export const buildingBill = tool({
   description:
-    "THE tool for 'include the buildings/machines needed to build this' — a cross-block MACHINE bill. Give the same blocks you're drafting/planning (target, rate, recipes — same shape as submitPlan's blocks); each is solved independently (a failing block is skipped with a note in `skipped`, not a hard error) and every recipe's machine requirement is CEILED to a whole building before being summed across ALL blocks — you build whole machines, so a 2.3 + 1.4 need doesn't round to 4 the way raw fractional counts would. Returns `machines`, sorted by count descending: each entry maps the machine ENTITY to the ITEM that places it (`item`, null with a note if no such item exists), its total whole-building count, and up to 2 top `producers` (same shape as recipeOptions) for how to make that item. Call this after you've picked each block's recipes (before or after submitPlan) — then for EACH machine item decide: an existing mall/materials block already supplies it (import), an existing block should be resized to cover it (reviseBlock / a plan `updates` entry), or it needs its own new block. Machine items ONLY — this does not estimate belts/inserters/logistics.",
+    "THE tool for 'include the buildings/machines needed to build this' — a cross-block MACHINE bill. Give the same blocks you're drafting/planning (target/rate, or a multi-goal/stock `goals` array — same shape as submitPlan's blocks); each is solved independently with the SAME module-fill pass submitBlock uses (a failing block is skipped with a note in `skipped`, not a hard error) and every recipe's machine requirement is CEILED to a whole building before being summed across ALL blocks — you build whole machines, so a 2.3 + 1.4 need doesn't round to 4 the way raw fractional counts would. Because the module fill is shared with submitBlock, counts here AGREE with a submitBlock draft's `buildings` for the same recipes — no more reporting a bare unmoduled count for Py's creature/farm buildings (near-useless unmoduled, ~10-15x this bill without the fill) than the block actually needs. Returns `machines`, sorted by count descending: each entry maps the machine ENTITY to the ITEM that places it (`item`, null with a note if no such item exists), its total whole-building count, and up to 2 top `producers` (same shape as recipeOptions) for how to make that item. Call this after you've picked each block's recipes (before or after submitPlan) — then for EACH machine item decide: an existing mall/materials block already supplies it (import), an existing block should be resized to cover it (reviseBlock / a plan `updates` entry), or it needs its own new block — sized with a KEEP-IN-STOCK goal (seed `stock` from this tool's `count`), not a fabricated rate. Machine items ONLY — this does not estimate belts/inserters/logistics.",
   inputSchema: z.object({
     blocks: z
       .array(buildingBillBlockInput)
@@ -986,11 +1127,10 @@ export const buildingBill = tool({
     const totals = new Map<string, number>(); // machine entity -> whole-building count
     const skipped: { target: string; error: string }[] = [];
     for (const block of blocks) {
+      const resolved = resolveGoals(block);
       try {
-        const solved = await computeBlock({
-          goals: [{ name: block.target, rate: block.rate }],
-          recipes: block.recipes,
-        });
+        const goals = resolved.map((g) => ({ name: g.name, rate: g.rate }));
+        const { solved } = await solveWithModuleFill(goals, block.recipes);
         for (const b of machineReqs(solved.rows)) {
           const count = Math.ceil(b.count - 1e-9); // whole machines per block, THEN sum
           if (count <= 0) continue;
@@ -998,7 +1138,7 @@ export const buildingBill = tool({
         }
       } catch (e) {
         skipped.push({
-          target: block.target,
+          target: resolved[0]?.name ?? "?",
           error: e instanceof Error ? e.message : "solve failed",
         });
       }

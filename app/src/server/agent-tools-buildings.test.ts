@@ -20,6 +20,7 @@ import { buildingBill, submitBlock } from "./agent-tools.server.ts";
 type Draft = {
   ok: boolean;
   buildings: { recipe: string; machine: string; count: number }[];
+  modules?: Record<string, string[]>;
 };
 
 type Bill = {
@@ -116,5 +117,80 @@ describe("solved building counts (draft buildings + buildingBill)", () => {
     expect(res.machines).toHaveLength(1);
     expect(res.machines[0].entity).toBe("stone-furnace");
     expect(res.machines[0].count).toBe(13); // ceil(12.8) from the iron-plate block alone
+  });
+});
+
+/**
+ * buildingBill used to skip the two-pass module-fill solve submitBlock already
+ * did (via a bare `computeBlock({goals, recipes})`), so for a moduled machine
+ * it reported a much bigger, UNMODULED count that disagreed with submitBlock's
+ * own draft for the exact same recipe/rate — the root cause behind the AI
+ * assistant reporting nonsensical "3520 vrauk paddocks" for Py's near-useless-
+ * unmoduled creature/farm buildings. Both tools now share `solveWithModuleFill`.
+ *
+ * Fixture: stone-furnace with 2 module slots and one +20%-speed module
+ * (unlocked via its own start-enabled crafting recipe) — no efficiency module,
+ * so the auto-fill algorithm's only lever is speed, which shaves the whole
+ * building count deterministically (see module-fill.test.ts).
+ */
+describe("buildingBill agrees with submitBlock's module-filled machine counts", () => {
+  let fx: TestDb;
+
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    fx.db.exec(`
+      INSERT INTO items (name, display) VALUES
+        ('iron-ore','Iron ore'),('iron-plate','Iron plate'),
+        ('stone','Stone'),('stone-furnace','Stone furnace'),
+        ('speed-module-1','Speed module');
+
+      INSERT INTO recipes (name, kind, category, energy_required, enabled, hidden) VALUES
+        ('iron-plate','real','smelting',3.2,1,0),
+        ('craft-stone-furnace','real','crafting',0.5,1,0),
+        ('craft-speed-module-1','real','crafting',5,1,0);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
+        ('iron-plate',0,'item','iron-ore',1),
+        ('craft-stone-furnace',0,'item','stone',5),
+        ('craft-speed-module-1',0,'item','iron-plate',5);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+        ('iron-plate',0,'item','iron-plate',1),
+        ('craft-stone-furnace',0,'item','stone-furnace',1),
+        ('craft-speed-module-1',0,'item','speed-module-1',1);
+
+      -- 2 module slots (vanilla stone-furnace has none — this fixture gives it
+      -- slots on purpose, standing in for a moduled Py building)
+      INSERT INTO crafting_machines
+        (name, display, kind, crafting_speed, module_slots, energy_usage_w, energy_source)
+      VALUES
+        ('stone-furnace','Stone furnace','furnace',1,2,90000,'electric');
+      INSERT INTO machine_categories (machine, category) VALUES
+        ('stone-furnace','smelting');
+      INSERT INTO modules (name, category, hidden, eff_speed, eff_productivity, eff_consumption)
+        VALUES ('speed-module-1','speed',0,0.2,0,0.5);
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+
+  afterEach(() => fx.cleanup());
+
+  it("submitBlock's draft auto-fills the furnace's module slots", async () => {
+    const res = await draft({ target: "iron-plate", rate: 4, recipes: ["iron-plate"] });
+    expect(res.ok).toBe(true);
+    // unmoduled this would be 12.8 (rate 4 × 3.2s/craft ÷ speed 1 — see the
+    // sibling describe block above); with 2 speed-1 modules (+40% combined)
+    // the solved count drops to 12.8 / 1.4 = 9.142857...
+    expect(res.buildings[0].count).toBeCloseTo(12.8 / 1.4, 2);
+    expect(res.modules?.["iron-plate"]).toEqual(["speed-module-1", "speed-module-1"]);
+  });
+
+  it("buildingBill's whole-machine count matches submitBlock's module-filled count, not the bare unmoduled one", async () => {
+    const d = await draft({ target: "iron-plate", rate: 4, recipes: ["iron-plate"] });
+    const b = await bill([{ target: "iron-plate", rate: 4, recipes: ["iron-plate"] }]);
+    expect(b.skipped).toEqual([]);
+    expect(b.machines).toHaveLength(1);
+    // ceil(9.142857) = 10 — NOT ceil(12.8) = 13, the pre-fix (unmoduled) answer
+    expect(b.machines[0].count).toBe(Math.ceil(d.buildings[0].count - 1e-9));
+    expect(b.machines[0].count).toBe(10);
   });
 });

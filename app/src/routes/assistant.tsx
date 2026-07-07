@@ -37,7 +37,8 @@ import { ShowInGameButton } from "#/components/assistant/show-in-game-button.tsx
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { ItemHover, RecipeHover, TechHover } from "#/lib/recipe-card";
-import { formatRate } from "#/lib/format";
+import { formatQty, formatRate } from "#/lib/format";
+import { STOCK_WINDOW_DEFAULT } from "#/lib/goals";
 import { toast } from "#/lib/toast-store";
 import {
   aiConfigFn,
@@ -1353,11 +1354,17 @@ function Prose({ text }: { text: string }) {
 /* ── Block draft preview ──────────────────────────────────────────────────── */
 
 type GoodRate = { good: string; rate?: number | null };
+// One output goal (#38): either a throughput `rate` or a keep-in-stock `stock`
+// (+ refill `window`, seconds) — the shape persisted into BlockData.goals.
+type DraftGoal = { name: string; rate: number; stock?: number; window?: number };
 type Draft = {
   name?: string;
   target: string;
   targetDisplay?: string;
   rate: number;
+  // Full goal set from the draft (#38) — goals[0] is always target/rate, kept
+  // in sync for back-compat with older cached drafts that predate this field.
+  goals?: DraftGoal[];
   recipes: string[];
   modules?: Record<string, string[]>;
   machines?: Record<string, string>;
@@ -1419,6 +1426,14 @@ type PlanDraftData = {
 
 const fmtRate = (r?: number | null) => (r != null ? formatRate(r) : "");
 
+/** The goals to persist for a drafted block (#38): the draft's full `goals`
+ * array when present, else the legacy single target/rate synthesized into one
+ * — covers a stale cached draft from before this field existed. */
+function draftGoals(draft: Draft): DraftGoal[] {
+  if (draft.goals?.length) return draft.goals;
+  return [{ name: draft.target, rate: draft.rate }];
+}
+
 function refRow(label: ReactNode, items: string[] | undefined, prefer?: "recipe", warn?: boolean) {
   return items && items.length ? (
     <div className="mt-2.5">
@@ -1457,6 +1472,32 @@ function rateRow(label: ReactNode, entries: GoodRate[] | undefined) {
   ) : null;
 }
 
+const fmtWindow = (s: number) => (s >= 3600 ? `${s / 3600}h` : `${s / 60}m`);
+
+/** Every output goal (#38), shown only when a block has more than one — the
+ * common single-target case keeps its existing header-only display. A stock
+ * goal reads as "keep N (refill Xm)" instead of a rate. */
+function goalsRow(goals: DraftGoal[] | undefined) {
+  if (!goals || goals.length < 2) return null;
+  return (
+    <div className="mt-2.5">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">output goals</div>
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        {goals.map((g) => (
+          <span key={g.name} className="inline-flex items-center gap-1">
+            <Ref name={g.name} />
+            <span className="text-xs text-muted-foreground">
+              {g.stock != null
+                ? `keep ${formatQty(g.stock)} (refill ${fmtWindow(g.window ?? STOCK_WINDOW_DEFAULT)})`
+                : fmtRate(g.rate)}
+            </span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** The shared body of a block draft / update card: recipes, imports, sub-blocks,
  * byproducts, TURD, invalid recipes — everything below the header + action button. */
 function DraftRows({ draft }: { draft: Draft }) {
@@ -1466,6 +1507,7 @@ function DraftRows({ draft }: { draft: Draft }) {
   }));
   return (
     <>
+      {goalsRow(draft.goals)}
       {refRow(`${draft.recipes.length} recipes`, draft.recipes, "recipe")}
       {rateRow("imports (external)", externalImports)}
       {draft.importsFromBlocks && draft.importsFromBlocks.length > 0 && (
@@ -1584,7 +1626,7 @@ function BlockDraft({
         data: {
           name: `${draft.targetDisplay ?? draft.target} (drafted)`,
           data: {
-            goals: [{ name: draft.target, rate: draft.rate }],
+            goals: draftGoals(draft),
             recipes: draft.recipes,
             ...(draft.modules && Object.keys(draft.modules).length
               ? { modules: draft.modules }
@@ -1814,7 +1856,7 @@ function PlanDraft({
         const res = await saveBlockFn({
           data: {
             name: draft.name ?? `${draft.targetDisplay ?? draft.target} (drafted)`,
-            data: { goals: [{ name: draft.target, rate: draft.rate }], recipes: draft.recipes },
+            data: { goals: draftGoals(draft), recipes: draft.recipes },
           },
         });
         made.push(res);
@@ -1954,6 +1996,7 @@ function PlanBlockPreview({
   return (
     <div className="mt-2 space-y-2 text-sm">
       {draft.notes && <p className="text-muted-foreground">{draft.notes}</p>}
+      {goalsRow(draft.goals)}
       <div>
         <div className="text-xs uppercase tracking-wide text-muted-foreground">recipes</div>
         <div className="mt-1 flex flex-wrap gap-1.5">
