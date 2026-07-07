@@ -22,6 +22,7 @@ import {
 import { Check, ChevronDown, ChevronRight } from "lucide-react";
 
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
 import { StatSortHeader } from "#/components/stat-sort-header.tsx";
@@ -77,9 +78,9 @@ function RequiredCount({ n }: { n: number }) {
   // tooltip keeps two decimals even where the cell rounds (formatQty drops
   // decimals at ≥100), so "124" still reads as the 123.51 it stands for
   return (
-    <span title={`${Number(n.toFixed(2))} exact — build ${wholeMachines(n)} whole machines`}>
-      {fmtMachineCount(n)}
-    </span>
+    <Tooltip content={`${Number(n.toFixed(2))} exact — build ${wholeMachines(n)} whole machines`}>
+      <span>{fmtMachineCount(n)}</span>
+    </Tooltip>
   );
 }
 

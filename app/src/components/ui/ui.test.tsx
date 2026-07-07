@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { Badge } from "./badge.tsx";
 import { Button } from "./button.tsx";
+import { Tooltip } from "./tooltip.tsx";
 
 afterEach(cleanup); // vite-plus/test doesn't auto-wire RTL cleanup
 
@@ -71,5 +72,41 @@ describe("Badge", () => {
       </Badge>,
     );
     expect(getByRole("link").getAttribute("data-slot")).toBe("badge");
+  });
+});
+
+describe("Tooltip", () => {
+  it("renders the child as the trigger with no extra wrapper DOM", () => {
+    const { getByRole } = render(
+      <Tooltip content="explains the thing">
+        <button type="button">trigger</button>
+      </Tooltip>,
+    );
+    const btn = getByRole("button");
+    expect(btn.textContent).toBe("trigger");
+    // asChild: the trigger IS the button, not nested inside another element.
+    expect(btn.hasAttribute("title")).toBe(false);
+  });
+
+  it("reveals the content on keyboard focus (accessible, unlike native title)", async () => {
+    const { getByRole, findByRole } = render(
+      <Tooltip content="explains the thing">
+        <button type="button">trigger</button>
+      </Tooltip>,
+    );
+    fireEvent.focus(getByRole("button"));
+    const tip = await findByRole("tooltip");
+    expect(tip.textContent).toContain("explains the thing");
+  });
+
+  it("renders the child alone when content is empty", () => {
+    const { getByRole, queryByRole } = render(
+      <Tooltip content={undefined}>
+        <button type="button">bare</button>
+      </Tooltip>,
+    );
+    expect(getByRole("button").textContent).toBe("bare");
+    fireEvent.focus(getByRole("button"));
+    expect(queryByRole("tooltip")).toBeNull();
   });
 });

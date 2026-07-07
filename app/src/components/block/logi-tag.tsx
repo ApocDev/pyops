@@ -1,4 +1,5 @@
 import { Rocket } from "lucide-react";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { rowLogistics, type ResolvedLogistics } from "../../lib/logistics";
 import { Icon } from "../../lib/icons";
 import { fmtCount } from "./format.ts";
@@ -45,27 +46,29 @@ export function LogiTag({
     .filter(Boolean)
     .join(" · ");
   return (
-    <span className="flex items-center gap-2.5 pl-1 text-sm text-muted-foreground" title={title}>
-      {beltOn && beltName && (
-        <span className="inline-flex items-center gap-1.5">
-          <Icon kind="entity" name={beltName} size="sm" noHover />
-          <span className="tabular-nums">{fmtCount(r.belts)}</span>
-        </span>
-      )}
-      {insOn && moverName && (
-        <span className="inline-flex items-center gap-1.5">
-          <Icon kind="entity" name={moverName} size="sm" noHover />
-          <span className="tabular-nums">{fmtCount(r.devices)}</span>
-        </span>
-      )}
-      {rocketOn && (
-        <span
-          className={`inline-flex items-center gap-1.5 ${launch.defaulted ? "opacity-60" : ""}`}
-        >
-          <Rocket className="size-3.5" />
-          <span className="tabular-nums">{fmtCount(launch.perMin)}/m</span>
-        </span>
-      )}
-    </span>
+    <Tooltip content={title}>
+      <span className="flex items-center gap-2.5 pl-1 text-sm text-muted-foreground">
+        {beltOn && beltName && (
+          <span className="inline-flex items-center gap-1.5">
+            <Icon kind="entity" name={beltName} size="sm" noHover />
+            <span className="tabular-nums">{fmtCount(r.belts)}</span>
+          </span>
+        )}
+        {insOn && moverName && (
+          <span className="inline-flex items-center gap-1.5">
+            <Icon kind="entity" name={moverName} size="sm" noHover />
+            <span className="tabular-nums">{fmtCount(r.devices)}</span>
+          </span>
+        )}
+        {rocketOn && (
+          <span
+            className={`inline-flex items-center gap-1.5 ${launch.defaulted ? "opacity-60" : ""}`}
+          >
+            <Rocket className="size-3.5" />
+            <span className="tabular-nums">{fmtCount(launch.perMin)}/m</span>
+          </span>
+        )}
+      </span>
+    </Tooltip>
   );
 }

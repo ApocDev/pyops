@@ -15,6 +15,7 @@ import {
 } from "@tanstack/react-table";
 import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { Badge } from "#/components/ui/badge.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
 import { StatSortHeader } from "#/components/stat-sort-header.tsx";
@@ -78,12 +79,11 @@ function ActualCell({
     color = ratio < 0.5 ? "text-destructive" : ratio < 0.9 ? "text-warning" : "text-success";
   }
   return (
-    <span
-      className={color}
-      title={`making ${rateLabel(good, actual, { perSec: true })} · planned ${rateLabel(good, planned, { perSec: true })}`}
+    <Tooltip
+      content={`making ${rateLabel(good, actual, { perSec: true })} · planned ${rateLabel(good, planned, { perSec: true })}`}
     >
-      {rateLabel(good, actual)}
-    </span>
+      <span className={color}>{rateLabel(good, actual)}</span>
+    </Tooltip>
   );
 }
 
@@ -94,9 +94,9 @@ function MetCell({ pct }: { pct: number | null }) {
   const shown = Math.round(pct * 100);
   const color = pct < 0.25 ? "text-destructive" : pct < 0.75 ? "text-warning" : "text-success";
   return (
-    <span className={`font-semibold ${color}`} title="produced ÷ consumed across all blocks">
-      {shown}%
-    </span>
+    <Tooltip content="produced ÷ consumed across all blocks">
+      <span className={`font-semibold ${color}`}>{shown}%</span>
+    </Tooltip>
   );
 }
 
@@ -176,12 +176,11 @@ export function GoodsSection({
                   {r.display ?? r.item}
                 </span>
                 {r.stock && (
-                  <Badge
-                    title="some of this production is a stock-refill demand (a 'keep N on hand' goal), not continuous throughput"
-                    className="shrink-0 border-transparent bg-info/15 px-1 py-0 text-info"
-                  >
-                    <RefreshCw className="size-3" /> stock
-                  </Badge>
+                  <Tooltip content="some of this production is a stock-refill demand (a 'keep N on hand' goal), not continuous throughput">
+                    <Badge className="shrink-0 border-transparent bg-info/15 px-1 py-0 text-info">
+                      <RefreshCw className="size-3" /> stock
+                    </Badge>
+                  </Tooltip>
                 )}
               </span>
               <span className="grid grid-cols-2 gap-x-4 gap-y-0.5 pl-7 md:flex md:gap-2 md:pl-0">

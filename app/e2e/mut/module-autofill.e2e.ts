@@ -33,7 +33,7 @@ test("module auto-fill: fresh row suggests, hint click applies, affordances clea
   // fresh row: EMPTY chip (nothing auto-applied) + the suggestion affordances
   const emptyChip = page.locator('button[title*="click to configure"]');
   const hint = page.locator('button[title^="better modules available"]');
-  const blockFill = page.locator('button[title^="Auto-fill modules"]');
+  const blockFill = page.getByRole("button", { name: /^Auto-fill modules/ });
   await expect(emptyChip).toHaveCount(1);
   await expect(hint).toHaveCount(1);
   await expect(blockFill).toBeVisible();

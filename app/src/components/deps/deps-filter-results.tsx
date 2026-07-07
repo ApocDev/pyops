@@ -5,6 +5,7 @@ import type { DepsDir, DepsNode, DepsTree } from "../../server/deps.ts";
 import { Icon } from "../../lib/icons";
 import { useFilteredList } from "../../lib/use-filtered-list.ts";
 import { Button } from "#/components/ui/button.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 
 const LIMIT = 100;
@@ -57,12 +58,13 @@ export function DepsFilterResults({
             {n.type === "recipe" ? "recipe" : n.goodKind}
           </span>
           {n.closure.goods + n.closure.recipes > 0 && (
-            <span
-              className="hidden shrink-0 text-sm text-muted-foreground sm:inline"
-              title={`${dir === "requires" ? "requires" : "required by"} ${n.closure.goods} goods · ${n.closure.recipes} recipes in total`}
+            <Tooltip
+              content={`${dir === "requires" ? "requires" : "required by"} ${n.closure.goods} goods · ${n.closure.recipes} recipes in total`}
             >
-              {n.closure.goods} goods · {n.closure.recipes} recipes
-            </span>
+              <span className="hidden shrink-0 text-sm text-muted-foreground sm:inline">
+                {n.closure.goods} goods · {n.closure.recipes} recipes
+              </span>
+            </Tooltip>
           )}
           <Button
             variant="ghost"

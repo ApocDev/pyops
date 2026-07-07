@@ -22,6 +22,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "#/components/ui/sheet.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { Icon } from "../../lib/icons";
 import { Legend } from "./legend.tsx";
@@ -76,29 +77,33 @@ export function BlockToolbar({
   const customIcon = useStore(doc.store, (s) => s.customIcon);
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2">
-      <Button
-        variant="outline"
-        size="icon-lg"
-        onClick={onOpenIconPicker}
-        title={
+      <Tooltip
+        label
+        content={
           customIcon
             ? "block icon (custom) — click to change or reset to auto"
             : "block icon — follows the first goal; click to pick your own"
         }
-        className={customIcon ? "border-primary/60" : ""}
       >
-        {blockIcon ? (
-          <Icon
-            kind={blockIcon.kind as "item" | "fluid"}
-            name={blockIcon.name}
-            size="md"
-            noHover
-            noTitle
-          />
-        ) : (
-          <Grid2x2 className="size-4 text-muted-foreground" />
-        )}
-      </Button>
+        <Button
+          variant="outline"
+          size="icon-lg"
+          onClick={onOpenIconPicker}
+          className={customIcon ? "border-primary/60" : ""}
+        >
+          {blockIcon ? (
+            <Icon
+              kind={blockIcon.kind as "item" | "fluid"}
+              name={blockIcon.name}
+              size="md"
+              noHover
+              noTitle
+            />
+          ) : (
+            <Grid2x2 className="size-4 text-muted-foreground" />
+          )}
+        </Button>
+      </Tooltip>
       <Input
         value={blockName}
         onChange={(e) => {
@@ -121,71 +126,87 @@ export function BlockToolbar({
           ""
         )}
       </span>
-      <Button
-        variant="outline"
-        size="icon-sm"
-        onClick={onCopySetup}
-        title="Copy setup — copy this block's recipe/module setup to the clipboard"
-        className="text-muted-foreground"
-      >
-        <Copy className="size-4" />
-      </Button>
-      {autoFill.count > 0 && (
+      <Tooltip label content="Copy setup — copy this block's recipe/module setup to the clipboard">
         <Button
           variant="outline"
-          size="sm"
-          onClick={autoFill.onApply}
-          title={`Auto-fill modules — apply the suggested fill (prod where allowed, else speed to the whole-machine floor, rest efficiency) to ${autoFill.count} row${autoFill.count === 1 ? "" : "s"}`}
-          className="text-info"
+          size="icon-sm"
+          onClick={onCopySetup}
+          className="text-muted-foreground"
         >
-          <Sparkles className="size-4" /> {autoFill.count}
+          <Copy className="size-4" />
         </Button>
+      </Tooltip>
+      {autoFill.count > 0 && (
+        <Tooltip
+          label
+          content={`Auto-fill modules — apply the suggested fill (prod where allowed, else speed to the whole-machine floor, rest efficiency) to ${autoFill.count} row${autoFill.count === 1 ? "" : "s"}`}
+        >
+          <Button variant="outline" size="sm" onClick={autoFill.onApply} className="text-info">
+            <Sparkles className="size-4" /> {autoFill.count}
+          </Button>
+        </Tooltip>
       )}
-      <Button
-        variant="outline"
-        size="icon-sm"
-        onClick={onExport}
-        title="Export block — download this block as a shareable JSON file (import it from Settings → Backup & share)"
-        className="text-muted-foreground"
+      <Tooltip
+        label
+        content="Export block — download this block as a shareable JSON file (import it from Settings → Backup & share)"
       >
-        <Download className="size-4" />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon-sm"
-        onClick={onOpenHistory}
-        title="Snapshots — this block's restore points: snapshot now, diff against the current state, restore"
-        className="text-muted-foreground"
+        <Button
+          variant="outline"
+          size="icon-sm"
+          onClick={onExport}
+          className="text-muted-foreground"
+        >
+          <Download className="size-4" />
+        </Button>
+      </Tooltip>
+      <Tooltip
+        label
+        content="Snapshots — this block's restore points: snapshot now, diff against the current state, restore"
       >
-        <History className="size-4" />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon-sm"
-        onClick={showInGame.onShow}
-        disabled={showInGame.pending}
-        title="Open in game — show this block as an in-game build sheet; click a building there for a configured blueprint (needs the bridge)"
-        className="text-muted-foreground"
+        <Button
+          variant="outline"
+          size="icon-sm"
+          onClick={onOpenHistory}
+          className="text-muted-foreground"
+        >
+          <History className="size-4" />
+        </Button>
+      </Tooltip>
+      <Tooltip
+        label
+        content="Open in game — show this block as an in-game build sheet; click a building there for a configured blueprint (needs the bridge)"
       >
-        <Gamepad2 className={`size-4 ${showInGame.pending ? "animate-pulse" : ""}`} />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon-sm"
-        onClick={onToggleEnabled}
-        title={
+        <Button
+          variant="outline"
+          size="icon-sm"
+          onClick={showInGame.onShow}
+          disabled={showInGame.pending}
+          className="text-muted-foreground"
+        >
+          <Gamepad2 className={`size-4 ${showInGame.pending ? "animate-pulse" : ""}`} />
+        </Button>
+      </Tooltip>
+      <Tooltip
+        label
+        content={
           blockEnabled
             ? "Disable block — keep it here but exclude it from every factory-wide total"
             : "Enable block — count this block in the factory totals again"
         }
-        className={
-          !blockEnabled
-            ? "border-warning/60 bg-warning/10 text-warning hover:bg-warning/20"
-            : "text-muted-foreground"
-        }
       >
-        <Power className="size-4" />
-      </Button>
+        <Button
+          variant="outline"
+          size="icon-sm"
+          onClick={onToggleEnabled}
+          className={
+            !blockEnabled
+              ? "border-warning/60 bg-warning/10 text-warning hover:bg-warning/20"
+              : "text-muted-foreground"
+          }
+        >
+          <Power className="size-4" />
+        </Button>
+      </Tooltip>
       {!blockEnabled && (
         <Badge className="border-transparent bg-warning/15 font-semibold text-warning">
           disabled — excluded from factory totals
@@ -193,16 +214,16 @@ export function BlockToolbar({
       )}
       {buildCost && buildCost.buildings.length > 0 && (
         <Sheet>
-          <SheetTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              title="Building summary — the buildings + one-time materials to construct this block"
-              className="text-muted-foreground"
-            >
-              <Hammer className="size-4" />
-            </Button>
-          </SheetTrigger>
+          <Tooltip
+            label
+            content="Building summary — the buildings + one-time materials to construct this block"
+          >
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon-sm" className="text-muted-foreground">
+                <Hammer className="size-4" />
+              </Button>
+            </SheetTrigger>
+          </Tooltip>
           <SheetContent side="right" className="w-96 max-w-[92vw] font-mono">
             <SheetHeader>
               <SheetTitle>Building summary</SheetTitle>
@@ -258,12 +279,9 @@ export function BlockToolbar({
         <Legend cls={linkStyle.import} label="raw in" />
         <Legend cls={craftableStyle} label="craftable" />
         <Legend cls={linkStyle.export} label="export" />
-        <span
-          className="text-muted-foreground/70"
-          title="right-click any item for actions (make a goal, lock as sizing input, mark made-in-block or import it instead, locate in game)."
-        >
-          · right-click = menu
-        </span>
+        <Tooltip content="right-click any item for actions (make a goal, lock as sizing input, mark made-in-block or import it instead, locate in game).">
+          <span className="text-muted-foreground/70">· right-click = menu</span>
+        </Tooltip>
       </span>
       <HelpButton title="What is a block?">
         <p>

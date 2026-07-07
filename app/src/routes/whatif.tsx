@@ -8,6 +8,7 @@ import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
@@ -260,12 +261,9 @@ function WhatIf() {
                       → {x.absorb.name} ×{x.absorb.scale}
                     </Link>
                   ) : (
-                    <span
-                      className="ml-2 text-sm text-warning/80"
-                      title="no block consumes this yet"
-                    >
-                      no consumer
-                    </span>
+                    <Tooltip content="no block consumes this yet">
+                      <span className="ml-2 text-sm text-warning/80">no consumer</span>
+                    </Tooltip>
                   )}
                 </div>
               ))}
@@ -301,19 +299,20 @@ function GoodsCard({
       </CardHeader>
       <div className="flex flex-wrap gap-2 p-3">
         {rows.map((x) => (
-          <span
+          <Tooltip
             key={x.good}
-            className="inline-flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm"
-            title={
+            content={
               x.display +
               (x.current != null ? ` · was ${rateLabel(x.good, x.current, { perSec: true })}` : "")
             }
           >
-            <Icon kind={x.kind as "item" | "fluid"} name={x.good} size="sm" title={x.display} />
-            <span>{x.display}</span>
-            <span className={color}>{rateLabel(x.good, x[field])}</span>
-            <span className="text-muted-foreground">/s</span>
-          </span>
+            <span className="inline-flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm">
+              <Icon kind={x.kind as "item" | "fluid"} name={x.good} size="sm" title={x.display} />
+              <span>{x.display}</span>
+              <span className={color}>{rateLabel(x.good, x[field])}</span>
+              <span className="text-muted-foreground">/s</span>
+            </span>
+          </Tooltip>
         ))}
       </div>
     </Card>

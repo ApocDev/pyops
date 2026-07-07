@@ -8,6 +8,7 @@ import { downloadJson } from "../lib/download";
 import { exportFileName } from "../lib/plan-export";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Button } from "#/components/ui/button.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 
@@ -119,9 +120,8 @@ export function BlockShareCard() {
                   {b.name}
                 </Link>
                 {b.broken && (
-                  <Badge
-                    variant="destructive"
-                    title={[
+                  <Tooltip
+                    content={[
                       // missing refs have no display name here by definition —
                       // the internal name is all the target data knows
                       b.missing.recipes.length
@@ -132,9 +132,11 @@ export function BlockShareCard() {
                       .filter(Boolean)
                       .join(" · ")}
                   >
-                    missing {b.missing.recipes.length + b.missing.goods.length} reference
-                    {b.missing.recipes.length + b.missing.goods.length === 1 ? "" : "s"}
-                  </Badge>
+                    <Badge variant="destructive">
+                      missing {b.missing.recipes.length + b.missing.goods.length} reference
+                      {b.missing.recipes.length + b.missing.goods.length === 1 ? "" : "s"}
+                    </Badge>
+                  </Tooltip>
                 )}
               </div>
             ))}

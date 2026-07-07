@@ -13,6 +13,7 @@ import {
 import { Button } from "#/components/ui/button.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { Badge } from "#/components/ui/badge.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { groupMembers, groupNet, type RowGroup } from "../../lib/row-groups";
 import { Icon } from "../../lib/icons";
 import { SortableRow } from "./sortable-row.tsx";
@@ -135,9 +136,11 @@ export function GroupHeaderRow({
               </Badge>
             )}
             {badStatus && (
-              <Badge variant="destructive" className="shrink-0" title={sub?.message}>
-                {sub?.status}
-              </Badge>
+              <Tooltip content={sub?.message}>
+                <Badge variant="destructive" className="shrink-0">
+                  {sub?.status}
+                </Badge>
+              </Tooltip>
             )}
             {net && (
               <span className="flex flex-wrap items-center gap-1.5 text-sm">

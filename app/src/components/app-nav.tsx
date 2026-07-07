@@ -12,6 +12,7 @@ import { activeRunCount, subscribeRuns } from "../lib/chat-store";
 import { dataCapabilitiesFn, modDriftFn } from "../server/factorio";
 import { driftModal } from "../lib/drift-store";
 import { Button } from "#/components/ui/button.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 
 /** Persistent re-entry point for the data-sync modal: a small warning-toned chip in the
  * nav whenever the game's mods have drifted from the project's reference data
@@ -20,15 +21,16 @@ function DataDriftIndicator() {
   const drift = useQuery({ queryKey: ["modDrift"], queryFn: () => modDriftFn() });
   if (!drift.data?.needsRedump) return null;
   return (
-    <Button
-      variant="ghost"
-      onClick={() => driftModal.open()}
-      title="The game's mods changed since your last data sync — click to review and re-sync."
-      className="h-full gap-1.5 px-3 font-normal text-warning hover:bg-muted/50 hover:text-warning"
-    >
-      <span className="inline-block size-2 rounded-full bg-warning" />
-      <span className="hidden sm:inline">data stale</span>
-    </Button>
+    <Tooltip content="The game's mods changed since your last data sync — click to review and re-sync.">
+      <Button
+        variant="ghost"
+        onClick={() => driftModal.open()}
+        className="h-full gap-1.5 px-3 font-normal text-warning hover:bg-muted/50 hover:text-warning"
+      >
+        <span className="inline-block size-2 rounded-full bg-warning" />
+        <span className="hidden sm:inline">data stale</span>
+      </Button>
+    </Tooltip>
   );
 }
 
@@ -38,14 +40,15 @@ function RunIndicator() {
   const n = useSyncExternalStore(subscribeRuns, activeRunCount, () => 0);
   if (n === 0) return null;
   return (
-    <Link
-      to="/assistant"
-      className="flex items-center gap-1.5 px-3 text-sm text-primary hover:bg-muted/50"
-      title="assistant runs in progress"
-    >
-      <span className="inline-block size-2 animate-pulse rounded-full bg-primary" />
-      {n} running
-    </Link>
+    <Tooltip content="assistant runs in progress">
+      <Link
+        to="/assistant"
+        className="flex items-center gap-1.5 px-3 text-sm text-primary hover:bg-muted/50"
+      >
+        <span className="inline-block size-2 animate-pulse rounded-full bg-primary" />
+        {n} running
+      </Link>
+    </Tooltip>
   );
 }
 

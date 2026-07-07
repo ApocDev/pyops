@@ -23,6 +23,7 @@ import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Switch } from "#/components/ui/switch.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 
 /** Header control for the global logistics display: pick the belt + inserter/loader
  * to size against, toggle stacking, and turn the per-row belt/inserter readout on
@@ -128,16 +129,15 @@ export function LogisticsPicker() {
               />
               <span className="text-foreground">Inserters / loaders</span>
             </label>
-            <label
-              className="flex items-center gap-2"
-              title="Rocket launches/min to move each good (floor(1,000,000 / item weight) per rocket)"
-            >
-              <Switch
-                checked={d.prefs.showRockets}
-                onCheckedChange={(v) => save.mutate({ showRockets: v })}
-              />
-              <span className="text-foreground">Rockets</span>
-            </label>
+            <Tooltip content="Rocket launches/min to move each good (floor(1,000,000 / item weight) per rocket)">
+              <label className="flex items-center gap-2">
+                <Switch
+                  checked={d.prefs.showRockets}
+                  onCheckedChange={(v) => save.mutate({ showRockets: v })}
+                />
+                <span className="text-foreground">Rockets</span>
+              </label>
+            </Tooltip>
           </div>
         </div>
 
@@ -201,18 +201,21 @@ export function LogisticsPicker() {
           </label>
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
             Belt stack
-            <Input
-              value={d.prefs.overrideStack ?? ""}
-              placeholder="auto"
-              inputMode="numeric"
-              onChange={(e) => {
-                const raw = e.target.value.trim();
-                const n = raw === "" ? null : Number(raw);
-                save.mutate({ overrideStack: n != null && Number.isFinite(n) ? n : null });
-              }}
-              className="h-7 w-16"
-              title={`Override the placed belt-stack size (1–${MAX_BELT_STACK}); blank = follow research`}
-            />
+            <Tooltip
+              content={`Override the placed belt-stack size (1–${MAX_BELT_STACK}); blank = follow research`}
+            >
+              <Input
+                value={d.prefs.overrideStack ?? ""}
+                placeholder="auto"
+                inputMode="numeric"
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  const n = raw === "" ? null : Number(raw);
+                  save.mutate({ overrideStack: n != null && Number.isFinite(n) ? n : null });
+                }}
+                className="h-7 w-16"
+              />
+            </Tooltip>
           </label>
         </div>
 

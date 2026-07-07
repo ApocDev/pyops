@@ -15,6 +15,7 @@ import { Button } from "#/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "#/components/ui/dialog.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { CursorHover } from "./hover";
 import { Icon } from "./icons";
 import { deletedToast } from "./undo-client";
@@ -517,12 +518,11 @@ export function ModulesModal({
                   <span className="text-sm text-muted-foreground">no effects yet</span>
                 )}
                 {!data.allowProductivity && (
-                  <span
-                    className="flex items-center gap-1 text-sm text-muted-foreground"
-                    title="this recipe does not accept productivity"
-                  >
-                    <Ban className="size-3.5 shrink-0" /> productivity not allowed
-                  </span>
+                  <Tooltip content="this recipe does not accept productivity">
+                    <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Ban className="size-3.5 shrink-0" /> productivity not allowed
+                    </span>
+                  </Tooltip>
                 )}
               </div>
 
@@ -530,12 +530,11 @@ export function ModulesModal({
                   allowed, else speed to the whole-count floor, rest efficiency) */}
               {suggested && (
                 <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <span
-                    className="flex items-center gap-1 text-info"
-                    title="the auto-fill pick for this row's current building count and beacons"
-                  >
-                    <Sparkles className="size-3.5" /> suggested
-                  </span>
+                  <Tooltip content="the auto-fill pick for this row's current building count and beacons">
+                    <span className="flex items-center gap-1 text-info">
+                      <Sparkles className="size-3.5" /> suggested
+                    </span>
+                  </Tooltip>
                   {[
                     ...suggested
                       .reduce((m, n) => m.set(n, (m.get(n) ?? 0) + 1), new Map<string, number>())

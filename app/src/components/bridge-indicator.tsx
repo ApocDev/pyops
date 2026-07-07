@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { bridgeStatusFn } from "../server/bridge/fns";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 
 /** Treat the mod as connected if we've heard from it within this window (its
  * heartbeat pings ~every 2s) — matches BridgeCard. */
@@ -58,14 +59,15 @@ export function BridgeIndicator() {
   })();
 
   return (
-    <Link
-      to="/settings"
-      search={{ tab: "link" }}
-      title={title}
-      className="flex items-center gap-1.5 px-3 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-    >
-      <span className={`inline-block size-2 rounded-full ${color}`} />
-      <span className="hidden sm:inline">{label}</span>
-    </Link>
+    <Tooltip content={title}>
+      <Link
+        to="/settings"
+        search={{ tab: "link" }}
+        className="flex items-center gap-1.5 px-3 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+      >
+        <span className={`inline-block size-2 rounded-full ${color}`} />
+        <span className="hidden sm:inline">{label}</span>
+      </Link>
+    </Tooltip>
   );
 }

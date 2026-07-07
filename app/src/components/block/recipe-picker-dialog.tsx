@@ -1,6 +1,7 @@
 import { Check, FlaskConical, Lock } from "lucide-react";
 import type { recipeCandidatesFn } from "../../server/factorio";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "#/components/ui/dialog.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { TechLine } from "../../lib/recipe-card";
 import { Icon } from "../../lib/icons";
 import { RecipeIoChips } from "./recipe-io-chips.tsx";
@@ -59,12 +60,11 @@ export function RecipePickerDialog({
                       <span className="text-base">{r.display ?? r.name}</span>
                       <span className="ml-auto flex shrink-0 items-center gap-2">
                         {r.cost != null && (
-                          <span
-                            className="text-sm text-muted-foreground"
-                            title="estimated cost per craft (cost analysis) — sorted cheapest first"
-                          >
-                            ¥{fmtCost(r.cost)}
-                          </span>
+                          <Tooltip content="estimated cost per craft (cost analysis) — sorted cheapest first">
+                            <span className="text-sm text-muted-foreground">
+                              ¥{fmtCost(r.cost)}
+                            </span>
+                          </Tooltip>
                         )}
                         {isAdded && <span className="text-sm text-muted-foreground">added</span>}
                       </span>
@@ -74,33 +74,38 @@ export function RecipePickerDialog({
                     {/* availability: TURD choice / not-yet-researched tech (red) /
                         nothing unlocks it (dark gray) */}
                     {r.superseded ? (
-                      <span
-                        className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
-                        title={`your ${r.superseded.masterDisplay ?? "TURD"} choice "${r.superseded.subDisplay}" replaced this recipe with "${r.superseded.newDisplay}" — the base version no longer exists in-game`}
+                      <Tooltip
+                        content={`your ${r.superseded.masterDisplay ?? "TURD"} choice "${r.superseded.subDisplay}" replaced this recipe with "${r.superseded.newDisplay}" — the base version no longer exists in-game`}
                       >
-                        <Icon kind="technology" name={r.superseded.subTech} size="sm" noTitle />
-                        <FlaskConical className="size-3.5" /> replaced by {r.superseded.newDisplay}
-                        <span className="text-muted-foreground/70">
-                          ({r.superseded.masterDisplay ?? "TURD"} › {r.superseded.subDisplay})
+                        <span className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+                          <Icon kind="technology" name={r.superseded.subTech} size="sm" noTitle />
+                          <FlaskConical className="size-3.5" /> replaced by{" "}
+                          {r.superseded.newDisplay}
+                          <span className="text-muted-foreground/70">
+                            ({r.superseded.masterDisplay ?? "TURD"} › {r.superseded.subDisplay})
+                          </span>
                         </span>
-                      </span>
+                      </Tooltip>
                     ) : (
                       !r.enabled &&
                       (r.turd ? (
-                        <span
-                          className={`flex flex-wrap items-center gap-1.5 text-sm ${r.turd.turdSelected ? "text-success" : "text-primary"}`}
-                          title={
+                        <Tooltip
+                          content={
                             r.turd.turdSelected
                               ? "granted by your selected TURD choice"
                               : `requires the "${r.turd.display}" choice under "${r.turd.masterDisplay ?? "TURD"}" — pick it on the TURD page (or in-game TURD explorer)`
                           }
                         >
-                          <Icon kind="technology" name={r.turd.tech} size="sm" noTitle />
-                          <FlaskConical className="size-3.5" />{" "}
-                          {r.turd.masterDisplay ? `${r.turd.masterDisplay} › ` : ""}
-                          {r.turd.display}
-                          {r.turd.turdSelected && <Check className="size-3.5" />}
-                        </span>
+                          <span
+                            className={`flex flex-wrap items-center gap-1.5 text-sm ${r.turd.turdSelected ? "text-success" : "text-primary"}`}
+                          >
+                            <Icon kind="technology" name={r.turd.tech} size="sm" noTitle />
+                            <FlaskConical className="size-3.5" />{" "}
+                            {r.turd.masterDisplay ? `${r.turd.masterDisplay} › ` : ""}
+                            {r.turd.display}
+                            {r.turd.turdSelected && <Check className="size-3.5" />}
+                          </span>
+                        </Tooltip>
                       ) : r.unlocks.length ? (
                         <TechLine
                           unlock={r.unlocks[0]}
@@ -108,12 +113,11 @@ export function RecipePickerDialog({
                           researched={r.avail.research === "available"}
                         />
                       ) : (
-                        <span
-                          className="flex items-center gap-1 text-sm text-muted-foreground"
-                          title="no technology unlocks this recipe"
-                        >
-                          <Lock className="size-3.5" /> locked
-                        </span>
+                        <Tooltip content="no technology unlocks this recipe">
+                          <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <Lock className="size-3.5" /> locked
+                          </span>
+                        </Tooltip>
                       ))
                     )}
                   </span>

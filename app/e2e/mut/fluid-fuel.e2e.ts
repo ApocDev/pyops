@@ -28,7 +28,7 @@ test("a fluid-burning drill demands the Fluid fuel pool, not a picked fluid", as
   await expect(buildings).toBeHidden();
 
   // the row carries a non-clickable Fluid fuel chip (MW of pool draw) …
-  await expect(page.locator('[title^="Fluid fuel"]').first()).toBeVisible();
+  await expect(page.getByLabel(/^Fluid fuel ·/).first()).toBeVisible();
   // … and the balance lists the pool as a "Fluid fuel (MJ)" import in watts
   await expect(page.getByLabel(/^Fluid fuel \(MJ\) \S+ [MkG]?W/).first()).toBeVisible();
   // the pre-#25 behavior defaulted fluid burners to a petroleum-gas import — gone

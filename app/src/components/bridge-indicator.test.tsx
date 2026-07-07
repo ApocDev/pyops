@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { BridgeIndicator } from "./bridge-indicator.tsx";
@@ -9,18 +9,10 @@ import { BridgeIndicator } from "./bridge-indicator.tsx";
 // bridge status server fn so we can drive each connection state.
 const { bridgeStatus } = vi.hoisted(() => ({ bridgeStatus: vi.fn() }));
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({
-    to,
-    title,
-    className,
-    children,
-  }: {
-    to: string;
-    title?: string;
-    className?: string;
-    children: ReactNode;
-  }) => (
-    <a href={to} title={title} className={className} data-testid="bridge-link">
+  // Spread the rest so the Tooltip trigger's props/ref (React 19 passes `ref`
+  // as a prop) reach the <a> and the real radix tooltip wires up on focus.
+  Link: ({ to, children, ...props }: { to: string; children: ReactNode }) => (
+    <a href={to} data-testid="bridge-link" {...props}>
       {children}
     </a>
   ),
@@ -50,10 +42,11 @@ describe("BridgeIndicator", () => {
       appProtocolVersion: 4,
       lastPeer: { lastSeenMs: Date.now(), protocolVersion: 4, player: "jim" },
     });
-    const { findByText, getByTestId } = renderIndicator();
+    const { findByText, findByRole, getByTestId } = renderIndicator();
     expect(await findByText("game linked")).toBeTruthy();
     expect(dot(getByTestId("bridge-link")).className).toContain("bg-success");
-    expect(getByTestId("bridge-link").getAttribute("title")).toContain("jim");
+    fireEvent.focus(getByTestId("bridge-link"));
+    expect((await findByRole("tooltip")).textContent).toContain("jim");
   });
 
   it("flags a protocol mismatch when the peer speaks a different version", async () => {
@@ -103,8 +96,9 @@ describe("BridgeIndicator", () => {
       appProtocolVersion: 4,
       lastPeer: null,
     });
-    const { findByText, getByTestId } = renderIndicator();
+    const { findByText, findByRole, getByTestId } = renderIndicator();
     expect(await findByText("bridge error")).toBeTruthy();
-    expect(getByTestId("bridge-link").getAttribute("title")).toContain("EADDRINUSE");
+    fireEvent.focus(getByTestId("bridge-link"));
+    expect((await findByRole("tooltip")).textContent).toContain("EADDRINUSE");
   });
 });

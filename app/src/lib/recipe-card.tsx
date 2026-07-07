@@ -10,6 +10,7 @@ import { formatQty, formatRate } from "./format";
 import { prodScaledAmount } from "./productivity";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 
 /** One ingredient/product line: icon + amount + name (+ temps / probability). */
 function Comp(c: {
@@ -848,9 +849,8 @@ export function TechLine({
   researched?: boolean;
 }) {
   return (
-    <span
-      className={`flex flex-wrap items-center gap-1.5 text-sm ${researched ? "text-success" : "text-destructive/90"}`}
-      title={
+    <Tooltip
+      content={
         (researched ? "researched: " : "requires research: ") +
         (unlock.display ?? unlock.tech) +
         (unlock.science.length
@@ -858,14 +858,18 @@ export function TechLine({
           : "")
       }
     >
-      <Icon kind="technology" name={unlock.tech} size="sm" noTitle />
-      <span>{unlock.display ?? unlock.tech}</span>
-      <span className="flex items-center -space-x-1">
-        {unlock.science.map((s) => (
-          <Icon key={s.name} kind="item" name={s.name} size="sm" noTitle />
-        ))}
+      <span
+        className={`flex flex-wrap items-center gap-1.5 text-sm ${researched ? "text-success" : "text-destructive/90"}`}
+      >
+        <Icon kind="technology" name={unlock.tech} size="sm" noTitle />
+        <span>{unlock.display ?? unlock.tech}</span>
+        <span className="flex items-center -space-x-1">
+          {unlock.science.map((s) => (
+            <Icon key={s.name} kind="item" name={s.name} size="sm" noTitle />
+          ))}
+        </span>
+        {more > 0 && <span className="text-muted-foreground">+{more} alt</span>}
       </span>
-      {more > 0 && <span className="text-muted-foreground">+{more} alt</span>}
-    </span>
+    </Tooltip>
   );
 }

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button } from "#/components/ui/button.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { useFilteredList } from "../../lib/use-filtered-list";
@@ -61,15 +62,14 @@ export function RecipeList({
       )}
       {visible.map((g) => (
         <div key={g.id}>
-          <div
-            className="flex items-baseline gap-2 border-t border-border bg-muted/40 px-3 py-1 text-sm font-medium text-muted-foreground"
-            title={g.hint}
-          >
-            {g.label}
-            <span className="font-normal">
-              {groups.find((x) => x.id === g.id)?.cards.length ?? g.cards.length}
-            </span>
-          </div>
+          <Tooltip content={g.hint}>
+            <div className="flex items-baseline gap-2 border-t border-border bg-muted/40 px-3 py-1 text-sm font-medium text-muted-foreground">
+              {g.label}
+              <span className="font-normal">
+                {groups.find((x) => x.id === g.id)?.cards.length ?? g.cards.length}
+              </span>
+            </div>
+          </Tooltip>
           {g.cards.map((c) => (
             <RecipeRow key={c.name} card={c} focus={focus} maxFlow={maxFlow} onPick={onPick} />
           ))}

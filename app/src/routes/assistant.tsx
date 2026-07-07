@@ -30,6 +30,7 @@ import { Callout } from "#/components/ui/callout.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Textarea } from "#/components/ui/textarea.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { ConfirmDialog } from "#/components/confirm-dialog.tsx";
 import { FollowUpChips, type FollowUp } from "#/components/assistant/follow-up-chips.tsx";
 import { GameEvalCard, type GameEvalProposal } from "#/components/assistant/game-eval-card.tsx";
@@ -710,41 +711,42 @@ function ContextGauge({
       `\nmodel: ${status.modelId ?? status.resolvedModel}\n\nClick to compact older messages now`
     : "context usage";
   return (
-    <button
-      type="button"
-      onClick={onCompact}
-      disabled={busy || compacting}
-      title={title}
-      aria-label={`Context ${pct}% full — click to compact`}
-      className="relative inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted/60 disabled:opacity-50"
-    >
-      <svg width={size} height={size} className="-rotate-90">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          strokeWidth={stroke}
-          className="text-border"
-          stroke="currentColor"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - ratio)}
-          className={ringColor}
-          stroke="currentColor"
-        />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular-nums text-foreground">
-        {compacting ? <Loader2 className="size-3.5 animate-spin" /> : pct}
-      </span>
-    </button>
+    <Tooltip content={title}>
+      <button
+        type="button"
+        onClick={onCompact}
+        disabled={busy || compacting}
+        aria-label={`Context ${pct}% full — click to compact`}
+        className="relative inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted/60 disabled:opacity-50"
+      >
+        <svg width={size} height={size} className="-rotate-90">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            strokeWidth={stroke}
+            className="text-border"
+            stroke="currentColor"
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={c}
+            strokeDashoffset={c * (1 - ratio)}
+            className={ringColor}
+            stroke="currentColor"
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular-nums text-foreground">
+          {compacting ? <Loader2 className="size-3.5 animate-spin" /> : pct}
+        </span>
+      </button>
+    </Tooltip>
   );
 }
 
@@ -802,20 +804,23 @@ function ModelMenu({
 
   return (
     <Popover.Root>
-      <Popover.Trigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={disabled}
-          title={`Model: ${resolved || "…"}${envOverride ? " (PYOPS_AGENT_MODEL env override)" : ""}`}
-          className="text-muted-foreground"
-        >
-          <span className="max-w-[6rem] truncate text-foreground md:max-w-[12rem]">
-            {resolved ? shortModel(resolved) : "model"}
-          </span>
-          <ChevronDown className="size-3.5 opacity-60" />
-        </Button>
-      </Popover.Trigger>
+      <Tooltip
+        content={`Model: ${resolved || "…"}${envOverride ? " (PYOPS_AGENT_MODEL env override)" : ""}`}
+      >
+        <Popover.Trigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={disabled}
+            className="text-muted-foreground"
+          >
+            <span className="max-w-[6rem] truncate text-foreground md:max-w-[12rem]">
+              {resolved ? shortModel(resolved) : "model"}
+            </span>
+            <ChevronDown className="size-3.5 opacity-60" />
+          </Button>
+        </Popover.Trigger>
+      </Tooltip>
       <Popover.Portal>
         <Popover.Content side="top" align="start" sideOffset={6} className={`${popoverPanel} p-3`}>
           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1559,25 +1564,28 @@ function DraftRows({ draft }: { draft: Draft }) {
           </div>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {draft.turd.selections.map((sel) => (
-              <span
+              <Tooltip
                 key={sel.master}
-                className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-sm ${
-                  sel.action === "switch"
-                    ? "bg-warning/15 text-warning"
-                    : sel.action === "pick"
-                      ? "bg-info/15 text-info"
-                      : "bg-success/15 text-success/90"
-                }`}
-                title={`${sel.action}${sel.current ? ` (currently: ${sel.current})` : ""}`}
+                content={`${sel.action}${sel.current ? ` (currently: ${sel.current})` : ""}`}
               >
-                <FlaskConical className="size-3.5" /> {sel.masterDisplay} › {sel.requiredChoice}
-                {sel.action === "switch" && (
-                  <>
-                    <AlertTriangle className="size-3.5" /> switch
-                  </>
-                )}
-                {sel.action === "already-selected" && <Check className="size-3.5" />}
-              </span>
+                <span
+                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-sm ${
+                    sel.action === "switch"
+                      ? "bg-warning/15 text-warning"
+                      : sel.action === "pick"
+                        ? "bg-info/15 text-info"
+                        : "bg-success/15 text-success/90"
+                  }`}
+                >
+                  <FlaskConical className="size-3.5" /> {sel.masterDisplay} › {sel.requiredChoice}
+                  {sel.action === "switch" && (
+                    <>
+                      <AlertTriangle className="size-3.5" /> switch
+                    </>
+                  )}
+                  {sel.action === "already-selected" && <Check className="size-3.5" />}
+                </span>
+              </Tooltip>
             ))}
           </div>
         </div>
@@ -1662,13 +1670,12 @@ function BlockDraft({
                 </span>
               )}
               {draft.heatW != null && draft.heatW > 0 && (
-                <span
-                  className="inline-flex items-center gap-1 text-warning"
-                  title="heat doesn't travel — needs a local heat source"
-                >
-                  {" · "}
-                  <Flame className="size-3.5" /> {Math.round(draft.heatW / 1000)} kW heat (local)
-                </span>
+                <Tooltip content="heat doesn't travel — needs a local heat source">
+                  <span className="inline-flex items-center gap-1 text-warning">
+                    {" · "}
+                    <Flame className="size-3.5" /> {Math.round(draft.heatW / 1000)} kW heat (local)
+                  </span>
+                </Tooltip>
               )}
             </span>
           </span>

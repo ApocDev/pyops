@@ -53,6 +53,7 @@ import { deletedToast, undoToast } from "../lib/undo-client";
 import { Button } from "#/components/ui/button.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { ConfirmDialog } from "#/components/confirm-dialog.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
@@ -448,12 +449,11 @@ function Shell() {
     h === "error" ? "text-destructive" : h === "warn" ? "text-warning" : "";
   const healthBadge = (h: Health, tip: string) =>
     h === "ok" ? null : (
-      <span
-        className={`shrink-0 ${h === "error" ? "text-destructive" : "text-warning"}`}
-        title={tip}
-      >
-        <AlertTriangle className="size-3.5" />
-      </span>
+      <Tooltip content={tip}>
+        <span className={`shrink-0 ${h === "error" ? "text-destructive" : "text-warning"}`}>
+          <AlertTriangle className="size-3.5" />
+        </span>
+      </Tooltip>
     );
   const blockHealthTip = (b: Row) =>
     b.broken

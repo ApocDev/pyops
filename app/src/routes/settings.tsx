@@ -28,6 +28,7 @@ import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel, Label } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Switch } from "#/components/ui/switch.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
@@ -135,12 +136,9 @@ function GameDataTab() {
         <CardHeader className="justify-between">
           <CardTitle>Reference data</CardTitle>
           {drift.data?.needsRedump && (
-            <Badge
-              variant="destructive"
-              title="the game's enabled mods or their versions changed since the last sync"
-            >
-              stale — mods changed
-            </Badge>
+            <Tooltip content="the game's enabled mods or their versions changed since the last sync">
+              <Badge variant="destructive">stale — mods changed</Badge>
+            </Tooltip>
           )}
         </CardHeader>
         <div className="space-y-2 px-3 pb-3">

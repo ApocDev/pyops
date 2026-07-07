@@ -4,6 +4,7 @@ import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { fmtSpoilTime, Icon, useSpoilables } from "../../lib/icons";
 import { fmtTemp } from "../../lib/format";
 import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
@@ -65,12 +66,13 @@ export function BalanceCard({
               electricity/heat aren't shown here at all: both surface as their
               own import chips below (pyops-electricity / pyops-heat). */}
           {res && Math.abs(res.power.pollutionPerMin) > 0.005 && (
-            <span
-              className={`flex items-center gap-1 ${res.power.pollutionPerMin < 0 ? "text-success" : "text-warning/80"}`}
-              title="pollution per minute from this block's machines (base emissions × energy-consumption × pollution module effects; fuel-type multipliers not modelled). Negative = net absorption — some buildings (forestry, plantations) soak pollution like trees."
-            >
-              <Cloud className="size-3.5" /> {num(Math.abs(res.power.pollutionPerMin))}/min
-            </span>
+            <Tooltip content="pollution per minute from this block's machines (base emissions × energy-consumption × pollution module effects; fuel-type multipliers not modelled). Negative = net absorption — some buildings (forestry, plantations) soak pollution like trees.">
+              <span
+                className={`flex items-center gap-1 ${res.power.pollutionPerMin < 0 ? "text-success" : "text-warning/80"}`}
+              >
+                <Cloud className="size-3.5" /> {num(Math.abs(res.power.pollutionPerMin))}/min
+              </span>
+            </Tooltip>
           )}
           {res && (
             <span className={statusColor}>
@@ -250,16 +252,17 @@ export function BalanceCard({
           {res && res.tempWarnings?.length > 0 && (
             <div className="border-b border-border px-3 py-2 text-sm text-warning">
               {res.tempWarnings.map((w) => (
-                <div
+                <Tooltip
                   key={`${w.producer}-${w.consumer}-${w.item}-${w.temp}`}
-                  className="flex items-center gap-1"
-                  title="the solver links fluids by name and pools all temperatures — in-game this producer's output can't feed this consumer"
+                  content="the solver links fluids by name and pools all temperatures — in-game this producer's output can't feed this consumer"
                 >
-                  <AlertTriangle className="size-3.5 shrink-0" />{" "}
-                  {res.recipeDisplay?.[w.producer] ?? w.producer} makes{" "}
-                  {res.display?.[w.item] ?? w.item} at {fmtTemp(w.temp)}, but{" "}
-                  {res.recipeDisplay?.[w.consumer] ?? w.consumer} needs {w.needs}
-                </div>
+                  <div className="flex items-center gap-1">
+                    <AlertTriangle className="size-3.5 shrink-0" />{" "}
+                    {res.recipeDisplay?.[w.producer] ?? w.producer} makes{" "}
+                    {res.display?.[w.item] ?? w.item} at {fmtTemp(w.temp)}, but{" "}
+                    {res.recipeDisplay?.[w.consumer] ?? w.consumer} needs {w.needs}
+                  </div>
+                </Tooltip>
               ))}
             </div>
           )}
@@ -304,16 +307,17 @@ export function BalanceCard({
                         )}
                         {lockedInput === f.name && (
                           <>
-                            <Input
-                              type="number"
-                              value={lockedRate}
-                              step="0.01"
-                              min="0"
-                              autoFocus
-                              onChange={(e) => onLockedRateChange(Number(e.target.value) || 0)}
-                              title="locked rate — the block is sized to consume this much of this input"
-                              className="h-7 w-16 border-info/60 px-1"
-                            />
+                            <Tooltip content="locked rate — the block is sized to consume this much of this input">
+                              <Input
+                                type="number"
+                                value={lockedRate}
+                                step="0.01"
+                                min="0"
+                                autoFocus
+                                onChange={(e) => onLockedRateChange(Number(e.target.value) || 0)}
+                                className="h-7 w-16 border-info/60 px-1"
+                              />
+                            </Tooltip>
                             <Button
                               variant="ghost"
                               size="icon-xs"

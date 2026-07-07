@@ -18,6 +18,7 @@ import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "#/components/ui/sheet.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
@@ -104,14 +105,11 @@ function CoherencePage() {
         }
         actions={
           <>
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              title="The aggregate per-item totals (this is the block-to-block wiring)"
-            >
-              <Link to="/factory">totals →</Link>
-            </Button>
+            <Tooltip content="The aggregate per-item totals (this is the block-to-block wiring)">
+              <Button asChild variant="outline" size="sm">
+                <Link to="/factory">totals →</Link>
+              </Button>
+            </Tooltip>
             <FilterInput
               value={search}
               onValueChange={setSearch}

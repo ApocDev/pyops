@@ -46,7 +46,9 @@ test("shows 'game linked' for a fresh, protocol-matched peer", async ({ page }) 
   const mod = fakeMod({ protocol_version: PROTOCOL_VERSION, player: "jim", mod_version: APP_VERSION });
   try {
     await expect(label(page)).toContainText("game linked");
-    await expect(label(page)).toHaveAttribute("title", /jim/);
+    // the peer detail now lives in the styled tooltip, shown on hover
+    await label(page).hover();
+    await expect(page.getByRole("tooltip")).toContainText("jim");
   } finally {
     mod.stop();
   }

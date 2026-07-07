@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "#/components/ui/button.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { RecipeHover } from "../../lib/recipe-card";
 import { fmtSpoilTime, Icon } from "../../lib/icons";
 import { ModulesChip } from "../../lib/modules-modal";
@@ -222,12 +223,13 @@ export function RecipeRow({
                     onOpenPins={() => open.pinsFor(name)}
                   />
                   {shareCount > 0 && (
-                    <span
-                      className="bg-info/20 px-1 text-sm text-info ring-1 ring-info/40"
-                      title={`${shareCount} routed input share${shareCount > 1 ? "s" : ""} (right-click the row → Pins to change)`}
+                    <Tooltip
+                      content={`${shareCount} routed input share${shareCount > 1 ? "s" : ""} (right-click the row → Pins to change)`}
                     >
-                      %
-                    </span>
+                      <span className="bg-info/20 px-1 text-sm text-info ring-1 ring-info/40">
+                        %
+                      </span>
+                    </Tooltip>
                   )}
                 </span>
                 {/* electricity, when the machine draws power */}
@@ -240,12 +242,11 @@ export function RecipeRow({
                   </span>
                 )}
                 {row.machine.energySource === "heat" && (
-                  <span
-                    title="heat draw — must be delivered by a reactor in this block (heat doesn't travel between blocks)"
-                    className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-warning"
-                  >
-                    <Flame className="size-3.5" /> {fmtW(row.machine.powerW)}
-                  </span>
+                  <Tooltip content="heat draw — must be delivered by a reactor in this block (heat doesn't travel between blocks)">
+                    <span className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-warning">
+                      <Flame className="size-3.5" /> {fmtW(row.machine.powerW)}
+                    </span>
+                  </Tooltip>
                 )}
                 {/* reactor farm layout (#94): neighbour bonus scales heat output */}
                 {row.reactor && (
@@ -260,26 +261,28 @@ export function RecipeRow({
                     (non-clickable) chips. */}
                 {row.fuel &&
                   (row.fuel.pool || row.fuel.pinned || row.fuel.temperature ? (
-                    <span
-                      title={
+                    <Tooltip
+                      label
+                      content={
                         row.fuel.pool
                           ? `Fluid fuel · ${fmtW(row.fuel.perSec * 1e6)} — burns any fuel-valued fluid; add a "Burn …" recipe to choose which`
                           : row.fuel.temperature
                             ? `${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s — drained for its heat (temperature), not burned`
                             : `${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s — this machine only burns ${row.fuel.display ?? row.fuel.name}`
                       }
-                      className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-warning"
                     >
-                      <Icon
-                        kind={row.fuel.kind as "item" | "fluid"}
-                        name={row.fuel.name}
-                        size="md"
-                        noTitle
-                      />
-                      <span className="font-semibold">
-                        {row.fuel.pool ? fmtW(row.fuel.perSec * 1e6) : num(row.fuel.perSec)}
+                      <span className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-warning">
+                        <Icon
+                          kind={row.fuel.kind as "item" | "fluid"}
+                          name={row.fuel.name}
+                          size="md"
+                          noTitle
+                        />
+                        <span className="font-semibold">
+                          {row.fuel.pool ? fmtW(row.fuel.perSec * 1e6) : num(row.fuel.perSec)}
+                        </span>
                       </span>
-                    </span>
+                    </Tooltip>
                   ) : (
                     <button
                       onClick={() => open.fuelPicker(name)}
@@ -297,13 +300,14 @@ export function RecipeRow({
                   ))}
                 {/* burnt result (ash, depleted cell): produced 1:1 from burning */}
                 {row.fuel?.burnt && (
-                  <span
-                    title={`${row.fuel.burnt.display ?? row.fuel.burnt.name} — produced by burning`}
-                    className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-muted-foreground"
+                  <Tooltip
+                    content={`${row.fuel.burnt.display ?? row.fuel.burnt.name} — produced by burning`}
                   >
-                    →<Icon kind="item" name={row.fuel.burnt.name} size="md" noTitle />
-                    <span>{num(row.fuel.burnt.perSec)}</span>
-                  </span>
+                    <span className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-muted-foreground">
+                      →<Icon kind="item" name={row.fuel.burnt.name} size="md" noTitle />
+                      <span>{num(row.fuel.burnt.perSec)}</span>
+                    </span>
+                  </Tooltip>
                 )}
                 {/* modules + beacons: configured loadout (or ghost ⊞), click to edit */}
                 <ModulesChip
@@ -325,34 +329,38 @@ export function RecipeRow({
                 )}
                 {/* TURD: hidden modules the selected upgrades insert (no slot cost) */}
                 {row.turdModules.length > 0 && (
-                  <Link
-                    to="/turd"
-                    title={`TURD: ${row.turdModules.map((m) => m.display ?? m.name).join(", ")} — applied by your selected upgrades`}
-                    className="flex items-center gap-1 bg-primary/15 px-1.5 py-1 text-sm text-primary ring-1 ring-primary/40 hover:brightness-110"
+                  <Tooltip
+                    content={`TURD: ${row.turdModules.map((m) => m.display ?? m.name).join(", ")} — applied by your selected upgrades`}
                   >
-                    <FlaskConical className="size-3.5" />
-                    {row.turdModules.map((m) => (
-                      <Icon key={m.name} kind="item" name={m.name} size="sm" noTitle />
-                    ))}
-                  </Link>
+                    <Link
+                      to="/turd"
+                      className="flex items-center gap-1 bg-primary/15 px-1.5 py-1 text-sm text-primary ring-1 ring-primary/40 hover:brightness-110"
+                    >
+                      <FlaskConical className="size-3.5" />
+                      {row.turdModules.map((m) => (
+                        <Icon key={m.name} kind="item" name={m.name} size="sm" noTitle />
+                      ))}
+                    </Link>
+                  </Tooltip>
                 )}
               </>
             ) : row?.spoil ? (
               // Spoil-buffer sizing (#19): no machine — the "cost" of a
               // spoiling step is the storage holding items mid-spoil.
-              <span
-                title={`spoils in ${fmtSpoilTime(row.spoil.seconds * 60)} — at ${num(row.rate)}/s, ≈${num(row.spoil.buffer)} items sit in storage mid-spoil${row.spoil.stacks != null ? ` (≈${Math.ceil(row.spoil.stacks)} stacks @ ${row.spoil.stackSize}/stack)` : ""}`}
-                className="flex items-center gap-1.5 bg-muted/50 px-1.5 py-1 text-sm text-warning"
+              <Tooltip
+                content={`spoils in ${fmtSpoilTime(row.spoil.seconds * 60)} — at ${num(row.rate)}/s, ≈${num(row.spoil.buffer)} items sit in storage mid-spoil${row.spoil.stacks != null ? ` (≈${Math.ceil(row.spoil.stacks)} stacks @ ${row.spoil.stackSize}/stack)` : ""}`}
               >
-                <Timer className="size-3.5 shrink-0" />
-                {fmtSpoilTime(row.spoil.seconds * 60)} · buffer {num(Math.ceil(row.spoil.buffer))}
-                {row.spoil.stacks != null && (
-                  <span className="text-muted-foreground">
-                    ≈ {num(Math.ceil(row.spoil.stacks))} stack
-                    {Math.ceil(row.spoil.stacks) === 1 ? "" : "s"}
-                  </span>
-                )}
-              </span>
+                <span className="flex items-center gap-1.5 bg-muted/50 px-1.5 py-1 text-sm text-warning">
+                  <Timer className="size-3.5 shrink-0" />
+                  {fmtSpoilTime(row.spoil.seconds * 60)} · buffer {num(Math.ceil(row.spoil.buffer))}
+                  {row.spoil.stacks != null && (
+                    <span className="text-muted-foreground">
+                      ≈ {num(Math.ceil(row.spoil.stacks))} stack
+                      {Math.ceil(row.spoil.stacks) === 1 ? "" : "s"}
+                    </span>
+                  )}
+                </span>
+              </Tooltip>
             ) : (
               <span className="text-muted-foreground">—</span>
             )}
@@ -377,13 +385,12 @@ export function RecipeRow({
                 {/* fluid-temp mismatch (#110 interim): part of this fluid is made
                     at a temperature this machine can't accept */}
                 {tempWarnings.ingredient.has(c.name) && (
-                  <span
-                    title={tempWarnings.ingredient.get(c.name)!.title}
-                    className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning"
-                  >
-                    <AlertTriangle className="size-3.5 shrink-0" />
-                    {tempWarnings.ingredient.get(c.name)!.label}
-                  </span>
+                  <Tooltip content={tempWarnings.ingredient.get(c.name)!.title}>
+                    <span className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning">
+                      <AlertTriangle className="size-3.5 shrink-0" />
+                      {tempWarnings.ingredient.get(c.name)!.label}
+                    </span>
+                  </Tooltip>
                 )}
                 {logi.resolved && c.kind === "item" && (
                   <LogiTag
@@ -417,13 +424,12 @@ export function RecipeRow({
                 {/* fluid-temp mismatch (#110 interim): a consumer in this block
                     can't accept this output's temperature */}
                 {tempWarnings.product.has(c.name) && (
-                  <span
-                    title={tempWarnings.product.get(c.name)!.title}
-                    className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning"
-                  >
-                    <AlertTriangle className="size-3.5 shrink-0" />
-                    {tempWarnings.product.get(c.name)!.label}
-                  </span>
+                  <Tooltip content={tempWarnings.product.get(c.name)!.title}>
+                    <span className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning">
+                      <AlertTriangle className="size-3.5 shrink-0" />
+                      {tempWarnings.product.get(c.name)!.label}
+                    </span>
+                  </Tooltip>
                 )}
                 {logi.resolved && c.kind === "item" && (
                   <LogiTag

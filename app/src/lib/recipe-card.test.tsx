@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { IconProvider } from "./icons.tsx";
@@ -51,17 +51,22 @@ describe("TechLine", () => {
     expect(getByText("mystery-tech")).toBeTruthy();
   });
 
-  it("styles + titles differently for required vs researched", () => {
-    // scope each render to its own container (both mount into the same body)
+  it("styles + tooltips differently for required vs researched", async () => {
+    // scope each render to its own container (both mount into the same body);
+    // the availability note now lives in the Tooltip, shown on focus.
     const req = withProviders(<TechLine unlock={unlock} />);
-    const reqSpan = within(req.container).getByText("Automation 2").closest("span[title]")!;
-    expect(reqSpan.getAttribute("title")).toContain("requires research:");
-    expect((reqSpan as HTMLElement).className).toContain("text-destructive/90");
+    const reqSpan = within(req.container).getByText("Automation 2").parentElement!;
+    expect(reqSpan.className).toContain("text-destructive/90");
+    fireEvent.focus(reqSpan);
+    expect((await req.findByRole("tooltip")).textContent).toContain("requires research:");
 
     const done = withProviders(<TechLine unlock={unlock} researched />);
-    const doneSpan = within(done.container).getByText("Automation 2").closest("span[title]")!;
-    expect(doneSpan.getAttribute("title")).toContain("researched:");
-    expect((doneSpan as HTMLElement).className).toContain("text-success");
+    const doneSpan = within(done.container).getByText("Automation 2").parentElement!;
+    expect(doneSpan.className).toContain("text-success");
+    fireEvent.focus(doneSpan);
+    // req's tooltip may still be open, so match across all shown tooltips
+    const tips = await done.findAllByRole("tooltip");
+    expect(tips.some((t) => t.textContent?.includes("researched:"))).toBe(true);
   });
 });
 

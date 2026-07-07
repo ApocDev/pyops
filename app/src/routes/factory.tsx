@@ -23,6 +23,7 @@ import { Callout } from "#/components/ui/callout.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Sheet, SheetContent, SheetTitle } from "#/components/ui/sheet.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { QueryError } from "#/components/query-error.tsx";
 import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
@@ -180,26 +181,24 @@ function FactoryPage() {
           <span className="flex flex-wrap items-center gap-1">
             {blocks.data?.length ?? 0} block(s) · <Zap className="size-3.5" /> {fmtW(totalPowerW)}
             {Math.abs(totalPollution) > 0.005 && (
-              <span
-                className={`flex items-center gap-1 ${totalPollution < 0 ? "text-success" : ""}`}
-                title="net pollution per minute across all enabled blocks — negative means your forestry/plantations absorb more than the machines emit"
-              >
-                · <Cloud className="size-3.5" /> {totalPollution < 0 ? "−" : ""}
-                {num(Math.abs(totalPollution))}/min
-              </span>
+              <Tooltip content="net pollution per minute across all enabled blocks — negative means your forestry/plantations absorb more than the machines emit">
+                <span
+                  className={`flex items-center gap-1 ${totalPollution < 0 ? "text-success" : ""}`}
+                >
+                  · <Cloud className="size-3.5" /> {totalPollution < 0 ? "−" : ""}
+                  {num(Math.abs(totalPollution))}/min
+                </span>
+              </Tooltip>
             )}
           </span>
         }
         actions={
           <>
-            <Button asChild size="sm" variant="outline" className="text-primary">
-              <Link
-                to="/whatif"
-                title="Solve the whole factory: set a product's rate, see the per-block changes to rebalance"
-              >
-                what-if →
-              </Link>
-            </Button>
+            <Tooltip content="Solve the whole factory: set a product's rate, see the per-block changes to rebalance">
+              <Button asChild size="sm" variant="outline" className="text-primary">
+                <Link to="/whatif">what-if →</Link>
+              </Button>
+            </Tooltip>
             <FilterInput
               value={search}
               onValueChange={setSearch}
@@ -217,26 +216,34 @@ function FactoryPage() {
                 "no live stats — Sync in-game"
               )}
             </span>
-            <Button
-              onClick={recomputeAll}
-              disabled={recomputing}
-              size="icon-sm"
-              variant="outline"
-              className="text-muted-foreground"
-              title="Recompute all blocks — re-solve every block (after a solver change, TURD pick, or data re-import)"
+            <Tooltip
+              label
+              content="Recompute all blocks — re-solve every block (after a solver change, TURD pick, or data re-import)"
             >
-              <RefreshCw className={recomputing ? "animate-spin" : ""} />
-            </Button>
-            <Button
-              onClick={() => changes.mutate()}
-              disabled={changes.isPending}
-              size="icon-sm"
-              variant="outline"
-              className="text-muted-foreground"
-              title="Check for changes — dry-run re-solve; report blocks that differ or reference a missing recipe (doesn't save)"
+              <Button
+                onClick={recomputeAll}
+                disabled={recomputing}
+                size="icon-sm"
+                variant="outline"
+                className="text-muted-foreground"
+              >
+                <RefreshCw className={recomputing ? "animate-spin" : ""} />
+              </Button>
+            </Tooltip>
+            <Tooltip
+              label
+              content="Check for changes — dry-run re-solve; report blocks that differ or reference a missing recipe (doesn't save)"
             >
-              <AlertTriangle className={changes.isPending ? "animate-pulse" : ""} />
-            </Button>
+              <Button
+                onClick={() => changes.mutate()}
+                disabled={changes.isPending}
+                size="icon-sm"
+                variant="outline"
+                className="text-muted-foreground"
+              >
+                <AlertTriangle className={changes.isPending ? "animate-pulse" : ""} />
+              </Button>
+            </Tooltip>
             <HelpButton title="What is Factory?">
               <p>
                 Factory is the <span className="text-foreground">whole-factory overview</span> —
@@ -623,25 +630,27 @@ function ResourceDrawer({
               {label}
             </div>
           </ItemHover>
-          <Button
-            onClick={() => locate.mutate()}
-            disabled={locate.isPending}
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
-            title="Find producers / storage / consumers of this in the game (needs the bridge + Factory Search mod)"
-          >
-            <MapPin /> locate
-          </Button>
-          <Button
-            onClick={onClose}
-            variant="ghost"
-            size="icon-sm"
-            className="text-muted-foreground"
-            title="close"
-          >
-            <X />
-          </Button>
+          <Tooltip content="Find producers / storage / consumers of this in the game (needs the bridge + Factory Search mod)">
+            <Button
+              onClick={() => locate.mutate()}
+              disabled={locate.isPending}
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+            >
+              <MapPin /> locate
+            </Button>
+          </Tooltip>
+          <Tooltip label content="close">
+            <Button
+              onClick={onClose}
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground"
+            >
+              <X />
+            </Button>
+          </Tooltip>
         </div>
         {locate.data && !locate.data.sent && (
           <Callout tone="warning" variant="strip" className="border-b border-border">

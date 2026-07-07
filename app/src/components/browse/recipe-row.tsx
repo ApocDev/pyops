@@ -1,6 +1,7 @@
 import { Check, FlaskConical, Lock, Timer } from "lucide-react";
 import type { browseDetailFn } from "../../server/factorio";
 import { Button } from "#/components/ui/button.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { Icon } from "../../lib/icons";
 import { RecipeHover, TechLine } from "../../lib/recipe-card";
 import { fmtCost } from "../block/format.ts";
@@ -91,31 +92,31 @@ export function RecipeRow({
           <Timer className="size-3.5" /> {num(card.energyRequired ?? 0.5)}s
         </span>
         {card.cost != null && (
-          <span
-            className="text-sm text-muted-foreground"
-            title="estimated cost per craft (cost analysis)"
-          >
-            ¥{fmtCost(card.cost)}
-          </span>
+          <Tooltip content="estimated cost per craft (cost analysis)">
+            <span className="text-sm text-muted-foreground">¥{fmtCost(card.cost)}</span>
+          </Tooltip>
         )}
         {wastePct != null && wastePct >= 5 && (
-          <span
-            className={`text-sm ${
-              wastePct >= 90
-                ? "text-destructive"
-                : wastePct >= 50
-                  ? "text-warning"
-                  : "text-muted-foreground"
-            }`}
-            title="share of the input + processing value this recipe destroys (cost analysis) — high waste means its products return far less than they cost"
-          >
-            {wastePct}% waste
-          </span>
+          <Tooltip content="share of the input + processing value this recipe destroys (cost analysis) — high waste means its products return far less than they cost">
+            <span
+              className={`text-sm ${
+                wastePct >= 90
+                  ? "text-destructive"
+                  : wastePct >= 50
+                    ? "text-warning"
+                    : "text-muted-foreground"
+              }`}
+            >
+              {wastePct}% waste
+            </span>
+          </Tooltip>
         )}
         {lock && (
-          <span className={`inline-flex items-center gap-1 text-sm ${lock.cls}`} title={lock.title}>
-            {lock.text}
-          </span>
+          <Tooltip content={lock.title}>
+            <span className={`inline-flex items-center gap-1 text-sm ${lock.cls}`}>
+              {lock.text}
+            </span>
+          </Tooltip>
         )}
         {!card.enabled && !turd && card.unlocks.length > 0 && (
           <TechLine
@@ -125,24 +126,24 @@ export function RecipeRow({
           />
         )}
         {!card.enabled && !turd && card.unlocks.length === 0 && (
-          <span
-            className="flex items-center gap-1 text-sm text-muted-foreground"
-            title="no technology unlocks this recipe"
-          >
-            <Lock className="size-3.5" /> locked
-          </span>
+          <Tooltip content="no technology unlocks this recipe">
+            <span className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Lock className="size-3.5" /> locked
+            </span>
+          </Tooltip>
         )}
         <span className="ml-auto flex shrink-0 items-center gap-1.5">
           {card.flow != null && maxFlow > 0 && (
-            <span
-              className="block h-1.5 w-10 overflow-hidden bg-muted"
-              title="estimated economy flow (relative to the busiest recipe here) — how much a sensible economy actually runs this recipe, per the cost analysis"
-            >
-              <span
-                className="block h-full bg-info"
-                style={{ width: `${Math.round((Math.min(card.flow, maxFlow) / maxFlow) * 100)}%` }}
-              />
-            </span>
+            <Tooltip content="estimated economy flow (relative to the busiest recipe here) — how much a sensible economy actually runs this recipe, per the cost analysis">
+              <span className="block h-1.5 w-10 overflow-hidden bg-muted">
+                <span
+                  className="block h-full bg-info"
+                  style={{
+                    width: `${Math.round((Math.min(card.flow, maxFlow) / maxFlow) * 100)}%`,
+                  }}
+                />
+              </span>
+            </Tooltip>
           )}
           <span className="flex items-center gap-0.5">
             {card.machines.slice(0, 4).map((m) => (
@@ -155,15 +156,16 @@ export function RecipeRow({
         </span>
       </div>
       {card.superseded && (
-        <div
-          className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
-          title={`your ${card.superseded.masterDisplay ?? "TURD"} choice "${card.superseded.subDisplay}" replaced this recipe with "${card.superseded.newDisplay}" — the base version no longer exists in-game`}
+        <Tooltip
+          content={`your ${card.superseded.masterDisplay ?? "TURD"} choice "${card.superseded.subDisplay}" replaced this recipe with "${card.superseded.newDisplay}" — the base version no longer exists in-game`}
         >
-          <FlaskConical className="size-3.5" /> replaced by {card.superseded.newDisplay}
-          <span className="text-muted-foreground/70">
-            ({card.superseded.masterDisplay ?? "TURD"} › {card.superseded.subDisplay})
-          </span>
-        </div>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+            <FlaskConical className="size-3.5" /> replaced by {card.superseded.newDisplay}
+            <span className="text-muted-foreground/70">
+              ({card.superseded.masterDisplay ?? "TURD"} › {card.superseded.subDisplay})
+            </span>
+          </div>
+        </Tooltip>
       )}
       <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
         {card.ingredients.map((c, i) => (

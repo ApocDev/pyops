@@ -9,6 +9,7 @@ import { Button } from "#/components/ui/button.tsx";
 import { Card } from "#/components/ui/card.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
@@ -225,21 +226,21 @@ function TurdPage() {
             </span>
           )}
           {sync.data?.syncedAt && (
-            <span
-              className="inline-flex items-center gap-1 text-sm text-success"
-              title={`pushed from the game ${timeAgo(sync.data.syncedAt)}`}
-            >
-              <Check className="size-3.5" /> live: {sync.data.syncedCount ?? 0} synced (
-              {timeAgo(sync.data.syncedAt)})
-              {sync.data.unknown.length > 0 && (
-                <span
-                  className="ml-1 text-warning"
-                  title={sync.data.unknown.map((u) => `${u.master} → ${u.sub}`).join("\n")}
-                >
-                  · {sync.data.unknown.length} unmatched
-                </span>
-              )}
-            </span>
+            <Tooltip content={`pushed from the game ${timeAgo(sync.data.syncedAt)}`}>
+              <span className="inline-flex items-center gap-1 text-sm text-success">
+                <Check className="size-3.5" /> live: {sync.data.syncedCount ?? 0} synced (
+                {timeAgo(sync.data.syncedAt)})
+                {sync.data.unknown.length > 0 && (
+                  <Tooltip
+                    content={sync.data.unknown.map((u) => `${u.master} → ${u.sub}`).join("\n")}
+                  >
+                    <span className="ml-1 text-warning">
+                      · {sync.data.unknown.length} unmatched
+                    </span>
+                  </Tooltip>
+                )}
+              </span>
+            </Tooltip>
           )}
         </div>
       </PageHeader>
@@ -309,14 +310,14 @@ function TurdPage() {
                         </span>
                         <span className="flex flex-wrap gap-1">
                           {subEffectSummary(s).map((fx) => (
-                            <Badge
+                            <Tooltip
                               key={fx.label}
-                              variant="outline"
-                              className={fx.className}
-                              title="Always-on module effect inserted into this upgrade's affected buildings — it boosts the recipes those buildings run, not the recipe swaps shown below."
+                              content="Always-on module effect inserted into this upgrade's affected buildings — it boosts the recipes those buildings run, not the recipe swaps shown below."
                             >
-                              {fx.label}
-                            </Badge>
+                              <Badge variant="outline" className={fx.className}>
+                                {fx.label}
+                              </Badge>
+                            </Tooltip>
                           ))}
                         </span>
                       </span>

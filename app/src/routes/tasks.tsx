@@ -28,6 +28,7 @@ import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Textarea } from "#/components/ui/textarea.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { Icon, IconProvider } from "#/lib/icons";
 import { deletedToast, undoToast } from "#/lib/undo-client";
 import {
@@ -69,12 +70,11 @@ const PRIORITY_META: Record<TaskPriority, { label: string; cls: string }> = {
 function PriorityBadge({ priority, reason }: { priority: TaskPriority; reason: string | null }) {
   const m = PRIORITY_META[priority];
   return (
-    <span
-      className={`shrink-0 border px-1 text-xs leading-tight font-medium ${m.cls}`}
-      title={reason ?? `priority: ${priority}`}
-    >
-      {m.label}
-    </span>
+    <Tooltip content={reason ?? `priority: ${priority}`}>
+      <span className={`shrink-0 border px-1 text-xs leading-tight font-medium ${m.cls}`}>
+        {m.label}
+      </span>
+    </Tooltip>
   );
 }
 
