@@ -1,0 +1,21 @@
+.claude/skills/design-system/SKILL.md
+  s_89789960e82599::t_55c39028a11a5c 12-14,34-37
+docs/design.md
+  s_89789960e82599::t_088d07416f8a50 25-35,89-94,128-129,132-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e16d01a320c3ed19e3ceb3c08a45fa10156932d2",
+  "prompts": {},
+  "sessions": {
+    "s_89789960e82599": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "59dcffb9-7f1b-47c0-bba2-30cf92378190",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
