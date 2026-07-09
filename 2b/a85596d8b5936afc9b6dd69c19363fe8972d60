@@ -1,0 +1,25 @@
+app/src/server/bridge/fns.ts
+  s_89789960e82599::t_29267dd49faa9a 38-47
+app/src/server/bridge/protocol.ts
+  s_89789960e82599::t_bbb4b57d460ce0 13
+docs/bridge.md
+  s_89789960e82599::t_50b680aa149985 29,32-34
+mod/control.lua
+  s_89789960e82599::t_e6370d5d310b76 21,407-433,682-685
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2ba85596d8b5936afc9b6dd69c19363fe8972d60",
+  "prompts": {},
+  "sessions": {
+    "s_89789960e82599": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "59dcffb9-7f1b-47c0-bba2-30cf92378190",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
