@@ -1,0 +1,113 @@
+app/src/components/project-backup-card.tsx
+  s_89789960e82599::t_1089fd447e6843 8,43,45-55,59-60
+app/src/routes/assistant.tsx
+  s_89789960e82599::t_b342e28f280c22 39,624,657-658,660-663,1537-1538,1542-1547,1552-1553,1822-1823
+app/e2e/mut/made-links.e2e.ts
+  s_01163ff91e3c50::t_9a5361870eae6d 38-39
+app/src/components/assistant/game-eval-card.test.tsx
+  s_89789960e82599::t_019cef54943923 22,25-26,42
+app/src/components/assistant/game-eval-card.tsx
+  s_01163ff91e3c50::t_967a7f48c6336c 12,60-61,93
+app/src/components/block/balance-card.tsx
+  s_01163ff91e3c50::t_d03b3a6932631f 117,231,346
+app/src/components/block/block-toolbar.tsx
+  s_01163ff91e3c50::t_4fe98c5b7bd995 27,212-216,235-237,333-335
+app/src/components/block/goal-card.tsx
+  s_01163ff91e3c50::t_be800bcfc1e880 211-215
+app/src/components/block/group-compose-dialog.tsx
+  s_567c789be6a906::t_fff09acae5ed08 6,68-70
+app/src/components/block/missing-recipe-row.tsx
+  s_01163ff91e3c50::t_c16b4257a71315 3,28-32
+app/src/components/block/pin-dialog.tsx
+  s_567c789be6a906::t_82e33ed2a438d6 7,140-143,182,201
+app/src/components/block/recipe-grid.tsx
+  s_01163ff91e3c50::t_1fc0493d249988 19,173-178
+app/src/components/block/recipe-row.tsx
+  s_01163ff91e3c50::t_a57a94032bfa62 165-167,169-171
+app/src/components/block/snapshot-sheet.tsx
+  s_01163ff91e3c50::t_72c1c1a4fc8419 18,115-118,120,131
+app/src/components/block/spoil-rate-dialog.tsx
+  s_567c789be6a906::t_1139993b842bef 5,52-58
+app/src/components/companion-mod-card.tsx
+  s_01163ff91e3c50::t_ed2712a465b33e 15,73-100,104
+app/src/components/deps/deps-tree-pane.tsx
+  s_567c789be6a906::t_097a24fc9a1f33 8,97-98,100-106
+app/src/components/drift-modal.tsx
+  s_89789960e82599::t_aa4f35f31504fc 14,20-21,171,174-189,192,207,210,219,300-301,315,317,372,404
+app/src/components/factory/machines-card.tsx
+  s_01163ff91e3c50::t_232b9e233490f4 27,136-139,195
+app/src/components/goods-table.tsx
+  s_89789960e82599::t_4b7294b0261675 20,140,155
+app/src/components/horizon-help.tsx
+  s_89789960e82599::t_c32a638bd30721 1-36
+app/src/components/horizon-menu.tsx
+  s_89789960e82599::t_f1f944cccbfd26 5,10,39,42,44,46
+app/src/components/horizon-picker.tsx
+  s_89789960e82599::t_4742dd602d796d 14,18,21,43-48,83-89,93,95,102-105,107,109-114,116,120,125-130,142,162,164,166-167,169-171,173-174,176,225,269,304,334-338,343,346,355-359,368,392
+app/src/components/logistics-help.tsx
+  s_89789960e82599::t_8746f82596ccb9 1-27
+app/src/components/logistics-menu.tsx
+  s_89789960e82599::t_1ad3fce1edeaac 14-15,19,70,72,74,112-117,145-150,166-171,201,230,234-243
+app/src/routes/block.$id.tsx
+  s_567c789be6a906::t_3680c26766e44b 33,782-784,786-808
+app/src/routes/coherence.tsx
+  s_01163ff91e3c50::t_ccbe33d8bddb59 24,228,249-253,310,312,472-474,632-639,722-730,733-736
+app/src/routes/factory.tsx
+  s_01163ff91e3c50::t_ca14fc68a64c10 28,213-214,217-220,472,474
+app/src/routes/settings.tsx
+  s_7c8cfa49b85728::t_55ad8cd0ac8760 17-19,210,470,472-483,487,513-516,536-551,553,597-599,688,690,728-730,734
+app/src/routes/tasks.tsx
+  s_5cb3c526317831::t_b70cd60d3505bc 29,425-439,712,1057-1058,1142
+app/src/routes/turd.tsx
+  s_01163ff91e3c50::t_cbe33ebb663e31 231-232
+app/src/routes/whatif.tsx
+  s_5cb3c526317831::t_9f40a485618b52 14,126-127,243,245,247
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0b3085110073e5b1bbf26b447aa70c99a5bae7b7",
+  "prompts": {},
+  "sessions": {
+    "s_01163ff91e3c50": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a9c1e358db20b8cb9",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_567c789be6a906": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aa51557554a558939",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_5cb3c526317831": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a0e8a2a8a2cfeef1d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_7c8cfa49b85728": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ad2193c4161692961",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_89789960e82599": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "59dcffb9-7f1b-47c0-bba2-30cf92378190",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
