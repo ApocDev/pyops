@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 import type { BlockData } from "../db/schema.ts";
-import { withRecipeSet } from "./block-doc.ts";
+import { extractRecipeToBlockDocs, withRecipeSet } from "./block-doc.ts";
 
 const doc = (): BlockData => ({
   goals: [{ name: "iron-plate", rate: 2 }],
@@ -62,5 +62,38 @@ describe("withRecipeSet (#12)", () => {
     expect(next.machines).toEqual(original.machines);
     expect(next.pins).toEqual(original.pins);
     expect(next.rowGroups).toEqual(original.rowGroups);
+  });
+});
+
+describe("extractRecipeToBlockDocs", () => {
+  it("moves one recipe's row config into a new block and prunes the source", () => {
+    const next = extractRecipeToBlockDocs(doc(), "molten-iron", [{ name: "molten-iron", rate: 4 }]);
+
+    expect(next.source.recipes).toEqual(["iron-plate", "helper"]);
+    expect(next.source.machines).toEqual({ "iron-plate": "furnace" });
+    expect(next.source.modules).toBeUndefined();
+    expect(next.source.pins).toEqual([
+      { kind: "share", recipe: "helper", item: "iron-plate", share: 0.5 },
+    ]);
+    expect(next.source.made).toEqual(["iron-plate"]);
+
+    expect(next.extracted).toEqual({
+      goals: [{ name: "molten-iron", rate: 4 }],
+      recipes: ["molten-iron"],
+      machines: { "molten-iron": "foundry" },
+      modules: { "molten-iron": ["prod-1", "prod-1"] },
+      pins: [{ kind: "count", recipe: "molten-iron", count: 3 }],
+    });
+  });
+
+  it("keeps made claims when another remaining recipe still produces the product", () => {
+    const next = extractRecipeToBlockDocs(
+      doc(),
+      "molten-iron",
+      [{ name: "molten-iron", rate: 4 }],
+      ["molten-iron"],
+    );
+
+    expect(next.source.made).toEqual(["iron-plate", "molten-iron"]);
   });
 });

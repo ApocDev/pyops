@@ -6,6 +6,7 @@ import { ActiveEditorRefContext } from "./block";
 import { createBlockDocStore, solveInputOf } from "../components/block/doc-store.ts";
 import {
   bridgeShowBlockFn,
+  extractRecipeBlockFn,
   goodInfoFn,
   itemWeightsFn,
   loadBlockFn,
@@ -135,6 +136,19 @@ function Block({ blockId }: { blockId: number }) {
 
   const createGroupFromRow = (recipe: string) => setRenamingGroup(doc.createGroupFromRow(recipe)); // name it right away
   const removeFromGroup = doc.removeFromGroup;
+  const extractRecipeToBlock = async (recipe: string) => {
+    if (doc.store.state.dirty) await persist();
+    const out = await extractRecipeBlockFn({ data: { blockId, recipe } });
+    if (!out.ok) {
+      toast({ message: "Could not extract that recipe into a new block." });
+      return;
+    }
+    void qc.invalidateQueries({ queryKey: ["blocks"] });
+    void qc.invalidateQueries({ queryKey: ["factory"] });
+    void qc.invalidateQueries({ queryKey: ["undoStatus"] });
+    toast({ message: `Extracted "${out.name}" into a new block.` });
+    void navigate({ to: "/block/$id", params: { id: String(out.id) } });
+  };
   const [pickFor, setPickFor] = useState<{ name: string; mode: "produce" | "consume" } | null>(
     null,
   );
@@ -869,6 +883,7 @@ function Block({ blockId }: { blockId: number }) {
           onNewGroup={() => createGroupFromRow(rowMenu.name)}
           onJoinGroup={(gid) => doc.joinRecipeToGroup(rowMenu.name, gid)}
           onLeaveGroup={() => removeFromGroup(rowMenu.name)}
+          onExtractToBlock={() => void extractRecipeToBlock(rowMenu.name)}
           onClose={() => setRowMenu(null)}
         />
       )}

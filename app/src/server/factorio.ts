@@ -9,7 +9,7 @@ import {
   primaryRate,
   withPrimaryRate,
 } from "../lib/goals";
-import { withRecipeSet } from "../lib/block-doc";
+import { extractRecipeToBlockDocs, withRecipeSet } from "../lib/block-doc";
 
 /**
  * Server functions exposing the query layer to the client. Server-only modules
@@ -515,6 +515,69 @@ export const setBlockRecipesFn = createServerFn({ method: "POST" })
       ),
     );
     return { ok: true };
+  });
+
+/** Break one recipe row out into a new supplier block. The new block is sized to
+ * the selected row's current product rates and carries that row's machine/fuel/
+ * module/beacon/pin setup; the source block drops the recipe and imports those
+ * products from the factory instead. */
+export const extractRecipeBlockFn = createServerFn({ method: "POST" })
+  .validator((d: { blockId: number; recipe: string }) => d)
+  .handler(async ({ data }) => {
+    const row = q.getBlock(data.blockId);
+    if (!row) return { ok: false as const, reason: "missing-block" as const };
+    const input = normalizeBlockData(row.data as SolveInput) as SolveInput;
+    if (!input.recipes.includes(data.recipe))
+      return { ok: false as const, reason: "missing-recipe" as const };
+
+    const solved = await computeBlock(input);
+    const solvedRow = solved.rows.find((r) => r.recipe === data.recipe);
+    const goals =
+      solvedRow?.products
+        .filter((p) => p.rate > 1e-9)
+        .map((p) => ({ name: p.name, rate: p.rate })) ?? [];
+    if (!solvedRow || goals.length === 0)
+      return { ok: false as const, reason: "unsolved-recipe" as const };
+
+    const goalNames = new Set(goals.map((g) => g.name));
+    const producedByRemaining = new Set<string>();
+    for (const recipe of input.recipes) {
+      if (recipe === data.recipe) continue;
+      for (const product of q.getRecipe(recipe)?.products ?? [])
+        if (goalNames.has(product.name)) producedByRemaining.add(product.name);
+    }
+    const { source, extracted } = extractRecipeToBlockDocs(input, data.recipe, goals, [
+      ...producedByRemaining,
+    ]);
+    const extractedInput = extracted as SolveInput;
+    const sourceSolve = await computeBlock(source);
+    const extractedSolve = await computeBlock(extractedInput);
+    if (extractedSolve.broken) return { ok: false as const, reason: "broken-extract" as const };
+
+    const primary = goals[0]!;
+    const primaryKind = q.getFluid(primary.name) ? "fluid" : "item";
+    const primaryDisplay = solved.display[primary.name] ?? primary.name;
+    const recipeDisplay = solved.recipeDisplay[data.recipe] ?? data.recipe;
+    const sourcePrimary = source.goals[0]?.name;
+    const sourceIcon = source.icon ?? {
+      kind: sourcePrimary ? (q.getFluid(sourcePrimary) ? "fluid" : "item") : row.iconKind,
+      name: sourcePrimary ?? row.iconName,
+    };
+
+    await captureSnapshot(data.blockId, { kind: "auto", label: "before recipe extract" });
+    const newId = await withUndoAction(`Extract "${recipeDisplay}" to new block`, async () => {
+      await persistBlock(
+        { id: row.id, name: row.name, iconKind: sourceIcon.kind, iconName: sourceIcon.name },
+        source,
+        sourceSolve,
+      );
+      return persistBlock(
+        { name: primaryDisplay, iconKind: primaryKind, iconName: primary.name },
+        extractedInput,
+        extractedSolve,
+      );
+    });
+    return { ok: true as const, id: newId, name: primaryDisplay };
   });
 
 /* ── Projects (one sqlite db per mod list) ──────────────────────────────────── */
