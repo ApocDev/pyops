@@ -25,6 +25,13 @@ export const Route = createFileRoute("/whatif")({
 
 import { rateLabel } from "../lib/format";
 
+// A block "needs a change" only if its solved scale is off by more than this
+// RELATIVE amount. An absolute delta threshold falsely flags a high-rate block
+// (e.g. 122/s) that's balanced to within rounding — 122 × 0.999 still trips a
+// 0.001 absolute test. Sub-1% is unbuildable precision (a fraction of a machine),
+// so treat it as balanced. Matches the server's re-balance convergence tolerance.
+const SCALE_EPS = 0.01;
+
 /** Factory what-if: the whole factory solved as one block. Set a final
  * product's rate and see the per-block scale changes needed to satisfy every
  * demand/consumption — your work list to scale each block (or ignore). */
@@ -35,7 +42,7 @@ function WhatIf() {
     queryFn: () => factoryWhatIfFn({ data: { demands: overrides } }),
   });
   const r = wf.data;
-  const changed = (r?.blocks ?? []).filter((b) => Math.abs(b.delta) > 0.001);
+  const changed = (r?.blocks ?? []).filter((b) => Math.abs(b.scale - 1) > SCALE_EPS);
 
   return (
     <div className="p-4 font-mono text-foreground">
