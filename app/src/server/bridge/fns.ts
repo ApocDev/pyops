@@ -35,6 +35,16 @@ export const bridgeLocateFn = createServerFn({ method: "POST" })
     };
   });
 
+/** Put a blueprint string on the connected player's cursor (cmd.blueprint) —
+ * e.g. the sushi planner's set-point combinator. Fire-and-forget; returns
+ * whether a peer was reachable. */
+export const bridgeBlueprintFn = createServerFn({ method: "POST" })
+  .validator((d: { bp: string }) => d)
+  .handler(async ({ data }) => {
+    b.ensureBridge();
+    return { sent: b.sendToPeer({ type: "cmd.blueprint", payload: { bp: data.bp } }) };
+  });
+
 /** Run a user-APPROVED Lua snippet in the game (#15) — the apply half of the
  * assistant's gameEval propose-then-approve gate. Only the chat card's Run
  * button calls this; the agent tool itself never executes. The mod refuses when

@@ -26,10 +26,12 @@ on any page. The same tab hosts the companion-mod installer (see below).
   per ore), and item production stats — pushed on connect and on relevant in-game
   events, always as the full authoritative set (no delta merging on the app side).
 - **Commands → game:** show a production-block panel in-game (`cmd.show_block`)
-  and close it again (`cmd.hide_block`), and locate producers/consumers/storage
+  and close it again (`cmd.hide_block`), locate producers/consumers/storage
   (`cmd.locate`, relayed to the
   [Factory Search](https://mods.factorio.com/mod/FactorySearch) mod's remote
-  interface).
+  interface), and put an app-built blueprint string on the player's cursor
+  (`cmd.blueprint` — e.g. the sushi planner's set-point combinator; the mod
+  refuses politely if the cursor is holding something).
 - **Task panel:** the in-game panel's **Tasks** tab pulls the project's
   tasks with `task.list` (the app replies with the full set — title, status,
   priority, body, steps, and links resolved to Factorio sprite paths) and renders

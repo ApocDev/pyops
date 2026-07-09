@@ -18,7 +18,7 @@ local BUTTON_NAME = "pyops_button"
 local SHORTCUT_NAME = "pyops-toggle-panel"
 -- Bridge wire contract. Keep in lockstep with PROTOCOL_VERSION in the app's
 -- src/server/bridge/protocol.ts — each side warns if the other reports a different one.
-local PROTOCOL_VERSION = 6
+local PROTOCOL_VERSION = 7
 
 local function get_player(event)
   if not event.player_index then
@@ -404,6 +404,33 @@ local function locate_good(player, payload)
   end
 end
 
+-- Put an app-sent blueprint string on the player's cursor (cmd.blueprint) —
+-- the same import_stack delivery the request-combinator generator uses. Refuses
+-- politely when the cursor is holding something so nothing gets clobbered.
+local function deliver_blueprint(player, payload)
+  local bp = payload and payload.bp
+  if type(bp) ~= "string" or bp == "" then
+    return
+  end
+  local cursor = player.cursor_stack
+  if not cursor then
+    return
+  end
+  if cursor.valid_for_read then
+    player.print({ "", "PyOps: clear your cursor first — a blueprint is waiting." })
+    return
+  end
+  cursor.set_stack({ name = "blueprint" })
+  if cursor.import_stack(bp) < 0 then
+    cursor.clear()
+    player.print({ "", "PyOps: failed to import the blueprint from the app." })
+    return
+  end
+  -- temporary: the print vanishes when the cursor is cleared (Q) instead of
+  -- landing in the inventory — these are regenerable artifacts, not keepsakes
+  player.cursor_stack_temporary = true
+end
+
 -- ── Read-only game-world inspection (app → mod cmd.* → reply) ──────────────────
 -- All bounded and structured: the app's assistant tools call these to ground a
 -- task in live evidence. No whole-map dumps.
@@ -652,6 +679,10 @@ local function handle_bridge_response(player, response)
   elseif response.type == "cmd.locate" then
     -- the app asked us to find a good in the world (web "locate in game" button)
     locate_good(player, response.payload)
+  elseif response.type == "cmd.blueprint" then
+    -- the app sent a blueprint string (e.g. the sushi set-point combinator) —
+    -- put it on the cursor, same delivery as the request-combinator generator
+    deliver_blueprint(player, response.payload)
   elseif response.type == "cmd.show_block" then
     -- the app pushed a solved block to render as an in-game build sheet
     Summary.show(player, response.payload)
