@@ -43,7 +43,7 @@ single-`target` shape. The item rules:
   the good made AND — when the chosen recipe is a **terminal sink** — records a
   **drain** (`net = 0`): the surplus must be consumed in-block, which is what
   forces a void to run at all (it produces nothing the objective wants).
-  Terminal means the recipe net-consumes the good and none of its *other*
+  Terminal means the recipe net-consumes the good and none of its _other_
   products feeds anything else in the block — everything it makes leaves
   (`lib/sink-classify.ts`, `drainsOnConsume`, tested). That single test is the
   line between "consume my surplus" and "restructure production": a void like
@@ -70,7 +70,7 @@ single-`target` shape. The item rules:
   count, so the goal's rate floor stops binding — the pin drives output. Without
   this the two fight (2 foundries make 0.13/s, a 0.14/s goal needs 2.1, and
   exact-count + ≥-floor can't both hold → a spurious infeasible). Only `count`
-  pins on a goal *producer* relax the goal; a `cap` there still lets the
+  pins on a goal _producer_ relax the goal; a `cap` there still lets the
   shortfall flag, and a count pin on a mid-chain row stays a hard constraint that
   can honestly conflict. The doc goal is untouched (naming, rollups) — only the
   solver floor relaxes, and `goalSuperseded` reports the gap so the goal card can
@@ -85,7 +85,7 @@ pool, so a range consumer draws from any mix of acceptable temperatures (range
 POOLING, not YAFC's hard per-temperature split). A `made` mark expands to every
 variant and pool, so a pool with no in-range producer reads as unmade —
 "nothing makes water ≤101°" — and the interim per-producer warnings stay as the
-complementary explanation of *which* producer misses *which* consumer. Fluids
+complementary explanation of _which_ producer misses _which_ consumer. Fluids
 no ranged consumer touches stay single bare goods (zero cost for most blocks);
 boundary flows fold back to the bare fluid name. The whole thing is a pure
 input transformation — the LP core never sees temperatures.

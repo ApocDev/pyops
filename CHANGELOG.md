@@ -2,122 +2,116 @@
 
 ## [1.1.0](https://github.com/ApocDev/pyops/compare/v1.0.0...v1.1.0) (2026-07-07)
 
-
 ### ⚠ BREAKING CHANGES
 
-* **planner:** modules are no longer applied automatically. Rows that relied on ambient auto-fill show empty fills (with the hint) until applied — the block toolbar's sparkle button restores them in one click. The `autofill` setting now only controls hint visibility.
-* **planner:** the payback-window setting is gone; module auto-fill is now a plain on/off toggle (meta key `autofill`, ON by default — previously payback 0 meant off). The old `autofill_payback` key is ignored. `chooseModuleFill` is replaced by the pure `pickAutoModules`.
+- **planner:** modules are no longer applied automatically. Rows that relied on ambient auto-fill show empty fills (with the hint) until applied — the block toolbar's sparkle button restores them in one click. The `autofill` setting now only controls hint visibility.
+- **planner:** the payback-window setting is gone; module auto-fill is now a plain on/off toggle (meta key `autofill`, ON by default — previously payback 0 meant off). The old `autofill_payback` key is ignored. `chooseModuleFill` is replaced by the pure `pickAutoModules`.
 
 ### Features
 
-* add support for Vitest in Vite config and enhance AI assistant documentation ([0e40a08](https://github.com/ApocDev/pyops/commit/0e40a08b3f777fd517609b2b2562d7f6ae5f71a0))
-* **agent:** add blockBuildStatus tool for built-vs-required machines ([334cdde](https://github.com/ApocDev/pyops/commit/334cddeacb8a06043bc481703edc8ec39144f8ee)), closes [#123](https://github.com/ApocDev/pyops/issues/123)
-* **agent:** add factory-wide power rollup tool ([e3dad05](https://github.com/ApocDev/pyops/commit/e3dad059ec9cdbe21b2a7188d8f4e971e78ecaeb)), closes [#129](https://github.com/ApocDev/pyops/issues/129)
-* **agent:** add logisticsFor tool for belts/inserters at a rate ([34bac86](https://github.com/ApocDev/pyops/commit/34bac862a076db1e9601b4e769c5b8c222932159)), closes [#126](https://github.com/ApocDev/pyops/issues/126)
-* **agent:** add productionStats tool for synced production stats ([d9fa963](https://github.com/ApocDev/pyops/commit/d9fa9631f3e69fa77580a6120a28c57069c757b9)), closes [#124](https://github.com/ApocDev/pyops/issues/124)
-* **agent:** add read-only listNotes tool for planning context ([53c8173](https://github.com/ApocDev/pyops/commit/53c8173b7cd1ae9941e9b65b583ee25b6d68a070)), closes [#128](https://github.com/ApocDev/pyops/issues/128)
-* **agent:** add researchPath tool for prerequisite closure + science cost ([bf0b407](https://github.com/ApocDev/pyops/commit/bf0b4078207b8fb38b6806452c0f2537a555e6bb)), closes [#125](https://github.com/ApocDev/pyops/issues/125)
-* **agent:** chip technology names too; steer the assistant off Lua for recipe data ([0949f01](https://github.com/ApocDev/pyops/commit/0949f014e980161beb37e761e25f5136a24d17d2))
-* **agent:** expose factoryWhatIf as a whatIf tool ([f8e7655](https://github.com/ApocDev/pyops/commit/f8e7655ef6ee3dd37483ace82412042fd62b1406)), closes [#127](https://github.com/ApocDev/pyops/issues/127)
-* **agent:** implement building counts in draft and aggregate machine requirements ([00d6b32](https://github.com/ApocDev/pyops/commit/00d6b3271fdbb8d8e4b0b92d4c0d27b6406ce652))
-* **agent:** multi-goal + keep-in-stock goals, and module-fill the building bill ([b8f7102](https://github.com/ApocDev/pyops/commit/b8f710206b39f80251dcc25a6d60267a227530da))
-* **agent:** resolve recipeOptions' machine to the actual draft pick ([86bdc36](https://github.com/ApocDev/pyops/commit/86bdc366beee5e4c5ac39c4088e02f5846b18cc1)), closes [#130](https://github.com/ApocDev/pyops/issues/130)
-* **app:** inline click-to-fix building count with color tint, no badge ([3fc1e8f](https://github.com/ApocDev/pyops/commit/3fc1e8f9d02f7f44dd9a66fdf6364a6de3285733)), closes [#121](https://github.com/ApocDev/pyops/issues/121)
-* **app:** show the heat draw (MW) on heat-powered rows, not just a label ([16057f9](https://github.com/ApocDev/pyops/commit/16057f9e986ceb7c0dece3fe7a36f82e8560ff30))
-* **planner:** count pin on a goal's producer supply-pushes instead of fighting the goal ([e2ff2ab](https://github.com/ApocDev/pyops/commit/e2ff2ab658a9ce1eb12baccda352fb3361b86188)), closes [#121](https://github.com/ApocDev/pyops/issues/121)
-* **planner:** module auto-fill becomes suggest + explicit apply ([fdd43ca](https://github.com/ApocDev/pyops/commit/fdd43ca64ff345ac358f4201e1fa14330b107b46))
-* **planner:** replace payback-economy module auto-fill with the direct algorithm ([37b47ba](https://github.com/ApocDev/pyops/commit/37b47ba1d0489a93fcbc514b41ac87b17c4e9ef9))
-* **ui:** add styled Tooltip primitive, replace native title for explanatory text ([6197c83](https://github.com/ApocDev/pyops/commit/6197c83d1275862ff43c9b0e5632e879e6e69491))
-
+- add support for Vitest in Vite config and enhance AI assistant documentation ([0e40a08](https://github.com/ApocDev/pyops/commit/0e40a08b3f777fd517609b2b2562d7f6ae5f71a0))
+- **agent:** add blockBuildStatus tool for built-vs-required machines ([334cdde](https://github.com/ApocDev/pyops/commit/334cddeacb8a06043bc481703edc8ec39144f8ee)), closes [#123](https://github.com/ApocDev/pyops/issues/123)
+- **agent:** add factory-wide power rollup tool ([e3dad05](https://github.com/ApocDev/pyops/commit/e3dad059ec9cdbe21b2a7188d8f4e971e78ecaeb)), closes [#129](https://github.com/ApocDev/pyops/issues/129)
+- **agent:** add logisticsFor tool for belts/inserters at a rate ([34bac86](https://github.com/ApocDev/pyops/commit/34bac862a076db1e9601b4e769c5b8c222932159)), closes [#126](https://github.com/ApocDev/pyops/issues/126)
+- **agent:** add productionStats tool for synced production stats ([d9fa963](https://github.com/ApocDev/pyops/commit/d9fa9631f3e69fa77580a6120a28c57069c757b9)), closes [#124](https://github.com/ApocDev/pyops/issues/124)
+- **agent:** add read-only listNotes tool for planning context ([53c8173](https://github.com/ApocDev/pyops/commit/53c8173b7cd1ae9941e9b65b583ee25b6d68a070)), closes [#128](https://github.com/ApocDev/pyops/issues/128)
+- **agent:** add researchPath tool for prerequisite closure + science cost ([bf0b407](https://github.com/ApocDev/pyops/commit/bf0b4078207b8fb38b6806452c0f2537a555e6bb)), closes [#125](https://github.com/ApocDev/pyops/issues/125)
+- **agent:** chip technology names too; steer the assistant off Lua for recipe data ([0949f01](https://github.com/ApocDev/pyops/commit/0949f014e980161beb37e761e25f5136a24d17d2))
+- **agent:** expose factoryWhatIf as a whatIf tool ([f8e7655](https://github.com/ApocDev/pyops/commit/f8e7655ef6ee3dd37483ace82412042fd62b1406)), closes [#127](https://github.com/ApocDev/pyops/issues/127)
+- **agent:** implement building counts in draft and aggregate machine requirements ([00d6b32](https://github.com/ApocDev/pyops/commit/00d6b3271fdbb8d8e4b0b92d4c0d27b6406ce652))
+- **agent:** multi-goal + keep-in-stock goals, and module-fill the building bill ([b8f7102](https://github.com/ApocDev/pyops/commit/b8f710206b39f80251dcc25a6d60267a227530da))
+- **agent:** resolve recipeOptions' machine to the actual draft pick ([86bdc36](https://github.com/ApocDev/pyops/commit/86bdc366beee5e4c5ac39c4088e02f5846b18cc1)), closes [#130](https://github.com/ApocDev/pyops/issues/130)
+- **app:** inline click-to-fix building count with color tint, no badge ([3fc1e8f](https://github.com/ApocDev/pyops/commit/3fc1e8f9d02f7f44dd9a66fdf6364a6de3285733)), closes [#121](https://github.com/ApocDev/pyops/issues/121)
+- **app:** show the heat draw (MW) on heat-powered rows, not just a label ([16057f9](https://github.com/ApocDev/pyops/commit/16057f9e986ceb7c0dece3fe7a36f82e8560ff30))
+- **planner:** count pin on a goal's producer supply-pushes instead of fighting the goal ([e2ff2ab](https://github.com/ApocDev/pyops/commit/e2ff2ab658a9ce1eb12baccda352fb3361b86188)), closes [#121](https://github.com/ApocDev/pyops/issues/121)
+- **planner:** module auto-fill becomes suggest + explicit apply ([fdd43ca](https://github.com/ApocDev/pyops/commit/fdd43ca64ff345ac358f4201e1fa14330b107b46))
+- **planner:** replace payback-economy module auto-fill with the direct algorithm ([37b47ba](https://github.com/ApocDev/pyops/commit/37b47ba1d0489a93fcbc514b41ac87b17c4e9ef9))
+- **ui:** add styled Tooltip primitive, replace native title for explanatory text ([6197c83](https://github.com/ApocDev/pyops/commit/6197c83d1275862ff43c9b0e5632e879e6e69491))
 
 ### Bug Fixes
 
-* **agent:** address review findings in assistant tool batch ([7fca79c](https://github.com/ApocDev/pyops/commit/7fca79c1d20550ba2d3df7cccb1c3ed718b2cf1d))
-* **app:** a sink goal caches the consumed good once, not a duplicate import ([e9bd2fb](https://github.com/ApocDev/pyops/commit/e9bd2fb200a26d1b2e3e39d872f6da3949cc69e0))
-* **app:** a sink goal is met by a consumer, not a producer — no false 'no recipe' warning ([46d3d95](https://github.com/ApocDev/pyops/commit/46d3d95d1bd654da7792f933aabdb118107febca))
-* **app:** classify factory imbalances by a relative floor, not an absolute epsilon ([cc4774a](https://github.com/ApocDev/pyops/commit/cc4774aa9296e847f206de3790aaed9be4cc62ff))
-* **app:** gate recipe availability on a tech's full prerequisite closure, not its own cost ([e18679d](https://github.com/ApocDev/pyops/commit/e18679db0ed0e3b8de7139c320391dbc7cc8d17a))
-* **app:** size row inserters per built machine, not per fractional machine ([cce110a](https://github.com/ApocDev/pyops/commit/cce110a1e37f25bd07ff26cb51b91197f296000b)), closes [#21](https://github.com/ApocDev/pyops/issues/21)
-* **bridge:** stop gating the in-game logistics readout on web display prefs ([8d4fc4f](https://github.com/ApocDev/pyops/commit/8d4fc4fdddf1d16d44d1fe2e102da81c45b99fd0)), closes [#21](https://github.com/ApocDev/pyops/issues/21)
-* **mod:** make the summary panel's blueprint a temporary cursor stack ([ecc5292](https://github.com/ApocDev/pyops/commit/ecc5292b44fd1de7e28ce0ad3eb4bf6c1c47ac98))
-* **planner:** drain a byproduct when its consumer is a terminal sink ([278edb1](https://github.com/ApocDev/pyops/commit/278edb192487de5186ccd62c2e647b678ba130ce)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
-* **planner:** hold module suggestions steady near whole-count boundaries ([b1881c7](https://github.com/ApocDev/pyops/commit/b1881c73498bb19b3a90cf5c66397ca88e9f87fe)), closes [#117](https://github.com/ApocDev/pyops/issues/117)
-* **planner:** module auto-fill considers ZERO speed modules ([c112097](https://github.com/ApocDev/pyops/commit/c112097a81e81f522ce91626193f0e02c48b2649))
-* **solver:** byproduct consumers no longer let the plan import-and-restructure ([138c27e](https://github.com/ApocDev/pyops/commit/138c27e2ab26fac83b42a62c000e04844ee6315c)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
-* **test:** type the sink-goal test's block data as saveBlockRow expects ([62f990d](https://github.com/ApocDev/pyops/commit/62f990db8ec7927e65961df0443fe43b5637e141))
-
+- **agent:** address review findings in assistant tool batch ([7fca79c](https://github.com/ApocDev/pyops/commit/7fca79c1d20550ba2d3df7cccb1c3ed718b2cf1d))
+- **app:** a sink goal caches the consumed good once, not a duplicate import ([e9bd2fb](https://github.com/ApocDev/pyops/commit/e9bd2fb200a26d1b2e3e39d872f6da3949cc69e0))
+- **app:** a sink goal is met by a consumer, not a producer — no false 'no recipe' warning ([46d3d95](https://github.com/ApocDev/pyops/commit/46d3d95d1bd654da7792f933aabdb118107febca))
+- **app:** classify factory imbalances by a relative floor, not an absolute epsilon ([cc4774a](https://github.com/ApocDev/pyops/commit/cc4774aa9296e847f206de3790aaed9be4cc62ff))
+- **app:** gate recipe availability on a tech's full prerequisite closure, not its own cost ([e18679d](https://github.com/ApocDev/pyops/commit/e18679db0ed0e3b8de7139c320391dbc7cc8d17a))
+- **app:** size row inserters per built machine, not per fractional machine ([cce110a](https://github.com/ApocDev/pyops/commit/cce110a1e37f25bd07ff26cb51b91197f296000b)), closes [#21](https://github.com/ApocDev/pyops/issues/21)
+- **bridge:** stop gating the in-game logistics readout on web display prefs ([8d4fc4f](https://github.com/ApocDev/pyops/commit/8d4fc4fdddf1d16d44d1fe2e102da81c45b99fd0)), closes [#21](https://github.com/ApocDev/pyops/issues/21)
+- **mod:** make the summary panel's blueprint a temporary cursor stack ([ecc5292](https://github.com/ApocDev/pyops/commit/ecc5292b44fd1de7e28ce0ad3eb4bf6c1c47ac98))
+- **planner:** drain a byproduct when its consumer is a terminal sink ([278edb1](https://github.com/ApocDev/pyops/commit/278edb192487de5186ccd62c2e647b678ba130ce)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
+- **planner:** hold module suggestions steady near whole-count boundaries ([b1881c7](https://github.com/ApocDev/pyops/commit/b1881c73498bb19b3a90cf5c66397ca88e9f87fe)), closes [#117](https://github.com/ApocDev/pyops/issues/117)
+- **planner:** module auto-fill considers ZERO speed modules ([c112097](https://github.com/ApocDev/pyops/commit/c112097a81e81f522ce91626193f0e02c48b2649))
+- **solver:** byproduct consumers no longer let the plan import-and-restructure ([138c27e](https://github.com/ApocDev/pyops/commit/138c27e2ab26fac83b42a62c000e04844ee6315c)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
+- **test:** type the sink-goal test's block data as saveBlockRow expects ([62f990d](https://github.com/ApocDev/pyops/commit/62f990db8ec7927e65961df0443fe43b5637e141))
 
 ### Performance Improvements
 
-* **app:** bound the solve query cache to 30s ([bc46cfe](https://github.com/ApocDev/pyops/commit/bc46cfed1bd684fa956098e9c7c8f59de2a5e3c0))
-* **planner:** batch the module-suggestion pool to one scan per solve ([60d49d5](https://github.com/ApocDev/pyops/commit/60d49d53f5f77b9e892845099154c57b902388ff)), closes [#117](https://github.com/ApocDev/pyops/issues/117)
+- **app:** bound the solve query cache to 30s ([bc46cfe](https://github.com/ApocDev/pyops/commit/bc46cfed1bd684fa956098e9c7c8f59de2a5e3c0))
+- **planner:** batch the module-suggestion pool to one scan per solve ([60d49d5](https://github.com/ApocDev/pyops/commit/60d49d53f5f77b9e892845099154c57b902388ff)), closes [#117](https://github.com/ApocDev/pyops/issues/117)
 
 ## [1.0.0](https://github.com/ApocDev/pyops/compare/v0.5.0...v1.0.0) (2026-07-04)
 
-
 ### ⚠ BREAKING CHANGES
 
-* **solver:** delete the v1 least-squares solver
-* **solver:** switch the block solve to the v2 LP and the gesture-derived model
+- **solver:** delete the v1 least-squares solver
+- **solver:** switch the block solve to the v2 LP and the gesture-derived model
 
 ### Features
 
-* **agent:** factory-wide coherence audit tool with byproduct disposal verdicts ([e13e9c3](https://github.com/ApocDev/pyops/commit/e13e9c354671f58547fcd88a53159a8d9108d098)), closes [#11](https://github.com/ApocDev/pyops/issues/11)
-* **agent:** per-call approval gate for in-game Lua eval ([94b805b](https://github.com/ApocDev/pyops/commit/94b805b06a995509ecc91c79f316bee1da3c322f)), closes [#15](https://github.com/ApocDev/pyops/issues/15)
-* **agent:** report Claude's 1M context window (GA, no beta header) ([c8eda96](https://github.com/ApocDev/pyops/commit/c8eda964eb8bdfb530ad9c7bb5a245a688e673b5)), closes [#72](https://github.com/ApocDev/pyops/issues/72)
-* **agent:** reviseBlock can propose recipe-set changes, not just rate ([82b7fbd](https://github.com/ApocDev/pyops/commit/82b7fbdf285ea81abea44fd2a9c12e823f2059e7)), closes [#12](https://github.com/ApocDev/pyops/issues/12)
-* **app:** add a sankey/flow view of a solved block's material flow ([95d8627](https://github.com/ApocDev/pyops/commit/95d86279290f42a2081493c2e25c858a86845d44)), closes [#101](https://github.com/ApocDev/pyops/issues/101)
-* **app:** add Ctrl+K / '/' command palette ([ed95330](https://github.com/ApocDev/pyops/commit/ed9533033d868732c7561adec7c048f6a6761c91)), closes [#78](https://github.com/ApocDev/pyops/issues/78)
-* **app:** add global hotkey layer (registry + useHotkey) ([ba1ec06](https://github.com/ApocDev/pyops/commit/ba1ec069c2405734ec440f82ddfbdc9a38dd4be3)), closes [#78](https://github.com/ApocDev/pyops/issues/78)
-* **app:** add shared toast primitive (queue store + Toaster) ([975339c](https://github.com/ApocDev/pyops/commit/975339c795cfbd69e0b416a51a4e1286b95106f5)), closes [#90](https://github.com/ApocDev/pyops/issues/90)
-* **app:** add the dependency explorer page ([256932b](https://github.com/ApocDev/pyops/commit/256932ba04b12694bdb1ae3d867fe5b2a410fec3)), closes [#100](https://github.com/ApocDev/pyops/issues/100)
-* **app:** block snapshots — per-block history, restore, and diff ([004a364](https://github.com/ApocDev/pyops/commit/004a364989ec4cb982cddca11f993a846865006c)), closes [#85](https://github.com/ApocDev/pyops/issues/85)
-* **app:** consistent destructive actions — confirm dialogs + undo toasts ([2eac32a](https://github.com/ApocDev/pyops/commit/2eac32a6855278fa34daa273a536b68c3d49adce)), closes [#83](https://github.com/ApocDev/pyops/issues/83)
-* **app:** light/dark/system theme toggle ([#107](https://github.com/ApocDev/pyops/issues/107)) ([3c00b92](https://github.com/ApocDev/pyops/commit/3c00b92b950b429cec659a8546c48da011e50b3f))
-* **app:** make PageHeader sticky on scroll ([8a45d04](https://github.com/ApocDev/pyops/commit/8a45d043819558c45e9dd4fedf0409b3679c81a2)), closes [#106](https://github.com/ApocDev/pyops/issues/106)
-* **app:** match fluid-fuel MJ block-to-block with explicit suppliers ([bedf551](https://github.com/ApocDev/pyops/commit/bedf551ee1dfce648ae7560ad8b4de50f3b9f030)), closes [#115](https://github.com/ApocDev/pyops/issues/115)
-* **app:** module templates — icons, compatibility filtering, defaults ([0da8069](https://github.com/ApocDev/pyops/commit/0da80696ba263a09826a3829cba1a7d733a37a4b)), closes [#99](https://github.com/ApocDev/pyops/issues/99)
-* **app:** move the factory Machines card onto the sortable-table engine ([588620d](https://github.com/ApocDev/pyops/commit/588620def60d9d48212399cc16716bf97e0a08e6)), closes [#80](https://github.com/ApocDev/pyops/issues/80)
-* **app:** palette goods search, recents, and the shortcut help sheet ([f2e43a7](https://github.com/ApocDev/pyops/commit/f2e43a7a2832fda4ea5c3f4eb52dd2b874b418b2)), closes [#78](https://github.com/ApocDev/pyops/issues/78)
-* **app:** power units for energy rates — 5TW in, '5 GW' out ([3d776ed](https://github.com/ApocDev/pyops/commit/3d776ed5df5bf1b05594a85a6eda96d6ca5151a5))
-* **app:** project backup and shareable block/plan JSON ([#82](https://github.com/ApocDev/pyops/issues/82)) ([7cfedca](https://github.com/ApocDev/pyops/commit/7cfedca83696aece777c5c80e97ea4838bff62a6))
-* **app:** rank a good's producers/consumers in the browse explorer ([5c743cf](https://github.com/ApocDev/pyops/commit/5c743cfb20fe10a45ac707d59188d275657153bd)), closes [#97](https://github.com/ApocDev/pyops/issues/97)
-* **app:** replace project-create prompt with a real dialog ([52be241](https://github.com/ApocDev/pyops/commit/52be2416fabb7eb15db5887b698edc2be407cdb9)), closes [#84](https://github.com/ApocDev/pyops/issues/84)
-* **app:** share one filtered-list primitive across the filterable pages ([cd18c65](https://github.com/ApocDev/pyops/commit/cd18c65ddf6f880d5a3ba54151be7345596b4d6c)), closes [#87](https://github.com/ApocDev/pyops/issues/87)
-* **app:** shared query/route error + loading convention ([ea1c1f6](https://github.com/ApocDev/pyops/commit/ea1c1f69d114693007bc27662c18911a97e9ac4e)), closes [#81](https://github.com/ApocDev/pyops/issues/81)
-* **app:** show fluid temperatures on the recipe-grid chips ([bceea15](https://github.com/ApocDev/pyops/commit/bceea1598454837972d161a8a2822915332ab3b2)), closes [#110](https://github.com/ApocDev/pyops/issues/110)
-* **app:** trigger-based undo log with grouped actions and undoLast ([08f7374](https://github.com/ApocDev/pyops/commit/08f73748978a00f83da6323c3d79c899621b30dd)), closes [#90](https://github.com/ApocDev/pyops/issues/90)
-* **app:** undo UI — Ctrl+Z, nav affordance, editor rehydration ([88dbc6e](https://github.com/ApocDev/pyops/commit/88dbc6ed7bc058f59a4a11e54d6ae00387c09d28)), closes [#90](https://github.com/ApocDev/pyops/issues/90)
-* **app:** warn when pending db migrations need a restart ([d9ac1d4](https://github.com/ApocDev/pyops/commit/d9ac1d46e431942d76860bbdb039f5b71392eb0d)), closes [#75](https://github.com/ApocDev/pyops/issues/75)
-* **assistant:** one-click follow-up chips on draft and plan cards ([25138ad](https://github.com/ApocDev/pyops/commit/25138ad5b3bfb2ea9deb54d73d0ac590218cdd76)), closes [#13](https://github.com/ApocDev/pyops/issues/13)
-* **assistant:** push a created block in-game from draft and plan cards ([8b29d11](https://github.com/ApocDev/pyops/commit/8b29d11bccce95004dec1f93d8aaa983b82b50b3)), closes [#14](https://github.com/ApocDev/pyops/issues/14)
-* **db:** synthesize planting and rocket-launch recipes ([09bd667](https://github.com/ApocDev/pyops/commit/09bd667c07844f0703828b6bbbc37240789e151b)), closes [#96](https://github.com/ApocDev/pyops/issues/96)
-* **planner:** fungible fluid-fuel energy pool (pyops-fluid-fuel) ([db7d65a](https://github.com/ApocDev/pyops/commit/db7d65a594d9f9f6d0ac5661de94f4c928f2dc38)), closes [#25](https://github.com/ApocDev/pyops/issues/25)
-* **planner:** model temperature-fed fluid energy sources ([701fcb8](https://github.com/ApocDev/pyops/commit/701fcb8e4aa1b736260da7dbe47bd4936a9a583a)), closes [#114](https://github.com/ApocDev/pyops/issues/114)
-* **solver:** apply research-driven productivity bonuses ([54972ba](https://github.com/ApocDev/pyops/commit/54972bae13ad38c8f0afe14d720503f69043c056)), closes [#92](https://github.com/ApocDev/pyops/issues/92)
-* **solver:** fluid temperatures as real identities with range pooling ([708a9e0](https://github.com/ApocDev/pyops/commit/708a9e05bb38aae10a80a92c7ef0b21922071cc8)), closes [#110](https://github.com/ApocDev/pyops/issues/110)
-* **solver:** model reactor neighbour bonus in heat generation ([315c25f](https://github.com/ApocDev/pyops/commit/315c25f2280deeada432b21d598175101f5a7af3)), closes [#94](https://github.com/ApocDev/pyops/issues/94)
-* **solver:** sub-blocks v2 — real composition (composed modules) ([d675257](https://github.com/ApocDev/pyops/commit/d675257d75001db4a308c8936ab932b3dd518cc9)), closes [#76](https://github.com/ApocDev/pyops/issues/76)
-* **solver:** switch the block solve to the v2 LP and the gesture-derived model ([21a6599](https://github.com/ApocDev/pyops/commit/21a6599bca4b5cef8587657aac2a57939e6ac81d)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
-* **solver:** v1 dispositions → v2 made-set migration mapping ([0da625d](https://github.com/ApocDev/pyops/commit/0da625dc0306a705967047ea650862d437a20972)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
-* **solver:** v2 LP core (HiGHS) and IIS root-cause diagnosis ([f22a576](https://github.com/ApocDev/pyops/commit/f22a5762fc5b836ee8bdf57315b85dad595ffd2a)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
-* **solver:** warn per producer on fluid-temperature mismatches ([fce65cf](https://github.com/ApocDev/pyops/commit/fce65cfcb5883226b7cb240bd4d8627c725977c5)), closes [#110](https://github.com/ApocDev/pyops/issues/110)
-* **solver:** whole-machine mode (MIP), pin editor UI, and cached diagnosis ([6e0ba70](https://github.com/ApocDev/pyops/commit/6e0ba709c0acb8e43fcf98f6e2dcc9b738c8f34a)), closes [#98](https://github.com/ApocDev/pyops/issues/98) [#91](https://github.com/ApocDev/pyops/issues/91)
-
+- **agent:** factory-wide coherence audit tool with byproduct disposal verdicts ([e13e9c3](https://github.com/ApocDev/pyops/commit/e13e9c354671f58547fcd88a53159a8d9108d098)), closes [#11](https://github.com/ApocDev/pyops/issues/11)
+- **agent:** per-call approval gate for in-game Lua eval ([94b805b](https://github.com/ApocDev/pyops/commit/94b805b06a995509ecc91c79f316bee1da3c322f)), closes [#15](https://github.com/ApocDev/pyops/issues/15)
+- **agent:** report Claude's 1M context window (GA, no beta header) ([c8eda96](https://github.com/ApocDev/pyops/commit/c8eda964eb8bdfb530ad9c7bb5a245a688e673b5)), closes [#72](https://github.com/ApocDev/pyops/issues/72)
+- **agent:** reviseBlock can propose recipe-set changes, not just rate ([82b7fbd](https://github.com/ApocDev/pyops/commit/82b7fbdf285ea81abea44fd2a9c12e823f2059e7)), closes [#12](https://github.com/ApocDev/pyops/issues/12)
+- **app:** add a sankey/flow view of a solved block's material flow ([95d8627](https://github.com/ApocDev/pyops/commit/95d86279290f42a2081493c2e25c858a86845d44)), closes [#101](https://github.com/ApocDev/pyops/issues/101)
+- **app:** add Ctrl+K / '/' command palette ([ed95330](https://github.com/ApocDev/pyops/commit/ed9533033d868732c7561adec7c048f6a6761c91)), closes [#78](https://github.com/ApocDev/pyops/issues/78)
+- **app:** add global hotkey layer (registry + useHotkey) ([ba1ec06](https://github.com/ApocDev/pyops/commit/ba1ec069c2405734ec440f82ddfbdc9a38dd4be3)), closes [#78](https://github.com/ApocDev/pyops/issues/78)
+- **app:** add shared toast primitive (queue store + Toaster) ([975339c](https://github.com/ApocDev/pyops/commit/975339c795cfbd69e0b416a51a4e1286b95106f5)), closes [#90](https://github.com/ApocDev/pyops/issues/90)
+- **app:** add the dependency explorer page ([256932b](https://github.com/ApocDev/pyops/commit/256932ba04b12694bdb1ae3d867fe5b2a410fec3)), closes [#100](https://github.com/ApocDev/pyops/issues/100)
+- **app:** block snapshots — per-block history, restore, and diff ([004a364](https://github.com/ApocDev/pyops/commit/004a364989ec4cb982cddca11f993a846865006c)), closes [#85](https://github.com/ApocDev/pyops/issues/85)
+- **app:** consistent destructive actions — confirm dialogs + undo toasts ([2eac32a](https://github.com/ApocDev/pyops/commit/2eac32a6855278fa34daa273a536b68c3d49adce)), closes [#83](https://github.com/ApocDev/pyops/issues/83)
+- **app:** light/dark/system theme toggle ([#107](https://github.com/ApocDev/pyops/issues/107)) ([3c00b92](https://github.com/ApocDev/pyops/commit/3c00b92b950b429cec659a8546c48da011e50b3f))
+- **app:** make PageHeader sticky on scroll ([8a45d04](https://github.com/ApocDev/pyops/commit/8a45d043819558c45e9dd4fedf0409b3679c81a2)), closes [#106](https://github.com/ApocDev/pyops/issues/106)
+- **app:** match fluid-fuel MJ block-to-block with explicit suppliers ([bedf551](https://github.com/ApocDev/pyops/commit/bedf551ee1dfce648ae7560ad8b4de50f3b9f030)), closes [#115](https://github.com/ApocDev/pyops/issues/115)
+- **app:** module templates — icons, compatibility filtering, defaults ([0da8069](https://github.com/ApocDev/pyops/commit/0da80696ba263a09826a3829cba1a7d733a37a4b)), closes [#99](https://github.com/ApocDev/pyops/issues/99)
+- **app:** move the factory Machines card onto the sortable-table engine ([588620d](https://github.com/ApocDev/pyops/commit/588620def60d9d48212399cc16716bf97e0a08e6)), closes [#80](https://github.com/ApocDev/pyops/issues/80)
+- **app:** palette goods search, recents, and the shortcut help sheet ([f2e43a7](https://github.com/ApocDev/pyops/commit/f2e43a7a2832fda4ea5c3f4eb52dd2b874b418b2)), closes [#78](https://github.com/ApocDev/pyops/issues/78)
+- **app:** power units for energy rates — 5TW in, '5 GW' out ([3d776ed](https://github.com/ApocDev/pyops/commit/3d776ed5df5bf1b05594a85a6eda96d6ca5151a5))
+- **app:** project backup and shareable block/plan JSON ([#82](https://github.com/ApocDev/pyops/issues/82)) ([7cfedca](https://github.com/ApocDev/pyops/commit/7cfedca83696aece777c5c80e97ea4838bff62a6))
+- **app:** rank a good's producers/consumers in the browse explorer ([5c743cf](https://github.com/ApocDev/pyops/commit/5c743cfb20fe10a45ac707d59188d275657153bd)), closes [#97](https://github.com/ApocDev/pyops/issues/97)
+- **app:** replace project-create prompt with a real dialog ([52be241](https://github.com/ApocDev/pyops/commit/52be2416fabb7eb15db5887b698edc2be407cdb9)), closes [#84](https://github.com/ApocDev/pyops/issues/84)
+- **app:** share one filtered-list primitive across the filterable pages ([cd18c65](https://github.com/ApocDev/pyops/commit/cd18c65ddf6f880d5a3ba54151be7345596b4d6c)), closes [#87](https://github.com/ApocDev/pyops/issues/87)
+- **app:** shared query/route error + loading convention ([ea1c1f6](https://github.com/ApocDev/pyops/commit/ea1c1f69d114693007bc27662c18911a97e9ac4e)), closes [#81](https://github.com/ApocDev/pyops/issues/81)
+- **app:** show fluid temperatures on the recipe-grid chips ([bceea15](https://github.com/ApocDev/pyops/commit/bceea1598454837972d161a8a2822915332ab3b2)), closes [#110](https://github.com/ApocDev/pyops/issues/110)
+- **app:** trigger-based undo log with grouped actions and undoLast ([08f7374](https://github.com/ApocDev/pyops/commit/08f73748978a00f83da6323c3d79c899621b30dd)), closes [#90](https://github.com/ApocDev/pyops/issues/90)
+- **app:** undo UI — Ctrl+Z, nav affordance, editor rehydration ([88dbc6e](https://github.com/ApocDev/pyops/commit/88dbc6ed7bc058f59a4a11e54d6ae00387c09d28)), closes [#90](https://github.com/ApocDev/pyops/issues/90)
+- **app:** warn when pending db migrations need a restart ([d9ac1d4](https://github.com/ApocDev/pyops/commit/d9ac1d46e431942d76860bbdb039f5b71392eb0d)), closes [#75](https://github.com/ApocDev/pyops/issues/75)
+- **assistant:** one-click follow-up chips on draft and plan cards ([25138ad](https://github.com/ApocDev/pyops/commit/25138ad5b3bfb2ea9deb54d73d0ac590218cdd76)), closes [#13](https://github.com/ApocDev/pyops/issues/13)
+- **assistant:** push a created block in-game from draft and plan cards ([8b29d11](https://github.com/ApocDev/pyops/commit/8b29d11bccce95004dec1f93d8aaa983b82b50b3)), closes [#14](https://github.com/ApocDev/pyops/issues/14)
+- **db:** synthesize planting and rocket-launch recipes ([09bd667](https://github.com/ApocDev/pyops/commit/09bd667c07844f0703828b6bbbc37240789e151b)), closes [#96](https://github.com/ApocDev/pyops/issues/96)
+- **planner:** fungible fluid-fuel energy pool (pyops-fluid-fuel) ([db7d65a](https://github.com/ApocDev/pyops/commit/db7d65a594d9f9f6d0ac5661de94f4c928f2dc38)), closes [#25](https://github.com/ApocDev/pyops/issues/25)
+- **planner:** model temperature-fed fluid energy sources ([701fcb8](https://github.com/ApocDev/pyops/commit/701fcb8e4aa1b736260da7dbe47bd4936a9a583a)), closes [#114](https://github.com/ApocDev/pyops/issues/114)
+- **solver:** apply research-driven productivity bonuses ([54972ba](https://github.com/ApocDev/pyops/commit/54972bae13ad38c8f0afe14d720503f69043c056)), closes [#92](https://github.com/ApocDev/pyops/issues/92)
+- **solver:** fluid temperatures as real identities with range pooling ([708a9e0](https://github.com/ApocDev/pyops/commit/708a9e05bb38aae10a80a92c7ef0b21922071cc8)), closes [#110](https://github.com/ApocDev/pyops/issues/110)
+- **solver:** model reactor neighbour bonus in heat generation ([315c25f](https://github.com/ApocDev/pyops/commit/315c25f2280deeada432b21d598175101f5a7af3)), closes [#94](https://github.com/ApocDev/pyops/issues/94)
+- **solver:** sub-blocks v2 — real composition (composed modules) ([d675257](https://github.com/ApocDev/pyops/commit/d675257d75001db4a308c8936ab932b3dd518cc9)), closes [#76](https://github.com/ApocDev/pyops/issues/76)
+- **solver:** switch the block solve to the v2 LP and the gesture-derived model ([21a6599](https://github.com/ApocDev/pyops/commit/21a6599bca4b5cef8587657aac2a57939e6ac81d)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
+- **solver:** v1 dispositions → v2 made-set migration mapping ([0da625d](https://github.com/ApocDev/pyops/commit/0da625dc0306a705967047ea650862d437a20972)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
+- **solver:** v2 LP core (HiGHS) and IIS root-cause diagnosis ([f22a576](https://github.com/ApocDev/pyops/commit/f22a5762fc5b836ee8bdf57315b85dad595ffd2a)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
+- **solver:** warn per producer on fluid-temperature mismatches ([fce65cf](https://github.com/ApocDev/pyops/commit/fce65cfcb5883226b7cb240bd4d8627c725977c5)), closes [#110](https://github.com/ApocDev/pyops/issues/110)
+- **solver:** whole-machine mode (MIP), pin editor UI, and cached diagnosis ([6e0ba70](https://github.com/ApocDev/pyops/commit/6e0ba709c0acb8e43fcf98f6e2dcc9b738c8f34a)), closes [#98](https://github.com/ApocDev/pyops/issues/98) [#91](https://github.com/ApocDev/pyops/issues/91)
 
 ### Bug Fixes
 
-* **app:** declare @tanstack/store as a direct dependency ([40065c9](https://github.com/ApocDev/pyops/commit/40065c9b17cdb6c6f29796ea4326678f169c9102))
-* **app:** split block-solve display names into recipe and good namespaces ([34eb72a](https://github.com/ApocDev/pyops/commit/34eb72ac49d2b992ebbfaf6e1a0cfd41168b3fb9)), closes [#113](https://github.com/ApocDev/pyops/issues/113)
-* **app:** stop the rate formatter eating integer trailing zeros — ([3d776ed](https://github.com/ApocDev/pyops/commit/3d776ed5df5bf1b05594a85a6eda96d6ca5151a5))
-* **solver:** a made mark with no producer imports silently, not a nag ([51cf62f](https://github.com/ApocDev/pyops/commit/51cf62fd1988db0d152b5d41e3b38f58e3bea70b)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
-* **solver:** drop phantom dust flows; remove whole-machine mode; purge issue #s from UI ([e26f6dc](https://github.com/ApocDev/pyops/commit/e26f6dcfd04024ab09cd7dd3ce3dc870c31971b4)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
-* **solver:** honor ignored_by_productivity as a per-product amount ([acf716d](https://github.com/ApocDev/pyops/commit/acf716d1dbcc130459e2d9fcab4f379b54000b73)), closes [#93](https://github.com/ApocDev/pyops/issues/93)
-
+- **app:** declare @tanstack/store as a direct dependency ([40065c9](https://github.com/ApocDev/pyops/commit/40065c9b17cdb6c6f29796ea4326678f169c9102))
+- **app:** split block-solve display names into recipe and good namespaces ([34eb72a](https://github.com/ApocDev/pyops/commit/34eb72ac49d2b992ebbfaf6e1a0cfd41168b3fb9)), closes [#113](https://github.com/ApocDev/pyops/issues/113)
+- **app:** stop the rate formatter eating integer trailing zeros — ([3d776ed](https://github.com/ApocDev/pyops/commit/3d776ed5df5bf1b05594a85a6eda96d6ca5151a5))
+- **solver:** a made mark with no producer imports silently, not a nag ([51cf62f](https://github.com/ApocDev/pyops/commit/51cf62fd1988db0d152b5d41e3b38f58e3bea70b)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
+- **solver:** drop phantom dust flows; remove whole-machine mode; purge issue #s from UI ([e26f6dc](https://github.com/ApocDev/pyops/commit/e26f6dcfd04024ab09cd7dd3ce3dc870c31971b4)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
+- **solver:** honor ignored_by_productivity as a per-product amount ([acf716d](https://github.com/ApocDev/pyops/commit/acf716d1dbcc130459e2d9fcab4f379b54000b73)), closes [#93](https://github.com/ApocDev/pyops/issues/93)
 
 ### Code Refactoring
 
-* **solver:** delete the v1 least-squares solver ([2fd5e71](https://github.com/ApocDev/pyops/commit/2fd5e71a203fe413055ca9f43c34bbb2327c33c1)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
+- **solver:** delete the v1 least-squares solver ([2fd5e71](https://github.com/ApocDev/pyops/commit/2fd5e71a203fe413055ca9f43c34bbb2327c33c1)), closes [#91](https://github.com/ApocDev/pyops/issues/91)
 
 ## [0.5.0](https://github.com/ApocDev/pyops/compare/v0.4.5...v0.5.0) (2026-07-02)
 

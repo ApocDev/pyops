@@ -146,7 +146,7 @@ about "how do I make X":
   `totalCost` summed across the WHOLE path. It always reads the REAL
   researched-tech state synced from the connected save (or marked manually in
   Settings) — independent of the current planning-horizon mode, which governs
-  recipe *availability*, not what's already done. `alreadyUnlocked` means the
+  recipe _availability_, not what's already done. `alreadyUnlocked` means the
   target is already covered: either start-enabled (the static column), OR
   already covered by that synced researched-tech state — e.g. a recipe whose
   `enabled` column hasn't caught up, or a technology target itself already
@@ -211,7 +211,7 @@ about "how do I make X":
 - **Multi-goal + keep-in-stock goals** (#38) — `blockDraftInput` (shared by
   `submitBlock`'s and `submitPlan`'s blocks) accepts either the legacy single
   `target`+`rate` shorthand or a `goals` array of `{ name, rate? , stock?,
-  window? }`: each goal is EITHER a throughput `rate` OR a keep-in-stock
+window? }`: each goal is EITHER a throughput `rate` OR a keep-in-stock
   `stock` amount (+ optional refill `window` seconds, default 600 —
   `STOCK_WINDOW_DEFAULT` in `lib/goals.ts`). A stock goal's solver rate is
   DERIVED as `stock/window` (`resolveGoals` in `agent-tools.server.ts`) — a
@@ -244,7 +244,7 @@ about "how do I make X":
 - **Solved building counts, module-filled and shared** — `submitBlock`/
   `reviseBlock`/`submitPlan` no longer discard the machine counts `computeBlock`
   already solves: every draft carries a `buildings` field, `{ recipe, machine,
-  count }[]` (fractional, module/TURD-beacon effects folded in — the same
+count }[]` (fractional, module/TURD-beacon effects folded in — the same
   counts the block editor shows). The two-pass solve that fills each row's
   module slots with `computeBlock`'s own suggestions (adopt → re-solve) is
   factored into one shared helper, `solveWithModuleFill` — used by BOTH the
@@ -383,6 +383,7 @@ and `gameCloseSummary` are **not** in the in-app assistant's tool set
 can't consume a local PNG path, and ordinary planning shouldn't trigger a mod
 reload or drive the in-game summary panel open/closed; these are for an external
 agent (e.g. Claude over MCP) debugging the mod/bridge integration directly:
+
 - `gameScreenshot` captures the game (GUI included) to a PNG path, optionally
   auto-cropped to a top-level GUI element (`panel`) or an explicit `crop`/`scale`
   — built for designing the in-game panel live (snap, look, tweak) without a
