@@ -1,0 +1,43 @@
+app/src/lib/block-doc.test.ts
+  s_5ccd07412f8f98::t_42b0886fe29b71 8,67-99
+app/src/lib/block-doc.ts
+  s_5ccd07412f8f98::t_567f05ff65938b 10,61-109
+app/src/routes/block.$id.tsx
+  s_9c598c6bfe850d::t_72048a29917fb6 9,139-151,886
+app/src/server/factorio.ts
+  s_5ccd07412f8f98::t_6a8064d425b765 12,520-582
+README.md
+  s_5ccd07412f8f98::t_7786a1353f7ee9 25
+app/e2e/mut/extract-recipe.e2e.ts
+  s_5ccd07412f8f98::t_f5cd227a5b670e 1-26
+app/src/components/block/recipe-row.tsx
+  s_5ccd07412f8f98::t_04c4682c43a92f 144-151
+app/src/components/block/row-menu.tsx
+  s_5ccd07412f8f98::t_bb69785b12f157 1,18,32,47-52
+app/src/components/context-menu.tsx
+  s_5ccd07412f8f98::t_fecb875d91ce09 50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "38a262bc941630d06e22a726b830a3d627cb4b2d",
+  "prompts": {},
+  "sessions": {
+    "s_5ccd07412f8f98": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4798-cdd8-76f3-a575-4e8a33567824",
+        "model": "gpt-5.5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9c598c6bfe850d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d447b814-cf17-417e-9d1f-a329b5f8705e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
