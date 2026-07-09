@@ -52,7 +52,7 @@ function AlertDialogContent({
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         className={cn(
-          "fixed z-50 flex max-h-[85dvh] flex-col bg-popover/80 shadow-lg ring-1 ring-foreground/10 backdrop-blur-2xl backdrop-saturate-150 duration-200 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
+          "fixed z-50 flex max-h-[85dvh] flex-col bg-popover/90 shadow-lg ring-1 ring-foreground/15 backdrop-blur-2xl backdrop-saturate-150 duration-200 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
           // below md: bottom sheet
           "inset-x-0 bottom-0 w-full border-t data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
           // md+: centered modal

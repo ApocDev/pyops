@@ -82,8 +82,8 @@
   --warning: oklch(0.879 0.169 91.605);
   --info: oklch(0.828 0.111 230.318);
   --surplus: oklch(0.811 0.111 293.571);
-  --border: oklch(1 0 0 / 5%);
-  --input: oklch(1 0 0 / 10%);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
   --ring: oklch(0.552 0.016 285.938);
   --chart-1: oklch(0.845 0.143 164.978);
   --chart-2: oklch(0.696 0.17 162.48);

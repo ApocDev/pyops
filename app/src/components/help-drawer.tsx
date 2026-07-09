@@ -2,18 +2,21 @@ import { HelpCircle } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
+import { cn } from "#/lib/utils.ts";
 
 /** A small `?` button that opens a right-side documentation drawer. Reusable across
  * views to explain "what is this / why does it exist" without a wall of inline text.
- * Pass the long-form docs as children. */
+ * Pass the long-form docs as children; `className` positions the trigger button. */
 export function HelpButton({
   title,
   children,
   label = "What is this?",
+  className,
 }: {
   title: string;
   children: ReactNode;
   label?: string;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -24,7 +27,7 @@ export function HelpButton({
           size="icon-sm"
           title={label}
           aria-label={label}
-          className="text-muted-foreground"
+          className={cn("text-muted-foreground", className)}
         >
           <HelpCircle className="size-4" />
         </Button>

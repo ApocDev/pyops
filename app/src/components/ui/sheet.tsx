@@ -66,7 +66,7 @@ function SheetContent({
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          "fixed z-50 flex flex-col gap-0 bg-popover/80 shadow-lg ring-1 ring-foreground/10 backdrop-blur-2xl backdrop-saturate-150 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out",
+          "fixed z-50 flex flex-col gap-0 bg-popover/90 shadow-lg ring-1 ring-foreground/15 backdrop-blur-2xl backdrop-saturate-150 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out",
           sideClasses[side],
           className,
         )}
@@ -76,9 +76,9 @@ function SheetContent({
         {showClose && (
           <SheetPrimitive.Close
             data-slot="sheet-close"
-            className="absolute top-2.5 right-2.5 flex size-9 items-center justify-center rounded-none text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+            className="absolute top-1.5 right-1.5 flex size-7 items-center justify-center rounded-none text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
           >
-            <XIcon className="size-5" />
+            <XIcon className="size-4" />
             <span className="sr-only">Close</span>
           </SheetPrimitive.Close>
         )}

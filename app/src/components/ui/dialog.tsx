@@ -56,7 +56,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed z-50 flex max-h-[85dvh] flex-col bg-popover/80 shadow-lg ring-1 ring-foreground/10 backdrop-blur-2xl backdrop-saturate-150 duration-200 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
+          "fixed z-50 flex max-h-[85dvh] flex-col bg-popover/90 shadow-lg ring-1 ring-foreground/15 backdrop-blur-2xl backdrop-saturate-150 duration-200 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
           // below md: bottom sheet
           "inset-x-0 bottom-0 w-full border-t data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
           // md+: centered modal
@@ -69,14 +69,26 @@ function DialogContent({
         {showClose && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-2.5 right-2.5 flex size-9 items-center justify-center rounded-none text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+            className="absolute top-1.5 right-1.5 flex size-7 items-center justify-center rounded-none text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
           >
-            <XIcon className="size-5" />
+            <XIcon className="size-4" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
+  );
+}
+
+/** The scrolling middle of a dialog: `p-4`, sections separated by `space-y-4`.
+ * Keeps every dialog on the same body rhythm instead of ad-hoc padding divs. */
+function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-body"
+      className={cn("min-h-0 flex-1 space-y-4 overflow-y-auto p-4", className)}
+      {...props}
+    />
   );
 }
 
@@ -132,6 +144,7 @@ export {
   DialogClose,
   DialogOverlay,
   DialogContent,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogDescription,
