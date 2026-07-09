@@ -873,6 +873,10 @@ export const researchHorizonFn = createServerFn({ method: "GET" }).handler(async
       ? (q.techDisplays([h.targetTech]).get(h.targetTech) ?? h.targetTech)
       : null;
   const targetDisplay = h.target ? (q.classifyRef(h.target)?.display ?? h.target) : null;
+  const miningProductivityBonus =
+    m.research_mining_productivity_bonus != null
+      ? Number(m.research_mining_productivity_bonus)
+      : null;
   return {
     mode: h.mode,
     packs: [...h.packs],
@@ -882,6 +886,11 @@ export const researchHorizonFn = createServerFn({ method: "GET" }).handler(async
     targetDisplay,
     targetTech: h.targetTech,
     targetTechDisplay,
+    miningProductivityBonus:
+      miningProductivityBonus != null && Number.isFinite(miningProductivityBonus)
+        ? miningProductivityBonus
+        : null,
+    recipeProductivityBonusCount: q.syncedRecipeProductivityBonusCount(),
     // live research pushed by the in-game mod (bridge), if any
     syncedAt: m.research_synced_at ?? null,
     syncedCount: m.research_synced_count ? Number(m.research_synced_count) : null,
@@ -894,6 +903,8 @@ export const setResearchHorizonFn = createServerFn({ method: "POST" })
       packs?: string[];
       researched?: string[];
       target?: string | null;
+      miningProductivityBonus?: number | null;
+      recipeProductivityBonuses?: Record<string, number> | null;
     }) => d,
   )
   .handler(async ({ data }) => {

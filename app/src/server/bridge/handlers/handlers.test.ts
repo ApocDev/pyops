@@ -48,8 +48,20 @@ beforeEach(() => vi.clearAllMocks());
 
 describe("handleResearch", () => {
   it("stores the researched set and stamps sync meta", async () => {
-    expect(await handleResearch(req({ researched: ["automation", "logistics"] }))).toBeNull();
-    expect(q.setResearchHorizon).toHaveBeenCalledWith({ researched: ["automation", "logistics"] });
+    expect(
+      await handleResearch(
+        req({
+          researched: ["automation", "logistics"],
+          mining_productivity_bonus: 1.7,
+          recipe_productivity_bonuses: { "fawogae-spore": 0.35, broken: "x", zero: 0 },
+        }),
+      ),
+    ).toBeNull();
+    expect(q.setResearchHorizon).toHaveBeenCalledWith({
+      researched: ["automation", "logistics"],
+      miningProductivityBonus: 1.7,
+      recipeProductivityBonuses: { "fawogae-spore": 0.35 },
+    });
     expect(q.metaSet).toHaveBeenCalledWith("research_synced_count", "2");
   });
 
@@ -58,6 +70,17 @@ describe("handleResearch", () => {
     expect(q.setResearchHorizon).toHaveBeenCalledWith({ researched: ["a", "b"] });
     await handleResearch(req({}));
     expect(q.setResearchHorizon).toHaveBeenLastCalledWith({ researched: [] });
+  });
+
+  it("clears the exact mining bonus only when a malformed bonus is explicitly sent", async () => {
+    await handleResearch(
+      req({ researched: ["a"], mining_productivity_bonus: "bad", recipe_productivity_bonuses: [] }),
+    );
+    expect(q.setResearchHorizon).toHaveBeenCalledWith({
+      researched: ["a"],
+      miningProductivityBonus: null,
+      recipeProductivityBonuses: null,
+    });
   });
 });
 

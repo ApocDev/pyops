@@ -89,7 +89,6 @@ Bridge + Lua context loads once; verification is hands-on in-game.
 | #4 summary panel width                  | M      | Folded into #109; the naive stretchable approach was tried and reverted — needs the layout rework.                                          |
 | #88 below-plan alerts                   | M      | Live-data alerts against planned rates.                                                                                                     |
 | #3 select machine in-game → focus block | M      | Bridge + protocol addition.                                                                                                                 |
-| #112 sync repeatable-tech levels        | S      | #92 follow-up: send force.mining_drill_productivity_bonus (or per-tech levels) over the bridge; PROTOCOL_VERSION bump.                      |
 | #102 train logistics math               | L      | Payload/cadence on factory links.                                                                                                           |
 | #2 time-series metrics                  | XL     | Prometheus-style live factory data; the wave's big one.                                                                                     |
 

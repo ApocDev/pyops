@@ -2549,20 +2549,48 @@ export type ProductivityBonuses = {
   recipes: Map<string, number>;
 };
 /** Research-driven flat productivity in effect under the research horizon (#92):
- * mining-productivity levels and Factorio 2.0 `change-recipe-productivity` techs.
- * Gated exactly like stackBonuses / machine availability — everything in FUTURE
- * mode, live research + the pack gate in NOW, the tier's pack gate for a target.
- * Note: repeatable techs (Py's infinite mining-productivity-12) count at most one
- * level — the mod's research sync reports researched tech NAMES, not levels. */
+ * mining productivity and Factorio 2.0 `change-recipe-productivity` techs. Gated
+ * exactly like stackBonuses / machine availability — everything in FUTURE mode,
+ * live research + the pack gate in NOW, the tier's pack gate for a target. In NOW
+ * mode, a bridge-synced save can provide exact force mining and recipe-productivity
+ * scalars, which capture repeatable/dynamic bonuses instead of counting each tech
+ * name once. */
 export function productivityBonuses(): ProductivityBonuses {
   const h = getResearchHorizon();
   const out: ProductivityBonuses = { mining: 0, recipes: new Map() };
+  const m = metaAll();
+  const liveMining = h.mode === "now" ? Number(m.research_mining_productivity_bonus ?? NaN) : NaN;
+  const hasLiveMining = Number.isFinite(liveMining);
+  const liveRecipes = h.mode === "now" ? parseRecipeProductivityBonuses(m) : null;
   for (const r of db.select().from(techProductivityBonuses).all()) {
     if (h.mode !== "future" && !techReachedByScience(r.technology, h)) continue;
-    if (r.recipe === "") out.mining += r.modifier;
-    else out.recipes.set(r.recipe, (out.recipes.get(r.recipe) ?? 0) + r.modifier);
+    if (r.recipe === "") {
+      if (!hasLiveMining) out.mining += r.modifier;
+    } else if (!liveRecipes)
+      out.recipes.set(r.recipe, (out.recipes.get(r.recipe) ?? 0) + r.modifier);
   }
+  if (hasLiveMining) out.mining = liveMining;
+  if (liveRecipes) out.recipes = liveRecipes;
   return out;
+}
+
+export function syncedRecipeProductivityBonusCount(): number | null {
+  return parseRecipeProductivityBonuses()?.size ?? null;
+}
+
+function parseRecipeProductivityBonuses(m = metaAll()): Map<string, number> | null {
+  const raw = m.research_recipe_productivity_bonuses;
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    const entries = Object.entries(parsed).filter(
+      (e): e is [string, number] => typeof e[1] === "number" && Number.isFinite(e[1]) && e[1] !== 0,
+    );
+    return new Map(entries);
+  } catch {
+    return null;
+  }
 }
 
 /** The full logistics context — prefs (with defaults applied), research bonuses,
@@ -3063,11 +3091,31 @@ export function setResearchHorizon(x: {
   packs?: string[];
   researched?: string[];
   target?: string | null;
+  miningProductivityBonus?: number | null;
+  recipeProductivityBonuses?: Record<string, number> | null;
 }) {
   if (x.mode) metaSet("research_mode", x.mode);
   if (x.packs) metaSet("available_science_packs", JSON.stringify(x.packs));
   if (x.researched) metaSet("researched_techs", JSON.stringify(x.researched));
   if (x.target !== undefined) metaSet("horizon_target", x.target ?? "");
+  if (x.miningProductivityBonus !== undefined) {
+    if (x.miningProductivityBonus == null || !Number.isFinite(x.miningProductivityBonus))
+      metaDelete("research_mining_productivity_bonus");
+    else
+      metaSet("research_mining_productivity_bonus", String(Math.max(0, x.miningProductivityBonus)));
+  }
+  if (x.recipeProductivityBonuses !== undefined) {
+    if (x.recipeProductivityBonuses == null) {
+      metaDelete("research_recipe_productivity_bonuses");
+    } else {
+      const clean = Object.fromEntries(
+        Object.entries(x.recipeProductivityBonuses)
+          .filter((e): e is [string, number] => typeof e[1] === "number" && Number.isFinite(e[1]))
+          .filter(([, bonus]) => bonus !== 0),
+      );
+      metaSet("research_recipe_productivity_bonuses", JSON.stringify(clean));
+    }
+  }
   _horizonCache = null;
 }
 

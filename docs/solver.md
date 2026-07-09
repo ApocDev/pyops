@@ -275,15 +275,19 @@ suggestions as the draft's explicit picks and re-solves with them.
 
 **Research-driven productivity** (#92) is folded into the same effects stage,
 gated by the research horizon exactly like machine availability (everything in
-FUTURE mode, reached techs in NOW/target): mining-productivity levels add an
-uncapped bonus to every mining recipe (resources aren't recipes, so no cap
-applies — matching in-game mining productivity exceeding +300%), and Factorio
-2.0 `change-recipe-productivity` techs (Py's microfilters tiers) add base
+FUTURE mode, reached techs in NOW/target): mining productivity adds an uncapped
+bonus to every mining recipe (resources aren't recipes, so no cap applies —
+matching in-game mining productivity exceeding +300%), and Factorio 2.0
+`change-recipe-productivity` techs (Py's microfilters tiers) add base
 productivity to their target recipes — applied even when the recipe doesn't
 allow productivity **modules** (e.g. bhoddos-spore gets +100% from
-microfilters-mk02 despite having no `allow_productivity`). Repeatable techs
-(Py's infinite `mining-productivity-12`) count at most one level, since the
-mod's research sync reports researched tech names, not levels.
+microfilters-mk02 despite having no `allow_productivity`). In NOW mode, the
+Planning horizon control can store an exact mining-productivity percentage; the
+bridge fills it from the force's `mining_drill_productivity_bonus`, and users can
+set it manually when playing without the mod. The bridge also syncs exact
+per-recipe `LuaRecipe.productivity_bonus` values for `change-recipe-productivity`
+effects. Those exact values make repeatable/dynamic productivity match the running
+save; future/target planning still uses the prototype tech effects.
 
 ## Factory-level what-if
 

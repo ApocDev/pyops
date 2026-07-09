@@ -145,9 +145,16 @@ deliberate choices:
   flat-productivity tech effects (one row per tech per target): Factorio 2.0
   `change-recipe-productivity` keyed by its target recipe, and
   `mining-drill-productivity-bonus` under the sentinel key `''` (applies to every
-  synthetic mining recipe). Summed over the in-effect tech set
-  (`queries.productivityBonuses`, gated by the research horizon like
-  `stackBonuses`) and applied in the solver's effects stage. Recipes also carry
+  synthetic mining recipe). `queries.productivityBonuses` sums those over the
+  in-effect tech set (gated by the research horizon like `stackBonuses`) and
+  applies them in the solver's effects stage; in NOW mode, a
+  `research_mining_productivity_bonus` meta value overrides the mining sum with
+  an exact force bonus, including repeatable levels. The bridge sync writes that
+  value from the running save, and the Planning horizon control can set it
+  manually for modless play. The bridge also writes
+  `research_recipe_productivity_bonuses`, an exact per-recipe map read from
+  `LuaRecipe.productivity_bonus`; without that map, recipe productivity is derived
+  from the researched-tech list. Recipes also carry
   `maximum_productivity` (the 2.0 productivity cap; NULL = engine default +300%
   — Py sets 1e6 on nearly every recipe).
 - **Rocket logistics** (issue #22) — `items.weight` (rocket-lift weight) feeds an

@@ -34,6 +34,7 @@ type SaveArgs = {
   packs?: string[];
   researched?: string[];
   target?: string | null;
+  miningProductivityBonus?: number | null;
 };
 
 /** The planning-horizon control, shared by Settings and the header dialog. It owns
@@ -130,6 +131,60 @@ export function HorizonPicker() {
               researched={d.researched}
               onSave={(r) => save.mutate({ researched: r })}
             />
+            <div>
+              <FieldLabel>mining productivity bonus</FieldLabel>
+              <div className="mt-1 flex items-center gap-2">
+                <Input
+                  key={`mining-${d.miningProductivityBonus ?? "unset"}`}
+                  aria-label="mining productivity bonus percent"
+                  type="number"
+                  min={0}
+                  step={1}
+                  defaultValue={
+                    d.miningProductivityBonus == null
+                      ? ""
+                      : formatPercent(d.miningProductivityBonus)
+                  }
+                  placeholder="0"
+                  onBlur={(e) => {
+                    const raw = e.currentTarget.value.trim();
+                    if (raw === "") {
+                      save.mutate({ miningProductivityBonus: null });
+                      return;
+                    }
+                    const pct = Number(raw);
+                    if (!Number.isFinite(pct) || pct < 0) {
+                      e.currentTarget.value =
+                        d.miningProductivityBonus == null
+                          ? ""
+                          : formatPercent(d.miningProductivityBonus);
+                      return;
+                    }
+                    save.mutate({ miningProductivityBonus: pct / 100 });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur();
+                  }}
+                  className="w-28"
+                />
+                <span className="text-sm text-muted-foreground">
+                  percent; leave blank to derive from researched techs
+                </span>
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                Current mining productivity:{" "}
+                {d.miningProductivityBonus == null
+                  ? "derived from researched techs"
+                  : `+${formatPercent(d.miningProductivityBonus)}%`}
+                . Recipe productivity:{" "}
+                {d.recipeProductivityBonusCount == null
+                  ? "derived from researched techs"
+                  : `${d.recipeProductivityBonusCount} exact synced bonus${
+                      d.recipeProductivityBonusCount === 1 ? "" : "es"
+                    }`}
+                .
+              </div>
+            </div>
           </>
         )}
 
@@ -146,6 +201,10 @@ export function HorizonPicker() {
       </div>
     </IconProvider>
   );
+}
+
+function formatPercent(value: number): string {
+  return (Math.round(value * 1000) / 10).toString();
 }
 
 /** Search a good to plan up to; the resolved unlocking tech is shown so you can

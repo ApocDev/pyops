@@ -16,6 +16,7 @@ import {
   listGroups,
   logisticsForGood,
   machineSufficiency,
+  metaSet,
   productivityBonuses,
   recipeCandidates,
   saveBlockRow,
@@ -306,6 +307,35 @@ describe("productivityBonuses (research horizon gated)", () => {
     const b = productivityBonuses();
     expect(b.mining).toBe(0); // neither mining tech researched, no packs
     expect(b.recipes.get("fawogae-spore")).toBeCloseTo(0.15); // microfilters only
+  });
+
+  it("NOW mode uses the bridge-synced mining productivity scalar when present", () => {
+    seed();
+    setResearchHorizon({
+      mode: "now",
+      packs: ["automation-science-pack", "py-science-pack-1"],
+      researched: ["microfilters"],
+    });
+    metaSet("research_mining_productivity_bonus", "1.2");
+    const b = productivityBonuses();
+    expect(b.mining).toBeCloseTo(1.2);
+    expect(b.recipes.get("fawogae-spore")).toBeCloseTo(0.15);
+  });
+
+  it("NOW mode uses bridge-synced exact recipe productivity when present", () => {
+    seed();
+    setResearchHorizon({
+      mode: "now",
+      packs: ["automation-science-pack", "py-science-pack-1"],
+      researched: ["microfilters"],
+      recipeProductivityBonuses: {
+        "fawogae-spore": 0.35,
+        "bhoddos-spore": 1,
+      },
+    });
+    const b = productivityBonuses();
+    expect(b.recipes.get("fawogae-spore")).toBeCloseTo(0.35);
+    expect(b.recipes.get("bhoddos-spore")).toBeCloseTo(1);
   });
 
   it("returns empty bonuses when the table has no rows", () => {
