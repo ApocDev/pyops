@@ -12,13 +12,14 @@ local mod_gui = require("__core__.lualib.mod-gui")
 local Summary = require("summary")
 local Combinator = require("combinator")
 local Tasks = require("tasks")
+local Sushi = require("sushi")
 
 local PANEL_NAME = "pyops_panel"
 local BUTTON_NAME = "pyops_button"
 local SHORTCUT_NAME = "pyops-toggle-panel"
 -- Bridge wire contract. Keep in lockstep with PROTOCOL_VERSION in the app's
 -- src/server/bridge/protocol.ts — each side warns if the other reports a different one.
-local PROTOCOL_VERSION = 7
+local PROTOCOL_VERSION = 8
 
 local function get_player(event)
   if not event.player_index then
@@ -145,6 +146,11 @@ end
 -- Let the Tasks module send app requests (task.list / task.capture) without a
 -- circular require back into control.lua.
 Tasks.send = function(player, request_type, payload)
+  send_request(player, request_type, payload)
+end
+
+-- Same hook for the sushi-loop tools (sushi.trace measurements → the planner).
+Sushi.send = function(player, request_type, payload)
   send_request(player, request_type, payload)
 end
 
@@ -868,6 +874,45 @@ end)
 script.on_event("pyops-toggle-panel", function(event)
   toggle_panel(get_player(event))
 end)
+
+-- pcall'd: after a control-only reload (game.reload_mods) the data stage hasn't
+-- run, so a freshly added custom-input prototype may not exist yet — skip the
+-- hotkeys then (the remote interface still works) instead of crashing the load.
+pcall(function()
+  script.on_event("pyops-trace-sushi", function(event)
+    local player = get_player(event)
+    if player then
+      Sushi.trace(player)
+    end
+  end)
+  script.on_event("pyops-untrace-sushi", function(event)
+    local player = get_player(event)
+    if player then
+      Sushi.untrace(player)
+    end
+  end)
+end)
+
+-- Tooling entry (dev/MCP + future UI surfaces): trace/untrace without a hotkey.
+remote.add_interface("pyops-sushi", {
+  trace_at = function(player_index, position)
+    local player = game.get_player(player_index)
+    if not player then
+      return false
+    end
+    local seed = player.surface.find_entities_filtered({
+      position = position,
+      radius = 2,
+      type = { "transport-belt", "underground-belt", "splitter" },
+      limit = 1,
+    })[1]
+    return Sushi.trace(player, seed)
+  end,
+  untrace = function(player_index)
+    local player = game.get_player(player_index)
+    return player and Sushi.untrace(player) or false
+  end,
+})
 
 script.on_event(defines.events.on_gui_click, function(event)
   local player = get_player(event)

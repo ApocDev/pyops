@@ -32,6 +32,24 @@ on any page. The same tab hosts the companion-mod installer (see below).
   interface), and put an app-built blueprint string on the player's cursor
   (`cmd.blueprint` — e.g. the sushi planner's set-point combinator; the mod
   refuses politely if the cursor is holding something).
+- **Sushi-loop tracer (`mod/sushi.lua`):** hover a belt and press ALT+B — the mod
+  flood-fills the belt loop (belts, undergrounds, splitters; lane balancers are
+  handled as graphs), prunes feed-on/feed-off spurs so only the circulating core
+  counts, sets one "read entire belt (hold)" reader per game segment (segments
+  end at splitters and sideload merges; undergrounds CONTINUE the segment,
+  buried span included — probed empirically with isolated readers), places the
+  readers at the junction cluster where segments meet, and connects them with a
+  minimum spanning tree of short player-legal wires (prototype reach; if a gap
+  can't be bridged belt-to-belt it prints GPS-linked power-pole suggestions
+  instead). Skip-and-warn on belts you already wired. The measured loop
+  (`sushi.trace`: tiles/segments/closed) lands in the app, where the sushi
+  planner offers it as a one-click loop length. SHIFT+ALT+B removes exactly what
+  the last trace added. A `pyops-sushi` remote interface exposes trace/untrace
+  for tooling. Read accuracy: splitter internals aren't circuit-readable (the
+  read undercounts by the in-splitter transit population) and "entire belt"
+  zones bleed into adjacent feeder branches — on a circulating loop the error
+  is a handful of items either way. Verified against exact item censuses on a
+  scripted torture loop (5 splitters, bypass arms, tier-weaved undergrounds).
 - **Task panel:** the in-game panel's **Tasks** tab pulls the project's
   tasks with `task.list` (the app replies with the full set — title, status,
   priority, body, steps, and links resolved to Factorio sprite paths) and renders

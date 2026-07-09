@@ -9,6 +9,7 @@ import { handleResearch } from "./handlers/research.ts";
 import { handleTurd } from "./handlers/turd.ts";
 import { handleBuilt } from "./handlers/built.ts";
 import { handleStats } from "./handlers/stats.ts";
+import { handleSushiTrace } from "./handlers/sushi.ts";
 import { handleTaskCapture, handleTaskList } from "./handlers/tasks.ts";
 import { handleModResult } from "./inspect.ts";
 
@@ -32,6 +33,8 @@ const handlers: Record<string, BridgeHandler> = {
   "state.built": handleBuilt,
   // Live force state: production/consumption rates → production_stats (planned-vs-actual).
   "state.stats": handleStats,
+  // The in-game sushi tracer measured (and wired) a belt loop — hold the reading.
+  "sushi.trace": handleSushiTrace,
   // The in-game New-task dialog filed a task (title/description + best-effort anchors).
   "task.capture": handleTaskCapture,
   // The in-game panel pulls the project's tasks to render (list + detail).

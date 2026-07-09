@@ -13,6 +13,21 @@ data:extend({
     consuming = "none",
     action = "lua"
   },
+  -- Sushi-loop tools: trace + wire the hovered belt's loop; undo the last trace.
+  {
+    type = "custom-input",
+    name = "pyops-trace-sushi",
+    key_sequence = "ALT + B",
+    consuming = "none",
+    action = "lua"
+  },
+  {
+    type = "custom-input",
+    name = "pyops-untrace-sushi",
+    key_sequence = "SHIFT + ALT + B",
+    consuming = "none",
+    action = "lua"
+  },
   -- Mirrors the smart-pipette (Q) key so the summary panel can pipette the good /
   -- building under the cursor. Linked (no own key) — it fires alongside the normal
   -- pipette, which still works everywhere else.

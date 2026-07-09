@@ -5,7 +5,7 @@ import { planSushi, type ResolvedLogistics, type SushiFlow } from "../../lib/log
 import { constantCombinatorBlueprint, encodeBlueprint } from "../../lib/blueprint";
 import { fmtSpoilTime, Icon, useSpoilables } from "../../lib/icons";
 import { toast } from "../../lib/toast-store";
-import { bridgeBlueprintFn, bridgeStatusFn } from "../../server/bridge/fns";
+import { bridgeBlueprintFn, bridgeStatusFn, sushiTraceInfoFn } from "../../server/bridge/fns";
 import { fmtCount } from "./format.ts";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
@@ -135,6 +135,14 @@ export function SushiPlanner({
   });
   const peer = bridge.data?.lastPeer ?? null;
   const connected = peer != null && Date.now() - peer.lastSeenMs < FRESH_MS;
+  // the mod's ALT+B loop tracer pushes its measurement here — offer, don't overwrite
+  const measured = useQuery({
+    queryKey: ["sushiTrace"],
+    queryFn: () => sushiTraceInfoFn(),
+    enabled: open,
+    refetchInterval: 3000,
+  });
+  const trace = measured.data ?? null;
   const buildBlueprint = () => {
     if (!plan) return null;
     const section = (role: SushiPlannerFlow["role"], active: boolean) => ({
@@ -208,12 +216,22 @@ export function SushiPlanner({
               <b className="text-foreground">Loop length</b> — sets lap time, and with it the pass
               frequency ("seen every") and how long items dwell on the loop. Longer loops buffer
               more but cycle slower: trace items get sparse and spoilables rot in transit (flagged
-              when riding the loop eats over a quarter of an item's spoil time).
+              when riding the loop eats over a quarter of an item's spoil time). With the game
+              linked, hover any belt of the built loop and press ALT+B — the mod traces it, wires
+              every segment onto one red network for reading, and the measured length appears here
+              as a one-click "measured" chip (SHIFT+ALT+B undoes the last trace).
             </p>
             <p>
               The planner covers capacity and composition only — it can't verify the control side.
               Without filtered or circuit-limited insertion a single item will eventually flood any
               sushi loop.
+            </p>
+            <p>
+              <b className="text-foreground">Read accuracy</b> — the wire runs a little under the
+              true stock: items inside splitters are invisible to circuits (nothing any wiring can
+              fix), and reads can include items on feeder branches next to the loop. On a healthy
+              circulating loop the error is a handful of items; treat set-points as self-correcting
+              approximations, not exact counts.
             </p>
             <p>
               <b className="text-foreground">Getting the constants in game</b> — "to cursor in game"
@@ -249,6 +267,19 @@ export function SushiPlanner({
                   className="w-24"
                 />
                 <span className="text-sm text-muted-foreground">tiles</span>
+                {trace && trace.tiles !== tiles && (
+                  <Tooltip
+                    content={`traced in-game (ALT+B): ${trace.tiles} tiles, ${trace.segments} segment(s)${trace.closed ? "" : " — not a closed loop"} — click to use`}
+                  >
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      onClick={() => setTilesPersisted(trace.tiles)}
+                    >
+                      <Gamepad2 className="size-3" /> measured {trace.tiles}
+                    </Button>
+                  </Tooltip>
+                )}
               </div>
             </div>
             {plan && (

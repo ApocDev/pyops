@@ -10,7 +10,7 @@
 // The bridge wire contract. Bump on BOTH sides (here and the mod's PROTOCOL_VERSION
 // in control.lua) whenever the message shapes change — each side warns when the
 // other reports a different version.
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 
 /** A request from the mod. `type` selects the handler; `payload` is type-specific. */
 export type BridgeRequest = {

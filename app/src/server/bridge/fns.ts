@@ -8,6 +8,7 @@ import { createServerFn } from "@tanstack/react-start";
 import * as b from "./server.ts";
 import { requestFromMod } from "./inspect.ts";
 import { factorioLaunchInfo, launchFactorio } from "../factorio-launch.server.ts";
+import { lastSushiTrace } from "./handlers/sushi.ts";
 
 /** Ensure the bridge is listening and return its status. Calling this from the
  * UI (polled) is what starts the socket — idempotent and HMR-safe. */
@@ -34,6 +35,13 @@ export const bridgeLocateFn = createServerFn({ method: "POST" })
       sent: b.sendToPeer({ type: "cmd.locate", payload: { name: data.name, kind: data.kind } }),
     };
   });
+
+/** The latest in-game sushi-loop trace (tiles measured by the mod's ALT+B
+ * tracer), if any arrived this app session — the planner offers it as the loop
+ * length. */
+export const sushiTraceInfoFn = createServerFn({ method: "GET" }).handler(async () => {
+  return lastSushiTrace();
+});
 
 /** Put a blueprint string on the connected player's cursor (cmd.blueprint) —
  * e.g. the sushi planner's set-point combinator. Fire-and-forget; returns
