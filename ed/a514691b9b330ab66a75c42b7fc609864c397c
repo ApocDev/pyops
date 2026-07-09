@@ -1,0 +1,33 @@
+app/src/components/block/sushi-planner.tsx
+  s_89789960e82599::t_4b78daec8e511d 1-371
+app/e2e/mut/sushi.e2e.ts
+  s_89789960e82599::t_05a8d9a509dc1a 1-45
+app/src/components/block/balance-card.tsx
+  s_89789960e82599::t_16277e0930a2af 12,60,62-110,116-118
+app/src/components/logistics-help.tsx
+  s_89789960e82599::t_a8568e1e78400c 20-25
+app/src/lib/blueprint.test.ts
+  s_89789960e82599::t_7cdbf499b5f427 1-75
+app/src/lib/blueprint.ts
+  s_89789960e82599::t_d863319cae7278 1-90
+app/src/lib/logistics.test.ts
+  s_89789960e82599::t_2ea323860fd34b 14,16-17,76-154
+app/src/lib/logistics.ts
+  s_89789960e82599::t_42fb2d5050081e 66-204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "eda514691b9b330ab66a75c42b7fc609864c397c",
+  "prompts": {},
+  "sessions": {
+    "s_89789960e82599": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "59dcffb9-7f1b-47c0-bba2-30cf92378190",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
