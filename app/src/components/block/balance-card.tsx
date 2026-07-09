@@ -353,32 +353,30 @@ export function BalanceCard({
                 <div className="flex flex-wrap gap-x-3 gap-y-2">
                   {res.exports.map((f) => (
                     <span key={f.name} className="flex flex-col items-start gap-1.5">
-                      <span className="inline-flex items-center gap-1.5">
-                        <ItemChip
-                          name={f.name}
-                          kind={f.kind}
-                          display={res.display?.[f.name]}
-                          rate={f.rate}
-                          link="export"
-                          fuel={fuelSet.has(f.name)}
-                          onClick={() => onUseFor(f.name)}
-                          onContext={(e) =>
-                            onCtxMenu(e, { name: f.name, kind: f.kind, link: "export" })
-                          }
-                        />
-                        {/* incidental-spoil risk (#20): a SURPLUS spoilable is the
-                            one that actually sits around long enough to rot */}
-                        {spoilables[f.name] != null && (
-                          <button
-                            title={`spoils in ${fmtSpoilTime(spoilables[f.name])} — surplus sits in storage, so it WILL rot unless something consumes it. Click to plan the loss so production covers it.`}
-                            onClick={() => onOpenSpoilDialog(f.name)}
-                            className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
-                          >
-                            <Timer className="size-3.5" /> rots in{" "}
-                            {fmtSpoilTime(spoilables[f.name])}
-                          </button>
-                        )}
-                      </span>
+                      <ItemChip
+                        name={f.name}
+                        kind={f.kind}
+                        display={res.display?.[f.name]}
+                        rate={f.rate}
+                        link="export"
+                        fuel={fuelSet.has(f.name)}
+                        onClick={() => onUseFor(f.name)}
+                        onContext={(e) =>
+                          onCtxMenu(e, { name: f.name, kind: f.kind, link: "export" })
+                        }
+                      />
+                      {/* incidental-spoil risk (#20): a SURPLUS spoilable is the
+                          one that actually sits around long enough to rot — stacked
+                          under the chip so it doesn't widen the export grid */}
+                      {spoilables[f.name] != null && (
+                        <button
+                          title={`spoils in ${fmtSpoilTime(spoilables[f.name])} — surplus sits in storage, so it WILL rot unless something consumes it. Click to plan the loss so production covers it.`}
+                          onClick={() => onOpenSpoilDialog(f.name)}
+                          className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
+                        >
+                          <Timer className="size-3.5" /> {fmtSpoilTime(spoilables[f.name])}
+                        </button>
+                      )}
                       {logi.resolved && f.kind === "item" && (
                         <LogiTag
                           resolved={logi.resolved}

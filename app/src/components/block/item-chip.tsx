@@ -1,4 +1,4 @@
-import { Flame, Plus } from "lucide-react";
+import { Flame } from "lucide-react";
 import { ItemHover } from "../../lib/recipe-card";
 import { Icon } from "../../lib/icons";
 import { rateLabel } from "./format.ts";
@@ -17,8 +17,8 @@ export const craftableStyle = "border border-dashed border-warning/60 bg-warning
 
 /** Clickable ingredient/product pill: icon + rate, tinted by link state. Click
  * opens the recipe picker (produce for an input, consume for an output).
- * A craftable import (a recipe exists to make it) gets a dashed ring + "＋" so
- * it reads as "you could make this in-block"; a raw import is solid.
+ * A craftable import (a recipe exists to make it) gets a dashed ring so it
+ * reads as "you could make this in-block"; a raw import is solid.
  * Right-click opens the good menu (goal / sizing-lock / made-here / spoil). */
 export function ItemChip({
   name,
@@ -82,7 +82,6 @@ export function ItemChip({
           </span>
           {rate != null && <span>{rateLabel(name, rate)}</span>}
           {temp && <span className="text-sm text-muted-foreground">{temp}</span>}
-          {craftableImport && <Plus className="size-3.5 text-warning" strokeWidth={3} />}
         </button>
       </ItemHover>
     </span>
