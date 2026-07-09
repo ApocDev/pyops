@@ -1,0 +1,23 @@
+app/src/components/whatif/rebalance-all-button.tsx
+  s_9c598c6bfe850d::t_2ec52d676169f7 1-195
+app/src/routes/coherence.tsx
+  s_9c598c6bfe850d::t_6dca6a3a9065a8 113-117
+app/e2e/mut/rebalance.e2e.ts
+  s_9c598c6bfe850d::t_6493fe56ba6bff 1-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ba91c41f08bd44fdc2f37d469312d504f62e5adf",
+  "prompts": {},
+  "sessions": {
+    "s_9c598c6bfe850d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d447b814-cf17-417e-9d1f-a329b5f8705e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
