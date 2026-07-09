@@ -9,6 +9,7 @@ import { fmtSpoilTime, Icon, useSpoilables } from "../../lib/icons";
 import { fmtTemp } from "../../lib/format";
 import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
 import { LogiTag } from "./logi-tag.tsx";
+import { SushiPlanner, type SushiPlannerFlow } from "./sushi-planner.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
 import { num } from "./format.ts";
@@ -56,12 +57,65 @@ export function BalanceCard({
   onOpenSpoilDialog: (name: string) => void;
 }) {
   const spoilRates = useStore(doc.store, (s) => s.spoilRates);
+  const blockName = useStore(doc.store, (s) => s.blockName);
   const spoilables = useSpoilables();
+  // One mixed loop candidate: every solid item touching a belt in this block —
+  // imports, exports, AND internal row-to-row flows all ride the same loop in
+  // the "everything on one belt" pattern. A good's belt rate is
+  // max(production, consumption) across the rows (that identity covers all
+  // three roles); boundary-only goods (e.g. a stock goal with no row) are
+  // topped up from the import/export lists.
+  const sushiFlows: SushiPlannerFlow[] = (() => {
+    const solid = (f: { name: string; kind: string }) =>
+      f.kind === "item" && !f.name.startsWith("pyops-");
+    const prod = new Map<string, number>();
+    const cons = new Map<string, number>();
+    const disp = new Map<string, string | null>();
+    for (const row of res?.rows ?? []) {
+      for (const c of row.ingredients) {
+        if (!solid(c)) continue;
+        cons.set(c.name, (cons.get(c.name) ?? 0) + c.rate);
+        disp.set(c.name, c.display ?? res?.display?.[c.name] ?? null);
+      }
+      for (const c of row.products) {
+        if (!solid(c)) continue;
+        prod.set(c.name, (prod.get(c.name) ?? 0) + c.rate);
+        disp.set(c.name, c.display ?? res?.display?.[c.name] ?? null);
+      }
+    }
+    for (const f of res?.imports ?? []) {
+      if (!solid(f) || cons.has(f.name) || prod.has(f.name)) continue;
+      cons.set(f.name, f.rate);
+      disp.set(f.name, res?.display?.[f.name] ?? null);
+    }
+    for (const f of res?.exports ?? []) {
+      if (!solid(f) || cons.has(f.name) || prod.has(f.name)) continue;
+      prod.set(f.name, f.rate);
+      disp.set(f.name, res?.display?.[f.name] ?? null);
+    }
+    return [...new Set([...prod.keys(), ...cons.keys()])]
+      .map((name) => {
+        const p = prod.get(name) ?? 0;
+        const c = cons.get(name) ?? 0;
+        return {
+          name,
+          display: disp.get(name) ?? null,
+          rate: Math.max(p, c),
+          role:
+            p > 1e-9 && c > 1e-9 ? ("int" as const) : c > 1e-9 ? ("in" as const) : ("out" as const),
+        };
+      })
+      .filter((f) => f.rate > 1e-9)
+      .sort((a, b) => b.rate - a.rate);
+  })();
   return (
     <Card className="lg:col-span-2">
       <CardHeader className="justify-between">
         <CardTitle>Block balance</CardTitle>
         <div className="flex items-center gap-4 text-sm">
+          {logi.resolved && sushiFlows.length >= 2 && (
+            <SushiPlanner flows={sushiFlows} resolved={logi.resolved} blockName={blockName} />
+          )}
           {/* Pollution rides in the header (#23) to save a whole body row —
               electricity/heat aren't shown here at all: both surface as their
               own import chips below (pyops-electricity / pyops-heat). */}

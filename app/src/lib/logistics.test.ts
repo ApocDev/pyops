@@ -11,7 +11,10 @@ import {
   launchesForRate,
   loadersForRate,
   placedBeltStack,
+  planSushi,
   rocketCapacity,
+  type ResolvedLogistics,
+  type SushiFlow,
 } from "./logistics";
 
 // Reference prototypes straight from Py's data-raw-dump.json.
@@ -67,6 +70,85 @@ describe("belts", () => {
   });
   it("loaders are belt-equivalent movers", () => {
     expect(loadersForRate(30, YELLOW, 1)).toBeCloseTo(2, 6);
+  });
+});
+
+describe("sushi planner", () => {
+  const resolved: ResolvedLogistics = {
+    belt: YELLOW,
+    placedStack: 1,
+    moverKind: "inserter",
+    inserter: base,
+    handStack: 1,
+  };
+  const flow = (name: string, rate: number, role: "in" | "out" = "in"): SushiFlow => ({
+    name,
+    rate,
+    role,
+  });
+
+  it("computes utilization, lap time, and slots from the loop geometry", () => {
+    // 6 + 4 + 2 = 12/s on a 15/s yellow belt; 100 tiles at 1.875 tiles/s
+    const p = planSushi(resolved, [flow("a", 6), flow("b", 4, "out"), flow("c", 2)], 100);
+    expect(p?.utilization).toBeCloseTo(0.8, 6);
+    expect(p?.lapSeconds).toBeCloseTo(100 / 1.875, 4);
+    expect(p?.slots).toBe(800);
+  });
+
+  it("set-points are rate × lap (Little's law), floored for trace items", () => {
+    const p = planSushi(resolved, [flow("a", 6), flow("b", 0.01)], 100);
+    const lap = 100 / 1.875;
+    const a = p?.rows.find((r) => r.name === "a");
+    const b = p?.rows.find((r) => r.name === "b");
+    expect(a?.onBelt).toBe(Math.ceil(6 * lap)); // 320
+    expect(b?.onBelt).toBe(2); // floored — 0.01 × 53s rounds to 1
+    // floored trace item dwells far longer than a lap
+    expect(b?.dwellSeconds).toBeCloseTo(2 / 0.01, 6);
+    expect(a?.dominant).toBe(true); // > half the flow
+  });
+
+  it("verdict bands follow utilization", () => {
+    const at = (total: number) =>
+      planSushi(resolved, [flow("a", total / 2), flow("b", total / 2)], 1000)?.verdict;
+    expect(at(6)).toBe("comfortable"); // 40%
+    expect(at(12)).toBe("tight"); // 80%
+    expect(at(14)).toBe("fragile"); // 93%
+    expect(at(20)).toBe("over-capacity"); // 133%
+  });
+
+  it("flags a loop whose slots can't hold the set-points", () => {
+    // 1 tile = 8 slots, but 5 trace items × floor-of-2 = 10 items must ride it
+    const p = planSushi(
+      resolved,
+      ["a", "b", "c", "d", "e"].map((n) => flow(n, 0.01)),
+      1,
+    );
+    expect(p?.onBeltTotal).toBe(10);
+    expect(p?.slots).toBe(8);
+    expect(p?.verdict).toBe("loop-too-small");
+    expect(p?.ok).toBe(false);
+  });
+
+  it("flags spoilables that dwell too long on the loop", () => {
+    // trace spoilable: floored to 2 on belt → dwell 200 s ≫ ¼ of its 60 s spoil time
+    const p = planSushi(resolved, [flow("a", 6), { ...flow("rot", 0.01), spoilSeconds: 60 }], 100);
+    expect(p?.rows.find((r) => r.name === "rot")?.spoilRisk).toBe(true);
+    expect(p?.rows.find((r) => r.name === "a")?.spoilRisk).toBe(false);
+  });
+
+  it("needs a belt, two flows, a positive total, and a real loop", () => {
+    expect(
+      planSushi({ ...resolved, belt: undefined }, [flow("a", 6), flow("b", 4)], 100),
+    ).toBeNull();
+    expect(planSushi(resolved, [flow("a", 12)], 100)).toBeNull();
+    expect(planSushi(resolved, [flow("a", 0), flow("b", 0)], 100)).toBeNull();
+    expect(planSushi(resolved, [flow("a", 6), flow("b", 4)], 0)).toBeNull();
+  });
+
+  it("stacking raises both throughput and slots", () => {
+    const p = planSushi({ ...resolved, placedStack: 4 }, [flow("a", 30), flow("b", 30)], 100);
+    expect(p?.utilization).toBeCloseTo(1, 6); // 60/s on a 60/s stacked yellow
+    expect(p?.slots).toBe(3200);
   });
 });
 

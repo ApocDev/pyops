@@ -18,6 +18,12 @@ export function LogisticsHelpButton({ className }: { className?: string }) {
         each good — floor(1,000,000 / item weight) items per rocket.
       </p>
       <p>
+        The block-balance card's <b className="text-foreground">sushi</b> button opens the sushi
+        planner: it sizes one mixed loop carrying the block's solid ins and outs — capacity verdict,
+        per-item on-belt set-points for a circuit-controlled build, pass frequency, and spoil-dwell
+        warnings. Its own ? drawer explains the model.
+      </p>
+      <p>
         <b className="text-foreground">Stacking</b> — belt-stack and inserter-capacity research from
         the planning horizon raise throughput. The belt-stack override pins the placed stack size
         (it applies to belts only); leave it blank to follow research.

@@ -63,6 +63,145 @@ export function loadersForRate(rate: number, loader: LoaderProto, placedStack: n
   return beltsForRate(rate, loader, placedStack);
 }
 
+// ---------------------------------------------------------------------------
+// Sushi-belt planning: one mixed loop carrying a block's ins and outs.
+//
+// The model: a loop of `loopTiles` belt tiles holds `8 × tiles × stack` item
+// slots and moves at `speed × 60` tiles/s, so the flow past any point tops out
+// at the plain belt throughput regardless of item mix. In steady state each
+// item's share of the moving flow equals its share of the total rate, and the
+// stock riding the loop is `rate × lap-time` (Little's law with one lap of
+// dwell) — which is exactly the per-item "keep N on the belt" set-point a
+// circuit-controlled sushi inserter bank needs. Everything here is the
+// capacity/composition side; the control side (filtered or circuit-limited
+// insertion so one item can't flood the loop) is up to the build.
+
+/** An item flow to ride the loop. `in` = imported (pulled off by consumers),
+ * `out` = exported (dropped on, removed at the exit), `int` = internal — made
+ * by one row and eaten by another, riding the loop in between. The belt rate
+ * for a good is max(production, consumption) across the block's rows: that
+ * single identity covers all three roles. */
+export type SushiFlow = {
+  name: string;
+  rate: number;
+  role: "in" | "out" | "int";
+  /** spoil time in seconds, when the item rots */
+  spoilSeconds?: number;
+};
+
+export type SushiRow = {
+  name: string;
+  role: "in" | "out" | "int";
+  rate: number;
+  /** fraction of the moving flow (= fraction of total rate) */
+  share: number;
+  /** recommended items riding the loop — the circuit set-point (floored) */
+  onBelt: number;
+  /** average gap between two instances of this item passing a fixed point */
+  seenEverySeconds: number;
+  /** average time one instance rides the loop (stock ÷ rate, Little's law) */
+  dwellSeconds: number;
+  /** share > 1/2 — a dedicated belt or lane likely serves it better */
+  dominant: boolean;
+  /** passes a consumer rarely even after the floor — raise its floor or
+   * shorten the loop */
+  sparse: boolean;
+  /** spends a meaningful fraction of its spoil time riding the loop */
+  spoilRisk: boolean;
+};
+
+export type SushiVerdict = "comfortable" | "tight" | "fragile" | "over-capacity" | "loop-too-small";
+
+export type SushiPlan = {
+  verdict: SushiVerdict;
+  /** capacity verdicts (`comfortable`/`tight`) are buildable; the rest need changes */
+  ok: boolean;
+  /** Σ rates ÷ one belt's throughput */
+  utilization: number;
+  totalRate: number;
+  lapSeconds: number;
+  /** item slots the loop physically holds (8 × tiles × stack) */
+  slots: number;
+  /** Σ per-item set-points */
+  onBeltTotal: number;
+  rows: SushiRow[];
+};
+
+/** Keep at least this many of every item on the loop, so trace ingredients
+ * still cycle past their consumers. */
+const SUSHI_MIN_ON_BELT = 2;
+/** An item passing a point less often than this is flagged sparse. */
+const SUSHI_SPARSE_GAP_S = 10;
+/** Flag spoilables that spend more than this fraction of their life on the loop. */
+const SUSHI_SPOIL_DWELL_FRACTION = 0.25;
+/** Utilization verdict bands: below = comfortable, between = tight, above = fragile. */
+const SUSHI_COMFORT_U = 0.6;
+const SUSHI_TIGHT_U = 0.85;
+
+/** Plan one sushi loop for the given flows. Null when there's no belt, fewer
+ * than two flows, or nothing actually moving — sushi is meaningless there. */
+export function planSushi(
+  r: ResolvedLogistics,
+  flows: SushiFlow[],
+  loopTiles: number,
+): SushiPlan | null {
+  if (!r.belt || flows.length < 2 || !(loopTiles > 0)) return null;
+  const total = flows.reduce((s, f) => s + Math.max(0, f.rate), 0);
+  if (!(total > 1e-9)) return null;
+
+  const throughput = beltItemsPerSecond(r.belt.speed, r.placedStack);
+  const utilization = throughput > 0 ? total / throughput : Infinity;
+  const lapSeconds = loopTiles / (r.belt.speed * 60);
+  const slots = 8 * loopTiles * r.placedStack;
+
+  const rows: SushiRow[] = flows
+    .filter((f) => f.rate > 1e-9)
+    .map((f) => {
+      const share = f.rate / total;
+      const onBelt = Math.max(SUSHI_MIN_ON_BELT, Math.ceil(f.rate * lapSeconds));
+      const seenEverySeconds = lapSeconds / onBelt;
+      const dwellSeconds = onBelt / f.rate;
+      return {
+        name: f.name,
+        role: f.role,
+        rate: f.rate,
+        share,
+        onBelt,
+        seenEverySeconds,
+        dwellSeconds,
+        dominant: share > 0.5,
+        sparse: seenEverySeconds > SUSHI_SPARSE_GAP_S,
+        spoilRisk:
+          f.spoilSeconds != null && dwellSeconds > SUSHI_SPOIL_DWELL_FRACTION * f.spoilSeconds,
+      };
+    })
+    .sort((a, b) => b.rate - a.rate);
+
+  const onBeltTotal = rows.reduce((s, x) => s + x.onBelt, 0);
+  // over-capacity is the more fundamental failure — no loop length fixes it
+  const verdict: SushiVerdict =
+    utilization > 1
+      ? "over-capacity"
+      : onBeltTotal > slots
+        ? "loop-too-small"
+        : utilization > SUSHI_TIGHT_U
+          ? "fragile"
+          : utilization > SUSHI_COMFORT_U
+            ? "tight"
+            : "comfortable";
+
+  return {
+    verdict,
+    ok: verdict === "comfortable" || verdict === "tight",
+    utilization,
+    totalRate: total,
+    lapSeconds,
+    slots,
+    onBeltTotal,
+    rows,
+  };
+}
+
 const vlen = (x: number, y: number) => Math.hypot(x, y);
 
 /** Factorio RealOrientation of a vector: 0 = north, 0.25 = east, 0.5 = south,
