@@ -1,0 +1,21 @@
+mod/control.lua
+  s_d1d8dba5791875::t_9df6ad5a053f79 785-788,795,797,809-814,822-828,979-985
+mod/data.lua
+  s_d1d8dba5791875::t_55a5247368c71d 26-32,82-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "43b13f8170a6f455204f326c344acb4e8805d9c9",
+  "prompts": {},
+  "sessions": {
+    "s_d1d8dba5791875": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8578c376-670e-4221-b643-6bb7f0687436",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
