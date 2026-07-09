@@ -1,0 +1,47 @@
+app/src/db/queries.server.ts
+  s_ce65bd56b05d9a::t_0ae2c71c4b30db 2552-2557,2561-2564,2567-2570,2572-2573,2577-2595,3094-3095,3101-3118
+app/src/server/bridge/protocol.ts
+  s_9c598c6bfe850d::t_af5ce0c5d4ac09 13
+mod/control.lua
+  s_ce65bd56b05d9a::t_ff3456ec692b4f 21,192-198,202-204
+app/e2e/mut/horizon.e2e.ts
+  s_ce65bd56b05d9a::t_e1c32aeae95ab4 1-26
+app/src/components/horizon-picker.tsx
+  s_ce65bd56b05d9a::t_fa0ab30f651365 37,134-187,206-209
+app/src/db/queries.test.ts
+  s_ce65bd56b05d9a::t_dbe0079412ad80 19,312-340
+app/src/server/bridge/handlers/handlers.test.ts
+  s_ce65bd56b05d9a::t_32de04e47f05ba 51-64,74-84
+app/src/server/bridge/handlers/research.ts
+  s_ce65bd56b05d9a::t_77d9e9a5ae6fb4 11-16,20-39,41-49
+app/src/server/factorio.ts
+  s_ce65bd56b05d9a::t_5629ff954508ad 876-879,889-893,906-907
+docs/data-pipeline.md
+  s_ce65bd56b05d9a::t_32b04d071a1ade 148-157
+docs/solver.md
+  s_ce65bd56b05d9a::t_0b0d131ae535c9 278-281,284-290
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "744231931596ae15bb83f7ccb3be971c0b92b8e9",
+  "prompts": {},
+  "sessions": {
+    "s_9c598c6bfe850d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d447b814-cf17-417e-9d1f-a329b5f8705e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_ce65bd56b05d9a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f47a9-1eb8-73c1-b350-60366c91f9ea",
+        "model": "gpt-5.5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
