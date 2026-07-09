@@ -5,6 +5,7 @@ import { factoryTotalsFn, listBlocksFn, statsFn } from "../server/factorio";
 import { Card } from "#/components/ui/card.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
+import { LaunchFactorioButton } from "#/components/launch-factorio-button.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { QueryError } from "#/components/query-error.tsx";
 
@@ -38,16 +39,19 @@ function Home() {
         }
         description="Pyanodons factory planner — blocks, TURD, modules, the lot."
         actions={
-          <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
-            <a
-              href="https://github.com/ApocDev/pyops"
-              target="_blank"
-              rel="noreferrer"
-              title="View PyOps on GitHub"
-            >
-              <Github className="size-4" /> GitHub
-            </a>
-          </Button>
+          <>
+            <LaunchFactorioButton size="sm" />
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+              <a
+                href="https://github.com/ApocDev/pyops"
+                target="_blank"
+                rel="noreferrer"
+                title="View PyOps on GitHub"
+              >
+                <Github className="size-4" /> GitHub
+              </a>
+            </Button>
+          </>
         }
       />
 

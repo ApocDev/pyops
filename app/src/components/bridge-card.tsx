@@ -1,15 +1,12 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Play, RefreshCw } from "lucide-react";
-import {
-  bridgeRequestSyncFn,
-  bridgeStatusFn,
-  factorioLaunchInfoFn,
-  launchFactorioFn,
-} from "../server/bridge/fns";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { bridgeRequestSyncFn, bridgeStatusFn } from "../server/bridge/fns";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
+import { LaunchFactorioButton } from "#/components/launch-factorio-button.tsx";
 
 /** Treat the mod as connected if we've heard from it within this window (its
  * heartbeat pings ~every 2s). */
@@ -43,32 +40,6 @@ export function BridgeCard() {
           ? "asked the mod to push — research appears in Planning horizon"
           : "no mod connected",
       ),
-  });
-
-  // "Launch Factorio" — spawns the game with --enable-lua-udp already set to a free
-  // port, so the bridge connects with no manual flag wrangling.
-  const launchInfo = useQuery({
-    queryKey: ["factorioLaunchInfo"],
-    queryFn: () => factorioLaunchInfoFn(),
-    refetchInterval: 5000,
-  });
-  const gameRunning = launchInfo.data?.running === true;
-  const [launchMsg, setLaunchMsg] = useState<string | null>(null);
-  const launch = useMutation({
-    mutationFn: () => launchFactorioFn(),
-    onSuccess: (r) => {
-      if (!r.ok) {
-        setLaunchMsg(r.error ?? "launch failed");
-        return;
-      }
-      setLaunchMsg(
-        r.via === "steam"
-          ? `launching via Steam with --enable-lua-udp ${r.port}…`
-          : r.isSteam
-            ? `Steam didn't respond — launched directly on --enable-lua-udp ${r.port} (no Steam Cloud saves / achievements). Make sure Steam is running, or set the flag in Steam's launch options and start from there.`
-            : `launching with --enable-lua-udp ${r.port}…`,
-      );
-    },
   });
 
   const dotColor =
@@ -105,9 +76,12 @@ export function BridgeCard() {
             Couldn't bind UDP {s.host}:{s.port} — {s.error}
           </p>
         ) : (
-          <p className="text-muted-foreground">
-            Listening on <span className="text-foreground">{s?.host}</span>:
-            <span className="text-foreground">{s?.port}</span> for the PyOps companion mod.
+          <p className="flex items-center gap-1.5 text-muted-foreground">
+            <span>
+              <span className="text-foreground">{s?.host}</span>:
+              <span className="text-foreground">{s?.port}</span>
+            </span>
+            <InfoHint content="Waiting for the companion mod to connect." />
           </p>
         )}
 
@@ -133,26 +107,7 @@ export function BridgeCard() {
         )}
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
-          {!connected && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => launch.mutate()}
-              disabled={gameRunning || launch.isPending}
-              title={
-                gameRunning
-                  ? "Factorio is already running"
-                  : "Launch Factorio with --enable-lua-udp already set to a free port"
-              }
-            >
-              <Play className="size-3.5" />
-              {launch.isPending
-                ? "launching…"
-                : gameRunning
-                  ? "Factorio running"
-                  : "Launch Factorio"}
-            </Button>
-          )}
+          {!connected && <LaunchFactorioButton size="sm" />}
           <Button
             variant="outline"
             size="sm"
@@ -163,25 +118,9 @@ export function BridgeCard() {
             <RefreshCw className={`size-3.5 ${pull.isPending ? "animate-spin" : ""}`} />
             {pull.isPending ? "requesting…" : "pull from game"}
           </Button>
+          <InfoHint content="Or hit Sync now in the in-game panel to push immediately — research only auto-syncs when a tech finishes." />
           {pullMsg && <span className="text-sm text-muted-foreground">{pullMsg}</span>}
         </div>
-        {launchMsg && <p className="text-sm text-muted-foreground">{launchMsg}</p>}
-        <p className="text-sm text-muted-foreground">
-          Or hit <span className="text-foreground">Sync now</span> in the in-game panel to push
-          immediately — research only auto-syncs when a tech finishes.
-        </p>
-
-        <p className="text-sm text-muted-foreground">
-          Prefer to start it yourself? Launch Factorio with{" "}
-          <span className="font-mono text-foreground">
-            --enable-lua-udp {(s?.port ?? 37657) + 1}
-          </span>{" "}
-          — any free port <em>other</em> than this app's{" "}
-          <span className="font-mono text-foreground">{s?.port ?? 37657}</span>, since Factorio
-          binds it itself and can't share. Leave the mod's bridge-port setting at{" "}
-          <span className="font-mono text-foreground">{s?.port ?? 37657}</span>; it connects
-          automatically — no in-game toggle.
-        </p>
       </div>
     </Card>
   );
