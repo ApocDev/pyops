@@ -1,0 +1,37 @@
+app/src/components/block/sushi-planner.tsx
+  s_89789960e82599::t_cd43cc23752267 8,138-145,219-222,229-235,270-282
+app/src/server/bridge/fns.ts
+  s_89789960e82599::t_4d6c919999caf7 11,39-45
+app/src/server/bridge/handlers.ts
+  s_89789960e82599::t_833f55b93f0e4a 12,36-37
+docs/bridge.md
+  s_89789960e82599::t_e53529069c2d03 35-52
+mod/locale/en/pyops.cfg
+  s_89789960e82599::t_07bc494b8b9710 3-4
+app/src/server/bridge/handlers/sushi.ts
+  s_89789960e82599::t_70517c319ca11c 1-38
+app/src/server/bridge/protocol.ts
+  s_89789960e82599::t_c1c0ff66ad07ae 13
+mod/control.lua
+  s_89789960e82599::t_f0b659aff5024e 15,22,152-156,878-916
+mod/data.lua
+  s_89789960e82599::t_c19f636653c379 16-30
+mod/sushi.lua
+  s_89789960e82599::t_cf06e1304d7e62 1-537
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "117264d894521f95428e51a76f1047229882ed24",
+  "prompts": {},
+  "sessions": {
+    "s_89789960e82599": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "59dcffb9-7f1b-47c0-bba2-30cf92378190",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
