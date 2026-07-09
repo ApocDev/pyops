@@ -141,7 +141,14 @@ export function RecipeRow({
             >
               <GripVertical className="size-4" />
             </span>
-            <span className={off ? "opacity-40" : undefined}>
+            <span
+              data-recipe-row-icon={name}
+              className={off ? "opacity-40" : undefined}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                open.rowMenu(e, name);
+              }}
+            >
               <Icon kind="recipe" name={name} size="md" noHover />
             </span>
             <span

@@ -22,7 +22,7 @@ it. Build/release details: [`docs/desktop.md`](docs/desktop.md).
 - **Design production blocks** — set output goals + rates, pick recipes/machines/
   modules, and PyOps solves the run-rates and building counts for the whole chain
   (cyclic loops, fluid temperatures, byproducts, spoilage). Pin counts, route
-  byproducts, fold chains into sub-blocks.
+  byproducts, fold chains into sub-blocks, or extract a recipe into its own block.
 - **Balance the whole factory** — every block's imports/exports roll into one
   ledger (deficits, surpluses, built-vs-required machines), with what-if.
 - **Explore the data** — a searchable catalogue with a recipe explorer (producers/

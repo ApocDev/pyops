@@ -47,7 +47,7 @@ function ContextMenu({
         side="bottom"
         sideOffset={0}
         alignOffset={0}
-        className={cn("min-w-48", className)}
+        className={cn("min-w-48 bg-popover/95 shadow-lg ring-foreground/20", className)}
         onContextMenu={(e) => {
           e.preventDefault();
           onClose();

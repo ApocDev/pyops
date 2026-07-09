@@ -1,4 +1,4 @@
-import { Layers, X } from "lucide-react";
+import { Layers, Pin, SplitSquareHorizontal, X } from "lucide-react";
 import { ContextMenu, ContextMenuItem } from "#/components/context-menu.tsx";
 import { Icon } from "../../lib/icons";
 import type { RowGroup } from "../../lib/row-groups";
@@ -15,6 +15,7 @@ export function RowMenu({
   onNewGroup,
   onJoinGroup,
   onLeaveGroup,
+  onExtractToBlock,
   onOpenPins,
   onClose,
 }: {
@@ -28,6 +29,7 @@ export function RowMenu({
   onNewGroup: () => void;
   onJoinGroup: (groupId: number) => void;
   onLeaveGroup: () => void;
+  onExtractToBlock: () => void;
   /** open the pin editor (#91): fixed/cap counts, input shares */
   onOpenPins: () => void;
   onClose: () => void;
@@ -42,7 +44,12 @@ export function RowMenu({
         <Icon kind="recipe" name={recipe} size="sm" noTitle noHover />
         <span className="truncate">{display}</span>
       </div>
-      <ContextMenuItem onClick={act(onOpenPins)}>Pins — count / cap / route…</ContextMenuItem>
+      <ContextMenuItem onClick={act(onOpenPins)}>
+        <Pin className="size-3.5" /> Pins — count / cap / route…
+      </ContextMenuItem>
+      <ContextMenuItem onClick={act(onExtractToBlock)}>
+        <SplitSquareHorizontal className="size-3.5" /> Extract into new block
+      </ContextMenuItem>
       <div className="my-1 border-t border-border" />
       {currentGroup == null ? (
         <>

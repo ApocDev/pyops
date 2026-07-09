@@ -7,7 +7,7 @@
  * Pure module (no db, no React) — usable from the server apply path
  * (`setBlockRecipesFn`) and unit-testable in isolation, like `lib/goals.ts`.
  */
-import type { BlockData } from "../db/schema.ts";
+import type { BlockData, Goal } from "../db/schema.ts";
 
 function pruneRecord<V>(
   rec: Record<string, V> | undefined,
@@ -57,4 +57,53 @@ export function withRecipeSet<T extends Partial<BlockData>>(doc: T, recipes: str
     if (next[k] === undefined) delete next[k];
   }
   return next;
+}
+
+function pickRecipeValue<V>(rec: Record<string, V> | undefined, recipe: string): V | undefined {
+  return rec && recipe in rec ? rec[recipe] : undefined;
+}
+
+/** Split one recipe out of a block doc into a new one-recipe block doc. The
+ * caller provides the extracted block's goals, usually from the selected row's
+ * current solved product rates. Per-row configuration for the recipe moves with
+ * it; the source doc is the normal recipe-set prune plus any extracted products
+ * removed from `goals`/`made` when no remaining recipe still produces them. */
+export function extractRecipeToBlockDocs<T extends Partial<BlockData>>(
+  doc: T,
+  recipe: string,
+  goals: Goal[],
+  producedByRemaining: readonly string[] = [],
+): { source: T; extracted: BlockData } {
+  const productNames = new Set(goals.map((g) => g.name));
+  const stillProduced = new Set(producedByRemaining);
+  const source = withRecipeSet(
+    {
+      ...doc,
+      goals: (doc.goals ?? []).filter(
+        (g) => !productNames.has(g.name) || stillProduced.has(g.name),
+      ),
+      made: doc.made?.filter((name) => !productNames.has(name) || stillProduced.has(name)),
+    },
+    (doc.recipes ?? []).filter((name) => name !== recipe),
+  );
+  if (source.made?.length === 0) delete source.made;
+
+  const extracted: BlockData = {
+    goals: goals.map((g) => ({ ...g })),
+    recipes: [recipe],
+  };
+  const machine = pickRecipeValue(doc.machines, recipe);
+  if (machine) extracted.machines = { [recipe]: machine };
+  const fuel = pickRecipeValue(doc.fuels, recipe);
+  if (fuel) extracted.fuels = { [recipe]: fuel };
+  const modules = pickRecipeValue(doc.modules, recipe);
+  if (modules) extracted.modules = { [recipe]: [...modules] };
+  const beacons = pickRecipeValue(doc.beacons, recipe);
+  if (beacons?.length)
+    extracted.beacons = { [recipe]: beacons.map((b) => ({ ...b, modules: [...b.modules] })) };
+  const reactorLayout = pickRecipeValue(doc.reactorLayouts, recipe);
+  if (reactorLayout) extracted.reactorLayouts = { [recipe]: { ...reactorLayout } };
+  const pins = (doc.pins ?? []).filter((p) => p.recipe === recipe);
+  if (pins.length) extracted.pins = pins.map((p) => ({ ...p }));
+  return { source, extracted };
 }
