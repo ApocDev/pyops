@@ -12,6 +12,7 @@ import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { ConfirmDialog } from "#/components/confirm-dialog.tsx";
+import { HelpButton } from "#/components/help-drawer.tsx";
 
 const PLATFORM_LABEL: Record<CompanionPlatform, string> = {
   linux: "Linux",
@@ -69,13 +70,38 @@ export function CompanionModCard() {
     <Card>
       <CardHeader className="justify-between">
         <CardTitle>Companion mod</CardTitle>
-        {badge}
+        <span className="flex items-center gap-2">
+          {badge}
+          <HelpButton title="Companion mod">
+            <p>
+              PyOps talks to a running game through a small companion mod. Installing it into your
+              Factorio mods folder enables the in-game panel, locate-in-game, live state sync, and
+              the data dump.
+            </p>
+            <p>
+              <span className="text-foreground">Symlink (recommended)</span> links PyOps&apos;
+              bundled mod in place, so it stays in sync as PyOps updates. On Windows the link is a
+              directory junction — no admin or Developer Mode needed.
+            </p>
+            <p>
+              <span className="text-foreground">Copy</span> places a snapshot in the mods folder —
+              re-copy after PyOps updates to keep it in sync.
+            </p>
+            <p>
+              Then start the game from <span className="text-foreground">Live bridge</span> — the{" "}
+              <span className="text-foreground">Launch Factorio</span> button sets the{" "}
+              <span className="font-mono text-foreground">--enable-lua-udp</span> flag for you. Or
+              launch it yourself with that flag on any free port <em>other</em> than the app&apos;s
+              bridge port (Factorio binds its port itself and can&apos;t share), leaving the
+              mod&apos;s bridge-port setting at the app&apos;s port. The mod connects automatically
+              — no in-game toggle.
+            </p>
+          </HelpButton>
+        </span>
       </CardHeader>
       <div className="space-y-3 px-3 pb-3 text-sm">
         <p className="text-muted-foreground">
-          Installs the in-game bridge mod into your Factorio mods folder so the live panel, locate,
-          and state sync work. Detected:{" "}
-          <span className="text-foreground">{s ? PLATFORM_LABEL[s.platform] : "…"}</span>.
+          Detected: <span className="text-foreground">{s ? PLATFORM_LABEL[s.platform] : "…"}</span>.
         </p>
 
         {s && (
@@ -155,19 +181,6 @@ export function CompanionModCard() {
             }}
           />
         </div>
-
-        <p className="text-sm text-muted-foreground">
-          {s?.method === "copy"
-            ? "Installed as a copy — re-copy after PyOps updates to keep it in sync."
-            : s?.symlinkIsJunction
-              ? "On Windows the link is a directory junction (no admin or Developer Mode needed); it stays in sync as PyOps updates."
-              : "The link points at PyOps' bundled mod, so it stays in sync as PyOps updates."}{" "}
-          Then start the game from <span className="text-foreground">Live bridge</span> — the{" "}
-          <span className="text-foreground">Launch Factorio</span> button sets the{" "}
-          <span className="font-mono text-foreground">--enable-lua-udp</span> flag for you (or
-          launch it yourself on a port other than the app&apos;s bridge port). The mod connects
-          automatically — no in-game toggle.
-        </p>
 
         {err && <Callout tone="destructive">{err}</Callout>}
       </div>

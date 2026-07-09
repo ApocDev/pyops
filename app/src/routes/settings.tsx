@@ -14,6 +14,9 @@ import {
   setPlannerSettingsFn,
 } from "../server/factorio";
 import { BridgeCard } from "../components/bridge-card";
+import { HelpButton } from "../components/help-drawer";
+import { InfoHint } from "../components/info-hint";
+import { HorizonHelpButton } from "../components/horizon-help";
 import { BlockShareCard } from "../components/block-share-card.tsx";
 import { ProjectBackupCard } from "../components/project-backup-card.tsx";
 import { HorizonPicker } from "../components/horizon-picker";
@@ -204,12 +207,9 @@ function StorageCard() {
     <Card>
       <CardHeader>
         <CardTitle>Storage location</CardTitle>
+        <InfoHint content="Useful when sharing a database or filing a bug report." />
       </CardHeader>
       <div className="space-y-2 px-3 pb-3">
-        <p className="text-sm text-muted-foreground">
-          Project databases, the icon atlas, and config live here. Useful when sharing a database or
-          filing a bug report.
-        </p>
         {paths.isPending ? (
           <div className="space-y-1.5">
             {["Data folder", "Projects (databases)", "Icon atlas", "App config"].map((label) => (
@@ -428,10 +428,6 @@ function DisplayCard() {
           </span>
           <Switch checked={compact} onCheckedChange={(v) => setCompactNumbers(v)} />
         </label>
-        <p className="text-sm text-muted-foreground">
-          Rates and quantities everywhere scale their precision to the value — a 0.001/s trickle
-          shows as 0.001, never a rounded-down 0.00, and only a true zero reads as 0.
-        </p>
       </div>
     </Card>
   );
@@ -471,16 +467,24 @@ function PlannerCard() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="justify-between">
         <CardTitle>Module auto-fill</CardTitle>
+        <HelpButton title="Module auto-fill">
+          <p>
+            Every solve computes a suggested module fill per recipe row —{" "}
+            <b className="text-foreground">productivity</b> where the recipe allows it, otherwise
+            just enough <b className="text-foreground">speed</b> modules to reach the smallest whole
+            building count, with the rest on efficiency. Speed beacons count toward that target.
+          </p>
+          <p>
+            Suggestions are never applied on their own: rows whose current setup differs show a ✨
+            hint you can click, and the block header offers a whole-block apply.
+          </p>
+        </HelpButton>
       </CardHeader>
       <div className="space-y-3 px-3 pb-3">
         <p className="text-sm text-muted-foreground">
-          Every solve computes a suggested fill per row — productivity where the recipe allows it,
-          otherwise just enough speed modules to reach the smallest whole building count with the
-          rest on efficiency (speed beacons count toward that target). Suggestions are never applied
-          on their own: rows whose current setup differs show a ✨ hint you can click, and the block
-          header offers a whole-block apply.
+          Suggestions are computed per solve; the ✨ hint applies them.
         </p>
         <Label>
           <Checkbox
@@ -506,7 +510,10 @@ function PlannerCard() {
 
         <div className="border-t border-border pt-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span>spoilage import cutoff</span>
+            <span className="flex items-center gap-1.5">
+              spoilage import cutoff
+              <InfoHint content="When the planner drafts, goods spoiling faster than this must be produced locally; slower ones may be imported between blocks." />
+            </span>
             <Input
               type="number"
               value={s.spoilImportCutoffSec}
@@ -523,20 +530,27 @@ function PlannerCard() {
             />
             <span className="text-muted-foreground">s</span>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            When the planner drafts, a good that spoils faster than this is forced to be built
-            locally (can't survive transport between blocks). Slower spoilers may be imported.
-          </p>
         </div>
 
         <div className="border-t border-border pt-3">
-          <div className="mb-1 text-sm font-semibold">Preferred defaults (favorites)</div>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-sm font-semibold">Preferred defaults (favorites)</span>
+            <HelpButton title="Preferred defaults">
+              <p>
+                New recipes default to the <b className="text-foreground">lowest-tier building</b>{" "}
+                and <b className="text-foreground">cheapest fuel</b> — correct and buildable from
+                the start.
+              </p>
+              <p>
+                To prefer something else, open a recipe's building or fuel picker in the block
+                editor and click its <Star className="inline size-3.5" /> star: the next new recipe
+                in that category uses your pick (once it's researched). Existing blocks keep their
+                choices.
+              </p>
+            </HelpButton>
+          </div>
           <p className="text-sm text-muted-foreground">
-            New recipes default to the lowest-tier building and cheapest fuel — correct and
-            buildable from the start. To prefer something else, open a recipe's building or fuel
-            picker in the block editor and click its <Star className="inline size-3.5" /> star: the
-            next new recipe in that category uses your pick (once it's researched). Existing blocks
-            keep their choices.
+            Star a building or fuel in a recipe picker to make it the default for new recipes.
           </p>
         </div>
       </div>
@@ -580,10 +594,9 @@ function AssistantCard() {
         <CardTitle>Assistant (AI)</CardTitle>
       </CardHeader>
       <div className="space-y-3 px-3 pb-3 text-sm">
-        <p className="text-muted-foreground">
-          Your OpenRouter account, shared across all projects. The <code>OPENROUTER_API_KEY</code> /{" "}
-          <code>PYOPS_AGENT_MODEL</code> env vars take priority when set; these stored values are
-          the fallback.
+        <p className="flex items-center gap-1.5 text-muted-foreground">
+          Shared across all projects.
+          <InfoHint content="The OPENROUTER_API_KEY / PYOPS_AGENT_MODEL env vars take priority when set; these stored values are the fallback." />
         </p>
 
         <div>
@@ -672,8 +685,9 @@ function AssistantCard() {
 function HorizonCard() {
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="justify-between">
         <CardTitle>Planning horizon</CardTitle>
+        <HorizonHelpButton />
       </CardHeader>
       <div className="px-3 pb-3">
         <HorizonPicker />
@@ -711,13 +725,13 @@ function ExclusionsCard() {
     <Card>
       <CardHeader>
         <CardTitle>Excluded from planning</CardTitle>
+        <InfoHint
+          content={`Patterns (* and ? wildcards) match a good's name/subgroup or a recipe's name/category. Subgroups are mod-namespaced, so py-alienlife-* hides a whole mod family. Always-on: ${DEFAULT_EXCLUDE_NOTE}.`}
+        />
       </CardHeader>
       <div className="space-y-3 px-3 pb-3">
         <p className="text-sm text-muted-foreground">
-          Glob patterns (<code>*</code>, <code>?</code>) hidden from the planner and recipe picker —
-          matched against a good's name/subgroup or a recipe's name/category. Subgroups are
-          mod-namespaced, so <code>py-alienlife-*</code> hides a whole mod family;{" "}
-          <code>some-item</code> hides one thing. Always-on: <code>{DEFAULT_EXCLUDE_NOTE}</code>.
+          Glob patterns hidden from the planner and recipe picker.
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Input

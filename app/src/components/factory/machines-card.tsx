@@ -24,6 +24,7 @@ import { Check, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
 import { StatSortHeader } from "#/components/stat-sort-header.tsx";
 import { Icon } from "../../lib/icons";
@@ -132,7 +133,10 @@ export function MachinesCard({ data }: { data: MachineSufficiency }) {
               {timeAgo(data.syncedAt)})
             </span>
           ) : (
-            "no built-machine data — open the PyOps panel in-game and Sync"
+            <span className="inline-flex items-center gap-1.5">
+              not synced
+              <InfoHint content="Open the PyOps panel in-game and Sync." />
+            </span>
           )}
         </span>
       </CardHeader>
@@ -188,7 +192,7 @@ export function MachinesCard({ data }: { data: MachineSufficiency }) {
                   m.recipes.map((r) => (
                     <div
                       key={r.recipe}
-                      className="flex flex-col gap-0.5 py-1 pr-3 pl-10 text-sm text-muted-foreground md:flex-row md:items-center md:gap-2 md:py-0.5"
+                      className="flex flex-col gap-1 py-1 pr-3 pl-10 text-sm text-muted-foreground md:flex-row md:items-center md:gap-2 md:py-1"
                     >
                       <span className="flex min-w-0 items-center gap-2 md:flex-1">
                         <Icon kind="recipe" name={r.recipe} size="sm" title={r.display} />

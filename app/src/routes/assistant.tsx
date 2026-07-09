@@ -36,6 +36,7 @@ import { FollowUpChips, type FollowUp } from "#/components/assistant/follow-up-c
 import { GameEvalCard, type GameEvalProposal } from "#/components/assistant/game-eval-card.tsx";
 import { ShowInGameButton } from "#/components/assistant/show-in-game-button.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { ItemHover, RecipeHover, TechHover } from "#/lib/recipe-card";
 import { formatQty, formatRate } from "#/lib/format";
@@ -620,7 +621,7 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
                 }
               }}
               rows={2}
-              placeholder="Ask about a recipe or chain…  (Enter to send, Shift+Enter for newline)"
+              placeholder="Ask about a recipe or chain…"
               className="max-h-48 min-h-[3.5rem] resize-none border-0 bg-transparent px-3 py-2.5 leading-relaxed focus-visible:ring-0 dark:bg-transparent"
             />
             <div className="flex flex-wrap items-center gap-1.5 px-2 pb-2">
@@ -653,15 +654,13 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
                   <Square className="size-4" />
                 </Button>
               ) : (
-                <Button
-                  type="submit"
-                  size="icon-lg"
-                  disabled={!input.trim()}
-                  title={editingId ? "Resend" : "Send"}
-                  className="ml-auto"
+                <Tooltip
+                  content={`${editingId ? "Resend" : "Send"} — Enter (Shift+Enter for a newline)`}
                 >
-                  <ArrowUp className="size-4" />
-                </Button>
+                  <Button type="submit" size="icon-lg" disabled={!input.trim()} className="ml-auto">
+                    <ArrowUp className="size-4" />
+                  </Button>
+                </Tooltip>
               )}
             </div>
           </div>
@@ -1535,17 +1534,23 @@ function DraftRows({ draft }: { draft: Draft }) {
       )}
       {rateRow(
         <>
-          <Grid2x2 className="size-3.5" /> suggested sub-blocks to draft next (sized to demand)
+          <Grid2x2 className="size-3.5" /> suggested sub-blocks to draft next{" "}
+          <InfoHint content="sized to demand" />
         </>,
         draft.subBlocksNeeded,
       )}
-      {rateRow("byproducts (route to a consumer, or void)", draft.byproducts)}
+      {rateRow(
+        <>
+          byproducts <InfoHint content="route to a consumer, or void" />
+        </>,
+        draft.byproducts,
+      )}
 
       {draft.turd?.conflicts && draft.turd.conflicts.length > 0 && (
         <div className="mt-2.5">
           <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-destructive">
-            <AlertTriangle className="size-3.5" /> TURD conflicts (infeasible — one choice per
-            master)
+            <AlertTriangle className="size-3.5" /> TURD conflicts{" "}
+            <InfoHint content="infeasible — one choice per master" />
           </div>
           {draft.turd.conflicts.map((c) => (
             <div key={c.master} className="mt-1 text-sm">
@@ -1814,8 +1819,8 @@ function BlockUpdate({
       {refRow("recipes removed", draft.recipesRemoved, "recipe")}
       {refRow(
         <>
-          <AlertTriangle className="size-3.5" /> new byproducts this change introduces — route or
-          void them
+          <AlertTriangle className="size-3.5" /> new byproducts{" "}
+          <InfoHint content="this change introduces these — route or void them" />
         </>,
         draft.newByproducts,
         undefined,

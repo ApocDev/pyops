@@ -11,6 +11,7 @@ import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { RebalanceAllButton } from "#/components/whatif/rebalance-all-button.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
@@ -49,7 +50,6 @@ function WhatIf() {
     <div className="p-4 font-mono text-foreground">
       <PageHeader
         title="Factory what-if"
-        description="set a final product's rate → the per-block changes to rebalance the whole factory"
         actions={
           <>
             {Object.keys(overrides).length > 0 && (
@@ -123,7 +123,8 @@ function WhatIf() {
         {/* Demands — edit a target to drive the cascade */}
         <Card>
           <CardHeader>
-            <CardTitle className="normal-case">Final products (set a target)</CardTitle>
+            <CardTitle className="normal-case">Final products</CardTitle>
+            <InfoHint content="Set a target rate to see the per-block changes." />
           </CardHeader>
           <div className="divide-y divide-border">
             {(r?.demands ?? []).map((d) => {
@@ -174,9 +175,6 @@ function WhatIf() {
           <CardHeader className="justify-between">
             <CardTitle className="normal-case">Block changes ({changed.length})</CardTitle>
             <div className="flex items-center gap-3">
-              <span className="hidden text-sm text-muted-foreground sm:inline">
-                apply all, or scale each by hand
-              </span>
               <RebalanceAllButton
                 changed={changed}
                 overrides={overrides}
@@ -242,13 +240,11 @@ function WhatIf() {
           color="text-warning"
         />
         <Card>
-          <CardHeader className="justify-between">
+          <CardHeader>
             <CardTitle className="normal-case">
-              Overproduced — needs a consumer ({r?.overproduced?.length ?? 0})
+              Overproduced ({r?.overproduced?.length ?? 0})
             </CardTitle>
-            <span className="text-sm text-muted-foreground">
-              byproduct surplus — scale the suggested sink, or add a consumer
-            </span>
+            <InfoHint content="byproduct surplus that needs a consumer — scale the suggested sink, or add one" />
           </CardHeader>
           {(r?.overproduced ?? []).length === 0 ? (
             <Callout tone="success" variant="strip">

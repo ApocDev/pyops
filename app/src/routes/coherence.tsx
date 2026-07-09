@@ -21,6 +21,7 @@ import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
@@ -224,7 +225,7 @@ function CoherencePage() {
       {/* Problem-first: shorts (the point of the view) on top, balanced last. */}
       {shortLinks.length > 0 && (
         <Section
-          title={`Short — needs attention (${shortLinks.length})`}
+          title={`Short (${shortLinks.length})`}
           hint="a block isn't getting enough — scale its producer up"
         >
           {shortLinks.map((l) => (
@@ -245,7 +246,11 @@ function CoherencePage() {
       {balancedLinks.length > 0 && (
         <details className="mb-5">
           <summary className="cursor-pointer border border-border bg-card px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
-            Balanced ({balancedLinks.length}) — producers meet consumers, nothing to do
+            Balanced ({balancedLinks.length})
+            <InfoHint
+              content="producers meet consumers — nothing to do"
+              className="ml-1.5 align-text-bottom"
+            />
           </summary>
           <div className="mt-2 divide-y divide-border border border-border">
             {balancedLinks.map((l) => (
@@ -302,9 +307,9 @@ function Section({
 }) {
   return (
     <div className="mb-5 border border-border">
-      <div className="flex items-baseline justify-between border-b border-border bg-card px-3 py-2">
+      <div className="flex items-center gap-1.5 border-b border-border bg-card px-3 py-2">
         <span className="text-sm font-semibold">{title}</span>
-        <span className="text-sm text-muted-foreground">{hint}</span>
+        <InfoHint content={hint} />
       </div>
       <div className="divide-y divide-border">{children}</div>
     </div>
@@ -464,9 +469,9 @@ function OrphanRow({ l, mode }: { l: Link; mode: "unsourced" | "surplus" }) {
       </span>
       {mode === "unsourced" &&
         (l.craftable ? (
-          <Badge className="border-transparent bg-info/15 text-info">
-            buildable — make a block
-          </Badge>
+          <Tooltip content="unlocked at your horizon — make a block to supply it">
+            <Badge className="border-transparent bg-info/15 text-info">buildable</Badge>
+          </Tooltip>
         ) : (
           <Badge>raw / import</Badge>
         ))}
@@ -624,7 +629,14 @@ function ScalePlanDrawer({
               {p && (
                 <div className="space-y-4">
                   {/* buildings per recipe */}
-                  <PlanSection title="Buildings">
+                  <PlanSection
+                    title="Buildings"
+                    hint={
+                      p.rows.some((r) => r.modules.length || r.beaconCount > 0)
+                        ? "modules/beacons per machine are unchanged — tune them in the block editor to cut building count"
+                        : undefined
+                    }
+                  >
                     {p.rows.map((r) => (
                       <div key={r.recipe} className="flex items-center gap-2 py-0.5 text-sm">
                         {r.machine && <Icon kind="entity" name={r.machine} size="sm" noTitle />}
@@ -639,12 +651,6 @@ function ScalePlanDrawer({
                         </span>
                       </div>
                     ))}
-                    {p.rows.some((r) => r.modules.length || r.beaconCount > 0) && (
-                      <div className="mt-1 text-sm text-muted-foreground">
-                        modules/beacons per machine are unchanged — tune them in the block editor to
-                        cut building count.
-                      </div>
-                    )}
                   </PlanSection>
 
                   {(p.power.nextW > 1 || p.power.nextHeatW > 1) && (
@@ -713,10 +719,21 @@ function ScalePlanDrawer({
   );
 }
 
-function PlanSection({ title, children }: { title: string; children: React.ReactNode }) {
+function PlanSection({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div>
-      <FieldLabel className="mb-1">{title}</FieldLabel>
+      <div className="mb-1 flex items-center gap-1.5">
+        <FieldLabel>{title}</FieldLabel>
+        {hint && <InfoHint content={hint} />}
+      </div>
       <div className="border border-border px-2 py-1">{children}</div>
     </div>
   );

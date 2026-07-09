@@ -208,10 +208,11 @@ export function GoalCard({
           </div>
         )}
         {lockedInput && (
-          <div className="flex items-center gap-1 text-sm text-info">
-            <Lock className="size-3 shrink-0" /> sized by input — edit the locked rate in Imports,
-            or unlock it there
-          </div>
+          <Tooltip content="edit the locked rate in Imports, or unlock it there">
+            <div className="flex items-center gap-1 text-sm text-info">
+              <Lock className="size-3 shrink-0" /> sized by input
+            </div>
+          </Tooltip>
         )}
       </CardContent>
     </Card>

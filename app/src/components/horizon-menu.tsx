@@ -2,10 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Clock } from "lucide-react";
 import { researchHorizonFn } from "../server/factorio";
+import { HorizonHelpButton } from "./horizon-help";
 import { HorizonPicker, horizonLabel } from "./horizon-picker";
 import { Button } from "#/components/ui/button.tsx";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -34,13 +36,14 @@ export function HorizonMenu() {
           <Clock className="size-4" /> Horizon: <span className="text-foreground">{label}</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="md:max-w-[34rem]">
+      <DialogContent className="md:max-w-[37rem]">
         <DialogHeader>
           <DialogTitle>Planning horizon</DialogTitle>
+          <HorizonHelpButton className="mr-7 ml-auto" />
         </DialogHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <DialogBody>
           <HorizonPicker />
-        </div>
+        </DialogBody>
       </DialogContent>
     </Dialog>
   );

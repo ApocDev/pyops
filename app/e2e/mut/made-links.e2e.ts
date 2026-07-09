@@ -35,8 +35,8 @@ test("marking an import made without a producer keeps it a silent import", async
   await markItem.click();
 
   // no producer exists for it, so marking made is a non-event: NO "no recipe
-  // makes this" strip, and the good still shows as an import
-  await expect(page.getByText(/No recipe makes/)).toBeHidden();
+  // yet" strip, and the good still shows as an import
+  await expect(page.getByText(/no recipe yet/)).toBeHidden();
   await expect(
     page.getByRole("button", { name: /^Iron ore.*(raw input|craftable)/ }).first(),
   ).toBeVisible();

@@ -30,7 +30,7 @@ import { recordRecent } from "../lib/recents";
 import { IconProvider, useSpoilables } from "../lib/icons";
 import { ModulesModal } from "../lib/modules-modal";
 import { Callout } from "#/components/ui/callout.tsx";
-import { Button } from "#/components/ui/button.tsx";
+import { Segmented } from "#/components/ui/segmented.tsx";
 import { Table2, Workflow } from "lucide-react";
 
 import { BlockTasks } from "../components/block/block-tasks.tsx";
@@ -779,25 +779,33 @@ function Block({ blockId }: { blockId: number }) {
 
       {/* Recipe table ↔ flow diagram (#101). A segmented toggle; the flow view
           is a read-only alternative rendering of the same solve. */}
-      <div className="mb-2 flex items-center gap-1">
-        <Button
-          variant="toggle"
+      <div className="mb-2">
+        <Segmented
+          aria-label="recipe view"
           size="sm"
-          aria-pressed={view === "table"}
-          onClick={() => setView("table")}
-        >
-          <Table2 className="size-4" />
-          Table
-        </Button>
-        <Button
-          variant="toggle"
-          size="sm"
-          aria-pressed={view === "flow"}
-          onClick={() => setView("flow")}
-        >
-          <Workflow className="size-4" />
-          Flow
-        </Button>
+          value={view}
+          onValueChange={setView}
+          options={[
+            {
+              value: "table",
+              label: (
+                <>
+                  <Table2 className="size-4" />
+                  Table
+                </>
+              ),
+            },
+            {
+              value: "flow",
+              label: (
+                <>
+                  <Workflow className="size-4" />
+                  Flow
+                </>
+              ),
+            },
+          ]}
+        />
       </div>
 
       {view === "flow" ? (

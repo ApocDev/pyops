@@ -25,6 +25,7 @@ import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Sheet, SheetContent, SheetTitle } from "#/components/ui/sheet.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 import { QueryError } from "#/components/query-error.tsx";
 import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
@@ -209,11 +210,14 @@ function FactoryPage() {
             <span className="text-sm text-muted-foreground">
               {statsSyncedAt ? (
                 <span className="inline-flex items-center gap-1 text-success">
-                  <Check className="size-3.5" /> live stats: {production.data?.syncedCount ?? 0}{" "}
-                  goods ({timeAgo(statsSyncedAt)})
+                  <Check className="size-3.5" /> live · {production.data?.syncedCount ?? 0} goods ·{" "}
+                  {timeAgo(statsSyncedAt)}
                 </span>
               ) : (
-                "no live stats — Sync in-game"
+                <span className="inline-flex items-center gap-1.5">
+                  no live stats
+                  <InfoHint content="Sync from the in-game PyOps panel." />
+                </span>
               )}
             </span>
             <Tooltip
@@ -465,8 +469,9 @@ function ChangeReport({ data }: { data: ChangeReportData }) {
     <Card className="mb-4 border-warning/40">
       <CardHeader>
         <CardTitle className="normal-case text-warning">
-          {data.affected} of {data.total} block(s) affected — review, then “recompute all” to apply
+          {data.affected}/{data.total} blocks affected
         </CardTitle>
+        <InfoHint content="Review the changes below, then “recompute all” (toolbar) to apply the fresh solves." />
       </CardHeader>
       <div className="divide-y divide-border">
         {data.reports.map((r) => (

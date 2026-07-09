@@ -11,11 +11,14 @@ import {
 } from "../server/factorio";
 import { Icon, IconProvider } from "../lib/icons";
 import { TechHover } from "../lib/recipe-card";
+import { InfoHint } from "./info-hint";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
+import { Checkbox } from "#/components/ui/checkbox.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
+import { Segmented } from "#/components/ui/segmented.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 
 /** Look up display names for a set of goods (science packs etc.) — memoised by key. */
@@ -36,6 +39,12 @@ type SaveArgs = {
   target?: string | null;
   miningProductivityBonus?: number | null;
 };
+
+const MODE_OPTIONS = [
+  { value: "now", label: "Now" },
+  { value: "future", label: "Future" },
+  { value: "target", label: "Up to target" },
+] as const;
 
 /** The planning-horizon control, shared by Settings and the header dialog. It owns
  * its own query/mutation so it can be dropped in anywhere. Changing it re-solves
@@ -71,69 +80,54 @@ export function HorizonPicker() {
 
   return (
     <IconProvider>
-      <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          What can the planner use? <b>Now</b> — only recipes reachable with the science packs you
-          produce and your current TURD choices. <b>Future</b> — anything, flagging what to unlock.{" "}
-          <b>Up to target</b> — everything unlocked by a target good's tech and its prerequisites,
-          and nothing beyond (plan ahead to a goal without reaching for far-future tech). Applies
-          everywhere: blocks, the picker, and the assistant.
-        </p>
-        <div className="flex gap-2">
-          {(
-            [
-              ["now", "Now"],
-              ["future", "Future"],
-              ["target", "Up to target"],
-            ] as const
-          ).map(([m, label]) => (
-            <Button
-              key={m}
-              variant="toggle"
-              aria-pressed={d.mode === m}
-              onClick={() => save.mutate({ mode: m })}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
+      <div className="space-y-4">
+        <Segmented
+          aria-label="planning horizon mode"
+          value={d.mode}
+          onValueChange={(m) => save.mutate({ mode: m })}
+          options={MODE_OPTIONS}
+        />
 
         {d.syncedAt && (
           <div className="flex items-center gap-1.5 text-sm text-success">
-            <Check className="size-3.5 shrink-0" /> live: {d.syncedCount} techs synced from the game
+            <Check className="size-3.5 shrink-0" /> live · {d.syncedCount} techs synced
             {d.mode !== "now" && (
-              <span className="text-muted-foreground"> — switch to Now to plan against it</span>
+              <InfoHint content="Synced research only applies in Now mode." className="ml-0.5" />
             )}
           </div>
         )}
 
         {d.mode === "now" && (
           <>
-            <div>
-              <FieldLabel>
-                science packs you produce (recipes needing only these count as available)
+            <section className="space-y-1.5 border-t border-border pt-3">
+              <FieldLabel className="flex items-center gap-1.5">
+                science packs you produce
+                <InfoHint content="A recipe counts as available when every science pack its research needs is ticked here." />
               </FieldLabel>
-              <div className="mt-1 grid grid-cols-2 gap-1 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-x-3 gap-y-1.5 sm:grid-cols-2">
                 {d.allPacks.map((p) => (
-                  <label key={p} className="flex items-center gap-2 text-sm" title={packName(p)}>
-                    <input
-                      type="checkbox"
-                      checked={d.packs.includes(p)}
-                      onChange={() => togglePack(p)}
-                    />
+                  <label
+                    key={p}
+                    className="flex cursor-pointer items-center gap-2 text-sm"
+                    title={packName(p)}
+                  >
+                    <Checkbox checked={d.packs.includes(p)} onCheckedChange={() => togglePack(p)} />
                     <Icon kind="item" name={p} size="sm" title={packName(p)} />
-                    <span>{packName(p)}</span>
+                    <span className="truncate">{packName(p)}</span>
                   </label>
                 ))}
               </div>
-            </div>
+            </section>
             <ResearchedPicker
               researched={d.researched}
               onSave={(r) => save.mutate({ researched: r })}
             />
-            <div>
-              <FieldLabel>mining productivity bonus</FieldLabel>
-              <div className="mt-1 flex items-center gap-2">
+            <section className="space-y-1.5 border-t border-border pt-3">
+              <FieldLabel className="flex items-center gap-1.5">
+                mining productivity bonus
+                <InfoHint content="Flat percent bonus applied to mining recipes. Leave blank to derive it from researched techs." />
+              </FieldLabel>
+              <div className="flex items-center gap-2">
                 <Input
                   key={`mining-${d.miningProductivityBonus ?? "unset"}`}
                   aria-label="mining productivity bonus percent"
@@ -145,7 +139,7 @@ export function HorizonPicker() {
                       ? ""
                       : formatPercent(d.miningProductivityBonus)
                   }
-                  placeholder="0"
+                  placeholder="auto"
                   onBlur={(e) => {
                     const raw = e.currentTarget.value.trim();
                     if (raw === "") {
@@ -165,26 +159,21 @@ export function HorizonPicker() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") e.currentTarget.blur();
                   }}
-                  className="w-28"
+                  className="w-24"
                 />
-                <span className="text-sm text-muted-foreground">
-                  percent; leave blank to derive from researched techs
-                </span>
+                <span className="text-sm text-muted-foreground">%</span>
               </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Current mining productivity:{" "}
+              <div className="text-sm text-muted-foreground">
+                mining{" "}
                 {d.miningProductivityBonus == null
-                  ? "derived from researched techs"
-                  : `+${formatPercent(d.miningProductivityBonus)}%`}
-                . Recipe productivity:{" "}
+                  ? "auto"
+                  : `+${formatPercent(d.miningProductivityBonus)}%`}{" "}
+                · recipe bonuses{" "}
                 {d.recipeProductivityBonusCount == null
-                  ? "derived from researched techs"
-                  : `${d.recipeProductivityBonusCount} exact synced bonus${
-                      d.recipeProductivityBonusCount === 1 ? "" : "es"
-                    }`}
-                .
+                  ? "auto"
+                  : `${d.recipeProductivityBonusCount} synced`}
               </div>
-            </div>
+            </section>
           </>
         )}
 
@@ -233,7 +222,7 @@ function TargetPicker({
   const packName = useGoodDisplays(packs);
 
   return (
-    <div className="space-y-2">
+    <section className="space-y-2 border-t border-border pt-3">
       {target ? (
         <Callout tone="primary" icon={null} className="bg-primary/5 p-2.5">
           <div className="space-y-2">
@@ -277,10 +266,7 @@ function TargetPicker({
           </div>
         </Callout>
       ) : (
-        <div className="text-sm text-muted-foreground">
-          Pick the good you're building toward — the planner allows tech up to (and including) what
-          unlocks it.
-        </div>
+        <div className="text-sm text-muted-foreground">Pick the good you're building toward.</div>
       )}
       <Input
         value={term}
@@ -315,7 +301,7 @@ function TargetPicker({
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -345,16 +331,19 @@ function ResearchedPicker({
     );
 
   return (
-    <div>
-      <FieldLabel>completed research (explicit — supplements the science-pack horizon)</FieldLabel>
+    <section className="space-y-1.5 border-t border-border pt-3">
+      <FieldLabel className="flex items-center gap-1.5">
+        completed research
+        <InfoHint content="Explicitly-marked techs, on top of what the science packs above already unlock." />
+      </FieldLabel>
       <Input
         value={term}
         placeholder="search a tech to mark researched…"
         onChange={(e) => setTerm(e.target.value)}
-        className="mt-1 w-72"
+        className="w-72"
       />
       {term.trim().length >= 2 && results.data && results.data.length > 0 && (
-        <div className="mt-1 max-h-44 overflow-auto border border-border">
+        <div className="max-h-44 overflow-auto border border-border">
           {results.data.map((t) => (
             <TechHover key={t.name} name={t.name} className="block">
               <Button
@@ -363,7 +352,11 @@ function ResearchedPicker({
                 title={t.display ?? t.name}
                 className="h-auto w-full justify-start gap-2 px-2 py-1 font-normal"
               >
-                <input type="checkbox" readOnly checked={researched.includes(t.name)} />
+                <Checkbox
+                  tabIndex={-1}
+                  checked={researched.includes(t.name)}
+                  className="pointer-events-none"
+                />
                 <Icon kind="technology" name={t.name} size="sm" noHover />
                 <span>{t.display ?? t.name}</span>
               </Button>
@@ -372,7 +365,7 @@ function ResearchedPicker({
         </div>
       )}
       {researched.length > 0 && (
-        <div className="mt-2 flex max-h-56 flex-wrap gap-1.5 overflow-auto border border-border p-2">
+        <div className="flex max-h-56 flex-wrap gap-1.5 overflow-auto border border-border p-2">
           {[...researched]
             .sort((a, b) => (dmap.get(a) ?? a).localeCompare(dmap.get(b) ?? b))
             .map((n) => (
@@ -396,7 +389,7 @@ function ResearchedPicker({
             ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 

@@ -5,6 +5,7 @@ import type { DepsDir, DepsNode, DepsTree } from "../../server/deps.ts";
 import { Icon } from "../../lib/icons";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
+import { Segmented } from "#/components/ui/segmented.tsx";
 import {
   Select,
   SelectContent,
@@ -93,22 +94,16 @@ export function DepsTreePane({
 
       {/* toolbar: direction, depth, in-tree filter */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="toggle"
+        <Segmented
+          aria-label="dependency direction"
           size="sm"
-          aria-pressed={dir === "requires"}
-          onClick={() => onDirChange("requires")}
-        >
-          Requires
-        </Button>
-        <Button
-          variant="toggle"
-          size="sm"
-          aria-pressed={dir === "requiredBy"}
-          onClick={() => onDirChange("requiredBy")}
-        >
-          Required by
-        </Button>
+          value={dir}
+          onValueChange={onDirChange}
+          options={[
+            { value: "requires", label: "Requires" },
+            { value: "requiredBy", label: "Required by" },
+          ]}
+        />
         <Select value={String(depth)} onValueChange={(v) => onDepthChange(Number(v))}>
           <SelectTrigger className="h-8 w-32" aria-label="tree depth">
             <SelectValue />

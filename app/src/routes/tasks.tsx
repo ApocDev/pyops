@@ -26,6 +26,7 @@ import { Callout } from "#/components/ui/callout.tsx";
 import { Checkbox } from "#/components/ui/checkbox.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
+import { Segmented } from "#/components/ui/segmented.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Textarea } from "#/components/ui/textarea.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
@@ -421,20 +422,21 @@ function StatusPills({
   onChange: (s: TaskStatus) => void;
 }) {
   return (
-    <div className="inline-flex w-fit flex-wrap items-center gap-1">
-      {STATUS_ORDER.map((s) => (
-        <Button
-          key={s}
-          variant="toggle"
-          size="sm"
-          aria-pressed={status === s}
-          onClick={() => onChange(s)}
-        >
-          <span className={`size-2 rounded-full ${STATUS_META[s].dot}`} />
-          {STATUS_META[s].label}
-        </Button>
-      ))}
-    </div>
+    <Segmented
+      aria-label="task status"
+      size="sm"
+      value={status}
+      onValueChange={onChange}
+      options={STATUS_ORDER.map((s) => ({
+        value: s,
+        label: (
+          <>
+            <span className={`size-2 rounded-full ${STATUS_META[s].dot}`} />
+            {STATUS_META[s].label}
+          </>
+        ),
+      }))}
+    />
   );
 }
 
@@ -707,7 +709,7 @@ function TaskDetail({
 
       <MarkdownField
         value={t.body ?? ""}
-        placeholder="Describe what to do — markdown supported"
+        placeholder="What to do — markdown ok"
         onSave={(body) => body !== (t.body ?? "") && save.mutate({ body })}
       />
 
@@ -1052,7 +1054,8 @@ function LinkPicker({
         onChange={(ev) => setQ(ev.target.value)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={(ev) => ev.key === "Escape" && setOpen(false)}
-        placeholder="search item / recipe / tech / block…"
+        placeholder="search anything…"
+        title="items, recipes, techs, and blocks"
         className="w-64"
       />
       {(results.data?.length ?? 0) > 0 && (
@@ -1136,7 +1139,7 @@ function NoteDetail({
         value={body}
         onChange={(ev) => setBody(ev.target.value)}
         onBlur={() => body !== (note.body ?? "") && save.mutate({ body })}
-        placeholder="Jot anything — quick calcs, reminders, ratios…"
+        placeholder="Quick notes — markdown ok"
         className="min-h-0 w-full flex-1 resize-none bg-background p-3 font-mono leading-relaxed"
       />
     </div>

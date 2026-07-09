@@ -228,8 +228,8 @@ function TurdPage() {
           {sync.data?.syncedAt && (
             <Tooltip content={`pushed from the game ${timeAgo(sync.data.syncedAt)}`}>
               <span className="inline-flex items-center gap-1 text-sm text-success">
-                <Check className="size-3.5" /> live: {sync.data.syncedCount ?? 0} synced (
-                {timeAgo(sync.data.syncedAt)})
+                <Check className="size-3.5" /> live · {sync.data.syncedCount ?? 0} synced ·{" "}
+                {timeAgo(sync.data.syncedAt)}
                 {sync.data.unknown.length > 0 && (
                   <Tooltip
                     content={sync.data.unknown.map((u) => `${u.master} → ${u.sub}`).join("\n")}

@@ -11,9 +11,12 @@ import {
 } from "../lib/logistics";
 import { formatQty } from "../lib/format";
 import { Icon, IconProvider } from "../lib/icons";
+import { InfoHint } from "./info-hint";
+import { LogisticsHelpButton } from "./logistics-help";
 import { Button } from "#/components/ui/button.tsx";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -64,10 +67,11 @@ export function LogisticsMenu() {
       <DialogContent className="md:max-w-[36rem]">
         <DialogHeader>
           <DialogTitle>Logistics throughput</DialogTitle>
+          <LogisticsHelpButton className="mr-7 ml-auto" />
         </DialogHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <DialogBody>
           <LogisticsPicker />
-        </div>
+        </DialogBody>
       </DialogContent>
     </Dialog>
   );
@@ -105,15 +109,12 @@ export function LogisticsPicker() {
 
   return (
     <IconProvider>
-      <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          Show how many <b>belts</b> carry each item across a row, and how many{" "}
-          <b>inserters or loaders</b> feed one building at the planned rate — sized against your
-          current research. A quick feasibility check (when inserters get silly, reach for loaders).
-        </p>
-
-        <div>
-          <FieldLabel>Show on block rows</FieldLabel>
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <FieldLabel className="flex items-center gap-1.5">
+            Show on block rows
+            <InfoHint content="Per-row belt / feeder / rocket counts at the planned rate — a quick feasibility check." />
+          </FieldLabel>
           <div className="mt-1 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             <label className="flex items-center gap-2">
               <Switch
@@ -141,9 +142,12 @@ export function LogisticsPicker() {
           </div>
         </div>
 
-        <div>
-          <FieldLabel>Belt</FieldLabel>
-          <div className="mt-1 flex flex-wrap gap-1.5">
+        <div className="space-y-1.5 border-t border-border pt-3">
+          <FieldLabel className="flex items-center gap-1.5">
+            Belt
+            <InfoHint content="The belt tier rows are sized against. Hover an option for its full-belt throughput." />
+          </FieldLabel>
+          <div className="flex flex-wrap gap-1.5">
             {d.options.belts.map((b) => (
               <Button
                 key={b.name}
@@ -159,9 +163,12 @@ export function LogisticsPicker() {
           </div>
         </div>
 
-        <div>
-          <FieldLabel>Inserter / loader (devices to feed a building)</FieldLabel>
-          <div className="mt-1 flex flex-wrap gap-1.5">
+        <div className="space-y-1.5 border-t border-border pt-3">
+          <FieldLabel className="flex items-center gap-1.5">
+            Inserter / loader
+            <InfoHint content="The device feeding each building. Hover an option for its per-device rate into a machine." />
+          </FieldLabel>
+          <div className="flex flex-wrap gap-1.5">
             {d.options.inserters.map((i) => (
               <Button
                 key={i.name}
@@ -191,7 +198,7 @@ export function LogisticsPicker() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3">
           <label className="flex items-center gap-2 text-sm">
             <Switch
               checked={d.prefs.stacking}
@@ -220,19 +227,22 @@ export function LogisticsPicker() {
         </div>
 
         <div className="border border-border bg-muted/30 p-2 text-sm text-muted-foreground">
-          Effective now: belt stack <b className="text-foreground">×{resolved.placedStack}</b>
+          belt stack <b className="text-foreground">×{resolved.placedStack}</b>
           {d.prefs.overrideStack != null && <span> (override)</span>}
           {handStack != null && (
             <>
-              {" · "}inserter hand <b className="text-foreground">×{handStack}</b>
+              {" · "}hand <b className="text-foreground">×{handStack}</b>
             </>
           )}
-          {" · "}research: belt +{d.bonuses.belt}, inserter +{d.bonuses.inserter}, bulk +
-          {d.bonuses.bulkInserter}.
-          <span className="text-muted-foreground/70">
-            {" "}
-            Stack sizes follow the Horizon's research; the override applies to belts only.
-          </span>
+          {" · "}
+          {d.bonuses.belt === 0 && d.bonuses.inserter === 0 && d.bonuses.bulkInserter === 0 ? (
+            "no stacking research yet"
+          ) : (
+            <>
+              research belt +{d.bonuses.belt} · inserter +{d.bonuses.inserter} · bulk +
+              {d.bonuses.bulkInserter}
+            </>
+          )}
         </div>
       </div>
     </IconProvider>

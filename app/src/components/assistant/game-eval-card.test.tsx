@@ -19,10 +19,11 @@ describe("GameEvalCard", () => {
   beforeEach(() => bridgeEval.mockReset());
 
   it("shows the exact Lua and does not execute until Run is clicked", () => {
-    const { getByText } = render(<GameEvalCard proposal={proposal} />);
+    const { getByText, getByLabelText } = render(<GameEvalCard proposal={proposal} />);
     expect(getByText("game.tick")).toBeTruthy();
     expect(getByText("read the tick")).toBeTruthy();
-    expect(getByText(/runs only if you approve/)).toBeTruthy();
+    // the approval gate is stated in the header's info hint
+    expect(getByLabelText(/runs only if you approve/i)).toBeTruthy();
     expect(bridgeEval).not.toHaveBeenCalled();
   });
 
@@ -38,7 +39,7 @@ describe("GameEvalCard", () => {
   it("Dismiss marks the proposal as not run", () => {
     const { getByText } = render(<GameEvalCard proposal={proposal} />);
     fireEvent.click(getByText("Dismiss"));
-    expect(getByText(/dismissed — not run/)).toBeTruthy();
+    expect(getByText("dismissed")).toBeTruthy();
     expect(bridgeEval).not.toHaveBeenCalled();
   });
 

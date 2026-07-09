@@ -5,6 +5,7 @@ import { listProjectsFn, setActiveProjectFn } from "../server/factorio";
 import { Button } from "#/components/ui/button.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { HelpButton } from "#/components/help-drawer.tsx";
 
 /** Settings card (#82): download the active project's database as a backup file,
  * and restore/import a .db as a new project (never overwriting an existing one). */
@@ -39,14 +40,24 @@ export function ProjectBackupCard() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="justify-between">
         <CardTitle>Project backup</CardTitle>
+        <HelpButton title="Project backup">
+          <p>
+            All planning work — blocks, goals, tasks, notes, settings — lives in the active
+            project&apos;s database file. Downloading it is safe while the app is running.
+          </p>
+          <p>
+            Importing a backup restores it as a <span className="text-foreground">new</span> project
+            — an import never overwrites an existing one. Switch to it afterwards from the button
+            that appears here, or from the project switcher.
+          </p>
+        </HelpButton>
       </CardHeader>
       <div className="space-y-3 px-3 pb-3">
         <p className="text-sm text-muted-foreground">
-          All planning work lives in the project&apos;s database file. Download it as a backup (safe
-          while the app is running), and restore a backup as a new project — an import never
-          overwrites anything.
+          All planning work lives in the project&apos;s database file — back it up or restore one
+          here.
         </p>
         {projects.isPending ? (
           <Skeleton className="h-8 w-full" />

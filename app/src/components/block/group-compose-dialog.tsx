@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "#/components/u
 import { Button } from "#/components/ui/button.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { Checkbox } from "#/components/ui/checkbox.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 import type { Goal } from "../../db/schema";
 import { Icon } from "../../lib/icons";
 
@@ -64,10 +65,9 @@ export function GroupComposeDialog({
             onSave(goals);
           }}
         >
-          <p className="text-muted-foreground">
-            Internal goals size this module. They stay hidden from the factory — the parent block
-            consumes the output like a recipe product, and any forced co-product still exports as a
-            byproduct.
+          <p className="flex items-center gap-1.5 text-muted-foreground">
+            Internal goals size this module — hidden from the factory.
+            <InfoHint content="The parent block consumes the module's output like a recipe product; any forced co-product still exports as a byproduct." />
           </p>
           {candidates.length === 0 ? (
             <p className="text-muted-foreground">

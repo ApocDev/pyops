@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "#/components/u
 import { Button } from "#/components/ui/button.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 import {
   Select,
   SelectContent,
@@ -136,11 +137,10 @@ export function PinDialog({
 
           {shareable.length > 0 && (
             <div>
-              <FieldLabel>Route a share of an input</FieldLabel>
-              <p className="mt-0.5 text-muted-foreground">
-                This row takes a fixed % of an item&apos;s in-block production (after exactly-pinned
-                consumers take theirs) — the byproduct-routing gesture.
-              </p>
+              <FieldLabel className="flex items-center gap-1.5">
+                Route a share of an input
+                <InfoHint content="This row takes a fixed % of an item's in-block production (after exactly-pinned consumers take theirs) — the byproduct-routing gesture." />
+              </FieldLabel>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <Select value={shareItem} onValueChange={setShareItem}>
                   <SelectTrigger className="h-8 w-44">
@@ -179,7 +179,7 @@ export function PinDialog({
                 </Button>
               </div>
               {drainPins.length > 0 && (
-                <div className="mt-1 flex flex-col gap-0.5 text-muted-foreground">
+                <div className="mt-1 flex flex-col gap-1 text-muted-foreground">
                   {drainPins.map((p) => (
                     <span key={p.item} className="flex items-center gap-1.5">
                       drains all surplus {label(p.item)} (nothing exports)
@@ -198,7 +198,7 @@ export function PinDialog({
                 </div>
               )}
               {sharePins.length > 0 && (
-                <div className="mt-1 flex flex-col gap-0.5 text-muted-foreground">
+                <div className="mt-1 flex flex-col gap-1 text-muted-foreground">
                   {sharePins.map((p) => (
                     <span key={p.item} className="flex items-center gap-1.5">
                       takes {Math.round(p.share * 100)}% of {label(p.item)}

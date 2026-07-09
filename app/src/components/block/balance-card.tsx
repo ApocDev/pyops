@@ -114,7 +114,7 @@ export function BalanceCard({
               {res.diagnosis.map((card, ci) => (
                 <div key={ci}>
                   <div className="mb-1 font-semibold">
-                    These can&apos;t all hold — fixing any one repairs the block:
+                    Can&apos;t all hold — fixing one repairs the block:
                   </div>
                   <div className="flex flex-col gap-1">
                     {card.members.map((m, mi) => {
@@ -228,7 +228,7 @@ export function BalanceCard({
             <div className="border-b border-border px-3 py-2 text-sm text-warning">
               <div className="mb-1 flex items-center gap-1 font-semibold">
                 <AlertTriangle className="size-3.5 shrink-0" />
-                No recipe makes {res.unmade.length === 1 ? "this" : "these"} yet — add one:
+                no recipe yet — add:
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-2">
                 {res.unmade.map((n) => (
@@ -343,7 +343,7 @@ export function BalanceCard({
                     </span>
                   ))
                 ) : (
-                  <span className="text-sm text-muted-foreground">none — nothing to bring in</span>
+                  <span className="text-sm text-muted-foreground">none</span>
                 )}
               </div>
             </div>

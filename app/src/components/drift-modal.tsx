@@ -11,11 +11,14 @@ import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "#/components/ui/dialog.tsx";
+import { HelpButton } from "#/components/help-drawer.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 
 const TWO_HOURS = 2 * 60 * 60 * 1000;
 const BRIDGE_FRESH_MS = 6000;
@@ -165,12 +168,28 @@ export function DriftModal() {
       }}
     >
       <DialogContent className="md:max-w-[34rem]">
-        <DialogHeader className="gap-2 pr-10">
+        <DialogHeader className="gap-2">
           <TitleIcon className={`size-5 shrink-0 ${title.tone}`} />
           <DialogTitle>{title.text}</DialogTitle>
+          <HelpButton title="Data drift" className="mr-7 ml-auto">
+            <p>
+              PyOps plans against a snapshot of the game&apos;s prototype data (recipes, items,
+              machines, techs). When the game&apos;s mod set changes, that snapshot drifts out of
+              date and this dialog offers a re-sync.
+            </p>
+            <p>
+              A re-sync launches a headless copy of Factorio to re-dump the data, then imports it.
+              Pure renames are applied to your saved blocks automatically; anything that genuinely
+              changed (or vanished) is flagged on the affected blocks for review.
+            </p>
+            <p>
+              Re-dumping icon sprites rebuilds the icon atlas. It loads the full game, so it&apos;s
+              much slower — only needed when a mod&apos;s visuals changed.
+            </p>
+          </HelpButton>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+        <DialogBody>
           {view === "prompt" && (
             <PromptBody
               hasDrift={hasDrift}
@@ -185,12 +204,10 @@ export function DriftModal() {
           )}
           {view === "done" && <DoneBody log={log} />}
           {view === "error" && (
-            <Callout tone="destructive" className="mt-3">
-              {sync.data?.error ?? "Sync failed."}
-            </Callout>
+            <Callout tone="destructive">{sync.data?.error ?? "Sync failed."}</Callout>
           )}
           {(view === "running" || view === "done" || view === "error") && log.length > 0 && (
-            <details className="mt-3 text-xs">
+            <details className="text-xs">
               <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
                 raw log
               </summary>
@@ -199,7 +216,7 @@ export function DriftModal() {
               </pre>
             </details>
           )}
-        </div>
+        </DialogBody>
 
         <DialogFooter>
           {view === "prompt" && (
@@ -280,8 +297,8 @@ function PromptBody({
       )}
       <p className="text-sm text-muted-foreground">
         {hasDrift
-          ? "The game's mods changed since your last sync, so your saved plans were built against an older mod set. Re-sync to pull the current data — pure renames are applied automatically, and anything that genuinely changed is flagged on your blocks."
-          : "Re-dump the game's prototype data from the current mods and import it. Pure renames are applied to your saved blocks automatically."}
+          ? "The game's mods changed since your last sync — re-sync to plan against the current data."
+          : "Re-dump the game's prototype data from the current mods and import it."}
       </p>
       {hasDrift && (
         <div className="max-h-48 overflow-y-auto border border-border bg-muted/20 p-2">
@@ -295,12 +312,9 @@ function PromptBody({
           onChange={(e) => setIcons(e.target.checked)}
           className="mt-0.5"
         />
-        <span>
+        <span className="flex items-center gap-1.5">
           <span className="text-foreground">Also re-dump icon sprites</span>
-          <span className="mt-0.5 block text-sm text-muted-foreground">
-            Rebuilds the icon atlas — loads the full game, so it&apos;s much slower. Only needed
-            when a mod&apos;s visuals changed.
-          </span>
+          <InfoHint content="Rebuilds the icon atlas — loads the full game, so it's much slower. Only needed when a mod's visuals changed." />
         </span>
       </label>
     </div>
@@ -355,7 +369,7 @@ function Stepper({
             <StepGlyph status={st} />
             <div className="min-w-0 flex-1">
               <div className={`text-sm ${labelCls}`}>{s.label}</div>
-              <div className={`text-xs ${active ? "text-info/70" : "text-muted-foreground"}`}>
+              <div className={`text-sm ${active ? "text-info/70" : "text-muted-foreground"}`}>
                 {s.detail}
               </div>
             </div>
@@ -387,8 +401,7 @@ function DoneBody({ log }: { log: string[] }) {
         </ul>
       )}
       <p className="text-sm text-muted-foreground">
-        Saved blocks that referenced changed prototypes may need a recompute — renamed ones were
-        healed automatically; anything that vanished is flagged for review.
+        Blocks that referenced changed prototypes are flagged for review.
       </p>
     </div>
   );

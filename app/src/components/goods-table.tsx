@@ -17,6 +17,7 @@ import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
 import { StatSortHeader } from "#/components/stat-sort-header.tsx";
 import { Icon } from "../lib/icons";
@@ -136,7 +137,7 @@ export function GoodsSection({
   if (rows.length === 0) return null;
   return (
     <Card>
-      <CardHeader className="justify-between">
+      <CardHeader className="gap-1.5">
         <button
           onClick={toggleFold}
           className="flex items-center gap-1 text-left"
@@ -151,7 +152,7 @@ export function GoodsSection({
             {title} ({rows.length})
           </CardTitle>
         </button>
-        <span className="text-sm text-muted-foreground">{hint}</span>
+        <InfoHint content={hint} />
       </CardHeader>
       {!folded && (
         // capped so a late-game 200-row section scrolls internally instead of

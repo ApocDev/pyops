@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Check, Gamepad2, Loader2, Play, X } from "lucide-react";
 
 import { Button } from "#/components/ui/button.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 import { bridgeEvalFn } from "#/server/bridge/fns.ts";
 
 export type GameEvalProposal = {
@@ -56,10 +57,8 @@ export function GameEvalCard({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-semibold">
           <Gamepad2 className="size-4 text-info" />
-          <span>
-            Proposed in-game Lua{" "}
-            <span className="font-normal text-muted-foreground">— runs only if you approve it</span>
-          </span>
+          <span>Proposed in-game Lua</span>
+          <InfoHint content="Runs only if you approve it." />
         </div>
         <div className="flex items-center gap-1.5">
           {(status === "idle" || status === "failed") && (
@@ -91,7 +90,7 @@ export function GameEvalCard({
             </span>
           )}
           {status === "dismissed" && (
-            <span className="text-sm text-muted-foreground">dismissed — not run</span>
+            <span className="text-sm text-muted-foreground">dismissed</span>
           )}
         </div>
       </div>

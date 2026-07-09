@@ -162,13 +162,13 @@ export function RecipeRow({
                 {display}
               </span>
               {off ? (
-                <span className="text-sm font-semibold text-muted-foreground">
-                  disabled — excluded from the solve
-                </span>
+                <Tooltip content="excluded from the solve">
+                  <span className="text-sm font-semibold text-muted-foreground">disabled</span>
+                </Tooltip>
               ) : idle ? (
-                <span className="text-sm font-semibold text-muted-foreground">
-                  idle — nothing in this block pulls it
-                </span>
+                <Tooltip content="nothing in this block pulls it">
+                  <span className="text-sm font-semibold text-muted-foreground">idle</span>
+                </Tooltip>
               ) : row ? (
                 <span className="text-sm text-muted-foreground">{num(row.rate)}/s</span>
               ) : null}

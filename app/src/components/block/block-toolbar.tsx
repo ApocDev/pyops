@@ -24,6 +24,7 @@ import {
 } from "#/components/ui/sheet.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 import { Icon } from "../../lib/icons";
 import { Legend } from "./legend.tsx";
 import { craftableStyle, linkStyle } from "./item-chip.tsx";
@@ -208,9 +209,11 @@ export function BlockToolbar({
         </Button>
       </Tooltip>
       {!blockEnabled && (
-        <Badge className="border-transparent bg-warning/15 font-semibold text-warning">
-          disabled — excluded from factory totals
-        </Badge>
+        <Tooltip content="excluded from factory totals">
+          <Badge className="border-transparent bg-warning/15 font-semibold text-warning">
+            disabled
+          </Badge>
+        </Tooltip>
       )}
       {buildCost && buildCost.buildings.length > 0 && (
         <Sheet>
@@ -229,9 +232,9 @@ export function BlockToolbar({
               <SheetTitle>Building summary</SheetTitle>
             </SheetHeader>
             <div className="min-h-0 flex-1 space-y-4 overflow-auto p-3">
-              <p className="text-sm text-muted-foreground">
-                The buildings to construct this block, and the one-time materials to build them — a
-                shopping list, separate from the per-second flows.
+              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                One-time build costs — separate from per-second flows.
+                <InfoHint content="The buildings to construct this block, and the one-time materials to build them — a shopping list." />
               </p>
               <div>
                 <FieldLabel className="mb-1.5">Buildings</FieldLabel>
@@ -279,9 +282,6 @@ export function BlockToolbar({
         <Legend cls={linkStyle.import} label="raw in" />
         <Legend cls={craftableStyle} label="craftable" />
         <Legend cls={linkStyle.export} label="export" />
-        <Tooltip content="right-click any item for actions (make a goal, lock as sizing input, mark made-in-block or import it instead, locate in game).">
-          <span className="text-muted-foreground/70">· right-click = menu</span>
-        </Tooltip>
       </span>
       <HelpButton title="What is a block?">
         <p>
@@ -330,9 +330,9 @@ export function BlockToolbar({
         <p>
           <span className="text-foreground">You drive it, not an optimizer.</span> You choose the
           recipes, pin building counts, and split a good between competing consumers; PyOps solves
-          the system you describe. <span className="text-foreground">Right-click</span> any item to
-          make it a goal, lock it as a sizing input, or toggle its made-in-block mark — the colored
-          legend shows each item&apos;s role.
+          the system you describe. <span className="text-foreground">Right-click</span> any item for
+          its actions — make it a goal, lock it as a sizing input, mark it made-in-block or import
+          it instead, or locate it in game; the colored legend shows each item&apos;s role.
         </p>
         <div>
           <div className="font-semibold text-foreground">Sub-blocks</div>

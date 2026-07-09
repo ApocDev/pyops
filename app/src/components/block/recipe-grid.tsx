@@ -16,6 +16,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Card } from "#/components/ui/card.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 import { moveGroupSpan, resolveGroupAfterMove, type RowGroup } from "../../lib/row-groups";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
@@ -169,8 +170,12 @@ export function RecipeGrid({
       <div className={HEAD}>
         <span>Recipe ({recipes.length})</span>
         <span>Machines</span>
-        <span>Ingredients ↓ (click to add a producer)</span>
-        <span>Products ↑ (click to add a consumer)</span>
+        <span className="flex items-center gap-1.5">
+          Ingredients ↓<InfoHint content="click an ingredient to add a producer" />
+        </span>
+        <span className="flex items-center gap-1.5">
+          Products ↑<InfoHint content="click a product to add a consumer" />
+        </span>
       </div>
       {recipes.length === 0 && (
         <div className="px-3 py-2 text-muted-foreground">

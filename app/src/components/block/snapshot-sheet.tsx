@@ -15,6 +15,7 @@ import { Input } from "#/components/ui/input.tsx";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "#/components/ui/sheet.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 import type { BlockData } from "../../db/schema.ts";
 import {
   createSnapshotFn,
@@ -111,9 +112,12 @@ export function SnapshotSheet({
         <SheetHeader className="h-auto gap-2 py-3 pr-12">
           <History className="size-5 shrink-0 text-muted-foreground" />
           <div className="min-w-0 flex-1">
-            <SheetTitle className="truncate">Snapshots</SheetTitle>
+            <SheetTitle className="flex items-center gap-1.5 truncate">
+              Snapshots
+              <InfoHint content="Automatic snapshots are taken before deletes, restores, resizes, and (at most every 10 minutes) ordinary edits; the newest 20 are kept per block. Manual snapshots stay until you delete them." />
+            </SheetTitle>
             <div className="truncate text-sm text-muted-foreground">
-              {currentName || "this block"} — named restore points beyond undo&apos;s reach
+              {currentName || "this block"}
             </div>
           </div>
         </SheetHeader>
@@ -124,7 +128,7 @@ export function SnapshotSheet({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !busy && void snapshotNow()}
-              placeholder="label (optional) — e.g. before TURD swap"
+              placeholder="label (optional)"
               className="min-w-0 flex-1"
             />
             <Button onClick={() => void snapshotNow()} disabled={busy} className="shrink-0 gap-1.5">
@@ -132,12 +136,6 @@ export function SnapshotSheet({
               Snapshot now
             </Button>
           </div>
-          <p className="mb-3 text-sm text-muted-foreground">
-            Automatic snapshots are taken before deletes, restores, resizes, and (at most every 10
-            minutes) ordinary edits; the newest 20 are kept per block. Manual snapshots stay until
-            you delete them.
-          </p>
-
           {error && (
             <Callout tone="destructive" className="mb-3">
               {error}
