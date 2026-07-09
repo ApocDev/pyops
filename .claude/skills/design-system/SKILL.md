@@ -9,8 +9,9 @@ Read [`docs/design.md`](../../../docs/design.md) before writing UI — it is the
 contract. The hard rules, as a checklist:
 
 - **Primitives, not hand-rolled markup.** `Button`, `Input`, `Textarea`,
-  `Select`, `Badge`, `Card`, `Dialog`, `Sheet` from `app/src/components/ui/`;
-  `PageHeader`, `EmptyState`, `SidebarShell`, `GoodsSection`/`StatCell` from
+  `Select`, `Badge`, `Card`, `Dialog`/`DialogBody`, `Sheet`, `Segmented` from
+  `app/src/components/ui/`; `PageHeader`, `EmptyState`, `SidebarShell`,
+  `GoodsSection`/`StatCell`, `HelpButton`, `InfoHint` from
   `app/src/components/`; `CursorHover` from `app/src/lib/hover.tsx`. Writing
   `className="border px-2 …"` on a raw `<button>`/`<input>` is a bug.
 - **Tokens, not palette classes.** Never `text-emerald-300`, `bg-zinc-800`, or
@@ -30,6 +31,10 @@ contract. The hard rules, as a checklist:
   windows resize freely; Steam Deck = 1280×800 touch): capability parity at
   all widths, no sideways scroll, targets ≥ `h-8`, hover is enhancement only.
 - **Localized `display` names only**; internal names are keys/tooltips.
+- **Controls first, explanation on demand.** No paragraph above the controls:
+  ≤1 short inline sentence; one clause → `InfoHint` on the label; longer →
+  a `HelpButton` drawer. Choose-one mode switches use `Segmented`, not loose
+  toggle chips.
 - New recurring pattern → add a shared component, don't inline it twice.
 
 The whole app complies as of the #17 migration — the file you're editing is

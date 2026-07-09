@@ -22,6 +22,17 @@ rather than inlining it twice.
 - **Readable floor.** Body and data text is `text-sm` or larger — see Typography.
 - **Localized names, always.** UI shows the `display` name; internal names
   (`iron-pulp-07`) are keys only, surfaced at most in a tooltip/`title`.
+- **Controls first, explanation on demand.** A surface never opens with a
+  paragraph explaining what it is. Inline copy is at most one short sentence;
+  one clause of context is an `InfoHint` tooltip on the label; anything longer
+  lives in a `HelpButton` drawer (or `docs/`). If a label needs a parenthetical
+  to be understood, shorten the label and move the parenthetical to a hint.
+- **Chrome carries signal, not documentation.** Section headers are
+  `Title (count)` — the explaining clause is an `InfoHint`, never a permanent
+  caption. Status lines are compact `word · count · time` (`live · 40 goods ·
+3m`), with any "how to fix it" in a hint or action, not an instruction tail.
+  Per-row state is a one-word badge with a `Tooltip`; the same qualifier never
+  repeats down a list.
 
 ## Foundations
 
@@ -75,6 +86,12 @@ the state must also be legible from an icon, label, or value.
 - Flat surfaces separated by `border` (1px) and background steps
   (`bg-card`, `bg-muted`), not shadows. Shadows only on floating layers
   (popovers, dropdowns, hover cards).
+- **Floating layers must visibly separate from the page.** Menus (dropdown,
+  context menu) and tooltips are **opaque** `bg-popover` with `ring-1
+ring-foreground/15` (or an equivalent border) + `shadow-lg` — never translucent;
+  they float over dense data. The large glass surfaces (`Dialog`, `Sheet`) stay
+  `bg-popover/90` + `backdrop-blur` with the same ring. Don't weaken these in
+  per-surface overrides.
 
 ### Spacing
 
@@ -108,10 +125,13 @@ Reach for these before writing markup:
 | Status chip / count | `Badge` — semantic tint via `className` (e.g. `bg-warning/15 text-warning border-transparent`). |
 | Status message / banner | `Callout` (`ui/callout.tsx`) — `tone` success/warning/info/destructive/primary, default icon per tone, optional `title`/`action`; `variant="strip"` for full-bleed rows inside cards. |
 | Transient feedback | `toast()` (`lib/toast-store.ts`) — non-blocking bottom-right queue rendered by the `Toaster` in `ui/toast.tsx` (mounted once in the root). Tones default/success/destructive, auto-dismiss, optional action button ("Undo", "Reload"); callable from anywhere, not just components. For feedback about a completed/failed action — anything needing a decision is a `Dialog`, anything persistent a `Callout`. |
-| Segmented choice / on-off toggle | `Button variant="toggle"` with `aria-pressed` — active state styles itself from the aria attribute. |
+| Choose-one mode switch | `Segmented` (`ui/segmented.tsx`) — joined segments in one border, active segment filled `primary`. For mutually exclusive modes (Now/Future/Target, Table/Flow, Requires/Required-by). |
+| Independent on/off chip(s) | `Button variant="toggle"` with `aria-pressed` — for multi-select filters and wrapping many-option picks; not for a choose-one mode switch (that's `Segmented`). |
 | Micro caption over a field group | `FieldLabel` (`ui/label.tsx`) — the uppercase muted eyebrow; `Label` stays the `text-sm` form label. |
 | Panel with a title | `Card` + `CardHeader`/`CardTitle`/`CardContent`. |
-| Confirmation / focused edit | `Dialog` (`ui/dialog.tsx`) — centered modal at `md+`, docks to the bottom as a sheet below. Never a bare centered modal on phones. |
+| Confirmation / focused edit | `Dialog` (`ui/dialog.tsx`) — centered modal at `md+`, docks to the bottom as a sheet below. Never a bare centered modal on phones. Body content goes in `DialogBody` (the `p-4 space-y-4` scroll region); separate logical groups with `border-t border-border pt-3` sections, each headed by a `FieldLabel`. |
+| Long-form "what is this?" docs | `HelpButton` (`components/help-drawer.tsx`) — a `?` button opening a right-side docs Sheet. Concepts are explained there (or in `docs/`), **not** in paragraphs above the controls. |
+| One clause of context on a label | `InfoHint` (`components/info-hint.tsx`) — a small ⓘ with a tooltip beside a `FieldLabel`. Replaces parenthetical explanations crammed into labels. |
 | Destructive-action confirm | `ConfirmDialog` (`components/confirm-dialog.tsx`) — the app's one "are you sure?", built on `AlertDialog` (`ui/alert-dialog.tsx`, radix; shares Dialog's surface + responsive bottom-sheet, but no × close or outside-dismiss — Cancel or a destructive-variant confirm). Body copy names exactly what's destroyed (e.g. block name + recipe/goal counts). Only for big/irreversible deletes (block, project, companion mod, chat); small undo-logged deletes skip the confirm and fire immediately with a toast whose Undo action shortcuts into the undo system (`deletedToast`/`undoToast` in `lib/undo-client.ts`). Never `window.confirm`. |
 | Slide-over / drawer / collapsed rail | `Sheet`. |
 | Page title row + toolbar | `PageHeader` (`components/page-header.tsx`). |
