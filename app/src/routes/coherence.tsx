@@ -110,6 +110,11 @@ function CoherencePage() {
                 <Link to="/factory">totals →</Link>
               </Button>
             </Tooltip>
+            <Tooltip content="Re-balance the whole factory at once — solve every block's rate together and apply">
+              <Button asChild variant="outline" size="sm">
+                <Link to="/whatif">re-balance all →</Link>
+              </Button>
+            </Tooltip>
             <FilterInput
               value={search}
               onValueChange={setSearch}

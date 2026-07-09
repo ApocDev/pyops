@@ -312,6 +312,102 @@ export const factoryWhatIfFn = createServerFn({ method: "POST" })
     };
   });
 
+// Re-balance convergence controls. The factory what-if models each block as one
+// uniform scalar, but a block only scales linearly with its PRIMARY goal — a
+// second goal, a keep-in-stock goal, spoil rates, or a count/cap pin are fixed
+// offsets (see boundaryFlows). So one LP pass is a *linearization* around the
+// current rates; blocks with those fixed parts land off-target and a fresh solve
+// still shows residual changes. We iterate solve→apply (re-linearizing each pass)
+// until every block's scale settles, then persist once — successive substitution.
+const REBALANCE_MAX_PASSES = 15;
+const REBALANCE_TOL = 0.005; // settled when the largest per-pass scale step < 0.5%
+
+/** Apply a whole-factory re-balance (what-if "apply all"): iterate the same LP the
+ * what-if page shows — for the given demand overrides (empty = keep every final
+ * product at its current rate) — to convergence, re-solving each block against the
+ * previous pass's rates, then persist every block whose settled rate differs from
+ * where it started. The whole batch is ONE undo step ("Re-balance factory").
+ *
+ * All iteration is in memory (no intermediate writes): only the converged rates
+ * are persisted, so the undo log holds a single clean before/after per block.
+ * Blocks the solve leaves put (sinks, power/utility, ~0 delta) never change; a
+ * block that fails to re-solve is reported broken and left as-is. `passes` and
+ * `residual` report how far it got — a non-Optimal solve or hitting the pass cap
+ * means the target can't be balanced exactly (typically byproduct surplus). */
+export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
+  .validator((d: { demands?: Record<string, number> }) => d)
+  .handler(async ({ data }) => {
+    const overrides = data.demands ?? {};
+    // enabled blocks only (the set the what-if solves over), each with its live doc
+    const base = q
+      .blocksWithFlows()
+      .map((b) => {
+        const row = q.getBlock(b.id);
+        if (!row) return null;
+        return {
+          id: b.id,
+          name: b.name,
+          iconKind: row.iconKind,
+          iconName: row.iconName,
+          doc: normalizeBlockData(row.data as SolveInput) as SolveInput,
+          startRate: b.rate,
+          cachedFlows: b.flows, // fall back to these if a fresh solve is broken
+        };
+      })
+      .filter((b): b is NonNullable<typeof b> => b !== null);
+
+    let status = "Optimal";
+    let passes = 0;
+    let residual = 0;
+    for (; passes < REBALANCE_MAX_PASSES; passes++) {
+      // solve each block at its current (in-memory) rate → boundary flows for the LP
+      const withFlows = await Promise.all(
+        base.map(async (b) => {
+          const r = await computeBlock(b.doc);
+          const flows = r.broken ? b.cachedFlows : boundaryFlows(goalFlows(b.doc), r);
+          return { id: b.id, name: b.name, rate: primaryRate(b.doc), flows };
+        }),
+      );
+      const result = await factoryWhatIf(withFlows, overrides);
+      status = result.status;
+      const scaleById = new Map(result.blocks.map((rb) => [rb.id, rb.scale]));
+      residual = result.blocks.reduce((m, rb) => Math.max(m, Math.abs(rb.scale - 1)), 0);
+      // a non-Optimal solve is not safe to apply — stop and report where we are
+      if (status !== "Optimal" || residual <= REBALANCE_TOL) break;
+      for (const b of base) {
+        const s = scaleById.get(b.id) ?? 1;
+        if (Math.abs(s - 1) < 1e-9) continue;
+        b.doc = withPrimaryRate(b.doc, +(primaryRate(b.doc) * s).toFixed(4)) as SolveInput;
+      }
+    }
+
+    const applied: { id: number; name: string; from: number; to: number }[] = [];
+    const broken: { id: number; name: string }[] = [];
+    if (status === "Optimal") {
+      await withUndoAction("Re-balance factory", async () => {
+        for (const b of base) {
+          const finalRate = +primaryRate(b.doc).toFixed(4);
+          // relative gate (matches the what-if UI's SCALE_EPS): don't rewrite a
+          // block for a sub-percent wiggle — that's within rounding, not a change
+          const rel = b.startRate > 1e-9 ? Math.abs(finalRate / b.startRate - 1) : 0;
+          if (rel <= REBALANCE_TOL) continue;
+          const r = await computeBlock(b.doc);
+          if (r.broken) {
+            broken.push({ id: b.id, name: b.name });
+            continue;
+          }
+          await persistBlock(
+            { id: b.id, name: b.name, iconKind: b.iconKind, iconName: b.iconName },
+            b.doc,
+            r,
+          );
+          applied.push({ id: b.id, name: b.name, from: b.startRate, to: finalRate });
+        }
+      });
+    }
+    return { status, passes, residual: +residual.toFixed(4), applied, broken };
+  });
+
 /** Per-machine required (across blocks) vs. built (live from the game), plus the
  * sync status — drives the "under-built" view. */
 export const machineSufficiencyFn = createServerFn({ method: "GET" }).handler(async () => {

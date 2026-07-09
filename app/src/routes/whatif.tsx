@@ -12,6 +12,7 @@ import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
+import { RebalanceAllButton } from "#/components/whatif/rebalance-all-button.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
 import { StatTableHeader } from "#/components/stat-table.tsx";
 
@@ -172,7 +173,17 @@ function WhatIf() {
         <Card className="lg:col-span-2">
           <CardHeader className="justify-between">
             <CardTitle className="normal-case">Block changes ({changed.length})</CardTitle>
-            <span className="text-sm text-muted-foreground">scale each block to rebalance</span>
+            <div className="flex items-center gap-3">
+              <span className="hidden text-sm text-muted-foreground sm:inline">
+                apply all, or scale each by hand
+              </span>
+              <RebalanceAllButton
+                changed={changed}
+                overrides={overrides}
+                status={r?.status}
+                onApplied={() => setOverrides({})}
+              />
+            </div>
           </CardHeader>
           <StatTableHeader
             lead="block"
