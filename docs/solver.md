@@ -273,6 +273,11 @@ toolbar applies all suggestions at once (confirming when it would overwrite
 rows that already have modules). The assistant's draft-a-block adopts the
 suggestions as the draft's explicit picks and re-solves with them.
 
+The modules dialog still lists eligible higher-tier modules and beacon variants,
+but marks choices outside the current research horizon as locked and prevents
+new picks or presets from applying them. FUTURE mode treats every obtainable
+tier as unlocked; creative/editor-only modules and beacons stay locked.
+
 **Research-driven productivity** (#92) is folded into the same effects stage,
 gated by the research horizon exactly like machine availability (everything in
 FUTURE mode, reached techs in NOW/target): mining productivity adds an uncapped

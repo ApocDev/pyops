@@ -47,9 +47,19 @@ type ModuleInfo = {
   display: string | null;
   category: string | null;
   tier: number | null;
+  unlocked?: boolean;
   effSpeed: number;
   effProductivity: number;
   effConsumption: number;
+};
+
+type BeaconInfo = {
+  name: string;
+  display: string | null;
+  distributionEffectivity: number | null;
+  moduleSlots: number;
+  energyUsageW: number | null;
+  unlocked?: boolean;
 };
 
 function moduleTitle(m: ModuleInfo): string {
@@ -235,16 +245,34 @@ function SlotRow({
       {Array.from({ length: slots }, (_, i) => {
         const name = modules[i];
         return name ? (
-          // Raw button on purpose: a sprite-sized slot tile — the Button
-          // primitive's fixed heights don't fit the icon-grid density.
-          <button
-            key={i}
-            onClick={() => onRemoveAt(i)}
-            title={`${byName.get(name) ? moduleTitle(byName.get(name)!) : name} · click to remove`}
-            className="border border-border bg-muted/50 p-0.5 hover:bg-destructive/20"
-          >
-            <Icon kind="item" name={name} size="md" noTitle />
-          </button>
+          (() => {
+            const info = byName.get(name);
+            const locked = info?.unlocked === false;
+            return (
+              // Raw button on purpose: a sprite-sized slot tile — the Button
+              // primitive's fixed heights don't fit the icon-grid density.
+              <button
+                key={i}
+                onClick={() => onRemoveAt(i)}
+                title={`${info ? moduleTitle(info) : name}${locked ? " · not unlocked yet" : ""} · click to remove`}
+                className={`relative border p-0.5 hover:bg-destructive/20 ${
+                  locked
+                    ? "border-2 border-destructive bg-destructive/20 text-destructive ring-2 ring-destructive/70"
+                    : "border-border bg-muted/50"
+                }`}
+              >
+                <Icon kind="item" name={name} size="md" noTitle />
+                {locked && (
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -top-1 -right-1 flex size-4 items-center justify-center bg-background text-destructive ring-1 ring-destructive"
+                  >
+                    <Ban className="size-3" />
+                  </span>
+                )}
+              </button>
+            );
+          })()
         ) : (
           <span
             key={i}
@@ -282,6 +310,7 @@ function Palette({
     return [...g.entries()];
   }, [modules]);
   const click = (m: ModuleInfo, e: React.MouseEvent) => {
+    if (m.unlocked === false) return;
     if (e.ctrlKey || e.metaKey) return onChange(current.filter((n) => n !== m.name));
     if (e.shiftKey) {
       return onChange([...current, ...Array(Math.max(0, slots - current.length)).fill(m.name)]);
@@ -297,17 +326,37 @@ function Palette({
           <span className="w-28 shrink-0 truncate text-sm text-muted-foreground" title={cat}>
             {cat}
           </span>
-          {mods.map((m) => (
-            // Raw button on purpose: sprite-sized palette tile (see SlotRow).
-            <button
-              key={m.name}
-              onClick={(e) => click(m, e)}
-              title={`${moduleTitle(m)}\nclick: add · shift: fill · ctrl: clear`}
-              className="border border-border bg-muted/30 p-0.5 hover:bg-accent"
-            >
-              <Icon kind="item" name={m.name} size="md" noTitle />
-            </button>
-          ))}
+          {mods.map((m) => {
+            const locked = m.unlocked === false;
+            return (
+              // Raw button on purpose: sprite-sized palette tile (see SlotRow).
+              <button
+                key={m.name}
+                onClick={(e) => click(m, e)}
+                aria-disabled={locked}
+                title={
+                  locked
+                    ? `${moduleTitle(m)}\nnot unlocked yet`
+                    : `${moduleTitle(m)}\nclick: add · shift: fill · ctrl: clear`
+                }
+                className={`relative border p-0.5 ${
+                  locked
+                    ? "cursor-not-allowed border-2 border-destructive bg-destructive/20 text-destructive ring-2 ring-destructive/70"
+                    : "border-border bg-muted/30 hover:bg-accent"
+                }`}
+              >
+                <Icon kind="item" name={m.name} size="md" noTitle />
+                {locked && (
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -top-1 -right-1 flex size-4 items-center justify-center bg-background text-destructive ring-1 ring-destructive"
+                  >
+                    <Ban className="size-3" />
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       ))}
     </div>
@@ -321,19 +370,23 @@ function BeaconMatrix({
   current,
   onPick,
 }: {
-  beacons: {
-    name: string;
-    display: string | null;
-    distributionEffectivity: number | null;
-    energyUsageW: number | null;
-  }[];
+  beacons: BeaconInfo[];
   current: string;
   onPick: (name: string) => void;
 }) {
   const families = useMemo(() => {
     const fam = new Map<
       string,
-      Map<string, { name: string; display: string | null; de: number | null; w: number | null }>
+      Map<
+        string,
+        {
+          name: string;
+          display: string | null;
+          de: number | null;
+          w: number | null;
+          unlocked?: boolean;
+        }
+      >
     >();
     const flat: typeof beacons = [];
     for (const b of beacons) {
@@ -345,6 +398,7 @@ function BeaconMatrix({
           display: b.display,
           de: b.distributionEffectivity,
           w: b.energyUsageW,
+          unlocked: b.unlocked,
         });
       } else flat.push(b);
     }
@@ -369,16 +423,24 @@ function BeaconMatrix({
                   const c = cells.get(`${a},${f}`);
                   if (!c) return <span key={f} />;
                   const cur = c.name === current;
+                  const locked = c.unlocked === false;
                   return (
                     // Raw button on purpose: a 5×5 matrix cell — the Button
                     // primitive's box would blow up the grid density.
                     <button
                       key={f}
-                      onClick={() => onPick(c.name)}
+                      onClick={() => {
+                        if (!locked) onPick(c.name);
+                      }}
                       aria-pressed={cur}
-                      title={`${c.display ?? c.name} · ${mult(c.de)} effect · ${c.w != null ? fmtW(c.w) : "?"}`}
+                      aria-disabled={locked}
+                      title={`${c.display ?? c.name} · ${mult(c.de)} effect · ${c.w != null ? fmtW(c.w) : "?"}${locked ? " · not unlocked yet" : ""}`}
                       className={`px-1 py-1 ${
-                        cur ? "bg-primary text-primary-foreground" : "bg-muted/40 hover:bg-accent"
+                        locked
+                          ? "cursor-not-allowed border border-destructive bg-destructive/20 font-semibold text-destructive ring-2 ring-destructive/70"
+                          : cur
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted/40 hover:bg-accent"
                       }`}
                     >
                       {mult(c.de)}
@@ -395,10 +457,17 @@ function BeaconMatrix({
           key={b.name}
           variant="toggle"
           size="sm"
-          onClick={() => onPick(b.name)}
+          onClick={() => {
+            if (b.unlocked !== false) onPick(b.name);
+          }}
           aria-pressed={b.name === current}
-          className="mr-1"
-          title={`${b.display ?? b.name} · ${mult(b.distributionEffectivity)} effect · ${b.energyUsageW != null ? fmtW(b.energyUsageW) : "?"}`}
+          aria-disabled={b.unlocked === false}
+          className={`mr-1 ${
+            b.unlocked === false
+              ? "cursor-not-allowed border-2 border-destructive bg-destructive/20 text-destructive ring-2 ring-destructive/70"
+              : ""
+          }`}
+          title={`${b.display ?? b.name} · ${mult(b.distributionEffectivity)} effect · ${b.energyUsageW != null ? fmtW(b.energyUsageW) : "?"}${b.unlocked === false ? " · not unlocked yet" : ""}`}
         >
           {b.display ?? b.name}
         </Button>
@@ -482,6 +551,7 @@ export function ModulesModal({
   if (effects?.speed) fx.push(`${pct(effects.speed)} speed`);
   if (effects?.productivity) fx.push(`${pct(effects.productivity)} productivity`);
   if (effects?.consumption) fx.push(`${pct(effects.consumption)} energy`);
+  const firstUnlockedBeacon = data?.beacons.find((b) => b.unlocked !== false)?.name ?? null;
 
   return (
     <Dialog
@@ -676,12 +746,22 @@ export function ModulesModal({
                     variant="outline"
                     size="xs"
                     onClick={() => {
-                      const first = data.beacons[0]?.name;
-                      if (!first) return;
-                      setBeacons([...beacons, { beacon: first, modules: [], count: 1 }]);
+                      if (!firstUnlockedBeacon) return;
+                      setBeacons([
+                        ...beacons,
+                        { beacon: firstUnlockedBeacon, modules: [], count: 1 },
+                      ]);
                       setVariantFor(beacons.length);
                     }}
-                    className="border-dashed font-normal text-muted-foreground normal-case"
+                    aria-disabled={!firstUnlockedBeacon}
+                    className={`border-dashed font-normal text-muted-foreground normal-case ${
+                      firstUnlockedBeacon ? "" : "cursor-not-allowed opacity-50"
+                    }`}
+                    title={
+                      firstUnlockedBeacon
+                        ? "add a beacon affecting each machine"
+                        : "no unlocked beacons are available under the current horizon"
+                    }
                   >
                     + add
                   </Button>
@@ -694,6 +774,7 @@ export function ModulesModal({
                 <div className="space-y-3">
                   {beacons.map((cfg, i) => {
                     const b = beaconByName.get(cfg.beacon);
+                    const beaconLocked = b?.unlocked === false;
                     const bSlots = b?.moduleSlots ?? 2;
                     const eligible = (b?.modules ?? [])
                       .map((n) => byName.get(n))
@@ -706,8 +787,12 @@ export function ModulesModal({
                           <button
                             onClick={() => setVariantFor(variantFor === i ? null : i)}
                             aria-expanded={variantFor === i}
-                            className="flex items-center gap-1.5 bg-muted/50 px-1.5 py-1 text-sm hover:bg-accent"
-                            title="click to change beacon variant"
+                            className={`relative flex items-center gap-1.5 px-1.5 py-1 text-sm hover:bg-accent ${
+                              beaconLocked
+                                ? "border-2 border-destructive bg-destructive/20 text-destructive ring-2 ring-destructive/70"
+                                : "bg-muted/50"
+                            }`}
+                            title={`click to change beacon variant${beaconLocked ? " · not unlocked yet" : ""}`}
                           >
                             <Icon kind="entity" name={cfg.beacon} size="md" noTitle />
                             <span>{b?.display ?? cfg.beacon}</span>
@@ -715,6 +800,14 @@ export function ModulesModal({
                               {mult(b?.distributionEffectivity)}
                               {b?.energyUsageW != null && ` · ${fmtW(b.energyUsageW)}`}
                             </span>
+                            {beaconLocked && (
+                              <span
+                                aria-hidden
+                                className="pointer-events-none absolute -top-1 -right-1 flex size-4 items-center justify-center bg-background text-destructive ring-1 ring-destructive"
+                              >
+                                <Ban className="size-3" />
+                              </span>
+                            )}
                           </button>
                           {/* per-machine beacon count stepper */}
                           <span className="flex items-center gap-1 text-sm">

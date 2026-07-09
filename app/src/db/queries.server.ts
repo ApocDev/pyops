@@ -382,8 +382,9 @@ function effectsAllowed(m: ModuleRow, fx: string[] | null | undefined): boolean 
  * this building. Py's creature buildings lock their slots to their own module
  * category (e.g. a Vrauk paddock only takes 'vrauks' modules → the Vrauk speed
  * modules). Hidden modules are excluded: those are Py's TURD modules, delivered by
- * the always-on hidden T.U.R.D. beacon (1:1, no slot cost), not placed by hand —
- * see turdChoices for a choice's module. */
+ * the always-on hidden T.U.R.D. beacon (1:1, no slot cost), not placed by hand.
+ * EE/user-excluded modules are excluded too; they are not planner-usable choices.
+ * See turdChoices for a choice's module. */
 export function modulesFittingMachine(machineName: string) {
   const m = db.select().from(craftingMachines).where(eq(craftingMachines.name, machineName)).get();
   if (!m) return [];
@@ -395,7 +396,9 @@ export function modulesFittingMachine(machineName: string) {
     .all()
     .filter(
       (mod) =>
-        categoryAllowed(mod, m.allowedModuleCategories) && effectsAllowed(mod, m.allowedEffects),
+        !isExcluded(mod.name, mod.category) &&
+        categoryAllowed(mod, m.allowedModuleCategories) &&
+        effectsAllowed(mod, m.allowedEffects),
     )
     .map((mod) => ({
       name: mod.name,
@@ -571,17 +574,19 @@ export function computeRecipeScenario(opts: {
  * and the modules that fit each beacon (machine + beacon restrictions both apply
  * since the beacon transmits its effects into the machine). */
 
-/** Every hand-placeable module, one table scan (hidden modules are TURD
- * internals — game-inserted, never hand-placed). block-compute fetches this
- * once per solve and filters per row, instead of paying modulePickerData's
- * full-table rescan for every recipe. */
+/** Every hand-placeable module, one table scan. Hidden modules are TURD
+ * internals — game-inserted, never hand-placed — and EE/user-excluded modules
+ * are not planner-usable. block-compute fetches this once per solve and filters
+ * per row, instead of paying modulePickerData's full-table rescan for every
+ * recipe. */
 export function placeableModules() {
   return db
     .select()
     .from(modules)
     .where(eq(modules.hidden, false))
     .orderBy(modules.category, modules.tier, modules.name)
-    .all();
+    .all()
+    .filter((mod) => !isExcluded(mod.name, mod.category));
 }
 
 /** The picker's placement rules for one (machine, recipe) pair, as a reusable
@@ -612,15 +617,24 @@ export function modulePickerData(recipeName: string, machineName: string) {
   if (!r || !m) return null;
 
   const allModules = placeableModules();
-  const prodOk = (mod: ModuleRow) => mod.effProductivity <= 0 || r.allowProductivity;
-  const machineModules = allModules.filter(modulePlacementFilter(m, r));
-
   const beaconRows = db
     .select()
     .from(beacons)
     .where(eq(beacons.hidden, false))
     .orderBy(beacons.name)
-    .all();
+    .all()
+    .filter((b) => !isExcluded(b.name));
+  const unlocked = unlockedItems([
+    ...allModules.map((mod) => mod.name),
+    ...beaconRows.map((b) => b.name),
+  ]);
+  const withUnlock = <T extends { name: string }>(row: T): T & { unlocked: boolean } => ({
+    ...row,
+    unlocked: unlocked.has(row.name),
+  });
+  const prodOk = (mod: ModuleRow) => mod.effProductivity <= 0 || r.allowProductivity;
+  const machineModules = allModules.filter(modulePlacementFilter(m, r)).map(withUnlock);
+
   const beaconList = beaconRows.map((b) => ({
     name: b.name,
     display: b.display,
@@ -628,6 +642,7 @@ export function modulePickerData(recipeName: string, machineName: string) {
     moduleSlots: b.moduleSlots,
     energyUsageW: b.energyUsageW,
     profile: b.profile,
+    unlocked: unlocked.has(b.name),
     // fits the beacon's slots, and its transmitted effects are usable by machine+recipe
     modules: allModules
       .filter(
@@ -642,7 +657,7 @@ export function modulePickerData(recipeName: string, machineName: string) {
 
   // flat index of every module referenced by any beacon (for display/effects lookup)
   const beaconModuleNames = new Set(beaconList.flatMap((b) => b.modules));
-  const beaconModules = allModules.filter((mod) => beaconModuleNames.has(mod.name));
+  const beaconModules = allModules.filter((mod) => beaconModuleNames.has(mod.name)).map(withUnlock);
 
   return {
     machine: { name: m.name, display: m.display, moduleSlots: m.moduleSlots },

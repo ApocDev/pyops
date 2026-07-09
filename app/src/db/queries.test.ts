@@ -17,6 +17,8 @@ import {
   logisticsForGood,
   machineSufficiency,
   metaSet,
+  modulesFittingMachine,
+  modulePickerData,
   productivityBonuses,
   recipeCandidates,
   saveBlockRow,
@@ -127,6 +129,106 @@ describe("research horizon round-trip", () => {
     const h = getResearchHorizon();
     expect(h.mode).toBe("now");
     expect([...h.researched].sort()).toEqual(["automation", "logistics"]);
+  });
+});
+
+describe("modulePickerData availability", () => {
+  const seed = () => {
+    db.run(sql`
+      INSERT INTO recipes (name, kind, category, energy_required, enabled, hidden) VALUES
+        ('plate-recipe','real','crafting',1,1,0),
+        ('craft-speed-1','real','crafting',1,1,0),
+        ('craft-speed-2','real','crafting',1,0,0),
+        ('craft-ee-super-speed','real','crafting',1,1,0),
+        ('craft-beacon-1','real','crafting',1,1,0),
+        ('craft-beacon-2','real','crafting',1,0,0),
+        ('craft-ee-super-beacon','real','crafting',1,1,0)
+    `);
+    db.run(sql`
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+        ('craft-speed-1',0,'item','speed-1',1),
+        ('craft-speed-2',0,'item','speed-2',1),
+        ('craft-ee-super-speed',0,'item','ee-super-speed-module',1),
+        ('craft-beacon-1',0,'item','beacon-1',1),
+        ('craft-beacon-2',0,'item','beacon-2',1),
+        ('craft-ee-super-beacon',0,'item','ee-super-beacon',1)
+    `);
+    db.run(sql`
+      INSERT INTO technologies (name, display) VALUES ('speed-2-tech','Speed 2'),('beacon-2-tech','Beacon 2')
+    `);
+    db.run(sql`
+      INSERT INTO tech_ingredients (technology, name, amount) VALUES
+        ('speed-2-tech','logistic-science-pack',1),
+        ('beacon-2-tech','logistic-science-pack',1)
+    `);
+    db.run(sql`
+      INSERT INTO tech_unlocks (technology, recipe) VALUES
+        ('speed-2-tech','craft-speed-2'),
+        ('beacon-2-tech','craft-beacon-2')
+    `);
+    db.run(sql`
+      INSERT INTO crafting_machines (name, kind, crafting_speed, module_slots) VALUES
+        ('assembler','assembling-machine',1,2)
+    `);
+    db.run(sql`
+      INSERT INTO modules (name, display, category, hidden, tier, eff_speed, eff_productivity, eff_consumption) VALUES
+        ('speed-1','Speed 1','speed',0,1,0.2,0,0),
+        ('speed-2','Speed 2','speed',0,2,0.4,0,0),
+        ('ee-super-speed-module','Super speed module','speed',0,99,5,0,0),
+        ('creative-speed','Creative speed','speed',0,99,1,0,0)
+    `);
+    db.run(sql`
+      INSERT INTO beacons (name, display, distribution_effectivity, module_slots, hidden) VALUES
+        ('beacon-1','Beacon 1',1,2,0),
+        ('beacon-2','Beacon 2',1,2,0),
+        ('ee-super-beacon','Super beacon',1,2,0),
+        ('creative-beacon','Creative beacon',1,2,0)
+    `);
+  };
+
+  it("marks modules and beacons outside the current horizon as locked", () => {
+    seed();
+    setResearchHorizon({ mode: "now", packs: [], researched: [] });
+    const p = modulePickerData("plate-recipe", "assembler")!;
+
+    expect(Object.fromEntries(p.modules.map((m) => [m.name, m.unlocked]))).toMatchObject({
+      "speed-1": true,
+      "speed-2": false,
+      "creative-speed": false,
+    });
+    expect(p.modules.map((m) => m.name)).not.toContain("ee-super-speed-module");
+    expect(Object.fromEntries(p.beacons.map((b) => [b.name, b.unlocked]))).toMatchObject({
+      "beacon-1": true,
+      "beacon-2": false,
+      "creative-beacon": false,
+    });
+    expect(p.beacons.map((b) => b.name)).not.toContain("ee-super-beacon");
+  });
+
+  it("treats tech-unlockable modules and beacons as unlocked in future mode", () => {
+    seed();
+    setResearchHorizon({ mode: "future" });
+    const p = modulePickerData("plate-recipe", "assembler")!;
+
+    expect(Object.fromEntries(p.modules.map((m) => [m.name, m.unlocked]))).toMatchObject({
+      "speed-1": true,
+      "speed-2": true,
+      "creative-speed": false,
+    });
+    expect(p.modules.map((m) => m.name)).not.toContain("ee-super-speed-module");
+    expect(Object.fromEntries(p.beacons.map((b) => [b.name, b.unlocked]))).toMatchObject({
+      "beacon-1": true,
+      "beacon-2": true,
+      "creative-beacon": false,
+    });
+    expect(p.beacons.map((b) => b.name)).not.toContain("ee-super-beacon");
+  });
+
+  it("omits excluded modules from machine detail helpers too", () => {
+    seed();
+    const names = modulesFittingMachine("assembler").map((m) => m.name);
+    expect(names).toContain("speed-1");
+    expect(names).not.toContain("ee-super-speed-module");
   });
 });
 

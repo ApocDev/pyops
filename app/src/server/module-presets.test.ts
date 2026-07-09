@@ -56,6 +56,18 @@ describe("presetCompatibility", () => {
     ).toEqual({ ok: true });
   });
 
+  it("rejects an accepted module that is not unlocked yet", () => {
+    const locked = {
+      ...pumpjack,
+      modules: pumpjack.modules.map((m) =>
+        m.name === "speed-module" ? { ...m, unlocked: false } : m,
+      ),
+    };
+    const res = presetCompatibility({ modules: ["speed-module"], beacons: [] }, locked, FACTS);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe("Speed module is not unlocked yet");
+  });
+
   it("rejects a module outside the machine's allowed effects, naming it by display", () => {
     const res = presetCompatibility(
       { modules: ["productivity-module"], beacons: [] },
@@ -159,6 +171,58 @@ describe("presetCompatibility", () => {
     expect(res.ok).toBe(false);
     if (!res.ok)
       expect(res.reason).toContain("Productivity module does not work in Beacon AM1-FM1");
+  });
+
+  it("rejects a beacon variant that is not unlocked yet", () => {
+    const p = picker(
+      { name: "distilator", display: "Distilator", moduleSlots: 1 },
+      ["speed-module"],
+      {
+        beacons: [
+          {
+            name: "beacon-AM1-FM1",
+            display: "Beacon AM1-FM1",
+            unlocked: false,
+            modules: ["speed-module"],
+          },
+        ],
+      },
+    );
+    const res = presetCompatibility(
+      {
+        modules: [],
+        beacons: [{ beacon: "beacon-AM1-FM1", modules: ["speed-module"], count: 1 }],
+      },
+      p,
+      FACTS,
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe("Beacon AM1-FM1 is not unlocked yet");
+  });
+
+  it("rejects a beacon module that is not unlocked yet", () => {
+    const p: PickerLike = {
+      ...picker({ name: "distilator", display: "Distilator", moduleSlots: 1 }, [], {
+        beacons: [
+          {
+            name: "beacon-AM1-FM1",
+            display: "Beacon AM1-FM1",
+            modules: ["speed-module"],
+          },
+        ],
+      }),
+      beaconModules: [{ name: "speed-module", unlocked: false }],
+    };
+    const res = presetCompatibility(
+      {
+        modules: [],
+        beacons: [{ beacon: "beacon-AM1-FM1", modules: ["speed-module"], count: 1 }],
+      },
+      p,
+      FACTS,
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe("Speed module is not unlocked yet");
   });
 
   it("rejects a beacon variant the picker does not offer", () => {

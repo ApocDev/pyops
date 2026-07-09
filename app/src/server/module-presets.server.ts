@@ -30,8 +30,9 @@ export type PresetCompat = { ok: true } | { ok: false; reason: string };
 export type PickerLike = {
   machine: { name: string; display: string | null; moduleSlots: number };
   allowProductivity: boolean;
-  modules: { name: string }[];
-  beacons: { name: string; display: string | null; modules: string[] }[];
+  modules: { name: string; display?: string | null; unlocked?: boolean }[];
+  beacons: { name: string; display: string | null; unlocked?: boolean; modules: string[] }[];
+  beaconModules?: { name: string; display?: string | null; unlocked?: boolean }[];
 };
 
 /** Display + productivity for modules that might be OUTSIDE the accepted sets
@@ -47,6 +48,8 @@ export function presetCompatibility(
 ): PresetCompat {
   const machineName = picker.machine.display ?? picker.machine.name;
   const disp = (n: string) => facts.get(n)?.display ?? n;
+  const pickedModule = (n: string) =>
+    picker.modules.find((m) => m.name === n) ?? picker.beaconModules?.find((m) => m.name === n);
   const prodBlocked = (n: string) =>
     !picker.allowProductivity && (facts.get(n)?.effProductivity ?? 0) > 0;
 
@@ -55,6 +58,8 @@ export function presetCompatibility(
       return { ok: false, reason: `${machineName} has no module slots` };
     const accepted = new Set(picker.modules.map((m) => m.name));
     for (const n of new Set(preset.modules)) {
+      const mod = pickedModule(n);
+      if (mod?.unlocked === false) return { ok: false, reason: `${disp(n)} is not unlocked yet` };
       if (accepted.has(n)) continue;
       return {
         ok: false,
@@ -67,8 +72,12 @@ export function presetCompatibility(
   for (const b of preset.beacons) {
     const bk = picker.beacons.find((x) => x.name === b.beacon);
     if (!bk) return { ok: false, reason: `beacon not placeable here` };
+    if (bk.unlocked === false)
+      return { ok: false, reason: `${bk.display ?? bk.name} is not unlocked yet` };
     const accepted = new Set(bk.modules);
     for (const n of new Set(b.modules)) {
+      const mod = pickedModule(n);
+      if (mod?.unlocked === false) return { ok: false, reason: `${disp(n)} is not unlocked yet` };
       if (accepted.has(n)) continue;
       return {
         ok: false,
