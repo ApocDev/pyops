@@ -1,0 +1,37 @@
+app/src/components/ui/alert-dialog.tsx
+  s_89789960e82599::t_af32b020db4762 55
+app/src/components/context-menu.tsx
+  s_89789960e82599::t_4702c29fdfb952 50
+app/src/components/help-drawer.tsx
+  s_89789960e82599::t_e51e94a829c67d 5,9,14,19,30
+app/src/components/info-hint.tsx
+  s_89789960e82599::t_7dd7732dc7367c 1-23
+app/src/components/ui/button.tsx
+  s_89789960e82599::t_1b93fa9a80e7d7 23
+app/src/components/ui/dialog.tsx
+  s_89789960e82599::t_e10f27f519e4ad 59,72,74,83-94,147
+app/src/components/ui/dropdown-menu.tsx
+  s_89789960e82599::t_7809801863c0ac 32
+app/src/components/ui/segmented.tsx
+  s_89789960e82599::t_79de6f015d59a9 1-59
+app/src/components/ui/sheet.tsx
+  s_89789960e82599::t_3521bdc7581b65 69,79,81
+app/src/styles.css
+  s_89789960e82599::t_ca98a5a76bea78 85-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7e52675d7156989ccfffd71086315ae1b50af9a3",
+  "prompts": {},
+  "sessions": {
+    "s_89789960e82599": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "59dcffb9-7f1b-47c0-bba2-30cf92378190",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
