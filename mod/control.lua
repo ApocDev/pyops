@@ -782,16 +782,19 @@ end
 
 local function ensure_mod_gui_button(player)
   local flow = mod_gui.get_button_flow(player)
-  if flow[BUTTON_NAME] then
+  local button = flow[BUTTON_NAME]
+  if button then
+    button.sprite = "pyops-logo"
+    button.style = "pyops_mod_gui_button"
     return
   end
 
   flow.add({
     type = "sprite-button",
     name = BUTTON_NAME,
-    sprite = "utility/logistic_network_panel_white",
+    sprite = "pyops-logo",
     tooltip = {"pyops.open-tooltip"},
-    style = mod_gui.button_style
+    style = "pyops_mod_gui_button"
   })
 end
 
@@ -803,7 +806,20 @@ script.on_init(function()
   end
 end)
 
+script.on_configuration_changed(function()
+  for _, player in pairs(game.players) do
+    ensure_mod_gui_button(player)
+  end
+end)
+
 script.on_event(defines.events.on_player_created, function(event)
+  local player = get_player(event)
+  if player then
+    ensure_mod_gui_button(player)
+  end
+end)
+
+script.on_event(defines.events.on_player_joined_game, function(event)
   local player = get_player(event)
   if player then
     ensure_mod_gui_button(player)
@@ -960,6 +976,13 @@ script.on_event(defines.events.on_research_finished, function(event)
 end)
 
 script.on_event(defines.events.on_tick, function()
+  if storage.pyops_button_sprite_version ~= 1 then
+    storage.pyops_button_sprite_version = 1
+    for _, player in pairs(game.players) do
+      ensure_mod_gui_button(player)
+    end
+  end
+
   local at = storage.pyops_dev_reload_mods_at
   if at and game.tick >= at then
     storage.pyops_dev_reload_mods_at = nil

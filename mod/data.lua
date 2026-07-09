@@ -24,6 +24,13 @@ data:extend({
     action = "lua"
   },
   {
+    type = "sprite",
+    name = "pyops-logo",
+    filename = "__pyops__/graphics/pyops-logo-x128.png",
+    size = 128,
+    flags = { "gui-icon" }
+  },
+  {
     type = "shortcut",
     name = "pyops-toggle-panel",
     order = "a[pyops]",
@@ -71,6 +78,15 @@ data:extend({
 -- what give Helmod's "Production block" its clean banded look; the odd-row
 -- graphical set is drawn from core graphics, so we ship no images of our own.
 local styles = data.raw["gui-style"].default
+
+-- Top-left mod-gui button. `mod_gui_button` is the flat light-gray button face,
+-- which shows through around our transparent logo; inheriting from `slot_button`
+-- gives the recessed dark item-slot look the other mods' top buttons have.
+styles["pyops_mod_gui_button"] = {
+  type = "button_style",
+  parent = "slot_button",
+  size = 40,
+}
 
 styles["pyops_matrix_table"] = {
   type = "table_style",
