@@ -1,0 +1,19 @@
+app/src/routes/whatif.tsx
+  s_9c598c6bfe850d::t_42a3f11450b9d7 28-34,45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7cc5a1c3c49acd58d203f898dff594bde0645b85",
+  "prompts": {},
+  "sessions": {
+    "s_9c598c6bfe850d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d447b814-cf17-417e-9d1f-a329b5f8705e",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
