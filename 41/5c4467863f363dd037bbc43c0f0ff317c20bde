@@ -1,0 +1,27 @@
+CHANGELOG.md
+  s_89789960e82599::t_1f8ae193e3ad5f 7-8,12-29,33-45,49-50,56-57,61-101,105-110,114
+docs/ai-assistant.md
+  s_89789960e82599::t_2958c27d975d13 149,214,247,386
+docs/configuration.md
+  s_89789960e82599::t_20a92c652be23b 8-13,15-17
+docs/design.md
+  s_89789960e82599::t_d239785d709615 44-49,65-74,118-147,172,184-185
+docs/solver.md
+  s_89789960e82599::t_9b52eee53913b0 46,73,88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "415c4467863f363dd037bbc43c0f0ff317c20bde",
+  "prompts": {},
+  "sessions": {
+    "s_89789960e82599": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "59dcffb9-7f1b-47c0-bba2-30cf92378190",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
