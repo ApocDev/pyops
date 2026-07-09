@@ -1,0 +1,23 @@
+app/src/components/bridge-card.tsx
+  s_89789960e82599::t_90cad3dc487b90 3-4,8-9,79-84,110,121
+app/src/components/launch-factorio-button.tsx
+  s_89789960e82599::t_6288462789fb30 1-61
+app/src/routes/index.tsx
+  s_89789960e82599::t_92152b3b364875 8,42-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ee997b2e907ea942e77a1673f50a47f239eeb83c",
+  "prompts": {},
+  "sessions": {
+    "s_89789960e82599": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "59dcffb9-7f1b-47c0-bba2-30cf92378190",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
