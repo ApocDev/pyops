@@ -5,6 +5,7 @@ import {
   blockBuildStatus,
   blockMissingRefs,
   blockReferenceFingerprint,
+  blocksWithFlows,
   browseDetail,
   buildCost,
   createGroup,
@@ -13,6 +14,7 @@ import {
   getResearchHorizon,
   goodExists,
   goodGraphCounts,
+  factoryBlocks,
   listBlocks,
   listGroups,
   logisticsForGood,
@@ -616,6 +618,124 @@ describe("batched recipe reads", () => {
     expect(card?.machines).toEqual([{ name: "furnace", display: null, craftingSpeed: 1 }]);
     expect(card?.ingredients).toEqual([{ kind: "item", name: "gear", display: "Gear", amount: 2 }]);
     expect(card?.unlocks).toEqual([]);
+  });
+});
+
+describe("batched block projections", () => {
+  const preparedStatements = <T>(read: () => T): { result: T; count: number } => {
+    const prepare = vi.spyOn(db.$client, "prepare");
+    try {
+      const result = read();
+      return { result, count: prepare.mock.calls.length };
+    } finally {
+      prepare.mockRestore();
+    }
+  };
+
+  const saveReferencedBlock = (index: number) => {
+    const good = `batch-good-${index}`;
+    const recipe = `batch-recipe-${index}`;
+    db.run(sql`
+      INSERT INTO items (name, display) VALUES (${good}, ${`Batch good ${index}`})
+    `);
+    db.run(sql`
+      INSERT INTO recipes (name, kind, hidden) VALUES (${recipe}, 'real', 0)
+    `);
+    db.run(sql`
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount)
+      VALUES (${recipe}, 0, 'item', 'plate', 1)
+    `);
+    db.run(sql`
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount)
+      VALUES (${recipe}, 0, 'item', ${good}, 1)
+    `);
+    return saveBlockRow(
+      {
+        name: `batch-block-${index.toString().padStart(2, "0")}`,
+        iconKind: null,
+        iconName: null,
+        data: { goals: [{ name: good, rate: 1 }], recipes: [recipe] },
+        electricityW: null,
+        dataFingerprint: null,
+        solveStatus: "solved",
+      },
+      null,
+    );
+  };
+
+  it("keeps listBlocks statement count flat as saved references grow", () => {
+    const firstId = saveReferencedBlock(0);
+    const small = preparedStatements(() => listBlocks());
+    for (let i = 1; i <= 24; i++) saveReferencedBlock(i);
+    const large = preparedStatements(() => listBlocks());
+
+    expect(large.count).toBe(small.count);
+    expect(large.result).toHaveLength(small.result.length + 24);
+    expect(large.result.find((block) => block.id === firstId)).toMatchObject({
+      broken: false,
+      health: "ok",
+      unmadeGoals: [],
+    });
+  });
+
+  const addFlowBlock = (index: number, enabled = true) => {
+    const id = saveBlockRow(
+      {
+        name: `flow-block-${index.toString().padStart(2, "0")}`,
+        iconKind: null,
+        iconName: null,
+        data: { goals: [{ name: "plate", rate: index + 1 }], recipes: ["smelt-plate"] },
+        electricityW: null,
+        dataFingerprint: null,
+      },
+      [
+        { item: "plate", kind: "item", role: "primary", rate: index + 1 },
+        { item: "gear", kind: "item", role: "import", rate: -(index + 2) },
+      ],
+    );
+    db.run(
+      sql`UPDATE blocks SET enabled = ${enabled ? 1 : 0}, sort_order = ${index + 1} WHERE id = ${id}`,
+    );
+    return id;
+  };
+
+  it("loads factory flows with a flat statement count and excludes disabled blocks", () => {
+    db.run(sql`UPDATE blocks SET sort_order = 0 WHERE id = 1`);
+    db.run(sql`
+      INSERT INTO block_flows (block_id, item, kind, role, rate) VALUES
+        (1, 'plate', 'item', 'primary', 10),
+        (1, 'gear', 'item', 'byproduct', 2),
+        (1, 'steel', 'item', 'stock', 3),
+        (1, 'drill', 'item', 'import', -4)
+    `);
+    const disabledId = addFlowBlock(90, false);
+
+    const smallWhatIf = preparedStatements(() => blocksWithFlows());
+    const smallFactory = preparedStatements(() => factoryBlocks());
+    const addedIds = Array.from({ length: 24 }, (_, index) => addFlowBlock(index));
+    const largeWhatIf = preparedStatements(() => blocksWithFlows());
+    const largeFactory = preparedStatements(() => factoryBlocks());
+
+    expect(largeWhatIf.count).toBe(smallWhatIf.count);
+    expect(largeFactory.count).toBe(smallFactory.count);
+    expect(largeWhatIf.result.map((block) => block.id)).toEqual([1, ...addedIds]);
+    expect(largeWhatIf.result.some((block) => block.id === disabledId)).toBe(false);
+    expect(largeWhatIf.result[0].flows).toEqual([
+      { item: "plate", kind: "item", role: "primary", rate: 10 },
+      { item: "gear", kind: "item", role: "byproduct", rate: 2 },
+      { item: "steel", kind: "item", role: "stock", rate: 3 },
+      { item: "drill", kind: "item", role: "import", rate: -4 },
+    ]);
+    expect(largeFactory.result[0]).toEqual({
+      id: 1,
+      name: "smelting",
+      makes: [
+        { item: "plate", kind: "item", rate: 10 },
+        { item: "steel", kind: "item", rate: 3, stock: true },
+      ],
+      byproducts: [{ item: "gear", kind: "item", rate: 2 }],
+      imports: [{ item: "drill", kind: "item", rate: -4 }],
+    });
   });
 });
 

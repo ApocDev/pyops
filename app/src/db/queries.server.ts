@@ -1324,36 +1324,55 @@ export function listBlocks() {
     .from(blocks)
     .orderBy(blocks.sortOrder, blocks.name)
     .all();
+  const documents = rows.map((row) => normalizeBlockData(row.data as BlockData));
+  const referencedRecipes = [
+    ...new Set(documents.flatMap((document) => document.recipes ?? []).filter(Boolean)),
+  ];
+  const referencedGoods = [...new Set(documents.flatMap((document) => goalNames(document)))];
   // Health is derived from `data` against the CURRENT reference data (so an item
   // migration shows up immediately, no re-solve) plus the persisted last solve
-  // status. One bulk lookup each, then pure per-block checks — `data` stays
-  // server-side; only the verdict is exposed.
+  // status. Query only references named by saved block documents instead of
+  // scanning the entire Factorio data set; `data` stays server-side and only the
+  // verdict is exposed.
   const recipeNames = new Set(
-    db
-      .select({ n: recipes.name })
-      .from(recipes)
-      .all()
-      .map((r) => r.n),
+    referencedRecipes.length
+      ? db
+          .select({ n: recipes.name })
+          .from(recipes)
+          .where(inArray(recipes.name, referencedRecipes))
+          .all()
+          .map((r) => r.n)
+      : [],
   );
   const goodNames = new Set([
-    ...db
-      .select({ n: items.name })
-      .from(items)
-      .all()
-      .map((r) => r.n),
-    ...db
-      .select({ n: fluids.name })
-      .from(fluids)
-      .all()
-      .map((r) => r.n),
+    ...(referencedGoods.length
+      ? db
+          .select({ n: items.name })
+          .from(items)
+          .where(inArray(items.name, referencedGoods))
+          .all()
+          .map((r) => r.n)
+      : []),
+    ...(referencedGoods.length
+      ? db
+          .select({ n: fluids.name })
+          .from(fluids)
+          .where(inArray(fluids.name, referencedGoods))
+          .all()
+          .map((r) => r.n)
+      : []),
   ]);
   // recipe → its product good names, for the "no recipe in the block makes this
   // goal" check (one scan of recipe_products, grouped).
   const productsByRecipe = new Map<string, Set<string>>();
-  for (const p of db
-    .select({ recipe: recipeProducts.recipe, name: recipeProducts.name })
-    .from(recipeProducts)
-    .all()) {
+  const referencedProducts = referencedRecipes.length
+    ? db
+        .select({ recipe: recipeProducts.recipe, name: recipeProducts.name })
+        .from(recipeProducts)
+        .where(inArray(recipeProducts.recipe, referencedRecipes))
+        .all()
+    : [];
+  for (const p of referencedProducts) {
     let set = productsByRecipe.get(p.recipe);
     if (!set) productsByRecipe.set(p.recipe, (set = new Set()));
     set.add(p.name);
@@ -1361,16 +1380,20 @@ export function listBlocks() {
   // recipe → its ingredient good names, for the "can this recipe reach a goal?"
   // check that mirrors the solver's unused-recipe pinning.
   const ingredientsByRecipe = new Map<string, Set<string>>();
-  for (const p of db
-    .select({ recipe: recipeIngredients.recipe, name: recipeIngredients.name })
-    .from(recipeIngredients)
-    .all()) {
+  const referencedIngredients = referencedRecipes.length
+    ? db
+        .select({ recipe: recipeIngredients.recipe, name: recipeIngredients.name })
+        .from(recipeIngredients)
+        .where(inArray(recipeIngredients.recipe, referencedRecipes))
+        .all()
+    : [];
+  for (const p of referencedIngredients) {
     let set = ingredientsByRecipe.get(p.recipe);
     if (!set) ingredientsByRecipe.set(p.recipe, (set = new Set()));
     set.add(p.name);
   }
-  return rows.map(({ data, solveStatus, ...b }) => {
-    const d = normalizeBlockData(data as BlockData);
+  return rows.map(({ data: _data, solveStatus, ...b }, index) => {
+    const d = documents[index];
     const blockRecipes = d.recipes ?? [];
     const broken =
       blockRecipes.some((r) => !recipeNames.has(r)) || goalNames(d).some((g) => !goodNames.has(g));
@@ -1675,27 +1698,19 @@ export function saveBlockRow(
 /** Every block with its current target rate and cached boundary flows — the input
  * to the factory-level what-if solve (each block becomes a fixed-ratio super-recipe). */
 export function blocksWithFlows() {
-  return db
+  const bs = db
     .select()
     .from(blocks)
     .where(eq(blocks.enabled, true)) // disabled blocks (#73) sit out the factory what-if
     .orderBy(blocks.sortOrder, blocks.name)
-    .all()
-    .map((b) => ({
-      id: b.id,
-      name: b.name,
-      rate: primaryRate(normalizeBlockData(b.data)),
-      flows: db
-        .select({
-          item: blockFlows.item,
-          kind: blockFlows.kind,
-          role: blockFlows.role,
-          rate: blockFlows.rate,
-        })
-        .from(blockFlows)
-        .where(eq(blockFlows.blockId, b.id))
-        .all(),
-    }));
+    .all();
+  const flowsByBlock = enabledFlowsByBlock();
+  return bs.map((b) => ({
+    id: b.id,
+    name: b.name,
+    rate: primaryRate(normalizeBlockData(b.data)),
+    flows: flowsByBlock.get(b.id) ?? [],
+  }));
 }
 
 /** Aggregate net production across all blocks — the factory over/under view. */
@@ -1708,17 +1723,9 @@ export function factoryBlocks() {
     .where(eq(blocks.enabled, true)) // disabled blocks (#73) don't count factory-wide
     .orderBy(blocks.sortOrder, blocks.name)
     .all();
+  const flowsByBlock = enabledFlowsByBlock();
   return bs.map((b) => {
-    const flows = db
-      .select({
-        item: blockFlows.item,
-        kind: blockFlows.kind,
-        role: blockFlows.role,
-        rate: blockFlows.rate,
-      })
-      .from(blockFlows)
-      .where(eq(blockFlows.blockId, b.id))
-      .all();
+    const flows = flowsByBlock.get(b.id) ?? [];
     const pick = (roles: string[]) =>
       flows
         .filter((f) => roles.includes(f.role))
@@ -1737,6 +1744,30 @@ export function factoryBlocks() {
       imports: pick(["import"]),
     };
   });
+}
+
+/** Load cached flows for every enabled block in one statement. Keeping the
+ * enabled filter in SQLite avoids both N+1 reads and an unbounded IN-list. */
+function enabledFlowsByBlock(): Map<number, BlockFlow[]> {
+  const rows = db
+    .select({
+      blockId: blockFlows.blockId,
+      item: blockFlows.item,
+      kind: blockFlows.kind,
+      role: blockFlows.role,
+      rate: blockFlows.rate,
+    })
+    .from(blockFlows)
+    .innerJoin(blocks, eq(blockFlows.blockId, blocks.id))
+    .where(eq(blocks.enabled, true))
+    .all();
+  const grouped = new Map<number, BlockFlow[]>();
+  for (const { blockId, ...flow } of rows) {
+    const flows = grouped.get(blockId) ?? [];
+    flows.push(flow);
+    grouped.set(blockId, flows);
+  }
+  return grouped;
 }
 
 /** Spoilage: what a good rots into and how fast. A fast-spoiling good can't be
