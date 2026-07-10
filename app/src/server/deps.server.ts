@@ -23,8 +23,8 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.server.ts";
 import { fluids, items, recipeIngredients, recipeProducts, recipes } from "../db/schema.ts";
 import {
-  isExcluded,
-  recipeAvailability,
+  createExclusionMatcher,
+  recipeAvailabilities,
   searchAll,
   type RecipeAvail,
 } from "../db/queries.server.ts";
@@ -88,6 +88,7 @@ type Graph = {
  * request — ~50k rows, a few tens of ms — so it can never go stale across
  * project switches, data syncs, or exclusion edits. */
 function loadGraph(): Graph {
+  const isExcluded = createExclusionMatcher();
   const keptRecipes = db
     .select({
       name: recipes.name,
@@ -210,28 +211,136 @@ function loadGraph(): Graph {
   };
 }
 
-/** Closure sizes for one node via BFS over the full graph (stamp-array visited). */
-function closureCounts(
-  g: Graph,
-  adj: number[][],
-  start: number,
-  stamp: Int32Array,
-  mark: number,
-): DepsClosure {
-  let goods = 0;
-  let recipesN = 0;
-  stamp[start] = mark;
-  const queue = [start];
-  for (let qi = 0; qi < queue.length; qi++) {
-    for (const next of adj[queue[qi]]) {
-      if (stamp[next] === mark) continue;
-      stamp[next] = mark;
-      if (next < g.goodCount) goods++;
-      else recipesN++;
-      queue.push(next);
+/** Compute every requested node's full closure together.
+ *
+ * A separate BFS per payload node revisited the same large downstream graph up
+ * to 500 times. Collapse cycles into SCCs, propagate a compact bitset of which
+ * requested roots reach each component once over the resulting DAG, then add
+ * each component's goods/recipes to those roots. The result is identical to
+ * per-node BFS (including cycles and shared descendants) without repeated
+ * full-graph walks. All state is scoped to this request. */
+function closureCountsFor(g: Graph, adj: number[][], starts: number[]): Map<number, DepsClosure> {
+  if (!starts.length) return new Map();
+
+  const reverse = Array.from({ length: g.nodeCount }, () => [] as number[]);
+  for (let from = 0; from < adj.length; from++) {
+    for (const to of adj[from]) reverse[to].push(from);
+  }
+
+  // Iterative DFS keeps Py's large cyclic graphs off the JavaScript call stack.
+  const seen = new Uint8Array(g.nodeCount);
+  const finish: number[] = [];
+  for (let root = 0; root < g.nodeCount; root++) {
+    if (seen[root]) continue;
+    seen[root] = 1;
+    const nodes = [root];
+    const nextEdge = [0];
+    while (nodes.length) {
+      const top = nodes.length - 1;
+      const node = nodes[top];
+      const edge = nextEdge[top];
+      if (edge < adj[node].length) {
+        nextEdge[top] = edge + 1;
+        const next = adj[node][edge];
+        if (!seen[next]) {
+          seen[next] = 1;
+          nodes.push(next);
+          nextEdge.push(0);
+        }
+      } else {
+        finish.push(node);
+        nodes.pop();
+        nextEdge.pop();
+      }
     }
   }
-  return { goods, recipes: recipesN };
+
+  const component = new Int32Array(g.nodeCount);
+  component.fill(-1);
+  const componentGoods: number[] = [];
+  const componentRecipes: number[] = [];
+  for (let oi = finish.length - 1; oi >= 0; oi--) {
+    const root = finish[oi];
+    if (component[root] !== -1) continue;
+    const cid = componentGoods.length;
+    let goods = 0;
+    let recipesN = 0;
+    component[root] = cid;
+    const stack = [root];
+    while (stack.length) {
+      const node = stack.pop()!;
+      if (node < g.goodCount) goods++;
+      else recipesN++;
+      for (const prev of reverse[node]) {
+        if (component[prev] !== -1) continue;
+        component[prev] = cid;
+        stack.push(prev);
+      }
+    }
+    componentGoods.push(goods);
+    componentRecipes.push(recipesN);
+  }
+
+  const componentCount = componentGoods.length;
+  const dagSets = Array.from({ length: componentCount }, () => new Set<number>());
+  const indegree = new Int32Array(componentCount);
+  for (let from = 0; from < adj.length; from++) {
+    const fromC = component[from];
+    for (const to of adj[from]) {
+      const toC = component[to];
+      if (fromC === toC || dagSets[fromC].has(toC)) continue;
+      dagSets[fromC].add(toC);
+      indegree[toC]++;
+    }
+  }
+
+  const wordCount = Math.ceil(starts.length / 32);
+  const reaches = new Uint32Array(componentCount * wordCount);
+  for (let i = 0; i < starts.length; i++) {
+    const offset = component[starts[i]] * wordCount + (i >>> 5);
+    reaches[offset] |= 1 << (i & 31);
+  }
+
+  const topo: number[] = [];
+  for (let c = 0; c < componentCount; c++) if (indegree[c] === 0) topo.push(c);
+  for (let qi = 0; qi < topo.length; qi++) {
+    const from = topo[qi];
+    const fromOffset = from * wordCount;
+    for (const to of dagSets[from]) {
+      const toOffset = to * wordCount;
+      for (let w = 0; w < wordCount; w++) reaches[toOffset + w] |= reaches[fromOffset + w];
+      if (--indegree[to] === 0) topo.push(to);
+    }
+  }
+
+  const goods = new Int32Array(starts.length);
+  const recipesN = new Int32Array(starts.length);
+  for (let c = 0; c < componentCount; c++) {
+    const offset = c * wordCount;
+    for (let w = 0; w < wordCount; w++) {
+      let bits = reaches[offset + w] >>> 0;
+      while (bits) {
+        const lowBit = (bits & -bits) >>> 0;
+        const bit = 31 - Math.clz32(lowBit);
+        const index = (w << 5) + bit;
+        if (index < starts.length) {
+          goods[index] += componentGoods[c];
+          recipesN[index] += componentRecipes[c];
+        }
+        bits = (bits & (bits - 1)) >>> 0;
+      }
+    }
+  }
+
+  return new Map(
+    starts.map((start, i) => [
+      start,
+      {
+        goods: goods[i] - (start < g.goodCount ? 1 : 0),
+        recipes: recipesN[i] - (start < g.goodCount ? 0 : 1),
+      },
+    ]),
+  );
 }
 
 const keyOf = (g: Graph, id: number) =>
@@ -320,12 +429,22 @@ export function depsTree(input: {
     }
   }
 
-  const stamp = new Int32Array(g.nodeCount);
-  let mark = 0;
+  const walkedIds = [...walked.keys()];
+  const closures = closureCountsFor(g, adj, walkedIds);
+  const recipeIds = walkedIds.filter((id) => id >= g.goodCount);
+  const enabledByName = new Map(
+    recipeIds.map((id) => {
+      const ri = id - g.goodCount;
+      return [g.recipeName[ri], g.recipeEnabled[ri]] as const;
+    }),
+  );
+  const availability = recipeAvailabilities(
+    [...enabledByName].map(([name, enabled]) => ({ name, enabled })),
+  );
   const nodes: Record<string, DepsNode> = {};
   for (const [id, w] of walked) {
     const key = keyOf(g, id);
-    const closure = closureCounts(g, adj, id, stamp, ++mark);
+    const closure = closures.get(id)!;
     if (id < g.goodCount) {
       nodes[key] = {
         key,
@@ -341,7 +460,7 @@ export function depsTree(input: {
     } else {
       const ri = id - g.goodCount;
       const name = g.recipeName[ri];
-      const { avail, unlockedBy } = recipeAvailability(name, g.recipeEnabled[ri]);
+      const { avail, unlockedBy } = availability.get(name)!;
       nodes[key] = {
         key,
         type: "recipe",
@@ -373,12 +492,20 @@ export function depsSearch(
 ): { kind: "item" | "fluid" | "recipe"; name: string; display: string | null }[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
-  const goods = searchAll(query, limit).map((r) => ({
-    kind: r.kind as "item" | "fluid",
-    name: r.name,
-    display: r.display,
+  const isExcluded = createExclusionMatcher();
+  const goods = searchAll(query, limit, isExcluded).map((row) => ({
+    kind: row.kind as "item" | "fluid",
+    name: row.name,
+    display: row.display,
   }));
   const nq = q.replace(/[-_\s]+/g, " ");
+  const rank = (r: { name: string; display: string | null }) => {
+    const n = r.name.toLowerCase();
+    const d = (r.display ?? "").toLowerCase();
+    if (n === q || d === q) return 0;
+    if (n.startsWith(q) || d.startsWith(q)) return 1;
+    return 2;
+  };
   const recipeRows = db
     .select({
       name: recipes.name,
@@ -400,13 +527,6 @@ export function depsSearch(
         !isExcluded(r.name, r.category, r.subgroup),
     )
     .map((r) => ({ kind: "recipe" as const, name: r.name, display: r.display }));
-  const rank = (r: { name: string; display: string | null }) => {
-    const n = r.name.toLowerCase();
-    const d = (r.display ?? "").toLowerCase();
-    if (n === q || d === q) return 0;
-    if (n.startsWith(q) || d.startsWith(q)) return 1;
-    return 2;
-  };
   return [...goods, ...recipeRows]
     .sort((a, b) => rank(a) - rank(b) || (a.display ?? a.name).localeCompare(b.display ?? b.name))
     .slice(0, limit);

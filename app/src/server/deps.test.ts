@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
-import { switchDatabase } from "../db/index.server.ts";
+import { db, switchDatabase } from "../db/index.server.ts";
+import { recipeAvailability, searchAll, setExclusions } from "../db/queries.server.ts";
 import { type TestDb, makeTestDb } from "../db/test-helpers.ts";
 import { depsSearch, depsTree } from "./deps.server.ts";
 
@@ -14,18 +15,37 @@ import { depsSearch, depsTree } from "./deps.server.ts";
  */
 let fx: TestDb;
 
+function preparedStatementCount(run: () => void): number {
+  const client = db.$client as unknown as { prepare: (source: string) => unknown };
+  const prepare = client.prepare.bind(db.$client);
+  let count = 0;
+  client.prepare = (source) => {
+    count++;
+    return prepare(source);
+  };
+  try {
+    run();
+    return count;
+  } finally {
+    client.prepare = prepare;
+  }
+}
+
 beforeEach(async () => {
   fx = await makeTestDb();
   fx.db.exec(`
     INSERT INTO items (name, display) VALUES
       ('ore','Ore'),('plate','Plate'),('gear','Gear'),('scrap','Scrap'),
-      ('loop-a','Loop A'),('loop-b','Loop B'),('trinket','Trinket'),('sp1','Science pack 1');
+      ('loop-a','Loop A'),('loop-b','Loop B'),('trinket','Trinket'),
+      ('turd-input','TURD input'),('turd-good','TURD good'),('sp1','Science pack 1');
     INSERT INTO fluids (name, display) VALUES ('water','Water');
 
     INSERT INTO recipes (name, display, kind, hidden, enabled) VALUES
       ('smelt-plate','Smelt plate','real',0,1),
       ('make-gear','Make gear','real',0,0),
       ('alt-gear','Alt gear','real',0,1),
+      ('turd-a','TURD A','real',0,0),
+      ('turd-b','TURD B','real',0,0),
       ('hidden-gear','Hidden gear','real',1,1),
       ('recycle-a','Recycle A','real',0,1),
       ('recycle-b','Recycle B','real',0,1);
@@ -37,6 +57,8 @@ beforeEach(async () => {
       ('smelt-plate',1,'fluid','water',5),
       ('make-gear',0,'item','plate',2),
       ('alt-gear',0,'item','scrap',4),
+      ('turd-a',0,'item','turd-input',1),
+      ('turd-b',0,'item','turd-input',1),
       ('hidden-gear',0,'item','ore',1),
       ('recycle-a',0,'item','loop-b',1),
       ('recycle-b',0,'item','loop-a',1),
@@ -45,15 +67,29 @@ beforeEach(async () => {
       ('smelt-plate',0,'item','plate',1),
       ('make-gear',0,'item','gear',1),
       ('alt-gear',0,'item','gear',1),
+      ('turd-a',0,'item','turd-good',1),
+      ('turd-b',0,'item','turd-good',1),
       ('hidden-gear',0,'item','gear',1),
       ('recycle-a',0,'item','loop-a',1),
       ('recycle-b',0,'item','loop-b',1),
       ('fill-water-barrel',0,'item','water-barrel',1);
 
     -- make-gear is tech-locked behind a science pack we don't have
-    INSERT INTO technologies (name, display) VALUES ('tech-gear','Gear tech');
-    INSERT INTO tech_unlocks (technology, recipe) VALUES ('tech-gear','make-gear');
+    INSERT INTO technologies (name, display, is_turd) VALUES
+      ('tech-gear','Gear tech',0),
+      ('turd-master','TURD master',1),
+      ('turd-a-tech','TURD choice A',0),
+      ('turd-b-tech','TURD choice B',0);
+    INSERT INTO tech_unlocks (technology, recipe) VALUES
+      ('tech-gear','make-gear'),
+      ('turd-a-tech','turd-a'),
+      ('turd-b-tech','turd-b');
     INSERT INTO tech_ingredients (technology, name, amount) VALUES ('tech-gear','sp1',1);
+    INSERT INTO tech_prerequisites (technology, prerequisite) VALUES
+      ('turd-a-tech','turd-master'),
+      ('turd-a-tech','turd-select-turd-a-tech'),
+      ('turd-b-tech','turd-master'),
+      ('turd-b-tech','turd-select-turd-b-tech');
   `);
   fx.db.close();
   switchDatabase(fx.file);
@@ -165,6 +201,75 @@ describe("depsTree limits", () => {
   });
 });
 
+describe("depsTree query shape", () => {
+  it("uses a fixed set of bulk reads as the number of recipe nodes grows", () => {
+    const smallCount = preparedStatementCount(() => {
+      depsTree({ kind: "good", name: "gear", dir: "requires", depth: 10 });
+    });
+
+    const recipeValues = Array.from(
+      { length: 40 },
+      (_, i) => `('bulk-${i}','Bulk ${i}','real',0,1)`,
+    ).join(",");
+    const ingredientValues = Array.from(
+      { length: 40 },
+      (_, i) => `('bulk-${i}',0,'item','ore',1)`,
+    ).join(",");
+    const productValues = Array.from(
+      { length: 40 },
+      (_, i) => `('bulk-${i}',0,'item','gear',1)`,
+    ).join(",");
+    db.$client.exec(`
+      INSERT INTO recipes (name, display, kind, hidden, enabled) VALUES ${recipeValues};
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES ${ingredientValues};
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES ${productValues};
+    `);
+
+    const largeCount = preparedStatementCount(() => {
+      const tree = depsTree({ kind: "good", name: "gear", dir: "requires", depth: 10 });
+      expect(Object.keys(tree!.nodes).length).toBeGreaterThan(40);
+    });
+
+    expect(largeCount).toBe(smallCount);
+    expect(largeCount).toBeLessThanOrEqual(14);
+  });
+});
+
+describe("depsTree availability parity", () => {
+  const expectParity = (root: string, recipe: string, enabled: boolean) => {
+    const tree = depsTree({ kind: "good", name: root, dir: "requires", depth: 2 })!;
+    const node = tree.nodes[`r:${recipe}`];
+    const expected = recipeAvailability(recipe, enabled);
+    expect(node.avail).toEqual({
+      research: expected.avail.research,
+      needs: expected.avail.needs,
+      turd: expected.avail.turd,
+    });
+    expect(node.unlockedBy).toEqual(expected.unlockedBy);
+  };
+
+  it("matches the canonical helper for enabled, locked, and researched recipes", () => {
+    expectParity("gear", "alt-gear", true);
+    expectParity("gear", "make-gear", false);
+
+    db.$client
+      .prepare("INSERT INTO meta (key, value) VALUES ('researched_techs', ?)")
+      .run(JSON.stringify(["tech-gear"]));
+    expectParity("gear", "make-gear", false);
+  });
+
+  it("matches TURD pickable, active, and blocked states", () => {
+    expectParity("turd-good", "turd-a", false);
+    expectParity("turd-good", "turd-b", false);
+
+    db.$client
+      .prepare("INSERT INTO turd_selections (master_tech, sub_tech) VALUES (?, ?)")
+      .run("turd-master", "turd-a-tech");
+    expectParity("turd-good", "turd-a", false);
+    expectParity("turd-good", "turd-b", false);
+  });
+});
+
 describe("depsSearch", () => {
   it("finds goods and recipes, hiding hidden and barrel recipes", () => {
     const hits = depsSearch("gear");
@@ -175,5 +280,29 @@ describe("depsSearch", () => {
     expect(keys).not.toContain("recipe:hidden-gear");
     expect(depsSearch("barrel").map((h) => h.name)).not.toContain("fill-water-barrel");
     expect(depsSearch("")).toEqual([]);
+  });
+
+  it("uses one exclusion snapshot rather than a metadata read per hit", () => {
+    const count = preparedStatementCount(() => {
+      expect(depsSearch("gear").length).toBeGreaterThan(0);
+    });
+    expect(count).toBeLessThanOrEqual(4);
+  });
+
+  it("keeps goods search and user-glob exclusions in parity with canonical search", () => {
+    db.$client.exec(`
+      INSERT INTO items (name, display, subgroup) VALUES
+        ('gear-visible','Gear visible','parts'),
+        ('gear-excluded','Gear excluded','excluded-tools');
+      INSERT INTO recipes (name, display, kind, subgroup, hidden, enabled) VALUES
+        ('gear-visible-recipe','Gear visible recipe','real','parts',0,1),
+        ('gear-excluded-recipe','Gear excluded recipe','real','excluded-tools',0,1);
+    `);
+    setExclusions({ globs: ["excluded-*"] });
+
+    const actual = depsSearch("gear");
+    expect(actual.filter((hit) => hit.kind !== "recipe")).toEqual(searchAll("gear", 60));
+    expect(actual.map((hit) => hit.name)).toContain("gear-visible-recipe");
+    expect(actual.map((hit) => hit.name)).not.toContain("gear-excluded-recipe");
   });
 });

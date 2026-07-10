@@ -2848,6 +2848,11 @@ function exclusionGlobs(): RegExp[] {
 function matchesExclusion(globs: RegExp[], ...fields: (string | null | undefined)[]): boolean {
   return fields.some((f) => f != null && globs.some((g) => g.test(f)));
 }
+/** Snapshot the SQLite-owned exclusion policy once for one larger operation. */
+export function createExclusionMatcher() {
+  const globs = exclusionGlobs();
+  return (...fields: (string | null | undefined)[]) => matchesExclusion(globs, ...fields);
+}
 /** True if any exclusion glob matches any of the given fields (name/subgroup/category). */
 export function isExcluded(...fields: (string | null | undefined)[]): boolean {
   return matchesExclusion(exclusionGlobs(), ...fields);
@@ -3995,10 +4000,33 @@ export function recipeAvailability(
   return { avail, unlockedBy: enabled ? [] : unlocks.map((u) => u.display) };
 }
 
+/** Set-oriented availability for request-sized recipe lists. */
+export function recipeAvailabilities(recipeRows: { name: string; enabled: boolean }[]) {
+  const rows = [...new Map(recipeRows.map((row) => [row.name, row])).values()];
+  const selections = getTurdSelections();
+  const locks = recipeLockStatesByRecipe(
+    rows.map((row) => row.name),
+    new Set(selections.values()),
+  );
+  const availability = computeAvailByRecipe(rows, locks, getResearchHorizon(), selections);
+  return new Map(
+    rows.map((row) => {
+      const unlocks = locks.get(row.name) ?? [];
+      return [
+        row.name,
+        {
+          avail: availability.get(row.name)!,
+          unlockedBy: row.enabled ? [] : unlocks.map((unlock) => unlock.display),
+        },
+      ] as const;
+    }),
+  );
+}
+
 /* ── Browser (items / fluids / recipes with full context) ───────────────────── */
 
 /** Search items AND fluids by internal or display name. */
-export function searchAll(query: string, limit = 50) {
+export function searchAll(query: string, limit = 50, excluded = createExclusionMatcher()) {
   // hyphen/underscore-insensitive name match ("copper plate" -> copper-plate) + display
   const q = query.trim().toLowerCase();
   const nq = q.replace(/[-_\s]+/g, " ");
@@ -4017,7 +4045,7 @@ export function searchAll(query: string, limit = 50) {
     .where(nameMatch(items.name, items.display))
     .limit(limit + 30)
     .all()
-    .filter((r) => !isExcluded(r.name, r.subgroup))
+    .filter((r) => !excluded(r.name, r.subgroup))
     .map((r) => ({ name: r.name, display: r.display, kind: r.kind }));
   const fluidRows = db
     .select({ name: fluids.name, display: fluids.display, kind: sql<string>`'fluid'` })
@@ -4025,7 +4053,7 @@ export function searchAll(query: string, limit = 50) {
     .where(nameMatch(fluids.name, fluids.display))
     .limit(limit)
     .all()
-    .filter((r) => !isExcluded(r.name));
+    .filter((r) => !excluded(r.name));
   // exact/prefix matches first, then alphabetical (q defined above)
   const rank = (r: { name: string; display: string | null }) => {
     const n = r.name.toLowerCase();
@@ -4082,13 +4110,15 @@ export function recipeLockState(name: string) {
 
 type RecipeLockState = ReturnType<typeof recipeLockState>;
 
-function recipeLockStatesByRecipe(recipeNames: string[]): Map<string, RecipeLockState> {
+function recipeLockStatesByRecipe(
+  recipeNames: string[],
+  selections = new Set(getTurdSelections().values()),
+): Map<string, RecipeLockState> {
   const uniq = [...new Set(recipeNames)].filter((n) => n);
   const out = new Map<string, RecipeLockState>();
   for (const name of uniq) out.set(name, []);
   if (!uniq.length) return out;
 
-  const selections = new Set(getTurdSelections().values());
   const unlockRows = db
     .select({ recipe: techUnlocks.recipe, tech: techUnlocks.technology })
     .from(techUnlocks)
