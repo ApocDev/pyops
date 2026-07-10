@@ -1686,17 +1686,31 @@ export function setBlockEnabled(blockId: number, enabled: boolean) {
 /** Persist a manual block order: write sort_order = position for each id (pass a
  * group's blocks in the desired order). listBlocks reads sort_order first. */
 export function setBlockOrder(ids: number[]) {
-  db.transaction((tx) => {
-    ids.forEach((id, i) => tx.update(blocks).set({ sortOrder: i }).where(eq(blocks.id, id)).run());
-  });
+  const positions = new Map(ids.map((id, index) => [id, index]));
+  if (!positions.size) return;
+  const cases = sql.join(
+    [...positions].map(([id, index]) => sql`WHEN ${id} THEN ${index}`),
+    sql` `,
+  );
+  db.run(sql`
+    UPDATE blocks
+    SET sort_order = CASE id ${cases} ELSE sort_order END
+    WHERE id IN (${sql.join([...positions.keys()], sql`, `)})
+  `);
 }
 /** Persist a manual folder order (block_groups.sort_order = position). */
 export function setGroupOrder(ids: number[]) {
-  db.transaction((tx) => {
-    ids.forEach((id, i) =>
-      tx.update(blockGroups).set({ sortOrder: i }).where(eq(blockGroups.id, id)).run(),
-    );
-  });
+  const positions = new Map(ids.map((id, index) => [id, index]));
+  if (!positions.size) return;
+  const cases = sql.join(
+    [...positions].map(([id, index]) => sql`WHEN ${id} THEN ${index}`),
+    sql` `,
+  );
+  db.run(sql`
+    UPDATE block_groups
+    SET sort_order = CASE id ${cases} ELSE sort_order END
+    WHERE id IN (${sql.join([...positions.keys()], sql`, `)})
+  `);
 }
 
 export function getBlock(id: number) {

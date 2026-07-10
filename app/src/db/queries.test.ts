@@ -25,9 +25,11 @@ import {
   productivityBonuses,
   recipeCandidates,
   saveBlockRow,
+  setBlockOrder,
   setBlockGroup,
   setBuiltMachines,
   setGroupParent,
+  setGroupOrder,
   setResearchHorizon,
   listTurdUpgrades,
   turdChoicesLookup,
@@ -310,6 +312,44 @@ describe("buildCost", () => {
 });
 
 describe("nested folders", () => {
+  it("updates block and folder order with one statement per list", () => {
+    const a = createGroup("A");
+    const b = createGroup("B");
+    const c = createGroup("C");
+    const block2 = saveBlockRow(
+      {
+        name: "Second",
+        iconKind: null,
+        iconName: null,
+        data: { goals: [], recipes: [] },
+        electricityW: null,
+      },
+      null,
+    );
+    const block3 = saveBlockRow(
+      {
+        name: "Third",
+        iconKind: null,
+        iconName: null,
+        data: { goals: [], recipes: [] },
+        electricityW: null,
+      },
+      null,
+    );
+    const prepare = vi.spyOn(db.$client, "prepare");
+    setGroupOrder([c, a, b]);
+    setBlockOrder([block3, 1, block2]);
+    const statements = prepare.mock.calls.map(([statement]) => statement.toLowerCase());
+    prepare.mockRestore();
+
+    expect(
+      statements.filter((statement) => statement.includes("update block_groups")),
+    ).toHaveLength(1);
+    expect(statements.filter((statement) => statement.includes("update blocks"))).toHaveLength(1);
+    expect(listGroups().map((group) => group.id)).toEqual([c, a, b]);
+    expect(listBlocks().map((block) => block.id)).toEqual([block3, 1, block2]);
+  });
+
   it("setGroupParent nests folders and rejects cycles", () => {
     const a = createGroup("A");
     const b = createGroup("B");
