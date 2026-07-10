@@ -1,0 +1,23 @@
+app/src/components/block/recipe-spoilage-indicator.test.tsx
+  s_cd1b59b354c2a5::t_7ab203047eb097 1-50
+app/src/components/block/recipe-spoilage-indicator.tsx
+  s_cd1b59b354c2a5::t_a1cc6d350b615d 1-53
+app/src/components/block/recipe-row.tsx
+  s_cd1b59b354c2a5::t_3ec566ebf21aea 19,26,100,178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "df17962e96de0fdea0498267e45e637b302c23c2",
+  "prompts": {},
+  "sessions": {
+    "s_cd1b59b354c2a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4983-be89-71e2-b2b9-2cc58b36aa77",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
