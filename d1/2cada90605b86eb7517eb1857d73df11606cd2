@@ -1,0 +1,33 @@
+app/src/server/bridge/server.test.ts
+  s_c6f3ea958a1561::t_bc7e455a9bf2bd 111-133
+app/src/server/bridge/server.ts
+  s_c6f3ea958a1561::t_9b2d748da61b52 19,62-82,89-97,100,106-109,111,133,175-185
+docs/architecture.md
+  s_f4c2886980ec79::t_d98716efa597aa 23,54
+docs/bridge.md
+  s_f4c2886980ec79::t_c800071f5169ce 10-12,113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "d12cada90605b86eb7517eb1857d73df11606cd2",
+  "prompts": {},
+  "sessions": {
+    "s_c6f3ea958a1561": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4cb3-6f78-7cb3-9e44-b91dac03f9bd",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f4c2886980ec79": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4cb7-e952-7ce3-a0bf-59b222371715",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
