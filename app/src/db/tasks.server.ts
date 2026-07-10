@@ -9,7 +9,7 @@
  * `ensureSchema()` creates/upgrades these tables idempotently on first use, so every
  * project db has them. schema.ts stays the canonical definition.
  */
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 
 import { db, currentDatabaseFile } from "./index.server.ts";
 import { searchAll, searchTechs } from "./queries.server.ts";
@@ -164,9 +164,13 @@ function ensureSchema() {
   ensured.add(file);
 }
 
-/** Resolve a stored (kind, refName) reference to its display + icon. Falls back
- * to the raw name if the referenced entity no longer exists (stale link). */
-function resolveRef(kind: RefKind, refName: string): EntityRef {
+type RefDisplays = Record<"item" | "fluid" | "recipe" | "technology", Map<string, string>> & {
+  blocks: Map<number, { name: string; iconKind: string | null; iconName: string | null }>;
+};
+
+/** Resolve a stored (kind, refName) reference from batch-loaded lookup maps.
+ * Falls back to the raw name if the referenced entity no longer exists. */
+function resolveRef(kind: RefKind, refName: string, displays: RefDisplays): EntityRef {
   const base: EntityRef = {
     kind,
     refName,
@@ -176,18 +180,15 @@ function resolveRef(kind: RefKind, refName: string): EntityRef {
     blockId: null,
   };
   if (kind === "block") {
-    const b = db
-      .select({ name: blocks.name, iconKind: blocks.iconKind, iconName: blocks.iconName })
-      .from(blocks)
-      .where(eq(blocks.id, Number(refName)))
-      .get();
+    const blockId = Number(refName);
+    const b = displays.blocks.get(blockId);
     return {
       kind,
       refName,
       display: b?.name ?? `block #${refName}`,
       iconKind: b?.iconKind ?? null,
       iconName: b?.iconName ?? null,
-      blockId: Number(refName),
+      blockId,
     };
   }
   // In-game anchors (captured from the mod) — no dump lookup.
@@ -203,16 +204,7 @@ function resolveRef(kind: RefKind, refName: string): EntityRef {
         : refName;
     return { kind, refName, display, iconKind: "location", iconName: null, blockId: null };
   }
-  const table =
-    kind === "item"
-      ? items
-      : kind === "fluid"
-        ? fluids
-        : kind === "recipe"
-          ? recipes
-          : technologies;
-  const row = db.select({ d: table.display }).from(table).where(eq(table.name, refName)).get();
-  return { ...base, display: row?.d ?? refName };
+  return { ...base, display: displays[kind].get(refName) ?? refName };
 }
 
 /** Fallback display for an internal name with no dump entry (e.g. an entity
@@ -222,15 +214,108 @@ function humanize(name: string): string {
   return s ? s[0].toUpperCase() + s.slice(1) : name;
 }
 
-/** A task's entity links, ordered, each resolved to a renderable chip. */
-function linksFor(taskId: number): TaskLink[] {
-  return db
+/** Entity links for a set of tasks, loaded and resolved with a constant number
+ * of queries per reference kind instead of one task/ref at a time. */
+function linksByTask(taskIds: readonly number[]): Map<number, TaskLink[]> {
+  const byTask = new Map<number, TaskLink[]>();
+  if (!taskIds.length) return byTask;
+
+  const links = db
     .select()
     .from(taskLinks)
-    .where(eq(taskLinks.taskId, taskId))
-    .orderBy(asc(taskLinks.sortOrder), asc(taskLinks.id))
-    .all()
-    .map((l) => ({ id: l.id, ...resolveRef(l.refKind as RefKind, l.refName) }));
+    .where(inArray(taskLinks.taskId, [...new Set(taskIds)]))
+    .orderBy(asc(taskLinks.taskId), asc(taskLinks.sortOrder), asc(taskLinks.id))
+    .all();
+  const names = {
+    item: new Set<string>(),
+    fluid: new Set<string>(),
+    recipe: new Set<string>(),
+    technology: new Set<string>(),
+    blocks: new Set<number>(),
+  };
+  for (const link of links) {
+    const kind = link.refKind as RefKind;
+    if (kind === "block") {
+      const id = Number(link.refName);
+      if (Number.isFinite(id)) names.blocks.add(id);
+    } else if (kind !== "entity" && kind !== "location") {
+      names[kind].add(link.refName);
+    }
+  }
+
+  const displays: RefDisplays = {
+    item: new Map(),
+    fluid: new Map(),
+    recipe: new Map(),
+    technology: new Map(),
+    blocks: new Map(),
+  };
+  if (names.item.size) {
+    for (const row of db
+      .select({ name: items.name, display: items.display })
+      .from(items)
+      .where(inArray(items.name, [...names.item]))
+      .all()) {
+      displays.item.set(row.name, row.display ?? row.name);
+    }
+  }
+  if (names.fluid.size) {
+    for (const row of db
+      .select({ name: fluids.name, display: fluids.display })
+      .from(fluids)
+      .where(inArray(fluids.name, [...names.fluid]))
+      .all()) {
+      displays.fluid.set(row.name, row.display ?? row.name);
+    }
+  }
+  if (names.recipe.size) {
+    for (const row of db
+      .select({ name: recipes.name, display: recipes.display })
+      .from(recipes)
+      .where(inArray(recipes.name, [...names.recipe]))
+      .all()) {
+      displays.recipe.set(row.name, row.display ?? row.name);
+    }
+  }
+  if (names.technology.size) {
+    for (const row of db
+      .select({ name: technologies.name, display: technologies.display })
+      .from(technologies)
+      .where(inArray(technologies.name, [...names.technology]))
+      .all()) {
+      displays.technology.set(row.name, row.display ?? row.name);
+    }
+  }
+  if (names.blocks.size) {
+    for (const row of db
+      .select({
+        id: blocks.id,
+        name: blocks.name,
+        iconKind: blocks.iconKind,
+        iconName: blocks.iconName,
+      })
+      .from(blocks)
+      .where(inArray(blocks.id, [...names.blocks]))
+      .all()) {
+      displays.blocks.set(row.id, row);
+    }
+  }
+
+  for (const link of links) {
+    const resolved = {
+      id: link.id,
+      ...resolveRef(link.refKind as RefKind, link.refName, displays),
+    };
+    const list = byTask.get(link.taskId) ?? [];
+    list.push(resolved);
+    byTask.set(link.taskId, list);
+  }
+  return byTask;
+}
+
+/** A task's entity links, ordered, each resolved to a renderable chip. */
+function linksFor(taskId: number): TaskLink[] {
+  return linksByTask([taskId]).get(taskId) ?? [];
 }
 
 /** Build a {taskId → {total,done}} rollup of steps, and {parentId → {total,done}}
@@ -426,27 +511,33 @@ export function updateTask(
 /** Delete a task and its whole subtree (descendant tasks + everyone's steps). */
 export function deleteTask(id: number) {
   ensureSchema();
-  const rows = db.select({ id: tasks.id, parentId: tasks.parentId }).from(tasks).all();
-  const childrenOf = new Map<number, number[]>();
-  for (const r of rows) {
-    if (r.parentId == null) continue;
-    const list = childrenOf.get(r.parentId) ?? [];
-    list.push(r.id);
-    childrenOf.set(r.parentId, list);
-  }
-  const subtree: number[] = [];
-  const stack = [id];
-  while (stack.length) {
-    const cur = stack.pop()!;
-    subtree.push(cur);
-    stack.push(...(childrenOf.get(cur) ?? []));
-  }
   db.transaction((tx) => {
-    for (const tid of subtree) {
-      tx.delete(taskSteps).where(eq(taskSteps.taskId, tid)).run();
-      tx.delete(taskLinks).where(eq(taskLinks.taskId, tid)).run();
-      tx.delete(tasks).where(eq(tasks.id, tid)).run();
-    }
+    // Repeat the recursive CTE for each statement while the task rows still
+    // exist. SQLite's row triggers still log every deleted row for undo.
+    tx.run(sql`
+      WITH RECURSIVE subtree(id) AS (
+        SELECT id FROM tasks WHERE id = ${id}
+        UNION
+        SELECT child.id FROM tasks child JOIN subtree parent ON child.parent_id = parent.id
+      )
+      DELETE FROM task_steps WHERE task_id IN (SELECT id FROM subtree)
+    `);
+    tx.run(sql`
+      WITH RECURSIVE subtree(id) AS (
+        SELECT id FROM tasks WHERE id = ${id}
+        UNION
+        SELECT child.id FROM tasks child JOIN subtree parent ON child.parent_id = parent.id
+      )
+      DELETE FROM task_links WHERE task_id IN (SELECT id FROM subtree)
+    `);
+    tx.run(sql`
+      WITH RECURSIVE subtree(id) AS (
+        SELECT id FROM tasks WHERE id = ${id}
+        UNION
+        SELECT child.id FROM tasks child JOIN subtree parent ON child.parent_id = parent.id
+      )
+      DELETE FROM tasks WHERE id IN (SELECT id FROM subtree)
+    `);
   });
 }
 
@@ -661,13 +752,14 @@ export function prioritizationInput(): PriorityInput[] {
     .from(tasks)
     .where(sql`${tasks.status} in ('open', 'in_progress')`)
     .all();
+  const links = linksByTask(rows.map((r) => r.id));
   return rows.map((r) => ({
     id: r.id,
     title: r.title,
     body: r.body,
     status: normalizeStatus(r.status),
     parentTitle: r.parentId != null ? (titleById.get(r.parentId) ?? null) : null,
-    links: linksFor(r.id).map((l) => `${l.kind}:${l.display}`),
+    links: (links.get(r.id) ?? []).map((l) => `${l.kind}:${l.display}`),
   }));
 }
 
@@ -677,24 +769,32 @@ export function setPriorities(
   updates: { id: number; priority: string | null; reason: string | null }[],
 ) {
   ensureSchema();
-  const now = new Date();
-  const ranked = new Set(updates.map((u) => u.id));
-  db.transaction((tx) => {
-    tx.update(tasks)
-      .set({ priority: null, priorityReason: null, priorityAt: null })
-      .where(sql`${tasks.id} not in (${sql.join(ranked.size ? [...ranked] : [-1], sql`, `)})`)
-      .run();
-    for (const u of updates) {
-      tx.update(tasks)
-        .set({
-          priority: normalizePriority(u.priority),
-          priorityReason: u.reason ?? null,
-          priorityAt: now,
-        })
-        .where(eq(tasks.id, u.id))
-        .run();
-    }
-  });
+  // An LLM response should contain each id once, but retaining the last value
+  // preserves the old loop's behavior for duplicate ids.
+  const byId = new Map(updates.map((u) => [u.id, u] as const));
+  const ranked = [...byId.values()];
+  if (!ranked.length) {
+    db.run(sql`UPDATE tasks SET priority = NULL, priority_reason = NULL, priority_at = NULL`);
+    return;
+  }
+  const priorityCases = sql.join(
+    ranked.map((u) => sql`WHEN ${u.id} THEN ${normalizePriority(u.priority)}`),
+    sql` `,
+  );
+  const reasonCases = sql.join(
+    ranked.map((u) => sql`WHEN ${u.id} THEN ${u.reason ?? null}`),
+    sql` `,
+  );
+  const rankedCases = sql.join(
+    ranked.map((u) => sql`WHEN ${u.id} THEN unixepoch()`),
+    sql` `,
+  );
+  db.run(sql`
+    UPDATE tasks SET
+      priority = CASE id ${priorityCases} ELSE NULL END,
+      priority_reason = CASE id ${reasonCases} ELSE NULL END,
+      priority_at = CASE id ${rankedCases} ELSE NULL END
+  `);
 }
 
 /* ── steps ──────────────────────────────────────────────────────────────────── */
