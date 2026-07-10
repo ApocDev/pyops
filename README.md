@@ -70,7 +70,7 @@ vp dev            # start PyOps at http://localhost:3000
 
 Then open **⚙ Settings › Game data** and run a sync: PyOps launches Factorio
 headlessly, reads its recipe data, and loads it into a local database (~1–2 min the
-first time). Needs **Factorio 2.0** with the **Pyanodons** suite +
+first time). Needs **Factorio 2.1** with the **Pyanodons** suite +
 **pypostprocessing**.
 
 - **Configuration** (env vars, remote access): [`docs/configuration.md`](docs/configuration.md)
