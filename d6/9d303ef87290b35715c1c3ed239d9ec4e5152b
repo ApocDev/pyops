@@ -1,0 +1,23 @@
+app/src/server/agent-tools-build-status.test.ts
+  s_cd1b59b354c2a5::t_980dc609ae3e7b 15,83
+app/src/server/agent-tools-whatif.test.ts
+  s_cd1b59b354c2a5::t_efac4cd99af7bf 17,77
+app/src/server/block-compute.server.ts
+  s_cd1b59b354c2a5::t_a46f04978192fd 277
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d69d303ef87290b35715c1c3ed239d9ec4e5152b",
+  "prompts": {},
+  "sessions": {
+    "s_cd1b59b354c2a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4983-be89-71e2-b2b9-2cc58b36aa77",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
