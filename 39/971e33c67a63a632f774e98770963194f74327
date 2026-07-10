@@ -1,0 +1,21 @@
+app/src/db/queries.server.ts
+  s_c0ef778f7c0bea::t_203d034c538196 856-880,882-916,918-925,927-934,946-953,955-960,962-983,1000-1005,1008-1009,1011,1013-1075,1077-1087,1090-1106,1118,1124-1158,1163-1164,1167-1194,1263,1267-1280,1282,1284-1335,1338,1341,1343,1346-1347,1356,4167-4264,4279-4282
+app/src/db/queries.test.ts
+  s_c0ef778f7c0bea::t_60f7262b626112 32-36,636-778
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "39971e33c67a63a632f774e98770963194f74327",
+  "prompts": {},
+  "sessions": {
+    "s_c0ef778f7c0bea": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4a90-7d70-7953-8c38-7b9a6ded3f88",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
