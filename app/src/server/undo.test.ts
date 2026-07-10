@@ -129,6 +129,48 @@ describe("withUndoAction (grouping + marker)", () => {
     expect(db.select().from(tasks).all()).toHaveLength(0);
   });
 
+  it("serializes overlapping async requests into separate undo steps", async () => {
+    let firstStarted!: () => void;
+    let releaseFirst!: () => void;
+    const started = new Promise<void>((resolve) => {
+      firstStarted = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+
+    const first = withUndoAction("first request", async () => {
+      db.insert(tasks).values({ title: "first-before" }).run();
+      firstStarted();
+      await blocked;
+      db.insert(tasks).values({ title: "first-after" }).run();
+    });
+    await started;
+
+    let secondEntered = false;
+    const second = withUndoAction("second request", async () => {
+      secondEntered = true;
+      db.insert(tasks).values({ title: "second" }).run();
+    });
+    await Promise.resolve();
+    expect(secondEntered).toBe(false);
+
+    releaseFirst();
+    await Promise.all([first, second]);
+    expect(undoStatus()).toMatchObject({ depth: 2, top: { name: "second request" } });
+
+    expect((await undoLast()).undone).toBe("second request");
+    expect(
+      db
+        .select()
+        .from(tasks)
+        .all()
+        .map((t) => t.title),
+    ).toEqual(["first-before", "first-after"]);
+    expect((await undoLast()).undone).toBe("first request");
+    expect(db.select().from(tasks).all()).toHaveLength(0);
+  });
+
   it("fail-soft: a write that bypasses the wrapper is simply not logged", async () => {
     seedBlock();
     db.insert(tasks).values({ title: "untracked" }).run();

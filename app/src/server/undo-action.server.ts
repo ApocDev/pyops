@@ -11,6 +11,7 @@
  * re-solves without an import cycle (undo.server.ts imports block-compute for
  * the post-undo cache re-solve).
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import { eq, sql } from "drizzle-orm";
 
 import { db } from "../db/index.server.ts";
@@ -24,11 +25,29 @@ export type UndoOpts = {
   undo?: boolean;
 };
 
-/** The wrapper's in-process state. better-sqlite3 is synchronous and each
- * request runs to completion, so actions can't interleave; a single module-
- * level slot mirrors the marker row. */
+/** Request-local nesting state. The marker itself remains SQLite-owned; this
+ * only distinguishes a genuinely nested call from a second async request. */
 type Active = { kind: "action"; actionId: number } | { kind: "suppressed" };
-let active: Active | null = null;
+const actionContext = new AsyncLocalStorage<Active>();
+
+/** SQLite's undo_current marker is deliberately a single row, so root actions
+ * must not overlap. Server handlers can interleave whenever `fn` awaits (solver,
+ * bridge, snapshots), despite better-sqlite3 calls themselves being synchronous.
+ * Serialize only mutation scopes; this queue carries no application data. */
+let mutationTail: Promise<void> = Promise.resolve();
+async function serializeMutation<T>(fn: () => Promise<T>): Promise<T> {
+  const previous = mutationTail;
+  let release!: () => void;
+  mutationTail = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous;
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
+}
 
 function setMarker(actionId: number) {
   db.run(sql`DELETE FROM undo_current`);
@@ -79,41 +98,34 @@ export async function withUndoAction<T>(
   fn: () => T | Promise<T>,
   opts: UndoOpts = {},
 ): Promise<T> {
+  const active = actionContext.getStore();
   if (active) {
     if (opts.undo === false && active.kind === "action") {
-      const outer = active;
-      active = { kind: "suppressed" };
       clearMarker();
       try {
-        return await fn();
+        return await actionContext.run({ kind: "suppressed" }, fn);
       } finally {
-        active = outer;
-        setMarker(outer.actionId);
+        setMarker(active.actionId);
       }
     }
     return await fn(); // joins the enclosing action/suppression
   }
-  if (opts.undo === false) {
-    active = { kind: "suppressed" };
-    clearMarker(); // defensively drop a stale marker (crash mid-action)
-    try {
-      return await fn();
-    } finally {
-      active = null;
+  return serializeMutation(async () => {
+    if (opts.undo === false) {
+      clearMarker(); // defensively drop a stale marker (crash mid-action)
+      return actionContext.run({ kind: "suppressed" }, fn);
     }
-  }
-  const actionId = db
-    .insert(undoActions)
-    .values({ name })
-    .returning({ id: undoActions.id })
-    .get().id;
-  active = { kind: "action", actionId };
-  setMarker(actionId);
-  try {
-    return await fn();
-  } finally {
-    active = null;
-    clearMarker();
-    finalizeAction(actionId);
-  }
+    const actionId = db
+      .insert(undoActions)
+      .values({ name })
+      .returning({ id: undoActions.id })
+      .get().id;
+    setMarker(actionId);
+    try {
+      return await actionContext.run({ kind: "action", actionId }, fn);
+    } finally {
+      clearMarker();
+      finalizeAction(actionId);
+    }
+  });
 }
