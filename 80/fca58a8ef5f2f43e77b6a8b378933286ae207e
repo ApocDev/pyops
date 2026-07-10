@@ -1,0 +1,39 @@
+app/src/components/app-live-queries.test.tsx
+  s_08f259e53af31f::t_974af7a70eab97 1-56
+app/src/components/app-live-queries.tsx
+  s_a523936e0d342e::t_a2272f14f370cc 1-37
+app/src/components/bridge-card.tsx
+  s_a523936e0d342e::t_563114589661a8 15
+app/src/components/bridge-indicator.tsx
+  s_a523936e0d342e::t_7fb36901b5a038 12-13
+app/src/components/undo-button.tsx
+  s_a523936e0d342e::t_a17c12c573077a 10-11
+app/src/routes/__root.tsx
+  s_a523936e0d342e::t_d22b375eeb9b6a 7,80
+app/src/routes/tasks.tsx
+  s_a523936e0d342e::t_e3a73dbe5b5b72 111-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "80fca58a8ef5f2f43e77b6a8b378933286ae207e",
+  "prompts": {},
+  "sessions": {
+    "s_08f259e53af31f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4a90-8f9b-7db0-b54c-add5c3fd9a85",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_a523936e0d342e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4a90-a20a-7903-a83e-240e764e8fd0",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
