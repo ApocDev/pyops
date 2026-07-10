@@ -1,0 +1,31 @@
+app/src/components/block/solve-view.ts
+  s_2cf6a3b0d2533e::t_9dc5b3c90ad9bd 7-13
+app/src/lib/coalesced-runner.test.ts
+  s_2cf6a3b0d2533e::t_f1027196ba2f59 1-48
+app/src/lib/coalesced-runner.ts
+  s_2cf6a3b0d2533e::t_6b3762c6367bdb 1-23
+app/src/server/block-compute.server.ts
+  s_2cf6a3b0d2533e::t_e76fc6e1362c72 310-315,1181-1182,1187-1286
+app/src/server/block-compute.test.ts
+  s_2cf6a3b0d2533e::t_999fa144d3f7bf 60-116
+app/src/server/factorio.ts
+  s_2cf6a3b0d2533e::t_5632ec55ee392c 38,214-224,247-250,273-278
+docs/solver.md
+  s_2cf6a3b0d2533e::t_270a6812a75036 259-263
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e7222d89f2bbdaf9de0870270eca60f2d20862b4",
+  "prompts": {},
+  "sessions": {
+    "s_2cf6a3b0d2533e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4a80-6aab-7d11-9ad7-156b0ccde649",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
