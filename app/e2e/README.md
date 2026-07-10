@@ -44,6 +44,11 @@ each (see `playwright.config.ts`):
   than a Playwright `globalSetup`, because Playwright starts webServers *before*
   globalSetup runs — the copy has to land before the server opens the db.
 
+The two servers also set separate `PYOPS_NITRO_BUILD_DIR` values. Nitro's
+default dev build directory is shared by every process in a checkout; without
+this isolation, concurrent hot-reload workers can overwrite each other's build
+artifacts and intermittently surface `ECONNRESET` in Vite's browser overlay.
+
 Locally (`reuseExistingServer`) a still-running server from a previous run is
 reused **without re-seeding**, so scratch state accumulates across quick
 iterations; the mutating specs are written for that — every entity they touch is

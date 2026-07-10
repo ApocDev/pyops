@@ -13,6 +13,11 @@ import { extname, join } from "node:path";
 
 const isVpLint = process.env.VP_COMMAND === "lint";
 const isVitest = process.env.VITEST === "true";
+// Nitro's default node_modules/.nitro build directory is process-shared. The
+// E2E suite runs two dev servers from this same checkout, so each gets an
+// isolated directory; otherwise their hot-reload workers overwrite one another
+// and surface intermittent TCP ECONNRESET errors in Vite's browser overlay.
+const nitroBuildDir = process.env.PYOPS_NITRO_BUILD_DIR;
 
 // Dev: let the dev server be reached through a tunnel (see scripts/tunnel-dev).
 // Vite rejects requests whose Host header isn't localhost ("Blocked request. This
@@ -85,6 +90,38 @@ function serveIconsDev() {
   };
 }
 
+/** Nitro forwards client disconnects (page reload/test teardown) as middleware
+ * errors, so Vite presents a red overlay for a request the browser deliberately
+ * abandoned. Swallow only that narrow dev-only case; every real server error
+ * still reaches Vite's normal error handler. */
+function ignoreAbortedRequestResets() {
+  return {
+    name: "pyops-ignore-aborted-request-resets",
+    apply: "serve" as const,
+    configureServer(server: {
+      middlewares: {
+        use: (
+          fn: (
+            error: Error & { code?: string; cause?: { code?: string } },
+            req: { aborted?: boolean; destroyed?: boolean },
+            res: { destroyed?: boolean; writableEnded?: boolean },
+            next: (error?: unknown) => void,
+          ) => void,
+        ) => void;
+      };
+    }) {
+      return () => {
+        server.middlewares.use((error, req, res, next) => {
+          const reset = error.code === "ECONNRESET" || error.cause?.code === "ECONNRESET";
+          const disconnected = req.aborted || req.destroyed || res.destroyed || res.writableEnded;
+          if (reset && disconnected) return;
+          next(error);
+        });
+      };
+    },
+  };
+}
+
 const config = defineConfig({
   // Pre-commit checks: `vp config` installs the git hook (see AGENTS.md); the hook
   // runs `vp staged`, which applies these to the staged files only. The design
@@ -134,7 +171,11 @@ const config = defineConfig({
       : [
           serveIconsDev(),
           devtools(),
-          nitro({ rollupConfig: { external: [/^@sentry\//] } }),
+          nitro({
+            ...(nitroBuildDir ? { buildDir: nitroBuildDir } : {}),
+            rollupConfig: { external: [/^@sentry\//] },
+          }),
+          ignoreAbortedRequestResets(),
           tailwindcss(),
           tanstackStart(),
           viteReact(),

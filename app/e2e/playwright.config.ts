@@ -69,7 +69,10 @@ export default defineConfig({
       timeout: 180_000,
       // pin the UDP bridge to a known, non-default port so the fake-mod peer in
       // bridge.e2e.ts can reach it without clashing with a real mod/app on 37657
-      env: { PYOPS_BRIDGE_PORT: "37659" },
+      env: {
+        PYOPS_BRIDGE_PORT: "37659",
+        PYOPS_NITRO_BUILD_DIR: "node_modules/.nitro-e2e-readonly",
+      },
     },
     {
       // the mutating server: seed the scratch data dir, then boot against it
@@ -80,7 +83,11 @@ export default defineConfig({
       timeout: 180_000,
       // its own bridge port too — two servers can't share a UDP socket, and the
       // default 37657 may belong to a real running app/mod
-      env: { PYOPS_DATA_DIR: MUT_DATA_DIR, PYOPS_BRIDGE_PORT: "37661" },
+      env: {
+        PYOPS_DATA_DIR: MUT_DATA_DIR,
+        PYOPS_BRIDGE_PORT: "37661",
+        PYOPS_NITRO_BUILD_DIR: "node_modules/.nitro-e2e-mutating",
+      },
     },
   ],
 });
