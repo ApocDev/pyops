@@ -1,0 +1,21 @@
+app/src/components/block/recipe-row.tsx
+  s_cd1b59b354c2a5::t_294f69f1a901b2 175-178
+app/src/components/block/recipe-spoilage-indicator.tsx
+  s_cd1b59b354c2a5::t_423c0e82c927be 40-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1779c9547775c78b8136b02c6f11b329f03a346f",
+  "prompts": {},
+  "sessions": {
+    "s_cd1b59b354c2a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4983-be89-71e2-b2b9-2cc58b36aa77",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
