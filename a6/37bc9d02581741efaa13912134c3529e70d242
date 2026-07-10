@@ -1,0 +1,29 @@
+app/src/server/undo.test.ts
+  s_cd1b59b354c2a5::t_3599026b5b80d2 132-173
+app/src/server/undo-action.server.ts
+  s_9786a8972b2a26::t_a39e12fe36f9b4 14,28-29,31-50,101,106,108,113-123,125,127-128,130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a637bc9d02581741efaa13912134c3529e70d242",
+  "prompts": {},
+  "sessions": {
+    "s_9786a8972b2a26": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4a80-78d7-7d82-b992-f2da293ebf97",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_cd1b59b354c2a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4983-be89-71e2-b2b9-2cc58b36aa77",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
