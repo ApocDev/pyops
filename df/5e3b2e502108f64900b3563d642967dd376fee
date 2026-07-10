@@ -1,0 +1,41 @@
+app/src/db/conversations.server.test.ts
+  s_f3903fa32c9324::t_d1689b1e4ba7b7 1-96
+app/src/db/conversations.server.ts
+  s_adeb2aacde26e9::t_6fc78e70b24014 6,140-161,165,168-174,178-206,209-220
+app/src/lib/chat-store.ts
+  s_adeb2aacde26e9::t_f46f1792b7ee0d 10-11,69-73,103-104,128,136-140
+app/src/routes/api.chat.ts
+  s_cd1b59b354c2a5::t_a75f9fdb6eb883 58,60,128-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "df5e3b2e502108f64900b3563d642967dd376fee",
+  "prompts": {},
+  "sessions": {
+    "s_adeb2aacde26e9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4a79-bfbe-7d61-ad25-367156e6ccde",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_cd1b59b354c2a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4983-be89-71e2-b2b9-2cc58b36aa77",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f3903fa32c9324": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4a79-e49d-7eb0-803d-c9b938a6c8cd",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
