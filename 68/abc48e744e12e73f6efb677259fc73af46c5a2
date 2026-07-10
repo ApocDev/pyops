@@ -1,0 +1,37 @@
+app/src/server/provision.test.ts
+  s_cd1b59b354c2a5::t_1096c0a1a9b39d 1-73
+app/src/db/import-factorio.ts
+  s_9786a8972b2a26::t_f2f71d80bff2e0 19,174
+app/src/db/projects-fs.ts
+  s_9786a8972b2a26::t_d0ce7c511a437e 13,26,44
+app/src/server/backup.server.ts
+  s_9786a8972b2a26::t_f26237a0a67d0f 34,55,86
+app/src/server/cost-analysis.server.ts
+  s_9786a8972b2a26::t_98900fb7367ec6 34-35,65
+docs/architecture.md
+  s_9786a8972b2a26::t_d333b2c28f10f3 96-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "68abc48e744e12e73f6efb677259fc73af46c5a2",
+  "prompts": {},
+  "sessions": {
+    "s_9786a8972b2a26": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4a80-78d7-7d82-b992-f2da293ebf97",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_cd1b59b354c2a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4983-be89-71e2-b2b9-2cc58b36aa77",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
