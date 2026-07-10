@@ -352,6 +352,12 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
           doc: normalizeBlockData(row.data as SolveInput) as SolveInput,
           startRate: b.rate,
           cachedFlows: b.flows, // fall back to these if a fresh solve is broken
+          flows: b.flows,
+          // The persisted flows already describe the starting doc, so pass one
+          // can go straight to the factory LP. Later passes only solve docs whose
+          // primary rate actually changed in the preceding pass.
+          dirty: false,
+          latestResult: null as Awaited<ReturnType<typeof computeBlock>> | null,
         };
       })
       .filter((b): b is NonNullable<typeof b> => b !== null);
@@ -360,12 +366,18 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
     let passes = 0;
     let residual = 0;
     for (; passes < REBALANCE_MAX_PASSES; passes++) {
-      // solve each block at its current (in-memory) rate → boundary flows for the LP
+      // Pass one uses SQLite's persisted boundary flows. On later passes, only
+      // re-solve docs whose rate changed; unchanged blocks keep their latest
+      // boundary projection instead of repeating identical block solves.
       const withFlows = await Promise.all(
         base.map(async (b) => {
-          const r = await computeBlock(b.doc);
-          const flows = r.broken ? b.cachedFlows : boundaryFlows(goalFlows(b.doc), r);
-          return { id: b.id, name: b.name, rate: primaryRate(b.doc), flows };
+          if (b.dirty) {
+            const r = await computeBlock(b.doc);
+            b.latestResult = r;
+            b.dirty = false;
+            b.flows = r.broken ? b.cachedFlows : boundaryFlows(goalFlows(b.doc), r);
+          }
+          return { id: b.id, name: b.name, rate: primaryRate(b.doc), flows: b.flows };
         }),
       );
       const result = await factoryWhatIf(withFlows, overrides);
@@ -377,7 +389,14 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
       for (const b of base) {
         const s = scaleById.get(b.id) ?? 1;
         if (Math.abs(s - 1) < 1e-9) continue;
-        b.doc = withPrimaryRate(b.doc, +(primaryRate(b.doc) * s).toFixed(4)) as SolveInput;
+        const rate = primaryRate(b.doc);
+        const nextRate = +(rate * s).toFixed(4);
+        if (nextRate === rate) continue;
+        const nextDoc = withPrimaryRate(b.doc, nextRate) as SolveInput;
+        // Empty/utility blocks have no primary goal for withPrimaryRate to edit.
+        if (primaryRate(nextDoc) === rate) continue;
+        b.doc = nextDoc;
+        b.dirty = true;
       }
     }
 
@@ -391,7 +410,14 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
           // block for a sub-percent wiggle — that's within rounding, not a change
           const rel = b.startRate > 1e-9 ? Math.abs(finalRate / b.startRate - 1) : 0;
           if (rel <= REBALANCE_TOL) continue;
-          const r = await computeBlock(b.doc);
+          // A converged pass has already computed this exact doc. Only the pass-
+          // cap case can leave a just-scaled doc dirty; solve that once here, then
+          // persist the retained result rather than doing a redundant final solve.
+          if (b.dirty || !b.latestResult) {
+            b.latestResult = await computeBlock(b.doc);
+            b.dirty = false;
+          }
+          const r = b.latestResult;
           if (r.broken) {
             broken.push({ id: b.id, name: b.name });
             continue;
