@@ -18,7 +18,7 @@ test("marking an import made without a producer keeps it a silent import", async
   await goalDialog.getByRole("button", { name: "Iron plate", exact: true }).first().click();
   await expect(goalDialog).toBeHidden();
 
-  await page.locator('button[title^="click to add a recipe that makes this goal"]').click();
+  await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const platePicker = page.getByRole("dialog", { name: /Recipes that make/ });
   await platePicker.getByRole("button", { name: /Iron plate/ }).first().click();
   await expect(platePicker).toBeHidden();

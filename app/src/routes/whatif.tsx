@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { factoryWhatIfFn } from "../server/factorio";
 import { Icon, IconProvider } from "../lib/icons";
+import { ItemHover } from "../lib/recipe-card";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
@@ -313,20 +314,22 @@ function GoodsCard({
       </CardHeader>
       <div className="flex flex-wrap gap-2 p-3">
         {rows.map((x) => (
-          <Tooltip
+          <ItemHover
             key={x.good}
-            content={
-              x.display +
-              (x.current != null ? ` · was ${rateLabel(x.good, x.current, { perSec: true })}` : "")
+            name={x.good}
+            kind={x.kind as "item" | "fluid"}
+            extraText={
+              x.current != null
+                ? `Previously ${rateLabel(x.good, x.current, { perSec: true })}.`
+                : undefined
             }
+            className="inline-flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm"
           >
-            <span className="inline-flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm">
-              <Icon kind={x.kind as "item" | "fluid"} name={x.good} size="sm" title={x.display} />
-              <span>{x.display}</span>
-              <span className={color}>{rateLabel(x.good, x[field])}</span>
-              <span className="text-muted-foreground">/s</span>
-            </span>
-          </Tooltip>
+            <Icon kind={x.kind as "item" | "fluid"} name={x.good} size="sm" noHover />
+            <span>{x.display}</span>
+            <span className={color}>{rateLabel(x.good, x[field])}</span>
+            <span className="text-muted-foreground">/s</span>
+          </ItemHover>
         ))}
       </div>
     </Card>

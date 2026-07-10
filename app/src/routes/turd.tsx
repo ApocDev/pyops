@@ -296,14 +296,18 @@ function TurdPage() {
                       onClick={() =>
                         select.mutate({ masterTech: u.name, subTech: sel ? null : s.name })
                       }
-                      title={
-                        sel ? "selected — click to clear" : "click to select this upgrade path"
-                      }
                       className={`h-auto w-full justify-start gap-2 px-2 py-1.5 text-left font-normal whitespace-normal ${
                         sel ? "hover:bg-transparent" : ""
                       }`}
                     >
-                      <Icon kind="technology" name={s.name} size="md" title={s.display} />
+                      <Icon
+                        kind="technology"
+                        name={s.name}
+                        size="md"
+                        extraText={
+                          sel ? "Selected · click to clear." : "Click to select this upgrade path."
+                        }
+                      />
                       <span className="min-w-0 flex-1">
                         <span className={`block truncate ${sel ? "text-success" : ""}`}>
                           {s.display}

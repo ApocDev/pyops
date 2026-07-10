@@ -14,6 +14,8 @@ import { meta } from "./schema.ts";
 
 const KEY = "solve_projection_generation";
 const RESOLVED_KEY = "solve_projection_resolved_generation";
+const VERSION_KEY = "solve_projection_version";
+const CURRENT_VERSION = "sv3";
 const INITIAL_GENERATION = 1;
 
 function parseGeneration(value: string | null | undefined): number {
@@ -57,19 +59,38 @@ export function solveGenerationNeedsRefresh(): boolean {
     db
       .select({ key: meta.key, value: meta.value })
       .from(meta)
-      .where(inArray(meta.key, [KEY, RESOLVED_KEY]))
+      .where(inArray(meta.key, [KEY, RESOLVED_KEY, VERSION_KEY]))
       .all()
       .map((row) => [row.key, row.value]),
   );
-  return parseResolvedGeneration(values.get(RESOLVED_KEY)) !== parseGeneration(values.get(KEY));
+  return (
+    parseResolvedGeneration(values.get(RESOLVED_KEY)) !== parseGeneration(values.get(KEY)) ||
+    values.get(VERSION_KEY) !== CURRENT_VERSION
+  );
+}
+
+/** Whether a software upgrade changed how materialized block projections are
+ * computed. Unlike a context generation bump, this invalidates every solvable
+ * block even when its generation stamp is otherwise current. */
+export function solveProjectionVersionNeedsRefresh(): boolean {
+  return (
+    db.select({ value: meta.value }).from(meta).where(eq(meta.key, VERSION_KEY)).get()?.value !==
+    CURRENT_VERSION
+  );
 }
 
 /** Record that all solvable blocks for `generation` were refreshed. */
 export function markSolveGenerationResolved(generation = currentSolveGeneration()): void {
-  db.insert(meta)
-    .values({ key: RESOLVED_KEY, value: String(generation) })
-    .onConflictDoUpdate({ target: meta.key, set: { value: String(generation) } })
-    .run();
+  db.transaction((tx) => {
+    tx.insert(meta)
+      .values({ key: RESOLVED_KEY, value: String(generation) })
+      .onConflictDoUpdate({ target: meta.key, set: { value: String(generation) } })
+      .run();
+    tx.insert(meta)
+      .values({ key: VERSION_KEY, value: CURRENT_VERSION })
+      .onConflictDoUpdate({ target: meta.key, set: { value: CURRENT_VERSION } })
+      .run();
+  });
 }
 
 /** Prefix a content fingerprint with the generation it was solved under. */

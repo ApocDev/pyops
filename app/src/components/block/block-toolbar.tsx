@@ -240,7 +240,7 @@ export function BlockToolbar({
                 <FieldLabel className="mb-1.5">Buildings</FieldLabel>
                 <div className="flex flex-wrap gap-2">
                   {buildCost.buildings.map((b) => (
-                    <span key={b.name} className={cellChip} title={b.display}>
+                    <span key={b.name} className={cellChip}>
                       <Icon kind="item" name={b.name} size="sm" />
                       <span className="tabular-nums">×{b.count}</span>
                     </span>
@@ -256,7 +256,7 @@ export function BlockToolbar({
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {buildCost.materials.map((m) => (
-                      <span key={m.name} className={cellChip} title={m.display}>
+                      <span key={m.name} className={cellChip}>
                         <Icon kind={m.kind as "item" | "fluid"} name={m.name} size="sm" />
                         <span className="tabular-nums">{fmtAmt(m.amount)}</span>
                       </span>
@@ -327,6 +327,20 @@ export function BlockToolbar({
           (fewest machine-seconds) satisfying the goals, marks, and pins — it handles cyclic recipe
           chains, and identical inputs always solve identically.
         </p>
+        <div>
+          <div className="font-semibold text-foreground">Spoilage</div>
+          <p className="mt-1">
+            A stopwatch on a recipe means at least one product can spoil; each product shows its own
+            spoil time. Use <span className="text-foreground">Estimate incidental spoilage</span> on
+            a good to record the rough rate expected while production is backed up. The estimate
+            does not change the block&apos;s nominal recipes, machines, or imports: its spoil result
+            appears in Exports as an ordinary byproduct at the estimated rate. Factory-wide
+            balancing pools that current surplus, but byproduct demand never scales the source
+            block. If that result is also an intentional goal, the estimate appears beneath the goal
+            instead of being repeated in Exports. For demand-driven spoilage, add the actual
+            spoiling recipe and make its result a goal.
+          </p>
+        </div>
         <p>
           <span className="text-foreground">You drive it, not an optimizer.</span> You choose the
           recipes, pin building counts, and split a good between competing consumers; PyOps solves

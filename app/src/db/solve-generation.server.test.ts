@@ -14,6 +14,7 @@ import {
   isCurrentSolveFingerprint,
   markSolveGenerationResolved,
   solveGenerationNeedsRefresh,
+  solveProjectionVersionNeedsRefresh,
   stampSolveFingerprint,
 } from "./solve-generation.server.ts";
 import { makeTestDb, type TestDb } from "./test-helpers.ts";
@@ -48,6 +49,55 @@ describe("solve projection generation", () => {
     expect(isCurrentSolveFingerprint(first)).toBe(false);
     expect(isCurrentSolveFingerprint(stampSolveFingerprint("recipe-hash"))).toBe(true);
     expect(isCurrentSolveFingerprint("legacy-hash")).toBe(false);
+  });
+
+  it("refreshes once when the materialized solve algorithm version changes", () => {
+    markSolveGenerationResolved();
+    expect(solveGenerationNeedsRefresh()).toBe(false);
+
+    db.run(sql`
+      UPDATE meta SET value = 'old-version' WHERE key = 'solve_projection_version'
+    `);
+    expect(solveGenerationNeedsRefresh()).toBe(true);
+    expect(solveProjectionVersionNeedsRefresh()).toBe(true);
+
+    markSolveGenerationResolved();
+    expect(solveGenerationNeedsRefresh()).toBe(false);
+    expect(solveProjectionVersionNeedsRefresh()).toBe(false);
+  });
+
+  it("re-solves every block once after a projection algorithm upgrade", async () => {
+    db.run(sql`INSERT INTO items (name, display) VALUES ('plate', 'Plate'), ('ore', 'Ore')`);
+    db.run(sql`INSERT INTO recipes (name, kind, hidden) VALUES ('smelt', 'real', 0)`);
+    db.run(sql`
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount)
+      VALUES ('smelt', 0, 'item', 'ore', 1)
+    `);
+    db.run(sql`
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount)
+      VALUES ('smelt', 0, 'item', 'plate', 1)
+    `);
+    const data = { goals: [{ name: "plate", rate: 1 }], recipes: ["smelt"] };
+    saveBlockRow(
+      {
+        name: "Smelting",
+        iconKind: "item",
+        iconName: "plate",
+        data,
+        electricityW: 0,
+        solveStatus: "solved",
+        dataFingerprint: blockReferenceFingerprint(data),
+      },
+      [{ item: "plate", kind: "item", role: "primary", rate: 999 }],
+    );
+    markSolveGenerationResolved();
+    db.run(sql`
+      UPDATE meta SET value = 'old-version' WHERE key = 'solve_projection_version'
+    `);
+
+    expect(await ensureSolvedProjections()).toBe(1);
+    expect(solveGenerationNeedsRefresh()).toBe(false);
+    expect(db.all(sql`SELECT rate FROM block_flows WHERE item = 'plate'`)).toEqual([{ rate: 1 }]);
   });
 
   it("marks and lazily refreshes projections only when research context changes", async () => {

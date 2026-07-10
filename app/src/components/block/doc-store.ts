@@ -389,7 +389,7 @@ export function createBlockDocStore() {
           ),
         };
       }),
-    // Planned spoil loss (#20): rate == null (or <= 0) clears the plan.
+    // Incidental spoilage estimate (#20): rate == null (or <= 0) clears it.
     setSpoilRate: (name: string, rate: number | null) =>
       edit((s) => ({
         spoilRates:

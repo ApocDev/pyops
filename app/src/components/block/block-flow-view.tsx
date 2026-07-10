@@ -43,7 +43,7 @@ export function BlockFlowView({
         ? buildFlowGraph({
             rows: res.rows,
             imports: res.imports,
-            exports: res.exports,
+            exports: res.displayExports,
             goalNames,
             display: res.display,
           })

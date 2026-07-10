@@ -32,7 +32,7 @@ test("reactor row: picking a 2×2 farm scales heat ×3 and persists", async ({ p
 
   // click the goal icon to add a producer: one heat candidate auto-adds, several
   // open a picker — pick the breeder reactor either way
-  await page.locator('button[title^="click to add a recipe that makes this goal"]').click();
+  await page.locator('button[aria-label^="add a recipe that makes "]').click();
   // the picker opens asynchronously (multi-candidate configs); give it a beat to
   // appear, then pick the breeder. A single-candidate config auto-adds — no dialog.
   const heatPicker = page.getByRole("dialog", { name: /Recipes that make/ });

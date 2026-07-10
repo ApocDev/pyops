@@ -25,7 +25,7 @@ test("module auto-fill: fresh row suggests, hint click applies, affordances clea
 
   await createBlock(page);
   await addGoal(page, "coal gas", "Coal gas");
-  await page.locator('button[title^="click to add a recipe that makes this goal"]').click();
+  await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const picker = page.getByRole("dialog", { name: "Recipes that make Coal gas" });
   await picker.getByRole("button", { name: "Coal gas from coal" }).click();
   await expect(picker).toBeHidden();

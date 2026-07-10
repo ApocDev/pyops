@@ -433,8 +433,8 @@ export type BlockData = {
     made?: string[];
   }[];
   recipeGroups?: Record<string, number>;
-  // Planned spoil losses (#20): item → expected rot rate (/s). Fed to the solver
-  // as extra pinned surplus, so production is sized to cover what spoils away.
+  // Incidental spoilage estimates (#20): item → expected rot rate (/s) while
+  // backed up. They do not alter the LP; spoil_result joins boundary byproducts.
   spoilRates?: Record<string, number>;
   // Legacy per-item overrides (pre-#91). New docs write `made`/`pins` instead;
   // a doc carrying only dispositions has its made set derived server-side on

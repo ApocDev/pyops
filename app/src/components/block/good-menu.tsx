@@ -11,7 +11,7 @@ import { num } from "./format.ts";
 
 /** Right-click context menu for a good — explicit actions (safer than cycling):
  * make a surplus a goal, size the block by an import (or spin up a supplier),
- * jump to other producers, force a disposition, plan spoil loss (#20), and
+ * jump to other producers, force a disposition, estimate incidental spoilage (#20), and
  * locate the good in-game. Owns its producers query + the locate mutation. */
 export function GoodMenu({
   x,
@@ -52,7 +52,7 @@ export function GoodMenu({
   made: boolean;
   /** some enabled recipe in the block produces it (mark would bind immediately) */
   producedInBlock: boolean;
-  /** planned rot rate /s, null = none */
+  /** estimated incidental rot rate /s, null = none */
   spoilRate: number | null;
   onAddGoal: () => void;
   onLock: (rate: number) => void;
@@ -164,11 +164,13 @@ export function GoodMenu({
           <div className="my-1 border-t border-border" />
           <ContextMenuItem onClick={act(onEditSpoil)}>
             <Timer className="size-3.5" />
-            {spoilRate != null ? `Planned spoil ${num(spoilRate)}/s — edit` : "Plan spoil loss…"}
+            {spoilRate != null
+              ? `Incidental spoilage ${num(spoilRate)}/s — edit`
+              : "Estimate incidental spoilage…"}
           </ContextMenuItem>
           {spoilRate != null && (
             <ContextMenuItem onClick={act(onClearSpoil)}>
-              <X className="size-3.5" /> Clear planned spoil
+              <X className="size-3.5" /> Clear spoilage estimate
             </ContextMenuItem>
           )}
         </>

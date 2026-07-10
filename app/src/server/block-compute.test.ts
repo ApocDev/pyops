@@ -115,6 +115,92 @@ describe("module suggestions outside the core solve", () => {
   });
 });
 
+describe("incidental spoilage stays outside the nominal block solve", () => {
+  let fx: TestDb;
+
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    fx.db.exec(`
+      INSERT INTO items (name, display, spoil_result, spoil_ticks) VALUES
+        ('ore','Ore',NULL,NULL),
+        ('agar','Agar','biocrud',18000),
+        ('biocrud','Biocrud',NULL,NULL),
+        ('science','Science',NULL,NULL);
+      INSERT INTO recipes (name, display, kind, energy_required, enabled, hidden) VALUES
+        ('make-agar','Make Agar','real',1,1,0),
+        ('make-science','Make Science','real',1,1,0),
+        ('spoil-agar','Spoil Agar','spoiling',300,1,0);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
+        ('make-agar',0,'item','ore',1),
+        ('make-science',0,'item','agar',1),
+        ('spoil-agar',0,'item','agar',1);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+        ('make-agar',0,'item','agar',1),
+        ('make-science',0,'item','science',1),
+        ('spoil-agar',0,'item','biocrud',1);
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+
+  afterEach(() => fx.cleanup());
+
+  it("adds the spoil result as a byproduct without increasing recipes or imports", async () => {
+    const input = {
+      goals: [{ name: "science", rate: 1 }],
+      recipes: ["make-agar", "make-science"],
+      made: ["agar"],
+      spoilRates: { agar: 0.1 },
+    };
+    const res = await computeBlock(input);
+
+    expect(res.status).toBe("solved");
+    expect(res.rows.find((row) => row.recipe === "make-agar")?.rate).toBeCloseTo(1);
+    expect(res.imports.find((flow) => flow.name === "ore")?.rate).toBeCloseTo(1);
+    expect(res.exports.find((flow) => flow.name === "biocrud")?.rate).toBeCloseTo(0.1);
+    expect(res.displayExports.find((flow) => flow.name === "biocrud")?.rate).toBeCloseTo(0.1);
+    expect(res.incidentalSpoilage).toEqual([
+      {
+        source: "agar",
+        result: "biocrud",
+        rate: 0.1,
+      },
+    ]);
+    expect(boundaryFlows(goalFlows(input), res)).toContainEqual({
+      item: "biocrud",
+      kind: "item",
+      role: "byproduct",
+      rate: 0.1,
+    });
+  });
+
+  it("folds incidental spoilage under a matching intentional goal for display only", async () => {
+    const input = {
+      goals: [
+        { name: "science", rate: 1 },
+        { name: "biocrud", rate: 1 },
+      ],
+      recipes: ["make-agar", "make-science", "spoil-agar"],
+      made: ["agar"],
+      spoilRates: { agar: 0.1 },
+    };
+    const res = await computeBlock(input);
+
+    expect(res.status).toBe("solved");
+    expect(res.rows.find((row) => row.recipe === "spoil-agar")?.rate).toBeCloseTo(1);
+    expect(res.rows.find((row) => row.recipe === "make-agar")?.rate).toBeCloseTo(2);
+    expect(res.imports.find((flow) => flow.name === "ore")?.rate).toBeCloseTo(2);
+    expect(res.exports.find((flow) => flow.name === "biocrud")?.rate).toBeCloseTo(0.1);
+    expect(res.displayExports.map((flow) => flow.name)).not.toContain("biocrud");
+    expect(boundaryFlows(goalFlows(input), res)).toEqual(
+      expect.arrayContaining([
+        { item: "biocrud", kind: "item", role: "primary", rate: 1 },
+        { item: "biocrud", kind: "item", role: "byproduct", rate: 0.1 },
+      ]),
+    );
+  });
+});
+
 describe("per-product ignored_by_productivity (#93)", () => {
   let fx: TestDb;
 

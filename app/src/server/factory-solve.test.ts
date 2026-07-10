@@ -173,4 +173,31 @@ describe("factoryWhatIf", () => {
     expect(slag!.cls).toBe("surplus");
     expect(slag!.projected).toBeGreaterThan(0);
   });
+
+  it("never scales a source block to satisfy demand for its incidental byproduct", async () => {
+    const agarScience: BlockWithFlows = {
+      id: 20,
+      name: "Agar science",
+      rate: 1,
+      flows: [
+        { item: "science", kind: "item", role: "primary", rate: 1 },
+        { item: "biocrud", kind: "item", role: "byproduct", rate: 0.1 },
+        { item: "ore", kind: "item", role: "import", rate: 4 },
+      ],
+    };
+    const biocrudSink: BlockWithFlows = {
+      id: 21,
+      name: "Biocrud sink",
+      rate: -5,
+      flows: [{ item: "biocrud", kind: "item", role: "import", rate: 5 }],
+    };
+
+    const current = await factoryWhatIf([agarScience, biocrudSink]);
+    expect(byId(current.blocks, agarScience.id).scale).toBeCloseTo(1);
+    expect(byId(current.blocks, biocrudSink.id).scale).toBeCloseTo(1);
+
+    const doubledScience = await factoryWhatIf([agarScience, biocrudSink], { science: 2 });
+    expect(byId(doubledScience.blocks, agarScience.id).scale).toBeCloseTo(2);
+    expect(byId(doubledScience.blocks, biocrudSink.id).scale).toBeCloseTo(1);
+  });
 });

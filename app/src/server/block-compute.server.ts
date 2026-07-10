@@ -39,6 +39,7 @@ import * as q from "../db/queries.server.ts";
 import {
   currentSolveGeneration,
   markSolveGenerationResolved,
+  solveProjectionVersionNeedsRefresh,
   solveGenerationNeedsRefresh,
 } from "../db/solve-generation.server.ts";
 import { withUndoAction } from "./undo-action.server.ts";
@@ -231,7 +232,10 @@ export type SolveInput = {
   // sub-block groups (#7 display-only, #76 composed) + recipe → group id
   rowGroups?: { id: number; name: string; composed?: boolean; goals?: Goal[]; made?: string[] }[];
   recipeGroups?: Record<string, number>; // recipe → sub-block group id
-  spoilRates?: Record<string, number>; // item → planned rot rate /s (#20), extra pinned surplus
+  /** item → estimated incidental rot rate /s (#20). Operational projection only:
+   * it leaves the nominal recipe solve untouched and adds the item's spoil result
+   * to the boundary byproducts after the solve. */
+  spoilRates?: Record<string, number>;
   /** legacy per-item overrides (pre-#91 docs) — migrated to `made` on read; new
    * docs never write this */
   dispositions?: Record<string, Disposition>;
@@ -515,22 +519,11 @@ export async function computeBlock(rawData: SolveInput) {
       ],
     };
   });
-  // Planned spoil losses (#20): each entry pins EXTRA net production of the item
-  // (surplus that rots away), on top of any goal it may also have. The rotted
-  // surplus never reaches the boundary flows — the solver excludes pinned items
-  // from exports — which is right: spoiled goods aren't available to other blocks.
-  const spoilTargets = Object.entries(data.spoilRates ?? {}).filter(([, r]) => r > 0);
-  const targets = spoilTargets.length
-    ? (() => {
-        const merged = new Map(data.goals.map((g) => [g.name, { ...g }]));
-        for (const [name, r] of spoilTargets) {
-          const g = merged.get(name);
-          if (g) g.rate += r;
-          else merged.set(name, { name, rate: r });
-        }
-        return [...merged.values()];
-      })()
-    : data.goals;
+  // Incidental spoilage (#20) is an OPERATIONAL estimate, not steady-state
+  // recipe demand. At full throttle the nominal block balance is already exact;
+  // spoilage happens when goods wait during demand gaps. Keep the LP untouched
+  // and project the spoil results onto boundary byproducts after the solve.
+  const targets = data.goals;
   // ── the solve (#91): v2 LP on the effect-adjusted defs ─────────────────────
   // Explicit doc state wins; a legacy doc (no `made`) derives it from its old
   // dispositions via the migration mapping the parity report validated. The
@@ -991,6 +984,24 @@ export async function computeBlock(rawData: SolveInput) {
     cur.net += t.perSec;
     flowNet.set(name, cur);
   }
+  // Estimated incidental spoil results join ordinary byproducts. They are not
+  // goals, so factory-wide balancing can pool/report their current rate but can
+  // never scale this block merely to satisfy demand for the spoiled result.
+  const incidentalSpoilage = Object.entries(data.spoilRates ?? {}).flatMap(([source, rate]) => {
+    if (!(rate > 0)) return [];
+    const item = refs.getItem(source);
+    if (!item?.spoilResult) return [];
+    const cur = flowNet.get(item.spoilResult) ?? { kind: "item", net: 0 };
+    cur.net += rate; // Factorio item spoil_result is a 1:1 conversion.
+    flowNet.set(item.spoilResult, cur);
+    return [
+      {
+        source,
+        result: item.spoilResult,
+        rate,
+      },
+    ];
+  });
   // Fold electric draw into the balance as electricity consumption (1 unit =
   // 1 MJ → rate/s = MW). Generating recipes in-block produce it through the
   // solver; any shortfall shows as an "Electricity" import you can click to
@@ -1018,6 +1029,25 @@ export async function computeBlock(rawData: SolveInput) {
   // Goals are solver targets (excluded from the solver's exports), so every surplus
   // here is a genuine byproduct. A good you don't target is never a "primary output".
   const exports = allExports;
+  // Keep incidental spoilage as a canonical byproduct for factory balancing and
+  // persistence. When its result is also a positive goal, however, presenting it
+  // again under Exports duplicates that goal. The editor and in-game summary use
+  // this folded view while boundaryFlows continues to use the canonical exports.
+  const positiveGoalNames = new Set(
+    data.goals.filter((goal) => goal.rate > 0).map((goal) => goal.name),
+  );
+  const incidentalGoalRates = new Map<string, number>();
+  for (const spoilage of incidentalSpoilage) {
+    if (!positiveGoalNames.has(spoilage.result)) continue;
+    incidentalGoalRates.set(
+      spoilage.result,
+      (incidentalGoalRates.get(spoilage.result) ?? 0) + spoilage.rate,
+    );
+  }
+  const displayExports = exports.flatMap((flow) => {
+    const rate = flow.rate - (incidentalGoalRates.get(flow.name) ?? 0);
+    return rate > EPS ? [{ ...flow, rate }] : [];
+  });
   const fuelItems = [...fuelTotals.keys()]; // for the 🔥 tag in the UI
   const burntItems = [...burntTotals.keys()]; // ash / depleted cells from burning
 
@@ -1161,6 +1191,7 @@ export async function computeBlock(rawData: SolveInput) {
     ...result,
     imports,
     exports,
+    displayExports,
     rows,
     subBlocks,
     display,
@@ -1180,6 +1211,7 @@ export async function computeBlock(rawData: SolveInput) {
     fuelItems,
     burntItems,
     tempWarnings,
+    incidentalSpoilage,
     buildCost,
     broken,
     missing,
@@ -1446,7 +1478,7 @@ export async function showBlockInGame(id: number) {
     ...good(f, 0), // belts only — boundary flows aren't tied to one building
     display: r.display[f.name],
   });
-  const outputs = [...goalFlows(input).filter((g) => g.rate > 0), ...r.exports]
+  const outputs = [...goalFlows(input).filter((g) => g.rate > 0), ...r.displayExports]
     .filter((f) => !PSEUDO.has(f.name))
     .map(boundary);
   const inputs = r.imports.filter((f) => !PSEUDO.has(f.name)).map(boundary);
@@ -1484,9 +1516,10 @@ export async function resolveAllBlocks() {
   return withUndoAction(
     "resolve all blocks",
     async () => {
+      const refreshAll = solveProjectionVersionNeedsRefresh();
       const all = q.listBlocks();
       const generation = currentSolveGeneration();
-      const stale = all.filter((block) => block.stale && !block.broken);
+      const stale = all.filter((block) => (refreshAll || block.stale) && !block.broken);
       for (const b of stale) {
         const row = q.getBlock(b.id);
         if (!row) continue;

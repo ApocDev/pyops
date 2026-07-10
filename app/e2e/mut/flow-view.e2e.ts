@@ -15,7 +15,7 @@ test("the flow view renders a block's material flow and a node focuses its table
 
   // add a producer for the goal so the block has a running recipe (and thus a
   // node + links in the diagram) — the goal card's "make this goal" affordance.
-  await page.locator('button[title^="click to add a recipe that makes this goal"]').click();
+  await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const picker = page.getByRole("dialog", { name: /Recipes that make/ });
   await picker.getByRole("button", { name: /Iron plate/ }).first().click();
   await expect(picker).toBeHidden();

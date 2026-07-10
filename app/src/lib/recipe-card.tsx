@@ -45,7 +45,13 @@ function Comp(c: {
   );
 }
 
-export function RecipeCard({ name }: { name: string }) {
+function HoverContext({ children }: { children?: React.ReactNode }) {
+  return children ? (
+    <div className="mt-2 border-l-2 border-info/50 pl-2 text-foreground/90">{children}</div>
+  ) : null;
+}
+
+export function RecipeCard({ name, extraText }: { name: string; extraText?: React.ReactNode }) {
   const { data } = useQuery({
     queryKey: ["recipe", name],
     queryFn: () => recipeDetailFn({ data: name }),
@@ -59,6 +65,7 @@ export function RecipeCard({ name }: { name: string }) {
         <span className="truncate">{r?.display ?? name}</span>
       </div>
       <div className="mb-2 truncate text-sm text-muted-foreground">{name}</div>
+      <HoverContext>{extraText}</HoverContext>
       {!r ? (
         <div className="space-y-2">
           <Skeleton className="h-4 w-56" />
@@ -123,7 +130,7 @@ export function RecipeCard({ name }: { name: string }) {
 
 /** Hover card for a technology: its science cost, what it unlocks, and its direct
  * prerequisites — all by display name. */
-export function TechCard({ name }: { name: string }) {
+export function TechCard({ name, extraText }: { name: string; extraText?: React.ReactNode }) {
   const { data } = useQuery({
     queryKey: ["tech", name],
     queryFn: () => techDetailFn({ data: name }),
@@ -135,6 +142,7 @@ export function TechCard({ name }: { name: string }) {
         <Icon kind="technology" name={name} size="md" />
         <span className="truncate">{data?.display ?? name}</span>
       </div>
+      <HoverContext>{extraText}</HoverContext>
       {!data ? (
         <div className="mt-1.5 space-y-1.5">
           <Skeleton className="h-4 w-48" />
@@ -193,10 +201,12 @@ export function TechCard({ name }: { name: string }) {
 
 export function TechHover({
   name,
+  extraText,
   className,
   children,
 }: {
   name: string;
+  extraText?: React.ReactNode;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -211,7 +221,7 @@ export function TechHover({
       {children}
       {pos && typeof document !== "undefined" && (
         <CursorCard pos={pos} z={50}>
-          <TechCard name={name} />
+          <TechCard name={name} extraText={extraText} />
         </CursorCard>
       )}
     </div>
@@ -222,10 +232,12 @@ export function TechHover({
  * it escapes scroll/overflow containers. */
 export function RecipeHover({
   name,
+  extraText,
   className,
   children,
 }: {
   name: string;
+  extraText?: React.ReactNode;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -240,7 +252,7 @@ export function RecipeHover({
       {children}
       {pos && typeof document !== "undefined" && (
         <CursorCard pos={pos} z={50}>
-          <RecipeCard name={name} />
+          <RecipeCard name={name} extraText={extraText} />
         </CursorCard>
       )}
     </div>
@@ -264,7 +276,16 @@ const fmtCost = (c: number) =>
 
 /** Styled hover card for an item/fluid: identity, stack/fuel facts, cost, and
  * how connected it is (produced by / used in). */
-export function ItemCard({ name, kind }: { name: string; kind: "item" | "fluid" }) {
+export function ItemCard({
+  name,
+  kind,
+  extraText,
+}: {
+  name: string;
+  kind: "item" | "fluid";
+  /** Context supplied by the surface that opened this otherwise shared card. */
+  extraText?: React.ReactNode;
+}) {
   const { data } = useQuery({
     queryKey: ["item", name],
     queryFn: () => itemDetailFn({ data: name }),
@@ -285,6 +306,7 @@ export function ItemCard({ name, kind }: { name: string; kind: "item" | "fluid" 
       <div className="truncate text-sm text-muted-foreground">
         {name} · {kind}
       </div>
+      <HoverContext>{extraText}</HoverContext>
       {!data ? (
         <div className="mt-1.5 space-y-1.5">
           <Skeleton className="h-4 w-32" />
@@ -647,11 +669,13 @@ export function RecipeDiffHover({
 export function ItemHover({
   name,
   kind,
+  extraText,
   className,
   children,
 }: {
   name: string;
   kind: "item" | "fluid";
+  extraText?: React.ReactNode;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -666,7 +690,7 @@ export function ItemHover({
       {children}
       {pos && typeof document !== "undefined" && (
         <CursorCard pos={pos} z={60}>
-          <ItemCard name={name} kind={kind} />
+          <ItemCard name={name} kind={kind} extraText={extraText} />
         </CursorCard>
       )}
     </span>
@@ -682,7 +706,7 @@ const fmtNum = formatQty;
  * its throughput (crafting/mining speed or beacon effectivity), module slots,
  * power draw + energy source, and (for machines) the recipe categories it runs.
  * Falls back to item facts (stack/fuel/cost) since most entities are also items. */
-export function EntityCard({ name }: { name: string }) {
+export function EntityCard({ name, extraText }: { name: string; extraText?: React.ReactNode }) {
   const { data } = useQuery({
     queryKey: ["entity", name],
     queryFn: () => entityDetailFn({ data: name }),
@@ -763,6 +787,7 @@ export function EntityCard({ name }: { name: string }) {
         {name} ·{" "}
         {data?.machine?.kind ?? (data?.drill ? "mining-drill" : data?.beacon ? "beacon" : "entity")}
       </div>
+      <HoverContext>{extraText}</HoverContext>
       {!data ? (
         <div className="mt-1.5 space-y-1.5">
           <Skeleton className="h-4 w-40" />
@@ -780,10 +805,12 @@ export function EntityCard({ name }: { name: string }) {
 /** Wraps a row; shows a floating EntityCard near the cursor on hover. */
 export function EntityHover({
   name,
+  extraText,
   className,
   children,
 }: {
   name: string;
+  extraText?: React.ReactNode;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -798,7 +825,7 @@ export function EntityHover({
       {children}
       {pos && typeof document !== "undefined" && (
         <CursorCard pos={pos} z={60}>
-          <EntityCard name={name} />
+          <EntityCard name={name} extraText={extraText} />
         </CursorCard>
       )}
     </span>
@@ -811,23 +838,26 @@ export function EntityHover({
 export function GoodHover({
   kind,
   name,
+  extraText,
   className,
   children,
 }: {
   kind: "item" | "fluid" | "recipe" | "entity" | "technology";
   name: string;
+  /** Caller context rendered inside the shared rich card. */
+  extraText?: React.ReactNode;
   className?: string;
   children: React.ReactNode;
 }) {
   const card =
     kind === "recipe" ? (
-      <RecipeCard name={name} />
+      <RecipeCard name={name} extraText={extraText} />
     ) : kind === "technology" ? (
-      <TechCard name={name} />
+      <TechCard name={name} extraText={extraText} />
     ) : kind === "entity" ? (
-      <EntityCard name={name} />
+      <EntityCard name={name} extraText={extraText} />
     ) : (
-      <ItemCard name={name} kind={kind} />
+      <ItemCard name={name} kind={kind} extraText={extraText} />
     );
   return (
     <CursorHover card={card} className={className} z={60}>

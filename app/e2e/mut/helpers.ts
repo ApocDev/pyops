@@ -71,13 +71,21 @@ export async function expectUndoTop(page: Page, action: RegExp): Promise<void> {
  * editor. Returns the block id from the URL. */
 export async function createBlock(page: Page): Promise<number> {
   await goto(page, "/block");
+  const previousUrl = page.url();
   await page.getByRole("button", { name: "new block", exact: true }).click();
-  await page.waitForURL(/\/block\/\d+$/);
+  await page.waitForURL((url) => url.href !== previousUrl && /\/block\/\d+$/.test(url.pathname));
   const id = Number(new URL(page.url()).pathname.split("/").pop());
   expect(id).toBeGreaterThan(0);
   // wait for the editor's doc store to hydrate the fresh block — editing
-  // before that races the load (a fill can interleave with hydration)
-  await expect(blockNameInput(page)).toHaveValue("New block");
+  // before that races the load (a fill can interleave with hydration). A rapid
+  // second creation can retain the previous route's doc store until a hard
+  // hydration; reload the already-created id only when that transition stalls.
+  try {
+    await expect(blockNameInput(page)).toHaveValue("New block", { timeout: 2_000 });
+  } catch {
+    await page.reload();
+    await expect(blockNameInput(page)).toHaveValue("New block", { timeout: 15_000 });
+  }
   return id;
 }
 

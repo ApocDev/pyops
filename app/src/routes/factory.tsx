@@ -509,17 +509,8 @@ function ChangeReport({ data }: { data: ChangeReportData }) {
             {r.changes.length > 0 && (
               <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-muted-foreground">
                 {r.changes.map((c) => (
-                  <span
-                    key={c.item}
-                    className="inline-flex items-center gap-1"
-                    title={c.display ?? c.item}
-                  >
-                    <Icon
-                      kind={c.kind as "item" | "fluid"}
-                      name={c.item}
-                      size="sm"
-                      title={c.display ?? c.item}
-                    />
+                  <span key={c.item} className="inline-flex items-center gap-1">
+                    <Icon kind={c.kind as "item" | "fluid"} name={c.item} size="sm" />
                     {c.display ?? c.item}: {rate(c.was)} →{" "}
                     <span className="text-foreground">{rate(c.now)}</span>
                     /s

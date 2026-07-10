@@ -24,7 +24,7 @@ test("fluid-temp mismatch flags the 3000° producer feeding a 4000° generator",
   await expect(goalDialog).toBeHidden();
 
   // add the 4000°-only MHD generator as the goal's producer
-  await page.locator('button[title^="click to add a recipe that makes this goal"]').click();
+  await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const elecPicker = page.getByRole("dialog", { name: /Recipes that make/ });
   await elecPicker
     .getByRole("button", { name: /Magnetohydrodynamic \(MHD\) generator power \(4000°\)/ })

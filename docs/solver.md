@@ -111,11 +111,25 @@ later. A whole block can likewise be disabled (`blocks.enabled = false`): it sti
 opens and solves for editing, but every factory-wide rollup (totals, coherence,
 suppliers, machine counts, what-if) skips it.
 
-A block doc can carry **planned spoil losses** (#20, `spoilRates`: item → rot rate
-/s). Each entry is merged into the solver targets as extra pinned net production —
-surplus that rots in storage — so the chain is sized to cover the loss. The rotted
-surplus never reaches the boundary flows (pinned items are excluded from exports),
-which is correct: spoiled goods aren't available to other blocks.
+A block doc can carry **incidental spoilage estimates** (#20, `spoilRates`: item →
+expected rot rate /s while production is backed up). They are operational
+projections, not steady-state recipe demand: they never change the block LP, its
+nominal imports, or its machine counts. After the solve, each estimate is converted
+through the item's `spoil_result` and folded into the ordinary byproduct exports.
+
+That distinction is also the factory-wide scaling rule. Only `primary`/`stock`
+outputs drive the dependency-chain constraints; byproducts are pooled and reported
+at their current rate but never scale their source block. Thus estimated Agar
+spoilage can contribute Biocrud to the current surplus and a consuming SINK block can
+absorb it, but a larger Biocrud demand cannot increase Agar production. To make
+spoilage intentional and demand-driven, add the synthetic `Agar spoils` recipe and
+make Biocrud a goal; it then becomes a primary output like any other.
+
+When an incidental spoil result is also a positive intentional goal, the editor
+shows its estimated rate as a warning-colored sub-line beneath that goal and omits
+the duplicate amount from the displayed Exports list. The persisted factory
+boundary remains unchanged: the intentional rate is primary output and the
+incidental rate remains an ordinary byproduct.
 
 `computeBlock` also rolls up a **pollution budget** (#23): per row, machine base
 `emissions_per_minute` × count × energy-consumption multiplier × pollution-module
@@ -201,8 +215,8 @@ Deferred for now (#76): the module carries only `goals` (its `made` is auto-deri
 not user-editable per group); a sub-block's own infeasibility surfaces as a status
 badge on its header and, when its output can't be produced, as a parent-level
 shortfall — it does not yet get its own IIS diagnosis cards. Sub-blocks don't nest
-(a group's members are plain recipes, never other groups), and `spoilRates` stay a
-parent-level concern.
+(a group's members are plain recipes, never other groups), and incidental spoilage
+estimates stay a parent-level concern.
 
 A goal that **no recipe in the block makes** (an unfinished block, or one whose
 producer vanished after a data migration) is _not_ enforced — that would zero

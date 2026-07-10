@@ -19,7 +19,7 @@ test("promote a sub-block to a composed module, edit its goal, and persist", asy
   await expect(goalDialog).toBeHidden();
 
   // add the plate producer (self-links the goal)
-  await page.locator('button[title^="click to add a recipe that makes this goal"]').click();
+  await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const platePicker = page.getByRole("dialog", { name: /Recipes that make/ });
   await platePicker.getByRole("button", { name: /Iron plate/ }).first().click();
   await expect(platePicker).toBeHidden();

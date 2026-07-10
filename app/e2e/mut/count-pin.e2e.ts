@@ -10,7 +10,7 @@ import { addGoal, createBlock } from "./helpers";
 test("building count: click to fix, tint shows fixed, clear to unpin", async ({ page }) => {
   await createBlock(page);
   await addGoal(page, "iron plate", "Iron plate");
-  await page.locator('button[title^="click to add a recipe that makes this goal"]').click();
+  await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const picker = page.getByRole("dialog", { name: /Recipes that make/ });
   await picker.getByRole("button", { name: /Iron plate/ }).first().click();
   await expect(picker).toBeHidden();

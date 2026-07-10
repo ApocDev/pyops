@@ -11,11 +11,11 @@ test("manual mining productivity bonus persists and can be cleared", async ({ pa
   await mining.fill("120");
   await mining.press("Enter");
   await expect(mining).toHaveValue("120");
-  await expect(page.getByText("Current mining productivity: +120%")).toBeVisible();
+  await expect(page.getByText(/mining \+120% · recipe bonuses/)).toBeVisible();
 
   await page.reload();
   await expect(mining).toHaveValue("120");
-  await expect(page.getByText("Current mining productivity: +120%")).toBeVisible();
+  await expect(page.getByText(/mining \+120% · recipe bonuses/)).toBeVisible();
 
   await mining.fill("");
   await mining.press("Enter");

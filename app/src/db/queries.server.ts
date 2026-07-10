@@ -1899,7 +1899,7 @@ function recipeSignature(name: string): string {
  * save time; a mismatch on a later check means the block's own inputs changed. */
 /** Bumped when solver semantics change — folded into the reference fingerprint
  * so every cache from an older solver reads stale and re-solves on first touch. */
-const SOLVER_VERSION = "sv2";
+const SOLVER_VERSION = "sv3";
 
 export function blockReferenceFingerprint(data: BlockData): string {
   const parts: string[] = [`S ${SOLVER_VERSION}`];

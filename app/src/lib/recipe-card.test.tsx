@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { IconProvider } from "./icons.tsx";
-import { RecipeCard, TechLine } from "./recipe-card.tsx";
+import { ItemCard, RecipeCard, TechLine } from "./recipe-card.tsx";
 
 afterEach(cleanup); // vite-plus/test doesn't auto-wire RTL cleanup
 
@@ -103,5 +103,19 @@ describe("RecipeCard", () => {
     const { getAllByText } = withProviders(<RecipeCard name="copper-cable" />);
     // heading + muted subline both render the id when no display is available yet
     expect(getAllByText("copper-cable").length).toBeGreaterThan(0);
+  });
+});
+
+describe("ItemCard", () => {
+  it("folds caller context into the shared rich item card", () => {
+    const { getByText } = withProviders(
+      <ItemCard
+        name="biocrud"
+        kind="item"
+        extraText={<span className="text-warning">0.01/s estimated incidental spoilage</span>}
+      />,
+    );
+
+    expect(getByText("0.01/s estimated incidental spoilage").className).toContain("text-warning");
   });
 });

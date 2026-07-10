@@ -119,8 +119,9 @@ function Block({ blockId }: { blockId: number }) {
   // Sub-blocks (#7): named groups of recipe rows, display-only. Members stay
   // contiguous in `recipes` order (lib/row-groups.ts). Fold state is a view
   // preference — localStorage, not the doc, so folding doesn't churn auto-save.
-  // Planned spoil losses (#20): item → expected rot rate /s, solved as extra
-  // pinned surplus. `spoilDialog` holds the item whose rate is being edited.
+  // Incidental spoil estimates (#20): item → expected rot rate /s while backed
+  // up. They do not change the nominal solve; the result item becomes a
+  // byproduct export. `spoilDialog` holds the item whose estimate is edited.
   const [spoilDialog, setSpoilDialog] = useState<string | null>(null);
   // rename-in-place on a group header (holds the group id being edited)
   const [renamingGroup, setRenamingGroup] = useState<number | null>(null);
@@ -667,7 +668,7 @@ function Block({ blockId }: { blockId: number }) {
   // Per-item link state from the solve, so each chip can show whether it's the
   // goal, an unmade input (import), a surplus (export), or balanced in-block.
   const importSet = new Set(res?.imports.map((f) => f.name));
-  const exportSet = new Set(res?.exports.map((f) => f.name));
+  const exportSet = new Set(res?.displayExports.map((f) => f.name));
   // good → kind (item|fluid), gathered from every flow/recipe in the solve so goal
   // icons render correctly even for fluid goals (the target isn't in imports/exports).
   const kindMap = new Map<string, string>();
@@ -887,6 +888,7 @@ function Block({ blockId }: { blockId: number }) {
             modulesPicker: setPickModulesFor,
             applyModuleFill,
             pinsFor: setPinFor,
+            spoilageFor: setSpoilDialog,
           }}
           renamingGroup={renamingGroup}
           onRenamingGroupChange={setRenamingGroup}
@@ -1018,7 +1020,7 @@ function Block({ blockId }: { blockId: number }) {
           );
         })()}
 
-      {/* Planned-spoil-rate dialog (#20) */}
+      {/* Incidental-spoil estimate dialog (#20) */}
       {spoilDialog && (
         <SpoilRateDialog
           item={spoilDialog}

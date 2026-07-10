@@ -1,4 +1,4 @@
-import { Flame } from "lucide-react";
+import { Flame, Timer } from "lucide-react";
 import { ItemHover } from "../../lib/recipe-card";
 import { fmtSpoilTime, Icon } from "../../lib/icons";
 import { rateLabel } from "./format.ts";
@@ -30,6 +30,7 @@ export function ItemChip({
   link,
   craftable,
   fuel,
+  incidental,
   onClick,
   onContext,
 }: {
@@ -44,6 +45,8 @@ export function ItemChip({
   link: Link;
   craftable?: boolean;
   fuel?: boolean;
+  /** some/all of this export is projected from incidental spoilage */
+  incidental?: boolean;
   onClick: () => void;
   onContext?: (e: { clientX: number; clientY: number }) => void;
 }) {
@@ -71,7 +74,7 @@ export function ItemChip({
             e.preventDefault();
             onContext(e);
           }}
-          aria-label={`${display ?? name}${rate != null ? ` ${rateLabel(name, rate, { perSec: true })}` : ""}${spoilTime ? ` · spoils in ${spoilTime}` : ""} · ${why}`}
+          aria-label={`${display ?? name}${rate != null ? ` ${rateLabel(name, rate, { perSec: true })}` : ""}${spoilTime ? ` · spoils in ${spoilTime}` : ""}${incidental ? " · includes estimated incidental spoilage" : ""} · ${why}`}
           className={`flex items-center gap-1 px-1.5 py-1 text-sm hover:brightness-95 ${cls}`}
         >
           <span className="relative flex">
@@ -85,6 +88,16 @@ export function ItemChip({
             )}
           </span>
           {rate != null && <span>{rateLabel(name, rate)}</span>}
+          {incidental && (
+            <span
+              data-incidental-spoilage
+              className="flex items-center gap-0.5 text-warning"
+              aria-hidden
+            >
+              <span className="text-muted-foreground">·</span>
+              <Timer className="size-3.5" strokeWidth={2.5} /> incidental
+            </span>
+          )}
           {spoilTime && (
             <>
               <span aria-hidden className="text-muted-foreground">

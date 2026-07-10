@@ -16,10 +16,18 @@ test("module template: save → set default → auto-applies to a new compatible
 }) => {
   const presetName = uniqueName("Prod everywhere");
 
+  // Make module availability deterministic instead of inheriting whichever
+  // research mode a previous spec or the copied playthrough left behind.
+  await page.goto("/settings");
+  const future = page.getByRole("button", { name: "Future", exact: true });
+  await expect(future).toBeVisible();
+  await future.click();
+  await expect(future).toHaveAttribute("aria-pressed", "true");
+
   // ── block 1: configure a loadout by hand and save it as a default template ──
   await createBlock(page);
   await addGoal(page, "coal gas", "Coal gas");
-  await page.locator('button[title^="click to add a recipe that makes this goal"]').click();
+  await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const picker = page.getByRole("dialog", { name: "Recipes that make Coal gas" });
   await picker.getByRole("button", { name: "Coal gas from coal" }).click();
   await expect(picker).toBeHidden();
@@ -55,7 +63,7 @@ test("module template: save → set default → auto-applies to a new compatible
   // ── block 2: a compatible new row starts with the template, not empty ──
   await createBlock(page);
   await addGoal(page, "coarse", "Coarse fraction");
-  await page.locator('button[title^="click to add a recipe that makes this goal"]').click();
+  await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const picker2 = page.getByRole("dialog", { name: "Recipes that make Coarse fraction" });
   await picker2.getByRole("button", { name: "Gravel distillation" }).click();
   await expect(picker2).toBeHidden();

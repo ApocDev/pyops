@@ -105,13 +105,9 @@ export function HorizonPicker() {
               </FieldLabel>
               <div className="grid grid-cols-1 gap-x-3 gap-y-1.5 sm:grid-cols-2">
                 {d.allPacks.map((p) => (
-                  <label
-                    key={p}
-                    className="flex cursor-pointer items-center gap-2 text-sm"
-                    title={packName(p)}
-                  >
+                  <label key={p} className="flex cursor-pointer items-center gap-2 text-sm">
                     <Checkbox checked={d.packs.includes(p)} onCheckedChange={() => togglePack(p)} />
-                    <Icon kind="item" name={p} size="sm" title={packName(p)} />
+                    <Icon kind="item" name={p} size="sm" />
                     <span className="truncate">{packName(p)}</span>
                   </label>
                 ))}
@@ -254,8 +250,8 @@ function TargetPicker({
                 <FieldLabel>science packs allowed up to this tier ({packs.length})</FieldLabel>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   {packs.map((p) => (
-                    <Badge key={p} title={packName(p)}>
-                      <Icon kind="item" name={p} size="sm" title={packName(p)} />
+                    <Badge key={p}>
+                      <Icon kind="item" name={p} size="sm" />
                       {packName(p)}
                     </Badge>
                   ))}
@@ -279,19 +275,13 @@ function TargetPicker({
             <Button
               key={`${g.kind}:${g.name}`}
               variant="ghost"
-              title={g.display ?? g.name}
               onClick={() => {
                 onPick(g.name);
                 setTerm("");
               }}
               className="h-auto w-full justify-start gap-2 px-2 py-1.5 font-normal"
             >
-              <Icon
-                kind={g.kind === "fluid" ? "fluid" : "item"}
-                name={g.name}
-                size="md"
-                title={g.display ?? g.name}
-              />
+              <Icon kind={g.kind === "fluid" ? "fluid" : "item"} name={g.name} size="md" />
               <span className="truncate">{g.display ?? g.name}</span>
               <span className="ml-auto shrink-0 bg-muted px-1 text-xs text-muted-foreground uppercase">
                 {g.kind}

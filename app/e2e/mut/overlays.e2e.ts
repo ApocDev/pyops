@@ -16,7 +16,7 @@ test("a good's context menu opens as a role=menu and dismisses on Escape / outsi
 
   // the goal cell wraps the goal's icon+rate; right-click opens the GoalMenu
   const goalCell = page
-    .locator('[title="click to add a recipe that makes this goal (right-click to change the item)"]')
+    .locator('button[aria-label^="add a recipe that makes "]')
     .first();
   await expect(goalCell).toBeVisible();
   await goalCell.click({ button: "right" });

@@ -238,7 +238,7 @@ export function SnapshotDiffView({
       )}
 
       {diff.spoilRates.length > 0 && (
-        <DiffSection title="Planned spoilage">
+        <DiffSection title="Incidental spoilage estimates">
           {diff.spoilRates.map((c) => (
             <Row
               key={c.name}

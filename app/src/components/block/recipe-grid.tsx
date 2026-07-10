@@ -232,6 +232,8 @@ export function RecipeGrid({
                 logi={logi}
                 open={open}
                 moduleHints={!!res?.moduleHints}
+                incidentalSpoilage={res?.incidentalSpoilage ?? []}
+                goodDisplay={res?.display}
                 highlight={focusRecipe === name}
                 tempWarnings={rowTempWarnings(
                   res?.tempWarnings,

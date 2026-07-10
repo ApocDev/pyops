@@ -145,8 +145,8 @@ export type IconProps = {
  * icon inside a row that already carries its own hover/tooltip, a decorative
  * glyph, or the pseudo-goods. The hover supersedes the native `title`, so the
  * bare `title`/`noTitle` props only apply when `noHover` is set. */
-export function Icon(props: IconProps & { noHover?: boolean }) {
-  const { noHover, ...rest } = props;
+export function Icon(props: IconProps & { noHover?: boolean; extraText?: React.ReactNode }) {
+  const { noHover, extraText, ...rest } = props;
   // pseudo-goods (heat/electricity/fluid fuel) have no prototype/detail to card.
   const noCard =
     rest.name === "pyops-electricity" ||
@@ -154,7 +154,7 @@ export function Icon(props: IconProps & { noHover?: boolean }) {
     rest.name === "pyops-fluid-fuel";
   if (noHover || noCard) return <RawIcon {...rest} />;
   return (
-    <GoodHover kind={rest.kind} name={rest.name}>
+    <GoodHover kind={rest.kind} name={rest.name} extraText={extraText}>
       <RawIcon {...rest} noTitle />
     </GoodHover>
   );

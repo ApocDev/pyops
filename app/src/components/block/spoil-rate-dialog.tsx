@@ -2,12 +2,12 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "#/components/ui/dialog.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Input } from "#/components/ui/input.tsx";
-import { InfoHint } from "#/components/info-hint.tsx";
+import { FieldLabel } from "#/components/ui/label.tsx";
 import { fmtSpoilTime, Icon } from "../../lib/icons";
 
-/** Planned-spoil-rate dialog (#20): the expected rot rate for one item. Production
- * is sized to cover the loss — it solves as extra pinned surplus that spoils away
- * in storage (it never exports). Saving a non-positive/empty rate clears the plan. */
+/** Incidental-spoil estimate (#20): an operational average for goods that rot
+ * while downstream demand is stopped. It never changes the nominal block solve;
+ * the item's spoil result joins ordinary byproduct exports at this rate. */
 export function SpoilRateDialog({
   item,
   itemDisplay,
@@ -38,7 +38,7 @@ export function SpoilRateDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 truncate">
             <Icon kind="item" name={item} size="sm" noHover noTitle />
-            Planned spoil loss — {itemDisplay}
+            Estimate incidental spoilage — {itemDisplay}
           </DialogTitle>
         </DialogHeader>
         <form
@@ -49,15 +49,14 @@ export function SpoilRateDialog({
             onSave(Number.isFinite(n) && n > 0 ? n : null);
           }}
         >
-          <div className="space-y-1 text-muted-foreground">
-            <p className="flex items-center gap-1.5">
-              Expected rot rate — production is sized to cover the loss.
-              <InfoHint content="Solves as extra pinned surplus that spoils away in storage; it never exports." />
-            </p>
-            {spoilTicks != null && <p>This item spoils in {fmtSpoilTime(spoilTicks)}.</p>}
-          </div>
+          {spoilTicks != null && (
+            <p className="text-muted-foreground">Spoils in {fmtSpoilTime(spoilTicks)}.</p>
+          )}
+          <FieldLabel>expected incidental spoilage</FieldLabel>
           <div className="flex items-center gap-2">
             <Input
+              id="incidental-spoil-rate"
+              aria-label="expected amount spoiled per second"
               autoFocus
               type="text"
               inputMode="decimal"
@@ -68,7 +67,7 @@ export function SpoilRateDialog({
             />
             <span className="text-muted-foreground">/s</span>
             <Button type="submit" variant="outline" size="sm" className="ml-auto">
-              save
+              save estimate
             </Button>
             {current != null && (
               <Button

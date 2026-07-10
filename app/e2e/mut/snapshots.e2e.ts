@@ -22,7 +22,7 @@ const openSheet = async (page: Page) => {
 };
 
 const closeSheet = async (page: Page) => {
-  await page.keyboard.press("Escape");
+  await sheet(page).getByRole("button", { name: "Close" }).click();
   await expect(sheet(page)).toBeHidden();
 };
 

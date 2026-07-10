@@ -19,6 +19,7 @@ import { RecipeHover } from "../../lib/recipe-card";
 import { fmtSpoilTime, Icon, useSpoilables } from "../../lib/icons";
 import { ModulesChip } from "../../lib/modules-modal";
 import { EditableCount } from "./editable-count.tsx";
+import { IncidentalSpoilageChip } from "./incidental-spoilage-chip.tsx";
 import { SortableRow } from "./sortable-row.tsx";
 import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
 import { LogiTag } from "./logi-tag.tsx";
@@ -48,6 +49,7 @@ export type RowOverlayOpeners = {
   applyModuleFill: (recipe: string) => void;
   /** open the Pins dialog for a row (used to edit a cap from the count cell) */
   pinsFor: (recipe: string) => void;
+  spoilageFor: (item: string) => void;
 };
 
 /** One live recipe row of the grid: name + solved rate, machine/fuel/module
@@ -71,6 +73,8 @@ export function RecipeRow({
   tempWarnings,
   highlight,
   moduleHints,
+  incidentalSpoilage,
+  goodDisplay,
 }: {
   doc: BlockDocStore;
   name: string;
@@ -96,6 +100,8 @@ export function RecipeRow({
   highlight?: boolean;
   /** show the ambient ✨ suggestion hint (Settings toggle; apply paths always work) */
   moduleHints?: boolean;
+  incidentalSpoilage: readonly { source: string; result: string; rate: number }[];
+  goodDisplay?: Readonly<Record<string, string>>;
 }) {
   const spoilables = useSpoilables();
   // Debounce the suggestion hint (#117): the suggested fill recomputes per
@@ -216,10 +222,15 @@ export function RecipeRow({
                 <span className="flex items-center gap-2 bg-muted/50 px-1.5 py-1 text-sm">
                   <button
                     onClick={() => open.machinePicker(name)}
-                    title={`${row.machine.display ?? row.machine.name} · ${num(row.machine.craftingSpeed ?? 1)}× speed · click to change building`}
+                    aria-label={`change ${row.machine.display ?? row.machine.name} building`}
                     className="flex items-center hover:brightness-125"
                   >
-                    <Icon kind="entity" name={row.machine.name} size="md" />
+                    <Icon
+                      kind="entity"
+                      name={row.machine.name}
+                      size="md"
+                      extraText="Click to change building."
+                    />
                   </button>
                   <EditableCount
                     count={row.machine.count}
@@ -419,43 +430,57 @@ export function RecipeRow({
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-3">
             <FieldLabel className="w-full md:hidden">Products ↑</FieldLabel>
-            {row?.products.map((c) => (
-              <div key={c.name} className="flex flex-col items-start gap-1.5">
-                <ItemChip
-                  name={c.name}
-                  kind={c.kind}
-                  display={c.display}
-                  rate={c.rate}
-                  temp={c.temp}
-                  spoilTicks={spoilables[c.name]}
-                  link={linkOf(c.name)}
-                  onClick={() => open.useFor(c.name)}
-                  onContext={(e) =>
-                    open.ctxMenu(e, { name: c.name, kind: c.kind, link: linkOf(c.name) })
-                  }
-                />
-                {/* fluid-temp mismatch (#110 interim): a consumer in this block
+            {row?.products.map((c) => {
+              const incidental = incidentalSpoilage.filter((s) => s.source === c.name);
+              return (
+                <div key={c.name} className="flex flex-col items-start gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <ItemChip
+                      name={c.name}
+                      kind={c.kind}
+                      display={c.display}
+                      rate={c.rate}
+                      temp={c.temp}
+                      spoilTicks={spoilables[c.name]}
+                      link={linkOf(c.name)}
+                      onClick={() => open.useFor(c.name)}
+                      onContext={(e) =>
+                        open.ctxMenu(e, { name: c.name, kind: c.kind, link: linkOf(c.name) })
+                      }
+                    />
+                    {incidental.map((spoil) => (
+                      <IncidentalSpoilageChip
+                        key={`${spoil.source}:${spoil.result}`}
+                        result={spoil.result}
+                        resultDisplay={goodDisplay?.[spoil.result]}
+                        rate={spoil.rate}
+                        onEdit={() => open.spoilageFor(spoil.source)}
+                      />
+                    ))}
+                  </div>
+                  {/* fluid-temp mismatch (#110 interim): a consumer in this block
                     can't accept this output's temperature */}
-                {tempWarnings.product.has(c.name) && (
-                  <Tooltip content={tempWarnings.product.get(c.name)!.title}>
-                    <span className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning">
-                      <AlertTriangle className="size-3.5 shrink-0" />
-                      {tempWarnings.product.get(c.name)!.label}
-                    </span>
-                  </Tooltip>
-                )}
-                {logi.resolved && c.kind === "item" && (
-                  <LogiTag
-                    resolved={logi.resolved}
-                    rate={c.rate}
-                    machineCount={row.machine?.count ?? 0}
-                    showBelts={logi.showBelts}
-                    showInserters={logi.showInserters}
-                    launch={logi.launchInfo(c.name, c.rate)}
-                  />
-                )}
-              </div>
-            ))}
+                  {tempWarnings.product.has(c.name) && (
+                    <Tooltip content={tempWarnings.product.get(c.name)!.title}>
+                      <span className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning">
+                        <AlertTriangle className="size-3.5 shrink-0" />
+                        {tempWarnings.product.get(c.name)!.label}
+                      </span>
+                    </Tooltip>
+                  )}
+                  {logi.resolved && c.kind === "item" && (
+                    <LogiTag
+                      resolved={logi.resolved}
+                      rate={c.rate}
+                      machineCount={row.machine?.count ?? 0}
+                      showBelts={logi.showBelts}
+                      showInserters={logi.showInserters}
+                      launch={logi.launchInfo(c.name, c.rate)}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

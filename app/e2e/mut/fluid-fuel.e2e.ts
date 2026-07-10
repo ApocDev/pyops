@@ -13,7 +13,7 @@ test("a fluid-burning drill demands the Fluid fuel pool, not a picked fluid", as
   await addGoal(page, "antimony ore", "Antimony ore");
 
   // several recipes make Antimony ore → the picker opens; take the drill's one
-  await page.locator('button[title^="click to add a recipe that makes this goal"]').click();
+  await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const picker = page.getByRole("dialog", { name: /Recipes that make/ });
   await picker.getByRole("button", { name: /Mine Antimony field/ }).click();
   await expect(picker).toBeHidden();
@@ -22,7 +22,7 @@ test("a fluid-burning drill demands the Fluid fuel pool, not a picked fluid", as
   // the default machine is the legacy SOLID-burner drill (lowest power wins the
   // tie-break) — switch to the fluid-burning Antimony drill MK 01 (10MW ÷ 10 =
   // 1MW … dump: energy_usage 1MW, energy_source { type "fluid", burns_fluid true })
-  await page.locator('button[title*="click to change building"]').click();
+  await page.locator('button[aria-label^="change "][aria-label$=" building"]').click();
   const buildings = page.getByRole("dialog", { name: /Building for/ });
   await buildings.getByRole("button", { name: /^Antimony drill MK 01(?! \(Legacy\))/ }).click();
   await expect(buildings).toBeHidden();
@@ -56,7 +56,7 @@ test("a Fluid fuel goal designates the block as a factory-scale supplier", async
   await expect(page.locator('button[title^="click to edit the goal rate"]')).toHaveText("1 MW");
 
   // feed it with the Burn Kerosene conversion (1 kerosene → 1.5 MJ)
-  await page.locator('button[title^="click to add a recipe that makes this goal"]').click();
+  await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const picker = page.getByRole("dialog", { name: /Recipes that make/ });
   await picker.getByRole("button", { name: /^Burn Kerosene/ }).click();
   await expect(picker).toBeHidden();
