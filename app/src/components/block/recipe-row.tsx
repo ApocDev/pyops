@@ -172,10 +172,12 @@ export function RecipeRow({
                   <span className="text-sm font-semibold text-muted-foreground">idle</span>
                 </Tooltip>
               ) : row ? (
-                <span className="text-sm text-muted-foreground">{num(row.rate)}/s</span>
+                <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                  {num(row.rate)}/s
+                  <RecipeSpoilageIndicator products={row.products} spoilables={spoilables} />
+                </span>
               ) : null}
             </span>
-            <RecipeSpoilageIndicator products={row?.products ?? []} spoilables={spoilables} />
             <Button
               variant="ghost"
               size="icon-xs"

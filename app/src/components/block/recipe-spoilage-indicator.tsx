@@ -37,17 +37,20 @@ export function RecipeSpoilageIndicator({
   const summary = entries.length === 1 ? fmtSpoilTime(entries[0].ticks) : `${entries.length} spoil`;
 
   return (
-    <Tooltip content={detail}>
-      <span
-        role="img"
-        tabIndex={0}
-        aria-label={detail}
-        data-recipe-spoilage
-        className="flex shrink-0 items-center gap-1 text-sm text-warning"
-      >
-        <Timer className="size-3.5" />
-        {summary}
-      </span>
-    </Tooltip>
+    <>
+      <span aria-hidden>·</span>
+      <Tooltip content={detail}>
+        <span
+          role="img"
+          tabIndex={0}
+          aria-label={detail}
+          data-recipe-spoilage
+          className="flex shrink-0 items-center gap-1 text-sm text-warning"
+        >
+          <Timer className="size-3.5" />
+          {summary}
+        </span>
+      </Tooltip>
+    </>
   );
 }
