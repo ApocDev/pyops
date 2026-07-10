@@ -1,0 +1,21 @@
+app/src/db/import-factorio.test.ts
+  s_b528b4bb0ee691::t_92b0bc4a07bfa6 30-51
+app/src/server/dump.server.ts
+  s_b528b4bb0ee691::t_8b1c4107eeadf0 54,67-78,241
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "26862d1a72f17cca38460faea2ad868f78df8b7a",
+  "prompts": {},
+  "sessions": {
+    "s_b528b4bb0ee691": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4cdd-8b8c-7bf1-b660-a3258742ff82",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
