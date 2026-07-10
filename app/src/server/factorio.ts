@@ -35,6 +35,7 @@ import {
   blockUpdatedAt,
   boundaryFlows,
   computeBlock,
+  computeModuleSuggestions,
   defaultFuel,
   goalFlows,
   persistBlock,
@@ -210,6 +211,17 @@ export const solveBlockFn = createServerFn({ method: "GET" })
   .validator((d: SolveInput) => d)
   .handler(async ({ data }) => computeBlock(data));
 
+/** Module auto-fill hints for an authoritative solve's recipe rates. Kept out
+ * of `computeBlock` so the editor can paint the solved block as soon as its
+ * coalesced save completes, without making module availability part of every
+ * core solve. */
+export const moduleSuggestionsFn = createServerFn({ method: "POST" })
+  .validator(
+    (d: { data: SolveInput; rows: { recipe: string; rate: number; machine: string | null }[] }) =>
+      d,
+  )
+  .handler(async ({ data }) => computeModuleSuggestions(data.data, data.rows));
+
 export const bridgeShowBlockFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => showBlockInGame(data));
@@ -232,6 +244,10 @@ export const saveBlockFn = createServerFn({ method: "POST" })
        * that idled through an undo/external write) must rehydrate instead of
        * clobbering the newer state. Omit to skip the check (legacy behavior). */
       baseUpdatedAt?: number | null;
+      /** Return the authoritative solve to an open editor so one request can
+       * both persist and refresh the UI. Other save callers keep the compact
+       * acknowledgement payload. */
+      returnSolve?: boolean;
     }) => d,
   )
   .handler(async ({ data }) => {
@@ -254,7 +270,12 @@ export const saveBlockFn = createServerFn({ method: "POST" })
     const id = await withUndoAction(action, () =>
       persistBlock({ id: data.id, name, iconKind: icon.kind, iconName: icon.name }, data.data, r),
     );
-    return { id, name, updatedAt: blockUpdatedAt(id) };
+    return {
+      id,
+      name,
+      updatedAt: blockUpdatedAt(id),
+      solve: data.returnSolve ? r : null,
+    };
   });
 
 export const listBlocksFn = createServerFn({ method: "GET" }).handler(async () => q.listBlocks());

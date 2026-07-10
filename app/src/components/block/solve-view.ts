@@ -4,7 +4,13 @@
 import type { computeBlock } from "../../server/block-compute.server.ts";
 import type { ResolvedLogistics } from "../../lib/logistics";
 
-export type SolveResult = Awaited<ReturnType<typeof computeBlock>>;
+type CoreSolveResult = Awaited<ReturnType<typeof computeBlock>>;
+
+/** The editor enriches authoritative core rows with lazy presentation-only
+ * module hints. They are deliberately absent from `computeBlock` itself. */
+export type SolveResult = Omit<CoreSolveResult, "rows"> & {
+  rows: Array<CoreSolveResult["rows"][number] & { suggestedModules?: string[] }>;
+};
 
 /** Per-item logistics view config: the resolved belt/mover picks plus the
  * show toggles, and `launchInfo` for the opt-in rocket readout. Null `resolved`

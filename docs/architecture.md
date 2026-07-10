@@ -133,6 +133,17 @@ Two surfaces under **Settings › Backup & share**:
   blocks also export from the block editor's toolbar. Snapshots (#85) build on the
   same serialization.
 
+The block editor keeps the solve server-authoritative without solving the same
+document twice. Opening a block solves the SQLite-loaded document once; edits
+are coalesced for a short idle window, then one `saveBlockFn` request solves and
+persists the document and returns that exact solve for the UI. Module auto-fill
+hints follow lazily from the solved row rates and never invoke the LP. External
+writes (undo and snapshot restore) rehydrate and solve the new persisted
+document, while the existing `updatedAt` guard still rejects stale-tab saves.
+Save requests are serialized per editor; edits made during an in-flight solve
+collapse into one follow-up save of the newest document, so responses cannot
+land out of order.
+
 ## Block snapshots (#85)
 
 Per-block restore points, complementing undo (which unwinds recent edits):

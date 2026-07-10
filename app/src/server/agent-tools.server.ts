@@ -30,6 +30,7 @@ import * as tasksDb from "../db/tasks.server.ts";
 import { requestFromMod } from "./bridge/inspect.ts";
 import {
   computeBlock,
+  computeModuleSuggestions,
   showBlockInGame,
   hideBlockInGame,
   machineReqs,
@@ -801,21 +802,35 @@ const blockDraftInput = z
   });
 
 /** Two-pass module-fill solve shared by every block draft/bill tool
- * (submitBlock/reviseBlock/submitPlan AND buildingBill): computeBlock only
- * SUGGESTS modules (the UI applies them on click), so a drafted/billed block
- * must adopt the suggestions as explicit picks (pinning the machine they were
- * sized for) and re-solve so counts/power/imports reflect them. Before this was
+ * (submitBlock/reviseBlock/submitPlan AND buildingBill): module suggestions are
+ * derived from the provisional solve's exact rates without invoking the LP a
+ * second time; a drafted/billed block then adopts them as explicit picks
+ * (pinning the machine they were sized for) and re-solves so counts/power/imports
+ * reflect them. Before this was
  * shared, buildingBill skipped this second pass entirely — its bare
  * `computeBlock({goals, recipes})` under-counted Py's creature/farm buildings
  * (intentionally near-useless unmoduled) by ~10-15x and disagreed with
  * submitBlock's own (already module-filled) counts for the same recipes. */
 async function solveWithModuleFill(goals: { name: string; rate: number }[], recipes: string[]) {
   const provisional = await computeBlock({ goals, recipes });
+  const suggestions =
+    provisional.status === "solved" &&
+    provisional.rows.some((row) => (row.machine?.moduleSlots ?? 0) > 0)
+      ? computeModuleSuggestions(
+          { goals, recipes },
+          provisional.rows.map((row) => ({
+            recipe: row.recipe,
+            rate: row.rate,
+            machine: row.machine?.name ?? null,
+          })),
+        )
+      : {};
   const modules: Record<string, string[]> = {};
   const machines: Record<string, string> = {};
   for (const row of provisional.rows) {
-    if (row.suggestedModules?.length && row.machine) {
-      modules[row.recipe] = row.suggestedModules;
+    const suggested = suggestions[row.recipe];
+    if (suggested?.length && row.machine) {
+      modules[row.recipe] = suggested;
       machines[row.recipe] = row.machine.name;
     }
   }

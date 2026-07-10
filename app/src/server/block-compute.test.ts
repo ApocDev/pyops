@@ -57,7 +57,63 @@ import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import { switchDatabase } from "../db/index.server.ts";
 import { computeRecipeScenario } from "../db/queries.server.ts";
 import { type TestDb, makeTestDb } from "../db/test-helpers.ts";
-import { boundaryFlows, computeBlock, goalFlows } from "./block-compute.server.ts";
+import {
+  boundaryFlows,
+  computeBlock,
+  computeModuleSuggestions,
+  goalFlows,
+} from "./block-compute.server.ts";
+
+describe("module suggestions outside the core solve", () => {
+  let fx: TestDb;
+
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    fx.db.exec(`
+      INSERT INTO items (name, display) VALUES
+        ('ore','Ore'),('plate','Plate'),('prod-module','Productivity module');
+      INSERT INTO recipes
+        (name, kind, category, energy_required, allow_productivity, enabled, hidden)
+        VALUES
+        ('make-plate','real','crafting',1,1,1,0),
+        ('craft-prod-module','real','crafting',1,0,1,0);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount)
+        VALUES ('make-plate',0,'item','ore',1);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+        ('make-plate',0,'item','plate',1),
+        ('craft-prod-module',0,'item','prod-module',1);
+      INSERT INTO crafting_machines
+        (name, kind, crafting_speed, module_slots, energy_usage_w, energy_source,
+         allowed_effects, allowed_module_categories)
+        VALUES
+        ('assembler','assembling-machine',1,2,100000,'electric',
+         '["speed","productivity","consumption"]','["productivity"]');
+      INSERT INTO machine_categories (machine, category)
+        VALUES ('assembler','crafting');
+      INSERT INTO modules
+        (name, category, hidden, eff_speed, eff_productivity, eff_consumption)
+        VALUES ('prod-module','productivity',0,-0.05,0.1,0.4);
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+
+  afterEach(() => fx.cleanup());
+
+  it("derives hints from solved rates without putting them on computeBlock rows", async () => {
+    const input = { goals: [{ name: "plate", rate: 1 }], recipes: ["make-plate"] };
+    const solved = await computeBlock(input);
+    const row = solved.rows[0];
+    expect(row).toBeDefined();
+    expect("suggestedModules" in row).toBe(false);
+
+    expect(
+      computeModuleSuggestions(input, [
+        { recipe: row.recipe, rate: row.rate, machine: row.machine?.name ?? null },
+      ]),
+    ).toEqual({ "make-plate": ["prod-module", "prod-module"] });
+  });
+});
 
 describe("per-product ignored_by_productivity (#93)", () => {
   let fx: TestDb;

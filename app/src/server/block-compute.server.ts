@@ -307,45 +307,18 @@ export async function computeBlock(rawData: SolveInput) {
     });
   };
 
-  // Module auto-fill is SUGGESTED, never applied: each row gets a
-  // `suggestedModules` fill computed post-solve by the direct algorithm in
-  // module-fill.server.ts (best productivity where the recipe allows it,
-  // otherwise the fewest speed modules that reach the smallest whole building
-  // count with the rest on efficiency). The UI hints when a row's stored fill
-  // differs and offers one-click apply (per row and whole block) — the solve
-  // itself only ever uses the doc's stored modules, so plans don't rearrange
-  // themselves when research unlocks better tiers or counts drift across a
-  // whole-building boundary.
+  // Module auto-fill is SUGGESTED, never applied. Suggestions intentionally live
+  // outside this core solve now: their availability scan was the dominant part
+  // of an otherwise sub-millisecond LP solve. `computeModuleSuggestions` runs
+  // after a coalesced editor save and consumes the authoritative solved rates.
+  // The solve itself only ever uses the doc's stored modules, so plans don't
+  // rearrange themselves when research unlocks better tiers or counts drift.
   const settings = q.metaAll();
   const moduleHints = (settings.autofill ?? "1") !== "0"; // hint visibility only
-  const fillMiners = settings.autofill_miners === "1";
   // Preferred fuels per category (for marking the favorite in the fuel picker).
   // Favorites are baked into a block's stored picks at recipe-add time, so the
   // solve fallback here stays favorite-independent (lowest tier / cheapest fuel).
   const favoriteFuels = q.getFavoriteFuels();
-  // One module-table scan + one availability pass per solve, filtered per row
-  // in JS — modulePickerData per row re-scans modules AND beacons every call,
-  // which measured ~37% of the whole solve on a 22-row block. Lazy: blocks
-  // with no module-capable rows never pay it.
-  let placeableCache: { mods: ReturnType<typeof q.placeableModules>; avail: Set<string> } | null =
-    null;
-  const placeable = () =>
-    (placeableCache ??= (() => {
-      const mods = q.placeableModules();
-      // only modules unlocked in the research horizon (mirrors machine gating);
-      // this also excludes creative/editor modules (nothing produces them)
-      return { mods, avail: refs.unlockedItems(mods.map((m) => m.name)) };
-    })());
-  const autoPool = (
-    r: (typeof fetched)[number],
-    chosen: ReturnType<typeof q.machinesForRecipe>[number],
-  ) => {
-    if (!(fillMiners || r.kind !== "mining")) return [];
-    const { mods, avail } = placeable();
-    const fits = q.modulePlacementFilter(chosen, r);
-    return mods.filter((m) => fits(m) && avail.has(m.name));
-  };
-
   // Machine eligibility: in NOW mode the default pick is restricted to buildings
   // the player has actually unlocked (real research from the bridge, else the
   // science-pack proxy). FUTURE mode allows any machine. An explicit per-recipe
@@ -379,8 +352,6 @@ export async function computeBlock(rawData: SolveInput) {
       const machineModules = (manual ?? [])
         .filter((n) => moduleDb.has(n))
         .slice(0, chosen?.moduleSlots ?? 0);
-      // modules the suggestion may draw from (empty when the row can't take any)
-      const suggestPool = chosen && chosen.moduleSlots > 0 ? autoPool(r, chosen) : [];
       const beaconCfgs = (data.beacons?.[r.name] ?? []).filter(
         (b) => beaconDb.has(b.beacon) && b.count > 0,
       );
@@ -398,15 +369,6 @@ export async function computeBlock(rawData: SolveInput) {
           maxProductivity: r.maximumProductivity,
         },
       );
-      // the module-LESS speed multiplier (beacons + TURD only) — the suggestion
-      // algorithm sizes its speed-vs-efficiency split against this baseline
-      const bareSpeedMult = machineModules.length
-        ? computeEffects(r.allowProductivity, [], beaconCfgs, moduleDb, beaconDb, turdModules, {
-            recipeProd: researchProd.recipes.get(r.name) ?? 0,
-            miningProd: r.kind === "mining" ? researchProd.mining : 0,
-            maxProductivity: r.maximumProductivity,
-          }).speedMult
-        : effects.speedMult;
       return [
         r.name,
         {
@@ -416,9 +378,6 @@ export async function computeBlock(rawData: SolveInput) {
           beaconCfgs,
           turdModules,
           effects,
-          suggestPool,
-          bareSpeedMult,
-          allowProductivity: r.allowProductivity,
         },
       ] as const;
     }),
@@ -759,28 +718,6 @@ export async function computeBlock(rawData: SolveInput) {
     exports: foldFlows(rawResult.exports),
   };
 
-  // ── module suggestions: what the auto-fill algorithm WOULD pick ────────────
-  // Computed against the row's module-less baseline (beacons/TURD included, so
-  // planting speed beacons updates the suggestion) from the counts this solve
-  // just produced. Never applied here — the UI hints when a row's stored fill
-  // differs and applies on an explicit click.
-  const suggested = new Map<string, string[]>();
-  if (rawResult.status === "solved") {
-    for (const rr of result.recipes) {
-      const s = setup.get(rr.recipe);
-      if (!s?.suggestPool.length || !s.chosen) continue;
-      const baseCount = rr.machines1x / ((s.chosen.craftingSpeed ?? 1) * s.bareSpeedMult);
-      const fill = pickAutoModules({
-        slots: s.chosen.moduleSlots,
-        allowProductivity: s.allowProductivity,
-        pool: s.suggestPool,
-        baseCount,
-        baseSpeedMult: s.bareSpeedMult,
-      });
-      if (fill.length) suggested.set(rr.recipe, fill);
-    }
-  }
-
   // Per-recipe rows for the grid: each recipe's ingredients/products at the
   // solved run-rate, the chosen machine (override or fastest) with a real count
   // (machine-seconds/sec ÷ speed), its power draw, and — for burners — the
@@ -807,12 +744,6 @@ export async function computeBlock(rawData: SolveInput) {
       turdModules,
       effects: fx,
     } = setup.get(rr.recipe)!;
-    // the suggested fill, only when it differs from what's stored (order-blind)
-    const sug = suggested.get(rr.recipe);
-    const suggestedModules =
-      sug && [...sug].sort().join("\u0001") !== [...machineModules].sort().join("\u0001")
-        ? sug
-        : undefined;
     const speed = (chosen?.craftingSpeed ?? 1) * fx.speedMult;
     // fractional building requirement (machine-seconds/sec ÷ speed); the UI
     // shows this and the whole-machine build target alongside it
@@ -1005,8 +936,6 @@ export async function computeBlock(rawData: SolveInput) {
       fuel,
       availableFuels,
       modules: machineModules,
-      // a better fill exists (per the auto algorithm) — hint + one-click apply
-      suggestedModules,
       turdModules: turdModules.map((m) => ({ name: m.name, display: m.display })),
       beacons: beaconCfgs,
       beaconPowerW,
@@ -1249,10 +1178,110 @@ export async function computeBlock(rawData: SolveInput) {
     buildCost,
     broken,
     missing,
-    // module-suggestion hints are a per-project preference (Settings) — the
-    // rows always carry suggestedModules; this only gates the ambient icon
+    // module-suggestion hints are a per-project preference (Settings). The
+    // editor resolves suggestion rows lazily; this gates the ambient icon.
     moduleHints,
   };
+}
+
+/** Compute module auto-fill hints from an already-solved block.
+ *
+ * This deliberately does not invoke the LP solver. Module eligibility and
+ * research availability are relatively expensive SQLite/reference-data work,
+ * but they are presentation hints rather than inputs to the solve (only the
+ * modules stored in the document affect production). Keeping this as a second,
+ * lazy editor request lets the authoritative solve + save finish first while
+ * still deriving suggestions from its exact recipe rates.
+ */
+export function computeModuleSuggestions(
+  rawData: SolveInput,
+  solvedRows: { recipe: string; rate: number; machine: string | null }[],
+): Record<string, string[]> {
+  const data = normalizeBlockData(rawData) as SolveInput;
+  if (!solvedRows.length) return {};
+
+  const refs = q.createBlockSolveContext(data.recipes);
+  const settings = q.metaAll();
+  const fillMiners = settings.autofill_miners === "1";
+  const recipes = new Map(
+    data.recipes
+      .map((name) => refs.getRecipe(name))
+      .filter((r): r is NonNullable<ReturnType<typeof q.getRecipe>> => !!r)
+      .map((r) => [r.name, r]),
+  );
+  const candidates = [...recipes.values()].filter((r) => fillMiners || r.kind !== "mining");
+  if (!candidates.length) return {};
+
+  // One module-table scan and one research-availability pass for the whole
+  // block. Creative/editor modules have no producer and therefore stay out.
+  const placeable = q.placeableModules();
+  const available = refs.unlockedItems(placeable.map((m) => m.name));
+  const moduleDb = q.getModules([
+    ...Object.values(data.modules ?? {}).flat(),
+    ...Object.values(data.beacons ?? {})
+      .flat()
+      .flatMap((b) => b.modules),
+  ]);
+  const beaconDb = q.getBeacons(
+    Object.values(data.beacons ?? {})
+      .flat()
+      .map((b) => b.beacon),
+  );
+  const researchProd = refs.productivityBonuses();
+  const activeTurd = q.activeTurdModules();
+  const turdFor = (machine: { name: string; allowedModuleCategories: string[] | null }) =>
+    activeTurd.filter((mod) => {
+      if (!machine.allowedModuleCategories?.includes(mod.category ?? "")) return false;
+      const tier = /-mk0(\d)$/.exec(mod.name);
+      return !tier || machine.name.endsWith(`-mk0${tier[1]}`);
+    });
+
+  const out: Record<string, string[]> = {};
+  for (const row of solvedRows) {
+    const recipe = recipes.get(row.recipe);
+    if (!recipe || (!fillMiners && recipe.kind === "mining")) continue;
+    const chosen = refs.machinesForRecipe(recipe.name).find((m) => m.name === row.machine);
+    if (!chosen || chosen.moduleSlots <= 0) continue;
+
+    const fits = q.modulePlacementFilter(chosen, recipe);
+    const pool = placeable.filter((m) => available.has(m.name) && fits(m));
+    if (!pool.length) continue;
+
+    const beaconCfgs = (data.beacons?.[recipe.name] ?? []).filter(
+      (b) => beaconDb.has(b.beacon) && b.count > 0,
+    );
+    const turdModules = turdFor(chosen);
+    const bare = computeEffects(
+      recipe.allowProductivity,
+      [],
+      beaconCfgs,
+      moduleDb,
+      beaconDb,
+      turdModules,
+      {
+        recipeProd: researchProd.recipes.get(recipe.name) ?? 0,
+        miningProd: recipe.kind === "mining" ? researchProd.mining : 0,
+        maxProductivity: recipe.maximumProductivity,
+      },
+    );
+    // recipe rate × craft time = machine-seconds/sec at 1× speed. Divide by
+    // the module-less machine speed so beacon/TURD effects remain represented.
+    const baseCount =
+      (row.rate * (recipe.energyRequired ?? 0.5)) / ((chosen.craftingSpeed ?? 1) * bare.speedMult);
+    const fill = pickAutoModules({
+      slots: chosen.moduleSlots,
+      allowProductivity: recipe.allowProductivity,
+      pool,
+      baseCount,
+      baseSpeedMult: bare.speedMult,
+    });
+    const current = (data.modules?.[recipe.name] ?? [])
+      .filter((name) => moduleDb.has(name))
+      .slice(0, chosen.moduleSlots);
+    if (fill.length && [...fill].sort().join("\u0001") !== [...current].sort().join("\u0001"))
+      out[recipe.name] = fill;
+  }
+  return out;
 }
 
 /** Persist a block's input doc + refresh its cached flows/machines/power. When the

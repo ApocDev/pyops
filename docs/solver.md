@@ -256,8 +256,11 @@ bottom out at 0.2, productivity caps at the recipe's `maximum_productivity`
 the solve only ever uses the doc's stored module picks, so a plan never
 rearranges its modules behind the player's back (research unlocking a better
 tier, or a count drifting across a whole-building boundary, changes the
-_suggestion_, not the block). Each solve computes a per-row suggested fill by a
-direct algorithm — no payback economics: if the recipe allows productivity,
+_suggestion_, not the block). The block editor computes a per-row suggested fill
+after its authoritative solve+save, in a separate lazy request that reuses the
+solved recipe rates and does not invoke the LP again. This keeps module/research
+availability scans off the core solve path. The fill uses a direct algorithm —
+no payback economics: if the recipe allows productivity,
 every slot gets the best unlocked prod module; otherwise the row gets the
 **fewest speed modules that reach the smallest whole building count**, with the
 remaining slots on efficiency — past that floor, extra speed only shaves

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@tanstack/react-store";
 import { ActiveEditorRefContext } from "./block";
@@ -11,11 +11,13 @@ import {
   itemWeightsFn,
   loadBlockFn,
   logisticsContextFn,
+  moduleSuggestionsFn,
   recipeCandidatesFn,
   recipeDefaultsFn,
   saveBlockFn,
   setBlockEnabledFn,
   solveBlockFn,
+  type SolveInput,
 } from "../server/factorio";
 import { exportBlockFn } from "../server/export-fns";
 import { registerBlockEditor } from "../lib/block-editors";
@@ -27,6 +29,7 @@ import { epochSeconds } from "../lib/undo-client";
 import { blockActionName } from "../lib/undo-names";
 import { launchesForRate, resolveLogistics } from "../lib/logistics";
 import { recordRecent } from "../lib/recents";
+import { createCoalescedRunner } from "../lib/coalesced-runner";
 import { IconProvider, useSpoilables } from "../lib/icons";
 import { ModulesModal } from "../lib/modules-modal";
 import { Callout } from "#/components/ui/callout.tsx";
@@ -54,6 +57,9 @@ import { BlockFlowView } from "../components/block/block-flow-view.tsx";
 import type { LogiView } from "../components/block/solve-view.ts";
 
 export const Route = createFileRoute("/block/$id")({ component: BlockRoute });
+
+type BlockSolve = Awaited<ReturnType<typeof solveBlockFn>>;
+type SolvedState = { input: SolveInput; result: BlockSolve };
 
 // Remount the editor per id (key) so each block is a fresh instance: load on
 // mount, auto-save on edit, flush on unmount — no cross-block state to untangle.
@@ -164,6 +170,11 @@ function Block({ blockId }: { blockId: number }) {
   const [nameCustom, setNameCustom] = useState(false);
   const customDecided = useRef(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  // One fixed query slot owns the active server-authoritative solve. User edits
+  // replace it after a coalesced solve+save rather than minting per-edit cache
+  // entries. The input travels with the result so lazy module hints can never
+  // mix old rates with a newer dirty document.
+  const solveQueryKey = ["solve", "editor", blockId] as const;
   // Recipe removal is a click-to-confirm: the first click on × arms the row (× →
   // "remove?"), the second removes it. Removing loses the row's machine/fuel/module
   // picks and it sits next to the disable toggle, so a lone misclick shouldn't destroy
@@ -210,6 +221,9 @@ function Block({ blockId }: { blockId: number }) {
           doc.hydrate(raw, name);
           baseUpdatedAt.current = at;
           setSaveState("idle");
+          void solveBlockFn({ data: raw as SolveInput }).then((result) =>
+            qc.setQueryData<SolvedState>(solveQueryKey, { input: raw as SolveInput, result }),
+          );
         },
         onDeleted: () => void navigate({ to: "/block" }),
       }),
@@ -305,7 +319,6 @@ function Block({ blockId }: { blockId: number }) {
   // the solver/save doc, assembled by the store (empty maps omitted, disabled
   // recipes as a sorted array — see solveInputOf)
   const solveInput = useMemo(() => solveInputOf(s), [s]);
-  const disabledRecipes = solveInput.disabledRecipes ?? [];
   // kind + display for the goal cells, so a fluid goal (e.g. crude-oil) icons
   // correctly even before any recipe makes it appear in the solve's flows, and so
   // the block can auto-name itself from its primary goal pre-solve.
@@ -333,36 +346,63 @@ function Block({ blockId }: { blockId: number }) {
     if (!nameCustom && blockName !== auto) doc.setBlockName(auto);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, goalInfo.data, nameCustom, blockName]);
+  // Initial paint solves the document loaded from SQLite once. After that,
+  // edits do not mint query-cache entries or fire a second live solve: the
+  // debounced save below is the sole authoritative solve and returns its result.
   const solve = useQuery({
-    queryKey: [
-      "solve",
-      goals,
-      recipes,
-      disabledRecipes,
-      spoilRates,
-      made,
-      pins,
-      machineSel,
-      fuelSel,
-      moduleSel,
-      beaconSel,
-      reactorLayouts,
-    ],
-    queryFn: () => solveBlockFn({ data: solveInput }),
-    enabled: goals.length > 0,
-    // keep the last result while a re-solve is in flight — otherwise every edit
-    // briefly unmounts everything derived from `res` (incl. open modals)
-    placeholderData: keepPreviousData,
-    // the key embeds the whole doc, so every edit mints a NEW cache entry; the
-    // default 5-min gcTime would hoard dozens of full solve payloads during
-    // active editing on a big block — a short lifetime keeps back/forward snappy
-    // without the hoard
-    gcTime: 30_000,
+    queryKey: solveQueryKey,
+    queryFn: async (): Promise<SolvedState> => {
+      const input = loaded.data!.data as SolveInput;
+      return { input, result: await solveBlockFn({ data: input }) };
+    },
+    enabled: !!loaded.data,
+    // This slot is initialized from SQLite once. Saves and external writes
+    // replace it explicitly, so focus/reconnect must not re-solve it.
+    staleTime: Infinity,
+    gcTime: 0,
   });
+  const coreSolve = solve.data?.result;
+  const solvedInput = solve.data?.input;
+
+  // Module auto-fill is a presentation hint, not a solver input. Resolve it
+  // lazily from the core solve's exact rates so its relatively expensive module
+  // and research scans cannot delay or duplicate the solve+save hot path.
+  const suggestionRows = useMemo(
+    () =>
+      (coreSolve?.rows ?? []).map((row) => ({
+        recipe: row.recipe,
+        rate: row.rate,
+        machine: row.machine?.name ?? null,
+      })),
+    [coreSolve],
+  );
+  const moduleSuggestions = useQuery({
+    queryKey: ["moduleSuggestions", blockId, solvedInput, suggestionRows],
+    queryFn: () => moduleSuggestionsFn({ data: { data: solvedInput!, rows: suggestionRows } }),
+    enabled:
+      !!solvedInput &&
+      coreSolve?.status === "solved" &&
+      coreSolve.rows.some((row) => (row.machine?.moduleSlots ?? 0) > 0),
+    staleTime: Infinity,
+    // Each key embeds one saved doc + its rates; discard the previous payload
+    // immediately when the next coalesced save supersedes it.
+    gcTime: 0,
+  });
+  const res = useMemo(() => {
+    if (!coreSolve) return undefined;
+    const suggestions = moduleSuggestions.data ?? {};
+    return {
+      ...coreSolve,
+      rows: coreSolve.rows.map((row) => ({
+        ...row,
+        suggestedModules: suggestions[row.recipe],
+      })),
+    };
+  }, [coreSolve, moduleSuggestions.data]);
   // Legacy-doc migration (#91): a pre-#91 doc has no `made` set, so the server
   // derives one from its old dispositions and echoes it on the result. Adopt it
   // (clean — no save churn); the next real edit persists the new shape.
-  const resMade = solve.data && "made" in solve.data ? solve.data.made : undefined;
+  const resMade = res && "made" in res ? res.made : undefined;
   useEffect(() => {
     if (resMade && doc.store.state.hydrated && doc.store.state.made == null) doc.adoptMade(resMade);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -373,7 +413,7 @@ function Block({ blockId }: { blockId: number }) {
   // write that would clobber the block. Persist reads the store directly, so
   // the flush always saves the newest state (no snapshot ref needed).
   const retryHold = useRef(false); // a failed save stays dirty but waits for the next edit
-  const persist = () => {
+  const persistOnce = () => {
     doc.markClean();
     setSaveState("saving");
     const cur = doc.store.state;
@@ -381,17 +421,19 @@ function Block({ blockId }: { blockId: number }) {
     // undo stack; consumed here so the next burst starts fresh
     const actionName = blockActionName(cur.pendingAction, cur.blockName);
     doc.clearPendingAction();
+    const input = solveInputOf(cur);
     return saveBlockFn({
       data: {
         id: blockId,
         name: cur.blockName.trim() || undefined,
-        data: solveInputOf(cur),
+        data: input,
         ...(actionName ? { actionName } : {}),
         baseUpdatedAt: baseUpdatedAt.current,
+        returnSolve: true,
       },
     })
       .then(async (res) => {
-        if ("conflict" in res && res.conflict) {
+        if ("conflict" in res) {
           // The stored row is newer than this editor's hydration point (another
           // tab, an undo, an assistant write beat us to it): the save was NOT
           // applied — reload the fresh doc instead of clobbering it.
@@ -399,22 +441,36 @@ function Block({ blockId }: { blockId: number }) {
           if (row) {
             doc.hydrate(row.data, row.name);
             baseUpdatedAt.current = epochSeconds(row.updatedAt);
+            const result = await solveBlockFn({ data: row.data as SolveInput });
+            qc.setQueryData<SolvedState>(solveQueryKey, {
+              input: row.data as SolveInput,
+              result,
+            });
           }
           setSaveState("idle");
           toast({ message: "Block changed elsewhere — reloaded." });
-          return;
+          return true;
         }
         baseUpdatedAt.current = res.updatedAt ?? null;
+        // This editor requests the solve in the save response; the null form is
+        // reserved for compact non-editor callers of saveBlockFn.
+        if (res.solve) qc.setQueryData<SolvedState>(solveQueryKey, { input, result: res.solve });
         setSaveState("saved");
         void qc.invalidateQueries({ queryKey: ["blocks"] });
         void qc.invalidateQueries({ queryKey: ["undoStatus"] });
+        return true;
       })
       .catch(() => {
         retryHold.current = true;
         doc.markDirty(); // failed — stay dirty so a later edit retries
         setSaveState("idle");
+        return false;
       });
   };
+  // A slow solve/save cannot overlap a newer one. Edits that arrive while the
+  // request is in flight are represented by the store's dirty bit and collapse
+  // into one follow-up save of the latest document.
+  const [persist] = useState(() => createCoalescedRunner(persistOnce, () => doc.store.state.dirty));
   useEffect(() => {
     if (!s.hydrated || !s.dirty) return;
     if (retryHold.current) {
@@ -423,7 +479,10 @@ function Block({ blockId }: { blockId: number }) {
       retryHold.current = false;
       return;
     }
-    const t = setTimeout(persist, 700);
+    // One short idle window coalesces rapid edits while keeping the solved UI
+    // responsive. This request both solves and persists; there is no parallel
+    // live-solve request for the same document anymore.
+    const t = setTimeout(persist, 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s]);
@@ -536,11 +595,10 @@ function Block({ blockId }: { blockId: number }) {
     if (autoAddRecipe) add(autoAddRecipe);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoAddRecipe]);
-  const res = solve.data;
-
   // Auto-fill (suggestions → stored picks): apply one row's suggested modules,
-  // or every row's at once from the toolbar. Suggestions are computed by the
-  // solve but NEVER applied by it — these clicks are the only apply paths.
+  // or every row's at once from the toolbar. Suggestions are derived lazily
+  // from solved rates but NEVER applied by the server — these clicks are the
+  // only apply paths.
   const applyModuleFill = (recipe: string) => {
     const r = res?.rows?.find((x) => x.recipe === recipe);
     if (r?.suggestedModules) doc.applyModuleFills({ [recipe]: r.suggestedModules });
@@ -987,6 +1045,12 @@ function Block({ blockId }: { blockId: number }) {
             // push the restored definition into the open editor — clean, so the
             // rehydrate can't trigger an auto-save of its own
             doc.hydrate(r.doc, r.name);
+            void solveBlockFn({ data: r.doc as SolveInput }).then((result) =>
+              qc.setQueryData<SolvedState>(solveQueryKey, {
+                input: r.doc as SolveInput,
+                result,
+              }),
+            );
             setBlockEnabled(r.enabled);
             // the restored name is authoritative; don't let auto-naming overwrite it
             customDecided.current = true;
