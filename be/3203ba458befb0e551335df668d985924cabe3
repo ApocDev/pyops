@@ -1,0 +1,29 @@
+app/src/db/queries.server.ts
+  s_cd1b59b354c2a5::t_d5e84f8c9e7e97 1327-1331,1334-1336,1338-1345,1348-1363,1368-1375,1383-1390,1395-1396,1701,1706-1713,1726,1728,1749-1772
+app/src/db/queries.test.ts
+  s_aa21647b58c52a::t_351afef0423482 8,17,624-741
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "be3203ba458befb0e551335df668d985924cabe3",
+  "prompts": {},
+  "sessions": {
+    "s_aa21647b58c52a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4a85-8c7f-7441-93e6-56f5545a250d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_cd1b59b354c2a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4983-be89-71e2-b2b9-2cc58b36aa77",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
