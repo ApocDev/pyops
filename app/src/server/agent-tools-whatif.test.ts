@@ -14,6 +14,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import { switchDatabase } from "../db/index.server.ts";
 import { type TestDb, makeTestDb } from "../db/test-helpers.ts";
+import { markSolveGenerationResolved } from "../db/solve-generation.server.ts";
 import { agentTools, whatIf } from "./agent-tools.server.ts";
 
 type WhatIfResult = {
@@ -73,6 +74,7 @@ describe("whatIf (#127)", () => {
     `);
     fx.db.close();
     switchDatabase(fx.file);
+    markSolveGenerationResolved();
   });
 
   afterEach(() => fx.cleanup());

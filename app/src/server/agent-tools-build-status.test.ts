@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import { switchDatabase } from "../db/index.server.ts";
 import { type TestDb, makeTestDb } from "../db/test-helpers.ts";
 import * as q from "../db/queries.server.ts";
+import { markSolveGenerationResolved } from "../db/solve-generation.server.ts";
 import { blockBuildStatus } from "./agent-tools.server.ts";
 
 type Result = {
@@ -79,6 +80,7 @@ describe("blockBuildStatus tool", () => {
     ]);
     q.metaSet("built_synced_at", "2026-07-01T00:00:00.000Z");
     q.metaSet("built_synced_count", "8");
+    markSolveGenerationResolved();
   });
 
   afterEach(() => fx.cleanup());

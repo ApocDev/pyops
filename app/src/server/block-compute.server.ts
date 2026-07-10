@@ -274,7 +274,7 @@ export async function computeBlock(rawData: SolveInput) {
   const disabled = new Set(data.disabledRecipes ?? []);
   const fetched = broken
     ? ([] as NonNullable<ReturnType<typeof q.getRecipe>>[])
-    : data.recipes
+    : (data.recipes ?? [])
         .filter((name) => !disabled.has(name))
         .map((name) => refs.getRecipe(name))
         .filter((r): r is NonNullable<ReturnType<typeof q.getRecipe>> => !!r);
