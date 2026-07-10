@@ -16,13 +16,14 @@ import { Button } from "#/components/ui/button.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { RecipeHover } from "../../lib/recipe-card";
-import { fmtSpoilTime, Icon } from "../../lib/icons";
+import { fmtSpoilTime, Icon, useSpoilables } from "../../lib/icons";
 import { ModulesChip } from "../../lib/modules-modal";
 import { EditableCount } from "./editable-count.tsx";
 import { SortableRow } from "./sortable-row.tsx";
 import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
 import { LogiTag } from "./logi-tag.tsx";
 import { ReactorLayoutChip } from "./reactor-layout-chip.tsx";
+import { RecipeSpoilageIndicator } from "./recipe-spoilage-indicator.tsx";
 import type { ChipTempWarning } from "./temp-warnings.ts";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
@@ -96,6 +97,7 @@ export function RecipeRow({
   /** show the ambient ✨ suggestion hint (Settings toggle; apply paths always work) */
   moduleHints?: boolean;
 }) {
+  const spoilables = useSpoilables();
   // Debounce the suggestion hint (#117): the suggested fill recomputes per
   // solve, so it can flip while a rate is being dragged. The sparkle only
   // appears once the suggestion has held still for a beat — mid-edit churn
@@ -173,6 +175,7 @@ export function RecipeRow({
                 <span className="text-sm text-muted-foreground">{num(row.rate)}/s</span>
               ) : null}
             </span>
+            <RecipeSpoilageIndicator products={row?.products ?? []} spoilables={spoilables} />
             <Button
               variant="ghost"
               size="icon-xs"
