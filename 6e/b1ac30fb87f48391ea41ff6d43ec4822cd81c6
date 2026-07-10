@@ -1,0 +1,21 @@
+app/src/db/queries.test.ts
+  s_cd1b59b354c2a5::t_c77a9ea131be0a 28,32,315-352
+app/src/db/queries.server.ts
+  s_cd1b59b354c2a5::t_f10a8ae7971c68 1689-1699,1703-1713
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6eb1ac30fb87f48391ea41ff6d43ec4822cd81c6",
+  "prompts": {},
+  "sessions": {
+    "s_cd1b59b354c2a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4983-be89-71e2-b2b9-2cc58b36aa77",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
