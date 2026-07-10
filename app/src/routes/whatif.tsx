@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { factoryWhatIfFn } from "../server/factorio";
 import { Icon, IconProvider } from "../lib/icons";
@@ -43,6 +43,9 @@ function WhatIf() {
   const wf = useQuery({
     queryKey: ["whatif", overrides],
     queryFn: () => factoryWhatIfFn({ data: { demands: overrides } }),
+    // Changing a target starts a fresh whole-factory solve. Keep the demand rows
+    // mounted while it runs so the active input does not lose focus mid-edit.
+    placeholderData: keepPreviousData,
   });
   const r = wf.data;
   const changed = (r?.blocks ?? []).filter((b) => Math.abs(b.scale - 1) > SCALE_EPS);

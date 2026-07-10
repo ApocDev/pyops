@@ -1,6 +1,25 @@
 import { expect, test } from "@playwright/test";
 import { goto, toast, undoButton } from "./helpers";
 
+test("what-if target stays editable while the factory re-solves", async ({ page }) => {
+  await goto(page, "/whatif");
+
+  const firstDemand = page.getByRole("spinbutton").first();
+  await expect(firstDemand).toBeVisible();
+  await firstDemand.selectText();
+  await firstDemand.pressSequentially("12.34", { delay: 100 });
+
+  // Each character starts another solve. The demand list must remain mounted,
+  // preserving both the in-progress value and keyboard focus throughout them.
+  await expect(firstDemand).toBeFocused();
+  await expect(firstDemand).toHaveValue("12.34");
+  await expect(page.getByText("Block changes", { exact: false }).first()).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(firstDemand).toBeFocused();
+  await expect(firstDemand).toHaveValue("12.34");
+});
+
 /**
  * What-if "Apply all" (whole-factory re-balance): overriding a final product's
  * target surfaces the per-block changes, and Apply all commits every one of them
