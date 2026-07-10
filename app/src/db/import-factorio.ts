@@ -84,6 +84,11 @@ const jsonList = (x: unknown): string | null => {
   return a.length ? JSON.stringify(a) : null;
 };
 
+/** Factorio 2.1 dumps recipe `categories` as a one-element array; 2.0 used the
+ * singular `category`. Recipes without either field use the engine default. */
+const recipeCategory = (r: Record<string, unknown>): string =>
+  arr<string>(r.categories)[0] ?? (r.category as string | undefined) ?? "crafting";
+
 const TABLES = [
   "recipe_ingredients",
   "recipe_products",
@@ -262,7 +267,7 @@ export function importFactorioDump(
           (mainProduct ? productDisplay[mainProduct] : undefined) ??
           null,
         kind: "real",
-        category: r.category ?? "crafting",
+        category: recipeCategory(r),
         energy_required: r.energy_required ?? 0.5,
         enabled: r.enabled === false ? 0 : 1,
         hidden: r.hidden ? 1 : 0,

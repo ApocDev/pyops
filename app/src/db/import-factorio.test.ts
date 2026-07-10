@@ -27,6 +27,28 @@ const runImport = (raw: Record<string, unknown>) => {
   return new Database(fx.file, { readonly: true });
 };
 
+describe("importFactorioDump — recipe categories", () => {
+  it("imports Factorio 2.1 categories with 2.0 and engine-default fallbacks", () => {
+    const db = runImport({
+      recipe: {
+        soil: { categories: ["soil-extraction"], results: [] },
+        legacy: { category: "smelting", results: [] },
+        defaulted: { results: [] },
+      },
+    });
+    const rows = db.prepare(`SELECT name, category FROM recipes ORDER BY name`).all() as {
+      name: string;
+      category: string;
+    }[];
+    expect(rows).toEqual([
+      { name: "defaulted", category: "crafting" },
+      { name: "legacy", category: "smelting" },
+      { name: "soil", category: "soil-extraction" },
+    ]);
+    db.close();
+  });
+});
+
 // Fixture values are a real slice of the Py dump (data-raw-dump.json):
 // technology.microfilters grants change-recipe-productivity fawogae-spore +0.15
 // and navens-spore +0.4; technology.mining-productivity-1 grants

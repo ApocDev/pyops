@@ -19,7 +19,9 @@ orchestrated end-to-end from **Settings › Game data** in the UI
 4. **Import** the dump into SQLite (`app/src/db/import-factorio.ts`), then
    synthesize the recipes the engine doesn't model as recipes: mining, boiling,
    burning, spoiling, planting (agricultural towers), rocket launches, and
-   per-temperature fluid variants (`app/src/db/synthesize.ts`).
+   per-temperature fluid variants (`app/src/db/synthesize.ts`). Recipe categories
+   come from Factorio 2.1's `categories` array, with the singular 2.0 `category`
+   field retained as an import fallback.
 5. **Rebuild the icon atlas** (`buildIconAtlas`, `app/src/server/icon-atlas.ts`):
    pack the dumped sprites into content-hash-deduped 4096² sheets + a
    `(type, name) → slot` manifest, written to the data dir's `icon-data/`. The app
@@ -100,9 +102,11 @@ and then repairs the fallout so a real `--dump-data` run succeeds: it normalizes
 1.x-style `result =` recipes, fills in missing icons and fluid-box volumes, drops
 recipes whose result item never got created (and scrubs the now-dangling
 `unlock-recipe` tech effects), and rebuilds TURD sub-tech unlock effects that the
-integration leaves empty. It's strictly a dump-time tool — `dump.server.ts` enables it,
-runs the dumps, and disables it again in a `finally` block so it never lingers for
-normal play.
+integration leaves empty. On Factorio 2.1 it also evicts the Py modules that the
+integration intentionally re-runs after resetting their globals, avoiding stale
+`require` cache results. It's strictly a dump-time tool — `dump.server.ts` enables
+it, runs the dumps, and disables it again in a `finally` block so it never lingers
+for normal play.
 
 ## Data model notes
 

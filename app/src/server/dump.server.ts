@@ -51,7 +51,7 @@ const HELPER_INFO = {
   version: "0.1.0",
   title: "PyOps dump helper",
   author: "PyOps",
-  factorio_version: "2.0",
+  factorio_version: "2.1",
   description:
     "Enables pypostprocessing's planner (YAFC) integration during data dumps so TURD sub-techs and planner-friendly prototypes land in data-raw-dump.json. Enable ONLY while dumping - do not play with this mod active.",
   dependencies: ["? pypostprocessing"],
@@ -62,6 +62,18 @@ const HELPER_DATA_LUA = `-- pypostprocessing's data-final-fixes checks this mark
 -- become real technologies (turd-select-* gates + unlock effects), TURD modules
 -- get recipes, smart-farms get representable fluids, etc.
 data.data_crawler = "yafc pyops"
+`;
+
+const HELPER_DATA_UPDATES_LUA = `-- yafc.lua resets these globals before requiring their prototype modules again.
+-- Factorio 2.1 keeps the modules cached, so the second require otherwise leaves
+-- the reset tables empty and the planner integration crashes while iterating them.
+for name in pairs(package.loaded) do
+  if string.find(name, "/scripts/digosaurus/digosaurus-prototypes", 1, true)
+      or string.find(name, "/scripts/biofluid/biofluid-prototypes", 1, true)
+      or string.find(name, "/prototypes/turd", 1, true) then
+    package.loaded[name] = nil
+  end
+end
 `;
 
 const HELPER_FINAL_FIXES_LUA = `-- pypostprocessing's yafc.lua was written for YAFC's lenient Lua crawler; the
@@ -226,6 +238,7 @@ export async function writeHelperMod() {
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, "info.json"), JSON.stringify(HELPER_INFO, null, 2));
   await writeFile(join(dir, "data.lua"), HELPER_DATA_LUA);
+  await writeFile(join(dir, "data-updates.lua"), HELPER_DATA_UPDATES_LUA);
   await writeFile(join(dir, "data-final-fixes.lua"), HELPER_FINAL_FIXES_LUA);
 }
 
