@@ -29,6 +29,11 @@ import {
   setBuiltMachines,
   setGroupParent,
   setResearchHorizon,
+  listTurdUpgrades,
+  turdChoicesLookup,
+  turdMasterDetail,
+  turdOpportunities,
+  turdRequirements,
 } from "./queries.server.ts";
 import { type TestDb, makeTestDb } from "./test-helpers.ts";
 
@@ -625,6 +630,149 @@ describe("batched recipe reads", () => {
     expect(card?.machines).toEqual([{ name: "furnace", display: null, craftingSpeed: 1 }]);
     expect(card?.ingredients).toEqual([{ kind: "item", name: "gear", display: "Gear", amount: 2 }]);
     expect(card?.unlocks).toEqual([]);
+  });
+});
+
+describe("batched TURD reads", () => {
+  const preparedStatements = <T>(read: () => T): { result: T; count: number } => {
+    const prepare = vi.spyOn(db.$client, "prepare");
+    try {
+      const result = read();
+      return { result, count: prepare.mock.calls.length };
+    } finally {
+      prepare.mockRestore();
+    }
+  };
+
+  const seedTurdMaster = (index: number) => {
+    const master = `turd-master-${index}`;
+    const oldRecipe = `turd-old-${index}`;
+    db.run(sql`
+      INSERT OR IGNORE INTO crafting_machines (name, kind, crafting_speed)
+      VALUES ('drill', 'assembling-machine', 1)
+    `);
+    db.run(sql`
+      INSERT INTO technologies (name, display, description, is_turd) VALUES
+        (${master}, ${`Master ${index}`}, ${`Master [item=plate] ${index}`}, 1)
+    `);
+    db.run(sql`
+      INSERT INTO tech_ingredients (technology, name, amount)
+      VALUES (${master}, 'plate', ${index + 1})
+    `);
+    db.run(sql`
+      INSERT INTO recipes (name, display, kind, enabled, hidden)
+      VALUES (${oldRecipe}, ${`Old ${index}`}, 'real', 1, 0)
+    `);
+    for (let choice = 0; choice < 2; choice++) {
+      const sub = `turd-sub-${index}-${choice}`;
+      const newRecipe = `turd-new-${index}-${choice}`;
+      const module = `${sub}-module`;
+      db.run(sql`
+        INSERT INTO technologies (name, display, description) VALUES
+          (${sub}, ${`Choice ${index}-${choice}`}, ${`Choice [item=gear] ${index}-${choice}`})
+      `);
+      db.run(sql`
+        INSERT INTO tech_prerequisites (technology, prerequisite) VALUES
+          (${sub}, ${master}),
+          (${sub}, ${`turd-select-${sub}`})
+      `);
+      db.run(sql`
+        INSERT INTO recipes (name, display, kind, enabled, hidden) VALUES
+          (${newRecipe}, ${`New ${index}-${choice}`}, 'real', 0, 0),
+          (${module}, ${`Module recipe ${index}-${choice}`}, 'real', 0, 1)
+      `);
+      db.run(sql`
+        INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+          (${newRecipe}, 0, 'item', 'drill', 1)
+      `);
+      db.run(sql`
+        INSERT INTO tech_unlocks (technology, recipe) VALUES
+          (${sub}, ${newRecipe}),
+          (${sub}, ${module})
+      `);
+      db.run(sql`
+        INSERT INTO turd_replacements (sub_tech, old_recipe, new_recipe)
+        VALUES (${sub}, ${oldRecipe}, ${newRecipe})
+      `);
+      db.run(sql`
+        INSERT INTO modules
+          (name, display, hidden, eff_speed, eff_productivity, eff_consumption)
+        VALUES (${module}, ${`Module ${index}-${choice}`}, 1, ${choice + 0.1}, ${choice + 0.2}, ${choice + 0.3})
+      `);
+    }
+    return { master, oldRecipe };
+  };
+
+  it("keeps board/detail/lookup statement counts flat as masters grow", () => {
+    const first = seedTurdMaster(0);
+    const smallBoard = preparedStatements(() => listTurdUpgrades());
+    const smallDetail = preparedStatements(() => turdMasterDetail(first.master));
+    const smallLookup = preparedStatements(() => turdChoicesLookup({ good: "drill" }));
+    for (let index = 1; index <= 16; index++) seedTurdMaster(index);
+    const largeBoard = preparedStatements(() => listTurdUpgrades());
+    const largeDetail = preparedStatements(() => turdMasterDetail(first.master));
+    const largeLookup = preparedStatements(() => turdChoicesLookup({ good: "drill" }));
+
+    expect(largeBoard.count).toBeLessThanOrEqual(smallBoard.count + 2);
+    expect(largeDetail.count).toBe(smallDetail.count);
+    expect(largeLookup.count).toBeLessThanOrEqual(smallLookup.count + 2);
+    expect(largeBoard.result).toHaveLength(17);
+    expect(largeDetail.result).toMatchObject({
+      master: first.master,
+      masterDisplay: "Master 0",
+      selected: null,
+    });
+    expect(largeDetail.result?.choices[0]).toMatchObject({
+      name: "turd-sub-0-0",
+      selected: false,
+      unlocks: ["turd-new-0-0"],
+      changes: [
+        {
+          from: "turd-old-0",
+          fromDisplay: "Old 0",
+          to: "turd-new-0-0",
+          toDisplay: "New 0-0",
+          buildsBuilding: true,
+        },
+      ],
+      modules: [
+        {
+          name: "turd-sub-0-0-module",
+          effSpeed: 0.1,
+          effProductivity: 0.2,
+          effConsumption: 0.3,
+        },
+      ],
+    });
+    expect(largeLookup.result).toHaveLength(17);
+  });
+
+  it("keeps opportunity and requirement statement counts flat as recipes grow", () => {
+    const first = seedTurdMaster(0);
+    setResearchHorizon({ mode: "now", packs: ["plate"] });
+    const smallOpps = preparedStatements(() => turdOpportunities([first.oldRecipe]));
+    const smallReqs = preparedStatements(() => turdRequirements(["turd-new-0-0"]));
+    const recipes = [first.oldRecipe];
+    const required = ["turd-new-0-0"];
+    for (let index = 1; index <= 16; index++) {
+      const seeded = seedTurdMaster(index);
+      recipes.push(seeded.oldRecipe);
+      required.push(`turd-new-${index}-0`);
+    }
+    const largeOpps = preparedStatements(() => turdOpportunities(recipes));
+    const largeReqs = preparedStatements(() => turdRequirements(required));
+
+    expect(largeOpps.count).toBeLessThanOrEqual(smallOpps.count + 2);
+    expect(largeReqs.count).toBe(smallReqs.count);
+    expect(largeOpps.result).toHaveLength(17);
+    expect(largeReqs.result).toHaveLength(17);
+    expect(largeReqs.result[0]).toEqual({
+      master: "turd-master-0",
+      masterDisplay: "Master 0",
+      sub: "turd-sub-0-0",
+      choice: "Choice 0-0",
+      recipe: "turd-new-0-0",
+    });
   });
 });
 

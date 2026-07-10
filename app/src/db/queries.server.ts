@@ -853,28 +853,85 @@ export function modulePickerData(recipeName: string, machineName: string) {
  * [master, turd-select-<name>]; its unlock effects are the recipes (incl. the
  * hidden TURD module recipes) that choice grants. */
 
-/** Sub-techs of a master: techs requiring BOTH the master and their own
- * turd-select gate. */
-function turdSubTechs(masterName: string): string[] {
-  return db
-    .select({ technology: techPrerequisites.technology })
+/** Sub-techs of several masters, resolved in two set-oriented reads. */
+function turdSubTechsByMaster(masterNames: string[]): Map<string, string[]> {
+  const uniq = [...new Set(masterNames)].filter(Boolean);
+  const out = new Map(uniq.map((master) => [master, [] as string[]]));
+  if (!uniq.length) return out;
+  const candidates = db
+    .select({ master: techPrerequisites.prerequisite, sub: techPrerequisites.technology })
     .from(techPrerequisites)
-    .where(eq(techPrerequisites.prerequisite, masterName))
-    .all()
-    .map((r) => r.technology)
-    .filter(
-      (t) =>
-        db
-          .select({ n: sql<number>`count(*)` })
-          .from(techPrerequisites)
-          .where(
-            and(
-              eq(techPrerequisites.technology, t),
-              eq(techPrerequisites.prerequisite, `turd-select-${t}`),
-            ),
-          )
-          .get()!.n > 0,
+    .where(inArray(techPrerequisites.prerequisite, uniq))
+    .all();
+  const candidateSubs = [...new Set(candidates.map((row) => row.sub))];
+  if (!candidateSubs.length) return out;
+  const gated = new Set(
+    db
+      .select({ sub: techPrerequisites.technology, gate: techPrerequisites.prerequisite })
+      .from(techPrerequisites)
+      .where(inArray(techPrerequisites.technology, candidateSubs))
+      .all()
+      .filter((row) => row.gate === `turd-select-${row.sub}`)
+      .map((row) => row.sub),
+  );
+  for (const row of candidates) if (gated.has(row.sub)) out.get(row.master)?.push(row.sub);
+  return out;
+}
+
+function turdSubTechs(masterName: string): string[] {
+  return turdSubTechsByMaster([masterName]).get(masterName) ?? [];
+}
+
+function turdModulesBySub(subTechs: string[]) {
+  const uniq = [...new Set(subTechs)].filter(Boolean);
+  const out = new Map(uniq.map((sub) => [sub, [] as (typeof modules.$inferSelect)[]]));
+  if (!uniq.length) return out;
+  const predicate = sql.join(
+    uniq.map(
+      (sub) =>
+        sql`(${modules.name} = ${sub + "-module"} OR ${modules.name} LIKE ${sub + "-module-mk0%"})`,
+    ),
+    sql` OR `,
+  );
+  const rows = db.select().from(modules).where(predicate).all();
+  for (const row of rows) {
+    const sub = uniq.find(
+      (candidate) =>
+        row.name === `${candidate}-module` || row.name.startsWith(`${candidate}-module-mk0`),
     );
+    if (sub) out.get(sub)!.push(row);
+  }
+  return out;
+}
+
+function turdMasterRowsBySub(subTechs: string[]) {
+  const uniq = [...new Set(subTechs)].filter(Boolean);
+  const masterNameBySub = new Map<string, string>();
+  if (!uniq.length)
+    return {
+      masterNameBySub,
+      masterRows: new Map<string, { name: string; display: string | null }>(),
+    };
+  for (const row of db
+    .select({ sub: techPrerequisites.technology, prerequisite: techPrerequisites.prerequisite })
+    .from(techPrerequisites)
+    .where(inArray(techPrerequisites.technology, uniq))
+    .all()) {
+    if (!row.prerequisite.startsWith("turd-select-") && !masterNameBySub.has(row.sub))
+      masterNameBySub.set(row.sub, row.prerequisite);
+  }
+  const masterNames = [...new Set(masterNameBySub.values())];
+  const masterRows = masterNames.length
+    ? new Map(
+        db
+          .select({ name: technologies.name, display: technologies.display })
+          .from(technologies)
+          .where(inArray(technologies.name, masterNames))
+          .all()
+          .map((row) => [row.name, row]),
+      )
+    : new Map<string, { name: string; display: string | null }>();
+  return { masterNameBySub, masterRows };
 }
 
 /** Every TURD upgrade with its selectable sub-techs, the modules/recipes each
@@ -886,28 +943,44 @@ export function listTurdUpgrades() {
     .where(eq(technologies.isTurd, true))
     .orderBy(technologies.name)
     .all();
-  const selections = new Map(
-    db
-      .select()
-      .from(turdSelections)
-      .all()
-      .map((s) => [s.masterTech, s.subTech]),
-  );
-  return masters
-    .map((m) => ({
-      name: m.name,
-      display: m.display ?? m.name,
-      description: stripRichText(m.description),
-      science: db
-        .select({ name: techIngredients.name, amount: techIngredients.amount })
+  const details = turdDetailsForMasters(masters);
+  const scienceRows = masters.length
+    ? db
+        .select({
+          technology: techIngredients.technology,
+          name: techIngredients.name,
+          amount: techIngredients.amount,
+        })
         .from(techIngredients)
-        .where(eq(techIngredients.technology, m.name))
+        .where(
+          inArray(
+            techIngredients.technology,
+            masters.map((master) => master.name),
+          ),
+        )
         .all()
-        .map((s) => ({ ...s, display: compDisplay("item", s.name) ?? s.name })),
-      subTechs: turdSubTechs(m.name).map(buildTurdSub),
-      selected: selections.get(m.name) ?? null,
-    }))
-    .filter((m) => m.subTechs.length > 0); // respec helpers are turd-flagged but offer no choices
+    : [];
+  const scienceDisplays = componentDisplays(
+    scienceRows.map((row) => ({ kind: "item", name: row.name })),
+  );
+  const scienceByMaster = new Map<string, { name: string; amount: number; display: string }[]>();
+  for (const row of scienceRows) {
+    const list = scienceByMaster.get(row.technology) ?? [];
+    list.push({
+      name: row.name,
+      amount: row.amount,
+      display: scienceDisplays.get(`item:${row.name}`) ?? row.name,
+    });
+    scienceByMaster.set(row.technology, list);
+  }
+  return details.map((detail) => ({
+    name: detail.master,
+    display: detail.masterDisplay,
+    description: detail.description,
+    science: scienceByMaster.get(detail.master) ?? [],
+    subTechs: detail.choices.map(({ selected: _selected, ...choice }) => choice),
+    selected: detail.selected,
+  }));
 }
 
 /** One selectable TURD branch, fully described: the recipes it swaps (old→new) or
@@ -924,66 +997,113 @@ export type TurdChange = {
   buildsBuilding: boolean;
 };
 
-/** Does this recipe produce a building (a crafting machine)? Used to decide whether
- * a TURD choice's module applies to the recipe's throughput. */
-function recipeBuildsBuilding(recipe: string): boolean {
-  const prods = db
-    .select({ name: recipeProducts.name })
-    .from(recipeProducts)
-    .where(eq(recipeProducts.recipe, recipe))
-    .all()
-    .map((p) => p.name);
-  if (!prods.length) return false;
-  return !!db
-    .select({ n: craftingMachines.name })
-    .from(craftingMachines)
-    .where(inArray(craftingMachines.name, prods))
-    .get();
-}
-
-function buildTurdSub(sub: string) {
-  const tech = db.select().from(technologies).where(eq(technologies.name, sub)).get();
-  const mods = turdModulesOf(sub);
-  const modNames = new Set(mods.map((mod) => mod.name));
-  const unlocks = db
-    .select({ recipe: techUnlocks.recipe })
-    .from(techUnlocks)
-    .where(eq(techUnlocks.technology, sub))
-    .all()
-    .map((u) => u.recipe)
-    .filter((r) => !modNames.has(r)); // hide the hidden <sub>-module recipes
-  // old→new swaps this branch performs, keyed by the new recipe it grants
-  const oldByNew = new Map(
+function turdDetailsForMasters(masterRows: (typeof technologies.$inferSelect)[]) {
+  const subTechsByMaster = turdSubTechsByMaster(masterRows.map((master) => master.name));
+  const subTechs = [...new Set([...subTechsByMaster.values()].flat())];
+  if (!subTechs.length) return [];
+  const selections = getTurdSelections();
+  const techRows = new Map(
     db
       .select()
-      .from(turdReplacements)
-      .where(eq(turdReplacements.subTech, sub))
+      .from(technologies)
+      .where(inArray(technologies.name, subTechs))
       .all()
-      .map((r) => [r.newRecipe, r.oldRecipe] as const),
+      .map((tech) => [tech.name, tech]),
   );
-  const changes: TurdChange[] = unlocks.map((to) => {
-    const from = oldByNew.get(to) ?? null;
+  const modulesBySub = turdModulesBySub(subTechs);
+  const moduleNamesBySub = new Map(
+    [...modulesBySub].map(([sub, rows]) => [sub, new Set(rows.map((mod) => mod.name))]),
+  );
+  const unlockRows = db
+    .select({ sub: techUnlocks.technology, recipe: techUnlocks.recipe })
+    .from(techUnlocks)
+    .where(inArray(techUnlocks.technology, subTechs))
+    .all();
+  const unlocksBySub = new Map<string, string[]>();
+  for (const row of unlockRows) {
+    if (moduleNamesBySub.get(row.sub)?.has(row.recipe)) continue;
+    const list = unlocksBySub.get(row.sub) ?? [];
+    list.push(row.recipe);
+    unlocksBySub.set(row.sub, list);
+  }
+  const replacementRows = db
+    .select()
+    .from(turdReplacements)
+    .where(inArray(turdReplacements.subTech, subTechs))
+    .all();
+  const oldBySubAndNew = new Map(
+    replacementRows.map((row) => [`${row.subTech}\u0000${row.newRecipe}`, row.oldRecipe]),
+  );
+  const unlockRecipes = [...new Set([...unlocksBySub.values()].flat())];
+  const recipeNames = [
+    ...new Set([...unlockRecipes, ...replacementRows.map((row) => row.oldRecipe)]),
+  ];
+  const recipeDisplays = recipeNames.length
+    ? new Map(
+        db
+          .select({ name: recipes.name, display: recipes.display })
+          .from(recipes)
+          .where(inArray(recipes.name, recipeNames))
+          .all()
+          .map((recipe) => [recipe.name, recipe.display]),
+      )
+    : new Map<string, string | null>();
+  const buildingRecipes = unlockRecipes.length
+    ? new Set(
+        db
+          .selectDistinct({ recipe: recipeProducts.recipe })
+          .from(recipeProducts)
+          .innerJoin(craftingMachines, eq(craftingMachines.name, recipeProducts.name))
+          .where(inArray(recipeProducts.recipe, unlockRecipes))
+          .all()
+          .map((row) => row.recipe),
+      )
+    : new Set<string>();
+  const buildChoice = (sub: string) => {
+    const tech = techRows.get(sub);
+    const mods = modulesBySub.get(sub) ?? [];
+    const unlocks = unlocksBySub.get(sub) ?? [];
+    const changes: TurdChange[] = unlocks.map((to) => {
+      const from = oldBySubAndNew.get(`${sub}\u0000${to}`) ?? null;
+      return {
+        from,
+        fromDisplay: from ? (recipeDisplays.get(from) ?? from) : null,
+        to,
+        toDisplay: recipeDisplays.get(to) ?? to,
+        buildsBuilding: buildingRecipes.has(to),
+      };
+    });
     return {
-      from,
-      fromDisplay: from ? (getRecipe(from)?.display ?? from) : null,
-      to,
-      toDisplay: getRecipe(to)?.display ?? to,
-      buildsBuilding: recipeBuildsBuilding(to),
+      name: sub,
+      display: tech?.display ?? sub,
+      description: stripRichText(tech?.description),
+      unlocks,
+      changes,
+      modules: mods.map((mod) => ({
+        name: mod.name,
+        effSpeed: mod.effSpeed,
+        effProductivity: mod.effProductivity,
+        effConsumption: mod.effConsumption,
+      })),
     };
-  });
-  return {
-    name: sub,
-    display: tech?.display ?? sub,
-    description: stripRichText(tech?.description),
-    unlocks,
-    changes,
-    modules: mods.map((mod) => ({
-      name: mod.name,
-      effSpeed: mod.effSpeed,
-      effProductivity: mod.effProductivity,
-      effConsumption: mod.effConsumption,
-    })),
   };
+  return masterRows.flatMap((master) => {
+    const subs = subTechsByMaster.get(master.name) ?? [];
+    if (!subs.length) return [];
+    const selected = selections.get(master.name) ?? null;
+    return [
+      {
+        master: master.name,
+        masterDisplay: master.display ?? master.name,
+        description: stripRichText(master.description),
+        selected,
+        choices: subs.map((sub) => {
+          const choice = buildChoice(sub);
+          return { ...choice, selected: choice.name === selected };
+        }),
+      },
+    ];
+  });
 }
 
 /** Full detail for one TURD master: every mutually-exclusive branch it offers,
@@ -995,74 +1115,83 @@ function buildTurdSub(sub: string) {
 export function turdMasterDetail(masterName: string) {
   const m = db.select().from(technologies).where(eq(technologies.name, masterName)).get();
   if (!m?.isTurd) return null;
-  const subs = turdSubTechs(masterName);
-  if (!subs.length) return null;
-  const selected = getTurdSelections().get(masterName) ?? null;
-  return {
-    master: masterName,
-    masterDisplay: m.display ?? masterName,
-    description: stripRichText(m.description),
-    selected,
-    choices: subs.map((sub) => {
-      const s = buildTurdSub(sub);
-      return { ...s, selected: s.name === selected };
-    }),
-  };
-}
-
-/** Masters a recipe touches: it's a TURD-gated unlock (the recipe a branch grants)
- * or a base recipe some branch replaces. */
-function turdMastersForRecipe(recipe: string): string[] {
-  const out = new Set<string>();
-  for (const u of recipeLockState(recipe)) if (u.isTurdSub && u.master) out.add(u.master);
-  for (const r of db
-    .select()
-    .from(turdReplacements)
-    .where(eq(turdReplacements.oldRecipe, recipe))
-    .all()) {
-    const mo = turdMasterOf(r.subTech);
-    if (mo) out.add(mo.name);
-  }
-  return [...out];
-}
-
-/** Masters relevant to a good: resolve every recipe that produces or consumes it,
- * then map those to their TURD masters. */
-function turdMastersForGood(good: string): string[] {
-  const recs = new Set<string>([
-    ...db
-      .select({ r: recipeProducts.recipe })
-      .from(recipeProducts)
-      .where(eq(recipeProducts.name, good))
-      .all()
-      .map((x) => x.r),
-    ...db
-      .select({ r: recipeIngredients.recipe })
-      .from(recipeIngredients)
-      .where(eq(recipeIngredients.name, good))
-      .all()
-      .map((x) => x.r),
-  ]);
-  const out = new Set<string>();
-  for (const r of recs) for (const mn of turdMastersForRecipe(r)) out.add(mn);
-  return [...out];
+  return turdDetailsForMasters([m])[0] ?? null;
 }
 
 /** Resolve TURD masters from a master tech name (or its sub-tech), a recipe, or a
  * good, and return full detail for each. Drives the assistant's turdChoices tool. */
 export function turdChoicesLookup(opts: { master?: string; recipe?: string; good?: string }) {
-  const masters = new Set<string>();
-  if (opts.master) {
-    const direct = db.select().from(technologies).where(eq(technologies.name, opts.master)).get();
-    if (direct?.isTurd) masters.add(opts.master);
-    else {
-      const mo = turdMasterOf(opts.master); // maybe they passed a sub-tech name
-      if (mo) masters.add(mo.name);
+  const direct = opts.master
+    ? db.select().from(technologies).where(eq(technologies.name, opts.master)).get()
+    : null;
+  const goodRecipes: string[] = [];
+  if (opts.good) {
+    const seen = new Set<string>();
+    for (const row of db
+      .select({ recipe: recipeProducts.recipe })
+      .from(recipeProducts)
+      .where(eq(recipeProducts.name, opts.good))
+      .all()) {
+      if (!seen.has(row.recipe)) goodRecipes.push(row.recipe);
+      seen.add(row.recipe);
+    }
+    for (const row of db
+      .select({ recipe: recipeIngredients.recipe })
+      .from(recipeIngredients)
+      .where(eq(recipeIngredients.name, opts.good))
+      .all()) {
+      if (!seen.has(row.recipe)) goodRecipes.push(row.recipe);
+      seen.add(row.recipe);
     }
   }
-  if (opts.recipe) for (const mn of turdMastersForRecipe(opts.recipe)) masters.add(mn);
-  if (opts.good) for (const mn of turdMastersForGood(opts.good)) masters.add(mn);
-  return [...masters].map(turdMasterDetail).filter((d) => d !== null);
+  const recipeOrder = [...new Set([...(opts.recipe ? [opts.recipe] : []), ...goodRecipes])];
+  const locksByRecipe = recipeLockStatesByRecipe(recipeOrder);
+  const replacements = recipeOrder.length
+    ? db
+        .select()
+        .from(turdReplacements)
+        .where(inArray(turdReplacements.oldRecipe, recipeOrder))
+        .all()
+    : [];
+  const replacementSubs = [...new Set(replacements.map((row) => row.subTech))];
+  const possibleDirectSub = opts.master && !direct?.isTurd ? [opts.master] : [];
+  const { masterNameBySub } = turdMasterRowsBySub([...possibleDirectSub, ...replacementSubs]);
+  const masters = new Set<string>();
+  if (opts.master) {
+    if (direct?.isTurd) masters.add(opts.master);
+    else {
+      const master = masterNameBySub.get(opts.master); // maybe they passed a sub-tech name
+      if (master) masters.add(master);
+    }
+  }
+  const replacementsByRecipe = new Map<string, typeof replacements>();
+  for (const row of replacements) {
+    const rows = replacementsByRecipe.get(row.oldRecipe) ?? [];
+    rows.push(row);
+    replacementsByRecipe.set(row.oldRecipe, rows);
+  }
+  const appendRecipeMasters = (recipe: string) => {
+    for (const unlock of locksByRecipe.get(recipe) ?? [])
+      if (unlock.isTurdSub && unlock.master) masters.add(unlock.master);
+    for (const row of replacementsByRecipe.get(recipe) ?? []) {
+      const master = masterNameBySub.get(row.subTech);
+      if (master) masters.add(master);
+    }
+  };
+  if (opts.recipe) appendRecipeMasters(opts.recipe);
+  for (const recipe of goodRecipes) appendRecipeMasters(recipe);
+  if (!masters.size) return [];
+  const rows = db
+    .select()
+    .from(technologies)
+    .where(inArray(technologies.name, [...masters]))
+    .all();
+  const rowsByName = new Map(rows.map((row) => [row.name, row]));
+  return turdDetailsForMasters(
+    [...masters]
+      .map((master) => rowsByName.get(master))
+      .filter((row): row is typeof technologies.$inferSelect => !!row?.isTurd),
+  );
 }
 
 /** The hidden modules a sub-tech's choice inserts (named <sub>-module[-mk0N]). */
@@ -1131,46 +1260,91 @@ export function turdOpportunities(planRecipes: string[]) {
   if (!planSet.size) return [];
   const h = getResearchHorizon();
   const selections = getTurdSelections();
-  const recDisplay = (n: string) => getRecipe(n)?.display ?? n;
-  // subs whose OLD recipe the plan uses → group under their (unpicked) master
-  const byMaster = new Map<string, { display: string | null; replaced: Set<string> }>();
-  for (const r of db
+  const relevantReplacements = db
     .select()
     .from(turdReplacements)
     .where(inArray(turdReplacements.oldRecipe, [...planSet]))
-    .all()) {
-    const master = turdMasterOf(r.subTech);
-    if (!master || selections.has(master.name)) continue; // picked = locked in stone
-    const e = byMaster.get(master.name) ?? { display: master.display, replaced: new Set<string>() };
+    .all();
+  const { masterNameBySub, masterRows } = turdMasterRowsBySub(
+    relevantReplacements.map((row) => row.subTech),
+  );
+  // subs whose OLD recipe the plan uses → group under their (unpicked) master
+  const byMaster = new Map<string, { display: string | null; replaced: Set<string> }>();
+  for (const r of relevantReplacements) {
+    const masterName = masterNameBySub.get(r.subTech);
+    if (!masterName || selections.has(masterName)) continue; // picked = locked in stone
+    const master = masterRows.get(masterName);
+    const e = byMaster.get(masterName) ?? {
+      display: master?.display ?? masterName,
+      replaced: new Set<string>(),
+    };
     e.replaced.add(r.oldRecipe);
-    byMaster.set(master.name, e);
+    byMaster.set(masterName, e);
   }
+  const subTechsByMaster = turdSubTechsByMaster([...byMaster.keys()]);
+  const subTechs = [...new Set([...subTechsByMaster.values()].flat())];
+  const replacementRows = subTechs.length
+    ? db.select().from(turdReplacements).where(inArray(turdReplacements.subTech, subTechs)).all()
+    : [];
+  const replacementsBySub = new Map<string, typeof replacementRows>();
+  for (const row of replacementRows) {
+    const list = replacementsBySub.get(row.subTech) ?? [];
+    list.push(row);
+    replacementsBySub.set(row.subTech, list);
+  }
+  const probeByMaster = new Map<string, string>();
+  for (const masterName of byMaster.keys()) {
+    const probe = (subTechsByMaster.get(masterName) ?? [])
+      .flatMap((sub) => replacementsBySub.get(sub) ?? [])
+      .map((row) => row.newRecipe)[0];
+    if (probe) probeByMaster.set(masterName, probe);
+  }
+  const recipeNames = [
+    ...new Set([
+      ...replacementRows.flatMap((row) => [row.oldRecipe, row.newRecipe]),
+      ...relevantReplacements.map((row) => row.oldRecipe),
+    ]),
+  ];
+  const recipeRows = recipeNames.length
+    ? db
+        .select({ name: recipes.name, display: recipes.display, enabled: recipes.enabled })
+        .from(recipes)
+        .where(inArray(recipes.name, recipeNames))
+        .all()
+    : [];
+  const recipeByName = new Map(recipeRows.map((recipe) => [recipe.name, recipe]));
+  const probeNames = [...new Set(probeByMaster.values())];
+  const locksByRecipe = recipeLockStatesByRecipe(probeNames);
+  const availability = computeAvailByRecipe(
+    probeNames.map((name) => ({ name, enabled: recipeByName.get(name)?.enabled ?? false })),
+    locksByRecipe,
+    h,
+    selections,
+  );
+  const techRows = subTechs.length
+    ? new Map(
+        db
+          .select({ name: technologies.name, display: technologies.display })
+          .from(technologies)
+          .where(inArray(technologies.name, subTechs))
+          .all()
+          .map((tech) => [tech.name, tech]),
+      )
+    : new Map<string, { name: string; display: string | null }>();
+  const modulesBySub = turdModulesBySub(subTechs);
+  const recDisplay = (name: string) => recipeByName.get(name)?.display ?? name;
   const out = [];
   for (const [masterName, info] of byMaster) {
-    const subs = turdSubTechs(masterName);
+    const subs = subTechsByMaster.get(masterName) ?? [];
     // pickable-now gate: probe one branch recipe — reached AND turd 'pickable'
     // (master undecided) means it's a free choice the user could make right now.
-    const probe = db
-      .select({ n: turdReplacements.newRecipe })
-      .from(turdReplacements)
-      .where(inArray(turdReplacements.subTech, subs))
-      .all()
-      .map((r) => r.n)[0];
+    const probe = probeByMaster.get(masterName);
     if (!probe) continue;
-    const avail = computeAvail(
-      getRecipe(probe)?.enabled ?? false,
-      recipeLockState(probe),
-      h,
-      selections,
-    );
+    const avail = availability.get(probe)!;
     if (!avail.availableNow || avail.turd?.state !== "pickable") continue; // not pickable now
     const options = subs.map((sub) => {
-      const tech = db.select().from(technologies).where(eq(technologies.name, sub)).get();
-      const reps = db
-        .select()
-        .from(turdReplacements)
-        .where(eq(turdReplacements.subTech, sub))
-        .all();
+      const tech = techRows.get(sub);
+      const reps = replacementsBySub.get(sub) ?? [];
       return {
         sub,
         display: tech?.display ?? sub,
@@ -1179,7 +1353,7 @@ export function turdOpportunities(planRecipes: string[]) {
           with: recDisplay(rp.newRecipe),
         })),
         moreReplacements: reps.length > 6 ? reps.length - 6 : undefined,
-        modules: turdModulesOf(sub).map((m) => ({
+        modules: (modulesBySub.get(sub) ?? []).map((m) => ({
           name: m.name,
           speed: m.effSpeed,
           productivity: m.effProductivity,
@@ -3990,6 +4164,104 @@ function recipeLockStatesByRecipe(recipeNames: string[]): Map<string, RecipeLock
   return out;
 }
 
+/** Availability for several recipes with one request-scoped technology graph.
+ * This mirrors computeAvail without recursively querying each unlock's closure. */
+function computeAvailByRecipe(
+  recipeRows: { name: string; enabled: boolean }[],
+  locksByRecipe: Map<string, RecipeLockState>,
+  h: ResearchHorizon,
+  selections: Map<string, string>,
+): Map<string, RecipeAvail> {
+  const techNames = [
+    ...new Set(
+      recipeRows.flatMap((recipe) =>
+        (locksByRecipe.get(recipe.name) ?? []).map((unlock) => unlock.tech),
+      ),
+    ),
+  ];
+  const prereqsByTech = new Map<string, string[]>();
+  const packsByTech = new Map<string, string[]>();
+  if (techNames.length) {
+    for (const row of db
+      .select({
+        technology: techPrerequisites.technology,
+        prerequisite: techPrerequisites.prerequisite,
+      })
+      .from(techPrerequisites)
+      .all()) {
+      const list = prereqsByTech.get(row.technology) ?? [];
+      list.push(row.prerequisite);
+      prereqsByTech.set(row.technology, list);
+    }
+    for (const row of db
+      .select({ technology: techIngredients.technology, name: techIngredients.name })
+      .from(techIngredients)
+      .all()) {
+      const list = packsByTech.get(row.technology) ?? [];
+      list.push(row.name);
+      packsByTech.set(row.technology, list);
+    }
+  }
+  const missingByTech = new Map<string, string[]>();
+  const missingPacks = (tech: string): string[] => {
+    const cached = missingByTech.get(tech);
+    if (cached) return cached;
+    if (h.researched.has(tech)) {
+      missingByTech.set(tech, []);
+      return [];
+    }
+    const closure = new Set<string>();
+    const stack = [tech];
+    while (stack.length) {
+      const current = stack.pop()!;
+      if (closure.has(current)) continue;
+      closure.add(current);
+      for (const prerequisite of prereqsByTech.get(current) ?? []) stack.push(prerequisite);
+    }
+    const relevant = h.researched.size
+      ? [...closure].filter((technology) => !h.researched.has(technology))
+      : [...closure];
+    const missing = [
+      ...new Set(relevant.flatMap((technology) => packsByTech.get(technology) ?? [])),
+    ].filter((pack) => !h.packs.has(pack));
+    missingByTech.set(tech, missing);
+    return missing;
+  };
+  const out = new Map<string, RecipeAvail>();
+  for (const recipe of recipeRows) {
+    const unlocks = locksByRecipe.get(recipe.name) ?? [];
+    const turdUnlock = unlocks.find((unlock) => unlock.isTurdSub);
+    const turd = turdUnlock
+      ? {
+          master: turdUnlock.master,
+          masterDisplay: turdUnlock.masterDisplay,
+          choice: turdUnlock.display,
+          state: turdStateFor(turdUnlock.tech, turdUnlock.master, selections),
+        }
+      : null;
+    let research: RecipeAvail["research"];
+    let needs: string[] = [];
+    if (recipe.enabled) research = "enabled";
+    else {
+      const missing = unlocks.map((unlock) => missingPacks(unlock.tech));
+      if (missing.some((packs) => packs.length === 0)) research = "available";
+      else {
+        research = "needs-research";
+        needs = [...new Set(missing.flat())];
+      }
+    }
+    const reached = research !== "needs-research";
+    out.set(recipe.name, {
+      research,
+      needs,
+      turd,
+      availableNow: reached && (!turd || turd.state !== "blocked"),
+      buildableNow: reached && (!turd || turd.state === "active"),
+    });
+  }
+  return out;
+}
+
 /* ── TURD-set consistency (one choice per master; plans must not conflict) ───── */
 
 export type TurdReq = {
@@ -4004,8 +4276,10 @@ export type TurdReq = {
  * research, or by any of several turd choices, impose no strict requirement). */
 export function turdRequirements(recipeNames: string[]): TurdReq[] {
   const reqs: TurdReq[] = [];
-  for (const name of Array.from(new Set(recipeNames))) {
-    const unlocks = recipeLockState(name);
+  const uniq = Array.from(new Set(recipeNames));
+  const locksByRecipe = recipeLockStatesByRecipe(uniq);
+  for (const name of uniq) {
+    const unlocks = locksByRecipe.get(name) ?? [];
     const turdU = unlocks.filter((u) => u.isTurdSub);
     const plainU = unlocks.filter((u) => !u.isTurdSub);
     if (turdU.length !== 1 || plainU.length) continue; // not strictly turd-gated
