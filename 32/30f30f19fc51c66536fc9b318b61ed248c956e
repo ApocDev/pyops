@@ -1,0 +1,101 @@
+app/src/components/block/goal-card.tsx
+  s_cd1b59b354c2a5::t_be96d0c928368a 2,55-60,65-81,83,85-89,91,93-97,99-101,103-105,107,109,111-117,119,121-170,173-181,183-193,197-206,208-213
+app/src/components/horizon-picker.tsx
+  s_cd1b59b354c2a5::t_ffaf4aaa2655be 108,110,253-254,284
+app/src/lib/icons.tsx
+  s_cd1b59b354c2a5::t_4a3a22b167d0d1 148-149,157
+app/src/routes/factory.tsx
+  s_cd1b59b354c2a5::t_c5f81cc53c2017 512-513
+app/e2e/mut/count-pin.e2e.ts
+  s_cd1b59b354c2a5::t_537be45c89c336 13
+app/e2e/mut/extract-recipe.e2e.ts
+  s_cd1b59b354c2a5::t_392b8a51e8bdcf 8
+app/e2e/mut/flow-view.e2e.ts
+  s_cd1b59b354c2a5::t_e6cd2e7055ac5a 18
+app/e2e/mut/fluid-fuel.e2e.ts
+  s_cd1b59b354c2a5::t_2d0b30d5a81f6f 16,25,59
+app/e2e/mut/made-links.e2e.ts
+  s_cd1b59b354c2a5::t_a30fa2d1c32c99 21
+app/e2e/mut/module-autofill.e2e.ts
+  s_cd1b59b354c2a5::t_79d12cae2c95d2 28
+app/e2e/mut/overlays.e2e.ts
+  s_cd1b59b354c2a5::t_72f753e5696b18 19
+app/e2e/mut/reactor-layout.e2e.ts
+  s_cd1b59b354c2a5::t_c14f3d423d3836 35
+app/e2e/mut/spoilage.e2e.ts
+  s_cd1b59b354c2a5::t_e0aafde985a630 1-49
+app/e2e/mut/subblock.e2e.ts
+  s_cd1b59b354c2a5::t_cb6d365ba6ee5e 22
+app/e2e/mut/sushi.e2e.ts
+  s_cd1b59b354c2a5::t_b4ea08076e6c9e 14
+app/e2e/mut/temp-warnings.e2e.ts
+  s_cd1b59b354c2a5::t_363e7653509fa9 27
+app/src/components/block/balance-card.tsx
+  s_cd1b59b354c2a5::t_384a6505dbfb8a 8,17-19,90,301-303,384,388-395,397-403,405-429
+app/src/components/block/block-flow-view.tsx
+  s_cd1b59b354c2a5::t_945b5a76ac92d5 46
+app/src/components/block/block-toolbar.tsx
+  s_cd1b59b354c2a5::t_b410bed66e781e 243,259,330-343
+app/src/components/block/doc-store.ts
+  s_cd1b59b354c2a5::t_6b8b7042c861b0 392
+app/src/components/block/good-menu.tsx
+  s_cd1b59b354c2a5::t_9239746641b27a 14,55,167-169,173
+app/src/components/block/incidental-spoilage-chip.tsx
+  s_cd1b59b354c2a5::t_02634ee247f43c 1-31
+app/src/components/block/item-chip.test.tsx
+  s_cd1b59b354c2a5::t_db4f05d177c186 2,5,31-50,66-85
+app/src/components/block/item-chip.tsx
+  s_cd1b59b354c2a5::t_9de39873df896e 1,33,48-49,77,91-100
+app/src/components/block/recipe-grid.tsx
+  s_cd1b59b354c2a5::t_04cb7d3372fbc8 235-236
+app/src/components/block/recipe-row.tsx
+  s_cd1b59b354c2a5::t_1eb30484e1a063 22,52,76-77,103-104,225,228-233,433-461,463-483
+app/src/components/block/snapshot-diff.tsx
+  s_cd1b59b354c2a5::t_2e0fbcb2a77c5e 241
+app/src/components/block/spoil-rate-dialog.tsx
+  s_cd1b59b354c2a5::t_dc914aaf1bbcc7 5,8-10,41,52-55,58-59,70
+app/src/db/queries.server.ts
+  s_cd1b59b354c2a5::t_2a99dfff7c8e2d 1902
+app/src/db/schema.ts
+  s_cd1b59b354c2a5::t_73140e5c17a388 436-437
+app/src/db/solve-generation.server.test.ts
+  s_cd1b59b354c2a5::t_47654e969c59f5 17,54-102
+app/src/db/solve-generation.server.ts
+  s_cd1b59b354c2a5::t_64a269ad779f6e 17-18,62,66-79,84-93
+app/src/lib/recipe-card.test.tsx
+  s_cd1b59b354c2a5::t_93059e4614d301 7,108-121
+app/src/lib/recipe-card.tsx
+  s_cd1b59b354c2a5::t_afb29b2be7aaf7 48-54,68,133,145,204,209,224,235,240,255,279-288,309,672,678,693,709,790,808,813,828,841,847-848,854,856,858,860
+app/src/routes/block.$id.tsx
+  s_cd1b59b354c2a5::t_8acbb176083686 122-124,671,891,1023
+app/src/routes/turd.tsx
+  s_cd1b59b354c2a5::t_7266658acde4ce 303-310
+app/src/routes/whatif.tsx
+  s_cd1b59b354c2a5::t_ab722fc61a16b1 6,317,319-324,326,328-332
+app/src/server/block-compute.server.ts
+  s_cd1b59b354c2a5::t_399833f8a45655 42,235-238,522-526,987-1004,1032-1050,1194,1214,1481,1519,1522
+app/src/server/block-compute.test.ts
+  s_cd1b59b354c2a5::t_7eaa8aec906125 118-203
+app/src/server/factory-solve.test.ts
+  s_cd1b59b354c2a5::t_c9586aedf76e2d 176-202
+docs/design.md
+  s_cd1b59b354c2a5::t_94784fb0d26eba 144
+docs/solver.md
+  s_cd1b59b354c2a5::t_de30d9ccc1d49c 114-132,218-219
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3230f30f19fc51c66536fc9b318b61ed248c956e",
+  "prompts": {},
+  "sessions": {
+    "s_cd1b59b354c2a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4983-be89-71e2-b2b9-2cc58b36aa77",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
