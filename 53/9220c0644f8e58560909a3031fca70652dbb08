@@ -1,0 +1,29 @@
+app/src/server/factorio.ts
+  s_cd1b59b354c2a5::t_58b75014767f88 355-360,369-371,374-380,392-399,413-420
+app/src/server/factory-rebalance.test.ts
+  s_3d685c9e390f3f::t_5c28c9ce30ffdf 1-194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "539220c0644f8e58560909a3031fca70652dbb08",
+  "prompts": {},
+  "sessions": {
+    "s_3d685c9e390f3f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4a79-d167-7102-86cc-25592ce36cf3",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_cd1b59b354c2a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4983-be89-71e2-b2b9-2cc58b36aa77",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
