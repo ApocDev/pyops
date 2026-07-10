@@ -31,6 +31,7 @@ import { requestFromMod } from "./bridge/inspect.ts";
 import {
   computeBlock,
   computeModuleSuggestions,
+  ensureSolvedProjections,
   showBlockInGame,
   hideBlockInGame,
   machineReqs,
@@ -73,7 +74,10 @@ export const factoryBlocks = tool({
   description:
     "List the blocks that already exist in the user's factory: what each PRODUCES (makes/primary), has spare (byproducts), and imports. Consult this BEFORE drafting — if an existing block already makes a good you need, import it from that block instead of rebuilding it. recipeGraph already marks goods covered by a block; this gives the fuller picture (rates, byproducts you could consume).",
   inputSchema: z.object({}),
-  execute: async () => q.factoryBlocks(),
+  execute: async () => {
+    await ensureSolvedProjections();
+    return q.factoryBlocks();
+  },
 });
 
 /* ── Speculative production graph (seam-based, factory-aware) ──────────────── */
@@ -1236,6 +1240,7 @@ export const whatIf = tool({
       ),
   }),
   execute: async ({ overrides }) => {
+    await ensureSolvedProjections();
     const demandOverrides = Object.fromEntries(overrides.map((o) => [o.good, o.rate]));
     const result = await factoryWhatIf(q.blocksWithFlows(), demandOverrides);
 
@@ -1314,6 +1319,7 @@ export const blockBuildStatus = tool({
       .describe("Max blocks to list when omitting blockId (ignored when blockId is given)"),
   }),
   execute: async ({ blockId, limit }) => {
+    await ensureSolvedProjections();
     if (blockId != null && !q.getBlock(blockId)) {
       return { ok: false, error: "no such block", blocks: [] };
     }

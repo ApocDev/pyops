@@ -37,6 +37,7 @@ import {
   computeBlock,
   computeModuleSuggestions,
   defaultFuel,
+  ensureSolvedProjections,
   goalFlows,
   persistBlock,
   pickDefaultMachine,
@@ -278,7 +279,10 @@ export const saveBlockFn = createServerFn({ method: "POST" })
     };
   });
 
-export const listBlocksFn = createServerFn({ method: "GET" }).handler(async () => q.listBlocks());
+export const listBlocksFn = createServerFn({ method: "GET" }).handler(async () => {
+  await ensureSolvedProjections();
+  return q.listBlocks();
+});
 
 export const loadBlockFn = createServerFn({ method: "GET" })
   .validator((id: number) => id)
@@ -313,9 +317,10 @@ export const deleteBlockIfEmptyFn = createServerFn({ method: "POST" })
     return { deleted: empty };
   });
 
-export const factoryTotalsFn = createServerFn({ method: "GET" }).handler(async () =>
-  q.factoryTotals(),
-);
+export const factoryTotalsFn = createServerFn({ method: "GET" }).handler(async () => {
+  await ensureSolvedProjections();
+  return q.factoryTotals();
+});
 
 /** Factory what-if: solve the whole factory for the per-block scale changes
  * that satisfy all demands/consumptions. `demands` overrides a final product's rate
@@ -323,6 +328,7 @@ export const factoryTotalsFn = createServerFn({ method: "GET" }).handler(async (
 export const factoryWhatIfFn = createServerFn({ method: "POST" })
   .validator((d: { demands?: Record<string, number> }) => d)
   .handler(async ({ data }) => {
+    await ensureSolvedProjections();
     const result = await factoryWhatIf(q.blocksWithFlows(), data.demands ?? {});
     const display = (name: string) => pseudoDisplay(name) ?? q.classifyRef(name)?.display ?? name;
     return {
@@ -519,12 +525,16 @@ export const recomputeAllBlocksFn = createServerFn({ method: "POST" }).handler(a
 /** Drill-down: blocks producing/consuming one good (for the factory resource view). */
 export const blocksForGoodFn = createServerFn({ method: "GET" })
   .validator((good: string) => good)
-  .handler(async ({ data }) => q.blocksForGood(data));
+  .handler(async ({ data }) => {
+    await ensureSolvedProjections();
+    return q.blocksForGood(data);
+  });
 
 /** Block-to-block wiring (links / unsourced / surplus) for the coherence view. */
-export const factoryCoherenceFn = createServerFn({ method: "GET" }).handler(async () =>
-  q.factoryCoherence(),
-);
+export const factoryCoherenceFn = createServerFn({ method: "GET" }).handler(async () => {
+  await ensureSolvedProjections();
+  return q.factoryCoherence();
+});
 
 /** Scale-to-demand preview: re-solve one block at a new target rate and diff it
  * against its current solve — the concrete changes to hit the target (building
@@ -955,8 +965,9 @@ export const setResearchHorizonFn = createServerFn({ method: "POST" })
     }) => d,
   )
   .handler(async ({ data }) => {
-    q.setResearchHorizon(data);
-    return { ok: true };
+    const changed = q.setResearchHorizon(data);
+    const resolved = changed ? await resolveAllBlocks() : 0;
+    return { ok: true, resolved };
   });
 
 /** App-level AI config (OpenRouter key + model). Env always wins; the stored value
@@ -1166,6 +1177,22 @@ export const blockChangeReportFn = createServerFn({ method: "GET" }).handler(asy
       continue;
     }
 
+    // A current materialized projection was produced from this exact global
+    // generation and block fingerprint. Re-solving it here would duplicate the
+    // save path and make this diagnostic scale with every block on every click.
+    if (!stale) {
+      reports.push({
+        id: b.id,
+        name: row.name,
+        status: "ok",
+        stale: false,
+        missingRecipes: [],
+        missingGoods: [],
+        changes: [],
+      });
+      continue;
+    }
+
     let fresh: { item: string; kind: string; role: string; rate: number }[];
     try {
       const r = await computeBlock(data);
@@ -1235,8 +1262,8 @@ export const blockChangeReportFn = createServerFn({ method: "GET" }).handler(asy
 export const setTurdSelectionFn = createServerFn({ method: "POST" })
   .validator((d: { masterTech: string; subTech: string | null }) => d)
   .handler(async ({ data }) => {
-    q.setTurdSelection(data.masterTech, data.subTech);
-    const resolved = await resolveAllBlocks();
+    const changed = q.setTurdSelection(data.masterTech, data.subTech);
+    const resolved = changed ? await resolveAllBlocks() : 0;
     return { ok: true, resolved };
   });
 

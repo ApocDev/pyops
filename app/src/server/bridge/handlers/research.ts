@@ -6,6 +6,7 @@
  */
 import type { BridgeRequest, BridgeResponse } from "../protocol.ts";
 import * as q from "../../../db/queries.server.ts";
+import { resolveAllBlocks } from "../../block-compute.server.ts";
 
 export async function handleResearch(req: BridgeRequest): Promise<BridgeResponse | null> {
   const payload = (req.payload ?? {}) as {
@@ -38,7 +39,7 @@ export async function handleResearch(req: BridgeRequest): Promise<BridgeResponse
         )
       : null;
 
-  q.setResearchHorizon(
+  const changed = q.setResearchHorizon(
     hasMiningBonus || hasRecipeBonuses
       ? {
           researched,
@@ -49,5 +50,6 @@ export async function handleResearch(req: BridgeRequest): Promise<BridgeResponse
   );
   q.metaSet("research_synced_at", new Date().toISOString());
   q.metaSet("research_synced_count", String(researched.length));
+  if (changed) await resolveAllBlocks();
   return null;
 }

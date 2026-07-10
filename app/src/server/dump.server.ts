@@ -27,6 +27,8 @@ import { currentDatabaseFile, db } from "../db/index.server.ts";
 import { importFactorioDump } from "../db/import-factorio.ts";
 import * as q from "../db/queries.server.ts";
 import { meta } from "../db/schema.ts";
+import { bumpSolveGeneration } from "../db/solve-generation.server.ts";
+import { resolveAllBlocks } from "./block-compute.server.ts";
 import { computeCostAnalysis } from "./cost-analysis.server.ts";
 import { buildIconAtlas } from "./icon-atlas.ts";
 import { applyRenames, readModMigrations } from "./migrations.ts";
@@ -624,6 +626,12 @@ export function startDataSync(opts: { icons?: boolean } = {}): SyncState {
         .onConflictDoUpdate({ target: meta.key, set: { value: sql`excluded.value` } })
         .run();
       state.log.push(`recorded ${mods.length} mods`);
+      // Reference tables, machines, modules, technologies, and synthetic recipes
+      // are all solver inputs. Advance SQLite's projection generation only after
+      // the import is complete, then refresh each stale block exactly once.
+      const generation = bumpSolveGeneration();
+      const resolved = await resolveAllBlocks();
+      state.log.push(`solve projections: generation ${generation}, refreshed ${resolved} block(s)`);
       step("done", `sync complete (fingerprint ${fp})`);
       state.finishedAt = Date.now();
     } catch (e) {

@@ -30,6 +30,10 @@ orchestrated end-to-end from **Settings › Game data** in the UI
 7. **Apply mod migrations** — read each enabled mod's `migrations/*.json` and
    auto-apply any newly-present prototype renames to saved blocks
    (`app/src/server/migrations.ts`; see drift resilience below).
+8. **Refresh solve projections** — advance the SQLite-owned solve generation and
+   re-solve each stale saved block once, after every reference-data writer has
+   finished. Factory totals therefore never depend on an application cache or on
+   remembering which in-memory layer to invalidate.
 
 The enabled mod set is fingerprinted (a hash of mod names) and stamped into the DB,
 so the planner knows which version of the game its data reflects. The full mod list
@@ -55,17 +59,22 @@ small "data stale" chip in the nav to re-open the modal, and Settings → Game d
 shows the same detail. Reading the mod set is cheap (two small file reads), so
 checking often costs little.
 
-Saved blocks additionally carry a **per-block reference fingerprint**
+Saved blocks additionally carry a **per-block solve fingerprint**
 (`blockReferenceFingerprint`, `app/src/db/queries.server.ts`): a hash over the _current_
-definitions of just the recipes and goal goods that block references. Unlike the
-global mod-name hash, it changes when a referenced recipe is altered in place (an
-in-place mod update) or disappears, so staleness registers for exactly the blocks
-that are affected. When a block references a recipe or goal good that no longer
-exists, `computeBlock` refuses to solve it — solving the surviving subset would
+definitions of just the recipes and goal goods that block references, prefixed by
+the current `solve_projection_generation` from SQLite `meta`. The generation
+advances when imported reference data, research/productivity state, or TURD
+selection changes. It makes projection validity a database fact: unchanged bridge
+heartbeats do not advance it, and only rows from the current generation are treated
+as fresh. The content hash still pinpoints an altered or vanished referenced recipe.
+
+When a block references a recipe or goal good that no longer exists, `computeBlock`
+refuses to solve it — solving the surviving subset would
 silently produce wrong rates — and instead returns `broken` with the missing
 references. The block's input doc and its last-good cached I/O are preserved
 untouched (so re-enabling the mod or re-importing restores it), the block view and
-sidebar flag it, and `recomputeAllBlocks` skips overwriting its cache.
+sidebar flag it, and its old generation stamp remains stale rather than blessing
+the preserved values as current.
 
 **Pure renames are auto-applied during the dump** (`migrations.ts`), so this broken
 fallback is reserved for references that genuinely changed meaning or disappeared.

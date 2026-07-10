@@ -454,7 +454,14 @@ describe("productivityBonuses (research horizon gated)", () => {
 describe("listBlocks health: sink goals need a consumer, not a producer", () => {
   const save = (name: string, data: Parameters<typeof saveBlockRow>[0]["data"]) =>
     saveBlockRow(
-      { name, iconKind: null, iconName: null, data, electricityW: null, dataFingerprint: null },
+      {
+        name,
+        iconKind: null,
+        iconName: null,
+        data,
+        electricityW: null,
+        dataFingerprint: blockReferenceFingerprint(data),
+      },
       null,
     );
   const health = (id: number) => new Map(listBlocks().map((b) => [b.id, b])).get(id)!;
@@ -649,14 +656,15 @@ describe("batched block projections", () => {
       INSERT INTO recipe_products (recipe, idx, kind, name, amount)
       VALUES (${recipe}, 0, 'item', ${good}, 1)
     `);
+    const data = { goals: [{ name: good, rate: 1 }], recipes: [recipe] };
     return saveBlockRow(
       {
         name: `batch-block-${index.toString().padStart(2, "0")}`,
         iconKind: null,
         iconName: null,
-        data: { goals: [{ name: good, rate: 1 }], recipes: [recipe] },
+        data,
         electricityW: null,
-        dataFingerprint: null,
+        dataFingerprint: blockReferenceFingerprint(data),
         solveStatus: "solved",
       },
       null,

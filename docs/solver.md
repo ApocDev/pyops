@@ -252,6 +252,17 @@ Factorio's clamps are respected: speed, consumption, and pollution multipliers
 bottom out at 0.2, productivity caps at the recipe's `maximum_productivity`
 (+300% by default — but Py raises it to 1e6 on nearly every recipe).
 
+### Persisted solve projections
+
+SQLite is the source of truth for both block inputs and their materialized solve
+outputs (`block_flows`, `block_machines`, power, pollution, and status). Each
+successful solve stamps the block fingerprint with the current
+`solve_projection_generation` from `meta`. Research/productivity changes, TURD
+selections, and data imports advance that generation transactionally in SQLite;
+the backend then solves only stale blocks. A repeated bridge heartbeat with the
+same canonical state does nothing. Broken blocks keep their last-good projections
+and their old stamp, so preserved values can never masquerade as current.
+
 **Module auto-fill** (`module-fill.server.ts`) is **suggested, never applied**:
 the solve only ever uses the doc's stored module picks, so a plan never
 rearranges its modules behind the player's back (research unlocking a better

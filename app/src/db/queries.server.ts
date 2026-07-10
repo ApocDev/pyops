@@ -64,6 +64,12 @@ import {
 import { goalNames, normalizeBlockData, primaryRate } from "../lib/goals.ts";
 import { prodScaledAmount } from "../lib/productivity.ts";
 import { wholeMachines } from "../lib/machine-count.ts";
+import {
+  bumpSolveGeneration,
+  currentSolveGeneration,
+  isSolveFingerprintForGeneration,
+  stampSolveFingerprint,
+} from "./solve-generation.server.ts";
 
 const recipeSummary = {
   name: recipes.name,
@@ -1201,7 +1207,12 @@ export function getTurdSelections(): Map<string, string> {
   );
 }
 
-export function setTurdSelection(masterTech: string, subTech: string | null) {
+export function setTurdSelection(masterTech: string, subTech: string | null): boolean {
+  const current = getTurdSelections().get(masterTech) ?? null;
+  if (current === subTech) return false;
+  // Advance first: a failure after this point leaves projections conservatively
+  // stale, never falsely current under a changed global solve context.
+  bumpSolveGeneration();
   if (subTech == null) {
     db.delete(turdSelections).where(eq(turdSelections.masterTech, masterTech)).run();
   } else {
@@ -1213,6 +1224,7 @@ export function setTurdSelection(masterTech: string, subTech: string | null) {
       })
       .run();
   }
+  return true;
 }
 
 /** Replace ALL TURD selections with a pushed set (from the game bridge). Only
@@ -1247,6 +1259,7 @@ export function setTurdSelectionsBulk(selections: Record<string, string>): {
     !mismatch && (before.size !== after.size || [...after].some(([m, s]) => before.get(m) !== s));
 
   if (!mismatch && changed) {
+    bumpSolveGeneration();
     db.transaction((tx) => {
       tx.delete(turdSelections).run();
       for (const { master, sub } of valid)
@@ -1316,6 +1329,7 @@ export function listBlocks() {
       electricityW: blocks.electricityW,
       pollutionPerMin: blocks.pollutionPerMin,
       solveStatus: blocks.solveStatus,
+      dataFingerprint: blocks.dataFingerprint,
       enabled: blocks.enabled, // whole-block toggle (#73) — for sidebar dimming
       groupId: blocks.groupId,
       updatedAt: blocks.updatedAt,
@@ -1325,6 +1339,7 @@ export function listBlocks() {
     .orderBy(blocks.sortOrder, blocks.name)
     .all();
   const documents = rows.map((row) => normalizeBlockData(row.data as BlockData));
+  const solveGeneration = currentSolveGeneration();
   const referencedRecipes = [
     ...new Set(documents.flatMap((document) => document.recipes ?? []).filter(Boolean)),
   ];
@@ -1392,8 +1407,9 @@ export function listBlocks() {
     if (!set) ingredientsByRecipe.set(p.recipe, (set = new Set()));
     set.add(p.name);
   }
-  return rows.map(({ data: _data, solveStatus, ...b }, index) => {
+  return rows.map(({ data: _data, dataFingerprint, solveStatus, ...b }, index) => {
     const d = documents[index];
+    const stale = !isSolveFingerprintForGeneration(dataFingerprint, solveGeneration);
     const blockRecipes = d.recipes ?? [];
     const broken =
       blockRecipes.some((r) => !recipeNames.has(r)) || goalNames(d).some((g) => !goodNames.has(g));
@@ -1421,7 +1437,8 @@ export function listBlocks() {
     const health: BlockHealth =
       broken || solveStatus === "infeasible" || solveStatus === "error"
         ? "error"
-        : unmadeGoals.length > 0 ||
+        : stale ||
+            unmadeGoals.length > 0 ||
             // stale pre-v2 statuses: the block re-solves (and re-caches) on open
             solveStatus === "relaxed" ||
             solveStatus === "underdetermined"
@@ -1430,6 +1447,7 @@ export function listBlocks() {
     return {
       ...b,
       broken,
+      stale,
       health,
       unmadeGoals,
       // for the delete-block confirm (#83): what the deletion would destroy
@@ -1617,7 +1635,8 @@ export function blockReferenceFingerprint(data: BlockData): string {
     parts.push(`R ${name} ${recipeSignature(name)}`);
   for (const g of goalNames(normalizeBlockData(data)).sort())
     parts.push(`G ${g} ${goodExists(g) ? "1" : "0"}`);
-  return createHash("sha256").update(parts.join("\n")).digest("hex").slice(0, 16);
+  const content = createHash("sha256").update(parts.join("\n")).digest("hex").slice(0, 16);
+  return stampSolveFingerprint(content);
 }
 
 export function deleteBlock(id: number) {
@@ -1644,7 +1663,7 @@ export function saveBlockRow(
     data: BlockData;
     electricityW: number | null;
     pollutionPerMin?: number | null;
-    dataFingerprint: string | null;
+    dataFingerprint?: string | null;
     solveStatus?: string | null;
     /** IIS cards from an infeasible solve; null clears (solved); undefined keeps */
     solveDiagnosis?: unknown[] | null;
@@ -1667,7 +1686,7 @@ export function saveBlockRow(
       ...(input.solveDiagnosis !== undefined
         ? { solveDiagnosis: input.solveDiagnosis as never }
         : {}),
-      dataFingerprint: input.dataFingerprint,
+      ...(input.dataFingerprint !== undefined ? { dataFingerprint: input.dataFingerprint } : {}),
     };
     if (id != null) {
       tx.update(blocks)
@@ -3309,29 +3328,49 @@ export function setResearchHorizon(x: {
   target?: string | null;
   miningProductivityBonus?: number | null;
   recipeProductivityBonuses?: Record<string, number> | null;
-}) {
-  if (x.mode) metaSet("research_mode", x.mode);
-  if (x.packs) metaSet("available_science_packs", JSON.stringify(x.packs));
-  if (x.researched) metaSet("researched_techs", JSON.stringify(x.researched));
-  if (x.target !== undefined) metaSet("horizon_target", x.target ?? "");
+}): boolean {
+  const desired = new Map<string, string | null>();
+  const setJson = (values: string[]) => JSON.stringify([...new Set(values)].sort());
+  if (x.mode) desired.set("research_mode", x.mode);
+  if (x.packs) desired.set("available_science_packs", setJson(x.packs));
+  if (x.researched) desired.set("researched_techs", setJson(x.researched));
+  if (x.target !== undefined) desired.set("horizon_target", x.target ?? "");
   if (x.miningProductivityBonus !== undefined) {
     if (x.miningProductivityBonus == null || !Number.isFinite(x.miningProductivityBonus))
-      metaDelete("research_mining_productivity_bonus");
+      desired.set("research_mining_productivity_bonus", null);
     else
-      metaSet("research_mining_productivity_bonus", String(Math.max(0, x.miningProductivityBonus)));
+      desired.set(
+        "research_mining_productivity_bonus",
+        String(Math.max(0, x.miningProductivityBonus)),
+      );
   }
   if (x.recipeProductivityBonuses !== undefined) {
     if (x.recipeProductivityBonuses == null) {
-      metaDelete("research_recipe_productivity_bonuses");
+      desired.set("research_recipe_productivity_bonuses", null);
     } else {
       const clean = Object.fromEntries(
         Object.entries(x.recipeProductivityBonuses)
           .filter((e): e is [string, number] => typeof e[1] === "number" && Number.isFinite(e[1]))
-          .filter(([, bonus]) => bonus !== 0),
+          .filter(([, bonus]) => bonus !== 0)
+          .sort(([a], [b]) => a.localeCompare(b)),
       );
-      metaSet("research_recipe_productivity_bonuses", JSON.stringify(clean));
+      desired.set("research_recipe_productivity_bonuses", JSON.stringify(clean));
     }
   }
+  const before = metaAll();
+  const changed = [...desired].some(([key, value]) =>
+    value == null ? Object.prototype.hasOwnProperty.call(before, key) : before[key] !== value,
+  );
+  if (!changed) return false;
+
+  // Bump before the individual metadata writes. If a later write fails, cached
+  // projections remain safely stale rather than appearing valid for mixed state.
+  bumpSolveGeneration();
+  for (const [key, value] of desired) {
+    if (value == null) metaDelete(key);
+    else metaSet(key, value);
+  }
+  return true;
 }
 
 /** The tech set actually completed (bridge-synced from the save, or manually

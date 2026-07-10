@@ -82,6 +82,17 @@ describe("handleResearch", () => {
       recipeProductivityBonuses: null,
     });
   });
+
+  it("re-solves blocks only when the canonical research context changed", async () => {
+    vi.mocked(q.setResearchHorizon).mockReturnValueOnce(true);
+    await handleResearch(req({ researched: ["automation"] }));
+    expect(factorio.resolveAllBlocks).toHaveBeenCalledTimes(1);
+
+    vi.clearAllMocks();
+    vi.mocked(q.setResearchHorizon).mockReturnValueOnce(false);
+    await handleResearch(req({ researched: ["automation"] }));
+    expect(factorio.resolveAllBlocks).not.toHaveBeenCalled();
+  });
 });
 
 describe("handleBuilt", () => {

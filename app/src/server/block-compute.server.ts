@@ -36,6 +36,11 @@ import { goalNames, normalizeBlockData } from "../lib/goals";
 import { fmtTemp, fmtTempRange } from "../lib/format";
 import type { Goal } from "../db/schema.ts";
 import * as q from "../db/queries.server.ts";
+import {
+  currentSolveGeneration,
+  markSolveGenerationResolved,
+  solveGenerationNeedsRefresh,
+} from "../db/solve-generation.server.ts";
 import { withUndoAction } from "./undo-action.server.ts";
 import { ensureBridge, sendToPeer } from "./bridge/server.ts";
 
@@ -1305,7 +1310,10 @@ export async function persistBlock(
       solveStatus: r.broken ? undefined : r.status,
       // cache the WHY alongside an infeasible status (#91); solved clears it
       solveDiagnosis: r.broken ? undefined : r.status === "infeasible" ? (r.diagnosis ?? []) : null,
-      dataFingerprint: q.blockReferenceFingerprint(data),
+      // A broken solve preserves the previous flows/machines, so it must also
+      // preserve their old generation stamp. Marking last-good projections as
+      // current would make SQLite claim older-context values are valid.
+      dataFingerprint: r.broken ? undefined : q.blockReferenceFingerprint(data),
     },
     r.broken ? null : [...boundaryFlows(goalFlows(data), r)],
     r.broken ? null : machineReqs(r.rows),
@@ -1468,8 +1476,8 @@ export async function hideBlockInGame() {
   return { sent: sendToPeer({ type: "cmd.hide_block", payload: {} }) };
 }
 
-/** Re-solve every saved block and refresh its cached flows — used after a
- * global change (TURD selection, research). Returns how many were re-solved.
+/** Re-solve stale saved blocks and refresh their cached flows — used after a
+ * global change (TURD selection, research, data sync). Returns how many were re-solved.
  * A system cache refresh, not a user edit: it runs with undo tracking OFF so
  * the wholesale block-row rewrites never land on the undo stack (#90). */
 export async function resolveAllBlocks() {
@@ -1477,7 +1485,9 @@ export async function resolveAllBlocks() {
     "resolve all blocks",
     async () => {
       const all = q.listBlocks();
-      for (const b of all) {
+      const generation = currentSolveGeneration();
+      const stale = all.filter((block) => block.stale && !block.broken);
+      for (const b of stale) {
         const row = q.getBlock(b.id);
         if (!row) continue;
         const data = row.data as SolveInput;
@@ -1489,8 +1499,14 @@ export async function resolveAllBlocks() {
           r,
         );
       }
-      return all.length;
+      markSolveGenerationResolved(generation);
+      return stale.length;
     },
     { undo: false },
   );
+}
+
+/** Cheap crash/upgrade recovery guard for projection readers. */
+export async function ensureSolvedProjections(): Promise<number> {
+  return solveGenerationNeedsRefresh() ? resolveAllBlocks() : 0;
 }
