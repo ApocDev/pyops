@@ -1,0 +1,21 @@
+app/e2e/mut/rebalance.e2e.ts
+  s_f8433694119c57::t_951e57c82ea418 4-22
+app/src/routes/whatif.tsx
+  s_f8433694119c57::t_a7e985d5b64a3c 2,46-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "42eb8ad6d87d653ece6c843df85852a767811689",
+  "prompts": {},
+  "sessions": {
+    "s_f8433694119c57": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4cfd-0bda-7372-bd30-a981fdccc887",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
