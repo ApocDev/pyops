@@ -16,7 +16,7 @@ const PORT = Number(process.env.PYOPS_BRIDGE_PORT ?? 37657);
 // Bump when the socket plumbing in THIS file changes — ensureBridge rebinds a
 // stale singleton (created by older code) on the next poll. Handler additions in
 // handlers.ts do NOT need a bump: dispatch is re-imported per message.
-const BRIDGE_VERSION = 3;
+const BRIDGE_VERSION = 4;
 
 export type BridgePeer = {
   address: string;
@@ -59,20 +59,56 @@ function create(): BridgeRuntime {
 
   const socket = dgram.createSocket("udp4");
 
+  const forgetPeerAfterSendError = () => {
+    // An ICMP "port unreachable" can surface as ECONNRESET/ECONNREFUSED when
+    // Factorio briefly replaces its UDP socket (notably during dev reloads).
+    // The app's listener is still healthy; forget the dead destination and let
+    // the mod's next heartbeat register its new source port.
+    runtime.lastPeer = null;
+  };
+
+  const send = (message: Buffer, port: number, address: string) => {
+    try {
+      socket.send(message, port, address, (err) => {
+        if (err) forgetPeerAfterSendError();
+      });
+      runtime.packetsOut += 1;
+      return true;
+    } catch {
+      forgetPeerAfterSendError();
+      return false;
+    }
+  };
+
   socket.on("listening", () => {
     runtime.status = "listening";
     runtime.error = null;
   });
 
   socket.on("error", (err) => {
+    if (runtime.status === "listening") {
+      // dgram sockets remain usable after asynchronous delivery errors. Closing
+      // here turned a momentary game-side reload into a bridge disconnect.
+      forgetPeerAfterSendError();
+      return;
+    }
+
+    // Errors while binding really are fatal for this socket. A later
+    // ensureBridge() poll will create a fresh one.
     runtime.status = "error";
     runtime.error = err.message;
+    runtime.socket = null;
     try {
       socket.close();
     } catch {
       /* already closed */
     }
+  });
+
+  socket.on("close", () => {
+    if (runtime.socket !== socket) return;
     runtime.socket = null;
+    if (runtime.status !== "error") runtime.status = "stopped";
   });
 
   socket.on("message", (msg, rinfo) => {
@@ -94,8 +130,7 @@ function create(): BridgeRuntime {
       .then((res) => {
         if (!res) return;
         // reply to the datagram's source (Factorio's --enable-lua-udp socket)
-        socket.send(serialize(res), rinfo.port, rinfo.address);
-        runtime.packetsOut += 1;
+        send(serialize(res), rinfo.port, rinfo.address);
       })
       .catch(() => {
         /* a handler threw — drop the reply rather than crash the listener */
@@ -137,9 +172,17 @@ export function ensureBridge(): BridgeRuntime {
 export function sendToPeer(msg: BridgeResponse): boolean {
   const r = globalRef.__pyopsBridge;
   if (!r?.socket || !r.lastPeer) return false;
-  r.socket.send(serialize(msg), r.lastPeer.port, r.lastPeer.address);
-  r.packetsOut += 1;
-  return true;
+  const peer = r.lastPeer;
+  try {
+    r.socket.send(serialize(msg), peer.port, peer.address, (err) => {
+      if (err && r.lastPeer === peer) r.lastPeer = null;
+    });
+    r.packetsOut += 1;
+    return true;
+  } catch {
+    if (r.lastPeer === peer) r.lastPeer = null;
+    return false;
+  }
 }
 
 export type BridgeStatus = Omit<BridgeRuntime, "socket"> & { appProtocolVersion: number };

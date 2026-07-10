@@ -108,6 +108,29 @@ describe("bridge UDP server", () => {
     expect(bridgeStatus().packetsIn).toBeGreaterThan(before);
   });
 
+  it("keeps listening after a transient UDP delivery error", async () => {
+    const runtime = (
+      globalThis as {
+        __pyopsBridge?: { socket?: dgram.Socket | null; lastPeer?: unknown };
+      }
+    ).__pyopsBridge;
+    expect(runtime?.socket).toBeTruthy();
+
+    runtime?.socket?.emit(
+      "error",
+      Object.assign(new Error("recvmsg ECONNRESET"), { code: "ECONNRESET" }),
+    );
+
+    expect(bridgeStatus()).toMatchObject({ status: "listening", error: null, lastPeer: null });
+    const mod = fakeMod();
+    const reply = await rpc(mod, {
+      protocol_version: 4,
+      type: "bridge.ping",
+      request_id: "after-reset",
+    });
+    expect(reply.type).toBe("bridge.pong");
+  });
+
   it("round-trips an app→mod request: cmd sent to the peer, reply resolves the caller", async () => {
     const mod = fakeMod();
     // the fake mod answers any cmd.* with a bridge.result echoing the request_id

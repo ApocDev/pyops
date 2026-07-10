@@ -20,7 +20,7 @@ live as server-side modules.
                │ localhost UDP (bridge)                           │ reads
                │                                                  │
    ┌───────────┴───────────┐                          ┌───────────┴───────────┐
-   │  mod/ (Factorio 2.0)  │                          │  Factorio data dumps   │
+   │  mod/ (Factorio 2.1)  │                          │  Factorio data dumps   │
    │  in-game panel +      │   factorio --dump-data   │  data-raw-dump.json,   │
    │  live-state sync      │ ───────────────────────▶ │  locale, icon sprites  │
    └───────────────────────┘                          └────────────────────────┘
@@ -51,7 +51,7 @@ pyops/
 │   ├── icon-data/         generated icon atlas (gitignored)
 │   ├── projects/          per-project .db files, each self-named (gitignored)
 │   └── app-config.json    app-level config: active project + AI key/model (gitignored)
-├── mod/              Factorio 2.0 companion mod (Lua, no build step)
+├── mod/              Factorio 2.1 companion mod (Lua, no build step)
 │   ├── control.lua        panel + UDP bridge + live-state sync
 │   ├── summary.lua        Helmod-style production-block view
 │   ├── combinator.lua     in-game request-combinator planner

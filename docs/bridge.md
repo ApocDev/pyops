@@ -7,7 +7,9 @@ companion mod. The mod sends JSON request datagrams and polls for replies; the a
 dispatches them to handlers (`app/src/server/bridge/handlers/`) and answers on the
 same socket. The socket is a process singleton stashed on `globalThis` so Vite HMR
 re-evaluating the module reuses the existing bind instead of throwing
-`EADDRINUSE`.
+`EADDRINUSE`. Transient UDP delivery errors during a game or dev-server reload
+clear the remembered peer but do not close the app's listener; the mod's next
+heartbeat registers its current source port and restores the link.
 
 ## Status in the UI
 
@@ -108,7 +110,7 @@ shapes change. Each side reports its version and warns when the other disagrees.
 
 ## The companion mod
 
-`mod/` is a normal Factorio 2.0 mod — pure Lua, no build step:
+`mod/` is a normal Factorio 2.1 mod — pure Lua, no build step:
 
 - `control.lua` — the in-game panel, the UDP bridge, and live-state sync.
 - `summary.lua` — the Helmod-style production-block view (`cmd.show_block`),
