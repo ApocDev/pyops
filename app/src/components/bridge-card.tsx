@@ -12,13 +12,11 @@ import { LaunchFactorioButton } from "#/components/launch-factorio-button.tsx";
  * heartbeat pings ~every 2s). */
 const FRESH_MS = 6000;
 
-/** Live UDP bridge status. Polling this is also what starts the listener
- * (bridgeStatusFn ensures the socket), so just mounting the card brings it up. */
+/** Live UDP bridge status from the app-shell query owner. */
 export function BridgeCard() {
   const status = useQuery({
     queryKey: ["bridgeStatus"],
     queryFn: () => bridgeStatusFn(),
-    refetchInterval: 2000,
   });
   const s = status.data;
   const peer = s?.lastPeer ?? null;

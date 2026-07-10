@@ -36,7 +36,6 @@ export function LogisticsMenu() {
   const ctx = useQuery({
     queryKey: ["logisticsContext"],
     queryFn: () => logisticsContextFn(),
-    refetchInterval: 5000,
   });
   const d = ctx.data;
   const beltName = d
@@ -83,7 +82,6 @@ export function LogisticsPicker() {
   const ctx = useQuery({
     queryKey: ["logisticsContext"],
     queryFn: () => logisticsContextFn(),
-    refetchInterval: 5000,
   });
   const save = useMutation({
     mutationFn: (p: Partial<LogisticsPrefs>) => setLogisticsPrefsFn({ data: p }),

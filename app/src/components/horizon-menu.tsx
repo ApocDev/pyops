@@ -21,7 +21,6 @@ export function HorizonMenu() {
   const h = useQuery({
     queryKey: ["researchHorizon"],
     queryFn: () => researchHorizonFn(),
-    refetchInterval: 4000,
   });
   const label = h.data ? horizonLabel(h.data) : "…";
 

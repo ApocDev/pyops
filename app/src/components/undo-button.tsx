@@ -7,14 +7,13 @@ import { Button } from "#/components/ui/button.tsx";
 
 /** The nav undo affordance (#90): an unobtrusive icon button whose tooltip
  * names what the next Ctrl+Z will revert ("Undo: Edit block …"), disabled when
- * the stack is empty. Clicking it runs the same path as Ctrl+Z. Light polling
- * keeps the label fresh without wiring an invalidation into every mutation. */
+ * the stack is empty. Clicking it runs the same path as Ctrl+Z. The app-shell
+ * query owner keeps the label fresh between immediate mutation invalidations. */
 export function UndoButton() {
   const qc = useQueryClient();
   const status = useQuery({
     queryKey: ["undoStatus"],
     queryFn: () => undoStatusFn(),
-    refetchInterval: 5000,
   });
   const undo = useMutation({ mutationFn: () => runUndo(qc) });
   const top = status.data?.top ?? null;

@@ -9,13 +9,12 @@ const FRESH_MS = 6000;
 
 /** At-a-glance in-game link status for the global nav: a colored dot + label,
  * tooltip-explained, linking to Settings › In-game link. Shares the
- * ["bridgeStatus"] query with BridgeCard, and (like it) mounting this is what
- * starts the UDP listener — so the bridge is live on every page. */
+ * ["bridgeStatus"] query owned by AppLiveQueries, which also starts the UDP
+ * listener and keeps the bridge live on every page. */
 export function BridgeIndicator() {
   const status = useQuery({
     queryKey: ["bridgeStatus"],
     queryFn: () => bridgeStatusFn(),
-    refetchInterval: 2000,
   });
   const s = status.data;
   const peer = s?.lastPeer ?? null;

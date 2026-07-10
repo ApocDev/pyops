@@ -73,7 +73,6 @@ export function DriftModal() {
   const bridge = useQuery({
     queryKey: ["bridgeStatus"],
     queryFn: () => bridgeStatusFn(),
-    refetchInterval: 2000,
   });
   // Proactively check whether the game is running while the prompt is open, so we
   // can warn and block the sync (it would just fail on the engine's instance lock).

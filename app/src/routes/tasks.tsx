@@ -108,13 +108,13 @@ export const Route = createFileRoute("/tasks")({
 /** Tasks/notes change from outside this tab too — the in-game mod (via the bridge)
  * and the assistant both write to the same store. Keep these queries fresh without
  * a reload: refetch on focus/reconnect (covers alt-tabbing back from the game) plus
- * a gentle visible-or-not interval (covers the web app sitting open on a second
- * monitor). A real-time push (SSE) is a later upgrade if we ever need instant. */
+ * a gentle interval while the tab is visible (including on a second monitor).
+ * Hidden tabs pause the interval and refetch on focus instead of doing background
+ * RPCs. A real-time push (SSE) is a later upgrade if we ever need instant. */
 const LIVE_QUERY = {
   refetchOnWindowFocus: true,
   refetchOnReconnect: true,
   refetchInterval: 10_000,
-  refetchIntervalInBackground: true,
 } as const;
 
 /** Per-project tasks & notes. Left: a task tree (parent tasks contain child

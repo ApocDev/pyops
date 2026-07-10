@@ -54,7 +54,6 @@ export function HorizonPicker() {
   const h = useQuery({
     queryKey: ["researchHorizon"],
     queryFn: () => researchHorizonFn(),
-    refetchInterval: 4000,
   });
   const save = useMutation({
     mutationFn: (d: SaveArgs) => setResearchHorizonFn({ data: d }),
