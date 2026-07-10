@@ -31,7 +31,7 @@ import {
 import { uniqueName } from "../lib/plan-export";
 import { ensureDataDir } from "./paths.server.ts";
 import { slugify } from "./projects.server.ts";
-import { migrateToLatest } from "./provision.ts";
+import { configureSqliteConnection, migrateToLatest } from "./provision.ts";
 
 export type ProjectBackup = {
   /** temp file holding the consistent snapshot — stream it, then `cleanup()` */
@@ -52,6 +52,7 @@ export async function createProjectBackup(): Promise<ProjectBackup> {
   const out = join(dir, "backup.db");
   const d = new Database(src, { readonly: true, fileMustExist: true });
   try {
+    configureSqliteConnection(d, { readonly: true });
     await d.backup(out);
   } finally {
     d.close();
@@ -82,6 +83,7 @@ function assertSqliteProjectDb(file: string) {
   }
   const d = new Database(file, { readonly: true, fileMustExist: true });
   try {
+    configureSqliteConnection(d, { readonly: true });
     const hasMeta = d
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='meta'")
       .get();

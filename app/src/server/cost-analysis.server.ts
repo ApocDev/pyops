@@ -31,6 +31,8 @@
 import Database from "better-sqlite3";
 import highsLoader from "highs";
 
+import { configureSqliteConnection } from "./provision.ts";
+
 // YAFC constants (CostAnalysis.cs)
 const COST_PER_SECOND = 0.1;
 const COST_PER_MJ = 0.1;
@@ -60,7 +62,7 @@ export type CostSummary = { goods: number; recipes: number; ms: number; status: 
 export async function computeCostAnalysis(dbFile: string): Promise<CostSummary> {
   const t0 = Date.now();
   const db = new Database(dbFile);
-  db.pragma("journal_mode = WAL");
+  configureSqliteConnection(db);
 
   // exclude hidden recipes and unreachable ones (disabled with no unlocking
   // tech — creative/editor content like Editor Extensions)

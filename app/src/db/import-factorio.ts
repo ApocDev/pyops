@@ -16,6 +16,7 @@ import { dirname, join } from "node:path";
 import { synthesizePass2 } from "./synthesize.ts";
 import { temperatureFedDrain, type TempFedFluid } from "./fluid-energy.ts";
 import { PROJECTS_DIR } from "../server/paths.server.ts";
+import { configureSqliteConnection } from "../server/provision.ts";
 
 const DEFAULT_DUMP = join(homedir(), ".factorio", "script-output", "data-raw-dump.json");
 
@@ -170,7 +171,7 @@ export function importFactorioDump(
   }
 
   const db = new Database(DB_URL);
-  db.pragma("journal_mode = WAL");
+  configureSqliteConnection(db);
 
   const ins = {
     recipe: db.prepare(

@@ -10,6 +10,7 @@ import { join } from "node:path";
 
 import { readAppConfig } from "../server/app-config.server.ts";
 import { PROJECTS_DIR } from "../server/paths.server.ts";
+import { configureSqliteConnection } from "../server/provision.ts";
 
 export { PROJECTS_DIR };
 export const DEFAULT_ID = "default";
@@ -22,6 +23,7 @@ export function readProjectMeta(file: string): { name?: string; createdAt?: stri
   try {
     const d = new Database(file, { readonly: true, fileMustExist: true });
     try {
+      configureSqliteConnection(d, { readonly: true });
       const rows = d
         .prepare("SELECT key, value FROM meta WHERE key IN ('project_name','project_created_at')")
         .all() as { key: string; value: string | null }[];
@@ -39,6 +41,7 @@ export function readProjectMeta(file: string): { name?: string; createdAt?: stri
 export function writeProjectMeta(file: string, name?: string, createdAt?: string) {
   const d = new Database(file);
   try {
+    configureSqliteConnection(d);
     const up = d.prepare(
       "INSERT INTO meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
     );

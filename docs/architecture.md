@@ -93,6 +93,17 @@ project starts empty; you then run a [data sync](data-pipeline.md) to fill it. T
 relevant code lives in `app/src/server/projects.ts`, `app/src/server/provision.ts`,
 and `app/src/db/index.server.ts`.
 
+Every writable project connection uses the same SQLite policy before migrations
+or application queries run: WAL journal mode, a 5-second busy timeout,
+foreign-key enforcement, and `synchronous=NORMAL`. WAL keeps readers moving while
+SQLite serializes writers; the timeout absorbs brief overlap with imports and
+desktop lifecycle operations. Cache size, temporary storage, memory mapping, and
+automatic checkpoint thresholds stay at SQLite's defaults instead of becoming
+another application memory/cache policy. Short-lived read-only handles (project
+listing, validation, and backup) get the same timeout and integrity setting but
+do not try to change the database's persistent journal mode or their irrelevant
+write-durability setting.
+
 Because connections are cached, migrations added while the server is running (the
 dev-server case) are **not** picked up — the fix is a restart. The app shell polls a
 cheap drift check (`app/src/server/db-migrations.server.ts`: bundled
