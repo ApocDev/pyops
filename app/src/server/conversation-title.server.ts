@@ -1,7 +1,7 @@
 /**
- * AI title generation for stored conversations — server-only. A plain function
- * (not a server fn) so both the chat route (after the first exchange) and the
- * `generateTitleFn` server fn can call it directly.
+ * AI title generation for stored conversations — server-only. The chat route
+ * calls this after the first completed exchange so title persistence stays on
+ * the server alongside message persistence.
  */
 import { generateText } from "ai";
 import * as store from "../db/conversations.server.ts";

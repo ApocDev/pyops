@@ -18,7 +18,6 @@ import * as store from "../db/conversations.server.ts";
 import * as compaction from "./conversation-compaction.ts";
 import * as cfg from "./app-config.server.ts";
 import { activeAssistantRunIds } from "./assistant-run-store.ts";
-import { generateConversationTitle } from "./conversation-title.server.ts";
 
 export const listConversationsFn = createServerFn({ method: "GET" }).handler(async () =>
   store.listConversations(),
@@ -135,13 +134,4 @@ export const setConversationReasoningEffortFn = createServerFn({ method: "POST" 
   .handler(async ({ data }) => {
     store.setConversationReasoningEffort(data.id, data.reasoningEffort);
     return { ok: true };
-  });
-
-/** Generate a short AI title for a conversation from its first exchange and save
- * it. No-ops (keeps the question-derived title) if there's no API key or the model
- * call fails. Returns the new title, or null. */
-export const generateTitleFn = createServerFn({ method: "POST" })
-  .validator((id: string) => id)
-  .handler(async ({ data }) => {
-    return { title: await generateConversationTitle(data) };
   });

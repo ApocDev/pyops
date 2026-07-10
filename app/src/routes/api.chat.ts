@@ -55,8 +55,9 @@ export const Route = createFileRoute("/api/chat")({
         const id = body.id;
         let messages = body.messages ?? [];
         if (!id) return new Response("Missing chat id.", { status: 400 });
+        const shouldGenerateTitle = !messages.some((m) => m.role === "assistant");
 
-        conv.saveConversation(id, toStored(messages));
+        conv.syncConversation(id, toStored(messages));
         let conversation = conv.getConversation(id);
         if (conversation) {
           const compacted = await compactMessagesForContext(
@@ -124,8 +125,8 @@ export const Route = createFileRoute("/api/chat")({
         return result.toUIMessageStreamResponse({
           originalMessages: messages,
           onFinish: ({ messages: finished, isAborted }) => {
-            conv.saveConversation(id, toStored(finished));
-            if (!isAborted) void generateConversationTitle(id);
+            conv.syncConversation(id, toStored(finished));
+            if (!isAborted && shouldGenerateTitle) void generateConversationTitle(id);
             finishAssistantRun(id, streamId);
           },
           consumeSseStream: ({ stream }) => recordAssistantStream(id, streamId, stream),

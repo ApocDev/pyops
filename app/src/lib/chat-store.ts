@@ -7,14 +7,14 @@
  *
  * Persistence is server-owned too: `/api/chat` saves submitted messages, streams
  * through a process-local replay buffer, and saves the finished assistant message.
- * The client store still saves after local edits so the sidebar updates quickly.
+ * The transport notifies listeners once the server accepts a send so the sidebar
+ * refreshes without a duplicate client-side history write.
  */
 import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 
 import {
   compactConversationFn,
-  generateTitleFn,
   getConversationFn,
   saveConversationFn,
 } from "#/server/conversations.ts";
@@ -23,7 +23,6 @@ export type ChatInstance = Chat<UIMessage>;
 
 const chats = new Map<string, ChatInstance>();
 const building = new Map<string, Promise<ChatInstance>>();
-const titled = new Set<string>();
 const listeners = new Set<() => void>();
 
 const notify = () => listeners.forEach((l) => l());
@@ -55,26 +54,6 @@ export function runningKey(): string {
 const messagesToStored = (messages: UIMessage[]) =>
   messages.map((m) => ({ id: m.id, role: m.role, parts: JSON.stringify(m.parts) }));
 
-const toStored = (chat: ChatInstance) => messagesToStored(chat.messages);
-
-async function persist(id: string) {
-  const chat = chats.get(id);
-  if (!chat || chat.messages.length === 0) return;
-  await saveConversationFn({ data: { id, messages: toStored(chat) } });
-  notify();
-}
-
-/** On the first completed turn, upgrade the title from the question-derived
- * placeholder to an AI summary of the exchange. */
-async function finishTurn(id: string) {
-  await persist(id);
-  if (!titled.has(id)) {
-    titled.add(id);
-    await generateTitleFn({ data: id });
-    notify();
-  }
-}
-
 async function build(id: string): Promise<ChatInstance> {
   const conv = await getConversationFn({ data: id });
   const messages: UIMessage[] = conv
@@ -82,17 +61,20 @@ async function build(id: string): Promise<ChatInstance> {
         (m) => ({ id: m.id, role: m.role, parts: JSON.parse(m.parts) }) as UIMessage,
       )
     : [];
-  if (messages.length) titled.add(id);
   const chat = new Chat<UIMessage>({
     id,
     messages,
     transport: new DefaultChatTransport({
       api: "/api/chat",
+      fetch: async (input, init) => {
+        const response = await fetch(input, init);
+        notify();
+        return response;
+      },
       prepareReconnectToStreamRequest: ({ id }) => ({
         api: `/api/chat?stream=${encodeURIComponent(id)}`,
       }),
     }),
-    onFinish: () => void finishTurn(id),
   });
   // status changes drive the nav run-indicator + sidebar refresh
   chat["~registerStatusCallback"](() => notify());
@@ -118,20 +100,16 @@ export function peekChat(id: string): ChatInstance | null {
   return chats.get(id) ?? null;
 }
 
-/** Send a message and persist immediately (so the chat shows in the list right
- * after submit); the final content + AI title persist again on finish. The save is
- * deferred to the next macrotask because the SDK appends the user message after an
- * internal await — by then `chat.messages` includes it. */
+/** Send a message. The API persists the submitted history before returning the
+ * stream response; the transport-level notification then refreshes the sidebar. */
 export async function sendInChat(id: string, text: string, messageId?: string) {
   const chat = await getChat(id);
   void chat.sendMessage({ text, messageId });
-  setTimeout(() => void persist(id), 0);
 }
 
 export async function retryInChat(id: string, messageId?: string) {
   const chat = await getChat(id);
   void chat.regenerate({ messageId });
-  setTimeout(() => void persist(id), 0);
 }
 
 export async function stopInChat(id: string) {
@@ -147,7 +125,7 @@ export async function stopInChat(id: string) {
     }),
   });
   await chat.stop();
-  await persist(id);
+  notify();
 }
 
 export async function branchChat(id: string, throughMessageId: string) {
@@ -155,7 +133,11 @@ export async function branchChat(id: string, throughMessageId: string) {
   const index = chat.messages.findIndex((m) => m.id === throughMessageId);
   if (index < 0) return null;
   const branchId = crypto.randomUUID();
-  const messages = chat.messages.slice(0, index + 1);
+  // Message ids are the table primary key, so a branch needs its own ids rather
+  // than inserting the source conversation's ids a second time.
+  const messages = chat.messages
+    .slice(0, index + 1)
+    .map((message) => ({ ...message, id: crypto.randomUUID() }));
   await saveConversationFn({ data: { id: branchId, messages: messagesToStored(messages) } });
   await getChat(branchId);
   return branchId;
@@ -182,6 +164,5 @@ export function dropChat(id: string) {
   const chat = chats.get(id);
   if (chat) void chat.stop();
   chats.delete(id);
-  titled.delete(id);
   notify();
 }

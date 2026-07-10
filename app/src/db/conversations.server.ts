@@ -3,7 +3,7 @@
  * project's db. `ensureSchema()` creates these tables idempotently on first use, so
  * every project db has them. schema.ts stays the canonical definition.
  */
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 
 import { db, currentDatabaseFile } from "./index.server.ts";
 import { conversationMessages, conversations } from "./schema.ts";
@@ -137,40 +137,86 @@ export function recordTurnUsage(id: string, usage: TurnUsage) {
     .run();
 }
 
-/** Upsert a conversation and replace its messages (the client sends the full,
- * authoritative message list after each turn). Skips empty chats. */
+function conversationValues(id: string, messages: StoredMessage[], title?: string) {
+  return {
+    id,
+    title: title?.trim() || deriveTitle(messages),
+    updatedAt: new Date(),
+  };
+}
+
+function messageValues(id: string, messages: StoredMessage[]) {
+  return messages.map((m, i) => ({
+    id: m.id,
+    conversationId: id,
+    role: m.role,
+    parts: m.parts,
+    seq: i,
+  }));
+}
+
+/** Upsert a conversation and replace its full message history. This is the
+ * explicit path for compaction, branching, and other history rewrites. Ordinary
+ * chat turns use `syncConversation` so unchanged rows are not deleted/reinserted.
+ * Skips empty chats. */
 export function saveConversation(id: string, messages: StoredMessage[], title?: string) {
   ensureSchema();
   if (!messages.length) return;
-  const now = new Date();
-  const finalTitle = title?.trim() || deriveTitle(messages);
-  const existing = db
-    .select({ model: conversations.model, reasoningEffort: conversations.reasoningEffort })
-    .from(conversations)
-    .where(eq(conversations.id, id))
-    .get();
+  const values = conversationValues(id, messages, title);
   db.transaction((tx) => {
     tx.insert(conversations)
-      .values({
-        id,
-        title: finalTitle,
-        model: existing?.model ?? null,
-        reasoningEffort: existing?.reasoningEffort ?? null,
-        updatedAt: now,
+      .values(values)
+      .onConflictDoUpdate({
+        target: conversations.id,
+        set: {
+          ...(title?.trim() ? { title: values.title } : {}),
+          updatedAt: values.updatedAt,
+        },
       })
-      .onConflictDoUpdate({ target: conversations.id, set: { title: finalTitle, updatedAt: now } })
       .run();
     tx.delete(conversationMessages).where(eq(conversationMessages.conversationId, id)).run();
-    tx.insert(conversationMessages)
-      .values(
-        messages.map((m, i) => ({
-          id: m.id,
-          conversationId: id,
-          role: m.role,
-          parts: m.parts,
-          seq: i,
-        })),
+    tx.insert(conversationMessages).values(messageValues(id, messages)).run();
+  });
+}
+
+/** Persist the authoritative message list for an ordinary submit/finish without
+ * churning the unchanged prefix. Upserts current rows and truncates a stale tail
+ * left by retry or edit-and-resend. The title is derived only when the
+ * conversation is first inserted; later turns preserve AI/manual titles. */
+export function syncConversation(id: string, messages: StoredMessage[]) {
+  ensureSchema();
+  if (!messages.length) return;
+  const values = conversationValues(id, messages);
+  db.transaction((tx) => {
+    tx.insert(conversations)
+      .values(values)
+      .onConflictDoUpdate({
+        target: conversations.id,
+        set: {
+          title: sql`CASE WHEN ${conversations.title} IS NULL OR ${conversations.title} = 'New chat' THEN excluded.title ELSE ${conversations.title} END`,
+          updatedAt: values.updatedAt,
+        },
+      })
+      .run();
+    tx.delete(conversationMessages)
+      .where(
+        and(
+          eq(conversationMessages.conversationId, id),
+          gte(conversationMessages.seq, messages.length),
+        ),
       )
+      .run();
+    tx.insert(conversationMessages)
+      .values(messageValues(id, messages))
+      .onConflictDoUpdate({
+        target: conversationMessages.id,
+        set: {
+          conversationId: sql`excluded.conversation_id`,
+          role: sql`excluded.role`,
+          parts: sql`excluded.parts`,
+          seq: sql`excluded.seq`,
+        },
+      })
       .run();
   });
 }
