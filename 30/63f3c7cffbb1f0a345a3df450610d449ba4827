@@ -1,0 +1,21 @@
+README.md
+  s_f4c2886980ec79::t_41d139f5656a4d 73
+mod/info.json
+  s_f4c2886980ec79::t_9dfa805112089b 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "3063f3c7cffbb1f0a345a3df450610d449ba4827",
+  "prompts": {},
+  "sessions": {
+    "s_f4c2886980ec79": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4cb7-e952-7ce3-a0bf-59b222371715",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
