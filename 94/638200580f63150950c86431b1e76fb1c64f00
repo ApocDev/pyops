@@ -1,0 +1,27 @@
+app/src/server/agent-tools.server.ts
+  s_21469cb56eb466::t_b8dacb4fc7c70f 1318
+app/src/server/bridge/server.ts
+  s_21469cb56eb466::t_dafa1c65ee020f 170-171
+docs/ai-assistant.md
+  s_21469cb56eb466::t_ce691949c60645 310-313
+docs/bridge.md
+  s_21469cb56eb466::t_29c6778980bece 30-32
+mod/control.lua
+  s_21469cb56eb466::t_62ba31edd5f2db 254-257,273-276,328-338,882-905,1163-1184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "94638200580f63150950c86431b1e76fb1c64f00",
+  "prompts": {},
+  "sessions": {
+    "s_21469cb56eb466": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4d56-fe7b-79f1-b919-0a5cec819cb9",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
