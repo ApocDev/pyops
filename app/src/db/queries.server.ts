@@ -9,7 +9,7 @@
  */
 import { createHash } from "node:crypto";
 import { and, eq, inArray, isNotNull, sql, type AnyColumn } from "drizzle-orm";
-import { currentDatabaseFile, db } from "./index.server.ts";
+import { db } from "./index.server.ts";
 import {
   recipes,
   recipeIngredients,
@@ -2603,17 +2603,23 @@ export function getExclusions(): { globs: string[] } {
 }
 export function setExclusions(x: { globs?: string[] }) {
   metaSet("excluded", JSON.stringify({ globs: x.globs ?? [] }));
-  clearExclusionCache();
 }
 
-let _exclCache: RegExp[] | null = null;
+let _exclCache: { source: string; globs: RegExp[] } | null = null;
 function exclusionGlobs(): RegExp[] {
-  _exclCache ??= [...DEFAULT_EXCLUDE_GLOBS, ...getExclusions().globs].map(globToRegex);
-  return _exclCache;
-}
-/** Call after setExclusions so live queries recompile. */
-export function clearExclusionCache() {
-  _exclCache = null;
+  // SQLite remains authoritative: read the current value before reusing the
+  // compiled regexes. Keying by the value itself makes project switches,
+  // external writes and same-path project recreation safe without an
+  // invalidation registry.
+  const userGlobs = getExclusions().globs;
+  const source = JSON.stringify(userGlobs);
+  if (_exclCache?.source !== source) {
+    _exclCache = {
+      source,
+      globs: [...DEFAULT_EXCLUDE_GLOBS, ...userGlobs].map(globToRegex),
+    };
+  }
+  return _exclCache.globs;
 }
 /** True if any exclusion glob matches any of the given fields (name/subgroup/category). */
 export function isExcluded(...fields: (string | null | undefined)[]): boolean {
@@ -2961,20 +2967,13 @@ function packsForTechs(techs: Set<string>): Set<string> {
 }
 
 /** A tech's full prerequisite closure (techs + the union of their science
- * packs), memoized per active project db — the tech graph is static data, only
- * changing on a data re-import (like `_horizonCache`, which caches the target's
- * closure the same way). File-keyed so a project switch reads the right graph. */
-const _closureCache = new Map<string, Map<string, { techs: Set<string>; packs: Set<string> }>>();
+ * packs). This deliberately reads SQLite on each operation: reference data can
+ * be replaced in-process by a data sync, so a process-wide closure cache would
+ * need a second invalidation contract beside the database. Hot block solves use
+ * createBlockSolveContext's request-scoped bulk graph below. */
 function techClosure(tech: string): { techs: Set<string>; packs: Set<string> } {
-  const file = currentDatabaseFile();
-  let byTech = _closureCache.get(file);
-  if (!byTech) _closureCache.set(file, (byTech = new Map()));
-  let e = byTech.get(tech);
-  if (!e) {
-    const techs = techPrereqClosure(tech);
-    byTech.set(tech, (e = { techs, packs: packsForTechs(techs) }));
-  }
-  return e;
+  const techs = techPrereqClosure(tech);
+  return { techs, packs: packsForTechs(techs) };
 }
 
 /** Science packs still missing to reach `tech` under the horizon: the packs of
@@ -3243,9 +3242,7 @@ export function researchPath(target: string): ResearchPathResult {
   };
 }
 
-let _horizonCache: ResearchHorizon | null = null;
 export function getResearchHorizon(): ResearchHorizon {
-  if (_horizonCache) return _horizonCache;
   const m = metaAll();
   const parse = (k: string): string[] => {
     try {
@@ -3262,17 +3259,15 @@ export function getResearchHorizon(): ResearchHorizon {
     const target = m.horizon_target || null;
     const u = target ? unlockTechForGood(target) : null;
     const packs = u ? packsForTechs(techPrereqClosure(u.tech)) : new Set<string>();
-    _horizonCache = { mode, packs, researched: new Set(), target, targetTech: u?.tech ?? null };
-    return _horizonCache;
+    return { mode, packs, researched: new Set(), target, targetTech: u?.tech ?? null };
   }
-  _horizonCache = {
+  return {
     mode,
     packs: new Set(parse("available_science_packs")),
     researched: new Set(parse("researched_techs")),
     target: null,
     targetTech: null,
   };
-  return _horizonCache;
 }
 export function setResearchHorizon(x: {
   mode?: "now" | "future" | "target";
@@ -3304,7 +3299,6 @@ export function setResearchHorizon(x: {
       metaSet("research_recipe_productivity_bonuses", JSON.stringify(clean));
     }
   }
-  _horizonCache = null;
 }
 
 /** The tech set actually completed (bridge-synced from the save, or manually

@@ -38,6 +38,20 @@ export function switchDatabase(file: string) {
   activeFile = file;
 }
 
+/** Close and forget a cached connection.
+ *
+ * Project files can be moved out of the active set and their paths can later be
+ * reused. Closing before either operation prevents a cached SQLite handle from
+ * continuing to point at the old file/inode. The proxy will reconnect and run
+ * migrations on the next access if this is the active file. */
+export function evictDatabase(file: string): boolean {
+  const c = connections.get(file);
+  if (!c) return false;
+  c.$client.close();
+  connections.delete(file);
+  return true;
+}
+
 export function currentDatabaseFile(): string {
   return activeFile;
 }

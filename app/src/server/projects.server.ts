@@ -6,7 +6,7 @@
  * proxy; creating provisions a fresh db with the current schema by applying the
  * bundled migrations, then the user runs a data sync to fill it.
  */
-import { currentDatabaseFile, switchDatabase } from "../db/index.server.ts";
+import { currentDatabaseFile, evictDatabase, switchDatabase } from "../db/index.server.ts";
 import {
   DEFAULT_ID,
   fileForProject,
@@ -54,6 +54,10 @@ export async function createProject(name: string): Promise<Project> {
   while (existing.has(id) || id === DEFAULT_ID) id = `${id}-2`;
   const dbFile = fileForProject(id);
 
+  // A removed project id may be reused. Ensure no legacy cached handle still
+  // points at the old file that previously occupied this path.
+  evictDatabase(dbFile);
+
   // provision the schema in-process by applying the bundled drizzle migrations
   migrateToLatest(dbFile);
 
@@ -74,9 +78,15 @@ export async function setActiveProject(id: string) {
  * recoverable) and the active project falls back to default. */
 export async function removeProject(id: string) {
   if (id === DEFAULT_ID) throw new Error("the default project can't be removed");
-  removeProjectFiles(id);
+  const dbFile = fileForProject(id);
   if (readAppConfig().active === id) {
     writeAppConfig({ active: DEFAULT_ID });
+  }
+  if (currentDatabaseFile() === dbFile) {
     switchDatabase(fileForProject(DEFAULT_ID));
   }
+  // SQLite may have live WAL/SHM sidecars. Close the owning connection before
+  // moving the project and all of its files to the recovery directory.
+  evictDatabase(dbFile);
+  removeProjectFiles(id);
 }
