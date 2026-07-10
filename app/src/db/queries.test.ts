@@ -1,10 +1,11 @@
 import { sql } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { db, switchDatabase } from "./index.server.ts";
 import {
   blockBuildStatus,
   blockMissingRefs,
   blockReferenceFingerprint,
+  browseDetail,
   buildCost,
   createGroup,
   dataCapabilities,
@@ -550,6 +551,71 @@ describe("recipeCandidates availability: prerequisite-gated techs (empty own cos
     });
     const exotic = recipeCandidates("circuit", "produce").find((c) => c.name === "circuit-exotic")!;
     expect(exotic.avail.research).toBe("available");
+  });
+});
+
+describe("batched recipe reads", () => {
+  const preparedStatements = <T>(read: () => T): { result: T; count: number } => {
+    const prepare = vi.spyOn(db.$client, "prepare");
+    try {
+      const result = read();
+      return { result, count: prepare.mock.calls.length };
+    } finally {
+      prepare.mockRestore();
+    }
+  };
+
+  const seedBulkCategory = () => {
+    db.run(sql`UPDATE recipes SET category = 'bulk-crafting'`);
+    db.run(
+      sql`INSERT INTO machine_categories (machine, category) VALUES ('furnace', 'bulk-crafting')`,
+    );
+  };
+
+  const seedBulkRecipes = (count: number) => {
+    for (let i = 0; i < count; i++) {
+      const recipe = `bulk-plate-${i}`;
+      db.run(sql`
+        INSERT INTO recipes (name, display, kind, category, hidden, enabled)
+        VALUES (${recipe}, ${`Bulk plate ${i}`}, 'real', 'bulk-crafting', 0, 1)
+      `);
+      db.run(sql`
+        INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount)
+        VALUES (${recipe}, 0, 'item', 'gear', 2)
+      `);
+      db.run(sql`
+        INSERT INTO recipe_products (recipe, idx, kind, name, amount)
+        VALUES (${recipe}, 0, 'item', 'plate', 1)
+      `);
+    }
+  };
+
+  it("keeps recipe-candidate statement count flat as candidate count grows", () => {
+    seedBulkCategory();
+    const small = preparedStatements(() => recipeCandidates("plate", "produce"));
+    seedBulkRecipes(24);
+    const large = preparedStatements(() => recipeCandidates("plate", "produce"));
+
+    expect(small.result).toHaveLength(1);
+    expect(large.result).toHaveLength(25);
+    expect(large.count).toBeLessThanOrEqual(small.count + 2);
+    expect(large.result.find((r) => r.name === "bulk-plate-0")?.ingredients).toEqual([
+      { kind: "item", name: "gear", display: "Gear", amount: 2 },
+    ]);
+  });
+
+  it("keeps browser-detail statement count flat and preserves card enrichment", () => {
+    seedBulkCategory();
+    const small = preparedStatements(() => browseDetail("plate"));
+    seedBulkRecipes(24);
+    const large = preparedStatements(() => browseDetail("plate"));
+
+    expect(large.count).toBeLessThanOrEqual(small.count + 2);
+    expect(large.result?.producedBy).toHaveLength((small.result?.producedBy.length ?? 0) + 24);
+    const card = large.result?.producedBy.find((r) => r.name === "bulk-plate-0");
+    expect(card?.machines).toEqual([{ name: "furnace", display: null, craftingSpeed: 1 }]);
+    expect(card?.ingredients).toEqual([{ kind: "item", name: "gear", display: "Gear", amount: 2 }]);
+    expect(card?.unlocks).toEqual([]);
   });
 });
 

@@ -2621,10 +2621,12 @@ function exclusionGlobs(): RegExp[] {
   }
   return _exclCache.globs;
 }
+function matchesExclusion(globs: RegExp[], ...fields: (string | null | undefined)[]): boolean {
+  return fields.some((f) => f != null && globs.some((g) => g.test(f)));
+}
 /** True if any exclusion glob matches any of the given fields (name/subgroup/category). */
 export function isExcluded(...fields: (string | null | undefined)[]): boolean {
-  const globs = exclusionGlobs();
-  return fields.some((f) => f != null && globs.some((g) => g.test(f)));
+  return matchesExclusion(exclusionGlobs(), ...fields);
 }
 
 /* ── Logistics (belts / loaders / inserters) for the throughput display (#21) ─── */
@@ -4028,15 +4030,19 @@ const BARREL_CATEGORIES = new Set(["py-barreling", "py-unbarreling", "barreling"
  * tech-locked next, unselected-TURD after, barrel fill/empty dead last —
  * useful at times, rarely what you actually want. */
 export function recipeCandidates(name: string, mode: "produce" | "consume") {
+  const exclusions = exclusionGlobs();
   const base = (mode === "produce" ? recipesProducing(name) : recipesConsuming(name)).filter(
-    (r) => !isExcluded(r.name, r.category, r.subgroup),
+    (r) => !matchesExclusion(exclusions, r.name, r.category, r.subgroup),
   );
-  const costs = recipeCosts(base.map((r) => r.name));
-  const supersededMap = turdSuperseded(base.map((r) => r.name));
+  const recipeNames = base.map((r) => r.name);
+  const costs = recipeCosts(recipeNames);
+  const supersededMap = turdSuperseded(recipeNames);
+  const recipesByNameMap = recipesByName(recipeNames);
+  const locksByRecipe = recipeLockStatesByRecipe(recipeNames);
   const horizon = getResearchHorizon();
   const selections = getTurdSelections();
   const rows = base.map((r) => {
-    const unlocks = recipeLockState(r.name);
+    const unlocks = locksByRecipe.get(r.name) ?? [];
     const turd = unlocks.find((u) => u.isTurdSub);
     const avail = computeAvail(r.enabled, unlocks, horizon, selections);
     const available = r.enabled || (turd ? turd.turdSelected : unlocks.length > 0); // tech-locked counts as obtainable
@@ -4047,7 +4053,7 @@ export function recipeCandidates(name: string, mode: "produce" | "consume") {
     if (superseded) rank = Math.max(rank, 6); // the selected TURD removed it in-game
     if (BARREL_CATEGORIES.has(r.category ?? "")) rank += 10;
     // io summary so lookalike recipes (Py loves reusing names) tell apart at a glance
-    const full = getRecipe(r.name);
+    const full = recipesByNameMap.get(r.name);
     const comp = (c: {
       kind: string;
       name: string;
@@ -4089,15 +4095,16 @@ export function recipeCandidates(name: string, mode: "produce" | "consume") {
 
 /** A recipe with everything the browser shows on one row: io, machines,
  * unlock state (start-enabled / tech / TURD choice + whether it's active). */
-function recipeCard(name: string) {
-  const r = getRecipe(name);
-  if (!r) return null;
-  const machines = machinesForRecipe(name).map((m) => ({
+function recipeCard(
+  r: NonNullable<ReturnType<typeof getRecipe>>,
+  machineRows: ReturnType<typeof machinesForRecipe>,
+  unlocks: RecipeLockState,
+) {
+  const machines = machineRows.map((m) => ({
     name: m.name,
     display: m.display,
     craftingSpeed: m.craftingSpeed,
   }));
-  const unlocks = recipeLockState(name);
   return {
     name: r.name,
     display: r.display,
@@ -4124,7 +4131,7 @@ function recipeCard(name: string) {
     unlocks,
   };
 }
-export type RecipeCardData = NonNullable<ReturnType<typeof recipeCard>>;
+export type RecipeCardData = ReturnType<typeof recipeCard>;
 
 /** Everything the browser's detail pane needs for one item/fluid: recipe cards
  * enriched with the explorer measures (#97) — economy cost/flow/waste, the
@@ -4136,12 +4143,23 @@ export function browseDetail(name: string) {
   if (!item && !fluid) return null;
   const horizon = getResearchHorizon();
   const selections = getTurdSelections();
+  const producedBy = recipesProducing(name);
+  const consumedBy = recipesConsuming(name);
+  const recipeNames = [...new Set([...producedBy, ...consumedBy].map((r) => r.name))];
+  const recipeMap = recipesByName(recipeNames);
+  const machineMap = machinesForRecipes(recipeNames);
+  const lockMap = recipeLockStatesByRecipe(recipeNames);
+  const eco = recipeEconomy(recipeNames);
+  const superseded = turdSuperseded(recipeNames);
   const cards = (rs: { name: string }[]) => {
-    const eco = recipeEconomy(rs.map((r) => r.name));
-    const superseded = turdSuperseded(rs.map((r) => r.name));
     return rs
-      .map((r) => recipeCard(r.name))
-      .filter((c): c is RecipeCardData => !!c)
+      .map((row) => {
+        const recipe = recipeMap.get(row.name);
+        return recipe
+          ? recipeCard(recipe, machineMap.get(row.name) ?? [], lockMap.get(row.name) ?? [])
+          : null;
+      })
+      .filter((c): c is RecipeCardData => c !== null)
       .map((c) => ({
         ...c,
         ...(eco.get(c.name) ?? { cost: null, flow: null, waste: null }),
@@ -4157,8 +4175,8 @@ export function browseDetail(name: string) {
     fluid,
     // false until a cost-analysis recompute adds flow/waste (pre-#97 DBs)
     flowComputed: recipeFlowsComputed(),
-    producedBy: cards(recipesProducing(name)),
-    consumedBy: cards(recipesConsuming(name)),
+    producedBy: cards(producedBy),
+    consumedBy: cards(consumedBy),
   };
 }
 
