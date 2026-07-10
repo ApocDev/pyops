@@ -1,0 +1,19 @@
+app/src/routes/__root.tsx
+  s_459c7b4fcf2ba6::t_20f882a1bbe4f7 62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "aa9a32383acb84a498660a2bce8885bc598e637f",
+  "prompts": {},
+  "sessions": {
+    "s_459c7b4fcf2ba6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4963-d4c3-78d1-891b-366c36f1240e",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
