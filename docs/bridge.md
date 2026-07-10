@@ -27,6 +27,9 @@ on any page. The same tab hosts the companion-mod installer (see below).
   as the solver's synthetic `mine-<resource>` recipe, so built-vs-required lines up
   per ore), and item production stats — pushed on connect and on relevant in-game
   events, always as the full authoritative set (no delta merging on the app side).
+  Machine build/mine/death/recipe changes are debounced into a full refresh within
+  one second, independent of whether the in-game panel is open; a once-per-minute
+  reconciliation catches changes made by scripts that do not raise those events.
 - **Commands → game:** show a production-block panel in-game (`cmd.show_block`)
   and close it again (`cmd.hide_block`), locate producers/consumers/storage
   (`cmd.locate`, relayed to the

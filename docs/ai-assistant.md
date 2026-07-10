@@ -307,9 +307,10 @@ count }[]` (fractional, module/TURD-beacon effects folded in — the same
   machine, the required WHOLE-building count (ceiled from `block_machines`'
   cached solved count — the same source `buildings` reports), the built count
   from `built_machines`, and the missing delta. Works entirely offline (no
-  bridge round-trip, no re-solve) — the answer is only as fresh as the last
-  save-load/Sync in the PyOps panel, so the tool returns `syncedAt`/
-  `syncedCount` and its description tells the agent to flag staleness. Pass a
+  bridge round-trip, no re-solve). While the bridge is connected, build, mine,
+  death, and recipe changes refresh the snapshot within about one second without
+  opening the in-game panel; the tool still returns `syncedAt`/`syncedCount` so
+  the agent can flag stale offline data. Pass a
   `blockId` (a `factoryBlocks` id) for one block's full breakdown, even fully
   built or disabled (`limit` is ignored in this mode); omit it to list up to
   `limit` (1–30, default 10) **enabled** blocks with a shortfall, worst-missing

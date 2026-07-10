@@ -167,8 +167,8 @@ export function ensureBridge(): BridgeRuntime {
 }
 
 /** Send a message to the last peer we heard from (the connected mod). Returns
- * false if no peer is known yet. Used to ask the mod to push its state on demand
- * (the mod receives this only while its panel is open and polling). */
+ * false if no peer is known yet. Used to ask the mod to push its state on demand;
+ * the mod polls for these messages independently of its panel visibility. */
 export function sendToPeer(msg: BridgeResponse): boolean {
   const r = globalRef.__pyopsBridge;
   if (!r?.socket || !r.lastPeer) return false;
