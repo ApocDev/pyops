@@ -427,6 +427,7 @@ export function RecipeRow({
                   display={c.display}
                   rate={c.rate}
                   temp={c.temp}
+                  spoilTicks={spoilables[c.name]}
                   link={linkOf(c.name)}
                   onClick={() => open.useFor(c.name)}
                   onContext={(e) =>

@@ -1,6 +1,6 @@
 import { Flame } from "lucide-react";
 import { ItemHover } from "../../lib/recipe-card";
-import { Icon } from "../../lib/icons";
+import { fmtSpoilTime, Icon } from "../../lib/icons";
 import { rateLabel } from "./format.ts";
 
 /** A block item's role under the current solve — drives the chip colour so it's
@@ -26,6 +26,7 @@ export function ItemChip({
   display,
   rate,
   temp,
+  spoilTicks,
   link,
   craftable,
   fuel,
@@ -38,6 +39,8 @@ export function ItemChip({
   rate?: number;
   /** temperature label for fluids ("125°", "≤101°") — shown after the rate */
   temp?: string | null;
+  /** visible spoil time for a product; ingredient chips leave this unset */
+  spoilTicks?: number;
   link: Link;
   craftable?: boolean;
   fuel?: boolean;
@@ -51,6 +54,7 @@ export function ItemChip({
     : link === "import"
       ? "raw input — supply externally"
       : link;
+  const spoilTime = spoilTicks != null ? fmtSpoilTime(spoilTicks) : null;
   return (
     <span className="inline-flex items-center gap-1">
       <ItemHover
@@ -67,7 +71,7 @@ export function ItemChip({
             e.preventDefault();
             onContext(e);
           }}
-          aria-label={`${display ?? name}${rate != null ? ` ${rateLabel(name, rate, { perSec: true })}` : ""} · ${why}`}
+          aria-label={`${display ?? name}${rate != null ? ` ${rateLabel(name, rate, { perSec: true })}` : ""}${spoilTime ? ` · spoils in ${spoilTime}` : ""} · ${why}`}
           className={`flex items-center gap-1 px-1.5 py-1 text-sm hover:brightness-95 ${cls}`}
         >
           <span className="relative flex">
@@ -81,6 +85,16 @@ export function ItemChip({
             )}
           </span>
           {rate != null && <span>{rateLabel(name, rate)}</span>}
+          {spoilTime && (
+            <>
+              <span aria-hidden className="text-muted-foreground">
+                ·
+              </span>
+              <span data-item-spoil-time className="text-warning">
+                {spoilTime}
+              </span>
+            </>
+          )}
           {temp && <span className="text-sm text-muted-foreground">{temp}</span>}
         </button>
       </ItemHover>

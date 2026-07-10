@@ -6,41 +6,39 @@ import { RecipeSpoilageIndicator } from "./recipe-spoilage-indicator.tsx";
 afterEach(cleanup);
 
 describe("RecipeSpoilageIndicator", () => {
-  it("shows a spoil time for a recipe with one spoilable item product", () => {
+  it("marks a recipe with one spoilable item product without repeating its time", () => {
     const { getByLabelText } = render(
       <RecipeSpoilageIndicator
-        products={[{ name: "petri-dish-bacteria", kind: "item", display: "Incubated petri dish" }]}
+        products={[{ name: "petri-dish-bacteria", kind: "item" }]}
         spoilables={{ "petri-dish-bacteria": 2_700 }}
       />,
     );
 
-    const indicator = getByLabelText("Produces Incubated petri dish, which spoils in 45s");
-    expect(indicator.textContent).toContain("45s");
+    const indicator = getByLabelText("has spoilable products");
+    expect(indicator.textContent).toBe("");
+    expect(indicator.getAttribute("data-state")).toBeNull();
   });
 
-  it("summarizes every spoilable output of a multi-product recipe", () => {
-    const { getByRole } = render(
+  it("still renders only one marker for many spoilable products", () => {
+    const { getByLabelText } = render(
       <RecipeSpoilageIndicator
         products={[
-          { name: "agar", kind: "item", display: "Agar" },
-          { name: "cellulose", kind: "item", display: "Cellulose" },
-          { name: "steam", kind: "fluid", display: "Steam" },
+          { name: "agar", kind: "item" },
+          { name: "cellulose", kind: "item" },
+          { name: "steam", kind: "fluid" },
         ]}
         spoilables={{ agar: 18_000, cellulose: 36_000, steam: 60 }}
       />,
     );
 
-    const indicator = getByRole("img");
-    expect(indicator.getAttribute("aria-label")).toBe(
-      "Spoilable products:\nAgar — 5m\nCellulose — 10m",
-    );
-    expect(indicator.textContent).toContain("2 spoil");
+    const indicator = getByLabelText("has spoilable products");
+    expect(indicator.querySelectorAll("svg")).toHaveLength(1);
   });
 
   it("renders nothing when none of the recipe products spoil", () => {
     const { container } = render(
       <RecipeSpoilageIndicator
-        products={[{ name: "iron-plate", kind: "item", display: "Iron plate" }]}
+        products={[{ name: "iron-plate", kind: "item" }]}
         spoilables={{ agar: 18_000 }}
       />,
     );
