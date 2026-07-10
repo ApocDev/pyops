@@ -306,6 +306,28 @@ export function recipesConsuming(name: string) {
     .all();
 }
 
+function recipesConsumingByGoods(names: string[]): Map<string, RecipeSummaryRow[]> {
+  const uniq = [...new Set(names)].filter((n) => n);
+  const out = new Map<string, RecipeSummaryRow[]>();
+  for (const name of uniq) out.set(name, []);
+  if (!uniq.length) return out;
+  const rows = db
+    .selectDistinct({
+      good: recipeIngredients.name,
+      ...recipeSummary,
+    })
+    .from(recipeIngredients)
+    .innerJoin(recipes, eq(recipes.name, recipeIngredients.recipe))
+    .where(inArray(recipeIngredients.name, uniq))
+    .all();
+  for (const { good, ...recipe } of rows) {
+    const list = out.get(good) ?? [];
+    list.push(recipe);
+    out.set(good, list);
+  }
+  return out;
+}
+
 export type BuildCost = {
   buildings: { name: string; display: string; count: number; recipe: string | null }[];
   materials: { name: string; kind: string; display: string; amount: number }[];
@@ -431,13 +453,25 @@ export function fluidFuelEntry(name: string) {
  * caller doesn't restrict; this answers the NOW question. Reuses computeAvail so
  * machine eligibility matches recipe eligibility exactly. */
 export function availableMachines(machineNames: string[]): Set<string> {
+  const uniq = [...new Set(machineNames)].filter((name) => name);
+  if (!uniq.length) return new Set();
+  const craftsByMachine = recipesProducingByGoods(uniq);
+  const craftRows = [
+    ...new Map(
+      [...craftsByMachine.values()].flat().map((recipe) => [recipe.name, recipe]),
+    ).values(),
+  ];
   const h = getResearchHorizon();
   const selections = getTurdSelections();
+  const locks = recipeLockStatesByRecipe(
+    craftRows.map((recipe) => recipe.name),
+    new Set(selections.values()),
+  );
+  const availability = computeAvailByRecipe(craftRows, locks, h, selections);
   const out = new Set<string>();
-  for (const name of new Set(machineNames)) {
-    const crafts = recipesProducing(name); // recipes that build the machine item
-    const ok = crafts.some(
-      (r) => computeAvail(r.enabled, recipeLockState(r.name), h, selections).availableNow,
+  for (const name of uniq) {
+    const ok = (craftsByMachine.get(name) ?? []).some(
+      (recipe) => availability.get(recipe.name)?.availableNow,
     );
     if (ok) out.add(name);
   }
@@ -474,32 +508,82 @@ export function unlockedItems(names: string[]): Set<string> {
 /** Machines that can run a recipe, enriched with availability for the building
  * picker: whether the machine is buildable at game start, which techs unlock it
  * (its tier signal — e.g. smelters-mk04), and whether it's available right now. */
-export function machineOptionsForRecipe(recipeName: string) {
-  const machines = machinesForRecipe(recipeName);
-  const available = availableMachines(machines.map((m) => m.name));
-  const category = db
-    .select({ category: recipes.category })
-    .from(recipes)
-    .where(eq(recipes.name, recipeName))
-    .get()?.category;
-  const favorite = category ? (getFavoriteMachines()[category] ?? null) : null;
-  return machines.map((m) => {
-    const crafts = recipesProducing(m.name); // recipes that build the machine item
-    const startEnabled = crafts.some((r) => r.enabled);
-    const unlockedBy = dedupeBy(
-      crafts
-        .flatMap((r) => recipeUnlocks(r.name))
-        .map((u) => ({ tech: u.tech, display: u.display })),
-      (u) => u.tech,
+type MachineOption = ReturnType<typeof machinesForRecipe>[number] & {
+  startEnabled: boolean;
+  unlockedBy: { tech: string; display: string | null }[];
+  availableNow: boolean;
+  favorite: boolean;
+};
+
+/** Request-scoped machine enrichment for several recipe candidates. */
+export function machineOptionsForRecipes(recipeNames: string[]): Map<string, MachineOption[]> {
+  const uniq = [...new Set(recipeNames)].filter((name) => name);
+  const out = new Map<string, MachineOption[]>();
+  for (const name of uniq) out.set(name, []);
+  if (!uniq.length) return out;
+
+  const machinesByRecipe = machinesForRecipes(uniq);
+  const machineNames = [
+    ...new Set([...machinesByRecipe.values()].flat().map((machine) => machine.name)),
+  ];
+  const craftsByMachine = recipesProducingByGoods(machineNames);
+  const craftRows = [
+    ...new Map(
+      [...craftsByMachine.values()].flat().map((recipe) => [recipe.name, recipe]),
+    ).values(),
+  ];
+  const selections = getTurdSelections();
+  const locksByRecipe = recipeLockStatesByRecipe(
+    craftRows.map((recipe) => recipe.name),
+    new Set(selections.values()),
+  );
+  const availability = computeAvailByRecipe(
+    craftRows,
+    locksByRecipe,
+    getResearchHorizon(),
+    selections,
+  );
+  const categories = new Map(
+    db
+      .select({ name: recipes.name, category: recipes.category })
+      .from(recipes)
+      .where(inArray(recipes.name, uniq))
+      .all()
+      .map((recipe) => [recipe.name, recipe.category]),
+  );
+  const favorites = getFavoriteMachines();
+
+  for (const recipeName of uniq) {
+    const category = categories.get(recipeName);
+    const favorite = category ? (favorites[category] ?? null) : null;
+    out.set(
+      recipeName,
+      (machinesByRecipe.get(recipeName) ?? []).map((machine) => {
+        const crafts = craftsByMachine.get(machine.name) ?? [];
+        const unlockedBy = dedupeBy(
+          crafts.flatMap((recipe) =>
+            (locksByRecipe.get(recipe.name) ?? []).map((unlock) => ({
+              tech: unlock.tech,
+              display: unlock.display,
+            })),
+          ),
+          (unlock) => unlock.tech,
+        );
+        return {
+          ...machine,
+          startEnabled: crafts.some((recipe) => recipe.enabled),
+          unlockedBy,
+          availableNow: crafts.some((recipe) => availability.get(recipe.name)?.availableNow),
+          favorite: machine.name === favorite,
+        };
+      }),
     );
-    return {
-      ...m,
-      startEnabled,
-      unlockedBy,
-      availableNow: available.has(m.name),
-      favorite: m.name === favorite,
-    };
-  });
+  }
+  return out;
+}
+
+export function machineOptionsForRecipe(recipeName: string) {
+  return machineOptionsForRecipes([recipeName]).get(recipeName) ?? [];
 }
 function dedupeBy<T>(arr: T[], key: (x: T) => string): T[] {
   const seen = new Set<string>();
@@ -4417,68 +4501,87 @@ const BARREL_CATEGORIES = new Set(["py-barreling", "py-unbarreling", "barreling"
  * sorted: available first (cheapest first within a tier, per cost analysis),
  * tech-locked next, unselected-TURD after, barrel fill/empty dead last —
  * useful at times, rarely what you actually want. */
-export function recipeCandidates(name: string, mode: "produce" | "consume") {
+export function recipeCandidatesBatch(names: string[], mode: "produce" | "consume") {
+  const uniq = [...new Set(names)].filter((name) => name);
+  if (!uniq.length) return new Map<string, never[]>();
+
   const exclusions = exclusionGlobs();
-  const base = (mode === "produce" ? recipesProducing(name) : recipesConsuming(name)).filter(
-    (r) => !matchesExclusion(exclusions, r.name, r.category, r.subgroup),
-  );
-  const recipeNames = base.map((r) => r.name);
+  const baseByGood =
+    mode === "produce" ? recipesProducingByGoods(uniq) : recipesConsumingByGoods(uniq);
+  for (const [good, rows] of baseByGood)
+    baseByGood.set(
+      good,
+      rows.filter((r) => !matchesExclusion(exclusions, r.name, r.category, r.subgroup)),
+    );
+  const allBase = [...baseByGood.values()].flat();
+  const recipeNames = [...new Set(allBase.map((recipe) => recipe.name))];
   const costs = recipeCosts(recipeNames);
   const supersededMap = turdSuperseded(recipeNames);
   const recipesByNameMap = recipesByName(recipeNames);
-  const locksByRecipe = recipeLockStatesByRecipe(recipeNames);
-  const horizon = getResearchHorizon();
   const selections = getTurdSelections();
-  const rows = base.map((r) => {
-    const unlocks = locksByRecipe.get(r.name) ?? [];
-    const turd = unlocks.find((u) => u.isTurdSub);
-    const avail = computeAvail(r.enabled, unlocks, horizon, selections);
-    const available = r.enabled || (turd ? turd.turdSelected : unlocks.length > 0); // tech-locked counts as obtainable
-    // available-now (start-enabled or its unlock tech is researched/reached) ranks
-    // above tech-locked-but-not-yet-researched
-    let rank = r.enabled ? 0 : turd ? (turd.turdSelected ? 1 : 3) : avail.availableNow ? 1 : 2;
-    const superseded = supersededMap.get(r.name) ?? null;
-    if (superseded) rank = Math.max(rank, 6); // the selected TURD removed it in-game
-    if (BARREL_CATEGORIES.has(r.category ?? "")) rank += 10;
-    // io summary so lookalike recipes (Py loves reusing names) tell apart at a glance
-    const full = recipesByNameMap.get(r.name);
-    const comp = (c: {
-      kind: string;
-      name: string;
-      display: string | null;
-      amount?: number | null;
-    }) => ({
-      kind: c.kind,
-      name: c.name,
-      display: c.display,
-      amount: c.amount ?? 0,
-    });
-    return {
-      ...r,
-      unlocks,
-      turd: turd ?? null,
-      available,
-      avail,
-      rank,
-      cost: costs.get(r.name) ?? null,
-      superseded,
-      ingredients: (full?.ingredients ?? []).map(comp),
-      products: (full?.products ?? []).map((c) =>
-        comp({
-          ...c,
-          amount:
-            c.amount ??
-            (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0),
-        }),
-      ),
-    };
+  const locksByRecipe = recipeLockStatesByRecipe(recipeNames, new Set(selections.values()));
+  const horizon = getResearchHorizon();
+  const availability = computeAvailByRecipe(allBase, locksByRecipe, horizon, selections);
+  const comp = (c: {
+    kind: string;
+    name: string;
+    display: string | null;
+    amount?: number | null;
+  }) => ({
+    kind: c.kind,
+    name: c.name,
+    display: c.display,
+    amount: c.amount ?? 0,
   });
-  return rows.sort(
-    (a, b) =>
-      a.rank - b.rank ||
-      (a.cost ?? Infinity) - (b.cost ?? Infinity) ||
-      (a.display ?? a.name).localeCompare(b.display ?? b.name),
-  );
+  const entries = uniq.map((name) => {
+    const rows = (baseByGood.get(name) ?? []).map((r) => {
+      const unlocks = locksByRecipe.get(r.name) ?? [];
+      const turd = unlocks.find((u) => u.isTurdSub);
+      const avail = availability.get(r.name)!;
+      const available = r.enabled || (turd ? turd.turdSelected : unlocks.length > 0); // tech-locked counts as obtainable
+      // available-now (start-enabled or its unlock tech is researched/reached) ranks
+      // above tech-locked-but-not-yet-researched
+      let rank = r.enabled ? 0 : turd ? (turd.turdSelected ? 1 : 3) : avail.availableNow ? 1 : 2;
+      const superseded = supersededMap.get(r.name) ?? null;
+      if (superseded) rank = Math.max(rank, 6); // the selected TURD removed it in-game
+      if (BARREL_CATEGORIES.has(r.category ?? "")) rank += 10;
+      // io summary so lookalike recipes (Py loves reusing names) tell apart at a glance
+      const full = recipesByNameMap.get(r.name);
+      return {
+        ...r,
+        unlocks,
+        turd: turd ?? null,
+        available,
+        avail,
+        rank,
+        cost: costs.get(r.name) ?? null,
+        superseded,
+        ingredients: (full?.ingredients ?? []).map(comp),
+        products: (full?.products ?? []).map((c) =>
+          comp({
+            ...c,
+            amount:
+              c.amount ??
+              (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0),
+          }),
+        ),
+      };
+    });
+    return [
+      name,
+      rows.sort(
+        (a, b) =>
+          a.rank - b.rank ||
+          (a.cost ?? Infinity) - (b.cost ?? Infinity) ||
+          (a.display ?? a.name).localeCompare(b.display ?? b.name),
+      ),
+    ] as const;
+  });
+  return new Map(entries);
+}
+
+export function recipeCandidates(name: string, mode: "produce" | "consume") {
+  return recipeCandidatesBatch([name], mode).get(name) ?? [];
 }
 
 /** A recipe with everything the browser shows on one row: io, machines,

@@ -6,11 +6,11 @@
  * NOT the fastest machine in the category (#130). `fastestMachine` surfaces
  * the fastest tier separately, only when it differs from the resolved pick.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
-import { switchDatabase } from "../db/index.server.ts";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { db, switchDatabase } from "../db/index.server.ts";
 import { setFavoriteMachine, setResearchHorizon } from "../db/queries.server.ts";
 import { type TestDb, makeTestDb } from "../db/test-helpers.ts";
-import { recipeOptions } from "./agent-tools.server.ts";
+import { recipeOptions, recipeOptionsBatch } from "./agent-tools.server.ts";
 
 type Candidate = {
   recipe: string;
@@ -24,6 +24,12 @@ const options = async (good: string) =>
     { good, direction: "produce", limit: 12 },
     { toolCallId: "test", messages: [] },
   )) as Candidate[];
+
+const batchOptions = async (goods: string[]) =>
+  (await recipeOptionsBatch.execute!(
+    { goods, direction: "produce", limitEach: 12 },
+    { toolCallId: "test", messages: [] },
+  )) as Record<string, Candidate[]>;
 
 describe("optionsFor resolves 'machine' the same way computeBlock does (#130)", () => {
   let fx: TestDb;
@@ -130,6 +136,56 @@ describe("optionsFor resolves 'machine' the same way computeBlock does (#130)", 
     expect(c.machine).toContain("Stone furnace");
     expect(c.machine).not.toContain("Big furnace");
     expect(c.machineFavorite).toBeUndefined();
+  });
+
+  it("keeps batch results identical to one-good recipeOptions results", async () => {
+    const individual = await options("iron-plate");
+    const batch = await batchOptions(["iron-plate", "iron-plate"]);
+
+    expect(batch).toEqual({ "iron-plate": individual });
+  });
+
+  it("keeps the batch statement count flat as goods and candidates grow", async () => {
+    const preparedStatements = async <T>(read: () => Promise<T>) => {
+      const prepare = vi.spyOn(db.$client, "prepare");
+      try {
+        const result = await read();
+        return { result, count: prepare.mock.calls.length };
+      } finally {
+        prepare.mockRestore();
+      }
+    };
+    const small = await preparedStatements(() => batchOptions(["iron-plate"]));
+    const goods = ["iron-plate"];
+    for (let i = 0; i < 20; i++) {
+      const ore = `batch-ore-${i}`;
+      const plate = `batch-plate-${i}`;
+      const recipe = `batch-smelt-${i}`;
+      goods.push(plate);
+      db.$client
+        .prepare("INSERT INTO items (name, display) VALUES (?, ?), (?, ?)")
+        .run(ore, `Batch ore ${i}`, plate, `Batch plate ${i}`);
+      db.$client
+        .prepare(
+          "INSERT INTO recipes (name, kind, category, energy_required, enabled, hidden) VALUES (?, 'real', 'smelting', 3.2, 1, 0)",
+        )
+        .run(recipe);
+      db.$client
+        .prepare(
+          "INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES (?, 0, 'item', ?, 1)",
+        )
+        .run(recipe, ore);
+      db.$client
+        .prepare(
+          "INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES (?, 0, 'item', ?, 1)",
+        )
+        .run(recipe, plate);
+    }
+    const large = await preparedStatements(() => batchOptions(goods));
+
+    expect(Object.keys(large.result)).toEqual(goods);
+    expect(large.result["batch-plate-19"]).toHaveLength(1);
+    expect(large.count).toBeLessThanOrEqual(small.count + 2);
   });
 });
 

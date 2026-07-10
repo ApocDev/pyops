@@ -195,13 +195,17 @@ function optionsFor(
   good: string,
   direction: "produce" | "consume",
   limit: number,
+  batch?: {
+    candidates: ReturnType<typeof import("../db/queries.server.ts").recipeCandidatesBatch>;
+    machines: ReturnType<typeof import("../db/queries.server.ts").machineOptionsForRecipes>;
+    restrict: boolean;
+  },
 ) {
   // Restrict the favorite/fallback search to unlocked machines exactly like
   // computeBlock/recipeDefaultsFn do (future-horizon planning leaves every
   // machine on the table; now/target restricts to what's actually unlocked).
-  const restrict = q.getResearchHorizon().mode !== "future";
-  return q
-    .recipeCandidates(good, direction)
+  const restrict = batch?.restrict ?? q.getResearchHorizon().mode !== "future";
+  return (batch?.candidates.get(good) ?? q.recipeCandidates(good, direction))
     .slice(0, limit)
     .map((r) => {
       // Representative building: the SAME favorite-then-fallback resolution
@@ -209,7 +213,7 @@ function optionsFor(
       // machine named here is the one a draft would really solve with (#130)
       // — not just the fastest tier in the category. Availability is judged
       // against THIS machine, since that's what actually gates buildability.
-      const machines = q.machineOptionsForRecipe(r.name);
+      const machines = batch?.machines.get(r.name) ?? q.machineOptionsForRecipe(r.name);
       const pool =
         restrict && machines.some((m) => m.availableNow)
           ? machines.filter((m) => m.availableNow)
@@ -315,8 +319,18 @@ export const recipeOptionsBatch = tool({
       .describe("Max candidates per good (keep modest when batching many goods)"),
   }),
   execute: async ({ goods, direction, limitEach }) => {
+    const uniqueGoods = [...new Set(goods)];
+    const candidates = q.recipeCandidatesBatch(uniqueGoods, direction);
+    const recipeNames = uniqueGoods.flatMap((good) =>
+      (candidates.get(good) ?? []).slice(0, limitEach).map((recipe) => recipe.name),
+    );
+    const batch = {
+      candidates,
+      machines: q.machineOptionsForRecipes(recipeNames),
+      restrict: q.getResearchHorizon().mode !== "future",
+    };
     const out: Record<string, ReturnType<typeof optionsFor>> = {};
-    for (const g of new Set(goods)) out[g] = optionsFor(q, g, direction, limitEach);
+    for (const good of uniqueGoods) out[good] = optionsFor(q, good, direction, limitEach, batch);
     return out;
   },
 });

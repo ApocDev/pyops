@@ -18,12 +18,15 @@ import {
   listBlocks,
   listGroups,
   logisticsForGood,
+  machineOptionsForRecipe,
+  machineOptionsForRecipes,
   machineSufficiency,
   metaSet,
   modulesFittingMachine,
   modulePickerData,
   productivityBonuses,
   recipeCandidates,
+  recipeCandidatesBatch,
   saveBlockRow,
   setBlockOrder,
   setBlockGroup,
@@ -644,6 +647,33 @@ describe("batched recipe reads", () => {
     }
   };
 
+  const seedBulkGoods = (count: number) => {
+    const goods: string[] = [];
+    const recipeNames: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const good = `bulk-good-${i}`;
+      const recipe = `bulk-good-recipe-${i}`;
+      goods.push(good);
+      recipeNames.push(recipe);
+      db.run(sql`
+        INSERT INTO items (name, display) VALUES (${good}, ${`Bulk good ${i}`})
+      `);
+      db.run(sql`
+        INSERT INTO recipes (name, display, kind, category, hidden, enabled)
+        VALUES (${recipe}, ${`Bulk good recipe ${i}`}, 'real', 'bulk-crafting', 0, 1)
+      `);
+      db.run(sql`
+        INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount)
+        VALUES (${recipe}, 0, 'item', 'gear', 2)
+      `);
+      db.run(sql`
+        INSERT INTO recipe_products (recipe, idx, kind, name, amount)
+        VALUES (${recipe}, 0, 'item', ${good}, 1)
+      `);
+    }
+    return { goods, recipeNames };
+  };
+
   it("keeps recipe-candidate statement count flat as candidate count grows", () => {
     seedBulkCategory();
     const small = preparedStatements(() => recipeCandidates("plate", "produce"));
@@ -656,6 +686,36 @@ describe("batched recipe reads", () => {
     expect(large.result.find((r) => r.name === "bulk-plate-0")?.ingredients).toEqual([
       { kind: "item", name: "gear", display: "Gear", amount: 2 },
     ]);
+  });
+
+  it("batches candidates across goods with wrapper parity and a flat statement count", () => {
+    seedBulkCategory();
+    const small = preparedStatements(() => recipeCandidatesBatch(["plate"], "produce"));
+    const { goods } = seedBulkGoods(24);
+    const large = preparedStatements(() => recipeCandidatesBatch(["plate", ...goods], "produce"));
+
+    expect(small.result.get("plate")).toEqual(recipeCandidates("plate", "produce"));
+    expect(large.result.get("plate")).toEqual(small.result.get("plate"));
+    expect(large.result.get("bulk-good-23")?.map((recipe) => recipe.name)).toEqual([
+      "bulk-good-recipe-23",
+    ]);
+    expect(large.count).toBeLessThanOrEqual(small.count + 2);
+  });
+
+  it("batches enriched machine options with wrapper parity and a flat statement count", () => {
+    seedBulkCategory();
+    const small = preparedStatements(() => machineOptionsForRecipes(["smelt-plate"]));
+    const { recipeNames } = seedBulkGoods(24);
+    const large = preparedStatements(() =>
+      machineOptionsForRecipes(["smelt-plate", ...recipeNames]),
+    );
+
+    expect(small.result.get("smelt-plate")).toEqual(machineOptionsForRecipe("smelt-plate"));
+    expect(large.result.get("smelt-plate")).toEqual(small.result.get("smelt-plate"));
+    expect(large.result.get("bulk-good-recipe-23")?.map((machine) => machine.name)).toEqual([
+      "furnace",
+    ]);
+    expect(large.count).toBeLessThanOrEqual(small.count + 2);
   });
 
   it("keeps browser-detail statement count flat and preserves card enrichment", () => {
