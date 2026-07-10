@@ -252,6 +252,7 @@ export type SolveInput = {
 export async function computeBlock(rawData: SolveInput) {
   // Tolerate the legacy { target, rate, extraGoals } shape from older saved docs.
   const data = normalizeBlockData(rawData) as SolveInput;
+  const refs = q.createBlockSolveContext(data.recipes);
 
   // Drift guard: if the block references a recipe or goal good that no longer
   // exists in the current reference data (a mod was updated/disabled/removed),
@@ -270,7 +271,7 @@ export async function computeBlock(rawData: SolveInput) {
     ? ([] as NonNullable<ReturnType<typeof q.getRecipe>>[])
     : data.recipes
         .filter((name) => !disabled.has(name))
-        .map((name) => q.getRecipe(name))
+        .map((name) => refs.getRecipe(name))
         .filter((r): r is NonNullable<ReturnType<typeof q.getRecipe>> => !!r);
 
   // Machine choice + module/beacon effects per recipe, BEFORE the solve —
@@ -294,7 +295,7 @@ export async function computeBlock(rawData: SolveInput) {
   // Research-driven productivity (#92): mining-productivity levels + Factorio
   // 2.0 change-recipe-productivity techs, gated by the research horizon exactly
   // like machine availability (everything in FUTURE, reached techs otherwise).
-  const researchProd = q.productivityBonuses();
+  const researchProd = refs.productivityBonuses();
 
   const turdMods = q.activeTurdModules();
   const turdFor = (machine: { name: string; allowedModuleCategories: string[] | null } | null) => {
@@ -333,7 +334,7 @@ export async function computeBlock(rawData: SolveInput) {
       const mods = q.placeableModules();
       // only modules unlocked in the research horizon (mirrors machine gating);
       // this also excludes creative/editor modules (nothing produces them)
-      return { mods, avail: q.unlockedItems(mods.map((m) => m.name)) };
+      return { mods, avail: refs.unlockedItems(mods.map((m) => m.name)) };
     })());
   const autoPool = (
     r: (typeof fetched)[number],
@@ -352,15 +353,15 @@ export async function computeBlock(rawData: SolveInput) {
   const machinesByRecipe = new Map(
     fetched.map((r) => [
       r.name,
-      q // sorted fastest-first (for the picker)
-        .machinesForRecipe(r.name)
+      refs
+        .machinesForRecipe(r.name) // sorted fastest-first (for the picker)
         .slice()
         .sort((a, b) => (b.craftingSpeed ?? 0) - (a.craftingSpeed ?? 0)),
     ]),
   );
   const restrictMachines = q.getResearchHorizon().mode !== "future";
   const unlockedMachines = restrictMachines
-    ? q.availableMachines([...new Set([...machinesByRecipe.values()].flat().map((m) => m.name))])
+    ? refs.availableMachines([...new Set([...machinesByRecipe.values()].flat().map((m) => m.name))])
     : null;
 
   const setup = new Map(
@@ -647,7 +648,7 @@ export async function computeBlock(rawData: SolveInput) {
       },
     ];
   });
-  const defaultTemp = (f: string) => q.getFluid(f)?.defaultTemperature ?? null;
+  const defaultTemp = (f: string) => refs.getFluid(f)?.defaultTemperature ?? null;
   // Sub-blocks v2 (#76): a COMPOSED group is solved as its own module and pulled
   // out of the parent solve, replaced by a synthetic recipe carrying only its
   // boundary contract (net imports → net exports). Member recipes and pins route
@@ -857,7 +858,7 @@ export async function computeBlock(rawData: SolveInput) {
         temperatureDrainPerMachine(fueling, chosen.energyUsageW, fx.consMult) * Math.max(0, count);
       fuel = {
         name: fueling.fluid,
-        display: q.getFluid(fueling.fluid)?.display ?? null,
+        display: refs.getFluid(fueling.fluid)?.display ?? null,
         kind: "fluid",
         perSec,
         chosen: fueling.fluid,
@@ -871,7 +872,7 @@ export async function computeBlock(rawData: SolveInput) {
         // there's no per-row fuel pick (availableFuels stays empty)
         fuel = {
           name: FLUID_FUEL,
-          display: q.getFluid(FLUID_FUEL)?.display ?? "Fluid fuel (MJ)",
+          display: refs.getFluid(FLUID_FUEL)?.display ?? "Fluid fuel (MJ)",
           kind: "fluid",
           perSec: powerW / 1e6, // MJ/s = MW
           chosen: FLUID_FUEL,
@@ -905,7 +906,7 @@ export async function computeBlock(rawData: SolveInput) {
           const burnt = pick.burntResult
             ? {
                 name: pick.burntResult,
-                display: q.getItem(pick.burntResult)?.display ?? null,
+                display: refs.getItem(pick.burntResult)?.display ?? null,
                 perSec,
               }
             : null;
@@ -953,7 +954,7 @@ export async function computeBlock(rawData: SolveInput) {
       spoilSeconds != null
         ? (() => {
             const input = def.ingredients[0]?.name;
-            const stackSize = (input && q.getItem(input)?.stackSize) || null;
+            const stackSize = (input && refs.getItem(input)?.stackSize) || null;
             const buffer = rr.rate * spoilSeconds;
             return {
               seconds: spoilSeconds,
@@ -1102,7 +1103,7 @@ export async function computeBlock(rawData: SolveInput) {
   // Which imports are craftable in-block (a recipe exists to make them) vs. true
   // raws (nothing produces them — you must supply them). Drives the import tint.
   const producible = imports
-    .filter((f) => q.recipesProducing(f.name).length > 0)
+    .filter((f) => refs.recipesProducing(f.name).length > 0)
     .map((f) => f.name);
 
   // Fluid temperature sanity (#110 interim): the solver links fluids by NAME,
@@ -1168,10 +1169,11 @@ export async function computeBlock(rawData: SolveInput) {
   // Disabled recipes (#73) aren't in the solve, but their rows still render — map
   // their display names too so the UI never falls back to the raw recipe id.
   for (const name of disabled) {
-    const d = q.getRecipe(name)?.display;
+    const d = refs.getRecipe(name)?.display;
     if (d) recipeDisplay[name] = d;
   }
-  const itemDisp = (name: string) => q.getItem(name)?.display ?? q.getFluid(name)?.display ?? null;
+  const itemDisp = (name: string) =>
+    refs.getItem(name)?.display ?? refs.getFluid(name)?.display ?? null;
   for (const name of [
     ...goalNames(data),
     ...imports.map((f) => f.name),
@@ -1205,7 +1207,7 @@ export async function computeBlock(rawData: SolveInput) {
         r.machine.name,
         (buildingCounts.get(r.machine.name) ?? 0) + r.machine.count,
       );
-  const buildCost = q.buildCost([...buildingCounts].map(([name, count]) => ({ name, count })));
+  const buildCost = refs.buildCost([...buildingCounts].map(([name, count]) => ({ name, count })));
 
   // #76: per composed sub-block, its solve status and boundary contract — the
   // group header renders the module face (contract + an infeasible badge). The

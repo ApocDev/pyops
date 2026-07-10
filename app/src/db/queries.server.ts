@@ -76,6 +76,18 @@ const recipeSummary = {
   hidden: recipes.hidden,
   allowProductivity: recipes.allowProductivity,
 };
+type RecipeSummaryRow = Pick<
+  typeof recipes.$inferSelect,
+  | "name"
+  | "display"
+  | "kind"
+  | "category"
+  | "subgroup"
+  | "energyRequired"
+  | "enabled"
+  | "hidden"
+  | "allowProductivity"
+>;
 
 /** A recipe with its ordered ingredients + products — for display and the solver. */
 /** Localized name of an item or fluid (for recipe components). */
@@ -107,6 +119,145 @@ export function getRecipe(name: string) {
   return { ...recipe, ingredients, products };
 }
 
+function componentDisplays(rows: { kind: string; name: string }[]): Map<string, string | null> {
+  const itemNames = [...new Set(rows.filter((r) => r.kind !== "fluid").map((r) => r.name))];
+  const fluidNames = [...new Set(rows.filter((r) => r.kind === "fluid").map((r) => r.name))];
+  const out = new Map<string, string | null>();
+  if (itemNames.length)
+    for (const r of db
+      .select({ name: items.name, display: items.display })
+      .from(items)
+      .where(inArray(items.name, itemNames))
+      .all())
+      out.set(`item:${r.name}`, r.display);
+  if (fluidNames.length)
+    for (const r of db
+      .select({ name: fluids.name, display: fluids.display })
+      .from(fluids)
+      .where(inArray(fluids.name, fluidNames))
+      .all())
+      out.set(`fluid:${r.name}`, r.display);
+  return out;
+}
+
+function recipesByName(names: string[]) {
+  const uniq = [...new Set(names)].filter((n) => n);
+  const out = new Map<string, NonNullable<ReturnType<typeof getRecipe>>>();
+  if (!uniq.length) return out;
+
+  const recipeRows = db.select().from(recipes).where(inArray(recipes.name, uniq)).all();
+  const ingRows = db
+    .select()
+    .from(recipeIngredients)
+    .where(inArray(recipeIngredients.recipe, uniq))
+    .orderBy(recipeIngredients.recipe, recipeIngredients.idx)
+    .all();
+  const prodRows = db
+    .select()
+    .from(recipeProducts)
+    .where(inArray(recipeProducts.recipe, uniq))
+    .orderBy(recipeProducts.recipe, recipeProducts.idx)
+    .all();
+  const displays = componentDisplays([...ingRows, ...prodRows]);
+
+  const ingredientsByRecipe = new Map<string, (typeof ingRows)[number][]>();
+  for (const row of ingRows) {
+    const list = ingredientsByRecipe.get(row.recipe) ?? [];
+    list.push(row);
+    ingredientsByRecipe.set(row.recipe, list);
+  }
+  const productsByRecipe = new Map<string, (typeof prodRows)[number][]>();
+  for (const row of prodRows) {
+    const list = productsByRecipe.get(row.recipe) ?? [];
+    list.push(row);
+    productsByRecipe.set(row.recipe, list);
+  }
+
+  for (const recipe of recipeRows) {
+    out.set(recipe.name, {
+      ...recipe,
+      ingredients: (ingredientsByRecipe.get(recipe.name) ?? []).map((c) => ({
+        ...c,
+        display: displays.get(`${c.kind}:${c.name}`) ?? null,
+      })),
+      products: (productsByRecipe.get(recipe.name) ?? []).map((c) => ({
+        ...c,
+        display: displays.get(`${c.kind}:${c.name}`) ?? null,
+      })),
+    });
+  }
+  return out;
+}
+
+function machinesForRecipes(recipeNames: string[]) {
+  const uniq = [...new Set(recipeNames)].filter((n) => n);
+  const out = new Map<string, ReturnType<typeof machinesForRecipe>>();
+  if (!uniq.length) return out;
+
+  const recipeCats = db
+    .select({ recipe: recipes.name, category: recipes.category })
+    .from(recipes)
+    .where(inArray(recipes.name, uniq))
+    .all();
+  const categories = [
+    ...new Set(recipeCats.map((r) => r.category).filter((c): c is string => !!c)),
+  ];
+  if (!categories.length) {
+    for (const r of recipeCats) out.set(r.recipe, []);
+    return out;
+  }
+
+  const machineRows = db
+    .select({
+      category: machineCategories.category,
+      name: craftingMachines.name,
+      display: craftingMachines.display,
+      kind: craftingMachines.kind,
+      craftingSpeed: craftingMachines.craftingSpeed,
+      moduleSlots: craftingMachines.moduleSlots,
+      energyUsageW: craftingMachines.energyUsageW,
+      energySource: craftingMachines.energySource,
+      pollutionPerMin: craftingMachines.pollutionPerMin,
+      allowedEffects: craftingMachines.allowedEffects,
+      allowedModuleCategories: craftingMachines.allowedModuleCategories,
+      neighbourBonus: craftingMachines.neighbourBonus,
+      burnsFluid: craftingMachines.burnsFluid,
+      fluidFuelFilter: craftingMachines.fluidFuelFilter,
+      fluidFuelPerSec: craftingMachines.fluidFuelPerSec,
+      fluidFuelEnergyJ: craftingMachines.fluidFuelEnergyJ,
+    })
+    .from(machineCategories)
+    .innerJoin(craftingMachines, eq(craftingMachines.name, machineCategories.machine))
+    .where(inArray(machineCategories.category, categories))
+    .all();
+  const machineNames = [...new Set(machineRows.map((m) => m.name))];
+  const fuelByMachine = new Map<string, string[]>();
+  if (machineNames.length)
+    for (const f of db
+      .select({
+        machine: machineFuelCategories.machine,
+        category: machineFuelCategories.fuelCategory,
+      })
+      .from(machineFuelCategories)
+      .where(inArray(machineFuelCategories.machine, machineNames))
+      .all()) {
+      const list = fuelByMachine.get(f.machine) ?? [];
+      list.push(f.category);
+      fuelByMachine.set(f.machine, list);
+    }
+
+  const byCategory = new Map<string, ReturnType<typeof machinesForRecipe>>();
+  for (const row of machineRows) {
+    const { category, ...machine } = row;
+    const list = byCategory.get(category) ?? [];
+    list.push({ ...machine, fuelCategories: fuelByMachine.get(machine.name) ?? [] });
+    byCategory.set(category, list);
+  }
+  for (const r of recipeCats)
+    out.set(r.recipe, r.category ? (byCategory.get(r.category) ?? []) : []);
+  return out;
+}
+
 /** Recipes that OUTPUT the given item/fluid (the candidate recipes for making X). */
 export function recipesProducing(name: string) {
   return db
@@ -115,6 +266,28 @@ export function recipesProducing(name: string) {
     .innerJoin(recipes, eq(recipes.name, recipeProducts.recipe))
     .where(eq(recipeProducts.name, name))
     .all();
+}
+
+function recipesProducingByGoods(names: string[]): Map<string, RecipeSummaryRow[]> {
+  const uniq = [...new Set(names)].filter((n) => n);
+  const out = new Map<string, RecipeSummaryRow[]>();
+  for (const name of uniq) out.set(name, []);
+  if (!uniq.length) return out;
+  const rows = db
+    .selectDistinct({
+      good: recipeProducts.name,
+      ...recipeSummary,
+    })
+    .from(recipeProducts)
+    .innerJoin(recipes, eq(recipes.name, recipeProducts.recipe))
+    .where(inArray(recipeProducts.name, uniq))
+    .all();
+  for (const { good, ...recipe } of rows) {
+    const list = out.get(good) ?? [];
+    list.push(recipe);
+    out.set(good, list);
+  }
+  return out;
 }
 
 /** Recipes that CONSUME the given item/fluid (downstream uses). */
@@ -3334,6 +3507,242 @@ function computeAvail(
   return { research, needs, turd, availableNow, buildableNow };
 }
 
+/** Request-scoped bulk lookup context for a block solve. It is deliberately not
+ * process-wide state: each solve gets a coherent SQLite snapshot without paying
+ * the old N+1 query cost. */
+export function createBlockSolveContext(recipeNames: string[]) {
+  const recipeMap = recipesByName(recipeNames);
+  const machineMap = machinesForRecipes(recipeNames);
+  const horizon = getResearchHorizon();
+  const selections = getTurdSelections();
+  const producerCache = new Map<string, RecipeSummaryRow[]>();
+  const lockCache = new Map<string, RecipeLockState>();
+  const itemCache = new Map<string, ReturnType<typeof getItem>>();
+  const fluidCache = new Map<string, ReturnType<typeof getFluid>>();
+  let techGraph: {
+    prereqsByTech: Map<string, string[]>;
+    packsByTech: Map<string, string[]>;
+    closureCache: Map<string, { techs: Set<string>; packs: Set<string> }>;
+  } | null = null;
+
+  const graph = () => {
+    if (techGraph) return techGraph;
+    const prereqsByTech = new Map<string, string[]>();
+    for (const p of db
+      .select({ tech: techPrerequisites.technology, prerequisite: techPrerequisites.prerequisite })
+      .from(techPrerequisites)
+      .all()) {
+      const list = prereqsByTech.get(p.tech) ?? [];
+      list.push(p.prerequisite);
+      prereqsByTech.set(p.tech, list);
+    }
+    const packsByTech = new Map<string, string[]>();
+    for (const p of db
+      .select({ tech: techIngredients.technology, name: techIngredients.name })
+      .from(techIngredients)
+      .all()) {
+      const list = packsByTech.get(p.tech) ?? [];
+      list.push(p.name);
+      packsByTech.set(p.tech, list);
+    }
+    techGraph = { prereqsByTech, packsByTech, closureCache: new Map() };
+    return techGraph;
+  };
+
+  const closure = (tech: string) => {
+    const g = graph();
+    const cached = g.closureCache.get(tech);
+    if (cached) return cached;
+    const techs = new Set<string>();
+    const packs = new Set<string>();
+    const stack = [tech];
+    while (stack.length) {
+      const cur = stack.pop()!;
+      if (techs.has(cur)) continue;
+      techs.add(cur);
+      for (const pack of g.packsByTech.get(cur) ?? []) packs.add(pack);
+      for (const pre of g.prereqsByTech.get(cur) ?? []) if (!techs.has(pre)) stack.push(pre);
+    }
+    const out = { techs, packs };
+    g.closureCache.set(tech, out);
+    return out;
+  };
+
+  const missingPacks = (tech: string): string[] => {
+    if (horizon.researched.has(tech)) return [];
+    const c = closure(tech);
+    const relevant = horizon.researched.size
+      ? (() => {
+          const packs = new Set<string>();
+          const g = graph();
+          for (const t of c.techs) {
+            if (horizon.researched.has(t)) continue;
+            for (const p of g.packsByTech.get(t) ?? []) packs.add(p);
+          }
+          return packs;
+        })()
+      : c.packs;
+    return [...relevant].filter((p) => !horizon.packs.has(p));
+  };
+
+  const computeAvailInContext = (enabled: boolean, unlocks: RecipeLockState): RecipeAvail => {
+    const turdU = unlocks.find((u) => u.isTurdSub);
+    const turd = turdU
+      ? {
+          master: turdU.master,
+          masterDisplay: turdU.masterDisplay,
+          choice: turdU.display,
+          state: turdStateFor(turdU.tech, turdU.master, selections),
+        }
+      : null;
+    let research: RecipeAvail["research"];
+    let needs: string[] = [];
+    if (enabled) research = "enabled";
+    else {
+      const missing = unlocks.map((u) => missingPacks(u.tech));
+      if (missing.some((m) => m.length === 0)) research = "available";
+      else {
+        research = "needs-research";
+        needs = [...new Set(missing.flat())];
+      }
+    }
+    const reached = research !== "needs-research";
+    const availableNow = reached && (!turd || turd.state !== "blocked");
+    const buildableNow = reached && (!turd || turd.state === "active");
+    return { research, needs, turd, availableNow, buildableNow };
+  };
+
+  const producersFor = (names: string[]) => {
+    const missing = [...new Set(names)].filter((name) => !producerCache.has(name));
+    if (missing.length)
+      for (const [name, rows] of recipesProducingByGoods(missing)) producerCache.set(name, rows);
+    for (const name of missing) if (!producerCache.has(name)) producerCache.set(name, []);
+  };
+
+  const locksFor = (names: string[]) => {
+    const missing = [...new Set(names)].filter((name) => !lockCache.has(name));
+    if (missing.length)
+      for (const [name, rows] of recipeLockStatesByRecipe(missing)) lockCache.set(name, rows);
+    for (const name of missing) if (!lockCache.has(name)) lockCache.set(name, []);
+  };
+
+  const recipesFor = (names: string[]) => {
+    const missing = [...new Set(names)].filter((name) => !recipeMap.has(name));
+    if (missing.length)
+      for (const [name, recipe] of recipesByName(missing)) recipeMap.set(name, recipe);
+  };
+
+  const displayFor = (name: string): string =>
+    (itemCache.has(name) ? itemCache.get(name) : null)?.display ??
+    (fluidCache.has(name) ? fluidCache.get(name) : null)?.display ??
+    (() => {
+      if (!itemCache.has(name)) itemCache.set(name, getItem(name));
+      if (itemCache.get(name)) return itemCache.get(name)!.display ?? name;
+      if (!fluidCache.has(name)) fluidCache.set(name, getFluid(name));
+      return fluidCache.get(name)?.display ?? name;
+    })();
+
+  const availableProducedGoods = (names: string[], strictNow: boolean): Set<string> => {
+    if (!names.length) return new Set();
+    if (horizon.mode === "future") return obtainableGoods(names);
+    producersFor(names);
+    const producerRecipes = [
+      ...new Set(names.flatMap((name) => producerCache.get(name)?.map((r) => r.name) ?? [])),
+    ];
+    locksFor(producerRecipes);
+    const out = new Set<string>();
+    for (const name of new Set(names)) {
+      const ok = (producerCache.get(name) ?? []).some((r) => {
+        const a = computeAvailInContext(r.enabled, lockCache.get(r.name) ?? []);
+        return strictNow && horizon.mode === "now" ? a.buildableNow : a.availableNow;
+      });
+      if (ok) out.add(name);
+    }
+    return out;
+  };
+
+  return {
+    productivityBonuses: (): ProductivityBonuses => {
+      const out: ProductivityBonuses = { mining: 0, recipes: new Map() };
+      const m = metaAll();
+      const liveMining =
+        horizon.mode === "now" ? Number(m.research_mining_productivity_bonus ?? NaN) : NaN;
+      const hasLiveMining = Number.isFinite(liveMining);
+      const liveRecipes = horizon.mode === "now" ? parseRecipeProductivityBonuses(m) : null;
+      for (const r of db.select().from(techProductivityBonuses).all()) {
+        if (horizon.mode !== "future" && missingPacks(r.technology).length > 0) continue;
+        if (r.recipe === "") {
+          if (!hasLiveMining) out.mining += r.modifier;
+        } else if (!liveRecipes) {
+          out.recipes.set(r.recipe, (out.recipes.get(r.recipe) ?? 0) + r.modifier);
+        }
+      }
+      if (hasLiveMining) out.mining = liveMining;
+      if (liveRecipes) out.recipes = liveRecipes;
+      return out;
+    },
+    getRecipe: (name: string) => {
+      recipesFor([name]);
+      return recipeMap.get(name) ?? null;
+    },
+    machinesForRecipe: (name: string) => machineMap.get(name)?.slice() ?? machinesForRecipe(name),
+    recipesProducing: (name: string) => {
+      producersFor([name]);
+      return producerCache.get(name) ?? [];
+    },
+    availableMachines: (names: string[]) => availableProducedGoods(names, false),
+    unlockedItems: (names: string[]) => availableProducedGoods(names, true),
+    getItem: (name: string) => {
+      if (!itemCache.has(name)) itemCache.set(name, getItem(name));
+      return itemCache.get(name) ?? null;
+    },
+    getFluid: (name: string) => {
+      if (!fluidCache.has(name)) fluidCache.set(name, getFluid(name));
+      return fluidCache.get(name) ?? null;
+    },
+    buildCost: (buildings: { name: string; count: number }[]): BuildCost => {
+      const active = buildings
+        .map((b) => ({ ...b, count: Math.ceil(b.count - 1e-6) }))
+        .filter((b) => b.count > 0);
+      producersFor(active.map((b) => b.name));
+      const picks = new Map(
+        active.map((b) => {
+          const crafts = producerCache.get(b.name) ?? [];
+          return [b.name, crafts.find((r) => r.enabled) ?? crafts[0] ?? null] as const;
+        }),
+      );
+      recipesFor([...picks.values()].flatMap((p) => (p ? [p.name] : [])));
+
+      const materials = new Map<string, { kind: string; amount: number }>();
+      const used: BuildCost["buildings"] = [];
+      for (const b of active) {
+        const pick = picks.get(b.name) ?? null;
+        const def = pick ? (recipeMap.get(pick.name) ?? null) : null;
+        used.push({
+          name: b.name,
+          display: displayFor(b.name),
+          count: b.count,
+          recipe: pick?.name ?? null,
+        });
+        if (!def) continue;
+        const per = def.products.find((p) => p.name === b.name)?.amount ?? 1;
+        if (per <= 0) continue;
+        for (const ing of def.ingredients) {
+          const cur = materials.get(ing.name) ?? { kind: ing.kind, amount: 0 };
+          cur.amount += (ing.amount * b.count) / per;
+          materials.set(ing.name, cur);
+        }
+      }
+      return {
+        buildings: used,
+        materials: [...materials]
+          .map(([name, v]) => ({ name, kind: v.kind, display: displayFor(name), amount: v.amount }))
+          .sort((a, b) => (a.display < b.display ? -1 : 1)),
+      };
+    },
+  };
+}
+
 /** Availability of one recipe vs the research horizon + TURD selections, with
  * the unlocking techs' display names (for lock badges). Lighter than a full
  * `recipeCandidates` row — used by the dependency explorer (#100). */
@@ -3429,6 +3838,90 @@ export function recipeLockState(name: string) {
       };
     });
   return unlocks;
+}
+
+type RecipeLockState = ReturnType<typeof recipeLockState>;
+
+function recipeLockStatesByRecipe(recipeNames: string[]): Map<string, RecipeLockState> {
+  const uniq = [...new Set(recipeNames)].filter((n) => n);
+  const out = new Map<string, RecipeLockState>();
+  for (const name of uniq) out.set(name, []);
+  if (!uniq.length) return out;
+
+  const selections = new Set(getTurdSelections().values());
+  const unlockRows = db
+    .select({ recipe: techUnlocks.recipe, tech: techUnlocks.technology })
+    .from(techUnlocks)
+    .where(inArray(techUnlocks.recipe, uniq))
+    .all();
+  const techNames = [...new Set(unlockRows.map((r) => r.tech))];
+  if (!techNames.length) return out;
+
+  const techRows = new Map(
+    db
+      .select()
+      .from(technologies)
+      .where(inArray(technologies.name, techNames))
+      .all()
+      .map((t) => [t.name, t]),
+  );
+  const prereqsByTech = new Map<string, string[]>();
+  for (const p of db
+    .select({ tech: techPrerequisites.technology, prerequisite: techPrerequisites.prerequisite })
+    .from(techPrerequisites)
+    .where(inArray(techPrerequisites.technology, techNames))
+    .all()) {
+    const list = prereqsByTech.get(p.tech) ?? [];
+    list.push(p.prerequisite);
+    prereqsByTech.set(p.tech, list);
+  }
+  const masterNames = [
+    ...new Set(
+      [...prereqsByTech.values()].flatMap((ps) => ps.filter((p) => !p.startsWith("turd-select-"))),
+    ),
+  ];
+  const masterRows = masterNames.length
+    ? new Map(
+        db
+          .select({ name: technologies.name, display: technologies.display })
+          .from(technologies)
+          .where(inArray(technologies.name, masterNames))
+          .all()
+          .map((t) => [t.name, t.display]),
+      )
+    : new Map<string, string | null>();
+  const scienceByTech = new Map<string, { name: string; amount: number }[]>();
+  for (const s of db
+    .select({
+      tech: techIngredients.technology,
+      name: techIngredients.name,
+      amount: techIngredients.amount,
+    })
+    .from(techIngredients)
+    .where(inArray(techIngredients.technology, techNames))
+    .all()) {
+    const list = scienceByTech.get(s.tech) ?? [];
+    list.push({ name: s.name, amount: s.amount });
+    scienceByTech.set(s.tech, list);
+  }
+
+  for (const { recipe, tech } of unlockRows) {
+    const prereqs = prereqsByTech.get(tech) ?? [];
+    const isTurdSub = prereqs.includes(`turd-select-${tech}`);
+    const master = isTurdSub ? (prereqs.find((p) => !p.startsWith("turd-select-")) ?? null) : null;
+    const list = out.get(recipe) ?? [];
+    list.push({
+      tech,
+      display: techRows.get(tech)?.display ?? tech,
+      science: scienceByTech.get(tech) ?? [],
+      isTurdSub,
+      master,
+      masterDisplay: master ? (masterRows.get(master) ?? master) : null,
+      turdSelected: isTurdSub && selections.has(tech),
+    });
+    out.set(recipe, list);
+  }
+  return out;
 }
 
 /* ── TURD-set consistency (one choice per master; plans must not conflict) ───── */
