@@ -1,0 +1,29 @@
+app/src/db/tasks.server.test.ts
+  s_cd1b59b354c2a5::t_7a67ff57bc8495 1-153
+app/src/db/tasks.server.ts
+  s_832decab86be7f::t_f9c1a5933b3a08 12,167-173,183-184,191,207,217-223,226-318,515-540,755,762,772-797
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b3c0951f417f93763d48660e2d6178e51b69b25d",
+  "prompts": {},
+  "sessions": {
+    "s_832decab86be7f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4a84-6768-76b0-b721-607b7c4a4a7b",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_cd1b59b354c2a5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4983-be89-71e2-b2b9-2cc58b36aa77",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
