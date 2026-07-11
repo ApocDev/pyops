@@ -1,0 +1,25 @@
+docs/development/configuration.md
+  s_6eed301ea70a8e::t_31375d3bf6ef9c 18-25,35-39
+app/src/components/native-context-menu.test.tsx
+  s_6eed301ea70a8e::t_e6f62458718c60 1-29
+app/src/components/native-context-menu.tsx
+  s_6eed301ea70a8e::t_7966386883769e 1-16
+app/src/routes/__root.tsx
+  s_6eed301ea70a8e::t_4c788a8a178650 12,89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "df778e7fcd611170ca527dc2d62c104694c24bbc",
+  "prompts": {},
+  "sessions": {
+    "s_6eed301ea70a8e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f521f-6e38-70b2-901a-fe8287d2b869",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
