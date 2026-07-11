@@ -7,6 +7,7 @@ import {
   Flame,
   GripVertical,
   Power,
+  Route,
   Sparkles,
   Timer,
   X,
@@ -118,13 +119,14 @@ export function RecipeRow({
   }, [suggestionKey]);
 
   const rowPin = useStore(doc.store, (s) =>
-    s.pins.find((p) => p.kind !== "share" && p.recipe === name),
+    s.pins.find((p) => (p.kind === "count" || p.kind === "cap") && p.recipe === name),
   ) as { kind: "count" | "cap"; count: number } | undefined;
-  const shareCount = useStore(
-    doc.store,
-    (s) =>
-      s.pins.filter((p) => (p.kind === "share" || p.kind === "drain") && p.recipe === name).length,
+  const edgePins = useStore(doc.store, (s) =>
+    s.pins.filter((p) => (p.kind === "share" || p.kind === "drain") && p.recipe === name),
   );
+  const shareCount = edgePins.filter((p) => p.kind === "share").length;
+  const drainItems = edgePins.flatMap((p) => (p.kind === "drain" ? [p.item] : []));
+  const drainDisplay = drainItems.map((item) => goodDisplay?.[item] ?? item).join(", ");
   // v2 solver (#91): rates are ≥ 0 by construction. A row at exactly 0 is
   // idle — nothing in the block pulls it (not an error; often a parked option).
   const idle = !off && row != null && Math.abs(row.rate) < 1e-9;
@@ -251,6 +253,18 @@ export function RecipeRow({
                     >
                       <span className="bg-info/20 px-1 text-sm text-info ring-1 ring-info/40">
                         %
+                      </span>
+                    </Tooltip>
+                  )}
+                  {drainItems.length > 0 && (
+                    <Tooltip
+                      content={`routes all surplus ${drainDisplay} into this recipe; building count is solved normally`}
+                    >
+                      <span
+                        aria-label={`routes all surplus ${drainDisplay}`}
+                        className="bg-info/20 px-1 text-info ring-1 ring-info/40"
+                      >
+                        <Route className="size-3.5" />
                       </span>
                     </Tooltip>
                   )}

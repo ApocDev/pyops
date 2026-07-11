@@ -49,9 +49,14 @@ good and select **Make a goal** when the block should guarantee that output rath
 treat it as incidental surplus.
 
 To consume a byproduct inside the block, select its product chip and add a consuming
-recipe. When several consumers compete for the same in-block production, right-click a
-recipe name and open **Pins — count / cap / route…** to route a fixed percentage to that
-row.
+recipe. When that recipe's main product leaves the block, PyOps routes all surplus of the
+selected byproduct into it. The route marker on the recipe row records that boundary rule;
+the displayed building count is still calculated normally by the solver.
+
+When several consumers should split the same in-block production, right-click a recipe name
+and open **Pins — count / cap / route…** to route a fixed percentage to that row. Percentage
+shares are explicit pins and display a `%` marker; they are separate from the automatic
+all-surplus route.
 
 ::: info Goals and exports can coexist
 A goal is a minimum target. Production beyond the requested rate remains visible as an

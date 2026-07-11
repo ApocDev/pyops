@@ -81,6 +81,7 @@ const recipeSummary = {
   enabled: recipes.enabled,
   hidden: recipes.hidden,
   allowProductivity: recipes.allowProductivity,
+  mainProduct: recipes.mainProduct,
 };
 type RecipeSummaryRow = Pick<
   typeof recipes.$inferSelect,
@@ -93,6 +94,7 @@ type RecipeSummaryRow = Pick<
   | "enabled"
   | "hidden"
   | "allowProductivity"
+  | "mainProduct"
 >;
 
 /** A recipe with its ordered ingredients + products — for display and the solver. */

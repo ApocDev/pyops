@@ -33,9 +33,9 @@ export function PinDialog({
   onClose: () => void;
 }) {
   const pins = useStore(doc.store, (s) => s.pins);
-  const rowPin = pins.find((p) => p.kind !== "share" && p.recipe === recipe) as
-    | { kind: "count" | "cap"; recipe: string; count: number }
-    | undefined;
+  const rowPin = pins.find(
+    (p) => (p.kind === "count" || p.kind === "cap") && p.recipe === recipe,
+  ) as { kind: "count" | "cap"; recipe: string; count: number } | undefined;
   const sharePins = pins.filter(
     (p): p is { kind: "share"; recipe: string; item: string; share: number } =>
       p.kind === "share" && p.recipe === recipe,

@@ -564,6 +564,7 @@ function Block({ blockId }: { blockId: number }) {
         if (
           drainsOnConsume({
             good,
+            mainProduct: cand.mainProduct,
             ingredients: cand.ingredients,
             products: cand.products,
             consumedInBlock,

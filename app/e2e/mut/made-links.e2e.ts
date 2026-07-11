@@ -1,5 +1,6 @@
+import { DatabaseSync } from "node:sqlite";
 import { expect, test } from "@playwright/test";
-import { createBlock } from "./helpers";
+import { activeProjectDbFile, createBlock, goto, uniqueName } from "./helpers";
 
 /**
  * The v2 link model (#91): a good's made state is toggled from its right-click
@@ -49,4 +50,77 @@ test("marking an import made without a producer keeps it a silent import", async
   await expect(
     page.getByRole("menuitem", { name: /click to import instead/ }),
   ).toBeVisible();
+});
+
+test("adding a coke consumer drains exported pitch and keeps a solved building count", async ({
+  page,
+}) => {
+  // Arrange the real pre-consumer Tar chain directly in the isolated scratch
+  // project. Its six recipes export 13.405 pitch/s; the browser action below is
+  // the behavior under test, including the persisted drain and fresh solve.
+  const data = {
+    recipes: [
+      "tar-refining",
+      "tar-refining-tops",
+      "light-oil-aromatics",
+      "naphthalene-oil-creosote",
+      "anthracene-gasoline-cracking",
+      "carbolic-oil-creosote",
+    ],
+    made: [
+      "anthracene-oil",
+      "carbolic-oil",
+      "light-oil",
+      "middle-oil",
+      "naphthalene-oil",
+      "pitch",
+    ],
+    pins: [
+      { kind: "drain", recipe: "tar-refining", item: "tar" },
+      { kind: "drain", recipe: "tar-refining-tops", item: "middle-oil" },
+      { kind: "drain", recipe: "light-oil-aromatics", item: "light-oil" },
+      { kind: "drain", recipe: "naphthalene-oil-creosote", item: "naphthalene-oil" },
+      { kind: "drain", recipe: "anthracene-gasoline-cracking", item: "anthracene-oil" },
+      { kind: "drain", recipe: "carbolic-oil-creosote", item: "carbolic-oil" },
+    ],
+    machines: {
+      "tar-refining": "tar-processing-unit",
+      "tar-refining-tops": "tar-processing-unit",
+      "light-oil-aromatics": "distilator",
+      "naphthalene-oil-creosote": "tar-processing-unit",
+      "anthracene-gasoline-cracking": "distilator",
+      "carbolic-oil-creosote": "tar-processing-unit",
+    },
+    goals: [{ name: "tar", rate: -9.575 }],
+  };
+  const db = new DatabaseSync(activeProjectDbFile());
+  let id: number;
+  try {
+    db.exec("PRAGMA busy_timeout = 5000");
+    const inserted = db
+      .prepare("INSERT INTO blocks (name, data) VALUES (?, ?)")
+      .run(uniqueName("Pitch drain"), JSON.stringify(data));
+    id = Number(inserted.lastInsertRowid);
+  } finally {
+    db.close();
+  }
+
+  await goto(page, `/block/${id}`);
+  const pitch = page.getByRole("button", { name: /^Pitch 13\.4.*export/ }).first();
+  await expect(pitch).toBeVisible();
+  await pitch.click();
+
+  const picker = page.getByRole("dialog", { name: /Recipes that consume Pitch/ });
+  await picker.getByRole("button", { name: /^Coke/ }).click();
+  await expect(picker).toBeHidden();
+
+  // Pitch is fully consumed. The row shows a drain-routing marker—not the `%`
+  // share marker—and its building count remains the ordinary solver result.
+  await expect(page.getByRole("button", { name: /^Pitch .*export/ }).first()).toBeHidden();
+  await expect(page.getByLabel("routes all surplus Pitch")).toBeVisible();
+  await expect(page.getByLabel("routes all surplus Pitch").locator("svg")).toBeVisible();
+  await expect(
+    page.getByLabel("change Destructive distillation column MK 01 building").last(),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "0.67", exact: true })).toBeVisible();
 });

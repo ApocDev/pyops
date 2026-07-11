@@ -21,11 +21,30 @@ describe("drainsOnConsume", () => {
     expect(
       drainsOnConsume({
         good: "grade-2-iron",
+        mainProduct: "grade-3-iron",
         ingredients: [good("grade-2-iron", 4)],
         products: [good("grade-3-iron", 2), good("iron-slime", 1)],
         consumedInBlock: new Set(["grade-2-iron", "grade-3-iron", "iron-slime"]),
       }),
     ).toBe(false);
+  });
+
+  it("drains pitch into coke when only secondary oils re-enter the chain", () => {
+    expect(
+      drainsOnConsume({
+        good: "pitch",
+        mainProduct: "coke",
+        ingredients: [good("pitch", 100), good("steam", 100)],
+        products: [
+          good("hydrogen", 10),
+          good("light-oil", 20),
+          good("naphthalene-oil", 20),
+          good("anthracene-oil", 30),
+          good("coke", 10),
+        ],
+        consumedInBlock: new Set(["light-oil", "naphthalene-oil", "anthracene-oil"]),
+      }),
+    ).toBe(true);
   });
 
   it("drains a product-less void", () => {
