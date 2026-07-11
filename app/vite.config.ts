@@ -90,10 +90,11 @@ function serveIconsDev() {
   };
 }
 
-/** Nitro forwards client disconnects (page reload/test teardown) as middleware
- * errors, so Vite presents a red overlay for a request the browser deliberately
- * abandoned. Swallow only that narrow dev-only case; every real server error
- * still reaches Vite's normal error handler. */
+/** Nitro forwards client disconnects (page reload/test teardown) and its own
+ * upstream proxy resets as middleware errors, so Vite presents a red overlay
+ * for an abandoned request or a dev-worker reconnect. Swallow only those exact
+ * dev-only transport failures; every application error still reaches Vite's
+ * normal error handler. */
 function ignoreAbortedRequestResets() {
   return {
     name: "pyops-ignore-aborted-request-resets",
@@ -114,7 +115,9 @@ function ignoreAbortedRequestResets() {
         server.middlewares.use((error, req, res, next) => {
           const reset = error.code === "ECONNRESET" || error.cause?.code === "ECONNRESET";
           const disconnected = req.aborted || req.destroyed || res.destroyed || res.writableEnded;
-          if (reset && disconnected) return;
+          const nitroProxyReset =
+            error.message === "socket hang up" || error.message === "read ECONNRESET";
+          if (reset && (disconnected || nitroProxyReset)) return;
           next(error);
         });
       };
