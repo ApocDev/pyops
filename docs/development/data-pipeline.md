@@ -108,6 +108,11 @@ integration intentionally re-runs after resetting their globals, avoiding stale
 it, runs the dumps, and disables it again in a `finally` block so it never lingers
 for normal play.
 
+Current planner dumps identify a TURD choice structurally: its sub-tech depends on
+both the master technology and a synthetic `turd-select-<sub-tech>` gate. The
+importer uses that pair to mark TURD masters; it also accepts the older explicit
+`is_turd` property for compatibility with earlier dumps and test fixtures.
+
 ## Data model notes
 
 The schema (`app/src/db/schema.ts`) models Factorio reference data plus PyOps'

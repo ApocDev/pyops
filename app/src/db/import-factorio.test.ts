@@ -49,6 +49,33 @@ describe("importFactorioDump — recipe categories", () => {
   });
 });
 
+describe("importFactorioDump — TURD master detection", () => {
+  it("infers current planner masters from their sub-tech gate prerequisites", () => {
+    const db = runImport({
+      technology: {
+        "dhilmos-upgrade": { prerequisites: ["dhilmos-mk04"] },
+        "double-intake": {
+          prerequisites: ["dhilmos-upgrade", "turd-select-double-intake"],
+        },
+        "turd-select-double-intake": { enabled: false },
+        automation: { prerequisites: [] },
+        "legacy-turd-master": { is_turd: true },
+      },
+    });
+    const rows = db
+      .prepare(`SELECT name, is_turd isTurd FROM technologies ORDER BY name`)
+      .all() as { name: string; isTurd: number }[];
+    expect(rows).toEqual([
+      { name: "automation", isTurd: 0 },
+      { name: "dhilmos-upgrade", isTurd: 1 },
+      { name: "double-intake", isTurd: 0 },
+      { name: "legacy-turd-master", isTurd: 1 },
+      { name: "turd-select-double-intake", isTurd: 0 },
+    ]);
+    db.close();
+  });
+});
+
 // Fixture values are a real slice of the Py dump (data-raw-dump.json):
 // technology.microfilters grants change-recipe-productivity fawogae-spore +0.15
 // and navens-spore +0.4; technology.mining-productivity-1 grants

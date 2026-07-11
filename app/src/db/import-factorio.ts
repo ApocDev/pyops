@@ -89,6 +89,22 @@ const jsonList = (x: unknown): string | null => {
 const recipeCategory = (r: Record<string, unknown>): string =>
   arr<string>(r.categories)[0] ?? (r.category as string | undefined) ?? "crafting";
 
+/** Planner dumps represent a TURD choice as a sub-tech gated by both its master
+ * and a synthetic `turd-select-<sub>` technology. Current pypostprocessing no
+ * longer adds its old nonstandard `is_turd` marker to the master prototype, so
+ * derive the masters from the stable prerequisite shape instead. */
+function inferredTurdMasters(technologies: Record<string, any>): Set<string> {
+  const masters = new Set<string>();
+  for (const [name, tech] of Object.entries(technologies)) {
+    const prerequisites = arr<string>(tech?.prerequisites);
+    const gate = `turd-select-${name}`;
+    if (!prerequisites.includes(gate)) continue;
+    const candidates = prerequisites.filter((prerequisite) => prerequisite !== gate);
+    if (candidates.length === 1) masters.add(candidates[0]);
+  }
+  return masters;
+}
+
 const TABLES = [
   "recipe_ingredients",
   "recipe_products",
@@ -505,6 +521,7 @@ export function importFactorioDump(
       "inserter-stack-size-bonus": "inserter",
       "bulk-inserter-capacity-bonus": "bulk-inserter",
     };
+    const turdMasters = inferredTurdMasters(raw.technology ?? {});
     for (const [name, t] of Object.entries(raw.technology ?? {})) {
       ins.tech.run({
         name,
@@ -513,7 +530,8 @@ export function importFactorioDump(
         order: t.order ?? null,
         unit_count: t.unit?.count ?? null,
         enabled: t.enabled === false ? 0 : 1,
-        is_turd: t.is_turd ? 1 : 0,
+        // Honor the legacy dump marker while supporting current planner dumps.
+        is_turd: t.is_turd || turdMasters.has(name) ? 1 : 0,
       });
       for (const pre of arr<string>(t.prerequisites)) ins.techPrereq.run(name, pre);
       const stackAcc: Record<string, number> = {};

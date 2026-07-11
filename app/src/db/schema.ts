@@ -308,9 +308,9 @@ export const technologies = sqliteTable("technologies", {
   order: text(),
   unitCount: real("unit_count"), // research cost multiplier (unit.count)
   enabled: bool("enabled").notNull().default(true),
-  // Pyanodon TURD: master techs are flagged is_turd; their selectable sub-techs
-  // (from the dump-time yafc integration) are normal techs whose prerequisites
-  // are [master, turd-select-<name>]
+  // Pyanodon TURD: the importer marks master techs from each selectable sub-tech's
+  // planner prerequisites [master, turd-select-<name>] (and honors the legacy
+  // dump is_turd marker when present).
   isTurd: bool("is_turd").notNull().default(false),
 });
 
