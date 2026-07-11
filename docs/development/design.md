@@ -1,231 +1,285 @@
+---
+title: Design system
+description: Apply PyOps visual foundations, shared primitives, responsive anatomy, interaction states, accessibility, and verification rules.
+outline: [2, 3]
+---
+
 # Design system
 
-The shared visual/interaction spec for the web app (issue #17). Every UI change —
-new page, new component, touched-up route — follows this document. The base layer
-(theme tokens in `app/src/styles.css`, primitives in `app/src/components/ui/`)
-enforces most of it by default; this doc is the contract for everything the base
-layer can't enforce.
+The PyOps interface is an industrial planning tool: dense, square, readable, and driven by
+semantic status. Theme tokens live in `app/src/styles.css`; shared primitives live in
+`app/src/components/ui/`; larger recurring patterns live in `app/src/components/`.
 
-**The prime directive: don't hand-roll what the system provides.** If you're
-writing `className="rounded border px-2 …"` on a `<button>`, `<input>`, or
-`<span>` that acts like a badge, stop — use the primitive. If a pattern recurs
-and no primitive covers it, add one under `components/` and use it everywhere,
-rather than inlining it twice.
+The governing rule is simple: do not hand-roll a control or pattern the system already
+provides. Per-page classes should describe layout. Shared components and tokens should own
+appearance and interaction behavior.
 
 ## Principles
 
-- **Industrial, dense, square.** PyOps is an ops tool for a factory game: flat
-  surfaces, square corners, monospace-forward type, high information density.
-  Decoration only where it carries meaning (status color, severity, live-ness).
-- **Consistency is the default, not opt-in.** Tokens and primitives carry the
-  design; per-page CSS should be layout, not styling.
-- **Readable floor.** Body and data text is `text-sm` or larger — see Typography.
-- **Localized names, always.** UI shows the `display` name; internal names
-  (`iron-pulp-07`) are keys only, surfaced at most in a tooltip/`title`.
-- **Controls first, explanation on demand.** A surface never opens with a
-  paragraph explaining what it is. Inline copy is at most one short sentence;
-  one clause of context is an `InfoHint` tooltip on the label; anything longer
-  lives in a `HelpButton` drawer (or `docs/`). If a label needs a parenthetical
-  to be understood, shorten the label and move the parenthetical to a hint.
-- **Chrome carries signal, not documentation.** Section headers are
-  `Title (count)` — the explaining clause is an `InfoHint`, never a permanent
-  caption. Status lines are compact `word · count · time` (`live · 40 goods ·
-3m`), with any "how to fix it" in a hint or action, not an instruction tail.
-  Per-row state is a one-word badge with a `Tooltip`; the same qualifier never
-  repeats down a list.
+- **Dense but readable.** Prefer compact structure and clear hierarchy, never tiny primary
+  text.
+- **Industrial and square.** Use flat surfaces, borders, and meaningful status color rather
+  than decorative rounding or shadow.
+- **Semantic before local.** A warning, import, export, or success uses the same token and
+  primitive everywhere.
+- **Localized names.** Visible item, fluid, recipe, machine, and technology labels use their
+  display names. Internal IDs are keys and optional diagnostic detail.
+- **Progressive explanation.** Keep the working surface concise. Put a clause in an
+  `InfoHint`, a concept in a `HelpButton` drawer, and a full workflow in the documentation.
+- **Capability parity.** Responsive layouts may relocate controls but never remove a
+  capability.
+- **State is designed.** Loading, empty, error, disabled, stale, and success states are part
+  of the feature rather than cleanup work.
 
 ## Foundations
 
 ### Typography
 
-Base font is Geist Mono (set on `html`); `font-sans` (Manrope) is available but
-the app deliberately reads monospace. The scale:
+Geist Mono is the base application font. Manrope remains available through `font-sans`, but
+the product is deliberately monospace-forward.
 
-| Role                        | Classes                                                               | Notes                                                                                                                                                              |
-| --------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Page title                  | `text-lg font-semibold tracking-tight`                                | Exactly one per page, via `PageHeader`.                                                                                                                            |
-| Section / card title        | `text-sm font-semibold tracking-wide uppercase text-muted-foreground` | This is `CardTitle`; use it (or match it) for section headers.                                                                                                     |
-| Body, data, labels, buttons | `text-sm`                                                             | The floor. Tables, badges, inputs, menus — all `text-sm`.                                                                                                          |
-| Fine print                  | `text-xs`                                                             | Only true fine print: supplementary annotation whose loss costs nothing — unit suffixes, keycap hints, timestamps. Never primary data, never a whole row or table. |
+| Role                             | Classes                                                               | Rule                                                              |
+| -------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Page title                       | `text-lg font-semibold tracking-tight`                                | Exactly one, through `PageHeader`                                 |
+| Card or section title            | `text-sm font-semibold tracking-wide uppercase text-muted-foreground` | Prefer `CardTitle`                                                |
+| Body, controls, labels, and data | `text-sm`                                                             | Minimum readable size                                             |
+| Fine print                       | `text-xs`                                                             | Timestamps, units, key hints, and truly supplementary detail only |
 
-If you're unsure whether something is fine print, it isn't — use `text-sm`.
+If removing a line would hide primary information, it is not fine print.
+
+Inputs and textareas render at `text-base` on narrow screens to prevent iOS focus zoom, then
+use `md:text-sm` at desktop widths.
 
 ### Color
 
-Use theme tokens only. Never raw palette classes (`text-emerald-300`,
-`bg-zinc-800`) or hex values — they don't adapt to light/dark and drift shade by
-shade. The tokens (defined in `styles.css`, `:root` = light, `.dark` = dark).
-The active theme is a per-browser preference (light / dark / **system**) — set
-in Settings → Display, stored at `pyops.theme`, applied by `lib/theme.ts` (which
-toggles the `.dark` class + `color-scheme`) with a pre-paint script in the root
-document that reads it before first paint so switching never flashes. Dark is
-the default and the mode the UI is tuned in first; new surfaces must read
-correctly in both (that's what token-only buys you). The tokens:
+Use semantic theme tokens only. Raw Tailwind palette classes and component hex values are
+forbidden because they drift between pages and do not adapt to light and dark themes.
 
-| Token                                                           | Meaning in PyOps                                                        |
-| --------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `background` / `foreground`                                     | Page surface and default text.                                          |
-| `card`, `popover`, `muted`, `accent`, `border`, `input`, `ring` | Standard shadcn surfaces/chrome.                                        |
-| `primary`                                                       | Brand orange (`#d2842d`); primary actions, active nav.                  |
-| `destructive`                                                   | Deficit, starved, failing, delete actions.                              |
-| `success`                                                       | Healthy / goal met / produced / live-connected.                         |
-| `warning`                                                       | Attention: consumed side, imports, behind-plan, degraded.               |
-| `info`                                                          | Neutral notice: stock-refill flows, edit affordances, forced overrides. |
-| `surplus`                                                       | Exports, byproducts, positive net — material leaving a block.           |
+| Token                                                           | Meaning                                                                |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `background` / `foreground`                                     | Page surface and ordinary text                                         |
+| `card`, `popover`, `muted`, `accent`, `border`, `input`, `ring` | Shared surface and chrome layers                                       |
+| `primary`                                                       | Brand accent, primary action, and selected navigation                  |
+| `destructive`                                                   | Failure, deficit, starvation, and destructive action                   |
+| `success`                                                       | Healthy, satisfied, produced, and live-connected                       |
+| `warning`                                                       | Attention, consumption, imports, stale state, and degraded behavior    |
+| `info`                                                          | Neutral notices, stock flows, edit affordances, and explicit overrides |
+| `surplus`                                                       | Exports, byproducts, and positive net material flow                    |
 
-Usage recipe for the status hues: text `text-warning`, tinted fill
-`bg-warning/10`–`/20`, border `border-warning/40`. Pair a tinted fill with text
-of the same hue, not with plain foreground. Status color is a redundant channel:
-the state must also be legible from an icon, label, or value.
+Tinted states pair one hue across text, border, and a low-opacity background, for example
+`text-warning border-warning/40 bg-warning/15`. Color is redundant: an icon, label, or
+value must still communicate the state.
 
-### Shape & elevation
+Theme selection is a browser preference managed by `app/src/lib/theme.ts`. A pre-paint
+script applies it before React renders, avoiding a light/dark flash. New surfaces must work
+in both themes even though dark mode is the primary tuning surface.
 
-- **Square corners everywhere.** `--radius` is `0`, so stray `rounded`/
-  `rounded-md` classes render square anyway — but don't write them. The only
-  rounding is `rounded-full` for status dots and spinners.
-- Flat surfaces separated by `border` (1px) and background steps
-  (`bg-card`, `bg-muted`), not shadows. Shadows only on floating layers
-  (popovers, dropdowns, hover cards).
-- **Floating layers must visibly separate from the page.** Menus (dropdown,
-  context menu) and tooltips are **opaque** `bg-popover` with `ring-1
-ring-foreground/15` (or an equivalent border) + `shadow-lg` — never translucent;
-  they float over dense data. The large glass surfaces (`Dialog`, `Sheet`) stay
-  `bg-popover/90` + `backdrop-blur` with the same ring. Don't weaken these in
-  per-surface overrides.
+### Shape and elevation
+
+`--radius` is zero. Do not add `rounded*` classes except `rounded-full` for circular status
+dots and spinners.
+
+Separate ordinary surfaces with `border`, `bg-card`, and `bg-muted`, not shadow. Floating
+menus, context menus, hover cards, and tooltips use an opaque `bg-popover`, visible ring or
+border, and shadow so they remain legible over dense tables. Large `Dialog` and `Sheet`
+surfaces may use the shared translucent backdrop treatment supplied by their primitives.
+
+Do not weaken overlay opacity, border, or focus treatment from an individual page.
 
 ### Spacing
 
-- Page content padding: `p-4`.
-- Between sections/cards: `gap-4` (or `mb-4`).
-- Within a group (toolbar buttons, form rows): `gap-2`; tight clusters `gap-1.5`.
-- Card interior: `CardHeader` is `px-3 py-2`, `CardContent` is `p-3` — keep
-  custom panels on the same rhythm.
+The shared rhythm is:
 
-### Iconography
+- page content: `p-4`;
+- between sections and cards: `gap-4`;
+- ordinary control groups: `gap-2`;
+- tight icon/label groups: `gap-1.5`;
+- card header: `px-3 py-2`;
+- card content: `p-3`.
 
-- **UI glyphs**: lucide-react. Default `size-4`; `size-3.5`/`size-3` inside
-  `sm`/`xs` buttons (the `Button` primitive already handles this for direct
-  `svg` children). Align with text via flex `items-center gap-1`–`1.5`.
-- **Game sprites**: the `Icon` component (`lib/icons.tsx`) with token sizes
-  (`xs`/`sm`/`md`/`lg` — tuned once in `styles.css`, never ad-hoc pixel sizes).
-  `Icon` shows a rich hover card by default; `RawIcon` is the bare sprite;
-  `noHover` opts out.
+Use spacing to express grouping before adding more borders or labels.
 
-## Components
+### Icons
 
-Reach for these before writing markup:
+Use Lucide for application glyphs, normally at `size-4`. Small button variants can use
+`size-3.5` or `size-3`; the `Button` primitive sizes direct SVG children automatically.
 
-| Need                                 | Use                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Any clickable action                 | `Button` (`ui/button.tsx`) — variants `default`/`outline`/`secondary`/`ghost`/`destructive`/`link`, sizes down to `icon-xs`. No hand-rolled `<button className=…>`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Text/number entry                    | `Input`, `Textarea` (`text-base` on mobile so iOS doesn't zoom, `md:text-sm` on desktop).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Choose-one                           | `Select` (Radix).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Yes/no tick                          | `Checkbox` (`ui/checkbox.tsx`) — pairs with `Label`; `Switch` stays the on/off setting control.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Action menu on a trigger             | `DropdownMenu` (`ui/dropdown-menu.tsx`) — Radix; keyboard nav and outside-dismiss built in.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| Status chip / count                  | `Badge` — semantic tint via `className` (e.g. `bg-warning/15 text-warning border-transparent`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Status message / banner              | `Callout` (`ui/callout.tsx`) — `tone` success/warning/info/destructive/primary, default icon per tone, optional `title`/`action`; `variant="strip"` for full-bleed rows inside cards.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Transient feedback                   | `toast()` (`lib/toast-store.ts`) — non-blocking bottom-right queue rendered by the `Toaster` in `ui/toast.tsx` (mounted once in the root). Tones default/success/destructive, auto-dismiss, optional action button ("Undo", "Reload"); callable from anywhere, not just components. For feedback about a completed/failed action — anything needing a decision is a `Dialog`, anything persistent a `Callout`.                                                                                                                                                                                                                                                                                                                                        |
-| Choose-one mode switch               | `Segmented` (`ui/segmented.tsx`) — joined segments in one border, active segment filled `primary`. For mutually exclusive modes (Now/Future/Target, Table/Flow, Requires/Required-by).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Independent on/off chip(s)           | `Button variant="toggle"` with `aria-pressed` — for multi-select filters and wrapping many-option picks; not for a choose-one mode switch (that's `Segmented`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Micro caption over a field group     | `FieldLabel` (`ui/label.tsx`) — the uppercase muted eyebrow; `Label` stays the `text-sm` form label.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Panel with a title                   | `Card` + `CardHeader`/`CardTitle`/`CardContent`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Confirmation / focused edit          | `Dialog` (`ui/dialog.tsx`) — centered modal at `md+`, docks to the bottom as a sheet below. Never a bare centered modal on phones. Body content goes in `DialogBody` (the `p-4 space-y-4` scroll region); separate logical groups with `border-t border-border pt-3` sections, each headed by a `FieldLabel`.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Long-form "what is this?" docs       | `HelpButton` (`components/help-drawer.tsx`) — a `?` button opening a right-side docs Sheet. Concepts are explained there (or in `docs/`), **not** in paragraphs above the controls.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| One clause of context on a label     | `InfoHint` (`components/info-hint.tsx`) — a small ⓘ with a tooltip beside a `FieldLabel`. Replaces parenthetical explanations crammed into labels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Destructive-action confirm           | `ConfirmDialog` (`components/confirm-dialog.tsx`) — the app's one "are you sure?", built on `AlertDialog` (`ui/alert-dialog.tsx`, radix; shares Dialog's surface + responsive bottom-sheet, but no × close or outside-dismiss — Cancel or a destructive-variant confirm). Body copy names exactly what's destroyed (e.g. block name + recipe/goal counts). Only for big/irreversible deletes (block, project, companion mod, chat); small undo-logged deletes skip the confirm and fire immediately with a toast whose Undo action shortcuts into the undo system (`deletedToast`/`undoToast` in `lib/undo-client.ts`). Never `window.confirm`.                                                                                                       |
-| Slide-over / drawer / collapsed rail | `Sheet`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Page title row + toolbar             | `PageHeader` (`components/page-header.tsx`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| "Nothing here yet"                   | `EmptyState` (`components/empty-state.tsx`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Loading / error / empty for a query  | `QueryBoundary` (`components/query-boundary.tsx`) — wrap a `useQuery`; it renders a `Skeleton` while loading, a retryable `QueryError` on failure, an optional `EmptyState`, then `children(data)`. Don't hand-roll the four branches.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Retryable error surface              | `QueryError` (`components/query-error.tsx`) — a destructive `Callout` that names what failed with a "Retry" button (wire to `refetch`). For a whole-route (thrown) failure the router's `RouteError` (`components/route-error.tsx`, the root `errorComponent`) catches it; `RoutePending` (`components/route-pending.tsx`) is the root `pendingComponent`.                                                                                                                                                                                                                                                                                                                                                                                            |
-| Search box over a list               | `FilterInput` (`components/filter-input.tsx`) + `useFilteredList` (`lib/use-filtered-list.ts`) + `FilterEmptyState` (`components/filter-empty-state.tsx`) — the one filtered-list anatomy (#87): localized display names first, internal names as a hidden fallback, results ranked by the command palette's scorer (`lib/command-search.ts`), and a "no matches for X" state with a clear-filter action. Don't hand-roll `useState` + `toLowerCase().includes(…)`.                                                                                                                                                                                                                                                                                   |
-| Loading placeholder                  | `Skeleton` (`ui/skeleton.tsx`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Hover text tooltip                   | `Tooltip` (`ui/tooltip.tsx`) — a themed, keyboard-accessible (hover **and** focus, Escape-to-close) text bubble built on radix Tooltip. Use for explanatory/warning text and branded icon controls whose action isn't self-evident. Do not use native `title` for controls: it can't be styled or suppressed with CSS and can overlap an opened menu. Give icon controls an `aria-label`; when the same trigger opens a menu/popover/dialog, control the tooltip's `open` state and force it closed while that surface is open. Native `title` is reserved for plain full-name reveal on non-interactive truncated text (`title={display}` on a `.truncate` span).                                                                                    |
-| Rich hover card                      | `CursorHover`/`CursorCard` (`lib/hover.tsx`) — a cursor-following portal card for rich detail (item/recipe/tech/module loadouts); `Icon` shows one by default. Pass surface-specific context through `extraText` so it joins that card. Never wrap a hover-enabled `Icon` in `Tooltip` or put a native `title` on its trigger; use `noHover` when a plain `Tooltip` genuinely owns the surface. Not for plain text — that's `Tooltip`.                                                                                                                                                                                                                                                                                                                |
-| Right-click menu                     | `ContextMenu`/`ContextMenuItem` (`components/context-menu.tsx`) — a Radix `DropdownMenu` anchored at the pointer (Escape-to-close, focus/roving, `role="menu"`, click-away for free); items are icon+label rows.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Keyboard shortcut                    | `useHotkey` (`lib/hotkeys.ts`) — the one global hotkey registry. `mod+` combos resolve to Cmd on macOS / Ctrl elsewhere; combos are suppressed while focus is in a text field unless the registration opts in with `allowInInputs` (reserved for app-global chords like Ctrl+K). Every registration carries a `description`, rendered by the shortcut help sheet (`components/shortcut-help-sheet.tsx` — `?` or the palette's "Keyboard shortcuts" entry). Don't hand-roll `window.addEventListener("keydown", …)` for shortcuts.                                                                                                                                                                                                                     |
-| Tabular goods/rates/stats            | `GoodsSection` (`components/goods-table.tsx`) + `StatCell`, with `StatTableHeader` (`components/stat-table.tsx`) for a static header row or `StatSortHeader` (`components/stat-sort-header.tsx`) for a click-to-sort one (headless TanStack Table owns the sort state; `usePersistedSorting`/`usePersistedFold` in `lib/use-table-prefs.ts` remember the choice per browser — see `goods-table.tsx` and the factory `MachinesCard`). The app's one data-table anatomy: a muted `hidden md:flex` header row, then rows with a lead cell (icon + truncating name, `flex-1`) and fixed-width right-aligned `StatCell` columns that collapse to a labeled grid on mobile. New tables follow it; prose tables in assistant markdown are the one exception. |
+Use `Icon` from `app/src/lib/icons.tsx` for Factorio sprites. Choose its named
+`xs`/`sm`/`md`/`lg` sizes rather than arbitrary pixels. `Icon` includes the rich cursor
+hover by default; use `RawIcon` for bare rendering or `noHover` when another surface owns
+the explanation.
+
+## Shared primitives
+
+### Actions and forms
+
+| Need                                 | Component                                                         |
+| ------------------------------------ | ----------------------------------------------------------------- |
+| Clickable action                     | `Button` and its semantic variants/sizes                          |
+| Text or numeric input                | `Input`, `Textarea`                                               |
+| Choose one value                     | Radix-backed `Select`                                             |
+| Boolean form field                   | `Checkbox` with `Label`; `Switch` for a persistent on/off setting |
+| Mutually exclusive mode              | `Segmented`                                                       |
+| Independent toggle/filter            | `Button variant="toggle"` with `aria-pressed`                     |
+| Field-group eyebrow                  | `FieldLabel`; use `Label` for the actual form control label       |
+| Triggered action list                | `DropdownMenu`                                                    |
+| Pointer-anchored right-click actions | `ContextMenu` and `ContextMenuItem`                               |
+
+Never replace these with a styled native button, input, select, or clickable span. The
+primitive carries keyboard, focus, disabled, and theme behavior that local markup tends to
+miss.
+
+### Surfaces and feedback
+
+| Need                               | Component                                        |
+| ---------------------------------- | ------------------------------------------------ |
+| Titled panel                       | `Card`, `CardHeader`, `CardTitle`, `CardContent` |
+| Persistent state message           | `Callout`; use `variant="strip"` inside a card   |
+| Compact state or count             | `Badge` with semantic token classes              |
+| Completed-action feedback          | `toast()` rendered by the root `Toaster`         |
+| Focused edit or choice             | responsive `Dialog` with `DialogBody`            |
+| Long side panel                    | `Sheet`                                          |
+| Large or irreversible confirmation | `ConfirmDialog`                                  |
+| Loading placeholder                | `Skeleton`                                       |
+| No content                         | `EmptyState`                                     |
+| Query loading/error/empty/data     | `QueryBoundary`                                  |
+| Retryable inline failure           | `QueryError`                                     |
+
+A toast reports something that happened. A dialog requests a decision. A callout explains a
+persistent state. Do not interchange them.
+
+Small undo-logged deletes happen immediately and offer the shared undo toast. Block,
+project, Companion-mod, and conversation deletion use `ConfirmDialog` because their scope
+or reversibility differs. Never use `window.confirm`.
+
+Dialogs center at `md` and above and dock to the bottom on narrower screens. Put scrolling
+content in `DialogBody`; keep title and action regions outside it.
+
+### Explanation and hover
+
+| Need                                          | Component                                 |
+| --------------------------------------------- | ----------------------------------------- |
+| One clause beside a label                     | `InfoHint`                                |
+| Longer embedded concept help                  | `HelpButton` and its right-side drawer    |
+| Short interactive explanation                 | keyboard-accessible `Tooltip`             |
+| Rich Factorio detail                          | `CursorHover` / `CursorCard`              |
+| Full value for non-interactive truncated text | native `title={display}` on the text span |
+
+Do not wrap a hover-enabled game `Icon` in a tooltip; choose one owner. Icon buttons need an
+`aria-label`, and a tooltip that shares a trigger with a menu or dialog must close while the
+larger surface is open.
+
+### Lists, search, and tables
+
+Use `FilterInput`, `useFilteredList`, and `FilterEmptyState` for searchable lists. The shared
+search ranks localized names first while allowing internal IDs as a hidden fallback. Avoid
+per-page lowercase substring filters.
+
+Goods and statistics tables use `GoodsSection`, `StatCell`, `StatTableHeader`, or
+`StatSortHeader`. Desktop headers are hidden at narrow widths; each `StatCell` becomes a
+labeled mobile value. `usePersistedSorting` and `usePersistedFold` store browser-local table
+preferences where applicable.
+
+The lead cell owns the flexible width and truncation. Numeric/stat columns remain fixed and
+right-aligned on desktop. Do not preserve a wide desktop row by forcing horizontal scroll
+on mobile.
+
+### Keyboard shortcuts
+
+Register shortcuts through `useHotkey` in `app/src/lib/hotkeys.ts`. `mod+` resolves to
+Command on macOS and Control elsewhere. Shortcuts are suppressed inside text fields unless
+an app-global chord explicitly opts into `allowInInputs`.
+
+Every registration includes a description so the `?` shortcut-help sheet can discover it.
+Do not add route-level `window.addEventListener("keydown", …)` handlers.
 
 ## Page anatomy
 
-- **Scroll model**: the nav shell is fixed; page content scrolls in its own
-  container (`min-h-0 flex-1 overflow-auto`). Don't let the page body scroll the
-  header away; toolbars that drive the content below them stay visible
-  (sticky or in the fixed header region).
-- Every route starts with one `PageHeader` (title, optional description,
-  right-aligned actions, toolbar as children). No per-page heading styles. It is
-  **sticky** to the top of its scroll container (opaque `bg-background`, a bottom
-  rule, `z-20` above row-hover/sticky-subheader layers), so the title and toolbar
-  stay reachable on long pages. Its edge-to-edge bleed assumes the header sits
-  directly inside a `p-4` scroll region — keep every route on that invariant.
-- List-plus-detail pages use `SidebarShell` (rail on desktop, drawer on mobile).
+Every route has one `PageHeader` directly inside its `p-4` scroll region. It owns the title,
+optional concise description, primary actions, and toolbar. The header stays sticky with an
+opaque background and bottom divider.
 
-## Form factors
+The application shell remains fixed; route content scrolls in an inner
+`min-h-0 flex-1 overflow-auto` region. Controls that operate on a long data surface remain
+in the sticky header or another deliberate sticky row.
 
-The app runs on phones, tablets, desktops, and the Steam Deck, and the Tauri
-window resizes to anything in between. Design for a **continuous width range,
-not device classes** — every layout must be sane at every width from ~360px to
-ultrawide, including the transitions.
+List-and-detail routes use `SidebarShell`: a fixed rail at desktop widths and a Sheet drawer
+below `md`. Do not create a second responsive sidebar implementation.
 
-- **Breakpoint semantics.** Base styles are the narrow layout: single column,
-  stacked labeled cards (`StatCell` collapses to this), bottom-sheet dialogs,
-  nav in a drawer. `md` (768px) is _the_ anatomy switch: table header rows
-  appear, dialogs center, drawers become rails. `lg`+ only adds columns and
-  width — never new capabilities.
-- **Capability parity at every width.** Controls may relocate (into a `Sheet`,
-  a menu, an overflow) but never disappear. Anything doable at 1920px is doable
-  at 390px.
-- **No sideways scroll, ever.** Names truncate (with `title`/hover for the full
-  text), tables collapse to stacked cards; wide content never pushes the page.
-  Enforced at tablet/phone widths by `app/e2e/responsive.e2e.ts`.
-- **Readability doesn't shrink with the window.** The `text-sm` floor and full
-  localized names hold at all widths; density comes from stacking and
-  collapsing layout, not smaller type.
-- **Touch is orthogonal to width.** Tablets and the Deck are touch _at desktop
-  widths_, so never gate touch affordances on breakpoint. Interactive targets
-  are at least the `h-8` button with `gap-2` between neighbors; hover (cursor
-  cards, hover-revealed buttons) is an enhancement layer — every hover
-  affordance needs a click/tap path, or its content must be supplementary.
-- **Height matters too.** The Deck is 1280×800: desktop width, short. Keep
-  fixed chrome to lean single rows, scroll content in its inner container, and
-  don't stack tall sticky regions.
-- **Ultrawide**: cap prose and forms with `max-w-*`; let data grids grow
-  columns (the `2xl:grid-cols-3` pattern) rather than stretching rows.
+Prose and forms use a readable `max-w-*`. Data grids may add columns at wide breakpoints
+instead of stretching individual rows across an ultrawide monitor.
 
-The e2e matrix (`responsive.e2e.ts`) screenshots every route at 1920×1080,
-1280×800 (= Steam Deck), 834 and 390 wide, and asserts no sideways scroll at
-tablet/phone widths — layout work keeps that suite green.
+## Responsive behavior
 
-## Interaction states
+Design continuously from approximately 360 px through ultrawide layouts. Breakpoints change
+anatomy, not capability.
 
-Every async surface ships all three states — a surface that renders blank while
-loading, empty, or failed is a bug:
+- Base styles are the narrow layout: one column, stacked labeled values, bottom-sheet
+  dialogs, and navigation in a drawer.
+- `md` is the main anatomy switch: table headers appear, dialogs center, and side drawers
+  can become rails.
+- `lg` and larger widths may add columns and whitespace but no new controls.
+- Every desktop action remains available from a menu, drawer, or rearranged control on
+  mobile.
+- Names truncate with an accessible full-name path; data tables collapse instead of making
+  the page scroll sideways.
+- Text remains `text-sm` or larger. Density comes from stacking and grouping, not shrinking
+  type.
+- Touch support does not depend on width. Use at least the shared `h-8` target and adequate
+  spacing. Hover-only behavior must be supplementary or have a tap/click path.
+- Height matters. The 1280×800 Steam Deck layout needs lean fixed chrome and independently
+  scrolling content.
 
-- **Loading**: `Skeleton` blocks that approximate the final layout (no spinner
-  walls, no layout jump). Route-level data uses the route's `pendingComponent`
-  (the root default is `RoutePending`).
-- **Empty**: `EmptyState` with a title, one sentence of guidance, and — when the
-  user can fix the emptiness — an action (`Button` or link). "No results" from a
-  filter says so and offers to clear the filter.
-- **Error**: say what failed, inline where the data would be. Use `QueryError`
-  (or wrap the whole query in `QueryBoundary`) for a `text-destructive` message
-  with a retry that calls `refetch`. A thrown loader/render error escalates to
-  the root `errorComponent` (`RouteError`) rather than a white screen.
+`app/e2e/responsive.e2e.ts` captures every route across desktop, Steam Deck, tablet, and
+phone viewports and asserts that tablet and phone routes do not overflow horizontally.
 
-The house convention for an in-body query is `QueryBoundary` — it renders the
-loading/error/empty/data branches from one `useQuery` so pages don't re-derive
-them. Reach for the raw `Skeleton`/`QueryError`/`EmptyState` primitives directly
-only when a surface needs a bespoke layout.
+## Async and interaction states
 
-Affordances: interactive elements get visible hover (`hover:bg-muted` family)
-and focus (`focus-visible:ring-1 ring-ring/50` — baked into the primitives)
-states. Transitions are short (`transition-colors`) and only where they aid
-comprehension; nothing decorative.
+Every asynchronous surface must define:
 
-## Status
+- **Loading** — skeletons that approximate the final geometry and avoid layout jumps;
+- **Empty** — a title, one sentence, and an action when the user can resolve it;
+- **Error** — a localized message in the failed surface with a retry path.
 
-Every route and shared component follows this system (the #17 migration is
-complete): zero raw palette classes, zero stray `rounded`, primitives
-everywhere, and all modals ride the responsive `Dialog`. Keep it that way —
-new code follows this document, and mechanical lint enforcement is tracked in
-issue #103.
+Route-level waits and failures use the root `RoutePending` and `RouteError` defaults unless
+the route requires a more specific shell. In-body queries normally use `QueryBoundary`.
+
+Filtering to zero results is not the same as having no data. `FilterEmptyState` names the
+query and offers to clear it.
+
+Interactive elements need visible hover and `focus-visible` states. Shared primitives
+already provide the ring behavior; preserve it. Use short color transitions when they help
+state comprehension and avoid decorative motion.
+
+Disabled and locked controls must be visibly unavailable, not merely a slightly different
+tint. Explain the reason through nearby text or a tooltip when it is not evident from the
+label.
+
+## Accessibility and content
+
+- Use native semantic elements through the shared primitives.
+- Every icon-only control has an accessible name.
+- Form labels are programmatically associated with their controls.
+- Status never depends on color alone.
+- Menus, dialogs, sheets, and tooltips preserve Radix keyboard and dismissal behavior.
+- Visible game names are localized. Internal IDs may appear in diagnostic detail or a hover
+  but never replace a known display name.
+- Keep inline explanations short and operational. Link the user documentation for complete
+  workflows rather than duplicating it in the app.
+
+## Mechanical enforcement
+
+`app/src/design-system.test.ts` scans TypeScript and TSX sources for:
+
+- raw Tailwind palette classes;
+- corner-rounding classes other than full circles or explicit none;
+- component hex colors;
+- arbitrary text sizes.
+
+The test runs in the staged-file Vite+ checks configured by `app/vite.config.ts`. A true
+exception must be narrowly documented in the test's exception list rather than hidden with
+an evasive class construction.
+
+For a UI change, run `vp check`, the relevant component tests, and the main Playwright flow.
+Inspect dark and light themes and at least one narrow viewport. When a new pattern appears
+twice, extract the shared component before it becomes a page convention.

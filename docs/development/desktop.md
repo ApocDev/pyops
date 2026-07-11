@@ -1,149 +1,264 @@
-# Desktop app & releases
+---
+title: Desktop app and releases
+description: Understand the PyOps-specific Tauri shell, Node sidecar, resource wiring, release matrix, and updater manifest.
+outline: [2, 3]
+---
 
-PyOps ships as a desktop app (a [Tauri](https://tauri.app) shell) in addition to
-running as a plain web app. The shell wraps the **same** Nitro server — UI and
-backend — in a native window; the React UI stays Tauri-agnostic, so anything
-desktop-specific (external links, self-update) lives in the Rust shell, not the web
-app. The shell is `app/src-tauri/` (`src/lib.rs` is the whole of it).
+# Desktop app and releases
 
-## How it runs
+PyOps uses Tauri 2 to package the local application for Linux, macOS, and Windows. This page
+documents the decisions specific to PyOps. Use Tauri's official documentation for the
+framework mechanics:
 
-The window _is_ the web app: it loads the local Nitro server.
+- [configuration reference](https://v2.tauri.app/reference/config/);
+- [embedding external binaries](https://v2.tauri.app/develop/sidecar/);
+- [capabilities and remote API access](https://v2.tauri.app/security/capabilities/);
+- [single-instance plugin](https://v2.tauri.app/plugin/single-instance/);
+- [updater plugin](https://v2.tauri.app/plugin/updater/);
+- [platform distribution and signing](https://v2.tauri.app/distribute/).
 
-- **Dev** — `beforeDevCommand` (in `tauri.conf.json`) starts the server on port
-  34115; Tauri waits for it and the window loads it. Run with `vp run tauri dev`
-  (or `cargo tauri dev`).
-- **Bundled** — there is no `vp`/Node on the user's machine, so the Rust shell
-  starts the server itself: it spawns a **vendored `node` sidecar** against the
-  bundled `.output` server, with the data/migrations/mod paths resolved from the
-  bundle and the OS. The window opens hidden and reveals on first paint (no white
-  flash while the server boots).
+The shell lives under `app/src-tauri/`. `src/lib.rs` owns runtime setup;
+`tauri.conf.json` owns bundle inputs and updater configuration;
+`capabilities/default.json` owns webview permissions.
 
-`PORT` is fixed (34115), which is why only **one instance** runs at a time
-(`tauri-plugin-single-instance`); a second launch just focuses the existing window.
-Supporting multiple instances / multiple open projects is tracked in
-[#41](https://github.com/ApocDev/pyops/issues/41).
+## PyOps runtime shape
 
-## Where data lives
+PyOps does not package a static frontend with a separate remote backend. The application is
+the TanStack Start/Nitro server, and the Tauri window loads it from
+`http://localhost:34115`.
 
-All on-disk state resolves through a single **data dir** (`app/src/server/paths.server.ts`):
-project databases (`projects/`), the icon atlas (`icon-data/`), and `app-config.json`.
+### Vendored Node sidecar
 
-- **Dev** — the working directory (`app/`), so it shares your dev data.
-- **Bundled** — the per-OS app-data dir (e.g. `~/.local/share/com.apocdev.pyops`),
-  overridable with `PYOPS_DATA_DIR`. A fresh install starts **empty**; you run a data
-  sync to populate it.
+Installed users do not need Node. `vendor-node.sh` downloads the runtime expected by
+Tauri's `externalBin` configuration. The bundle also carries:
 
-The resolved path is shown in **Settings → Game data → Storage location** (copy-able)
-so it's findable for debugging or sharing a database.
+- the Nitro `.output` directory;
+- Drizzle migrations;
+- the Companion mod source.
 
-## Building a bundle
+In a packaged build, Rust starts the Node sidecar with the bundled server entry and explicit
+paths:
 
-```bash
-cd app/src-tauri
-./vendor-node.sh                    # fetch the node sidecar (gitignored, per-platform)
-cd .. && vp run tauri build --bundles deb,appimage   # or dmg / nsis on mac / windows
+```text
+HOST=127.0.0.1
+PORT=34115
+PYOPS_DATA_DIR=<Tauri app-data directory>
+PYOPS_MIGRATIONS_DIR=<bundled drizzle directory>
+PYOPS_MOD_DIR=<bundled mod directory>
 ```
 
-- The vendored `node` is the runtime; `.output` (the server), `drizzle/`
-  (migrations), and `../mod` are bundled as resources (see `tauri.conf.json`
-  `bundle.resources` / `externalBin`).
-- **Targets**: `deb` + `AppImage` (Linux), `dmg` (macOS), NSIS installer (Windows).
-  The local default is `deb` only — AppImage's `linuxdeploy` tooling is unhappy on a
-  non-Debian host, but it builds cleanly on the Ubuntu CI runner.
-- **Linux**: the shell forces `GDK_BACKEND=x11` + `WEBKIT_DISABLE_DMABUF_RENDERER`
-  to avoid a webkit2gtk Wayland "Error 71" crash. AppImages need FUSE; if missing,
-  run with `--appimage-extract-and-run`.
+The shell drains the child-process output channel and retains its handle so shutdown can
+terminate the server cleanly.
 
-### Plugins in the shell
+This split is why server path code must use `app/src/server/paths.server.ts`. The current
+working directory is not a reliable resource or data root in a packaged application.
 
-`single-instance`, `window-state` (remembers size/position), `opener` (external
-links open in the system browser), `updater` + `process` (the self-update flow), and
-`shell` (the node sidecar).
+### Fixed port and single instance
 
-## Releases
+The webview URL uses fixed port `34115`. `tauri-plugin-single-instance` is registered before
+setup so a second launch focuses the existing window and exits before it can start another
+server on that port.
 
-Releases are driven by **conventional commits** via
-[release-please](https://github.com/googleapis/release-please) — `feat:` → minor,
-`fix:` → patch, `feat!:`/`BREAKING CHANGE:` → major.
+Supporting concurrent desktop processes would therefore require both instance-policy and
+port-allocation changes; it is not only a window-management change.
 
-1. Push conventional commits to `main`.
-2. release-please opens/maintains a **release PR** that bumps the version — one
-   version for the whole product, kept in lockstep across `version.txt`,
-   `app/package.json`, `app/src-tauri/tauri.conf.json`, `app/src-tauri/Cargo.toml`,
-   and the mod's `mod/info.json` (**don't hand-edit these**) — and the changelog.
-3. Merging the release PR creates the tag + GitHub release. An inline step then
-   rewrites the GitHub release body with an LLM — a short friendly summary on top,
-   the raw release-please changelog kept verbatim below a divider (see
-   "Release-notes polish" below). The build matrix then builds, signs, and attaches
-   each platform's bundles, and a final job aggregates a signed `latest.json` onto
-   the release.
+### Delayed window reveal
 
-The matrix builds Linux (`deb` + `AppImage`), Windows (NSIS), and **both** macOS
-arches — Apple Silicon natively and Intel **cross-compiled on the arm64 runner**
-(`--target x86_64-apple-darwin`, with `vendor-node.sh TARGET_TRIPLE=…` fetching the
-matching x64 Node sidecar), since GitHub's Intel `macos-13` runners are deprecated
-and queue-starved. The tauri CLI is invoked directly (`tauri build`), not via
-`tauri-action`, which assumes an npm/pnpm script runner rather than `vp`.
+The shell waits for the server port on a background thread, creates the main window hidden,
+and reveals it after page load. This avoids showing an empty native webview while Nitro
+starts.
 
-Config: `release-please-config.json` + `.release-please-manifest.json` — a single
-package rooted at the repo (`.`), so all the version files above (across `app/` and
-`mod/`) are reachable as plain `extra-files` paths, and the action emits unprefixed
-outputs (`tag_name`, `releases_created`) that the build gate reads. Workflow:
-`.github/workflows/release.yml` (release-please job + AI notes polish → gated build
-matrix → `latest-json` aggregate job, all one workflow so no PAT is needed).
-`workflow_dispatch` with a `tag` input rebuilds an existing release's assets
-(recovery / fill-in) by building `main`; without a tag
-it's a build-only smoke test.
+`tauri-plugin-window-state` restores the user's previous geometry. External HTTP links are
+intercepted and opened with `tauri-plugin-opener`; only localhost navigation remains inside
+the PyOps window.
 
-**Release-notes polish**: right after release-please cuts the release, a step in
-the same job asks an LLM (via OpenRouter — the **`OPENROUTER_API_KEY` repo
-secret**; optional `RELEASE_NOTES_MODEL` repo _variable_ to override the default
-small model) to rewrite the release body into a short friendly summary, keeping
-the raw changelog below a divider. It runs before the build/`latest-json` jobs,
-so the in-app update dialog — which renders `latest.json`'s `notes` — shows the
-same polished text as the releases page. The model only writes the summary; the
-step assembles summary + divider + original body itself, so no changes can be
-invented into or dropped from the changelog, and `CHANGELOG.md` stays the
-deterministic commit-derived record. It **fails open**: a missing secret, an API
-error, or an empty reply leaves release-please's raw notes untouched and the
-workflow green — a release is never blocked on the polish.
+### Remote webview capabilities
 
-## Self-update
+Because the window loads `http://localhost:34115`, Tauri treats its content as a remote URL.
+The default capability explicitly grants that localhost origin access to the updater and
+process plugins.
 
-The app updates itself from GitHub Releases.
+This is the important PyOps-specific capability detail: adding a desktop plugin is not
+enough. Any client call from the local HTTP application also needs an appropriately scoped
+remote permission in `capabilities/default.json`.
 
-- The release build signs the updater artifacts with the CI key
-  (`createUpdaterArtifacts` emits a `.sig` per platform), and the `latest-json` job
-  aggregates each platform's `{signature, url}` into one `latest.json` — listing each
-  artifact's URL + signature, with the release body (the AI-polished notes, or the
-  raw changelog if the polish was skipped) as `notes` — attached to the release.
-  The updater artifact is picked explicitly per platform (AppImage / `.app.tar.gz` /
-  `-setup.exe`), and the macOS `.app.tar.gz` is arch-suffixed so the two Mac builds
-  don't collide.
-- On launch the **web UI** checks `releases/latest/download/latest.json` via
-  `@tauri-apps/plugin-updater`'s `check()`. If a newer version exists it pins a small
-  toast bottom-right that opens a changelog dialog (rendered markdown, scrollable);
-  **Install & Restart** calls the update's `downloadAndInstall()` (streaming progress,
-  signature-verify against the baked-in public key) then `relaunch()` from
-  `@tauri-apps/plugin-process`. The plugin JS is imported **lazily behind
-  `window.isTauri`**, so the browser build never loads it and the web app stays
-  Tauri-agnostic (a `?mockUpdate=` dev switch previews the toast + dialog in `vp dev`).
-- **Why the built-in plugins, not custom commands:** the window loads the app over
-  HTTP, so Tauri treats that content as _remote_ and won't let it call a command
-  without an explicit ACL grant. Custom app commands have no permission you can
-  grant to remote content — but plugin commands do, so `capabilities/default.json`
-  lists `updater:default` + `process:default` alongside the `remote.urls` rule for
-  `http://localhost:*/**`. (Hand-rolled `invoke` commands were silently ACL-denied;
-  this is the fix.)
-- Self-update rides the **AppImage / NSIS / .app** artifacts — the `.deb` does not
-  self-update (use the AppImage on Linux for updates).
+Keep that allowlist limited to localhost and only the commands the application invokes.
 
-**Signing key**: the public key lives in `tauri.conf.json` (`plugins.updater.pubkey`);
-the private key + password are the `TAURI_SIGNING_PRIVATE_KEY` /
-`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` repo secrets. The private key must be backed up —
-if it's lost, existing installs can no longer verify updates and the key has to be
-rotated (which changes the public key).
+### Linux WebKit workaround
 
-A **nightly / prerelease channel** (a second `latest.json` the app can opt into) is a
-planned follow-on, not yet wired up.
+Before GTK initializes, the shell supplies these values only when the user has not already
+set them:
+
+```text
+GDK_BACKEND=x11
+WEBKIT_DISABLE_DMABUF_RENDERER=1
+```
+
+They select the stable XWayland and non-DMABUF path for the WebKit versions targeted by the
+Linux bundle. Do not move them into a child-process environment; they must affect the native
+webview process.
+
+## Data and resources
+
+Writable projects, generated icons, and app configuration live under Tauri's app-data
+directory for `com.apocdev.pyops`. Bundled migrations and mod files are read-only resources.
+
+The shell passes those roots to the Node server rather than copying resources into the data
+directory. The exact writable location is shown in **Settings → Game data → Storage
+location**.
+
+See [Settings and storage](../reference/settings-and-storage) for the user-facing boundary
+and [Development configuration](./configuration) for source/deployment overrides.
+
+## Local build commands
+
+Run desktop development from `app/`:
+
+```sh
+vp run tauri dev
+```
+
+Vendor Node before creating a native bundle:
+
+```sh
+cd app/src-tauri
+./vendor-node.sh
+cd ..
+vp run tauri build
+```
+
+Use `TARGET_TRIPLE` when the artifact architecture differs from the build host:
+
+```sh
+TARGET_TRIPLE=x86_64-apple-darwin ./vendor-node.sh
+```
+
+The sidecar architecture must match the Tauri target. Tauri expects the downloaded binary
+under its target-triple-suffixed `externalBin` name.
+
+The repository's local bundle default is `.deb`. Pass `--bundles` when testing another
+format; the release workflow supplies its platform-specific lists.
+
+## Version ownership
+
+PyOps has one product version across the app, shell, and Factorio mod. Release Please keeps
+these files in lockstep:
+
+- `version.txt`;
+- `app/package.json`;
+- `app/src-tauri/tauri.conf.json`;
+- `app/src-tauri/Cargo.toml`;
+- `mod/info.json`.
+
+Do not hand-edit only one version. Conventional commits determine the release, and the
+generated release PR updates the complete set plus `CHANGELOG.md`.
+
+## Release workflow quirks
+
+`.github/workflows/release.yml` combines Release Please, artifact builds, and updater
+manifest generation so they share one tag and finalized release body.
+
+### Platform matrix
+
+The matrix produces:
+
+| Target           | Install artifact    | Updater artifact  |
+| ---------------- | ------------------- | ----------------- |
+| `linux-x86_64`   | `.deb`, `.AppImage` | `.AppImage`       |
+| `darwin-aarch64` | `.dmg`              | `.app.tar.gz`     |
+| `darwin-x86_64`  | `.dmg`              | `.app.tar.gz`     |
+| `windows-x86_64` | NSIS `-setup.exe`   | NSIS `-setup.exe` |
+
+Both macOS targets build on the Apple Silicon runner. Intel uses the
+`x86_64-apple-darwin` Rust target and a matching x64 Node sidecar.
+
+Tauri gives both macOS updater archives the same base filename. The workflow appends the
+target architecture to the archive and signature before upload so the two releases cannot
+overwrite one another.
+
+### Direct CLI invocation
+
+The workflow invokes the installed Tauri CLI directly rather than wrapping it in
+`tauri-action`. `vp build` still runs through `beforeBuildCommand`, while the workflow can
+pass exact target and bundle arguments consistently across the matrix.
+
+### Optional release-note summary
+
+After Release Please creates a release, an OpenRouter step may place a concise user summary
+above the unchanged generated changelog. The script—not the model—combines the two sections.
+
+The step fails open. A missing key, request error, or empty result leaves the generated
+notes intact and does not block artifacts. `CHANGELOG.md` is never model-written.
+
+### Manual recovery
+
+A manual workflow run without a tag builds the platform matrix without uploading assets. A
+run with an existing tag uploads/replaces the bundles and regenerates the updater manifest.
+
+This is the supported recovery path for incomplete release assets and the safest smoke test
+for workflow changes.
+
+## Updater integration
+
+General setup, signing, permissions, and static JSON schema belong to the
+[Tauri updater guide](https://v2.tauri.app/plugin/updater/). PyOps adds two pieces.
+
+### Aggregated `latest.json`
+
+Each matrix job emits one fragment containing its target's artifact URL and detached
+signature. The final job merges all four fragments and adds:
+
+- the tag version without its `v` prefix;
+- the finalized GitHub release body as `notes`;
+- a UTC publication time.
+
+It uploads the result as `latest.json` to the release. `tauri.conf.json` points the updater
+at `releases/latest/download/latest.json`.
+
+The updater artifact is selected explicitly per target. Install-only `.deb` and `.dmg`
+outputs may also have signatures, so choosing the first signature would produce an invalid
+manifest.
+
+### Web-client boundary
+
+`app/src/lib/updater.ts` dynamically imports Tauri plugin APIs only after confirming the
+desktop runtime. The ordinary browser application remains Tauri-agnostic.
+
+`UpdatePrompt` checks once on launch, renders the release body as Markdown, streams download
+progress, installs the pending signed artifact, and relaunches through the process plugin.
+
+Use `?mockUpdate=1` or `?mockUpdate=long` in a development browser to verify the prompt and
+long release-notes layout without a native bundle. The mock path exists only in development.
+
+Self-update uses AppImage, `.app.tar.gz`, and NSIS artifacts. The `.deb` remains a
+package-manager/manual-install path.
+
+## Signing material
+
+The updater public key is embedded in `tauri.conf.json`. CI receives the private key and
+password through `TAURI_SIGNING_PRIVATE_KEY` and
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+
+The private key must be backed up outside the workflow secret store. Losing it breaks the
+trust path from installed versions to newly signed updater artifacts.
+
+Platform installer signing and notarization are separate concerns; follow Tauri's current
+[distribution guidance](https://v2.tauri.app/distribute/) rather than duplicating it here.
+
+## Verification checklist
+
+For a PyOps desktop change:
+
+1. Run the app checks and production server build.
+2. Run `vp run tauri dev` and verify server startup, delayed reveal, external links,
+   single-instance focus, window restore, and clean shutdown as applicable.
+3. Use the mock update query for updater UI changes.
+4. Build a native bundle after changing resource paths, capabilities, sidecar handling, or
+   updater configuration.
+5. Confirm the bundle contains the Nitro server, migrations, mod source, and correct Node
+   architecture.
+6. Use a build-only manual workflow dispatch after changing the release matrix or manifest
+   assembly.
+
+A successful browser build does not verify native paths, capability grants, updater trust,
+or bundle contents.

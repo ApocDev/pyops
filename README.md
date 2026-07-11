@@ -37,7 +37,9 @@ it. Build/release details: [`docs/development/desktop.md`](docs/development/desk
 - **Quality of life** — command palette (Ctrl+K), undo (Ctrl+Z), per-block
   snapshots, backup/share, tasks & notes, light/dark theme, responsive to phone.
 
-Each subsystem has its own page in the [Development documentation](docs/development/).
+For task-oriented instructions, open the
+[PyOps documentation](https://apocdev.github.io/pyops/). Contributors and curious users
+can continue into the [Development section](docs/development/).
 
 ---
 
@@ -74,8 +76,8 @@ headlessly, reads its recipe data, and loads it into a local database (~1–2 mi
 first time). Needs **Factorio 2.1** with the **Pyanodons** suite +
 **pypostprocessing**.
 
-- **Configuration** (env vars, remote access): [`docs/development/configuration.md`](docs/development/configuration.md)
-- **In-game features** (companion mod, launching the bridge): [`docs/development/bridge.md`](docs/development/bridge.md)
+- **Configuration** (env vars, remote access): [`docs/reference/advanced-configuration.md`](docs/reference/advanced-configuration.md)
+- **In-game features** (companion mod, launching the bridge): [`docs/guide/in-game-link.md`](docs/guide/in-game-link.md)
 - **AI assistant** needs an [OpenRouter](https://openrouter.ai) key (set it in
   Settings or `OPENROUTER_API_KEY`).
 
@@ -87,14 +89,18 @@ repo).
 
 ## Documentation
 
-The hosted documentation site is being built under [`docs/`](docs/). Technical details live in [`docs/development/`](docs/development/):
+The hosted [user guide](https://apocdev.github.io/pyops/) covers installation, game-data
+sync, planning workflows, in-game integration, backups, the Assistant, and troubleshooting.
+Its source lives under [`docs/`](docs/).
+
+Technical details live in [`docs/development/`](docs/development/):
 
 - [Architecture](docs/development/architecture.md) — the one-app-plus-mod model and repo layout.
 - [Data pipeline](docs/development/data-pipeline.md) — how the Factorio data sync works.
 - [Block solver](docs/development/solver.md) — the planning math.
-- [Factorio bridge](docs/development/bridge.md) — the in-game link and its setup.
+- [Factorio bridge](docs/development/bridge.md) — the UDP protocol and Companion-mod internals.
 - [AI assistant](docs/development/ai-assistant.md) — the planning agent.
-- [Configuration](docs/development/configuration.md) — environment variables and remote access.
+- [Configuration](docs/reference/advanced-configuration.md) — environment variables and remote access.
 - [Desktop app](docs/development/desktop.md) — how the Tauri bundle is built and released.
 
 Contributing: `vp check` and `vp test` must be clean; the mod (`mod/`) is pure Lua,

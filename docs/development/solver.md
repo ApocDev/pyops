@@ -1,363 +1,367 @@
+---
+title: Block solver
+description: Understand the HiGHS block model, gesture-derived constraints, effects, composed sub-blocks, persisted projections, and factory what-if analysis.
+outline: [2, 3]
+---
+
 # Block solver
 
-Code: `app/src/solver/` (`lp.ts` — the LP core, `diagnose.ts` — root-cause
-cards, `migrate.ts` — the legacy-doc mapping), with effect aggregation in
-`app/src/server/effects.ts` and the factory-level solver in
+PyOps solves the recipe set a user selected; it does not choose an optimal recipe chain.
+The block solver converts goals, boundary decisions, and pins into a linear program whose
+variables are recipe executions per second.
+
+The main implementation lives under `app/src/solver/`:
+
+- `lp.ts` builds and solves the HiGHS model;
+- `diagnose.ts` explains infeasible constraints;
+- `temps.ts` expands temperature-sensitive fluid identities;
+- `subblock.ts` composes separately solved row groups;
+- `migrate.ts` normalizes persisted block documents at the solver boundary.
+
+`app/src/server/block-compute.server.ts` resolves database records, machines, effects,
+fuels, and presentation metadata around that pure core. Factory-wide scaling lives in
 `app/src/server/factory-solve.server.ts`.
 
-## The block solver (v2, #91)
+## Core model
 
-A block is **goals** + chosen recipes + a **`made` set** (items the block claims
-in-block production for) + **pins**. The solve is a small LP (HiGHS, the same
-engine as cost analysis): recipe run-rates are nonnegative variables, and the
-objective minimizes machine-seconds (with a tiny epsilon per recipe so zero-cost
-synthetic recipes can't create ties) — so identical inputs always solve
-identically, and a `≥` goal binds at exactly its rate unless chemistry forces
-surplus. Each goal has a **target rate** — stored per-second always; a goal's
-optional `unit` (`s`/`min`/`h`) is purely the display/input window the editor converts
-at (#10), so the solver never sees units. A **stock goal** (#38, `stock` + `window` on
-the goal) means "keep N on hand": its rate is derived (`stock / window`, default
-10 min), so the solver still sees an ordinary per-second target — the machines are
-sized to rebuild the buffer within the window — while its cached boundary flow gets
-role `"stock"` so the factory ledger can badge refill demands apart from continuous
-throughput. Each goal becomes a `net ≥ rate`
-constraint (a negative rate is a SINK block: `consume ≥ |rate|`) — a floor the
-minimizing objective presses the plan down onto, so the good comes out at
-exactly that rate unless a co-product ratio forces surplus (which simply
-exports); `goals[0]` names the
-block, anchors the rate-scaling tools, and is the default icon (the block editor can
-override the icon with any item/fluid, stored as `icon` in the block doc). A good you
-don't target isn't a goal — it falls out as a byproduct (export) or import. See
-`app/src/lib/goals.ts` for the model and the migration from the legacy
-single-`target` shape. The item rules:
+A block solve receives:
 
-- A **`made` item** gets `net ≥ 0`: production covers consumption, surplus
-  exports, imports are forbidden — the rule that makes a block a plan instead of
-  a shopping list. The set is built by gestures: setting a goal implies it, and
-  adding a producer through an item's chip marks it; right-click toggles it; a
-  removed recipe takes nothing with it implicitly.
-- Every **other item is free**: consumption imports, surplus exports, and an
-  incidental byproduct just offsets the import — a 0.02/s side-product of
-  something else is never scaled up to cover a 10/s demand.
-- **Draining a byproduct**: adding a consumer through a byproduct's chip marks
-  the good made AND — when the chosen recipe is a **terminal sink** — records a
-  **drain** (`net = 0`): the surplus must be consumed in-block, which is what
-  forces a void to run at all (it produces nothing the objective wants).
-  Terminal means the recipe net-consumes the good and none of its _other_
-  products feeds anything else in the block — everything it makes leaves
-  (`lib/sink-classify.ts`, `drainsOnConsume`, tested). That single test is the
-  line between "consume my surplus" and "restructure production": a void like
-  coal-gas → ash (nothing here uses ash) drains and runs; a reprocessor whose
-  output re-enters the chain (block 27's grade-2 → grade-3, which the chain
-  consumes) is only marked made, never drained, so forcing it can't cascade.
-  A reprocessing consumer needs no drain — once the good is made (import
-  forbidden), recycling the surplus is cheaper than making more, so the
-  optimizer uses it; without the made mark it would instead IMPORT the
-  byproduct and idle the real producers. The solve also reports
-  `importedProducible` — imports of goods an enabled in-block recipe produces,
-  the tell-tale of that trap — and the import chip offers one click to claim
-  the good in-block.
-- **Pins** (`pins` in the doc, in building counts) constrain single rows:
-  `count` = always run exactly N buildings (supply-push — this is how byproducts
-  route into in-block consumers), `cap` = at most N (a built-capacity ceiling;
-  the diagnosis reports the shortfall in buildings when it binds), and `share` =
-  this consumer takes a fraction of the item's production (base `remaining`
-  applies it after count-pinned consumers' fixed intake). Counts convert to
-  rates at solve time via the row's real per-building craft rate, so pins follow
-  module/machine changes.
-- **Count pins supersede a goal they produce** (#121): a `count` pin on a recipe
-  that makes a pinned goal good re-states the block's size from that building
-  count, so the goal's rate floor stops binding — the pin drives output. Without
-  this the two fight (2 foundries make 0.13/s, a 0.14/s goal needs 2.1, and
-  exact-count + ≥-floor can't both hold → a spurious infeasible). Only `count`
-  pins on a goal _producer_ relax the goal; a `cap` there still lets the
-  shortfall flag, and a count pin on a mid-chain row stays a hard constraint that
-  can honestly conflict. The doc goal is untouched (naming, rollups) — only the
-  solver floor relaxes, and `goalSuperseded` reports the gap so the goal card can
-  note "pinned N → X/s; R/s needs M".
+- one or more output or consumption goals;
+- the user's enabled recipes;
+- the set of goods that must be made inside the block;
+- optional byproduct drains;
+- exact-rate, capacity, or flow-share pins.
 
-**Fluid temperatures are real identities** (#110, `temps.ts`): when any enabled
-consumer declares an accepted temperature range, that fluid expands — each
-producer's output becomes a `(fluid, temperature)` variant (explicit product
-temperature, else the prototype default), each consumer range becomes a pool
-good, and zero-cost selector pseudo-recipes convert in-range variants into the
-pool, so a range consumer draws from any mix of acceptable temperatures (range
-POOLING, not YAFC's hard per-temperature split). A `made` mark expands to every
-variant and pool, so a pool with no in-range producer reads as unmade —
-"nothing makes water ≤101°" — and the interim per-producer warnings stay as the
-complementary explanation of _which_ producer misses _which_ consumer. Fluids
-no ranged consumer touches stay single bare goods (zero cost for most blocks);
-boundary flows fold back to the bare fluid name. The whole thing is a pure
-input transformation — the LP core never sees temperatures.
+For each enabled recipe `r`, the model creates a nonnegative run-rate `xᵣ`. Ingredient and
+product coefficients define the net rate of every good. The objective minimizes total
+machine-seconds, with a tiny per-recipe epsilon that gives zero-time synthetic recipes a
+deterministic cost.
 
-There are no per-item dispositions and no relaxed/underdetermined states: the LP
-either **solves** or is **infeasible**, and infeasibility is diagnosed, never
-silently patched. `diagnose.ts` extracts root-cause cards: an elastic pass finds
-what's short (with magnitudes), violated constraints split into independent
-problems by shared recipe variables, and each problem's variable neighborhood is
-deletion-tested for IIS membership — a card lists exactly the gestures (goals,
-made marks, pins) whose single removal repairs the block, each with a one-click
-fix in the balance card. A diagnosis can only name things the user can click.
-Legacy docs (pre-#91 `dispositions`) migrate on read: the server derives a
-`made` set (`migrate.ts` — auto-balanced intermediates and `balance` overrides
-become marks; `import`/`export` overrides unlink), echoes it on the result, and
-the editor adopts it so the next save persists the new shape.
+The objective is a sizing and tie-breaking mechanism. It never adds a recipe the user did
+not select.
 
-A recipe can be **disabled** (`disabledRecipes` in the block doc): it stays in the
-block, keeping its machine/fuel/module picks, but is filtered out before the system is
-built, so it adds no equations, boundary flows, or building counts — as if it weren't
-there. Use it to A/B two recipes for the same output, or to stage rows you'll enable
-later. A whole block can likewise be disabled (`blocks.enabled = false`): it still
-opens and solves for editing, but every factory-wide rollup (totals, coherence,
-suppliers, machine counts, what-if) skips it.
+### Goals
 
-A block doc can carry **incidental spoilage estimates** (#20, `spoilRates`: item →
-expected rot rate /s while production is backed up). They are operational
-projections, not steady-state recipe demand: they never change the block LP, its
-nominal imports, or its machine counts. After the solve, each estimate is converted
-through the item's `spoil_result` and folded into the ordinary byproduct exports.
+A positive goal becomes a net-production floor:
 
-That distinction is also the factory-wide scaling rule. Only `primary`/`stock`
-outputs drive the dependency-chain constraints; byproducts are pooled and reported
-at their current rate but never scale their source block. Thus estimated Agar
-spoilage can contribute Biocrud to the current surplus and a consuming SINK block can
-absorb it, but a larger Biocrud demand cannot increase Agar production. To make
-spoilage intentional and demand-driven, add the synthetic `Agar spoils` recipe and
-make Biocrud a goal; it then becomes a primary output like any other.
+```text
+net(good) ≥ target rate
+```
 
-When an incidental spoil result is also a positive intentional goal, the editor
-shows its estimated rate as a warning-colored sub-line beneath that goal and omits
-the duplicate amount from the displayed Exports list. The persisted factory
-boundary remains unchanged: the intentional rate is primary output and the
-incidental rate remains an ordinary byproduct.
+Because the objective minimizes required recipe work, the result normally binds at the
+target. A fixed coproduct ratio may force a larger net output, which correctly becomes
+surplus.
 
-`computeBlock` also rolls up a **pollution budget** (#23): per row, machine base
-`emissions_per_minute` × count × energy-consumption multiplier × pollution-module
-multiplier (per-fuel emissions multipliers are approximated as 1). Cached on the
-block like `electricity_w` and summed in the Factory header.
+A negative goal represents a sink and becomes a net-consumption ceiling. Internally, all
+rates are per second. The editor's seconds/minutes/hours unit changes input and display
+only.
 
-**Fuel** folds into the balance by energy source. Electric draw nets as
-`pyops-electricity` consumption post-solve; solid burners burn their per-row fuel
-pick (folded post-solve, or modeled in the system when the block produces the fuel
-itself — self-fueling — so ash and the extra production come out right). Fluid
-burners (#25) have no pick: an **unfiltered** `burns_fluid` machine (Py glassworks,
-smelter, antimony drill, oil boiler) burns _any_ fuel-valued fluid, so its draw is
-modeled like heat — a `pyops-fluid-fuel` ingredient (1 unit = 1 MJ) the system must
-balance. Adding a `burn-fluid-<fluid>` conversion recipe (1 fluid → its
-`fuel_value` in MJ) sizes that conversion to the draw; the choice of conversion
-decides which fluid burns, several split like any other multi-producer good, and
-with none present the MJ surfaces as a "Fluid fuel" import. A **filtered** fluid
-burner (Py oil/gas powerplants) is pinned to its filter fluid.
-`burns_fluid: false` sources (uf6 reactors, compost plants, the solar tower) are
-**temperature-fed** (#114): they drain their filter fluid for its heat content,
-not a fuel value. The import derives the drain from the prototype
-(`db/fluid-energy.ts`): a fixed units/s per machine — an explicit
-`fluid_usage_per_tick` (neutron absorbers, the solar tower's 60/s) or the
-engine's derivation from `maximum_temperature` (nuclear-reactor-mk01: 300 kW ÷
-((250° − 0.01°) × 20 J/°) ≈ 60.0024 uf6/s) — or, for `scale_fluid_usage`
-sources (compost plants), an energy-following one (the effectivity-folded draw
-÷ usable J per unit, so consumption modules reduce it). The drain is injected
-as a **real system ingredient** of the actual feed fluid — an in-block producer
-covers it, otherwise it surfaces as an import — and the row's fuel chip mirrors
-it (no per-row pick, never folded post-hoc).
+A stock goal stores an amount and replenishment window. The compute layer converts it to
+`amount / window` for solving, then tags its persisted factory flow as stock replenishment
+rather than continuous output.
 
-A block can also be a **designated fuel supplier** (#115), exporting
-`pyops-fluid-fuel` MJ for other blocks' generic draws. The designation is an
-explicit routing gesture — a conversion recipe nothing demands honestly solves
-to 0 — so either **pin `pyops-fluid-fuel` as a goal** (the conversion is sized to the
-pinned MW and the MJ exports as a primary — a dedicated fuel farm)
-or **route the feed fluid with a 100% share pin** on the conversion (all
-production routes into it and the MJ exports as a byproduct — burning off
-co-products). A block that merely
-exports a fuel-valued fluid without a conversion is never conscripted as fuel
-supply: kerosene sold as feedstock stays feedstock.
+The first goal anchors the block's name, scaling controls, and default icon. Additional
+goals participate in the same solve without changing that identity.
 
-Reactor rows honour the **neighbour bonus** (#94): each adjacent working reactor
-adds `neighbour_bonus` × base heat (Py's breeder reactor dumps `neighbour_bonus: 1`,
-+100% per neighbour). The block doc can carry an assumed x×y farm per reactor row
-(`reactorLayouts`), and the row's `pyops-heat` output is scaled by the grid's
-average multiplier `1 + b·(4 − 2/x − 2/y)` (`app/src/lib/reactor.ts`) before the
-solve — so a 2×2 farm needs a third of the flat-rated reactors. Only heat scales;
-fuel burn stays per-reactor. No layout stored = 1×1 = no bonus. The row shows a
-layout chip with the multiplier and a preset picker.
+### Made inside the block
 
-Rows can be grouped into **sub-blocks** (`rowGroups` + `recipeGroups` in the block
-doc) — named, collapsible groups the editor renders as one folded line with the
-chain's net flows (member products minus member ingredients; intermediates cancel).
-By default (#7) they're **display-only**: the groups never reach the solver, which
-sees the same flat recipe set either way (`app/src/lib/row-groups.ts` holds the pure
-grouping/net-flow logic).
+A good in the block's `made` set receives:
 
-A group can be **promoted to a real, separately-solved module** (#76, `composed`
-on the group + its own internal `goals`; `app/src/solver/subblock.ts`). A composed
-sub-block is solved with `solveBlockLp` exactly like a top-level block — its
-internal goals size it and its `made` set (auto = every good a member produces, so
-it makes its own intermediates) keeps the intermediates hidden. Its net imports/
-exports at the solved rates (temperatures folded to bare fluids) become a synthetic
-"recipe" whose ingredients = the module's imports, products = its net exports
-**including its goal output**, and `energyRequired` = the module's machine-seconds,
-so the parent's objective weighs the module's real cost. The parent then solves
-normally over its own recipes + these synthetic sub-block recipes, scaling each
-module as one black box; a member's row still renders at its effective rate
-(nested run-rate × the parent's chosen run-rate of the synthetic). The member
-recipes, their pins, and whole-machine rates route into the module's solve; the
-module's goal goods are claimed `made` at the parent so the minimizing objective
-can't idle the module and import the good instead. The internal goals are **not**
-parent goals — the module never looks like a factory-level producer of its goal —
-but forced co-products stay on the contract, so they export as byproducts and the
-factory coherence/byproduct model still sees them. A sub-block is a subset of one
-parent block's recipes, solved first in isolation, so it can never depend on its
-parent: the whole thing is deterministic and cycle-safe. The nested-solve contract
-is unit-tested in `subblock.test.ts`, including a 2-level compose reproducing the
-equivalent flat block's boundary flows.
+```text
+net(good) ≥ 0
+```
 
-Deferred for now (#76): the module carries only `goals` (its `made` is auto-derived,
-not user-editable per group); a sub-block's own infeasibility surfaces as a status
-badge on its header and, when its output can't be produced, as a parent-level
-shortfall — it does not yet get its own IIS diagnosis cards. Sub-blocks don't nest
-(a group's members are plain recipes, never other groups), and incidental spoilage
-estimates stay a parent-level concern.
+This forbids an import from covering internal consumption while allowing excess production
+to leave the block. Goal outputs are made implicitly.
 
-A goal that **no recipe in the block makes** (an unfinished block, or one whose
-producer vanished after a data migration) is _not_ enforced — that would zero
-the rest of the block. Such goals (and `made` marks with no producer) are
-returned in `unmade` and the rest of the block solves normally; the editor flags
-just those ("no recipe — add one") and the sidebar/tabs tint the block amber. Note
-the factory/coherence index still treats every goal as produced at its target rate
-(goals are a declared _intent_), so an unmade goal won't show as a deficit there —
-the per-block health flag is what surfaces it.
+Goods outside the set remain free boundaries. Net consumption becomes an import and net
+production becomes an export. An incidental coproduct offsets an import at its natural
+rate; it does not cause its source recipe to scale solely to cover demand.
 
-Recipes, marks, and pins are **user-chosen** — the LP's objective is only a
-tie-breaker, never a recipe selector. It handles Py's cyclic recipe chains and
-reports fractional building counts, and because every constraint traces to a
-user gesture, a failure names the gesture rather than swapping recipes behind
-your back.
+When a made-good rule has no enabled producer, the rule cannot be enforced and degrades to
+an ordinary boundary flow. A goal without a producer is reported separately as unmade so
+the rest of an unfinished block can still solve.
 
-Synthetic **spoiling** recipes (`kind = "spoiling"`, energy = the spoil time in
-seconds) run in no machine — the items just sit in storage until they rot. For those
-rows `computeBlock` reports a **spoil buffer** (#19): `rate × spoil time` items are
-resident mid-spoil at steady state, shown on the row with the equivalent stack count
-— the chest space a deliberate-decay step (uranium, nagesium) actually needs.
+### Byproduct drains
 
-## Build cost (capital materials)
+A drain requires a good's net flow to equal zero. It is used for terminal sinks such as
+voiding, where the consuming recipe produces nothing else that the block needs and would
+otherwise remain idle under the minimizing objective.
 
-Separate from the per-second flows, `buildCost` (`db/queries.server.ts`, surfaced by
-`computeBlock`) reports the **one-time** materials to _construct_ the block's
-buildings: it ceils the solved machine counts per building type, expands each
-building's own build recipe, and sums the direct ingredients. This is why a science
-block needs steel — the buildings are made of it — even though no recipe in the
-chain consumes steel (#38). It's direct ingredients only; producing those materials'
-sub-chain is the factory ledger's job.
+`app/src/lib/sink-classify.ts` decides whether selecting a byproduct consumer should create
+a drain or only mark the good as made. If the consumer's other products re-enter the block,
+forcing a drain could restructure the whole chain; the made rule is sufficient to let the
+optimizer prefer recycling over importing.
 
-## Module and beacon effects
+The solved result also reports imports that an enabled in-block recipe could produce. The
+UI uses that signal to expose the common missing-made-rule case directly.
 
-Module/beacon effects (`effects.ts`) apply **before** the solve:
+### Pins
 
-- **Productivity** scales a recipe's products (a real balance change). Per
-  Factorio 2.0, each product's `ignored_by_productivity` is an **amount**: that
-  many units are catalytic and stay unscaled, only the remainder is multiplied
-  (Kovarex: 41 U-235 out, 40 ignored; coal liquefaction: 90 heavy oil, 25
-  ignored). The shared math lives in `lib/productivity.ts` (#93).
-- **Speed** scales the machine count.
-- **Consumption** scales power/fuel.
-- **Pollution** scales the block's pollution budget (#23).
+Pins are stored in building-oriented terms and converted to recipe rates using the selected
+machine, modules, beacons, and effective crafting speed:
 
-Factorio's clamps are respected: speed, consumption, and pollution multipliers
-bottom out at 0.2, productivity caps at the recipe's `maximum_productivity`
-(+300% by default — but Py raises it to 1e6 on nearly every recipe).
+| Pin         | Constraint                                  | Meaning                                                   |
+| ----------- | ------------------------------------------- | --------------------------------------------------------- |
+| Exact count | `rate(recipe) = value`                      | Always run this capacity; supply pushes through the chain |
+| Capacity    | `rate(recipe) ≤ value`                      | Do not exceed installed capacity                          |
+| Share       | Consumer intake is a fraction of production | Route a good across multiple selected consumers           |
 
-### Persisted solve projections
+A share can use total production or the amount remaining after exact-count consumers take
+their fixed portion. Temperature expansion may supply an explicit set of source identities
+for the share base.
 
-SQLite is the source of truth for both block inputs and their materialized solve
-outputs (`block_flows`, `block_machines`, power, pollution, and status). Each
-successful solve stamps the block fingerprint with the current
-`solve_projection_generation` from `meta`. Research/productivity changes, TURD
-selections, and data imports advance that generation transactionally in SQLite;
-the backend then solves only stale blocks. A repeated bridge heartbeat with the
-same canonical state does nothing. Broken blocks keep their last-good projections
-and their old stamp, so preserved values can never masquerade as current.
+An exact-count pin on a producer of a goal supersedes that goal's solve floor. The pin then
+defines output, while the saved goal remains the block's declared intent and factory role.
+The result reports the difference so the UI can explain whether the pinned capacity falls
+short. Capacity pins and exact pins elsewhere remain ordinary constraints and may make the
+block infeasible.
 
-**Module auto-fill** (`module-fill.server.ts`) is **suggested, never applied**:
-the solve only ever uses the doc's stored module picks, so a plan never
-rearranges its modules behind the player's back (research unlocking a better
-tier, or a count drifting across a whole-building boundary, changes the
-_suggestion_, not the block). The block editor computes a per-row suggested fill
-after its authoritative solve+save, in a separate lazy request that reuses the
-solved recipe rates and does not invoke the LP again. This keeps module/research
-availability scans off the core solve path. The fill uses a direct algorithm —
-no payback economics: if the recipe allows productivity,
-every slot gets the best unlocked prod module; otherwise the row gets the
-**fewest speed modules that reach the smallest whole building count**, with the
-remaining slots on efficiency — past that floor, extra speed only shaves
-fractions of a building you can't build, so those slots cut power instead.
-Zero speed modules is a real answer (a row already under the floor, or modules
-too weak to save a whole machine, suggests all-efficiency). The split is sized
-against the row's module-less baseline with beacon and TURD speed included, so
-planting speed beacons updates the suggestion to shed now-redundant speed
-modules. Rows whose stored fill differs from the suggestion carry
-`suggestedModules`; the UI shows a ✨ hint (gated by the Settings toggle) with
-one-click apply, the modules dialog previews the suggestion, and the block
-toolbar applies all suggestions at once (confirming when it would overwrite
-rows that already have modules). The assistant's draft-a-block adopts the
-suggestions as the draft's explicit picks and re-solves with them.
+## Temperature-sensitive fluids
 
-The modules dialog still lists eligible higher-tier modules and beacon variants,
-but marks choices outside the current research horizon as locked and prevents
-new picks or presets from applying them. FUTURE mode treats every obtainable
-tier as unlocked; creative/editor-only modules and beacons stay locked.
+The LP core treats names as opaque goods. `temps.ts` rewrites the input when an enabled
+consumer accepts a temperature range:
 
-**Research-driven productivity** (#92) is folded into the same effects stage,
-gated by the research horizon exactly like machine availability (everything in
-FUTURE mode, reached techs in NOW/target): mining productivity adds an uncapped
-bonus to every mining recipe (resources aren't recipes, so no cap applies —
-matching in-game mining productivity exceeding +300%), and Factorio 2.0
-`change-recipe-productivity` techs (Py's microfilters tiers) add base
-productivity to their target recipes — applied even when the recipe doesn't
-allow productivity **modules** (e.g. bhoddos-spore gets +100% from
-microfilters-mk02 despite having no `allow_productivity`). In NOW mode, the
-Planning horizon control can store an exact mining-productivity percentage; the
-bridge fills it from the force's `mining_drill_productivity_bonus`, and users can
-set it manually when playing without the mod. The bridge also syncs exact
-per-recipe `LuaRecipe.productivity_bonus` values for `change-recipe-productivity`
-effects. Those exact values make repeatable/dynamic productivity match the running
-save; future/target planning still uses the prototype tech effects.
+1. Each producer output becomes a `(fluid, temperature)` identity.
+2. Each consumer range becomes a pool identity.
+3. Zero-cost selector recipes convert every in-range temperature identity into the pool.
+4. Consumers draw from the pool, allowing any mixture of valid temperatures.
 
-## Factory-level what-if
+This models range pooling rather than forcing one independent chain per exact temperature.
+A made rule expands to its variants and pools. If no in-range producer exists, the result
+can explain the required range, such as “nothing makes Water ≤101°”.
 
-The factory-level **what-if** (`factory-solve.server.ts`) _is_ an LP. It treats each block
-as a fixed-ratio "super-recipe" (its cached boundary flows at the current rate) and
-solves for the per-block scale factors that satisfy every demand.
+Fluids with no range-sensitive consumer remain bare goods and incur no expansion cost.
+Boundary results are folded back to the localized base fluid, with temperature detail kept
+for diagnostics.
 
-Why an LP rather than the exact block solver: real Py factories can't balance every
-good exactly — multi-product blocks force off-ratio surplus — so exact equality is
-infeasible. The LP uses _production ≥ demand_ (surplus allowed) and minimizes total
-scaling, which is always feasible and matches "scale each block up/down to meet
-demand". It's report-only: it never writes; you adjust each block by hand (or
-ignore the suggestion).
+## Solve outcomes and diagnosis
 
-Each block can carry a **supply priority**. The normal UI exposes three strict
-tiers: Preferred, Normal, and Fallback. When several blocks can supply the same
-good, the factory solve exhausts higher-priority available supply before using a
-lower tier. Priority is an allocation preference, not a reason to run a block: an
-incidental/byproduct export never causes its source block to scale solely to make
-more of that byproduct. Its offer is capped at the block's currently cached
-available rate; the remaining demand falls through to scalable primary suppliers.
+The LP returns `solved`, `infeasible`, or `error`. It does not silently relax constraints
+or cut cycles.
 
-Advanced supply priorities expose arbitrary numeric tiers (higher numbers first).
-A multiproduct block may also override its block-wide priority for one exported
-good; exports without an override inherit the block setting. Equal priorities use
-the ordinary factory objective. Priority does not change the block's goals, pins,
-or internal recipe solve.
+Every constraint carries provenance describing the user gesture that created it: a goal,
+made-good rule, drain, or pin. When HiGHS reports infeasibility, `diagnose.ts`:
 
-The What-if report includes **Supply allocation** rows naming the block, good,
-allocated rate, priority direction, and whether the supply is recovered/incidental.
-This makes a result such as “1/s recovered, 4/s from fallback mining” visible
-instead of leaving the LP's route choice implicit.
+1. runs an elastic model to measure violated constraints;
+2. groups independent problems by their shared recipe variables;
+3. deletion-tests the local constraint neighborhood for irreducible membership;
+4. returns cards containing only gestures the user can change.
 
-Two energy pseudo-goods stay **free boundaries** (never balanced across blocks):
-`pyops-electricity` (grid-distributed — matching it would create a power feedback
-loop) and `pyops-heat` (block-local by game rule). `pyops-fluid-fuel` is **not**
-free (#115): a designated supplier's MJ export matches generic MJ imports
-block-to-block like any other good — a primary MJ export classifies as an
-intermediate the LP scales with demand, and an MJ import with no supplier
-classifies as a raw, the signal to designate one.
+This keeps the UI explanation actionable. A card can quantify a shortfall or capacity gap
+and offer the corresponding goal, made rule, or pin as a repair point.
+
+Cyclic Py chains are ordinary linear systems and require no special loop-breaking. They
+solve when the selected recipes and boundary constraints define a feasible flow.
+
+## Block-document behavior
+
+### Disabled recipes and blocks
+
+A disabled recipe remains in the block document with its machine, fuel, module, and beacon
+choices, but is removed before model construction. It contributes no constraints, flows,
+or machine counts.
+
+A disabled block still opens and solves for editing. Factory, Coherence, suppliers,
+machine totals, and what-if analysis omit it.
+
+### Unmade goals and missing references
+
+A goal with no enabled producer is dropped from the LP and returned in `unmade`. Other
+goals and recipes continue to solve, allowing an incomplete block to remain useful while
+the editor flags the missing producer.
+
+This is distinct from a reference that no longer exists in the active game data. Missing
+recipe or goal prototypes produce a broken block result and preserve the last known
+projection rather than solving a semantically incomplete subset. See
+[Projection invalidation](#projection-invalidation).
+
+Factory indexes treat saved goals as declared intent. Block health is therefore the source
+of truth for whether the selected recipes currently realize that intent.
+
+### Incidental spoilage
+
+`spoilRates` records expected spoilage while production is backed up. These are operational
+estimates, not steady-state recipe demand, so they do not alter the LP, nominal imports, or
+machine count.
+
+After solving, the compute layer converts each estimate through the item's spoil result and
+adds it to byproduct exports. Factory scaling never increases a source block merely to make
+more incidental spoilage. Deliberate demand-driven decay uses the synthetic spoiling recipe
+and an ordinary goal instead.
+
+For a selected synthetic spoiling recipe, the row also reports the steady-state buffer:
+
+```text
+buffer items = spoil rate × spoil time
+```
+
+This is the inventory resident while the conversion is in progress.
+
+## Machines, effects, and energy
+
+`block-compute.server.ts` converts LP run rates into row results after resolving the
+selected building and all applicable effects.
+
+### Module and beacon effects
+
+`app/src/server/effects.ts` applies effects before model construction:
+
+- productivity scales eligible product amounts and therefore changes material balance;
+- speed changes each building's recipe rate and resulting machine count;
+- consumption changes electrical or fuel demand;
+- pollution changes the row and block pollution budget.
+
+Factorio's lower multiplier clamp of `0.2` is applied to speed, consumption, and pollution.
+Productivity respects the recipe's maximum. `ignored_by_productivity` is an amount of output
+that remains unscaled; only the remainder receives the multiplier.
+
+Technology-derived recipe and mining productivity enter the same effects stage. Future
+planning derives bonuses from the allowed technology set. **Now** mode can use exact force
+and per-recipe values synchronized from the running save or entered through planning
+settings.
+
+### Module suggestions
+
+Module auto-fill is a separate suggestion pass, never implicit solve input. The saved block
+document is the only source of applied modules.
+
+`app/src/server/module-fill.server.ts` reuses solved row rates without invoking the LP. For
+productivity-capable recipes it fills eligible slots with the best available productivity
+module. Otherwise it finds the smallest speed-module count that reduces the required whole
+building count and uses remaining slots for efficiency. Beacon and TURD effects participate
+in that baseline.
+
+The editor may preview or apply suggestions. Assistant drafts can adopt them as explicit
+document choices before re-solving.
+
+### Power, fuel, and pollution
+
+Electrical draw is accumulated as consumption of `pyops-electricity` and then presented as
+power. Solid burners use the row's fuel selection. If the block produces that fuel, its burn
+is represented inside the model so extra production and burnt results remain balanced.
+
+An unfiltered fluid-burning machine consumes `pyops-fluid-fuel`, measured in megajoules.
+Selected `burn-fluid-*` conversions determine which fuel-valued fluids supply it. Without a
+conversion, the energy appears as a boundary import. Filtered sources remain tied to their
+prototype fluid.
+
+Temperature-fed sources consume their feed fluid for thermal energy rather than fuel value.
+`app/src/db/fluid-energy.ts` provides either a fixed units-per-second drain or an
+energy-following drain based on usable joules per unit. That drain becomes a real ingredient
+and can be supplied inside or outside the block.
+
+Pollution is the sum of machine base emissions multiplied by count, energy-consumption
+effects, and pollution effects. Per-fuel emissions multipliers are currently treated as
+one.
+
+### Reactor layouts
+
+A reactor row can store an assumed rectangular farm. `app/src/lib/reactor.ts` converts an
+`x × y` layout and the prototype's neighbour bonus into an average heat multiplier:
+
+```text
+1 + neighbourBonus × (4 − 2/x − 2/y)
+```
+
+The multiplier scales heat output before solving. Fuel consumption remains per reactor. No
+stored layout is equivalent to `1 × 1` and receives no neighbour bonus.
+
+### Capital cost
+
+Build cost is separate from per-second material balance. The compute layer rounds required
+machines up by building type, expands each building's own construction recipe, and sums
+direct ingredients. It does not recursively plan the production chain for those materials.
+
+## Row groups and composed sub-blocks
+
+A normal row group is display-only. It changes folding and net-flow presentation while the
+solver receives the same flat recipe set.
+
+A composed group is solved independently by `subblock.ts`:
+
+1. Its member recipes, internal goals, pins, and machine effects form a nested block input.
+2. Its made set defaults to every good produced by a member recipe, keeping internal
+   intermediates inside the module.
+3. The nested solve's net imports and exports become one synthetic recipe in the parent.
+4. The synthetic recipe's objective cost is the nested solve's machine-seconds.
+5. The parent LP scales that black box alongside its ordinary recipes.
+
+Member rows render at the nested rate multiplied by the parent's selected rate for the
+synthetic recipe. Co-products remain on the module contract and can appear as factory
+byproducts. Internal goals do not become top-level factory goals.
+
+The dependency direction is strictly child to parent, so a composed group cannot depend on
+its parent and the nested solve remains cycle-safe. Groups do not nest. A composed group's
+made set is derived rather than edited independently, and its infeasibility is shown through
+group status and parent shortfall rather than a separate diagnosis-card set.
+
+## Projection invalidation
+
+SQLite stores both block inputs and materialized outputs: boundary flows, machine counts,
+power, pollution, status, and reference fingerprint. These projections make Factory and
+Coherence fast without making process memory authoritative.
+
+`solve_projection_generation` is the invalidation clock. Game-data imports, effective
+research/productivity changes, and TURD selections advance it transactionally. A block
+projection is current only when its generation and referenced-prototype fingerprint match.
+Repeated live-state heartbeats that do not change canonical inputs leave the generation
+unchanged.
+
+The backend re-solves stale blocks. A broken block keeps its last good projection with the
+old generation, ensuring preserved values cannot be mistaken for current calculations.
+
+## Factory what-if model
+
+Factory what-if is a separate LP over enabled blocks. Each block becomes a fixed-ratio
+super-recipe using its persisted boundary flows at the current scale. Variables are block
+scale factors.
+
+Exact equality is unsuitable because multiproduct blocks force off-ratio surplus. The model
+uses production greater than or equal to demand and minimizes total scaling. It reports the
+required block changes without writing them.
+
+### Primary outputs and byproducts
+
+Only primary and stock outputs can drive a block's scale. Byproducts and incidental spoilage
+are offered up to their current cached amount but cannot run their source block solely to
+make more. Remaining demand falls through to scalable primary suppliers.
+
+This preserves the same boundary semantics as a single block: incidental production can
+offset demand but cannot silently redefine the plan.
+
+### Supply priority
+
+Blocks expose Preferred, Normal, and Fallback tiers, with numeric tiers available for
+advanced control. A block can override its default priority for one exported good.
+
+The allocation model exhausts available higher-priority supply before using lower tiers.
+Priority decides among valid suppliers; it does not change block goals, internal pins, or
+the recipe solve. The report records allocated rate, source block, good, priority, and
+whether the offer was incidental.
+
+### Energy boundaries
+
+Electricity remains grid-distributed and heat remains block-local, so
+`pyops-electricity` and `pyops-heat` are free boundaries in factory what-if. Balancing
+electricity through the same dependency model would create a power-production feedback
+loop.
+
+`pyops-fluid-fuel` is a normal matchable good. A block with a primary fluid-fuel energy goal
+can scale as a dedicated supplier; a byproduct energy export remains capped like any other
+incidental offer.
+
+## Verification
+
+Keep solver tests close to the mathematical layer:
+
+- `lp.test.ts` for constraints, cycles, boundary flows, and deterministic outcomes;
+- `diagnose.test.ts` for provenance and repair sets;
+- `temps.test.ts` for temperature expansion and folding;
+- `subblock.test.ts` for nested contracts and flat-equivalence cases;
+- focused compute/effects tests for machines, fuels, modules, research, and cached results;
+- factory-solve tests for scaling, byproduct caps, energy boundaries, and supply priority.
+
+When changing a user gesture, test both the persisted document mapping and the resulting LP
+constraint. Run `vp test` and `vp check`, then exercise the corresponding editor flow and
+its infeasible or edge state through Playwright.
