@@ -487,18 +487,28 @@ export function availableMachines(machineNames: string[]): Set<string> {
  * items). See [[turd-planning-model]] for the buildableNow vs availableNow
  * split. */
 export function unlockedItems(names: string[]): Set<string> {
-  if (!names.length) return new Set();
+  const uniq = [...new Set(names)].filter((name) => name);
+  if (!uniq.length) return new Set();
   const h = getResearchHorizon();
   // FUTURE mode plans against the whole tech tree — anything producible is fair
   // game (availableNow would wrongly exclude not-yet-researched tiers).
-  if (h.mode === "future") return obtainableGoods(names);
+  if (h.mode === "future") return obtainableGoods(uniq);
   const selections = getTurdSelections();
   const now = h.mode === "now";
+  const recipesByGood = recipesProducingByGoods(uniq);
+  const recipeRows = [
+    ...new Map([...recipesByGood.values()].flat().map((recipe) => [recipe.name, recipe])).values(),
+  ];
+  const locks = recipeLockStatesByRecipe(
+    recipeRows.map((recipe) => recipe.name),
+    new Set(selections.values()),
+  );
+  const availability = computeAvailByRecipe(recipeRows, locks, h, selections);
   const out = new Set<string>();
-  for (const name of new Set(names)) {
-    const ok = recipesProducing(name).some((r) => {
-      const a = computeAvail(r.enabled, recipeLockState(r.name), h, selections);
-      return now ? a.buildableNow : a.availableNow;
+  for (const name of uniq) {
+    const ok = (recipesByGood.get(name) ?? []).some((recipe) => {
+      const a = availability.get(recipe.name);
+      return a && (now ? a.buildableNow : a.availableNow);
     });
     if (ok) out.add(name);
   }
