@@ -226,8 +226,39 @@ export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: Ico
   if (!m) return <span style={base} />;
 
   // synthetic recipes (mine-X, boil-X-250, generate-X, spoil-X, pump-X) have no
-  // recipe/ sprite — fall back to the subject's item/entity/fluid icon
+  // recipe/ sprite — fall back to the subject's item/entity/fluid icon. Fluid
+  // fuel conversions are also synthetic, but their `burn-fluid-X` subject is
+  // known to be a fluid (and `fluid-` is part of the recipe prefix, not its id).
   const synthetic = /^(mine|pump|spoil|boil|generate)-(.+?)(?:-\d+)?$/.exec(name);
+  const burnedFluid = /^burn-fluid-(.+)$/.exec(name)?.[1];
+  const withFuelBadge = (el: React.ReactNode) =>
+    burnedFluid ? (
+      <span style={{ ...base, position: "relative" }}>
+        {el}
+        <span
+          aria-hidden
+          data-icon-badge="fluid-fuel"
+          style={{
+            position: "absolute",
+            right: "-3px",
+            bottom: "-3px",
+            display: "inline-flex",
+            borderRadius: "9999px",
+            background: "rgba(0,0,0,0.75)",
+            padding: "1px",
+            pointerEvents: "none",
+          }}
+        >
+          <Fuel
+            color="var(--info)"
+            strokeWidth={2.75}
+            style={{ width: `calc(${v} * 0.5)`, height: `calc(${v} * 0.5)` }}
+          />
+        </span>
+      </span>
+    ) : (
+      el
+    );
   // generate-heat-<reactor> → the reactor entity (the "heat-" is the product, not the subject)
   const subject = synthetic?.[2]?.replace(/^heat-/, "");
   const slot =
@@ -235,12 +266,14 @@ export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: Ico
       ? m.icons["ammo-category/electric"]
       : kind === "recipe"
         ? (m.icons[`recipe/${name}`] ??
-          (subject
-            ? (itemIdx[subject] ??
-              m.icons[`entity/${subject}`] ??
-              m.icons[`fluid/${subject}`] ??
-              m.icons[`resource/${subject}`])
-            : undefined))
+          (burnedFluid
+            ? m.icons[`fluid/${burnedFluid}`]
+            : subject
+              ? (itemIdx[subject] ??
+                m.icons[`entity/${subject}`] ??
+                m.icons[`fluid/${subject}`] ??
+                m.icons[`resource/${subject}`])
+              : undefined))
         : kind === "fluid"
           ? m.icons[`fluid/${name}`]
           : kind === "entity"
@@ -261,14 +294,16 @@ export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: Ico
   // the CSS var so the sprite tracks whatever --icon-* resolves to.
   const cells = m.atlasSize / m.cell;
   return withSpoil(
-    <span
-      title={noTitle ? undefined : `${title ?? name}${spoilSuffix}`}
-      style={{
-        ...base,
-        backgroundImage: `url(/icons/${m.sheets[slot.s]})`,
-        backgroundPosition: `calc(${v} * ${-slot.x / m.cell}) calc(${v} * ${-slot.y / m.cell})`,
-        backgroundSize: `calc(${v} * ${cells}) calc(${v} * ${cells})`,
-      }}
-    />,
+    withFuelBadge(
+      <span
+        title={noTitle ? undefined : `${title ?? name}${spoilSuffix}`}
+        style={{
+          ...base,
+          backgroundImage: `url(/icons/${m.sheets[slot.s]})`,
+          backgroundPosition: `calc(${v} * ${-slot.x / m.cell}) calc(${v} * ${-slot.y / m.cell})`,
+          backgroundSize: `calc(${v} * ${cells}) calc(${v} * ${cells})`,
+        }}
+      />,
+    ),
   );
 }

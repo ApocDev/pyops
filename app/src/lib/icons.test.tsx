@@ -11,6 +11,7 @@ const { manifest } = vi.hoisted(() => ({
     icons: {
       "item/iron-plate": { s: 0, x: 3072, y: 3008 },
       "module/speed-module": { s: 0, x: 10, y: 20 }, // item-kind in a non-"item" folder
+      "fluid/kerosene": { s: 0, x: 64, y: 128 },
     },
   },
 }));
@@ -54,6 +55,21 @@ test("item-kind falls back to non-item folders (module/)", async () => {
     expect(span.getAttribute("style")).toContain(
       "calc(var(--icon-md) * -0.15625) calc(var(--icon-md) * -0.3125)",
     );
+  });
+});
+
+test("fluid-fuel conversion recipes use the source fluid icon with a fuel badge", async () => {
+  const { container } = render(
+    <IconProvider>
+      <Icon kind="recipe" name="burn-fluid-kerosene" size="md" noHover />
+    </IconProvider>,
+  );
+  await waitFor(() => {
+    const span = container.querySelector("span[title='burn-fluid-kerosene']") as HTMLElement;
+    expect(span.getAttribute("style")).toContain(
+      "calc(var(--icon-md) * -1) calc(var(--icon-md) * -2)",
+    );
+    expect(container.querySelector("[data-icon-badge='fluid-fuel'] svg")).toBeTruthy();
   });
 });
 
