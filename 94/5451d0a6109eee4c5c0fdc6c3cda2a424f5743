@@ -1,0 +1,81 @@
+docs/guide/backups-and-sharing.md
+  s_3df40a0c9e6b26::t_31708b477e0e59 1-101
+docs/pnpm-lock.yaml
+  s_3df40a0c9e6b26::t_fc7f575488c06c 23-25
+docs/reference/advanced-configuration.md
+  s_3df40a0c9e6b26::t_16b632bbc0a94e 1-78
+docs/reference/keyboard-and-navigation.md
+  s_3df40a0c9e6b26::t_4013e8d69a0f07 1-69
+docs/reference/settings-and-storage.md
+  s_3df40a0c9e6b26::t_2e6a1c38a550d9 1-74
+docs/.vitepress/config.mts
+  s_3df40a0c9e6b26::t_73c1b533e33d97 42-78,84-85
+docs/.vitepress/theme/AppScreenshot.vue
+  s_3df40a0c9e6b26::t_4ad0979825168b 1-20
+docs/.vitepress/theme/PlanningLoop.vue
+  s_3df40a0c9e6b26::t_01d6c347bfcc51 1-24
+docs/.vitepress/theme/index.ts
+  s_3df40a0c9e6b26::t_64cad58df8a8e3 2-3,6-11
+docs/.vitepress/theme/styles.css
+  s_3df40a0c9e6b26::t_dbe70f551623e5 18-115
+docs/env.d.ts
+  s_3df40a0c9e6b26::t_787879a29325c5 2-8
+docs/getting-started/factory.md
+  s_3df40a0c9e6b26::t_dbad4f7cf17844 1-58
+docs/getting-started/index.md
+  s_3df40a0c9e6b26::t_6ad26c5192ae84 1-10,13-45,47,49,51-54,56-57
+docs/getting-started/install.md
+  s_3df40a0c9e6b26::t_34908d3aca46da 1-49
+docs/getting-started/project.md
+  s_3df40a0c9e6b26::t_529175c2791361 1-45
+docs/getting-started/sync-game-data.md
+  s_3df40a0c9e6b26::t_273702478165d6 1-79
+docs/guide/assistant.md
+  s_3df40a0c9e6b26::t_0889ddadb048d6 1-177
+docs/guide/balance.md
+  s_3df40a0c9e6b26::t_f2bef4455da450 1-85
+docs/guide/block-boundaries.md
+  s_3df40a0c9e6b26::t_a99fee14073da5 1-72
+docs/guide/blocks.md
+  s_3df40a0c9e6b26::t_abd637c3a950ec 1-93
+docs/guide/explore.md
+  s_3df40a0c9e6b26::t_49600a579a1eab 1-74
+docs/guide/in-game-link.md
+  s_3df40a0c9e6b26::t_a1e3206bc203a6 1-143
+docs/guide/index.md
+  s_3df40a0c9e6b26::t_66c4560c51758d 1-37
+docs/guide/planning-horizon.md
+  s_3df40a0c9e6b26::t_177160eee69c11 1-72
+docs/guide/tasks-and-notes.md
+  s_3df40a0c9e6b26::t_1faff35f99d0bb 1-68
+docs/guide/turd.md
+  s_3df40a0c9e6b26::t_998a69501d980b 1-57
+docs/index.md
+  s_3df40a0c9e6b26::t_bf3a1b63ac1c6f 1,3,5,7-14,16-26
+docs/package.json
+  s_3df40a0c9e6b26::t_f56bad8ee2a2d5 14-15
+docs/reference/concepts-and-limitations.md
+  s_3df40a0c9e6b26::t_12acd2b1009b7e 1-104
+docs/troubleshooting/faq.md
+  s_3df40a0c9e6b26::t_1e9b1ca04741a0 1-93
+docs/troubleshooting/index.md
+  s_3df40a0c9e6b26::t_a82268b663184e 1-148
+docs/tsconfig.json
+  s_3df40a0c9e6b26::t_63fb5ed93f034b 8-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "945451d0a6109eee4c5c0fdc6c3cda2a424f5743",
+  "prompts": {},
+  "sessions": {
+    "s_3df40a0c9e6b26": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4ee0-bd60-7060-9435-19531c483019",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
