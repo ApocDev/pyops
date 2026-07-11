@@ -15,8 +15,8 @@ This is a single repo with three cooperating parts:
   all work happens. It has its own `AGENTS.md`/`CLAUDE.md` (Vite+ toolchain notes).
   `app/src-tauri/` is the Tauri **desktop shell** that wraps this server in a native
   window and packages it into a self-contained bundle (vendored Node + bundled
-  resources) with self-update — see [`docs/desktop.md`](docs/desktop.md).
-- **`mod/`** — the Factorio mod (`pyops`, Factorio 2.0): in-game panel, UDP link to
+  resources) with self-update — see [`docs/development/desktop.md`](docs/development/desktop.md).
+- **`mod/`** — the Factorio mod (`pyops`, Factorio 2.1): in-game panel, UDP link to
   the app, data-dump trigger, Helmod-style production-block view, and the
   request-combinator planner. Pure Lua, no build step.
 - **`scripts/`** — dev-only helpers (currently `tunnel-dev`, to expose the dev
@@ -38,15 +38,16 @@ dev, a per-OS user-data dir for a packaged build, overridable via `PYOPS_DATA_DI
   - `factory-solve.server.ts`, `cost-analysis.server.ts`, `effects.ts`, `additives.ts` — planning logic.
   - `agent.ts`, `agent-tools.server.ts` — the AI assistant (AI SDK v6 + OpenRouter,
     read-only tools + propose-then-apply writes: draft-a-block, draft-a-plan,
-    revise-a-block's rate).
+    and revise a block's rate or recipe set).
   - `bridge/` — UDP bridge to the mod. `protocol.ts` defines the wire contract;
     **`PROTOCOL_VERSION` must stay in lockstep with the same constant in
     `mod/control.lua`** (each side warns on mismatch).
-- `solver/` — pure-TS sparse **linear system** per "block" (`block.ts`,
-  `linalg.ts`). A pinned output goal + `Match` items become equations;
-  `export`/`import` items are free boundary flows. Recipes and splits are
-  user-chosen, so there is no LP/optimizer. Handles Py's cyclic recipe chains and
-  reports fractional building counts.
+- `solver/` — the HiGHS-backed linear-program model for each block (`lp.ts`),
+  constraint diagnosis (`diagnose.ts`), and composed sub-blocks (`subblock.ts`).
+  Goals, goods made inside the block, and recipe pins become constraints; other
+  goods remain free boundary flows. Recipes and splits are user-chosen rather than
+  globally optimized. The solver handles Py's cyclic chains and reports fractional
+  building counts.
 - `db/` — Drizzle ORM over `better-sqlite3`. `schema.ts` is the source of truth;
   `import-factorio.ts` loads the dump; `synthesize.ts` builds pass-2 synthetic
   recipes (mining/boiling/burning/spoiling/planting/rocket-launch, temperature
@@ -90,9 +91,49 @@ build` packages a bundle (run `src-tauri/vendor-node.sh` first). Releases are
   automated by **release-please** (one product version) — **don't hand-edit the
   version** in `version.txt` / `app/package.json` / `Cargo.toml` / `tauri.conf.json` /
   `mod/info.json`; it bumps them all in lockstep from conventional commits. See
-  [`docs/desktop.md`](docs/desktop.md).
+  [`docs/development/desktop.md`](docs/development/desktop.md).
 
 If setup/runtime/package-manager behavior looks wrong, run `vp env doctor`.
+
+## Documentation site (`docs/`)
+
+`docs/` is a separate Vite+ package that builds the public VitePress site. The
+top-level sections are user-facing; subsystem internals live under
+`docs/development/`. Keeping this package separate prevents VitePress's Vite
+dependency from entering the desktop app's dependency graph.
+
+Run documentation commands from inside `docs/`:
+
+- `vp install` — install the pinned documentation toolchain.
+- `vp check` — format, lint, and typecheck documentation sources and config.
+- `vp run docs:dev` — start the local documentation server.
+- `vp run docs:build` — build the static site and validate internal links.
+- `vp run docs:preview` — serve the production build locally.
+
+The GitHub Pages build sets `VITEPRESS_BASE=/pyops/`; local development uses `/`.
+The app and docs have independent lockfiles, so run the relevant package's
+install/check commands after changing it.
+
+Documentation is a practical manual, not a marketing site:
+
+- Organize user pages around tasks and questions. Lead with the outcome, use the
+  exact visible UI labels, and state what the user should see after each workflow.
+- Assume readers know Factorio production basics, but explain PyOps-specific
+  concepts and planner terminology when first introduced.
+- Prefer current dark-mode screenshots from the real app for UI workflows. Use
+  localized names and representative project data; never expose API keys, local
+  paths, personal information, or other secrets in an image.
+- Use generated raster illustrations selectively for confusing mental models or
+  workflows that the UI cannot show. Do not use generated images as fake UI, and
+  prefer Mermaid/SVG for simple deterministic diagrams.
+- Keep screenshots purposeful and maintainable: capture stable states after the
+  prose is correct rather than illustrating every click.
+- Keep published documentation evergreen. Describe the product and architecture
+  as they exist; do not include issue or PR numbers, commit references,
+  implementation chronology, migration anecdotes, conversational asides, or
+  notes about what older versions called something. Put history in GitHub and
+  the changelog. Mention an upgrade or compatibility distinction only when the
+  reader must act on it.
 
 ## The Factorio mod (`mod/`)
 
@@ -112,7 +153,7 @@ bridge + live-state sync), `summary.lua` (production-block view), `combinator.lu
   `.github/workflows/mod-test.yml` (manual — needs a Factorio binary). See
   `mod/tests/README.md`. Game-API logic (entities/blueprints/GUI) is still
   hands-on.
-- Never assume Py mechanics or Factorio 2.0 API behavior — read the data dump or
+- Never assume Py mechanics or Factorio 2.1 API behavior — read the data dump or
   the relevant Lua and cite the exact value/line.
 
 ## Conventions
@@ -140,7 +181,7 @@ bridge + live-state sync), `summary.lua` (production-block view), `combinator.lu
   dynamic imports of server code trip import protection too. The only sanctioned
   dynamic imports: heavyweight optional deps (`sharp`), Tauri plugins in client
   code, and the bridge server↔handlers cycle guard.
-- **UI work follows the design system** — [`docs/design.md`](docs/design.md): theme
+- **UI work follows the design system** — [`docs/development/design.md`](docs/development/design.md): theme
   tokens (never raw palette colors), the `components/ui` primitives (never
   hand-rolled buttons/inputs/badges), square corners, `PageHeader`/`EmptyState`/
   `Skeleton`, and loading/empty/error states on every async surface.
@@ -157,9 +198,12 @@ bridge + live-state sync), `summary.lua` (production-block view), `combinator.lu
   change adds/renames/removes a user-facing surface (a page, tab, setting, install
   flow, env var, CLI command) or alters how a subsystem works, update the docs in
   the same pass:
-  - User-facing behavior, setup, config → [`README.md`](README.md).
-  - How a subsystem works → the matching file in [`docs/`](docs/) (architecture,
-    data-pipeline, solver, bridge, ai-assistant, design).
+  - User-facing behavior, setup, config → the matching guide in [`docs/`](docs/).
+  - Product pitch, download path, and contributor entry points →
+    [`README.md`](README.md).
+  - How a subsystem works → the matching file in
+    [`docs/development/`](docs/development/) (architecture, data-pipeline, solver,
+    bridge, ai-assistant, design).
   - A structural or workflow change (new top-level dir, build/verify step,
     convention) → this `AGENTS.md`.
 

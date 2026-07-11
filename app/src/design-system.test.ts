@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
- * Mechanical enforcement of docs/design.md (issue #103): raw palette classes,
+ * Mechanical enforcement of docs/development/design.md (issue #103): raw palette classes,
  * stray corner rounding, hex colors, and off-scale text sizes fail the suite
  * with a file:line list. If a violation is ever intentional, add it to the
  * matching EXCEPTIONS list with a comment saying why.
@@ -42,7 +42,7 @@ function violations(pattern: RegExp, opts?: { tsxOnly?: boolean; inStrings?: boo
   return out;
 }
 
-describe("design system (docs/design.md)", () => {
+describe("design system (docs/development/design.md)", () => {
   it("uses semantic tokens, not raw Tailwind palette classes", () => {
     expect(
       violations(

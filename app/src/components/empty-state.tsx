@@ -4,7 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "#/lib/utils.ts";
 
 /**
- * The one empty-state component (docs/design.md): say what's missing and, via
+ * The one empty-state component (docs/development/design.md): say what's missing and, via
  * `action`, how to fill it. Async surfaces must never render blank.
  */
 export function EmptyState({

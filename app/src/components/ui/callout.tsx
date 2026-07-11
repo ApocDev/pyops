@@ -4,7 +4,7 @@ import { AlertTriangle, CheckCircle2, Info, OctagonAlert, type LucideIcon } from
 import { cn } from "#/lib/utils.ts";
 
 /**
- * Block-level status message (docs/design.md): a tinted row with an icon and a
+ * Block-level status message (docs/development/design.md): a tinted row with an icon and a
  * short sentence — "game not connected", "already balanced", "infeasible".
  * `variant="box"` (default) is a standalone bordered panel; `variant="strip"`
  * is the full-bleed row used inside cards/drawers (borders only top/bottom

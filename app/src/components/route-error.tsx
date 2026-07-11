@@ -5,7 +5,7 @@ import { Button } from "#/components/ui/button.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 
 /**
- * The router's root `errorComponent` (docs/design.md "Interaction states"): any
+ * The router's root `errorComponent` (docs/development/design.md "Interaction states"): any
  * loader/render error thrown under a route lands here instead of a white screen.
  * "Retry" resets the error boundary and invalidates the router so the failed
  * loaders and queries re-run. For an in-body query failure use `QueryBoundary` /

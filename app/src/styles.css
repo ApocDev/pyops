@@ -33,7 +33,7 @@
   --accent-foreground: oklch(0.21 0.006 285.885);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.577 0.245 27.325);
-  /* Status hues — the app's semantic colors (see docs/design.md).
+  /* Status hues — the app's semantic colors (see docs/development/design.md).
      success = healthy/met/produced/live · warning = attention/consumed/import/behind
      info = neutral notice/stock/edit affordance · surplus = export/byproduct/positive net */
   --success: oklch(0.596 0.145 163.225);
@@ -49,7 +49,7 @@
   --chart-4: oklch(0.508 0.118 165.612);
   --chart-5: oklch(0.432 0.095 166.913);
   /* Square corners app-wide — rounded/rounded-md/… all resolve to 0 through this.
-     rounded-full (status dots, spinners) is unaffected. See docs/design.md. */
+     rounded-full (status dots, spinners) is unaffected. See docs/development/design.md. */
   --radius: 0rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.141 0.005 285.823);

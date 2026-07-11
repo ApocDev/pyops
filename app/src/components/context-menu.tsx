@@ -9,7 +9,7 @@ import {
 import { cn } from "#/lib/utils.ts";
 
 /**
- * Right-click context menu shell (docs/design.md): a Radix `DropdownMenu`
+ * Right-click context menu shell (docs/development/design.md): a Radix `DropdownMenu`
  * anchored at the pointer, so Escape-to-close, focus containment/roving,
  * `role="menu"` semantics, and click-away come from the primitive rather than a
  * hand-rolled backdrop (#86). Callers stay declarative — own the open state and
