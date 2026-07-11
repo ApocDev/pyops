@@ -44,6 +44,11 @@ import {
 } from "../lib/format";
 import { getTheme, setTheme, subscribeTheme, type ThemePref } from "../lib/theme";
 import {
+  getAdvancedSupplyPriorities,
+  setAdvancedSupplyPriorities,
+  subscribeAdvancedSupplyPriorities,
+} from "../lib/supply-priority";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -389,6 +394,11 @@ function ModsCard({
 function DisplayCard() {
   const compact = useSyncExternalStore(subscribeNumberFormat, getCompactNumbers, () => true);
   const theme = useSyncExternalStore(subscribeTheme, getTheme, () => "dark" as ThemePref);
+  const advancedPriorities = useSyncExternalStore(
+    subscribeAdvancedSupplyPriorities,
+    getAdvancedSupplyPriorities,
+    () => false,
+  );
   return (
     <Card>
       <CardHeader>
@@ -427,6 +437,15 @@ function DisplayCard() {
             </span>
           </span>
           <Switch checked={compact} onCheckedChange={(v) => setCompactNumbers(v)} />
+        </label>
+        <label className="flex items-center justify-between gap-3">
+          <span>
+            Advanced supply priorities
+            <span className="block text-sm text-muted-foreground">
+              enter numeric tiers instead of Preferred, Normal, and Fallback
+            </span>
+          </span>
+          <Switch checked={advancedPriorities} onCheckedChange={setAdvancedSupplyPriorities} />
         </label>
       </div>
     </Card>

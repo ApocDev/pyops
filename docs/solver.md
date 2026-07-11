@@ -335,6 +335,19 @@ scaling, which is always feasible and matches "scale each block up/down to meet
 demand". It's report-only: it never writes; you adjust each block by hand (or
 ignore the suggestion).
 
+Each block can carry a **supply priority**. The normal UI exposes three strict
+tiers: Preferred, Normal, and Fallback. When several blocks can supply the same
+good, the factory solve exhausts higher-priority available supply before using a
+lower tier. Priority is an allocation preference, not a reason to run a block: an
+incidental/byproduct export never causes its source block to scale solely to make
+more of that byproduct.
+
+Advanced supply priorities expose arbitrary numeric tiers (higher numbers first).
+A multiproduct block may also override its block-wide priority for one exported
+good; exports without an override inherit the block setting. Equal priorities use
+the ordinary factory objective. Priority does not change the block's goals, pins,
+or internal recipe solve.
+
 Two energy pseudo-goods stay **free boundaries** (never balanced across blocks):
 `pyops-electricity` (grid-distributed — matching it would create a power feedback
 loop) and `pyops-heat` (block-local by game rule). `pyops-fluid-fuel` is **not**

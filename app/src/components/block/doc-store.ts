@@ -54,6 +54,8 @@ export type BlockDocState = {
    * server keeps deriving from it; dropped from the doc after adoption */
   dispositions: Record<string, Disposition>;
   spoilRates: Record<string, number>;
+  supplyPriority: number;
+  supplyPriorities: Record<string, number>;
   rowGroups: RowGroup[];
   recipeGroups: GroupAssign;
   machines: Record<string, string>;
@@ -77,6 +79,8 @@ const EMPTY: BlockDocState = {
   pins: [],
   dispositions: {},
   spoilRates: {},
+  supplyPriority: 0,
+  supplyPriorities: {},
   rowGroups: [],
   recipeGroups: {},
   machines: {},
@@ -100,6 +104,8 @@ export function solveInputOf(s: BlockDocState): SolveInput {
     ...(disabledRecipes.length ? { disabledRecipes } : {}),
     ...(s.rowGroups.length ? { rowGroups: s.rowGroups, recipeGroups: s.recipeGroups } : {}),
     ...(Object.keys(s.spoilRates).length ? { spoilRates: s.spoilRates } : {}),
+    ...(s.supplyPriority !== 0 ? { supplyPriority: s.supplyPriority } : {}),
+    ...(Object.keys(s.supplyPriorities).length ? { supplyPriorities: s.supplyPriorities } : {}),
     // adopted docs persist `made` (and never dispositions); legacy docs keep
     // shipping their dispositions so the server can derive
     ...(s.made ? { made: [...s.made].sort() } : {}),
@@ -156,6 +162,8 @@ export function createBlockDocStore() {
       pins: d.pins ?? [],
       dispositions: (d.dispositions ?? {}) as Record<string, Disposition>,
       spoilRates: d.spoilRates ?? {},
+      supplyPriority: d.supplyPriority ?? 0,
+      supplyPriorities: d.supplyPriorities ?? {},
       machines: d.machines ?? {},
       fuels: d.fuels ?? {},
       modules: d.modules ?? {},
@@ -256,6 +264,14 @@ export function createBlockDocStore() {
     setCustomIcon: (icon: { kind: string; name: string } | null) =>
       edit(() => ({ customIcon: icon })),
     setBlockName: (blockName: string) => edit(() => ({ blockName })),
+    setSupplyPriority: (supplyPriority: number) => edit(() => ({ supplyPriority })),
+    setOutputSupplyPriority: (name: string, priority: number | null) =>
+      edit((s) => ({
+        supplyPriorities:
+          priority == null
+            ? withoutKey(s.supplyPriorities, name)
+            : { ...s.supplyPriorities, [name]: priority },
+      })),
 
     /* ── recipes ── */
     addRecipe: (name: string) =>

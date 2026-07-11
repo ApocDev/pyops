@@ -236,6 +236,10 @@ export type SolveInput = {
    * it leaves the nominal recipe solve untouched and adds the item's spoil result
    * to the boundary byproducts after the solve. */
   spoilRates?: Record<string, number>;
+  /** factory allocation tier for this block; higher is preferred */
+  supplyPriority?: number;
+  /** optional exported-good overrides; missing entries inherit supplyPriority */
+  supplyPriorities?: Record<string, number>;
   /** legacy per-item overrides (pre-#91 docs) — migrated to `made` on read; new
    * docs never write this */
   dispositions?: Record<string, Disposition>;

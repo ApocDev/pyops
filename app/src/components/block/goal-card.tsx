@@ -10,6 +10,7 @@ import { EditableStock } from "./editable-stock.tsx";
 import { LogiTag } from "./logi-tag.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
+import { SupplyPriorityControl } from "./supply-priority-control.tsx";
 
 /** The Goal card: goals as compact stacked cells (icon over rate) so many fit —
  * a block can target several products at once. Each goal has a target rate (a
@@ -39,11 +40,19 @@ export function GoalCard({
   onOpenGoalPicker: () => void;
 }) {
   const goals = useStore(doc.store, (s) => s.goals);
+  const supplyPriority = useStore(doc.store, (s) => s.supplyPriority ?? 0);
   const target = goals[0]?.name ?? "";
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="justify-between">
         <CardTitle>Goal</CardTitle>
+        <SupplyPriorityControl
+          value={supplyPriority}
+          onChange={(priority) => {
+            doc.setSupplyPriority(priority);
+            doc.note("Set block supply priority");
+          }}
+        />
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="flex flex-wrap gap-2">
