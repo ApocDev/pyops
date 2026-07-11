@@ -1,0 +1,45 @@
+app/src/components/whatif/supply-allocation-card.tsx
+  s_47ad27779e018c::t_46fd01704fe995 1-68
+app/src/server/factory-rebalance.test.ts
+  s_47ad27779e018c::t_82a1fa761ac1ff 102
+app/e2e/mut/supply-priority.e2e.ts
+  s_47ad27779e018c::t_5b24cd594e280a 1-31
+app/src/db/queries.server.ts
+  s_3df40a0c9e6b26::t_4c6e07fc6d089d 1991-1997,2005-2018
+app/src/db/queries.test.ts
+  s_47ad27779e018c::t_88e4ef0611f85b 980-983
+app/src/routes/whatif.tsx
+  s_47ad27779e018c::t_1f15df3414be61 20,256
+app/src/server/factorio.ts
+  s_47ad27779e018c::t_69136f0d9a6b69 339-342,409-415
+app/src/server/factory-solve.server.ts
+  s_47ad27779e018c::t_30489fdd6faf1c 21-22,26-33,63-64,74-81,121-140,144-146,148-151,164-199,202,205-225,278,297
+app/src/server/factory-solve.test.ts
+  s_3df40a0c9e6b26::t_9030fe856f2559 203-277
+docs/solver.md
+  s_47ad27779e018c::t_aa1912ac7cd9fe 343-344,352-356
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "0ae644162e1ad5c25ed86bd20402baa96bb94307",
+  "prompts": {},
+  "sessions": {
+    "s_3df40a0c9e6b26": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4ee0-bd60-7060-9435-19531c483019",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_47ad27779e018c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4d6e-d782-7df2-a1d9-5b9bf0113887",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
