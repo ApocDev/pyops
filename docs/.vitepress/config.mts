@@ -1,9 +1,12 @@
 import { defineConfig } from "vitepress";
 
+const base = process.env.VITEPRESS_BASE ?? "/";
+
 export default defineConfig({
   title: "PyOps",
   description: "Plan, understand, and operate your Factorio factory with PyOps.",
-  base: process.env.VITEPRESS_BASE ?? "/",
+  base,
+  head: [["link", { rel: "icon", type: "image/svg+xml", href: `${base}logo.svg` }]],
   cleanUrls: true,
   lastUpdated: true,
   markdown: {
