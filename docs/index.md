@@ -5,8 +5,8 @@ titleTemplate: false
 
 hero:
   name: PyOps
-  text: Plan and operate a Pyanodons factory
-  tagline: PyOps is a local desktop factory planner and in-game operations assistant for Factorio 2.1. It turns data from your modded game into production blocks, a whole-factory balance, and plans you can use in the running game.
+  text: Plan and operate your Factorio factory
+  tagline: PyOps is a local desktop factory planner and in-game operations assistant. It is designed around the Pyanodons mods, but works with vanilla Factorio and other mod packs by synchronizing data from your own game.
   image:
     src: /logo.svg
     alt: PyOps
