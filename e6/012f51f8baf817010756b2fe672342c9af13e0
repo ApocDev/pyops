@@ -1,0 +1,19 @@
+app/src/db/queries.server.ts
+  s_6eed301ea70a8e::t_6b3f39e213c7e7 490-491,495,498-506,508-511
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "e6012f51f8baf817010756b2fe672342c9af13e0",
+  "prompts": {},
+  "sessions": {
+    "s_6eed301ea70a8e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f521f-6e38-70b2-901a-fe8287d2b869",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
