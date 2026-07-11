@@ -1,0 +1,19 @@
+app/vite.config.ts
+  s_6eed301ea70a8e::t_9550c80cee0ab4 93-97,118-120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "b2a3a82b0351a6dd1694af545863d9932a0919d3",
+  "prompts": {},
+  "sessions": {
+    "s_6eed301ea70a8e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f521f-6e38-70b2-901a-fe8287d2b869",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
