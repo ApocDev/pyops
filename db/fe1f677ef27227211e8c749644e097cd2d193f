@@ -1,0 +1,25 @@
+docs/.vitepress/config.mts
+  s_3df40a0c9e6b26::t_fdad3a8bf35a6f 3-4,8-9
+docs/.vitepress/theme/AppScreenshot.vue
+  s_3df40a0c9e6b26::t_09c06aaedd0b10 2,13-21,26-36,39-61
+docs/.vitepress/theme/styles.css
+  s_3df40a0c9e6b26::t_e5d2b02d02293f 6-8,16-17,20-21,26-64,69-81,85-116,130-134,140-212,267-283
+docs/index.md
+  s_3df40a0c9e6b26::t_f6bff353036935 1-4,6-19,21-30,32,34-37,39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "dbfe1f677ef27227211e8c749644e097cd2d193f",
+  "prompts": {},
+  "sessions": {
+    "s_3df40a0c9e6b26": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4ee0-bd60-7060-9435-19531c483019",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
