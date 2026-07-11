@@ -1,0 +1,25 @@
+app/src/db/import-factorio.test.ts
+  s_3df40a0c9e6b26::t_d559fd001df5bb 52-78
+app/src/db/import-factorio.ts
+  s_3df40a0c9e6b26::t_fe6cde42d87be8 92-107,524,533-534
+app/src/db/schema.ts
+  s_3df40a0c9e6b26::t_e497be035c3472 311-313
+docs/development/data-pipeline.md
+  s_3df40a0c9e6b26::t_f26563ffab9a80 111-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "48a8c138819936e8b7020d6647b051f004f81d72",
+  "prompts": {},
+  "sessions": {
+    "s_3df40a0c9e6b26": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4ee0-bd60-7060-9435-19531c483019",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
