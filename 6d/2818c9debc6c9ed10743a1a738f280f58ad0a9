@@ -1,0 +1,39 @@
+docs/development/ai-assistant.md
+  s_3df40a0c9e6b26::t_1f28983ffc761c 1-6,9-365
+docs/development/bridge.md
+  s_3df40a0c9e6b26::t_a3d2252381ca87 1-6,9-29,32-84,87-269,271-279,281-282
+docs/development/configuration.md
+  s_3df40a0c9e6b26::t_38e24449ce44e1 1-82
+docs/development/data-pipeline.md
+  s_3df40a0c9e6b26::t_5dbd27d74d16fc 1-6,9-270
+docs/development/design.md
+  s_3df40a0c9e6b26::t_392bef066a4c80 1-6,9-11,13-15,19-32,38-46,48,50-51,55-87,91-194,198-285
+docs/development/desktop.md
+  s_3df40a0c9e6b26::t_31de9250ed9472 1-5,7,9-11,13-18,20-22,24,26-28,30,32-33,35-37,39-40,42-123,125-127,130-264
+docs/development/solver.md
+  s_3df40a0c9e6b26::t_cecba5d7465959 1-6,9-22,25-367
+AGENTS.md
+  s_3df40a0c9e6b26::t_d09253947ce79f 19,41,45-50,117-137,156
+README.md
+  s_3df40a0c9e6b26::t_c1ec7e27f7f230 40-42,79-80,92-96,101,103
+docs/development/architecture.md
+  s_3df40a0c9e6b26::t_d41600306fbaf3 1-5,7,9-11,13-17,19-21,23,25,27,29-40,43-203
+docs/development/index.md
+  s_3df40a0c9e6b26::t_0f78fe7c671e8b 1-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "6d2818c9debc6c9ed10743a1a738f280f58ad0a9",
+  "prompts": {},
+  "sessions": {
+    "s_3df40a0c9e6b26": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4ee0-bd60-7060-9435-19531c483019",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
