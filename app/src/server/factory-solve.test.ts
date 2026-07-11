@@ -200,4 +200,79 @@ describe("factoryWhatIf", () => {
     expect(byId(doubledScience.blocks, agarScience.id).scale).toBeCloseTo(2);
     expect(byId(doubledScience.blocks, biocrudSink.id).scale).toBeCloseTo(1);
   });
+
+  it("uses preferred supply before a fallback producer", async () => {
+    const preferred: BlockWithFlows = {
+      id: 30,
+      name: "recovered plates",
+      rate: 1,
+      priority: 100,
+      flows: [{ item: "plate", kind: "item", role: "primary", rate: 1, priority: 100 }],
+    };
+    const fallback: BlockWithFlows = {
+      id: 31,
+      name: "ore smelting",
+      rate: 1,
+      priority: -100,
+      flows: [
+        { item: "plate", kind: "item", role: "primary", rate: 1, priority: -100 },
+        { item: "ore", kind: "item", role: "import", rate: 1 },
+      ],
+    };
+    const consumer: BlockWithFlows = {
+      id: 32,
+      name: "gears",
+      rate: 1,
+      flows: [
+        { item: "gear", kind: "item", role: "primary", rate: 1 },
+        { item: "plate", kind: "item", role: "import", rate: 2 },
+      ],
+    };
+
+    const r = await factoryWhatIf([preferred, fallback, consumer]);
+    expect(byId(r.blocks, preferred.id).scale).toBeCloseTo(2);
+    expect(byId(r.blocks, fallback.id).scale).toBeCloseTo(0);
+    expect(r.supplyAllocations).toContainEqual(
+      expect.objectContaining({ blockId: preferred.id, good: "plate", rate: 2, priority: 100 }),
+    );
+  });
+
+  it("uses a naturally produced preferred byproduct without scaling its source", async () => {
+    const recovery: BlockWithFlows = {
+      id: 40,
+      name: "science recovery",
+      rate: 1,
+      priority: 100,
+      flows: [
+        { item: "science", kind: "item", role: "primary", rate: 1 },
+        { item: "plate", kind: "item", role: "byproduct", rate: 1, priority: 100 },
+      ],
+    };
+    const mine: BlockWithFlows = {
+      id: 41,
+      name: "plate mine",
+      rate: 1,
+      priority: -100,
+      flows: [{ item: "plate", kind: "item", role: "primary", rate: 1, priority: -100 }],
+    };
+    const consumer: BlockWithFlows = {
+      id: 42,
+      name: "gears",
+      rate: 1,
+      flows: [
+        { item: "gear", kind: "item", role: "primary", rate: 1 },
+        { item: "plate", kind: "item", role: "import", rate: 2 },
+      ],
+    };
+
+    const r = await factoryWhatIf([recovery, mine, consumer]);
+    expect(byId(r.blocks, recovery.id).scale).toBeCloseTo(1);
+    expect(byId(r.blocks, mine.id).scale).toBeCloseTo(1);
+    expect(r.supplyAllocations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ blockId: recovery.id, good: "plate", rate: 1, incidental: true }),
+        expect.objectContaining({ blockId: mine.id, good: "plate", rate: 1 }),
+      ]),
+    );
+  });
 });

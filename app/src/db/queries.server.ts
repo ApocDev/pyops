@@ -1988,7 +1988,13 @@ export function saveBlockRow(
 
 /** Every block with its current target rate and cached boundary flows — the input
  * to the factory-level what-if solve (each block becomes a fixed-ratio super-recipe). */
-export function blocksWithFlows() {
+export function blocksWithFlows(): {
+  id: number;
+  name: string;
+  rate: number;
+  priority?: number;
+  flows: (BlockFlow & { priority?: number })[];
+}[] {
   const bs = db
     .select()
     .from(blocks)
@@ -1996,12 +2002,20 @@ export function blocksWithFlows() {
     .orderBy(blocks.sortOrder, blocks.name)
     .all();
   const flowsByBlock = enabledFlowsByBlock();
-  return bs.map((b) => ({
-    id: b.id,
-    name: b.name,
-    rate: primaryRate(normalizeBlockData(b.data)),
-    flows: flowsByBlock.get(b.id) ?? [],
-  }));
+  return bs.map((b) => {
+    const data = normalizeBlockData(b.data);
+    const blockPriority = data.supplyPriority ?? 0;
+    return {
+      id: b.id,
+      name: b.name,
+      rate: primaryRate(data),
+      priority: blockPriority,
+      flows: (flowsByBlock.get(b.id) ?? []).map((flow) => ({
+        ...flow,
+        priority: data.supplyPriorities?.[flow.item] ?? blockPriority,
+      })),
+    };
+  });
 }
 
 /** Aggregate net production across all blocks — the factory over/under view. */

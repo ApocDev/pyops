@@ -17,6 +17,7 @@ import { PageHeader } from "#/components/page-header.tsx";
 import { RebalanceAllButton } from "#/components/whatif/rebalance-all-button.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
 import { StatTableHeader } from "#/components/stat-table.tsx";
+import { SupplyAllocationCard } from "#/components/whatif/supply-allocation-card.tsx";
 
 export const Route = createFileRoute("/whatif")({
   component: () => (
@@ -252,6 +253,7 @@ function WhatIf() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <SupplyAllocationCard rows={r?.supplyAllocations ?? []} />
         <GoodsCard
           title="Raw inputs needed"
           hint="external supply — current vs. projected"
