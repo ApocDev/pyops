@@ -1,0 +1,17 @@
+:root {
+  --vp-c-brand-1: #d2842d;
+  --vp-c-brand-2: #b66e20;
+  --vp-c-brand-3: #985a18;
+  --vp-c-brand-soft: rgb(210 132 45 / 14%);
+  --vp-button-brand-border: var(--vp-c-brand-1);
+  --vp-button-brand-bg: var(--vp-c-brand-1);
+  --vp-button-brand-hover-border: var(--vp-c-brand-2);
+  --vp-button-brand-hover-bg: var(--vp-c-brand-2);
+}
+
+.VPButton,
+.VPNavBarSearch .DocSearch-Button,
+.VPNavScreenMenuGroup,
+.vp-doc div[class*="language-"] {
+  border-radius: 0;
+}

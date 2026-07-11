@@ -46,7 +46,7 @@ Planner correctness, all landed: #93, #92, #94, #96 (batch A), #25 (closed epic
 #31), #99, #110's interim warnings (batch B), #113, #115 (batch C), then the
 solver rewrite #91 (LP core, gesture model, IIS diagnosis, pins, whole machines
 via #98, v1 deleted), #110's full temperature-identity model, and #114
-(temperature-fed fluid drains). The solver docs live in docs/solver.md; the
+(temperature-fed fluid drains). The solver details live in [Block solver](solver.md); the
 tracker records the details.
 
 ## Wave 3 — DONE (2026-07-03)
@@ -75,7 +75,7 @@ review; light mode is now reachable to do it).
 #76 sub-blocks v2 landed: a display-only row group can be promoted to a
 separately-solved composed module whose only parent-facing surface is its
 boundary contract (nested solveBlockLp → synthetic recipe the parent solves
-over). Closes epic #33. Deferred follow-ups noted in docs/solver.md
+over). Closes epic #33. Deferred follow-ups are noted in [Block solver](solver.md)
 (user-editable per-group made, sub-block IIS cards, nested sub-blocks, sub-block
 spoilRates).
 

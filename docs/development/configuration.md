@@ -1,4 +1,4 @@
-# Configuration
+# Advanced configuration
 
 App-level settings live in the **⚙ Settings** UI (active project, the OpenRouter
 key/model, the research horizon, the companion mod, backup/share). The environment
@@ -17,6 +17,6 @@ variables below are for source runs and overrides — set them in `app/.env.loca
 | `PYOPS_ALLOWED_HOSTS` | tunnel providers' domains                           | Extra hostnames the dev server accepts (comma-separated, or `true` to allow any) — for custom tunnels.       |
 
 Reaching the dev server remotely (phone, another machine) is handled by
-[`scripts/tunnel-dev`](../scripts/tunnel-dev) — it auto-picks cloudflared / ngrok /
+[`scripts/tunnel-dev`](https://github.com/ApocDev/pyops/blob/main/scripts/tunnel-dev) — it auto-picks cloudflared / ngrok /
 tailscale and exposes `:3000`; run `scripts/tunnel-dev --help` for provider and
 custom-hostname options.

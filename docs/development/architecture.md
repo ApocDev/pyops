@@ -62,7 +62,7 @@ pyops/
 
 The app uses **[Vite+](https://viteplus.dev/)** (the `vp` CLI) as its toolchain —
 Vite, Rolldown, Vitest, Oxlint, Oxfmt under one wrapper — not the bare
-`pnpm dev`/`pnpm build` scripts. See [`AGENTS.md`](../AGENTS.md) for the command
+`pnpm dev`/`pnpm build` scripts. See [`AGENTS.md`](https://github.com/ApocDev/pyops/blob/main/AGENTS.md) for the command
 reference.
 
 **Responsive UI.** The desktop layout degrades to tablet/phone/Steam Deck rather
@@ -75,7 +75,7 @@ shared `StatCell` instead of squeezing fixed columns. Reordering uses dnd-kit so
 it works by touch — the recipe rows via a drag grip, and the block sidebar via
 whole-row drag (mouse needs a small move, touch a short press-hold, so a tap still
 opens and an immediate finger-drag still scrolls). A Playwright harness,
-[`app/e2e/responsive.e2e.ts`](../app/e2e/responsive.e2e.ts), screenshots every
+[`app/e2e/responsive.e2e.ts`](https://github.com/ApocDev/pyops/blob/main/app/e2e/responsive.e2e.ts), screenshots every
 route across a desktop/tablet/phone matrix and asserts no route scrolls sideways
 at tablet/phone widths.
 

@@ -18,7 +18,7 @@ function Label({ className, ...props }: React.ComponentProps<typeof LabelPrimiti
 
 /**
  * Micro caption above a field group or stat cluster — the uppercase muted
- * eyebrow. True fine print, so text-xs is allowed here (docs/design.md).
+ * eyebrow. True fine print, so text-xs is allowed here (docs/development/design.md).
  */
 function FieldLabel({ className, ...props }: React.ComponentProps<"div">) {
   return (

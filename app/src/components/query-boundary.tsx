@@ -13,7 +13,7 @@ type QueryLike<T> = Pick<UseQueryResult<T>, "data" | "isLoading" | "isError" | "
 
 /**
  * The one loading / error / empty convention for a data-bearing surface
- * (docs/design.md "Interaction states"): render `<QueryBoundary>` around a
+ * (docs/development/design.md "Interaction states"): render `<QueryBoundary>` around a
  * `useQuery` and it shows a `Skeleton` while loading, a retryable
  * {@link QueryError} on failure, an `EmptyState` when the data is empty, and
  * finally `children(data)` — so pages stop hand-rolling the same four branches.

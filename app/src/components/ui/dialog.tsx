@@ -11,7 +11,7 @@ import { cn } from "#/lib/utils.ts";
  * the panel docks to the bottom edge as a sheet (full-width, thumb-reachable);
  * at `md+` it floats centered. Pick by role, not screen size — the responsive
  * switch is built in: Dialog for confirmations and focused edits, Sheet for
- * side rails/drawers, CursorHover for hover detail (docs/design.md).
+ * side rails/drawers, CursorHover for hover detail (docs/development/design.md).
  */
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {

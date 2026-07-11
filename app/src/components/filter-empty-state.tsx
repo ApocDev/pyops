@@ -2,7 +2,7 @@ import { Button } from "#/components/ui/button.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 
 /** The standard "no matches for X" state of a filtered list (#87): names the
- * query and offers to clear it (docs/design.md — a filtered-empty surface says
+ * query and offers to clear it (docs/development/design.md — a filtered-empty surface says
  * so and offers the fix). Render it when the unfiltered list is non-empty but
  * the filtered one is. */
 export function FilterEmptyState({

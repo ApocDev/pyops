@@ -3,12 +3,12 @@ import * as React from "react";
 import { cn } from "#/lib/utils.ts";
 
 /**
- * The one page-title component (docs/design.md): every route renders exactly one
+ * The one page-title component (docs/development/design.md): every route renders exactly one
  * PageHeader so the h1 scale, description style, and action alignment never drift.
  * Toolbars (filters, sort controls) go in `children`, below the title row.
  *
  * The header is **sticky** to the top of its scroll container so the title and the
- * toolbar that drives the content below stay reachable on long pages (docs/design.md
+ * toolbar that drives the content below stay reachable on long pages (docs/development/design.md
  * "Scroll model"). It sits on a solid `bg-background` above row hover/sticky-subheader
  * layers (`z-20`), with a bottom rule marking the stuck bar against the scrolling
  * content behind it. The negative `-mx-4/-mt-4` (paired with `px-4/pt-4`) let the bar

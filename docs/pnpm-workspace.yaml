@@ -1,0 +1,4 @@
+# Single-package settings for the documentation site. VitePress uses esbuild
+# during its static build, so fresh installs must allow that lifecycle script.
+allowBuilds:
+  esbuild: true

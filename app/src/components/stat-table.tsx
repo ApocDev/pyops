@@ -3,7 +3,7 @@ import { type ReactNode } from "react";
 import { cn } from "#/lib/utils.ts";
 
 /**
- * The desktop header row of the app's stat-table anatomy (see `docs/design.md`):
+ * The desktop header row of the app's stat-table anatomy (see `docs/development/design.md`):
  * a muted `hidden md:flex` line with a `flex-1` lead label over the rows' lead
  * cells and fixed-width right-aligned labels over their `StatCell` columns.
  * Each `cols[i].w` must match the `w` the rows pass to the corresponding

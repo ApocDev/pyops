@@ -4,7 +4,7 @@ import { Tooltip as TooltipPrimitive } from "radix-ui";
 import { cn } from "#/lib/utils.ts";
 
 /**
- * Styled, keyboard-accessible tooltip (docs/design.md). Wraps a single
+ * Styled, keyboard-accessible tooltip (docs/development/design.md). Wraps a single
  * hoverable/focusable control and floats `content` beside it on hover **or**
  * keyboard focus, dismissable with Escape — the accessibility native `title`
  * never gave us, and themed to match the app instead of the OS bubble.

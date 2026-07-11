@@ -5,7 +5,7 @@ import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 
 /**
- * The house inline error surface (docs/design.md "Interaction states"): a
+ * The house inline error surface (docs/development/design.md "Interaction states"): a
  * destructive `Callout` that says what failed and offers a retry, so pages stop
  * hand-rolling `{q.isError && <div className="text-destructive">…</div>}`. Pair
  * with {@link QueryBoundary} for the loading/empty/error trio, or drop in on its

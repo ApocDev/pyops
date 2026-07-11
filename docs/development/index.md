@@ -1,7 +1,7 @@
-# PyOps documentation
+# Development documentation
 
-Developer-facing docs: how PyOps is put together and why. For installing and using
-PyOps, see the [top-level README](../README.md).
+This section explains how PyOps is put together and why. For installing and using
+PyOps, start with the [user guide](../getting-started/).
 
 - [Architecture](architecture.md) — the one-app-plus-mod model, the system diagram,
   repository layout, and per-project databases.
@@ -18,5 +18,5 @@ PyOps, see the [top-level README](../README.md).
 - [Desktop app & releases](desktop.md) — the Tauri shell, packaging into a
   self-contained bundle, the release-please pipeline, and self-update.
 
-See also [`AGENTS.md`](../AGENTS.md) for the contributor/agent working guide
+See also [`AGENTS.md`](https://github.com/ApocDev/pyops/blob/main/AGENTS.md) for the contributor/agent working guide
 (toolchain commands, conventions, issue tracking).

@@ -15,7 +15,7 @@ This is a single repo with three cooperating parts:
   all work happens. It has its own `AGENTS.md`/`CLAUDE.md` (Vite+ toolchain notes).
   `app/src-tauri/` is the Tauri **desktop shell** that wraps this server in a native
   window and packages it into a self-contained bundle (vendored Node + bundled
-  resources) with self-update — see [`docs/desktop.md`](docs/desktop.md).
+  resources) with self-update — see [`docs/development/desktop.md`](docs/development/desktop.md).
 - **`mod/`** — the Factorio mod (`pyops`, Factorio 2.0): in-game panel, UDP link to
   the app, data-dump trigger, Helmod-style production-block view, and the
   request-combinator planner. Pure Lua, no build step.
@@ -90,9 +90,28 @@ build` packages a bundle (run `src-tauri/vendor-node.sh` first). Releases are
   automated by **release-please** (one product version) — **don't hand-edit the
   version** in `version.txt` / `app/package.json` / `Cargo.toml` / `tauri.conf.json` /
   `mod/info.json`; it bumps them all in lockstep from conventional commits. See
-  [`docs/desktop.md`](docs/desktop.md).
+  [`docs/development/desktop.md`](docs/development/desktop.md).
 
 If setup/runtime/package-manager behavior looks wrong, run `vp env doctor`.
+
+## Documentation site (`docs/`)
+
+`docs/` is a separate Vite+ package that builds the public VitePress site. The
+top-level sections are user-facing; subsystem internals live under
+`docs/development/`. Keeping this package separate prevents VitePress's Vite
+dependency from entering the desktop app's dependency graph.
+
+Run documentation commands from inside `docs/`:
+
+- `vp install` — install the pinned documentation toolchain.
+- `vp check` — format, lint, and typecheck documentation sources and config.
+- `vp run docs:dev` — start the local documentation server.
+- `vp run docs:build` — build the static site and validate internal links.
+- `vp run docs:preview` — serve the production build locally.
+
+The GitHub Pages build sets `VITEPRESS_BASE=/pyops/`; local development uses `/`.
+The app and docs have independent lockfiles, so run the relevant package's
+install/check commands after changing it.
 
 ## The Factorio mod (`mod/`)
 
@@ -140,7 +159,7 @@ bridge + live-state sync), `summary.lua` (production-block view), `combinator.lu
   dynamic imports of server code trip import protection too. The only sanctioned
   dynamic imports: heavyweight optional deps (`sharp`), Tauri plugins in client
   code, and the bridge server↔handlers cycle guard.
-- **UI work follows the design system** — [`docs/design.md`](docs/design.md): theme
+- **UI work follows the design system** — [`docs/development/design.md`](docs/development/design.md): theme
   tokens (never raw palette colors), the `components/ui` primitives (never
   hand-rolled buttons/inputs/badges), square corners, `PageHeader`/`EmptyState`/
   `Skeleton`, and loading/empty/error states on every async surface.
@@ -157,9 +176,12 @@ bridge + live-state sync), `summary.lua` (production-block view), `combinator.lu
   change adds/renames/removes a user-facing surface (a page, tab, setting, install
   flow, env var, CLI command) or alters how a subsystem works, update the docs in
   the same pass:
-  - User-facing behavior, setup, config → [`README.md`](README.md).
-  - How a subsystem works → the matching file in [`docs/`](docs/) (architecture,
-    data-pipeline, solver, bridge, ai-assistant, design).
+  - User-facing behavior, setup, config → the matching guide in [`docs/`](docs/).
+  - Product pitch, download path, and contributor entry points →
+    [`README.md`](README.md).
+  - How a subsystem works → the matching file in
+    [`docs/development/`](docs/development/) (architecture, data-pipeline, solver,
+    bridge, ai-assistant, design).
   - A structural or workflow change (new top-level dir, build/verify step,
     convention) → this `AGENTS.md`.
 

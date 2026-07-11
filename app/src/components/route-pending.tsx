@@ -1,7 +1,7 @@
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 
 /**
- * The router's default `pendingComponent` (docs/design.md "Interaction states"):
+ * The router's default `pendingComponent` (docs/development/design.md "Interaction states"):
  * a neutral skeleton scaffold — a header bar plus a few content rows — shown
  * while a route with a loader resolves, so navigation never flashes a blank
  * pane. Pages with their own richer skeletons still render those once mounted.
