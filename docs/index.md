@@ -1,29 +1,26 @@
----
-layout: home
+# PyOps documentation
 
-hero:
-  name: PyOps
-  text: Plan the factory. Understand the tradeoffs.
-  tagline: A local factory planner and in-game operations assistant for Factorio and Pyanodons.
-  actions:
-    - theme: brand
-      text: Get started
-      link: /getting-started/
-    - theme: alt
-      text: Download PyOps
-      link: https://github.com/ApocDev/pyops/releases
+Use this documentation to install PyOps, connect it to Factorio, and plan your factory.
 
-features:
-  - title: Design production blocks
-    details: Choose recipes and machines, set an output target, and let PyOps solve rates, building counts, byproducts, and cyclic chains.
-  - title: Balance the whole factory
-    details: See deficits and surpluses across every block, compare what is built with what is required, and test changes before rebuilding.
-  - title: Connect to your save
-    details: Keep research, TURD choices, and built machines synchronized through the optional companion mod—or plan manually without it.
----
+## Start here
 
-## Documentation in progress
+- **New to PyOps?** Follow [Getting started](./getting-started/) to install the app,
+  sync your game data, and create your first production block.
+- **Planning a factory?** Use the [Planning guide](./guide/) for research horizons,
+  blocks, boundaries, whole-factory balance, recipe exploration, and TURD choices.
+- **Connecting a save?** Install the Companion mod under **Settings → In-game link**
+  to enable live research, production statistics, and the in-game tools.
+- **Something not working?** Start with [Troubleshooting](./troubleshooting/) for setup,
+  data, solver, bridge, and Assistant problems.
 
-The complete end-user guide is being written from the current application. Start with
-[Getting started](./getting-started/) or browse the existing
-[Development documentation](./development/) for PyOps internals.
+## Development documentation
+
+The [Development section](./development/) explains the architecture, data
+pipeline, solver, Factorio bridge, assistant, design system, and desktop release
+process. It is supporting material for contributors and curious users; the user
+guide does not require it.
+
+## Download
+
+Installers for Windows, Linux, and macOS are available from
+[GitHub Releases](https://github.com/ApocDev/pyops/releases/latest).

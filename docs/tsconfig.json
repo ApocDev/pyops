@@ -5,5 +5,11 @@
     "strict": true,
     "types": ["node"]
   },
-  "include": ["env.d.ts", "vite.config.ts", ".vitepress/**/*.ts", ".vitepress/**/*.mts"]
+  "include": [
+    "env.d.ts",
+    "vite.config.ts",
+    ".vitepress/**/*.ts",
+    ".vitepress/**/*.mts",
+    ".vitepress/**/*.vue"
+  ]
 }
