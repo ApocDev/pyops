@@ -1,0 +1,45 @@
+app/src/components/block/block-help-content.tsx
+  s_47ad27779e018c::t_94bdb399d125b3 1-92
+app/src/components/block/block-toolbar.tsx
+  s_47ad27779e018c::t_d86ecd3a476ca2 27-31,292-421
+app/src/routes/settings.tsx
+  s_47ad27779e018c::t_55d6f4bbb7881e 46-50,397-401,441-449
+app/src/routes/whatif.tsx
+  s_47ad27779e018c::t_7dc33f1f06cc99 91-96,107-116
+app/src/components/block/balance-card.tsx
+  s_47ad27779e018c::t_966d03ac17a6b5 13,61-62,408-419
+app/src/components/block/doc-store.ts
+  s_47ad27779e018c::t_8a53df37819cc0 57-58,82-83,107-108,165-166,267-274
+app/src/components/block/goal-card.tsx
+  s_47ad27779e018c::t_3e379ae1787ce1 13,43,47,49-55
+app/src/components/block/output-priority-override.tsx
+  s_47ad27779e018c::t_d041a981303318 1-49
+app/src/components/block/supply-priority-control.tsx
+  s_47ad27779e018c::t_0900a895bff534 1-109
+app/src/components/ui/tooltip.tsx
+  s_47ad27779e018c::t_e64add22119e6b 35-36,53-56,69
+app/src/db/schema.ts
+  s_47ad27779e018c::t_1d360c0b2b87e1 439-444
+app/src/lib/supply-priority.ts
+  s_47ad27779e018c::t_41b3ee6b120d07 1-23
+app/src/server/block-compute.server.ts
+  s_47ad27779e018c::t_abe6a758f736cf 239-242
+docs/design.md
+  s_47ad27779e018c::t_93cd8b1e493e01 143
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "d071a7d2cb83598c798f55550f8ff5d122c1659d",
+  "prompts": {},
+  "sessions": {
+    "s_47ad27779e018c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4d6e-d782-7df2-a1d9-5b9bf0113887",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
