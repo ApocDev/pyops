@@ -1,0 +1,21 @@
+app/src/lib/icons.test.tsx
+  s_6eed301ea70a8e::t_08ac92074db151 14,61-75
+app/src/lib/icons.tsx
+  s_6eed301ea70a8e::t_c31f6d1ba380d4 229-231,233-261,269-276,297-307
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "2bee1801e0f62c82d3ee54afc59c86eea87dff36",
+  "prompts": {},
+  "sessions": {
+    "s_6eed301ea70a8e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f521f-6e38-70b2-901a-fe8287d2b869",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
