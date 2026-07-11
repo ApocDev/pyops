@@ -9,6 +9,7 @@ import { AppNav } from "../components/app-nav";
 import { CommandPalette } from "../components/command-palette";
 import { DbMigrationsBanner } from "../components/db-migrations-banner";
 import { DriftModal } from "../components/drift-modal";
+import { NativeContextMenu } from "../components/native-context-menu";
 import { RouteError } from "../components/route-error";
 import { RoutePending } from "../components/route-pending";
 import { ShortcutHelpSheet } from "../components/shortcut-help-sheet";
@@ -85,6 +86,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         </div>
         <CommandPalette />
         <ShortcutHelpSheet />
+        <NativeContextMenu />
         <UndoHotkey />
         <Toaster />
         <DriftModal />

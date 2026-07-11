@@ -15,13 +15,14 @@ Set local source-run values in `app/.env.local` or in the environment that launc
 
 ## Runtime and resource paths
 
-| Variable                 | Development default                      | Purpose                                                          |
-| ------------------------ | ---------------------------------------- | ---------------------------------------------------------------- |
-| `DATABASE_URL`           | Active project database                  | Bypass project selection and connect directly to one SQLite file |
-| `PYOPS_RESOURCE_DIR`     | Current `app/` working directory         | Root for read-only resources bundled with the server             |
-| `PYOPS_MIGRATIONS_DIR`   | `<resource-dir>/drizzle`                 | Override the Drizzle migration directory                         |
-| `PYOPS_MOD_DIR`          | `../mod` from the resource directory     | Override the Companion mod source installed by Settings          |
-| `FACTORIO_SCRIPT_OUTPUT` | Platform Factorio `script-output` folder | Override where Assistant screenshot tools read Factorio captures |
+| Variable                         | Development default                      | Purpose                                                          |
+| -------------------------------- | ---------------------------------------- | ---------------------------------------------------------------- |
+| `DATABASE_URL`                   | Active project database                  | Bypass project selection and connect directly to one SQLite file |
+| `PYOPS_RESOURCE_DIR`             | Current `app/` working directory         | Root for read-only resources bundled with the server             |
+| `PYOPS_MIGRATIONS_DIR`           | `<resource-dir>/drizzle`                 | Override the Drizzle migration directory                         |
+| `PYOPS_MOD_DIR`                  | `../mod` from the resource directory     | Override the Companion mod source installed by Settings          |
+| `FACTORIO_SCRIPT_OUTPUT`         | Platform Factorio `script-output` folder | Override where Assistant screenshot tools read Factorio captures |
+| `VITE_PYOPS_NATIVE_CONTEXT_MENU` | `false`                                  | Set to `true` to restore the browser context menu for debugging  |
 
 `PYOPS_DATA_DIR` is the writable root. `PYOPS_RESOURCE_DIR` is the read-only bundle root.
 Keep that boundary intact: packaged resources may not be writable, while project databases,
@@ -30,6 +31,11 @@ generated icons, and app configuration must be.
 The Tauri launcher sets the data, migration, and mod paths for the packaged app. Application
 code should import the resolved constants from `app/src/server/paths.server.ts` rather than
 joining new paths from `process.cwd()`.
+
+PyOps suppresses the platform browser/WebView context menu by default so `vp dev` matches
+the desktop shell and only application-owned right-click menus appear. Set
+`VITE_PYOPS_NATIVE_CONTEXT_MENU=true` in `app/.env.local` and restart the development server
+when browser inspection requires the native menu.
 
 ::: warning Direct database mode bypasses projects
 When `DATABASE_URL` is set, the database layer uses that file instead of the project
