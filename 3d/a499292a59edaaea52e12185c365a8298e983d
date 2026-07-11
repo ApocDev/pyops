@@ -1,0 +1,89 @@
+app/src/components/empty-state.tsx
+  s_3df40a0c9e6b26::t_ecf7bffec16c95 7
+README.md
+  s_3df40a0c9e6b26::t_58e378bb08e0b5 16,40,77-78,90,92-98
+app/src/components/ui/callout.tsx
+  s_3df40a0c9e6b26::t_1bb46228d8abe8 7
+docs/getting-started/index.md
+  s_3df40a0c9e6b26::t_79f15a92df9ba8 1-19
+app/src/components/query-boundary.tsx
+  s_3df40a0c9e6b26::t_f92bcef315d59f 16
+app/src/components/route-pending.tsx
+  s_3df40a0c9e6b26::t_3c707b9f332d00 4
+app/src/components/stat-table.tsx
+  s_3df40a0c9e6b26::t_aba88dbf24e4e7 6
+.github/workflows/docs.yml
+  s_3df40a0c9e6b26::t_50f9b89fefaed3 1-59
+docs/package.json
+  s_3df40a0c9e6b26::t_40ff43fc294d9f 1-17
+app/src/components/query-error.tsx
+  s_3df40a0c9e6b26::t_e3d38d312490d6 8
+docs/development/roadmap.md
+  s_3df40a0c9e6b26::t_bfff0a3946d03c 49,78
+docs/index.md
+  s_3df40a0c9e6b26::t_da72c4dd50d79a 1-29
+docs/.vitepress/theme/styles.css
+  s_3df40a0c9e6b26::t_432fc7b2fbdc72 1-17
+docs/development/configuration.md
+  s_3df40a0c9e6b26::t_fbf5d633bb2594 1,20
+app/src/components/page-header.tsx
+  s_3df40a0c9e6b26::t_640f342df2da88 6,11
+docs/vite.config.ts
+  s_3df40a0c9e6b26::t_a5c67a941d73f0 1-14
+docs/pnpm-workspace.yaml
+  s_3df40a0c9e6b26::t_c05254aadacfe8 1-4
+app/src/components/ui/dialog.tsx
+  s_3df40a0c9e6b26::t_2ecb14d8384b72 14
+app/src/components/filter-empty-state.tsx
+  s_3df40a0c9e6b26::t_dbe7763d22cb36 5
+app/src/components/route-error.tsx
+  s_3df40a0c9e6b26::t_c3933053570298 8
+app/src/design-system.test.ts
+  s_3df40a0c9e6b26::t_4ef05a3d2097c2 7,45
+docs/development/design.md
+  s_3df40a0c9e6b26::t_07777a47aacb5d 143-144
+app/src/styles.css
+  s_3df40a0c9e6b26::t_e81ddc4b32ab3c 36,52
+app/src/components/context-menu.tsx
+  s_3df40a0c9e6b26::t_0b12c72c1cf193 12
+docs/env.d.ts
+  s_3df40a0c9e6b26::t_2b8ca8a3485b5e 1
+docs/development/index.md
+  s_3df40a0c9e6b26::t_56257bb5742c1d 1,3-4,21
+app/src/components/ui/tooltip.tsx
+  s_3df40a0c9e6b26::t_f90af4559f13a7 7
+docs/.vitepress/theme/index.ts
+  s_3df40a0c9e6b26::t_1943e0ff8c658e 1-4
+docs/public/logo.svg
+  s_3df40a0c9e6b26::t_d073e984c9411f 1-13
+docs/pnpm-lock.yaml
+  s_3df40a0c9e6b26::t_62ef1ca99a3ced 1-2980
+docs/.vitepress/config.mts
+  s_3df40a0c9e6b26::t_b673a55500a44c 1-58
+docs/tsconfig.json
+  s_3df40a0c9e6b26::t_2727b6885c0957 1-9
+docs/development/architecture.md
+  s_3df40a0c9e6b26::t_6b1ca0277584a9 65,78
+app/src/components/ui/label.tsx
+  s_3df40a0c9e6b26::t_4c17a8923bc57f 21
+AGENTS.md
+  s_3df40a0c9e6b26::t_f4e1ce2980fd4a 18,93,97-115,162,179-184
+docs/.gitignore
+  s_3df40a0c9e6b26::t_4e0e2fcf4750d6 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "3da499292a59edaaea52e12185c365a8298e983d",
+  "prompts": {},
+  "sessions": {
+    "s_3df40a0c9e6b26": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4ee0-bd60-7060-9435-19531c483019",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
