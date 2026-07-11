@@ -2,130 +2,100 @@
 
 <img src="app/public/logo.svg" alt="PyOps logo" width="100">
 
-A web-based factory planner and in-game ops assistant for **Factorio**, built for
-the **Pyanodons (Py)** overhaul — like [YAFC](https://github.com/Yafc-CE/yafc-ce),
-but in the browser, with deep in-game integration and an AI-assisted planner. It
-runs locally alongside your Factorio install and reads recipe data straight from
-the game; Py-specific views (like TURD) appear only when that data is present, but
-it loads whatever mod set you sync.
+PyOps is a local factory planner and in-game operations assistant for
+**Factorio**. It is designed around the **Pyanodons** mods, but works with vanilla
+Factorio and other mod packs by synchronizing recipes, technologies, machines,
+and icons from your own game.
 
-**Just want to run it?** PyOps ships as a self-updating **desktop app** for Linux,
-macOS, and Windows — no toolchain needed. Grab a build from the
-[Releases](https://github.com/ApocDev/pyops/releases) page (it still needs Factorio
-installed locally to sync recipe data), or [run it from source](#run-it) to hack on
-it. Build/release details: [`docs/development/desktop.md`](docs/development/desktop.md).
+**[Read the PyOps documentation →](https://apocdev.github.io/pyops/)**
 
----
+Installation, first project, planning workflows, game integration, reference,
+and troubleshooting.
 
-## What it does
+**[Download the latest release →](https://github.com/ApocDev/pyops/releases)**
 
-- **Design production blocks** — set output goals + rates, pick recipes/machines/
-  modules, and PyOps solves the run-rates and building counts for the whole chain
-  (cyclic loops, fluid temperatures, byproducts, spoilage). Pin counts, route
-  byproducts, fold chains into sub-blocks, or extract a recipe into its own block.
-- **Balance the whole factory** — every block's imports/exports roll into one
-  ledger (deficits, surpluses, built-vs-required machines), with what-if. Supply
-  priorities let recovery blocks feed demand before dedicated fallback production.
-- **Explore the data** — a searchable catalogue with a recipe explorer (producers/
-  consumers ranked and availability-grouped) and a dependency-tree explorer.
-- **Track TURD & research** — Py's tech upgrades are first-class; pick a path and
-  every block re-solves against your research horizon.
-- **Plan with AI** — an OpenRouter-backed assistant drafts whole chains, honouring
-  what you can build now vs. after research, and can read the live factory.
-- **Reach into the running game** — a companion mod links over localhost UDP: an
-  in-game block panel, locate, live sync of research/TURD/machines, and more.
-- **Quality of life** — command palette (Ctrl+K), undo (Ctrl+Z), per-block
-  snapshots, backup/share, tasks & notes, light/dark theme, responsive to phone.
+Self-updating desktop builds for Linux, macOS, and Windows.
 
-For task-oriented instructions, open the
-[PyOps documentation](https://apocdev.github.io/pyops/). Contributors and curious users
-can continue into the [Development section](docs/development/).
+## What PyOps does
 
----
+- **Design production blocks** — set output goals and rates, choose recipes and
+  machines, and solve full production chains including cycles, byproducts,
+  spoilage, and fluid temperatures.
+- **Balance the factory** — combine every block's imports and exports in one
+  ledger, identify shortfalls and surpluses, and test changes with what-if plans.
+- **Explore game data** — search items, fluids, recipes, producers, consumers,
+  and dependency trees from the mod set you actually use.
+- **Plan around progression** — model research horizons and, when present,
+  Pyanodons TURD choices throughout the factory.
+- **Connect to Factorio** — use the companion mod for live research, machine,
+  location, and production-plan integration.
+- **Draft with the Assistant** — optionally use an OpenRouter-backed planning
+  assistant that understands the current project and can propose production
+  blocks for review.
+
+The [planning guide](https://apocdev.github.io/pyops/guide/) explains how these
+parts fit into a complete workflow.
 
 ## Screenshots
 
-**Factory ledger** — every block's flows in one balance sheet; deficits rank by %
-of demand met.
-![Factory ledger — whole-factory balance with deficits, surpluses, and built-vs-required machines](docs/images/factory.png)
+**Factory ledger** — the balance across every production block, including
+deficits, surpluses, and machine requirements.
 
-**Block editor** — goals in, solved rates and building counts out; toggle recipes/
-blocks off, fold into sub-blocks, or switch to a flow diagram.
-![Block editor — the Basic substrate bio-chain, solved with byproducts](docs/images/block-editor.png)
+![Factory ledger showing whole-factory balance](docs/images/factory.png)
 
-**AI assistant** — drafts a whole block from a goal, flagging byproducts, spoilage,
-and TURD upgrades.
-![AI assistant drafting a py science 1 production block](docs/images/assistant.png)
+**Block editor** — goals in, solved rates and building counts out.
 
-**Browse** — every item, fluid, and recipe with produced-by / used-in, grouped by
-availability and annotated with waste %.
-![Browse — Iron plate with its producers and consumers](docs/images/browse.png)
+![Block editor showing a solved production chain](docs/images/block-editor.png)
 
----
+**Assistant** — project-aware help for investigating and drafting production
+plans.
 
-## Run it
+![Assistant drafting a production block](docs/images/assistant.png)
+
+## Developing PyOps
+
+The repository contains three cooperating parts:
+
+- `app/` — the TanStack Start application and Tauri desktop shell;
+- `mod/` — the Factorio companion mod;
+- `docs/` — the VitePress documentation site.
+
+Start the application from source with [Vite+](https://viteplus.dev/):
 
 ```bash
 cd app
-vp install        # install dependencies (Node LTS + pnpm; Vite+ handles the rest)
-vp dev            # start PyOps at http://localhost:3000
+vp install
+vp dev
 ```
 
-Then open **⚙ Settings › Game data** and run a sync: PyOps launches Factorio
-headlessly, reads its recipe data, and loads it into a local database (~1–2 min the
-first time). Needs **Factorio 2.1** with the **Pyanodons** suite +
-**pypostprocessing**.
+Run `vp check` and `vp test` from `app/` before submitting application changes.
+The companion mod is pure Lua and has no build step.
 
-- **Configuration** (env vars, remote access): [`docs/reference/advanced-configuration.md`](docs/reference/advanced-configuration.md)
-- **In-game features** (companion mod, launching the bridge): [`docs/guide/in-game-link.md`](docs/guide/in-game-link.md)
-- **AI assistant** needs an [OpenRouter](https://openrouter.ai) key (set it in
-  Settings or `OPENROUTER_API_KEY`).
+For architecture, subsystem contracts, desktop packaging, and contributor
+workflows, read the hosted
+[development documentation](https://apocdev.github.io/pyops/development/).
+Repository-specific agent conventions remain in [`AGENTS.md`](AGENTS.md).
 
-The dev server also exposes the PyOps MCP tool surface at
-`http://localhost:3000/mcp` (project configs for Codex and Claude Code ship in the
-repo).
+To work on the documentation site:
 
----
+```bash
+cd docs
+vp install
+vp run docs:dev
+```
 
-## Documentation
+## Credits and inspiration
 
-The hosted [user guide](https://apocdev.github.io/pyops/) covers installation, game-data
-sync, planning workflows, in-game integration, backups, the Assistant, and troubleshooting.
-Its source lives under [`docs/`](docs/).
-
-Technical details live in [`docs/development/`](docs/development/):
-
-- [Architecture](docs/development/architecture.md) — the one-app-plus-mod model and repo layout.
-- [Data pipeline](docs/development/data-pipeline.md) — how the Factorio data sync works.
-- [Block solver](docs/development/solver.md) — the planning math.
-- [Factorio bridge](docs/development/bridge.md) — the UDP protocol and Companion-mod internals.
-- [AI assistant](docs/development/ai-assistant.md) — the planning agent.
-- [Configuration](docs/reference/advanced-configuration.md) — environment variables and remote access.
-- [Desktop app](docs/development/desktop.md) — how the Tauri bundle is built and released.
-
-Contributing: `vp check` and `vp test` must be clean; the mod (`mod/`) is pure Lua,
-no build step. See [`AGENTS.md`](AGENTS.md) for the full toolchain and conventions.
-
----
-
-## Credits & inspiration
-
-- **[YAFC](https://github.com/Yafc-CE/yafc-ce)** — the planner model, cost-analysis
-  approach, and the "design blocks, balance the factory" shape.
-- **[Helmod](https://mods.factorio.com/mod/helmod)** — the in-game production-block
-  panel is heavily inspired by Helmod's; no Helmod assets are bundled.
-- **[Factory Search](https://mods.factorio.com/mod/FactorySearch)** — the "locate in
-  game" feature relays to its remote interface.
-- **[pypostprocessing](https://mods.factorio.com/mod/pypostprocessing)** — makes a
-  clean, planner-friendly data dump possible.
-
----
+- **[YAFC](https://github.com/Yafc-CE/yafc-ce)** — the planner model,
+  cost-analysis approach, and the design-blocks/balance-factory workflow.
+- **[Helmod](https://mods.factorio.com/mod/helmod)** — inspiration for the
+  in-game production-block panel; no Helmod assets are bundled.
+- **[Factory Search](https://mods.factorio.com/mod/FactorySearch)** — the locate
+  action can relay to its remote interface.
+- **[pypostprocessing](https://mods.factorio.com/mod/pypostprocessing)** —
+  supplies additional planner-oriented metadata for Pyanodons data dumps.
 
 ## License
 
-Free software under the **GNU General Public License v3.0** — see [`LICENSE`](LICENSE).
-Copyright (C) 2026 ApocDev. You're free to use, study, modify, and share it
-(including commercially), but any distributed version or derivative must stay open
-under the same GPLv3 terms — matching [YAFC](https://github.com/Yafc-CE/yafc-ce) and
-[Helmod](https://mods.factorio.com/mod/helmod). Contributions accepted under the same
-license.
+PyOps is free software under the **GNU General Public License v3.0**. See
+[`LICENSE`](LICENSE). Copyright (C) 2026 ApocDev.
