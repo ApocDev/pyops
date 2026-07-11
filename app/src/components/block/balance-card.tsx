@@ -10,6 +10,7 @@ import { fmtTemp } from "../../lib/format";
 import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
 import { LogiTag } from "./logi-tag.tsx";
 import { SushiPlanner, type SushiPlannerFlow } from "./sushi-planner.tsx";
+import { OutputPriorityOverride } from "./output-priority-override.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
 import { num } from "./format.ts";
@@ -57,6 +58,8 @@ export function BalanceCard({
   onOpenSpoilDialog: (name: string) => void;
 }) {
   const blockName = useStore(doc.store, (s) => s.blockName);
+  const supplyPriority = useStore(doc.store, (s) => s.supplyPriority ?? 0);
+  const supplyPriorities = useStore(doc.store, (s) => s.supplyPriorities ?? {});
   const spoilables = useSpoilables();
   // One mixed loop candidate: every solid item touching a belt in this block —
   // imports, exports, AND internal row-to-row flows all ride the same loop in
@@ -401,6 +404,18 @@ export function BalanceCard({
                           onContext={(e) =>
                             onCtxMenu(e, { name: f.name, kind: f.kind, link: "export" })
                           }
+                        />
+                        <OutputPriorityOverride
+                          inherited={supplyPriority}
+                          value={supplyPriorities[f.name]}
+                          onChange={(priority) => {
+                            doc.setOutputSupplyPriority(f.name, priority);
+                            doc.note(
+                              priority == null
+                                ? `Inherit block supply priority for "${res.display?.[f.name] ?? f.name}"`
+                                : `Override supply priority for "${res.display?.[f.name] ?? f.name}"`,
+                            );
+                          }}
                         />
                         {/* incidental-spoil risk (#20): a SURPLUS spoilable is the
                             one that actually sits around long enough to rot — stacked

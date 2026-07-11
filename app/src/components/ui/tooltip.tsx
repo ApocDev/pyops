@@ -32,6 +32,8 @@ function Tooltip({
   delayDuration = 250,
   label = false,
   className,
+  open,
+  onOpenChange,
 }: {
   content: React.ReactNode;
   children: React.ReactNode;
@@ -48,6 +50,10 @@ function Tooltip({
    */
   label?: boolean;
   className?: string;
+  /** Controlled state for composite controls that must suppress the tooltip
+   * while a menu, popover, or dialog launched by the trigger is open. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   if (content == null || content === "" || content === false) return <>{children}</>;
   const trigger =
@@ -60,7 +66,7 @@ function Tooltip({
       : children;
   return (
     <TooltipPrimitive.Provider delayDuration={delayDuration}>
-      <TooltipPrimitive.Root>
+      <TooltipPrimitive.Root open={open} onOpenChange={onOpenChange}>
         <TooltipPrimitive.Trigger asChild>{trigger}</TooltipPrimitive.Trigger>
         <TooltipPrimitive.Portal>
           <TooltipPrimitive.Content

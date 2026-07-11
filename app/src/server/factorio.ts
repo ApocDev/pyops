@@ -336,6 +336,10 @@ export const factoryWhatIfFn = createServerFn({ method: "POST" })
       demands: result.demands.map((g) => ({ ...g, display: display(g.good) })),
       raws: result.raws.map((g) => ({ ...g, display: display(g.good) })),
       overproduced: result.overproduced.map((g) => ({ ...g, display: display(g.good) })),
+      supplyAllocations: result.supplyAllocations.map((allocation) => ({
+        ...allocation,
+        display: display(allocation.good),
+      })),
     };
   });
 
@@ -402,7 +406,13 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
             const r = await computeBlock(b.doc);
             b.latestResult = r;
             b.dirty = false;
-            b.flows = r.broken ? b.cachedFlows : boundaryFlows(goalFlows(b.doc), r);
+            const blockPriority = b.doc.supplyPriority ?? 0;
+            b.flows = r.broken
+              ? b.cachedFlows
+              : boundaryFlows(goalFlows(b.doc), r).map((flow) => ({
+                  ...flow,
+                  priority: b.doc.supplyPriorities?.[flow.item] ?? blockPriority,
+                }));
           }
           return { id: b.id, name: b.name, rate: primaryRate(b.doc), flows: b.flows };
         }),

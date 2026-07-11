@@ -436,6 +436,12 @@ export type BlockData = {
   // Incidental spoilage estimates (#20): item → expected rot rate (/s) while
   // backed up. They do not alter the LP; spoil_result joins boundary byproducts.
   spoilRates?: Record<string, number>;
+  /** Factory-level preference for this block. Higher-priority blocks satisfy
+   * shared demand before lower-priority fallbacks. */
+  supplyPriority?: number;
+  /** Optional per-good overrides for multiproduct blocks. Missing entries
+   * inherit the block-wide supplyPriority. */
+  supplyPriorities?: Record<string, number>;
   // Legacy per-item overrides (pre-#91). New docs write `made`/`pins` instead;
   // a doc carrying only dispositions has its made set derived server-side on
   // solve and adopted by the editor (lazy migration).

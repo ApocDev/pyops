@@ -17,6 +17,7 @@ import { PageHeader } from "#/components/page-header.tsx";
 import { RebalanceAllButton } from "#/components/whatif/rebalance-all-button.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
 import { StatTableHeader } from "#/components/stat-table.tsx";
+import { SupplyAllocationCard } from "#/components/whatif/supply-allocation-card.tsx";
 
 export const Route = createFileRoute("/whatif")({
   component: () => (
@@ -89,6 +90,12 @@ function WhatIf() {
                     a block to open its editor.
                   </li>
                   <li>
+                    <span className="text-foreground">Supply priority</span> — when several blocks
+                    can supply the same good, Preferred blocks are used before Normal blocks, and
+                    Fallback blocks fill what remains. Set a block&apos;s priority from the icon
+                    beside its Goal heading.
+                  </li>
+                  <li>
                     <span className="text-foreground">Raw inputs</span> — what the new target draws
                     in from outside (current vs projected).
                   </li>
@@ -97,6 +104,16 @@ function WhatIf() {
                     would pile up that still needs a consumer.
                   </li>
                 </ul>
+              </div>
+              <div>
+                <div className="font-semibold text-foreground">Supply priority</div>
+                <p className="mt-1">
+                  Priority chooses between competing suppliers; it does not replace block goals or
+                  constraints. A block is never scaled solely to manufacture an incidental
+                  byproduct. In Advanced supply priorities mode, numeric tiers are allowed and an
+                  individual export can override its block&apos;s priority; otherwise every export
+                  inherits the block setting.
+                </p>
               </div>
               <div>
                 <div className="font-semibold text-foreground">Worked example</div>
@@ -236,6 +253,7 @@ function WhatIf() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <SupplyAllocationCard rows={r?.supplyAllocations ?? []} />
         <GoodsCard
           title="Raw inputs needed"
           hint="external supply — current vs. projected"

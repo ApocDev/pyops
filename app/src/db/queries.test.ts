@@ -977,10 +977,10 @@ describe("batched block projections", () => {
     expect(largeWhatIf.result.map((block) => block.id)).toEqual([1, ...addedIds]);
     expect(largeWhatIf.result.some((block) => block.id === disabledId)).toBe(false);
     expect(largeWhatIf.result[0].flows).toEqual([
-      { item: "plate", kind: "item", role: "primary", rate: 10 },
-      { item: "gear", kind: "item", role: "byproduct", rate: 2 },
-      { item: "steel", kind: "item", role: "stock", rate: 3 },
-      { item: "drill", kind: "item", role: "import", rate: -4 },
+      { item: "plate", kind: "item", role: "primary", rate: 10, priority: 0 },
+      { item: "gear", kind: "item", role: "byproduct", rate: 2, priority: 0 },
+      { item: "steel", kind: "item", role: "stock", rate: 3, priority: 0 },
+      { item: "drill", kind: "item", role: "import", rate: -4, priority: 0 },
     ]);
     expect(largeFactory.result[0]).toEqual({
       id: 1,

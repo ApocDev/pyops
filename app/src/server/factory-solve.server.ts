@@ -18,10 +18,19 @@ export type BlockWithFlows = {
   id: number;
   name: string;
   rate: number;
-  flows: { item: string; kind: string; role: string; rate: number }[];
+  priority?: number;
+  flows: { item: string; kind: string; role: string; rate: number; priority?: number }[];
 };
 
 type GoodClass = "raw" | "demand" | "surplus" | "intermediate";
+type SupplyOffer = {
+  bi: number;
+  good: string;
+  rate: number;
+  priority: number;
+  incidental: boolean;
+  variable: string;
+};
 
 // Energy pseudo-goods that stay free boundaries: electricity is grid-distributed
 // (balancing it would create a power feedback loop) and heat is block-local by
@@ -51,23 +60,27 @@ export async function factoryWhatIf(
   const primaryProducers = new Map<string, Set<number>>();
   const anyProducers = new Map<string, Set<number>>();
   const consumers = new Map<string, Set<number>>();
-  // net flow of each good per block, at the block's CURRENT rate (scale 1)
-  const netByBlock = blocks.map((b) => {
-    const net = new Map<string, number>();
+  const offers: SupplyOffer[] = [];
+  blocks.forEach((b, bi) => {
     for (const f of b.flows) {
       kindOf.set(f.item, f.kind);
       if (f.role === "import") {
         addTo(consumers, f.item, b.id);
         bump(consumedTotal, f.item, f.rate);
-        bump(net, f.item, -f.rate);
       } else {
         addTo(anyProducers, f.item, b.id);
         if (f.role === "primary" || f.role === "stock") addTo(primaryProducers, f.item, b.id);
         bump(producedTotal, f.item, f.rate);
-        bump(net, f.item, f.rate);
+        offers.push({
+          bi,
+          good: f.item,
+          rate: f.rate,
+          priority: f.priority ?? b.priority ?? 0,
+          incidental: f.role !== "primary" && f.role !== "stock",
+          variable: "",
+        });
       }
     }
-    return net;
   });
 
   const goods = [...kindOf.keys()];
@@ -105,38 +118,110 @@ export async function factoryWhatIf(
 
   const demandRate = (g: string) => demandOverrides[g] ?? producedTotal.get(g) ?? 0;
   const constraints: string[] = [];
-  // chain constraints: demands (net >= pinned), intermediates (net >= 0)
+  const allocOffers = offers
+    .filter((offer) => {
+      const cls = classify(offer.good);
+      return cls === "demand" || cls === "intermediate";
+    })
+    .map((offer, oi) => ({ ...offer, variable: `a${oi}` }));
+
+  // Supply is allocated separately from block scaling. This is the critical
+  // distinction for priority: an incidental output can be consumed up to the
+  // amount its block naturally makes, but its allocation never makes that block
+  // productive/free-to-scale on its own.
+  for (const offer of allocOffers) {
+    constraints.push(
+      offer.incidental
+        ? `r${constraints.length}: + 1 ${offer.variable} <= ${offer.rate}`
+        : `r${constraints.length}: + 1 ${offer.variable} - ${offer.rate} s${offer.bi} <= 0`,
+    );
+  }
+
+  // chain constraints: allocated supply covers final demand or scaled consumers
   for (const g of goods) {
     const cls = classify(g);
     if (cls !== "demand" && cls !== "intermediate") continue;
-    const parts: string[] = [];
+    const parts = allocOffers
+      .filter((offer) => offer.good === g)
+      .map((offer) => `+ 1 ${offer.variable}`);
     blocks.forEach((_, bi) => {
-      const c = netByBlock[bi].get(g) ?? 0;
-      if (Math.abs(c) > 1e-9) parts.push(`${c >= 0 ? "+" : "-"} ${Math.abs(c)} s${bi}`);
+      const consumed = blocks[bi].flows
+        .filter((flow) => flow.item === g && flow.role === "import")
+        .reduce((sum, flow) => sum + flow.rate, 0);
+      if (consumed > 1e-9) parts.push(`- ${consumed} s${bi}`);
     });
     if (parts.length)
       constraints.push(
         `r${constraints.length}: ${parts.join(" ")} >= ${cls === "demand" ? demandRate(g) : 0}`,
       );
   }
-  // Objective: minimize total scaling. (Auto-scaling sinks inside the LP is unstable
-  // — rewarding byproduct intake makes the solve overproduce byproducts just to
-  // consume them. So sinks are pinned here and sized as a post-process suggestion.)
-  const obj = blocks.map((_, bi) => `+ 1 s${bi}`).join(" ");
-
   // Only productive blocks (a demand/intermediate primary) are free to scale; sinks
   // and pure off-chain (power/utility) blocks are pinned at current.
   const bounds = blocks
     .map((_, bi) => (productive[bi] ? `0 <= s${bi} <= 1e7` : `1 <= s${bi} <= 1`))
     .join("\n ");
-  const lp = `Minimize\n obj: ${obj}\nSubject To\n ${constraints.join("\n ")}\nBounds\n ${bounds}\nEnd`;
-
   const highs = await highsLoader();
-  const sol = highs.solve(lp);
+  const allocationBounds = allocOffers.map((offer) => `0 <= ${offer.variable} <= 1e12`).join("\n ");
+  const fixedTierConstraints: string[] = [];
+  const solveWithObjective = (objective: string) => {
+    const allConstraints = [...constraints, ...fixedTierConstraints];
+    return highs.solve(
+      `Minimize\n obj: ${objective}\nSubject To\n ${allConstraints.join("\n ")}\nBounds\n ${bounds}\n ${allocationBounds}\nEnd`,
+    );
+  };
+
+  // Strict lexicographic tiers: minimize use of the lowest priority first, lock
+  // that optimum, then continue upward. The numeric distance between tiers is
+  // intentionally irrelevant; only ordering matters.
+  const priorities = [...new Set(allocOffers.map((offer) => offer.priority))].sort((a, b) => a - b);
+  let sol: ReturnType<typeof highs.solve> | null = null;
+  for (const priority of priorities) {
+    const tier = allocOffers.filter((offer) => offer.priority === priority);
+    const objective = tier.map((offer) => `+ 1 ${offer.variable}`).join(" ") || "+ 0 s0";
+    sol = solveWithObjective(objective);
+    if (sol.Status !== "Optimal") break;
+    const optimum = tier.reduce(
+      (sum, offer) =>
+        sum + ((sol!.Columns[offer.variable] as { Primal?: number } | undefined)?.Primal ?? 0),
+      0,
+    );
+    // HiGHS may report an optimum a few ulps below the next model's feasible
+    // boundary. Leave a tiny scale-aware allowance so repeated/re-linearized
+    // What-if solves don't turn numerically infeasible.
+    const tolerance = Math.max(1e-5, Math.abs(optimum) * 1e-6);
+    fixedTierConstraints.push(
+      `r${constraints.length + fixedTierConstraints.length}: ${objective} <= ${+(optimum + tolerance).toPrecision(12)}`,
+    );
+  }
+  if (!sol || sol.Status === "Optimal") {
+    const scaleObjective = blocks.map((_, bi) => `+ 1 s${bi}`).join(" ");
+    sol = solveWithObjective(scaleObjective);
+  }
   const scaleById = new Map<number, number>();
   blocks.forEach((b, bi) =>
-    scaleById.set(b.id, (sol.Columns[`s${bi}`] as { Primal?: number } | undefined)?.Primal ?? 0),
+    scaleById.set(b.id, (sol!.Columns[`s${bi}`] as { Primal?: number } | undefined)?.Primal ?? 0),
   );
+
+  const offersPerGood = new Map<string, number>();
+  for (const offer of allocOffers) bump(offersPerGood, offer.good, 1);
+  const supplyAllocations = allocOffers
+    .map((offer) => ({
+      blockId: blocks[offer.bi].id,
+      blockName: blocks[offer.bi].name,
+      good: offer.good,
+      kind: kindOf.get(offer.good) ?? "item",
+      priority: offer.priority,
+      incidental: offer.incidental,
+      rate: round((sol!.Columns[offer.variable] as { Primal?: number } | undefined)?.Primal ?? 0),
+    }))
+    .filter(
+      (allocation) =>
+        allocation.rate > 1e-6 &&
+        ((offersPerGood.get(allocation.good) ?? 0) > 1 ||
+          allocation.priority !== 0 ||
+          allocation.incidental),
+    )
+    .sort((a, b) => b.priority - a.priority || b.rate - a.rate);
 
   // projected good flows at the solved scales
   const projProduced = new Map<string, number>();
@@ -190,7 +275,7 @@ export async function factoryWhatIf(
     .sort((a, b) => b.projected - a.projected);
 
   return {
-    status: sol.Status,
+    status: sol!.Status,
     blocks: blockReport,
     demands: goods
       .filter((g) => classify(g) === "demand")
@@ -209,5 +294,6 @@ export async function factoryWhatIf(
       }))
       .sort((a, b) => b.projected - a.projected),
     overproduced,
+    supplyAllocations,
   };
 }

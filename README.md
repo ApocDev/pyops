@@ -24,7 +24,8 @@ it. Build/release details: [`docs/desktop.md`](docs/desktop.md).
   (cyclic loops, fluid temperatures, byproducts, spoilage). Pin counts, route
   byproducts, fold chains into sub-blocks, or extract a recipe into its own block.
 - **Balance the whole factory** — every block's imports/exports roll into one
-  ledger (deficits, surpluses, built-vs-required machines), with what-if.
+  ledger (deficits, surpluses, built-vs-required machines), with what-if. Supply
+  priorities let recovery blocks feed demand before dedicated fallback production.
 - **Explore the data** — a searchable catalogue with a recipe explorer (producers/
   consumers ranked and availability-grouped) and a dependency-tree explorer.
 - **Track TURD & research** — Py's tech upgrades are first-class; pick a path and

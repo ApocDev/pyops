@@ -99,6 +99,7 @@ const factoryResult = (
   demands: [],
   raws: [],
   overproduced: [],
+  supplyAllocations: [],
 });
 
 beforeEach(() => {

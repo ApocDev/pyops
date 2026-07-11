@@ -251,6 +251,10 @@ local MACHINE_TYPES = {
   "reactor",
   "offshore-pump",
 }
+local MACHINE_TYPE_SET = {}
+for _, machine_type in pairs(MACHINE_TYPES) do
+  MACHINE_TYPE_SET[machine_type] = true
+end
 -- Types whose entities expose a craftable recipe we can read (assemblers, chem
 -- plants/refineries are all "assembling-machine"; furnaces auto-pick one). Mining
 -- drills have no recipe but DO have a resource target — those are keyed by the
@@ -266,9 +270,10 @@ for status_name, value in pairs(defines.entity_status) do
 end
 
 -- Push how many of each machine the player has actually placed, keyed by the
--- recipe each is set to craft. One full scan of the force's entities across all
--- surfaces (a follow-up will maintain this incrementally via on_built/on_mined).
--- Authoritative full snapshot, like research/TURD — the app replaces, never merges.
+-- recipe each is set to craft. This is an authoritative full snapshot, like
+-- research/TURD — the app replaces, never merges. Entity events below debounce
+-- these scans so bursts of construction trigger one refresh rather than one per
+-- entity; a slow reconciliation catches changes made by scripts we cannot observe.
 local function send_built_machines(player)
   local force = player.force
   if not (force and force.valid) then
@@ -318,6 +323,17 @@ local function send_built_machines(player)
   end
 
   send_request(player, "state.built", { force = force.name, machines = machines })
+end
+
+local built_state_dirty = false
+
+local function mark_built_state_dirty(event)
+  local entity = event.entity or event.created_entity or event.destination
+  -- A destroyed entity may already be invalid by the time its event is handled.
+  -- Refresh conservatively in that case; valid non-machine entities can be ignored.
+  if not (entity and entity.valid) or MACHINE_TYPE_SET[entity.type] then
+    built_state_dirty = true
+  end
 end
 
 -- Live production statistics. Factorio 2.0 exposes flow stats per surface, so we
@@ -863,6 +879,30 @@ script.on_event(defines.events.on_player_joined_game, function(event)
   end
 end)
 
+-- Keep built-vs-required counts live without coupling them to the PyOps panel.
+-- Construction bursts are coalesced by the timer below. Settings paste and GUI
+-- close cover recipe changes, because built counts are keyed by machine + recipe.
+script.on_event({
+  defines.events.on_built_entity,
+  defines.events.on_robot_built_entity,
+  defines.events.on_space_platform_built_entity,
+  defines.events.script_raised_built,
+  defines.events.script_raised_revive,
+  defines.events.on_player_mined_entity,
+  defines.events.on_robot_mined_entity,
+  defines.events.on_space_platform_mined_entity,
+  defines.events.on_entity_died,
+  defines.events.script_raised_destroy,
+  defines.events.on_entity_cloned,
+  defines.events.on_entity_settings_pasted,
+}, mark_built_state_dirty)
+
+script.on_event(defines.events.on_gui_closed, function(event)
+  if event.entity and event.entity.valid and MACHINE_TYPE_SET[event.entity.type] then
+    built_state_dirty = true
+  end
+end)
+
 script.on_event(defines.events.on_lua_shortcut, function(event)
   if event.prototype_name ~= SHORTCUT_NAME then
     return
@@ -1117,6 +1157,28 @@ script.on_nth_tick(600, function()
   end
   for _, player in pairs(game.connected_players) do
     send_stats(player)
+  end
+end)
+
+-- Flush event-driven machine changes after at most one second. Also reconcile
+-- once a minute so remote scripts or recipe changes without a dedicated event do
+-- not leave the app stale. The full scan is intentionally not run per entity.
+local BUILT_RECONCILE_TICKS = 60 * 60
+script.on_nth_tick(60, function(event)
+  if not udp_available then
+    return
+  end
+  if not built_state_dirty and event.tick % BUILT_RECONCILE_TICKS ~= 0 then
+    return
+  end
+
+  local sent = false
+  for _, player in pairs(game.connected_players) do
+    send_built_machines(player)
+    sent = true
+  end
+  if sent then
+    built_state_dirty = false
   end
 end)
 
