@@ -1,0 +1,27 @@
+app/src/lib/sink-classify.test.ts
+  s_999d363ffccad9::t_a3940c61cdb552 105-131
+app/e2e/mut/made-links.e2e.ts
+  s_999d363ffccad9::t_9dbe514806861b 127-165
+app/src/lib/sink-classify.ts
+  s_999d363ffccad9::t_c55ee5d406dd15 17-20,27,30,36-39
+app/src/routes/block.$id.tsx
+  s_999d363ffccad9::t_913abb673774bb 552-557,566,574
+docs/development/solver.md
+  s_999d363ffccad9::t_f0be80b1a1a14c 97-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "21c2f06febd428d093d60e8162f5949f47928290",
+  "prompts": {},
+  "sessions": {
+    "s_999d363ffccad9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f577a-fbbc-71c0-a7f7-f321dd8a611d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
