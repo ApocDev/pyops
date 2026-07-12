@@ -20,6 +20,8 @@ Select **New block**, then use **+ goal** to choose an item or fluid.
 
 - The first goal starts at `1/s`, names the block, and becomes its scaling anchor.
 - Select a displayed rate to edit it. Select its unit to work in `/s`, `/min`, or `/h`.
+- Enter a negative rate when the block should consume that item or fluid rather than produce
+  it. For example, `-10/min` makes the block consume at least 10 per minute.
 - Add more goals when the same production unit must guarantee several outputs.
 - Right-click a non-primary goal and select **Move to front (names the block)** to make it
   the primary goal.
@@ -30,7 +32,8 @@ production appears separately in Factory.
 
 ## Add recipes
 
-Select a goal icon to open **Recipes that make _goal_**. Within a recipe row:
+Select a positive goal icon to open **Recipes that make _goal_**. A negative consume goal
+instead opens **Recipes that consume _goal_**. Within a recipe row:
 
 - Select an ingredient chip to find recipes that make that ingredient.
 - Select a product chip to find recipes that consume that product.
@@ -68,6 +71,10 @@ The **Block balance** card summarizes:
 - energy and pollution totals;
 - goods entering as imports;
 - goods leaving as goals, surplus, or byproducts.
+
+Select an exported good to add a recipe that consumes its surplus inside the block. The
+selected consumer runs as part of the chain, including when one of its products feeds back
+into the block's consume goal.
 
 The recipe table explains how that result was produced. **Table** is the editing view;
 **Flow** is a read-only diagram of the same solved recipes and goods.

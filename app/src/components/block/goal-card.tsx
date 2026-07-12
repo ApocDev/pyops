@@ -59,6 +59,7 @@ export function GoalCard({
           {goals.map((goal, i) => {
             const g = goal.name;
             const isFirst = i === 0;
+            const consumes = goal.rate < 0;
             const kind = kindOf(g);
             const goalMissing = res?.missing?.goods.includes(g) ?? false;
             const incidentalRate =
@@ -67,14 +68,14 @@ export function GoalCard({
                     .filter((spoilage) => spoilage.result === g)
                     .reduce((sum, spoilage) => sum + spoilage.rate, 0) ?? 0)
                 : 0;
-            // declared but no recipe in the block makes it — fixable, not broken.
+            // declared but no recipe in the block makes/consumes it — fixable, not broken.
             // Suppressed on a broken block: the missing-refs banner already
             // explains why nothing's being made there.
             const goalUnmade = !goalMissing && !res?.broken && (res?.unmade?.includes(g) ?? false);
             const extraText = goalMissing ? (
               "No longer exists in the current data."
             ) : goalUnmade ? (
-              "No recipe in this block makes it. Click to add one."
+              `No recipe in this block ${consumes ? "consumes" : "makes"} it. Click to add one.`
             ) : (
               <div className="space-y-1">
                 <div>
@@ -129,8 +130,8 @@ export function GoalCard({
                   </button>
                 </div>
                 <button
-                  onClick={() => (isFirst && goal.rate < 0 ? onUseFor(g) : onMakeFor(g))}
-                  aria-label={`add a recipe that makes ${res?.display?.[g] ?? g}`}
+                  onClick={() => (consumes ? onUseFor(g) : onMakeFor(g))}
+                  aria-label={`add a recipe that ${consumes ? "consumes" : "makes"} ${res?.display?.[g] ?? g}`}
                 >
                   <Icon kind={kind} name={g} size="lg" extraText={extraText} />
                 </button>

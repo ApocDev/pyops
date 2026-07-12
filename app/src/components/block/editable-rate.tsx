@@ -70,8 +70,7 @@ export function EditableRate({
   const commit = () => {
     const parsed = parseRateInput(draft, power);
     // a power-unit value is already per-second — the display window doesn't apply
-    if (parsed && parsed.value >= 0)
-      onChange(parsed.perSecond ? parsed.value : parsed.value / factor);
+    if (parsed) onChange(parsed.perSecond ? parsed.value : parsed.value / factor);
     setEditing(false);
   };
   return (
