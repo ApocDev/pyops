@@ -9,8 +9,8 @@ import { expect, test } from "@playwright/test";
 
 const NONSENSE = "zzz-no-such-thing-e2e";
 
-test("browse search shows the shared no-matches state and clears", async ({ page }) => {
-  await page.goto("/browse");
+test("Explore search shows the shared no-matches state and clears", async ({ page }) => {
+  await page.goto("/explore");
   // the stats line renders from a client query — once it's there, React has
   // hydrated and the controlled input actually receives the fill
   await expect(page.getByText(/recipes · /)).toBeVisible();

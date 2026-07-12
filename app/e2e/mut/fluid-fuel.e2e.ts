@@ -69,7 +69,7 @@ test("a Fluid fuel goal designates the block as a factory-scale supplier", async
   // wiring lists it as a PRIMARY producer of Fluid fuel (MJ) — the supplier
   // designation at factory scale
   await expectUndoTop(page, new RegExp(`^Undo: .*${name}`));
-  await goto(page, "/coherence");
+  await goto(page, "/factory/connections");
   const producer = page.locator(`[title="${name} · primary"]`);
   await expect(producer).toBeVisible();
   await expect(producer).toContainText("1 MW");

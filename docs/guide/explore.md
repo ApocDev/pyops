@@ -6,13 +6,13 @@ outline: [2, 3]
 
 # Explore recipes and dependencies
 
-Use **Browse** for one good and its immediate recipes. Use **Deps** for the transitive tree
-around a good or recipe. Both read the active project's synced Factorio data and do not
-change the plan.
+Open **Explore** from the main navigation. Use **Search** for one good and its immediate
+recipes, or **Dependencies** for the transitive tree around a good or recipe. Both read the
+active project's synced Factorio data and do not change the plan.
 
-## Inspect a good with Browse
+## Inspect a good with Search
 
-1. Open **Browse**.
+1. Open **Explore → Search**.
 2. Search under **items & fluids** using the localized name.
 3. Select a result.
 
@@ -25,19 +25,19 @@ Select an ingredient or product chip to move to that good and walk through the r
 graph. This is useful when comparing overhaul-mod recipe tiers or tracing an unfamiliar
 intermediate back toward raw resources.
 
-Browse also shows relevant properties such as stack size, fuel value, spoilage, and fluid
+Search also shows relevant properties such as stack size, fuel value, spoilage, and fluid
 temperature. The internal prototype name is available for debugging and Assistant
 references, but ordinary planning uses the localized display name.
 
 <AppScreenshot
   src="/images/browse-automation-science.png"
-  alt="The Browse page for Automation science pack, with available and research-locked producer recipes"
-  caption="Browse groups the recipes that produce a good by current availability and keeps their inputs, outputs, machines, and unlocks visible."
+  alt="The Explore Search view for Automation science pack, with available and research-locked producer recipes"
+  caption="Search groups the recipes that produce a good by current availability and keeps their inputs, outputs, machines, and unlocks visible."
 />
 
-## Walk the full tree with Deps
+## Walk the full tree with Dependencies
 
-1. Open **Deps**.
+1. Open **Explore → Dependencies**.
 2. Search for an item, fluid, or recipe.
 3. Choose a direction:
    - **requires** walks upstream toward ingredients and raw resources;
@@ -54,7 +54,7 @@ technology, so the tree can double as a research and prerequisite checklist.
 
 <AppScreenshot
   src="/images/deps-automation-science.png"
-  alt="The dependency explorer for Automation science pack in Requires mode at depth three"
+  alt="The Explore Dependencies view for Automation science pack in Requires mode at depth three"
   caption="Large graphs are capped. Expand a branch or use its explore-from-here action to continue with a narrower root."
 />
 
@@ -62,13 +62,13 @@ technology, so the tree can double as a research and prerequisite checklist.
 
 | Need                                                             | View                            |
 | ---------------------------------------------------------------- | ------------------------------- |
-| Compare recipes that make one item                               | Browse                          |
-| Check an item's fuel, stack, spoilage, or temperature properties | Browse                          |
-| Trace every prerequisite several tiers upstream                  | Deps → requires                 |
-| Find everything affected if a good becomes unavailable           | Deps → required by              |
+| Compare recipes that make one item                               | Search                          |
+| Check an item's fuel, stack, spoilage, or temperature properties | Search                          |
+| Trace every prerequisite several tiers upstream                  | Dependencies → requires         |
+| Find everything affected if a good becomes unavailable           | Dependencies → required by      |
 | Add a recipe to the current plan                                 | Open the relevant block instead |
 
 ::: warning Dependency trees show possibilities, not your selected chain
-When several recipes can produce a good, Deps shows those alternatives. It does not assume
+When several recipes can produce a good, Dependencies shows those alternatives. It does not assume
 which one you intend to use. Your block's selected recipes remain the authoritative plan.
 :::

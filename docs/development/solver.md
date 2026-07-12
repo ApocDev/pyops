@@ -1,6 +1,6 @@
 ---
 title: Block solver
-description: Understand the HiGHS block model, gesture-derived constraints, effects, composed sub-blocks, persisted projections, and factory what-if analysis.
+description: Understand the HiGHS block model, gesture-derived constraints, effects, composed sub-blocks, persisted projections, and Factory Scenario analysis.
 outline: [2, 3]
 ---
 
@@ -165,8 +165,8 @@ A disabled recipe remains in the block document with its machine, fuel, module, 
 choices, but is removed before model construction. It contributes no constraints, flows,
 or machine counts.
 
-A disabled block still opens and solves for editing. Factory, Coherence, suppliers,
-machine totals, and what-if analysis omit it.
+A disabled block still opens and solves for editing. Factory workspace views, suppliers,
+and machine totals omit it.
 
 ### Unmade goals and missing references
 
@@ -189,7 +189,7 @@ estimates, not steady-state recipe demand, so they do not alter the LP, nominal 
 machine count.
 
 After solving, the compute layer converts each estimate through the item's spoil result and
-adds it to byproduct exports. Factory scaling never increases a source block merely to make
+adds it to byproduct exports. Factory Scenario scaling never increases a source block merely to make
 more incidental spoilage. Deliberate demand-driven decay uses the synthetic spoiling recipe
 and an ordinary goal instead.
 
@@ -302,8 +302,8 @@ group status and parent shortfall rather than a separate diagnosis-card set.
 ## Projection invalidation
 
 SQLite stores both block inputs and materialized outputs: boundary flows, machine counts,
-power, pollution, status, and reference fingerprint. These projections make Factory and
-Coherence fast without making process memory authoritative.
+power, pollution, status, and reference fingerprint. These projections make Factory
+Overview and Connections fast without making process memory authoritative.
 
 `solve_projection_generation` is the invalidation clock. Game-data imports, effective
 research/productivity changes, and TURD selections advance it transactionally. A block
@@ -314,9 +314,9 @@ unchanged.
 The backend re-solves stale blocks. A broken block keeps its last good projection with the
 old generation, ensuring preserved values cannot be mistaken for current calculations.
 
-## Factory what-if model
+## Factory Scenario model
 
-Factory what-if is a separate LP over enabled blocks. Each block becomes a fixed-ratio
+Factory Scenario is a separate LP over enabled blocks. Each block becomes a fixed-ratio
 super-recipe using its persisted boundary flows at the current scale. Variables are block
 scale factors.
 
@@ -346,7 +346,7 @@ whether the offer was incidental.
 ### Energy boundaries
 
 Electricity remains grid-distributed and heat remains block-local, so
-`pyops-electricity` and `pyops-heat` are free boundaries in factory what-if. Balancing
+`pyops-electricity` and `pyops-heat` are free boundaries in Factory Scenario. Balancing
 electricity through the same dependency model would create a power-production feedback
 loop.
 

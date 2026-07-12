@@ -28,7 +28,7 @@ Each project keeps its own:
 - synced Factorio recipes, goods, technologies, machines, and mod versions;
 - blocks, groups, snapshots, tasks, and notes;
 - planning horizon, manually recorded research, recipe exclusions, and TURD selections;
-- Factory and Coherence data derived from those blocks;
+- Factory Overview and Connections data derived from those blocks;
 - conversations associated with that planning workspace.
 
 Switching projects changes all of that state together. This lets one PyOps installation

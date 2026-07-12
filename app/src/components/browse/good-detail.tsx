@@ -108,7 +108,7 @@ export function GoodDetail({
                   size="sm"
                   className="h-auto gap-1 px-1 py-0 font-normal text-info hover:text-info"
                 >
-                  <Link to="/deps" search={{ sel: data.name }}>
+                  <Link to="/explore/dependencies" search={{ sel: data.name }}>
                     <Network className="size-3.5" /> dependencies
                   </Link>
                 </Button>

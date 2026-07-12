@@ -24,7 +24,7 @@ The Companion mod is optional. Without it, you can still:
 
 - sync recipes, items, technologies, and icons from the local Factorio installation;
 - create and solve blocks;
-- inspect the whole factory with Factory, Coherence, Browse, and Deps;
+- inspect the whole factory with the Factory and Explore workspaces;
 - choose a planning horizon and record TURD selections manually;
 - use project backups, block exports, tasks, and the Assistant's project tools.
 

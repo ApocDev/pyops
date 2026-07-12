@@ -83,8 +83,8 @@ export function DepsTreePane({
                 size="sm"
                 className="h-auto gap-1 px-1 py-0 font-normal text-info hover:text-info"
               >
-                <Link to="/browse" search={{ sel: root.name }}>
-                  <SquareArrowOutUpRight className="size-3.5" /> browse
+                <Link to="/explore" search={{ sel: root.name }}>
+                  <SquareArrowOutUpRight className="size-3.5" /> open in Search
                 </Link>
               </Button>
             )}

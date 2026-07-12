@@ -22,7 +22,7 @@ Self-updating desktop builds for Linux, macOS, and Windows.
   machines, and solve full production chains including cycles, byproducts,
   spoilage, and fluid temperatures.
 - **Balance the factory** — combine every block's imports and exports in one
-  ledger, identify shortfalls and surpluses, and test changes with what-if plans.
+  ledger, identify shortfalls and surpluses, and test changes with factory scenarios.
 - **Explore game data** — search items, fluids, recipes, producers, consumers,
   and dependency trees from the mod set you actually use.
 - **Plan around progression** — model research horizons and, when present,
@@ -47,10 +47,10 @@ deficits, surpluses, and machine requirements.
 
 ![Block editor showing a solved production chain](docs/images/block-editor.png)
 
-**Assistant** — project-aware help for investigating and drafting production
+**Assistant** — project-aware help for investigating recipes, upgrades, and production
 plans.
 
-![Assistant drafting a production block](docs/images/assistant.png)
+![Assistant comparing a project-specific TURD upgrade choice](docs/images/assistant.png)
 
 ## Developing PyOps
 

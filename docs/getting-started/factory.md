@@ -6,8 +6,8 @@ outline: [2, 3]
 
 # Read the Factory view
 
-Open **Factory** after solving your first block. This page combines the cached flows from
-all enabled blocks. It answers a different question from the block editor:
+Open **Factory → Overview** after solving your first block. This page combines the cached
+flows from all enabled blocks. It answers a different question from the block editor:
 
 - A block asks, “What does this production unit need and produce?”
 - Factory asks, “Across the whole plan, what do I still need to make?”
@@ -43,12 +43,12 @@ Factory totals come from your solved PyOps blocks. The **live** indicator is sep
 shows recent production statistics sent from the game through the companion mod. Seeing
 **no live stats** does not stop planning and does not mean the block solve failed.
 
-## Factory and Coherence
+## Overview and Connections
 
-Factory sums every enabled block by item. **Coherence** inspects the block-to-block wiring.
+Overview sums every enabled block by item. **Connections** inspects the block-to-block wiring.
 A surplus in one block can cancel a shortfall in another in Factory totals even when those
 blocks are not connected as intended. Use Factory to choose what the overall plan needs;
-use Coherence later to find boundary mismatches that totals can hide.
+use Connections later to find boundary mismatches that totals can hide.
 
 You now have the core planning loop:
 

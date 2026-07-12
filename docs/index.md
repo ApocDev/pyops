@@ -26,7 +26,7 @@ features:
   - title: Work with your actual game
     details: Sync recipes and icons from your installed mod set, then use the companion mod to exchange live state and plans with Factorio.
   - title: Explore and plan ahead
-    details: Browse producers and consumers, trace dependencies, model research and TURD choices, and draft plans with the optional Assistant.
+    details: Search producers and consumers, trace dependencies, model research and TURD choices, and draft plans with the optional Assistant.
 ---
 
 ## Find what you need

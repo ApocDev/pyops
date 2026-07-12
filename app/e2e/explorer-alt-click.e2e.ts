@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("Alt+Click opens a focused recipe explorer without navigating away", async ({ page }) => {
   test.setTimeout(60_000); // first icon-atlas load can be slow on a cold dev server
 
-  await page.goto("/browse");
+  await page.goto("/explore");
   await page.waitForFunction(
     () => {
       const nav = document.querySelector("nav");
@@ -29,5 +29,5 @@ test("Alt+Click opens a focused recipe explorer without navigating away", async 
   await expect(dialog.getByText("Outputs", { exact: true }).first()).toBeVisible();
   await dialog.getByRole("button", { name: /^Uses \(\d+\)$/ }).click();
   await expect(dialog.getByText(/^Uses \(\d+\)$/).last()).toBeVisible();
-  await expect(page).toHaveURL(/\/browse$/);
+  await expect(page).toHaveURL(/\/explore$/);
 });

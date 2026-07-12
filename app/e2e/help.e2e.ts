@@ -30,9 +30,11 @@ test("assistant page has a help drawer explaining what it does", async ({ page }
   await expect(drawer.getByText("Draft a block", { exact: false }).first()).toBeVisible();
 });
 
-test("coherence help drawer opens with its worked example", async ({ page }) => {
-  await page.goto("/coherence");
+test("connections help drawer opens with its worked example", async ({ page }) => {
+  await page.goto("/factory/connections");
   const drawer = await openHelp(page);
-  await expect(drawer.getByRole("heading", { name: "What is Coherence?" })).toBeVisible();
+  await expect(
+    drawer.getByRole("heading", { name: "What are Factory connections?" }),
+  ).toBeVisible();
   await expect(drawer.getByText("Worked example — scale stone")).toBeVisible();
 });

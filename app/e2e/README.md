@@ -60,8 +60,9 @@ before `npm install` here — an install while the server runs can corrupt thing
 
 Read-only (this directory):
 
-- **`smoke.e2e.ts`** — every top-level route loads with no page error; the nav
-  renders; `/browse` shows recipes by localized display name.
+- **`smoke.e2e.ts`** — every top-level route loads with no page error; workspace
+  navigation stays active across its views; `/explore` shows recipes by localized display
+  name.
 - **`bridge.e2e.ts`** — stands up a real `node:dgram` socket and **is the mod**:
   it sends the app's UDP bridge the same `bridge.ping` datagrams Factorio would,
   so the app's real socket → parse → `lastPeer` → `bridgeStatus` → UI path runs
@@ -82,7 +83,7 @@ Mutating (`mut/`, against the isolated server):
 - **`palette.e2e.ts`** — the Ctrl+K / `/` command palette: open/close semantics
   (including the '/'-suppressed-in-inputs rule), fuzzy page search with
   Enter-to-navigate, finding a block by display name, server-side goods search
-  jumping to the browse view, recently visited blocks/goods on an empty query,
+  jumping to Explore search, recently visited blocks/goods on an empty query,
   and the `?` shortcut help sheet (hotkey + palette action).
 - **`undo.e2e.ts`** — a goal-rate edit lands on the undo stack under its
   descriptive name (the nav affordance's tooltip), Ctrl+Z reverts it inside the

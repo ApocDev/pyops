@@ -1,12 +1,12 @@
 import { useSyncExternalStore } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ProjectSwitcher } from "./project-switcher";
 import { BridgeIndicator } from "./bridge-indicator";
 import { HorizonMenu } from "./horizon-menu";
 import { LogisticsMenu } from "./logistics-menu";
 import { NavMobile } from "./nav-mobile";
-import { SETTINGS_LINK, visibleNavLinks } from "./nav-links";
+import { navLinkActive, SETTINGS_LINK, visibleNavLinks } from "./nav-links";
 import { UndoButton } from "./undo-button";
 import { activeRunCount, subscribeRuns } from "../lib/chat-store";
 import { dataCapabilitiesFn, modDriftFn } from "../server/factorio";
@@ -61,6 +61,7 @@ const active = "!text-foreground border-b-2 border-primary bg-muted/30";
  * hamburger drawer (NavMobile) so it never forces the page wider than the screen. */
 export function AppNav() {
   const caps = useQuery({ queryKey: ["dataCapabilities"], queryFn: () => dataCapabilitiesFn() });
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   return (
     <nav className="flex h-10 shrink-0 items-stretch border-b border-border bg-card font-mono">
       <Link to="/" className="flex items-center gap-2 px-3 font-bold text-primary">
@@ -72,11 +73,19 @@ export function AppNav() {
           overflow and scroll sideways (notably at the 1280 Steam Deck width), so the
           hamburger drawer takes over. */}
       <div className="hidden flex-1 items-stretch min-[1400px]:flex">
-        {visibleNavLinks(caps.data).map(({ to, label, icon: Icon }) => (
-          <Link key={to} to={to} className={item} activeProps={{ className: `${item} ${active}` }}>
-            <Icon className="size-4" /> {label}
-          </Link>
-        ))}
+        {visibleNavLinks(caps.data).map((link) => {
+          const { to, label, icon: Icon } = link;
+          return (
+            <Link
+              key={to}
+              to={to}
+              aria-current={navLinkActive(link, pathname) ? "page" : undefined}
+              className={`${item} ${navLinkActive(link, pathname) ? active : ""}`}
+            >
+              <Icon className="size-4" /> {label}
+            </Link>
+          );
+        })}
         <span className="ml-auto flex items-stretch">
           <UndoButton />
           <DataDriftIndicator />

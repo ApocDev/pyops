@@ -6,6 +6,11 @@ outline: [2, 3]
 
 # Keyboard and navigation
 
+The main navigation is organized around workspaces. **Factory** contains **Overview**,
+**Connections**, and **Scenario**. **Explore** contains **Search** and **Dependencies**.
+Selecting a workspace reveals its views directly below the main navigation; each view keeps
+its own linkable URL.
+
 The command palette is the quickest way to move around a large project. Open it with
 <kbd>Ctrl</kbd>+<kbd>K</kbd> on Windows or Linux, <kbd>Command</kbd>+<kbd>K</kbd> on macOS,
 or <kbd>/</kbd> when the cursor is not in a text field.
@@ -25,7 +30,7 @@ result, <kbd>Enter</kbd> to open it, and <kbd>Escape</kbd> to close the palette.
 <AppScreenshot
   src="/images/command-palette.png"
   alt="The PyOps command palette searching for automation across blocks and goods"
-  caption="Search by what you want, not where it lives. Goods open in Browse and blocks open directly in the editor."
+  caption="Search by what you want, not where it lives. Goods open in Explore and blocks open directly in the editor."
 />
 
 ::: tip Search internal names when needed

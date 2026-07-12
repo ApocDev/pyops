@@ -58,8 +58,8 @@ for in-block production and imports.
 
 ## The factory still has shortages
 
-A solved block can intentionally import goods. **Factory** combines all enabled blocks;
-**Coherence** shows which imports are not covered by other blocks and which exports are
+A solved block can intentionally import goods. **Factory → Overview** combines all enabled
+blocks; **Factory → Connections** shows which imports are not covered by other blocks and which exports are
 unused. This is a factory-planning result, not necessarily a block error.
 
 Use [Balance the plan](../guide/balance) to find the deficit, open its consuming block, and

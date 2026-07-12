@@ -16,7 +16,8 @@ block, where one production unit ends, and how blocks combine into a factory pla
 - [Block boundaries](./block-boundaries) decide which goods are made inside a block and
   which cross its boundary as imports or exports.
 - [Factory](../getting-started/factory) combines every enabled block and shows the net plan.
-- [Balance the plan](./balance) with Coherence and What-if after several blocks interact.
+- [Balance the plan](./balance) with Factory's Connections and Scenario views after several
+  blocks interact.
 - [Explore recipes and dependencies](./explore) without changing the plan.
 - [Plan TURD upgrades](./turd) and review the recipe changes before committing in-game.
 

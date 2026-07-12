@@ -93,16 +93,16 @@ Ask for a concrete decision and provide the operational constraint that matters.
 - `Which unsourced import should I plan next, and why?`
 - `Compare the available recipes for this block's Coal demand.`
 - `Find a consumer for the Ash surplus without changing any blocks.`
-- `Audit Coherence and summarize the highest-impact shortages.`
+- `Audit Factory connections and summarize the highest-impact shortages.`
 
 The Assistant can search goods and recipes, inspect inputs and machines, size recipes,
-read blocks, run the factory and Coherence analyses, and check TURD consistency. With the
+read blocks, run the Factory Overview and Connections analyses, and check TURD consistency. With the
 Companion mod connected, it can also inspect approved live-game context.
 
 <AppScreenshot
   src="/images/assistant-planning-question.png"
-  alt="The PyOps Assistant recommending Soil as the next unsourced import for the five-block tutorial factory"
-  caption="The answer is grounded in the active project: it compares the actual unsourced imports, identifies the 10-per-second Soil demand, and separately flags existing linked shortages."
+  alt="The PyOps Assistant comparing the three Arqad TURD upgrade choices from the active project"
+  caption="The answer is grounded in synced game data: it inspects the real mutually exclusive choices, explains their recipe and productivity effects, and recommends one for the stated goal."
 />
 
 Select the collapsed **tool calls** row when you want to inspect how the answer was

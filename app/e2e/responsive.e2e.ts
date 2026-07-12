@@ -37,11 +37,11 @@ const ROUTES = [
   "/",
   "/block",
   "/factory",
-  "/browse",
-  "/deps",
-  "/coherence",
+  "/explore",
+  "/explore/dependencies",
+  "/factory/connections",
   "/turd",
-  "/whatif",
+  "/factory/scenario",
   "/assistant",
   "/tasks",
   "/settings",
@@ -71,7 +71,7 @@ for (const vp of VIEWPORTS) {
         // window — so measure THAT, or content overflow hides from documentElement.
         if (vp.width <= 834) {
           const overflow = await page.evaluate(() => {
-            const content = document.querySelector("nav")?.nextElementSibling;
+            const content = document.querySelector("[data-app-content]");
             const el = content ?? document.documentElement;
             return el.scrollWidth - el.clientWidth;
           });

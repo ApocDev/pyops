@@ -44,10 +44,15 @@ automatically.
 The combined net flow of every enabled block. Factory shows the production plan as a
 whole, including deficits, surpluses, power, pollution, and required buildings.
 
-### Coherence
+### Connections
 
-A cross-block explanation of supply and demand. It identifies which blocks consume or
-produce a good and whether the planned rates cover one another.
+The Factory workspace's cross-block explanation of supply and demand. It identifies which
+blocks consume or produce a good and whether the planned rates cover one another.
+
+### Scenario
+
+The Factory workspace's speculative whole-plan solve. It previews how existing blocks
+would need to scale for a changed final-product target without saving the result.
 
 ### Planning horizon
 

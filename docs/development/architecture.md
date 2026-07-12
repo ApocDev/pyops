@@ -75,7 +75,7 @@ The planning path is deliberately layered:
    logistics, and display-ready results.
 3. `solver/` owns the mathematical model and infeasibility diagnosis without UI or database
    dependencies.
-4. Factory, Coherence, cost, and what-if modules aggregate cached block flows and solved
+4. Factory Overview, Connections, cost, and Scenario modules aggregate cached block flows and solved
    blocks for cross-block analysis.
 
 See [Block solver](./solver) for the constraint model and [Data pipeline](./data-pipeline)

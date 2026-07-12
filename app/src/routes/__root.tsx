@@ -16,6 +16,7 @@ import { RoutePending } from "../components/route-pending";
 import { ShortcutHelpSheet } from "../components/shortcut-help-sheet";
 import { UndoHotkey } from "../components/undo-hotkey";
 import { UpdatePrompt } from "../components/update-prompt";
+import { WorkspaceNav } from "../components/workspace-nav";
 import { Toaster } from "../components/ui/toast";
 import appCss from "../styles.css?url";
 
@@ -82,8 +83,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <AppLiveQueries />
         <div className="flex h-screen flex-col">
           <AppNav />
+          <WorkspaceNav />
           <DbMigrationsBanner />
-          <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+          <div data-app-content className="min-h-0 flex-1 overflow-auto">
+            {children}
+          </div>
         </div>
         <CommandPalette />
         <ShortcutHelpSheet />

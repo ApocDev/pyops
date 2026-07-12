@@ -26,8 +26,8 @@ The **TURD** page appears when the active project's synced data contains TURD up
   caption="Each master groups mutually exclusive branches. Changed recipe lines make the affected inputs, outputs, and productivity bonuses explicit."
 />
 
-PyOps re-solves blocks affected by the changed recipes. Review **Factory** and
-**Coherence** afterward: an output may remain the same while its upstream inputs change
+PyOps re-solves blocks affected by the changed recipes. Review **Factory → Overview** and
+**Factory → Connections** afterward: an output may remain the same while its upstream inputs change
 substantially.
 
 ::: warning A PyOps selection does not make the choice in Factorio
@@ -51,7 +51,7 @@ After changing a selection:
 1. Wait for **re-solving blocks…** to finish.
 2. Open blocks using the affected recipes and confirm their imports, machines, and fuels.
 3. Open Factory and check for new deficits or obsolete upstream production.
-4. Open Coherence and check whether previously balanced block connections changed.
+4. Open **Factory → Connections** and check whether previously balanced block connections changed.
 
 If the game's live selection and the project disagree, treat the live game state as the
 source of truth for a plan intended to match that save.

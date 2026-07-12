@@ -80,10 +80,10 @@ export function DepsFilterResults({
               asChild
               variant="ghost"
               size="icon-xs"
-              title="open in browse"
+              title="open in Explore search"
               className="shrink-0 text-muted-foreground hover:text-foreground"
             >
-              <Link to="/browse" search={{ sel: n.name }}>
+              <Link to="/explore" search={{ sel: n.name }}>
                 <SquareArrowOutUpRight />
               </Link>
             </Button>

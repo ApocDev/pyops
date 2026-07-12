@@ -15,7 +15,7 @@ const NONSENSE = "zzz-no-such-thing-e2e";
 test("explorer ranks producers/consumers by availability and filters them", async ({ page }) => {
   test.setTimeout(240_000); // may run a full cost-analysis LP over the project db
 
-  await goto(page, "/browse?sel=iron-plate");
+  await goto(page, "/explore?sel=iron-plate");
   const produced = page.getByText(/^Produced by \(\d+\)$/);
   const consumed = page.getByText(/^Consumed by \(\d+\)$/);
   await expect(page.locator('[data-slot="skeleton"]')).toHaveCount(0);
@@ -40,7 +40,8 @@ test("explorer ranks producers/consumers by availability and filters them", asyn
   // long lists stay capped behind the shared show-all affordance
   const consumers = Number(/\((\d+)\)/.exec((await consumed.textContent()) ?? "")?.[1] ?? 0);
   if (consumers > 25) {
-    await expect(page.getByRole("button", { name: /^show all \d+…$/ })).toBeVisible();
+    const consumedCard = consumed.locator('xpath=ancestor::*[@data-slot="card"]');
+    await expect(consumedCard.getByRole("button", { name: /^show all \d+…$/ })).toBeVisible();
   }
 
   // the shared recipe filter (#87) narrows both lists and offers the standard

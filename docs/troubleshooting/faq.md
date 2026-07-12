@@ -17,7 +17,7 @@ synced reference data, ordinary planning does not require Factorio to be running
 ### Is the Companion mod required?
 
 No. It adds live save synchronization, production and building statistics, the in-game
-panel, and in-game actions. Blocks, Factory, Coherence, exploration, tasks, backups, and
+panel, and in-game actions. Blocks, the Factory and Explore workspaces, tasks, backups, and
 project-aware Assistant tools work without it. See
 [Use PyOps without the Companion mod](../guide/in-game-link#use-pyops-without-the-companion-mod).
 
@@ -38,7 +38,7 @@ because the sync updates that project.
 
 An import is an explicit block boundary, not an error. Select the good and choose a recipe
 when it belongs inside the current block, or create a supplier block when it should be a
-separate production unit. Factory and Coherence show whether other blocks cover the rate.
+separate production unit. Factory Overview and Connections show whether other blocks cover the rate.
 
 ### Why is a machine count fractional?
 
@@ -48,7 +48,7 @@ build normally needs three or another capacity adjustment.
 
 ### Does “solved” mean the factory is complete?
 
-No. It means that one block is mathematically consistent. Open Factory and Coherence to
+No. It means that one block is mathematically consistent. Open Factory Overview and Connections to
 check cross-block shortages, surpluses, buildings, power, and other whole-plan results.
 
 ### Will PyOps choose the best recipe automatically?

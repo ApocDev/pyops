@@ -1,10 +1,8 @@
 import {
-  ArrowLeftRight,
   Blocks,
   Factory,
   FlaskConical,
   ListChecks,
-  Network,
   Search,
   Settings,
   Sparkles,
@@ -17,9 +15,10 @@ import {
 export type NavLinkTo =
   | "/block"
   | "/factory"
-  | "/coherence"
-  | "/browse"
-  | "/deps"
+  | "/factory/connections"
+  | "/factory/scenario"
+  | "/explore"
+  | "/explore/dependencies"
   | "/turd"
   | "/assistant"
   | "/tasks"
@@ -34,6 +33,8 @@ export type NavLink = {
   to: NavLinkTo;
   label: string;
   icon: LucideIcon;
+  /** Routes represented by this top-level workspace entry. */
+  matches?: readonly string[];
   /** Hidden once we know the dataset lacks this capability; absent → always shown. */
   capability?: keyof NavCapabilities;
 };
@@ -41,10 +42,13 @@ export type NavLink = {
 /** The primary cluster (left side of the desktop bar). */
 export const NAV_LINKS: NavLink[] = [
   { to: "/block", label: "Blocks", icon: Blocks },
-  { to: "/factory", label: "Factory", icon: Factory },
-  { to: "/coherence", label: "Coherence", icon: ArrowLeftRight },
-  { to: "/browse", label: "Browse", icon: Search },
-  { to: "/deps", label: "Deps", icon: Network },
+  {
+    to: "/factory",
+    label: "Factory",
+    icon: Factory,
+    matches: ["/factory"],
+  },
+  { to: "/explore", label: "Explore", icon: Search },
   { to: "/turd", label: "TURD", icon: FlaskConical, capability: "hasTurd" },
   { to: "/assistant", label: "Assistant", icon: Sparkles },
   { to: "/tasks", label: "Tasks", icon: ListChecks },
@@ -55,6 +59,12 @@ export const NAV_LINKS: NavLink[] = [
  * out while caps are still loading (the common Py case shows it immediately). */
 export function visibleNavLinks(caps: NavCapabilities | undefined): NavLink[] {
   return NAV_LINKS.filter((l) => !l.capability || caps?.[l.capability] !== false);
+}
+
+/** Whether a route belongs to a top-level destination or one of its workspace modes. */
+export function navLinkActive(link: NavLink, pathname: string): boolean {
+  const matches = link.matches ?? [link.to];
+  return matches.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
 /** Settings sits in the right cluster on desktop; folded in with the rest on mobile. */

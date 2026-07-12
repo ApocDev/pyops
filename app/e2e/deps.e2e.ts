@@ -7,8 +7,8 @@ import { expect, test } from "@playwright/test";
 
 const NONSENSE = "zzz-no-such-thing-e2e";
 
-test("deps explorer walks requires / required-by for a good", async ({ page }) => {
-  await page.goto("/deps");
+test("Explore dependencies walks requires / required-by for a good", async ({ page }) => {
+  await page.goto("/explore/dependencies");
   await expect(page.getByText("Nothing selected")).toBeVisible();
   // wait for hydration before typing — a fill that lands on SSR'd markup is
   // wiped when React mounts, leaving the search silently empty

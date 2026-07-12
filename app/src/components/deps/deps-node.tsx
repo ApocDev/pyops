@@ -192,10 +192,10 @@ export function DepsNodeRow({
             asChild
             variant="ghost"
             size="icon-xs"
-            title="open in browse"
+            title="open in Explore search"
             className="shrink-0 text-muted-foreground hover:text-foreground"
           >
-            <Link to="/browse" search={{ sel: node.name }}>
+            <Link to="/explore" search={{ sel: node.name }}>
               <SquareArrowOutUpRight />
             </Link>
           </Button>

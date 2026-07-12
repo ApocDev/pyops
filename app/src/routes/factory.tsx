@@ -195,11 +195,6 @@ function FactoryPage() {
         }
         actions={
           <>
-            <Tooltip content="Solve the whole factory: set a product's rate, see the per-block changes to rebalance">
-              <Button asChild size="sm" variant="outline" className="text-primary">
-                <Link to="/whatif">what-if →</Link>
-              </Button>
-            </Tooltip>
             <FilterInput
               value={search}
               onValueChange={setSearch}
@@ -255,11 +250,11 @@ function FactoryPage() {
                 see the net picture in one place.
               </p>
               <p>
-                <span className="text-foreground">Factory vs Coherence.</span> Factory shows net{" "}
-                <em>totals</em> (all production of an item minus all consumption). Coherence shows
+                <span className="text-foreground">Overview vs Connections.</span> Overview shows net{" "}
+                <em>totals</em> (all production of an item minus all consumption). Connections shows
                 the <em>block-to-block wiring</em>. A surplus in one block that cancels a shortfall
-                in another looks balanced here but is broken there — so use Factory for &quot;what
-                do I still need to make&quot;, and Coherence to catch mismatches the totals hide.
+                in another looks balanced here but is broken there — use this view for &quot;what do
+                I still need to make&quot;, and Connections for mismatches the totals hide.
               </p>
               <div>
                 <div className="font-semibold text-foreground">What you see</div>
@@ -324,8 +319,8 @@ function FactoryPage() {
                 </ul>
               </div>
               <p>
-                <span className="text-foreground">what-if →</span> (top-left) sets a final
-                product&apos;s target and shows the per-block rescale needed across the whole
+                Select <span className="text-foreground">Scenario</span> above to set a final
+                product&apos;s target and preview the per-block rescale needed across the whole
                 factory.
               </p>
             </HelpButton>

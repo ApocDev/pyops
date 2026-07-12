@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { Button } from "./ui/button";
-import { SETTINGS_LINK, visibleNavLinks } from "./nav-links";
+import { navLinkActive, SETTINGS_LINK, visibleNavLinks } from "./nav-links";
 import { UndoButton } from "./undo-button";
 import { HorizonMenu } from "./horizon-menu";
 import { LogisticsMenu } from "./logistics-menu";
@@ -25,6 +25,7 @@ export function NavMobile() {
   const [open, setOpen] = useState(false);
   const caps = useQuery({ queryKey: ["dataCapabilities"], queryFn: () => dataCapabilitiesFn() });
   const links = [...visibleNavLinks(caps.data), SETTINGS_LINK];
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   return (
     <div className="flex flex-1 items-stretch justify-end min-[1400px]:hidden">
@@ -44,17 +45,21 @@ export function NavMobile() {
             <SheetTitle className="font-mono">PyOps</SheetTitle>
           </SheetHeader>
           <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto py-1 font-mono">
-            {links.map(({ to, label, icon: Icon }) => (
-              <Link
-                key={to}
-                to={to}
-                onClick={() => setOpen(false)}
-                className={row}
-                activeProps={{ className: `${row} ${rowActive}` }}
-              >
-                <Icon className="size-4 shrink-0" /> {label}
-              </Link>
-            ))}
+            {links.map((link) => {
+              const { to, label, icon: Icon } = link;
+              const selected = navLinkActive(link, pathname);
+              return (
+                <Link
+                  key={to}
+                  to={to}
+                  onClick={() => setOpen(false)}
+                  aria-current={selected ? "page" : undefined}
+                  className={`${row} ${selected ? rowActive : ""}`}
+                >
+                  <Icon className="size-4 shrink-0" /> {label}
+                </Link>
+              );
+            })}
           </nav>
           <div className="flex shrink-0 flex-wrap items-center gap-1 border-t border-border p-2 font-mono">
             <UndoButton />

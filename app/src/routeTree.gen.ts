@@ -15,6 +15,7 @@ import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as FactoryRouteImport } from './routes/factory'
+import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as DepsRouteImport } from './routes/deps'
 import { Route as CoherenceRouteImport } from './routes/coherence'
 import { Route as BrowseRouteImport } from './routes/browse'
@@ -23,6 +24,9 @@ import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BlockIndexRouteImport } from './routes/block.index'
 import { Route as IconsSplatRouteImport } from './routes/icons.$'
+import { Route as FactoryScenarioRouteImport } from './routes/factory_.scenario'
+import { Route as FactoryConnectionsRouteImport } from './routes/factory_.connections'
+import { Route as ExploreDependenciesRouteImport } from './routes/explore_.dependencies'
 import { Route as BlockIdRouteImport } from './routes/block.$id'
 import { Route as ApiChatRouteImport } from './routes/api.chat'
 import { Route as ApiBackupRouteImport } from './routes/api.backup'
@@ -55,6 +59,11 @@ const McpRoute = McpRouteImport.update({
 const FactoryRoute = FactoryRouteImport.update({
   id: '/factory',
   path: '/factory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExploreRoute = ExploreRouteImport.update({
+  id: '/explore',
+  path: '/explore',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DepsRoute = DepsRouteImport.update({
@@ -97,6 +106,21 @@ const IconsSplatRoute = IconsSplatRouteImport.update({
   path: '/icons/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FactoryScenarioRoute = FactoryScenarioRouteImport.update({
+  id: '/factory_/scenario',
+  path: '/factory/scenario',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FactoryConnectionsRoute = FactoryConnectionsRouteImport.update({
+  id: '/factory_/connections',
+  path: '/factory/connections',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExploreDependenciesRoute = ExploreDependenciesRouteImport.update({
+  id: '/explore_/dependencies',
+  path: '/explore/dependencies',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BlockIdRoute = BlockIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -120,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/browse': typeof BrowseRoute
   '/coherence': typeof CoherenceRoute
   '/deps': typeof DepsRoute
+  '/explore': typeof ExploreRoute
   '/factory': typeof FactoryRoute
   '/mcp': typeof McpRoute
   '/settings': typeof SettingsRoute
@@ -129,6 +154,9 @@ export interface FileRoutesByFullPath {
   '/api/backup': typeof ApiBackupRoute
   '/api/chat': typeof ApiChatRoute
   '/block/$id': typeof BlockIdRoute
+  '/explore/dependencies': typeof ExploreDependenciesRoute
+  '/factory/connections': typeof FactoryConnectionsRoute
+  '/factory/scenario': typeof FactoryScenarioRoute
   '/icons/$': typeof IconsSplatRoute
   '/block/': typeof BlockIndexRoute
 }
@@ -138,6 +166,7 @@ export interface FileRoutesByTo {
   '/browse': typeof BrowseRoute
   '/coherence': typeof CoherenceRoute
   '/deps': typeof DepsRoute
+  '/explore': typeof ExploreRoute
   '/factory': typeof FactoryRoute
   '/mcp': typeof McpRoute
   '/settings': typeof SettingsRoute
@@ -147,6 +176,9 @@ export interface FileRoutesByTo {
   '/api/backup': typeof ApiBackupRoute
   '/api/chat': typeof ApiChatRoute
   '/block/$id': typeof BlockIdRoute
+  '/explore/dependencies': typeof ExploreDependenciesRoute
+  '/factory/connections': typeof FactoryConnectionsRoute
+  '/factory/scenario': typeof FactoryScenarioRoute
   '/icons/$': typeof IconsSplatRoute
   '/block': typeof BlockIndexRoute
 }
@@ -158,6 +190,7 @@ export interface FileRoutesById {
   '/browse': typeof BrowseRoute
   '/coherence': typeof CoherenceRoute
   '/deps': typeof DepsRoute
+  '/explore': typeof ExploreRoute
   '/factory': typeof FactoryRoute
   '/mcp': typeof McpRoute
   '/settings': typeof SettingsRoute
@@ -167,6 +200,9 @@ export interface FileRoutesById {
   '/api/backup': typeof ApiBackupRoute
   '/api/chat': typeof ApiChatRoute
   '/block/$id': typeof BlockIdRoute
+  '/explore_/dependencies': typeof ExploreDependenciesRoute
+  '/factory_/connections': typeof FactoryConnectionsRoute
+  '/factory_/scenario': typeof FactoryScenarioRoute
   '/icons/$': typeof IconsSplatRoute
   '/block/': typeof BlockIndexRoute
 }
@@ -179,6 +215,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/coherence'
     | '/deps'
+    | '/explore'
     | '/factory'
     | '/mcp'
     | '/settings'
@@ -188,6 +225,9 @@ export interface FileRouteTypes {
     | '/api/backup'
     | '/api/chat'
     | '/block/$id'
+    | '/explore/dependencies'
+    | '/factory/connections'
+    | '/factory/scenario'
     | '/icons/$'
     | '/block/'
   fileRoutesByTo: FileRoutesByTo
@@ -197,6 +237,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/coherence'
     | '/deps'
+    | '/explore'
     | '/factory'
     | '/mcp'
     | '/settings'
@@ -206,6 +247,9 @@ export interface FileRouteTypes {
     | '/api/backup'
     | '/api/chat'
     | '/block/$id'
+    | '/explore/dependencies'
+    | '/factory/connections'
+    | '/factory/scenario'
     | '/icons/$'
     | '/block'
   id:
@@ -216,6 +260,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/coherence'
     | '/deps'
+    | '/explore'
     | '/factory'
     | '/mcp'
     | '/settings'
@@ -225,6 +270,9 @@ export interface FileRouteTypes {
     | '/api/backup'
     | '/api/chat'
     | '/block/$id'
+    | '/explore_/dependencies'
+    | '/factory_/connections'
+    | '/factory_/scenario'
     | '/icons/$'
     | '/block/'
   fileRoutesById: FileRoutesById
@@ -236,6 +284,7 @@ export interface RootRouteChildren {
   BrowseRoute: typeof BrowseRoute
   CoherenceRoute: typeof CoherenceRoute
   DepsRoute: typeof DepsRoute
+  ExploreRoute: typeof ExploreRoute
   FactoryRoute: typeof FactoryRoute
   McpRoute: typeof McpRoute
   SettingsRoute: typeof SettingsRoute
@@ -244,6 +293,9 @@ export interface RootRouteChildren {
   WhatifRoute: typeof WhatifRoute
   ApiBackupRoute: typeof ApiBackupRoute
   ApiChatRoute: typeof ApiChatRoute
+  ExploreDependenciesRoute: typeof ExploreDependenciesRoute
+  FactoryConnectionsRoute: typeof FactoryConnectionsRoute
+  FactoryScenarioRoute: typeof FactoryScenarioRoute
   IconsSplatRoute: typeof IconsSplatRoute
 }
 
@@ -289,6 +341,13 @@ declare module '@tanstack/react-router' {
       path: '/factory'
       fullPath: '/factory'
       preLoaderRoute: typeof FactoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/explore': {
+      id: '/explore'
+      path: '/explore'
+      fullPath: '/explore'
+      preLoaderRoute: typeof ExploreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/deps': {
@@ -347,6 +406,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IconsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/factory_/scenario': {
+      id: '/factory_/scenario'
+      path: '/factory/scenario'
+      fullPath: '/factory/scenario'
+      preLoaderRoute: typeof FactoryScenarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/factory_/connections': {
+      id: '/factory_/connections'
+      path: '/factory/connections'
+      fullPath: '/factory/connections'
+      preLoaderRoute: typeof FactoryConnectionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/explore_/dependencies': {
+      id: '/explore_/dependencies'
+      path: '/explore/dependencies'
+      fullPath: '/explore/dependencies'
+      preLoaderRoute: typeof ExploreDependenciesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/block/$id': {
       id: '/block/$id'
       path: '/$id'
@@ -390,6 +470,7 @@ const rootRouteChildren: RootRouteChildren = {
   BrowseRoute: BrowseRoute,
   CoherenceRoute: CoherenceRoute,
   DepsRoute: DepsRoute,
+  ExploreRoute: ExploreRoute,
   FactoryRoute: FactoryRoute,
   McpRoute: McpRoute,
   SettingsRoute: SettingsRoute,
@@ -398,6 +479,9 @@ const rootRouteChildren: RootRouteChildren = {
   WhatifRoute: WhatifRoute,
   ApiBackupRoute: ApiBackupRoute,
   ApiChatRoute: ApiChatRoute,
+  ExploreDependenciesRoute: ExploreDependenciesRoute,
+  FactoryConnectionsRoute: FactoryConnectionsRoute,
+  FactoryScenarioRoute: FactoryScenarioRoute,
   IconsSplatRoute: IconsSplatRoute,
 }
 export const routeTree = rootRouteImport

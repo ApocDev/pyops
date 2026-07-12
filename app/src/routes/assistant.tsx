@@ -431,7 +431,7 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
               <p className="mt-1">
                 It has read-only tools over your project: search goods, inspect a recipe&apos;s
                 inputs/outputs and machines, walk a chain, size a recipe at a target rate, list a
-                good&apos;s producers/consumers and byproduct sinks, run the coherence audit, read
+                good&apos;s producers/consumers and byproduct sinks, audit Factory connections, read
                 your existing blocks, and check TURD consistency. When the game is linked it can
                 also inspect the live world (context, entities, production). None of this changes
                 anything.

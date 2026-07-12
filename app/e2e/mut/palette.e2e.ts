@@ -64,10 +64,10 @@ test("fuzzy query matches a page and Enter navigates to it", async ({ page }) =>
   await goto(page, "/");
   await page.keyboard.press("Control+k");
   await paletteInput(page).fill("browse");
-  // the Pages group ranks Browse first, so it's the active item
-  await expect(palette(page).getByRole("button", { name: "Browse" })).toBeVisible();
+  // The renamed Explore workspace keeps Browse as a search alias.
+  await expect(palette(page).getByRole("button", { name: "Explore" })).toBeVisible();
   await page.keyboard.press("Enter");
-  await page.waitForURL(/\/browse$/);
+  await page.waitForURL(/\/explore$/);
   await expect(palette(page)).toBeHidden();
 });
 
@@ -95,7 +95,7 @@ test("goods search finds an item server-side and jumps to its browse view", asyn
   const good = group(page, "Goods").getByRole("button", { name: "Iron plate", exact: true });
   await expect(good).toBeVisible();
   await good.click();
-  await page.waitForURL(/\/browse\?sel=iron-plate$/);
+  await page.waitForURL(/\/explore\?sel=iron-plate$/);
   await expect(palette(page)).toBeHidden();
   // and the browse detail actually resolved
   await expect(page.getByRole("heading", { name: "Iron plate" })).toBeVisible();
@@ -109,7 +109,7 @@ test("empty palette surfaces recently visited blocks and goods", async ({ page }
   await expectUndoTop(page, new RegExp(`Undo: Edit block "${name}"`));
 
   // visit a good in the browser — recorded the same way
-  await goto(page, "/browse?sel=iron-plate");
+  await goto(page, "/explore?sel=iron-plate");
   await expect(page.getByRole("heading", { name: "Iron plate" })).toBeVisible();
 
   await goto(page, "/");

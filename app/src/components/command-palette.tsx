@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CornerDownLeft, Keyboard, Plus, Undo2, type LucideIcon } from "lucide-react";
+import {
+  ArrowLeftRight,
+  CornerDownLeft,
+  Keyboard,
+  Network,
+  Plus,
+  SlidersHorizontal,
+  Undo2,
+  type LucideIcon,
+} from "lucide-react";
 import { SETTINGS_LINK, visibleNavLinks } from "./nav-links";
 import { ProjectCreateDialog } from "./project-create-dialog";
 import { openShortcutHelp } from "./shortcut-help-sheet";
@@ -19,6 +28,8 @@ import { Skeleton } from "#/components/ui/skeleton.tsx";
 type PaletteItem = {
   key: string;
   label: string;
+  /** Hidden aliases for renamed or nested destinations. */
+  searchText?: string;
   /** Lucide glyph (pages/actions) — game sprites pass `sprite` instead. */
   glyph?: LucideIcon;
   sprite?: { kind: IconKind; name: string };
@@ -102,12 +113,41 @@ export function CommandPalette() {
   }, [open]);
 
   const groups: PaletteGroup[] = useMemo(() => {
-    const pages: PaletteItem[] = [...visibleNavLinks(caps.data), SETTINGS_LINK].map((l) => ({
-      key: `page:${l.to}`,
-      label: l.label,
-      glyph: l.icon,
-      run: () => void navigate({ to: l.to }),
-    }));
+    const pages: PaletteItem[] = [
+      ...[...visibleNavLinks(caps.data), SETTINGS_LINK].map((l) => ({
+        key: `page:${l.to}`,
+        label: l.label,
+        searchText:
+          l.to === "/factory"
+            ? "Factory Overview totals"
+            : l.to === "/explore"
+              ? "Explore Browse Search"
+              : l.label,
+        glyph: l.icon,
+        run: () => void navigate({ to: l.to }),
+      })),
+      {
+        key: "page:/factory/connections",
+        label: "Factory: Connections",
+        searchText: "Factory Connections Coherence",
+        glyph: ArrowLeftRight,
+        run: () => void navigate({ to: "/factory/connections" }),
+      },
+      {
+        key: "page:/factory/scenario",
+        label: "Factory: Scenario",
+        searchText: "Factory Scenario What-if rebalance",
+        glyph: SlidersHorizontal,
+        run: () => void navigate({ to: "/factory/scenario" }),
+      },
+      {
+        key: "page:/explore/dependencies",
+        label: "Explore: Dependencies",
+        searchText: "Explore Dependencies Deps tree",
+        glyph: Network,
+        run: () => void navigate({ to: "/explore/dependencies" }),
+      },
+    ];
     const blockItem = (
       b: NonNullable<typeof blocks.data>[number],
       keyPrefix = "",
@@ -135,7 +175,7 @@ export function CommandPalette() {
                 key: `recent:good:${r.name}`,
                 label: r.display || r.name,
                 sprite: { kind: r.goodKind, name: r.name },
-                run: () => void navigate({ to: "/browse", search: { sel: r.name } }),
+                run: () => void navigate({ to: "/explore", search: { sel: r.name } }),
               },
             ];
           })
@@ -152,7 +192,7 @@ export function CommandPalette() {
           key: `good:${g.kind}:${g.name}`,
           label: g.display ?? g.name,
           sprite: { kind: g.kind as IconKind, name: g.name },
-          run: () => void navigate({ to: "/browse", search: { sel: g.name } }),
+          run: () => void navigate({ to: "/explore", search: { sel: g.name } }),
         }))
       : [];
     const actions: PaletteItem[] = [
@@ -189,7 +229,10 @@ export function CommandPalette() {
     ];
     return [
       { title: "Recent", items: recentItems },
-      { title: "Pages", items: rankMatches(query, pages, (i) => i.label).slice(0, GROUP_CAP) },
+      {
+        title: "Pages",
+        items: rankMatches(query, pages, (i) => i.searchText ?? i.label).slice(0, GROUP_CAP),
+      },
       {
         title: "Blocks",
         items: rankMatches(query, blockItems, (i) => i.label).slice(0, GROUP_CAP),

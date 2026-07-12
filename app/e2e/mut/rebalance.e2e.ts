@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { goto, toast, undoButton } from "./helpers";
 
 test("what-if target stays editable while the factory re-solves", async ({ page }) => {
-  await goto(page, "/whatif");
+  await goto(page, "/factory/scenario");
 
   const firstDemand = page.getByRole("spinbutton").first();
   await expect(firstDemand).toBeVisible();
@@ -35,7 +35,7 @@ test("what-if 'apply all' re-balances the factory in one undoable step", async (
   // applying + undoing a whole-factory re-balance re-solves every touched block, so
   // give the round trips generous room over the default per-test budget
   test.setTimeout(120_000);
-  await goto(page, "/whatif");
+  await goto(page, "/factory/scenario");
 
   // the Final products card is the only place with numeric (spinbutton) inputs
   const firstDemand = page.getByRole("spinbutton").first();
