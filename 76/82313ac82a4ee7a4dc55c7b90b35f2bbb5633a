@@ -1,0 +1,27 @@
+app/e2e/mut/goal-rates.e2e.ts
+  s_999d363ffccad9::t_641ccdd06152e7 1-51
+app/src/components/block/editable-rate.test.tsx
+  s_999d363ffccad9::t_4e87e2fd3e2aca 1-32
+app/src/components/block/editable-rate.tsx
+  s_999d363ffccad9::t_e3fb2338235f1a 73
+app/src/components/block/goal-card.tsx
+  s_999d363ffccad9::t_a232026bf3d108 62,71,78,133-134
+docs/guide/blocks.md
+  s_999d363ffccad9::t_67cd34d7c19b79 23-24,35-36,75-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "7682313ac82a4ee7a4dc55c7b90b35f2bbb5633a",
+  "prompts": {},
+  "sessions": {
+    "s_999d363ffccad9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f577a-fbbc-71c0-a7f7-f321dd8a611d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
