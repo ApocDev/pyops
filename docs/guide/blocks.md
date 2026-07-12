@@ -32,6 +32,7 @@ production appears separately in Factory.
 
 A negative goal is already the block's visible import contract, so Block balance does not
 repeat that good under **Imports**. Other ingredients the block needs still appear there.
+Electricity is listed first, followed by the remaining imports from highest to lowest rate.
 
 ## Add recipes
 

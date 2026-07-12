@@ -1058,7 +1058,13 @@ export async function computeBlock(rawData: SolveInput) {
   const negativeGoalNames = new Set(
     data.goals.filter((goal) => goal.rate < 0).map((goal) => goal.name),
   );
-  const displayImports = imports.filter((flow) => !negativeGoalNames.has(flow.name));
+  const displayImports = imports
+    .filter((flow) => !negativeGoalNames.has(flow.name))
+    .sort((a, b) => {
+      if (a.name === ELECTRICITY) return -1;
+      if (b.name === ELECTRICITY) return 1;
+      return b.rate - a.rate || byNameAsc(a, b);
+    });
   const fuelItems = [...fuelTotals.keys()]; // for the 🔥 tag in the UI
   const burntItems = [...burntTotals.keys()]; // ash / depleted cells from burning
 

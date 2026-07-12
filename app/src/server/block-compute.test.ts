@@ -71,14 +71,15 @@ describe("module suggestions outside the core solve", () => {
     fx = await makeTestDb();
     fx.db.exec(`
       INSERT INTO items (name, display) VALUES
-        ('ore','Ore'),('plate','Plate'),('prod-module','Productivity module');
+        ('ore','Ore'),('flux','Flux'),('plate','Plate'),('prod-module','Productivity module');
       INSERT INTO recipes
         (name, kind, category, energy_required, allow_productivity, enabled, hidden)
         VALUES
         ('make-plate','real','crafting',1,1,1,0),
         ('craft-prod-module','real','crafting',1,0,1,0);
-      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount)
-        VALUES ('make-plate',0,'item','ore',1);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
+        ('make-plate',0,'item','ore',1),
+        ('make-plate',1,'item','flux',2);
       INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
         ('make-plate',0,'item','plate',1),
         ('craft-prod-module',0,'item','prod-module',1);
@@ -112,6 +113,19 @@ describe("module suggestions outside the core solve", () => {
         { recipe: row.recipe, rate: row.rate, machine: row.machine?.name ?? null },
       ]),
     ).toEqual({ "make-plate": ["prod-module", "prod-module"] });
+  });
+
+  it("displays electricity first, then imports by descending rate", async () => {
+    const solved = await computeBlock({
+      goals: [{ name: "plate", rate: 1 }],
+      recipes: ["make-plate"],
+    });
+
+    expect(solved.displayImports.map(({ name, rate }) => ({ name, rate }))).toEqual([
+      { name: "pyops-electricity", rate: 0.1 },
+      { name: "flux", rate: 2 },
+      { name: "ore", rate: 1 },
+    ]);
   });
 });
 
