@@ -1,0 +1,121 @@
+README.md
+  s_4dd2f80d6b822d::t_d249021de4f982 25,50,53
+app/src/components/nav-mobile.tsx
+  s_4dd2f80d6b822d::t_ecfdfc8b424fc7 2,7,28,48-62
+app/src/routeTree.gen.ts
+  s_4dd2f80d6b822d::t_cf8d8b42ff6cd2 18,27-29,64-68,109-123,147,157-159,169,179-181,193,203-205,218,228-230,240,250-252,263,273-275,287,296-298,346-352,409-429,473,482-484
+app/src/routes/assistant.tsx
+  s_4dd2f80d6b822d::t_1f8cfe9c4addbb 434
+app/src/routes/factory.tsx
+  s_4dd2f80d6b822d::t_3537e8916c8157 253-254,256-257,322-323
+app/src/routes/factory_.connections.tsx
+  s_4dd2f80d6b822d::t_b2fb3ce5a9fdb9 1-758
+app/src/routes/turd.tsx
+  s_4dd2f80d6b822d::t_235ccd4ff4c534 206-207
+docs/guide/assistant.md
+  s_4dd2f80d6b822d::t_5b42bfe8521f50 96,99,104-105
+app/e2e/README.md
+  s_4dd2f80d6b822d::t_6d022803224097 63-65,86
+app/e2e/deps.e2e.ts
+  s_4dd2f80d6b822d::t_0e2f391254a593 10-11
+app/e2e/explorer-alt-click.e2e.ts
+  s_4dd2f80d6b822d::t_fb71ba526a5721 6,32
+app/e2e/filter.e2e.ts
+  s_4dd2f80d6b822d::t_73ac36e4fce36e 12-13
+app/e2e/help.e2e.ts
+  s_4dd2f80d6b822d::t_949249a233600c 33-34,36-38
+app/e2e/mut/explorer.e2e.ts
+  s_4dd2f80d6b822d::t_0e6151e1a6f975 18,43-44
+app/e2e/mut/fluid-fuel.e2e.ts
+  s_4dd2f80d6b822d::t_c5e50443f7cc32 72
+app/e2e/mut/palette.e2e.ts
+  s_4dd2f80d6b822d::t_583b9559ba4126 67-68,70,98,112
+app/e2e/mut/rebalance.e2e.ts
+  s_4dd2f80d6b822d::t_be7bfd2b09edb0 5,38
+app/e2e/responsive.e2e.ts
+  s_4dd2f80d6b822d::t_0289182f8245de 40-42,44,74
+app/e2e/smoke.e2e.ts
+  s_4dd2f80d6b822d::t_139e8c84018349 25,31-39,50-98,101
+app/src/components/app-nav.tsx
+  s_4dd2f80d6b822d::t_e2652e89d7016d 2,9,64,76-88
+app/src/components/browse/good-detail.tsx
+  s_4dd2f80d6b822d::t_2bf6161c500ce4 111
+app/src/components/command-palette.tsx
+  s_4dd2f80d6b822d::t_84acaa9f01e976 4-13,31-32,116-150,178,195,232-235
+app/src/components/deps/deps-filter-results.tsx
+  s_4dd2f80d6b822d::t_a2c0e3cd0068c4 83,86
+app/src/components/deps/deps-node.tsx
+  s_4dd2f80d6b822d::t_394853ea68231e 195,198
+app/src/components/deps/deps-tree-pane.tsx
+  s_4dd2f80d6b822d::t_9bac264f90e2ed 86-87
+app/src/components/nav-links.test.ts
+  s_4dd2f80d6b822d::t_71a697f0880f81 1-25
+app/src/components/nav-links.ts
+  s_4dd2f80d6b822d::t_c0b12f7f2ed748 18-21,36-37,45-51,64-69
+app/src/components/workspace-nav.tsx
+  s_4dd2f80d6b822d::t_b13c67de8e7c4a 1-57
+app/src/routes/__root.tsx
+  s_4dd2f80d6b822d::t_f1a4a219b3b1e7 19,86,88-90
+app/src/routes/browse.tsx
+  s_4dd2f80d6b822d::t_5515a883894639 1,3,5-9
+app/src/routes/coherence.tsx
+  s_4dd2f80d6b822d::t_714904fb0b3091 1,3,5-7
+app/src/routes/deps.tsx
+  s_4dd2f80d6b822d::t_2e2c077135ac46 1,3-5,7-10,12-14
+app/src/routes/explore.tsx
+  s_4dd2f80d6b822d::t_cb5ff960759f55 1-142
+app/src/routes/explore_.dependencies.tsx
+  s_4dd2f80d6b822d::t_7325aa930dc023 1-226
+app/src/routes/factory_.scenario.tsx
+  s_4dd2f80d6b822d::t_2c4269a63a5891 1-358
+app/src/routes/index.tsx
+  s_4dd2f80d6b822d::t_cc90cc205102ce 3-24,28-30,34,37,40-45,47-54,56-96,99,107-108,113-114,116-123,125,129-267,270-391
+app/src/routes/whatif.tsx
+  s_4dd2f80d6b822d::t_9b9118ca88b226 1,3,5-7
+docs/development/architecture.md
+  s_4dd2f80d6b822d::t_fc3b3bbc4a845f 78
+docs/development/solver.md
+  s_4dd2f80d6b822d::t_cb8c7e3dee3ed2 3,168-169,192,305-306,317,319,349
+docs/getting-started/factory.md
+  s_4dd2f80d6b822d::t_1bcb20bb54e6c7 9-10,46,48,51
+docs/getting-started/index.md
+  s_4dd2f80d6b822d::t_72a8bfbff6c125 36-39
+docs/guide/balance.md
+  s_4dd2f80d6b822d::t_867ae645965d0b 3,9-10,12-16,18-19,21,25,28,42-43,51,53-54,66,72,81-82
+docs/guide/explore.md
+  s_4dd2f80d6b822d::t_699cb62e5dcc8d 9-11,13,15,28,34-35,38,40,57,65-68,72
+docs/guide/in-game-link.md
+  s_4dd2f80d6b822d::t_366a1f5b9dfbbf 27
+docs/guide/index.md
+  s_4dd2f80d6b822d::t_d10fa35dfe89bc 19-20
+docs/guide/turd.md
+  s_4dd2f80d6b822d::t_e146420ebcf8de 29-30,54
+docs/index.md
+  s_4dd2f80d6b822d::t_b4ef74c51b7582 29
+docs/reference/concepts-and-limitations.md
+  s_4dd2f80d6b822d::t_62ea27ee6976bb 47,49-55
+docs/reference/keyboard-and-navigation.md
+  s_4dd2f80d6b822d::t_b0d3551e89737b 9-13,33
+docs/reference/settings-and-storage.md
+  s_4dd2f80d6b822d::t_056b2d826934a2 31
+docs/troubleshooting/faq.md
+  s_4dd2f80d6b822d::t_749e13cfcbe19e 20,41,51
+docs/troubleshooting/index.md
+  s_4dd2f80d6b822d::t_3aae29118cecae 61-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "a06ff06e64295299c302dd3b26200e177604e38f",
+  "prompts": {},
+  "sessions": {
+    "s_4dd2f80d6b822d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f546e-a403-7280-90cb-d5d5ad59598c",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
