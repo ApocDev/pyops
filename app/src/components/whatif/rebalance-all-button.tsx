@@ -26,8 +26,10 @@ type BlockChange = {
   requiredRate: number;
   scale: number;
   delta: number;
-  /** true when this changes one secondary goal instead of the block's anchor */
+  /** true when this changes a specific goal instead of an opaque block rate */
   goal?: boolean;
+  /** Starts a valid producer whose current goal is zero. */
+  activation?: boolean;
 };
 
 // Query families the apply touches — everything a block rate change feeds. Mirrors
@@ -46,12 +48,12 @@ const REFRESH_KEYS = [
 const MOVERS_SHOWN = 6;
 
 /**
- * "Apply all" for the what-if page: commit the whole-factory re-balance the LP
- * found — set every listed goal to its required rate in one undo step. Opens a
+ * Commit the whole-factory balance pass — set every listed goal to its
+ * required rate in one undo step. Opens a
  * (non-destructive) confirm summarizing the biggest movers first, since it's a
  * factory-wide write; the result is fully reversible via the undo toast.
  *
- * `status` is the LP solve status: a non-Optimal solve means the target can't be
+ * `status` is the balance status: a non-Optimal result means the target can't be
  * met with the current blocks, so applying its partial result could make things
  * worse — the button disables and says why instead.
  */
@@ -71,6 +73,7 @@ export function RebalanceAllButton({
   const [applying, setApplying] = useState(false);
 
   const notOptimal = status != null && status !== "Optimal";
+  const applyingScenario = Object.keys(overrides).length > 0;
   const disabledReason =
     changed.length === 0
       ? "Nothing to re-balance — every block already meets demand"
@@ -122,7 +125,7 @@ export function RebalanceAllButton({
 
   const button = (
     <Button size="sm" disabled={disabledReason != null || applying} onClick={() => setOpen(true)}>
-      {applying ? "applying…" : "Apply all"}
+      {applying ? "applying…" : applyingScenario ? "Apply scenario" : "Balance factory"}
     </Button>
   );
 
@@ -142,7 +145,9 @@ export function RebalanceAllButton({
       <Dialog open={open} onOpenChange={(o) => !applying && setOpen(o)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Re-balance the whole factory?</DialogTitle>
+            <DialogTitle>
+              {applyingScenario ? "Apply this factory scenario?" : "Balance the whole factory?"}
+            </DialogTitle>
           </DialogHeader>
 
           <div className="flex min-h-0 flex-col gap-3 p-3">
@@ -168,7 +173,7 @@ export function RebalanceAllButton({
                     </span>
                   </span>
                   <span className="w-16 shrink-0 text-right text-muted-foreground tabular-nums">
-                    ×{b.scale}
+                    {b.activation ? "start" : `×${b.scale}`}
                   </span>
                 </div>
               ))}

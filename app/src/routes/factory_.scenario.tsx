@@ -50,7 +50,7 @@ function WhatIf() {
   });
   const r = wf.data;
   const changed = (r?.goalChanges ?? [])
-    .filter((goal) => Math.abs(goal.scale - 1) > SCALE_EPS)
+    .filter((goal) => goal.activation || Math.abs(goal.scale - 1) > SCALE_EPS)
     .map((goal) => ({ ...goal, name: goal.display }));
 
   return (
@@ -77,7 +77,8 @@ function WhatIf() {
               <p>
                 <span className="text-foreground">vs Overview.</span> Overview shows your factory as
                 it is now; Scenario is a sandbox — it doesn&apos;t change anything until you open a
-                block and apply.
+                block, select <span className="text-foreground">Balance factory</span>, or apply an
+                edited scenario.
               </p>
               <div>
                 <div className="font-semibold text-foreground">How to use it</div>
@@ -99,7 +100,8 @@ function WhatIf() {
                   </li>
                   <li>
                     <span className="text-foreground">Raw inputs</span> — what the new target draws
-                    in from outside (current vs projected).
+                    in from outside (current vs projected), including a required good no enabled
+                    block can currently supply.
                   </li>
                   <li>
                     <span className="text-foreground">Overproduced</span> — anything the target
@@ -133,9 +135,9 @@ function WhatIf() {
               <p>
                 <span className="text-foreground">The solve pill</span> (next to this button)
                 reports the whole-factory solve. <span className="text-foreground">Optimal</span>{" "}
-                means it found a consistent set of rates; any other status means the target
-                can&apos;t be met with the current recipes and blocks — treat it as a prompt to add
-                a producer or relax the target, and open the affected block to see why.
+                means it found a settled set of rates; any other status means an affected block
+                became infeasible or the passes did not converge — open those blocks to inspect
+                conflicting goals or pins.
               </p>
             </HelpButton>
           </>
@@ -245,7 +247,7 @@ function WhatIf() {
                     {rateLabel(b.good ?? "", b.requiredRate)}
                   </StatCell>
                   <StatCell label="×scale" w="md:w-20" className="text-muted-foreground">
-                    ×{b.scale}
+                    {b.activation ? "start" : `×${b.scale}`}
                   </StatCell>
                 </span>
               </Link>
@@ -294,15 +296,9 @@ function WhatIf() {
                       to="/block/$id"
                       params={{ id: String(x.absorb.id) }}
                       className="ml-2 bg-muted/60 px-1.5 py-0.5 text-sm text-primary hover:bg-muted"
-                      title={
-                        "goalRate" in x.absorb
-                          ? `change ${x.absorb.name}'s ${x.display} consume goal to absorb the surplus`
-                          : `scale ${x.absorb.name} to absorb the surplus`
-                      }
+                      title={`change ${x.absorb.name}'s ${x.display} consume goal to absorb the surplus`}
                     >
-                      {"goalRate" in x.absorb
-                        ? `→ ${x.display} goal ${rateLabel(x.good, x.absorb.goalRate)}/s`
-                        : `→ ${x.absorb.name} ×${x.absorb.scale}`}
+                      → {x.display} goal {rateLabel(x.good, x.absorb.goalRate)}/s
                     </Link>
                   ) : (
                     <Tooltip content="no block consumes this yet">

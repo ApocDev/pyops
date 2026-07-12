@@ -58,13 +58,23 @@ speculative system without saving changes.
    factor. Select a good to open the block that owns its goal.
 3. Check **Raw inputs** for the projected demand from outside the planned factory.
 4. Check **Overproduced** for goods that would accumulate without another consumer.
-5. Open an affected block to adjust it yourself, or use **Apply all** to apply every listed
-   block and goal change as one undoable action.
+5. With the current final-product targets, select **Balance factory** to apply every listed
+   goal change as one undoable action. After editing a final-product target, the same action
+   is labelled **Apply scenario**.
 
 Scenario balances goals, not an opaque shared block rate. When a block has an additional
 negative goal, it can balance that intake without changing the block's first goal. For example,
 if a Tar block consumes Shale oil as its second goal, surplus Shale oil produces a
 **Shale oil** row with the required consume rate.
+
+Terminal goals—goods nothing else in the factory consumes—anchor the balance. Intermediate
+production goals move to cover downstream demand, while negative goals can move to absorb
+surplus. After each change PyOps re-solves the affected block and repeats until its boundary
+flows settle. A valid producer currently set to `0/s` is probed at a normalized rate, so
+**Balance factory** can start it instead of reporting an infeasible zero-times-scale row.
+
+If no enabled block can supply a required ingredient, Scenario keeps the solve usable and
+lists the shortfall under **Raw inputs** as an external import.
 
 Use **reset to current** to discard the speculative target.
 
@@ -86,7 +96,7 @@ Set priority beside the **Goal** heading in a block. Priority chooses among comp
 suppliers; it does not scale a block solely to obtain an incidental byproduct.
 
 ::: info Scenario is not an optimizer for new designs
-Scenario scales the blocks and recipes already in the plan. If the result cannot satisfy a
-target, add a missing producer, fix an infeasible block, or relax the target before trying
-again.
+Scenario balances the blocks and recipes already in the plan. It can start an idle configured
+producer, but it does not add recipes or blocks. Add a producer when an external import should
+be made inside the factory.
 :::

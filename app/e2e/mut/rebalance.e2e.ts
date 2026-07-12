@@ -1,9 +1,20 @@
 import { DatabaseSync } from "node:sqlite";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { activeProjectDbFile, goto, toast, undoButton, uniqueName } from "./helpers";
+
+async function dismissDataDriftPrompt(page: Page) {
+  const ignore = page.getByRole("button", { name: "Ignore for now" });
+  try {
+    await expect(ignore).toBeVisible({ timeout: 2_000 });
+    await ignore.click();
+  } catch {
+    // Most seeded runs match the installed mods and have no prompt.
+  }
+}
 
 test("what-if target stays editable while the factory re-solves", async ({ page }) => {
   await goto(page, "/factory/scenario");
+  await dismissDataDriftPrompt(page);
 
   const firstDemand = page.getByRole("spinbutton").first();
   await expect(firstDemand).toBeVisible();
@@ -22,8 +33,8 @@ test("what-if target stays editable while the factory re-solves", async ({ page 
 });
 
 /**
- * What-if "Apply all" (whole-factory re-balance): overriding a final product's
- * target surfaces the per-block changes, and Apply all commits every one of them
+ * Applying a Scenario target: overriding a final product's target surfaces the
+ * per-block changes, and Apply scenario commits every one of them
  * in a single undoable step. Drives the real flow end-to-end against the isolated
  * mut server, then undoes the factory-wide change so the shared scratch db is left
  * as it was.
@@ -32,11 +43,12 @@ test("what-if target stays editable while the factory re-solves", async ({ page 
  * floor (rounding), so the test forces a genuine change by DOUBLING a demand — far
  * above the floor — rather than depending on the seed happening to be imbalanced.
  */
-test("what-if 'apply all' re-balances the factory in one undoable step", async ({ page }) => {
+test("applying a scenario re-balances the factory in one undoable step", async ({ page }) => {
   // applying + undoing a whole-factory re-balance re-solves every touched block, so
   // give the round trips generous room over the default per-test budget
   test.setTimeout(120_000);
   await goto(page, "/factory/scenario");
+  await dismissDataDriftPrompt(page);
 
   // the Final products card is the only place with numeric (spinbutton) inputs
   const firstDemand = page.getByRole("spinbutton").first();
@@ -45,13 +57,13 @@ test("what-if 'apply all' re-balances the factory in one undoable step", async (
   // 2× + 1 guarantees a real increase even if the current target reads 0
   await firstDemand.fill(String(current * 2 + 1));
 
-  // the doubled demand cascades into real per-block changes → Apply all enables
-  const applyAll = page.getByRole("button", { name: "Apply all" });
+  // the doubled demand cascades into real per-block changes → Apply scenario enables
+  const applyAll = page.getByRole("button", { name: "Apply scenario" });
   await expect(applyAll).toBeEnabled({ timeout: 15_000 });
   await applyAll.click();
 
   // confirm dialog summarizes the change; commit it
-  const dialog = page.getByRole("dialog", { name: /Re-balance the whole factory/ });
+  const dialog = page.getByRole("dialog", { name: /Apply this factory scenario/ });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: /^Apply \d+ change/ }).click();
   // the apply iterates the solve to convergence across every touched block, so the
@@ -72,7 +84,60 @@ test("what-if 'apply all' re-balances the factory in one undoable step", async (
   await expect(undoButton(page)).toBeEnabled();
   await undoButton(page).click();
   await expect(toast(page, /Undid: Re-balance factory/)).toBeVisible({ timeout: 30_000 });
+});
 
+test("Scenario can start a valid zero-rate producer", async ({ page }) => {
+  test.setTimeout(120_000);
+  // Tar's current byproducts can eventually cover all Coke demand. Disable that
+  // competing incidental source in the scratch project so this test isolates
+  // the idle configured Coke producer rather than supply substitution.
+  const setup = new DatabaseSync(activeProjectDbFile());
+  const tarEnabled = (setup.prepare("SELECT enabled FROM blocks WHERE id = 38").get() as {
+    enabled: number;
+  }).enabled;
+  try {
+    setup.prepare("UPDATE blocks SET enabled = 0 WHERE id = 38").run();
+  } finally {
+    setup.close();
+  }
+
+  try {
+    await goto(page, "/factory/scenario");
+    await dismissDataDriftPrompt(page);
+
+    const change = page.getByRole("link", { name: /^Coke / });
+    await expect(change).toContainText("0");
+    await expect(change).toContainText("start");
+
+    await page.getByRole("button", { name: "Balance factory", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: /Balance the whole factory/ });
+    await dialog.getByRole("button", { name: /^Apply \d+ change/ }).click();
+    await expect(dialog).toBeHidden({ timeout: 45_000 });
+    await expect(undoButton(page)).toHaveAccessibleName(/Undo: Re-balance factory/, {
+      timeout: 15_000,
+    });
+
+    const saved = new DatabaseSync(activeProjectDbFile(), { readOnly: true });
+    try {
+      const row = saved.prepare("SELECT data FROM blocks WHERE name = 'Coke'").get() as {
+        data: string;
+      };
+      const doc = JSON.parse(row.data) as { goals: { name: string; rate: number }[] };
+      expect(doc.goals.find((goal) => goal.name === "coke")?.rate).toBeGreaterThan(0);
+    } finally {
+      saved.close();
+    }
+
+    await undoButton(page).click();
+    await expect(toast(page, /Undid: Re-balance factory/)).toBeVisible({ timeout: 30_000 });
+  } finally {
+    const restore = new DatabaseSync(activeProjectDbFile());
+    try {
+      restore.prepare("UPDATE blocks SET enabled = ? WHERE id = 38").run(tarEnabled);
+    } finally {
+      restore.close();
+    }
+  }
 });
 
 test("Scenario applies a secondary consume goal independently", async ({ page }) => {
@@ -80,6 +145,7 @@ test("Scenario applies a secondary consume goal independently", async ({ page })
   // Resolve the copied project's existing projections before inserting the two
   // self-contained test blocks and their cached factory boundary flows.
   await goto(page, "/factory/scenario");
+  await dismissDataDriftPrompt(page);
 
   const sourceName = uniqueName("Acetaldehyde surplus");
   const sinkName = uniqueName("Secondary sink");
@@ -120,12 +186,12 @@ test("Scenario applies a secondary consume goal independently", async ({ page })
   }
 
   await goto(page, "/factory/scenario");
-  const change = page.getByRole("link", { name: /^Acetaldehyde / });
+  const change = page.getByRole("link", { name: /^Acetaldehyde -2/ });
   await expect(change).toContainText("-2");
   await expect(change).toContainText("-10");
 
-  await page.getByRole("button", { name: "Apply all" }).click();
-  const dialog = page.getByRole("dialog", { name: /Re-balance the whole factory/ });
+  await page.getByRole("button", { name: "Balance factory", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: /Balance the whole factory/ });
   await dialog.getByRole("button", { name: /^Apply \d+ change/ }).click();
   await expect(dialog).toBeHidden({ timeout: 45_000 });
   await expect(toast(page, /Re-balanced \d+ block/)).toBeVisible({ timeout: 15_000 });

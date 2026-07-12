@@ -22,6 +22,15 @@ export type BlockWithFlows = {
   /** Full goal set. Secondary consume goals can be adjusted independently of
    * the primary rate when they absorb a surplus from another block. */
   goals?: { name: string; rate: number; stock?: boolean }[];
+  /** Actual persisted flows when `flows` is a normalized probe model for an
+   * idle zero-rate producer. Current totals come from these; LP coefficients
+   * come from `flows`. */
+  currentFlows?: { item: string; kind: string; role: string; rate: number; priority?: number }[];
+  /** Current multiplier of the model row. Normal rows are at 1; a probed idle
+   * row is at 0 and can be activated by the factory solve. */
+  currentScale?: number;
+  /** The zero-rate goal used to build a normalized model row. */
+  probe?: { goal: string; rate: number };
   flows: { item: string; kind: string; role: string; rate: number; priority?: number }[];
 };
 

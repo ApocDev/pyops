@@ -25,7 +25,8 @@ import * as dump from "./dump.server.ts";
 import * as cfg from "./app-config.server.ts";
 import { computeCostAnalysis } from "./cost-analysis.server.ts";
 import { currentDatabaseFile } from "../db/index.server.ts";
-import { factoryWhatIf } from "./factory-solve.server.ts";
+import { factoryBalanceStep } from "./factory-balance-step.server.ts";
+import { previewFactoryBalance, withFactoryModel } from "./factory-balance.server.ts";
 import { APP_CONFIG_FILE, DATA_DIR, ICON_DATA_DIR, PROJECTS_DIR } from "./paths.server.ts";
 import { withUndoAction } from "./undo-action.server.ts";
 import { captureSnapshot } from "./snapshots.server.ts";
@@ -322,14 +323,14 @@ export const factoryTotalsFn = createServerFn({ method: "GET" }).handler(async (
   return q.factoryTotals();
 });
 
-/** Factory what-if: solve the whole factory for the per-block scale changes
- * that satisfy all demands/consumptions. `demands` overrides a final product's rate
- * (e.g. science → 2/s) to see the cascade; unspecified demands stay at current. */
+/** Factory preview: compute the next per-goal changes that balance current
+ * cross-block demand and surplus. `demands` can override a terminal product's
+ * rate (e.g. science → 2/s); unspecified terminal goals stay pinned. */
 export const factoryWhatIfFn = createServerFn({ method: "POST" })
   .validator((d: { demands?: Record<string, number> }) => d)
   .handler(async ({ data }) => {
     await ensureSolvedProjections();
-    const result = await factoryWhatIf(q.blocksWithFlows(), data.demands ?? {});
+    const result = await previewFactoryBalance(data.demands ?? {});
     const display = (name: string) => pseudoDisplay(name) ?? q.classifyRef(name)?.display ?? name;
     return {
       ...result,
@@ -347,25 +348,21 @@ export const factoryWhatIfFn = createServerFn({ method: "POST" })
     };
   });
 
-// Re-balance convergence controls. The factory what-if models each block as one
-// uniform scalar, but a block only scales linearly with its PRIMARY goal — a
-// second goal, a keep-in-stock goal, spoil rates, or a count/cap pin are fixed
-// offsets (see boundaryFlows). So one LP pass is a *linearization* around the
-// current rates; blocks with those fixed parts land off-target and a fresh solve
-// still shows residual changes. We iterate solve→apply (re-linearizing each pass)
-// until every block's scale settles, then persist once — successive substitution.
+// Factory balancing is a fixed-point loop like YAFC's: one pass adjusts declared
+// goals from the current cross-block mismatches, changed blocks re-solve, and the
+// next pass sees their new imports/byproducts. Repeat until no actionable goal
+// change remains, then persist the settled docs once.
 const REBALANCE_MAX_PASSES = 15;
 const REBALANCE_TOL = 0.005; // settled when the largest per-pass scale step < 0.5%
 
-/** Apply a whole-factory re-balance (what-if "apply all"): iterate the same LP the
- * what-if page shows — for the given demand overrides (empty = keep every final
- * product at its current rate) — to convergence, re-solving each block against the
- * previous pass's rates, then persist every block whose settled rate differs from
- * where it started. The whole batch is ONE undo step ("Re-balance factory").
+/** Apply a whole-factory balance: iterate the same goal-mismatch pass the Scenario
+ * page shows — for the given demand overrides (empty = keep every final product at
+ * its current rate) — to convergence, re-solving changed blocks between passes,
+ * then persist every settled goal change. The whole batch is ONE undo step.
  *
  * All iteration is in memory (no intermediate writes): only the converged rates
  * are persisted, so the undo log holds a single clean before/after per block.
- * Blocks the solve leaves put (sinks, power/utility, ~0 delta) never change; a
+ * Blocks the balance leaves put (power/utility and ~0 deltas) never change; a
  * block that fails to re-solve is reported broken and left as-is. `passes` and
  * `residual` report how far it got — a non-Optimal solve or hitting the pass cap
  * means the target can't be balanced exactly (typically byproduct surplus). */
@@ -395,7 +392,7 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
           cachedFlows: b.flows, // fall back to these if a fresh solve is broken
           flows: b.flows,
           // The persisted flows already describe the starting doc, so pass one
-          // can go straight to the factory LP. Later passes only solve docs whose
+          // can go straight to the balance pass. Later passes only solve docs whose
           // primary rate actually changed in the preceding pass.
           dirty: false,
           latestResult: null as Awaited<ReturnType<typeof computeBlock>> | null,
@@ -406,6 +403,7 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
     let status = "Optimal";
     let passes = 0;
     let residual = 0;
+    const failedBlocks = new Map<number, string>();
     for (; passes < REBALANCE_MAX_PASSES; passes++) {
       // Pass one uses SQLite's persisted boundary flows. On later passes, only
       // re-solve docs whose rate changed; unchanged blocks keep their latest
@@ -416,15 +414,27 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
             const r = await computeBlock(b.doc);
             b.latestResult = r;
             b.dirty = false;
+            if (r.broken || r.status !== "solved") {
+              failedBlocks.set(b.id, b.name);
+              return {
+                id: b.id,
+                name: b.name,
+                rate: primaryRate(b.doc),
+                goals: b.doc.goals.map((goal) => ({
+                  name: goal.name,
+                  rate: goal.rate,
+                  ...(goal.stock != null ? { stock: true } : {}),
+                })),
+                flows: b.cachedFlows,
+              };
+            }
             const blockPriority = b.doc.supplyPriority ?? 0;
-            b.flows = r.broken
-              ? b.cachedFlows
-              : boundaryFlows(goalFlows(b.doc), r).map((flow) => ({
-                  ...flow,
-                  priority: b.doc.supplyPriorities?.[flow.item] ?? blockPriority,
-                }));
+            b.flows = boundaryFlows(goalFlows(b.doc), r).map((flow) => ({
+              ...flow,
+              priority: b.doc.supplyPriorities?.[flow.item] ?? blockPriority,
+            }));
           }
-          return {
+          const block = {
             id: b.id,
             name: b.name,
             rate: primaryRate(b.doc),
@@ -435,14 +445,19 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
             })),
             flows: b.flows,
           };
+          return withFactoryModel(block, b.doc);
         }),
       );
-      const result = await factoryWhatIf(withFlows, overrides);
+      if (failedBlocks.size > 0) {
+        status = "Infeasible";
+        break;
+      }
+      const result = factoryBalanceStep(withFlows, overrides);
       status = result.status;
       // Goal changes are the only actionable controls. A scale on a utility or
       // goal-less block cannot be applied and must not keep the iteration alive.
       residual = result.goalChanges.reduce(
-        (m, change) => Math.max(m, Math.abs(change.scale - 1)),
+        (m, change) => Math.max(m, change.activation ? 1 : Math.abs(change.scale - 1)),
         0,
       );
       // a non-Optimal solve is not safe to apply — stop and report where we are
@@ -462,8 +477,10 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
       }
     }
 
+    if (passes >= REBALANCE_MAX_PASSES && residual > REBALANCE_TOL) status = "IterationLimit";
+
     const applied: { id: number; name: string; from: number; to: number }[] = [];
-    const broken: { id: number; name: string }[] = [];
+    const broken = [...failedBlocks].map(([id, name]) => ({ id, name }));
     if (status === "Optimal") {
       await withUndoAction("Re-balance factory", async () => {
         for (const b of base) {
@@ -476,14 +493,14 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
           );
           if (rel <= REBALANCE_TOL && !goalsChanged) continue;
           // A converged pass has already computed this exact doc. Only the pass-
-          // cap case can leave a just-scaled doc dirty; solve that once here, then
+          // cap case can leave a just-adjusted doc dirty; solve that once here, then
           // persist the retained result rather than doing a redundant final solve.
           if (b.dirty || !b.latestResult) {
             b.latestResult = await computeBlock(b.doc);
             b.dirty = false;
           }
           const r = b.latestResult;
-          if (r.broken) {
+          if (r.broken || r.status !== "solved") {
             broken.push({ id: b.id, name: b.name });
             continue;
           }

@@ -18,7 +18,7 @@ vi.mock("../db/queries.server.ts", () => ({
   getFluid: vi.fn(() => null),
 }));
 
-vi.mock("./factory-solve.server.ts", () => ({ factoryWhatIf: vi.fn() }));
+vi.mock("./factory-balance-step.server.ts", () => ({ factoryBalanceStep: vi.fn() }));
 
 vi.mock("./undo-action.server.ts", () => ({
   withUndoAction: vi.fn((_name: string, fn: () => unknown) => Promise.resolve(fn())),
@@ -58,7 +58,7 @@ vi.mock("./block-compute.server.ts", () => ({
 
 const q = await import("../db/queries.server.ts");
 const blockCompute = await import("./block-compute.server.ts");
-const factorySolve = await import("./factory-solve.server.ts");
+const factoryBalance = await import("./factory-balance-step.server.ts");
 const undo = await import("./undo-action.server.ts");
 const { applyFactoryRebalanceFn } = await import("./factorio.ts");
 
@@ -79,10 +79,10 @@ const blockRow = (id: number, good: string, rate = 1) =>
   }) as unknown as NonNullable<ReturnType<typeof q.getBlock>>;
 
 const factoryResult = (
-  blocks: Parameters<typeof factorySolve.factoryWhatIf>[0],
+  blocks: Parameters<typeof factoryBalance.factoryBalanceStep>[0],
   scales: Record<number, number>,
-  status: Awaited<ReturnType<typeof factorySolve.factoryWhatIf>>["status"] = "Optimal",
-): Awaited<ReturnType<typeof factorySolve.factoryWhatIf>> => {
+  status: ReturnType<typeof factoryBalance.factoryBalanceStep>["status"] = "Optimal",
+): ReturnType<typeof factoryBalance.factoryBalanceStep> => {
   const report = blocks.map((block) => {
     const scale = scales[block.id] ?? 1;
     return {
@@ -148,14 +148,14 @@ describe("applyFactoryRebalanceFn solve reuse", () => {
       id === 1 ? blockRow(1, "first") : blockRow(2, "second"),
     );
 
-    const solved = { broken: false, exports: [], imports: [] };
+    const solved = { broken: false, status: "solved", exports: [], imports: [] };
     vi.mocked(blockCompute.computeBlock).mockResolvedValue(solved as never);
-    vi.mocked(factorySolve.factoryWhatIf)
-      .mockImplementationOnce(async (blocks) => {
+    vi.mocked(factoryBalance.factoryBalanceStep)
+      .mockImplementationOnce((blocks) => {
         expect(blocks.map((block) => block.flows)).toEqual([firstFlows, secondFlows]);
         return factoryResult(blocks, { 1: 2, 2: 1 });
       })
-      .mockImplementationOnce(async (blocks) => {
+      .mockImplementationOnce((blocks) => {
         expect(blocks.map((block) => block.rate)).toEqual([2, 1]);
         return factoryResult(blocks, { 1: 1, 2: 1 });
       });
@@ -184,7 +184,7 @@ describe("applyFactoryRebalanceFn solve reuse", () => {
     });
   });
 
-  it("retains a broken changed-doc result without retrying it during persistence", async () => {
+  it("aborts atomically when a changed block cannot re-solve", async () => {
     vi.mocked(q.blocksWithFlows).mockReturnValue([
       {
         id: 1,
@@ -200,14 +200,15 @@ describe("applyFactoryRebalanceFn solve reuse", () => {
       exports: [],
       imports: [],
     } as never);
-    vi.mocked(factorySolve.factoryWhatIf)
-      .mockImplementationOnce(async (blocks) => factoryResult(blocks, { 1: 2 }))
-      .mockImplementationOnce(async (blocks) => factoryResult(blocks, { 1: 1 }));
+    vi.mocked(factoryBalance.factoryBalanceStep).mockImplementationOnce((blocks) =>
+      factoryResult(blocks, { 1: 2 }),
+    );
 
     const result = await applyFactoryRebalanceFn({ data: {} });
 
     expect(blockCompute.computeBlock).toHaveBeenCalledTimes(1);
     expect(blockCompute.persistBlock).not.toHaveBeenCalled();
+    expect(result.status).toBe("Infeasible");
     expect(result.applied).toEqual([]);
     expect(result.broken).toEqual([{ id: 1, name: "Block 1" }]);
   });
@@ -223,7 +224,7 @@ describe("applyFactoryRebalanceFn solve reuse", () => {
       },
     ]);
     vi.mocked(q.getBlock).mockReturnValue(blockRow(1, "first"));
-    vi.mocked(factorySolve.factoryWhatIf).mockImplementationOnce(async (blocks) =>
+    vi.mocked(factoryBalance.factoryBalanceStep).mockImplementationOnce((blocks) =>
       factoryResult(blocks, { 1: 1 }),
     );
 
@@ -232,6 +233,98 @@ describe("applyFactoryRebalanceFn solve reuse", () => {
     expect(blockCompute.computeBlock).not.toHaveBeenCalled();
     expect(blockCompute.persistBlock).not.toHaveBeenCalled();
     expect(result).toMatchObject({ status: "Optimal", passes: 0, residual: 0 });
+  });
+
+  it("probes and activates a valid zero-rate producer", async () => {
+    const zeroFlows = persistedFlows("coke", 0);
+    vi.mocked(q.blocksWithFlows).mockReturnValue([
+      {
+        id: 1,
+        name: "Coke",
+        rate: 0,
+        goals: [{ name: "coke", rate: 0 }],
+        flows: zeroFlows,
+      },
+    ]);
+    vi.mocked(q.getBlock).mockReturnValue({
+      ...blockRow(1, "coke", 0),
+      name: "Coke",
+      data: { goals: [{ name: "coke", rate: 0 }], recipes: ["make-coke"] },
+    } as never);
+
+    const probe = {
+      broken: false,
+      status: "solved",
+      unmade: [],
+      exports: [],
+      imports: [{ name: "coal", kind: "item", rate: 2 }],
+    };
+    const activated = {
+      broken: false,
+      status: "solved",
+      unmade: [],
+      exports: [],
+      imports: [{ name: "coal", kind: "item", rate: 4 }],
+    };
+    vi.mocked(blockCompute.computeBlock)
+      .mockResolvedValueOnce(probe as never)
+      .mockResolvedValueOnce(activated as never);
+    vi.mocked(factoryBalance.factoryBalanceStep)
+      .mockImplementationOnce((blocks) => {
+        expect(blocks[0]).toMatchObject({
+          rate: 0,
+          currentScale: 0,
+          probe: { goal: "coke", rate: 1 },
+          currentFlows: zeroFlows,
+        });
+        expect(blocks[0]!.flows).toEqual([
+          { item: "coke", kind: "item", role: "primary", rate: 1, priority: 0 },
+          { name: "coal", item: "coal", kind: "item", role: "import", rate: 2, priority: 0 },
+        ]);
+        return {
+          ...factoryResult(blocks, { 1: 2 }),
+          goalChanges: [
+            {
+              id: 1,
+              name: "Coke",
+              good: "coke",
+              kind: "item",
+              currentRate: 0,
+              requiredRate: 2,
+              scale: 2,
+              delta: 2,
+              goal: true,
+              activation: true,
+            },
+          ],
+        };
+      })
+      .mockImplementationOnce((blocks) => {
+        expect(blocks[0]).not.toHaveProperty("probe");
+        expect(blocks[0]!.rate).toBe(2);
+        return factoryResult(blocks, { 1: 1 });
+      });
+
+    const result = await applyFactoryRebalanceFn({ data: { demands: { coke: 2 } } });
+
+    expect(blockCompute.computeBlock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ goals: [{ name: "coke", rate: 1 }] }),
+    );
+    expect(blockCompute.computeBlock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ goals: [{ name: "coke", rate: 2 }] }),
+    );
+    expect(blockCompute.persistBlock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1 }),
+      expect.objectContaining({ goals: [{ name: "coke", rate: 2 }] }),
+      activated,
+    );
+    expect(result).toMatchObject({
+      status: "Optimal",
+      applied: [{ id: 1, name: "Coke", from: 0, to: 2 }],
+      broken: [],
+    });
   });
 
   it("applies and persists a secondary consume-goal change", async () => {
@@ -265,6 +358,7 @@ describe("applyFactoryRebalanceFn solve reuse", () => {
 
     const solved = {
       broken: false,
+      status: "solved",
       exports: [],
       imports: [
         { name: "tar", kind: "fluid", rate: 9.575 },
@@ -272,8 +366,8 @@ describe("applyFactoryRebalanceFn solve reuse", () => {
       ],
     };
     vi.mocked(blockCompute.computeBlock).mockResolvedValue(solved as never);
-    vi.mocked(factorySolve.factoryWhatIf)
-      .mockImplementationOnce(async (blocks) => ({
+    vi.mocked(factoryBalance.factoryBalanceStep)
+      .mockImplementationOnce((blocks) => ({
         ...factoryResult(blocks, { 1: 1 }),
         goalChanges: [
           {
@@ -289,7 +383,7 @@ describe("applyFactoryRebalanceFn solve reuse", () => {
           },
         ],
       }))
-      .mockImplementationOnce(async (blocks) => factoryResult(blocks, { 1: 1 }));
+      .mockImplementationOnce((blocks) => factoryResult(blocks, { 1: 1 }));
 
     const result = await applyFactoryRebalanceFn({ data: {} });
 

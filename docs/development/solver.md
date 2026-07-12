@@ -322,26 +322,33 @@ old generation, ensuring preserved values cannot be mistaken for current calcula
 
 ## Factory Scenario model
 
-Factory Scenario is a separate LP over enabled blocks. Each block becomes a fixed-ratio
-super-recipe using its persisted boundary flows at the current scale. Variables are block
-scale factors.
+Factory Scenario balances enabled blocks through repeated goal-and-solve passes, similar to
+YAFC's factory balancing. Each pass reads the persisted boundary flows, keeps terminal positive
+goals fixed, and computes the current mismatch for every good. Intermediate positive goals move
+to downstream demand after incidental byproducts are credited; negative goals move to absorb
+byproduct-only surplus.
 
-The LP still uses block scale factors internally as a linearization, but its actionable output
-is one change per throughput goal. Applying a scale multiplies every rate goal in that block;
-it never collapses a multi-goal block back to its first goal. A later negative goal can also
-move independently to absorb an overproduced good. **Apply all** updates the listed goals,
-re-solves each affected block, and repeats the factory projection until the new boundary flows
-settle. Stock goals keep their amount/window controls and are not rewritten as rates.
+The actionable output is one change per throughput goal—it never collapses a multi-goal block
+back to its first goal. **Balance factory** updates those goals, re-solves each affected block,
+recomputes boundary flows, and repeats until the mismatches settle. With an explicit
+final-product override the action is labelled **Apply scenario**. Stock goals keep their
+amount/window controls and are not rewritten as rates.
 
-Exact equality is unsuitable because multiproduct blocks force off-ratio surplus. The model
-uses production greater than or equal to demand and minimizes total scaling. It reports the
-required goal changes without writing them.
+A block whose primary goal is `0/s` has no useful persisted ingredient/product rates. Before
+including it as an available producer, the factory model solves it at a temporary `1/s` primary
+goal without saving. The balance pass can then emit an activation goal change from the actual
+downstream demand. Once applied, the ordinary block solve supplies the next pass's real boundary
+flows.
+
+The balance pass only adjusts goods with a configured production goal. A required ingredient
+without one remains an explicit raw import instead of making the entire factory balance
+infeasible.
 
 ### Primary outputs and byproducts
 
-Only primary and stock outputs can drive a block's scale. Byproducts and incidental spoilage
-are offered up to their current cached amount but cannot run their source block solely to
-make more. Remaining demand falls through to scalable primary suppliers.
+Only explicit positive goals can be resized to satisfy demand. Byproducts and incidental
+spoilage offset demand at their current solved amount but cannot run their source block solely
+to make more. Remaining demand falls through to a configured positive producer or a raw import.
 
 This preserves the same boundary semantics as a single block: incidental production can
 offset demand but cannot silently redefine the plan.
