@@ -54,10 +54,17 @@ Select **Scenario** in the Factory workspace. It solves the enabled blocks as on
 speculative system without saving changes.
 
 1. Under **Final products**, edit the rate of the product you want to change.
-2. Read **Block changes** for each block's current rate, required rate, and scale factor.
+2. Read **Goal changes** for each affected good's current rate, required rate, and scale
+   factor. Select a good to open the block that owns its goal.
 3. Check **Raw inputs** for the projected demand from outside the planned factory.
 4. Check **Overproduced** for goods that would accumulate without another consumer.
-5. Open an affected block when you are ready to apply its new rate.
+5. Open an affected block to adjust it yourself, or use **Apply all** to apply every listed
+   block and goal change as one undoable action.
+
+Scenario balances goals, not an opaque shared block rate. When a block has an additional
+negative goal, it can balance that intake without changing the block's first goal. For example,
+if a Tar block consumes Shale oil as its second goal, surplus Shale oil produces a
+**Shale oil** row with the required consume rate.
 
 Use **reset to current** to discard the speculative target.
 

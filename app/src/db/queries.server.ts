@@ -2005,6 +2005,7 @@ export function blocksWithFlows(): {
   name: string;
   rate: number;
   priority?: number;
+  goals: { name: string; rate: number; stock?: boolean }[];
   flows: (BlockFlow & { priority?: number })[];
 }[] {
   const bs = db
@@ -2021,6 +2022,11 @@ export function blocksWithFlows(): {
       id: b.id,
       name: b.name,
       rate: primaryRate(data),
+      goals: data.goals.map((goal) => ({
+        name: goal.name,
+        rate: goal.rate,
+        ...(goal.stock != null ? { stock: true } : {}),
+      })),
       priority: blockPriority,
       flows: (flowsByBlock.get(b.id) ?? []).map((flow) => ({
         ...flow,

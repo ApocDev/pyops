@@ -19,6 +19,9 @@ export type BlockWithFlows = {
   name: string;
   rate: number;
   priority?: number;
+  /** Full goal set. Secondary consume goals can be adjusted independently of
+   * the primary rate when they absorb a surplus from another block. */
+  goals?: { name: string; rate: number; stock?: boolean }[];
   flows: { item: string; kind: string; role: string; rate: number; priority?: number }[];
 };
 
@@ -49,6 +52,10 @@ function bump(map: Map<string, number>, key: string, amt: number) {
   map.set(key, (map.get(key) ?? 0) + amt);
 }
 const round = (n: number) => +n.toFixed(4);
+/** Match Scenario's actionable/UI floor. Sub-1% goal changes are rounding
+ * linearization noise, not buildable work, and repeatedly applying them can
+ * destabilize an otherwise solved factory model. */
+const GOAL_SCALE_EPS = 0.01;
 
 export async function factoryWhatIf(
   blocks: BlockWithFlows[],
@@ -264,12 +271,96 @@ export async function factoryWhatIf(
     const surplus = (projProduced.get(g) ?? 0) - (projConsumed.get(g) ?? 0);
     return { id: sb.id, name: sb.name, scale: round(1 + surplus / intake) };
   };
+  // The LP uses one scale per block internally, but the persisted/actionable
+  // controls are GOALS. Translate a block scale into an explicit change for
+  // every throughput goal so a multi-goal block never collapses back to its
+  // first goal when the result is applied. Stock goals have their own amount +
+  // window control and are not rewritten as rates here.
+  const goalChangeMap = new Map<
+    string,
+    {
+      id: number;
+      name: string;
+      good: string;
+      kind: string;
+      currentRate: number;
+      requiredRate: number;
+      scale: number;
+      delta: number;
+      goal: true;
+    }
+  >();
+  const changeKey = (id: number, goal: string) => `${id}\u0000${goal}`;
+  for (const b of blocks) {
+    const scale = scaleById.get(b.id) ?? 1;
+    for (const goal of b.goals ?? []) {
+      if (goal.stock || Math.abs(goal.rate) <= 1e-9 || Math.abs(scale - 1) <= GOAL_SCALE_EPS)
+        continue;
+      const requiredRate = round(goal.rate * scale);
+      goalChangeMap.set(changeKey(b.id, goal.name), {
+        id: b.id,
+        name: b.name,
+        good: goal.name,
+        kind: kindOf.get(goal.name) ?? "item",
+        currentRate: round(goal.rate),
+        requiredRate,
+        scale: round(scale),
+        delta: round(requiredRate - goal.rate),
+        goal: true,
+      });
+    }
+  }
+
+  // A later negative goal is also an independently adjustable intake target.
+  // If it already absorbs an overproduced good, add the remaining surplus to
+  // that goal after accounting for any whole-block scaling above.
+  const secondarySinkChange = (g: string) => {
+    const surplus = (projProduced.get(g) ?? 0) - (projConsumed.get(g) ?? 0);
+    if (surplus <= 1e-3) return null;
+    for (const b of blocks) {
+      const goal = b.goals
+        ?.slice(1)
+        .find((candidate) => candidate.name === g && candidate.rate < 0);
+      if (!goal || !b.flows.some((f) => f.item === g && f.role === "import")) continue;
+      const scaledRate = goal.rate * (scaleById.get(b.id) ?? 1);
+      const requiredRate = round(scaledRate - surplus);
+      return {
+        id: b.id,
+        name: b.name,
+        good: g,
+        kind: kindOf.get(g) ?? "item",
+        currentRate: round(goal.rate),
+        requiredRate,
+        scale: round(requiredRate / goal.rate),
+        delta: round(requiredRate - goal.rate),
+        goal: true as const,
+      };
+    }
+    return null;
+  };
+  for (const g of goods) {
+    const change = secondarySinkChange(g);
+    if (change) goalChangeMap.set(changeKey(change.id, change.good), change);
+  }
+  const goalChanges = [...goalChangeMap.values()].sort(
+    (a, b) => Math.abs(b.delta) - Math.abs(a.delta),
+  );
+  const goalChangeByGood = new Map(goalChanges.map((change) => [change.good, change]));
   const overproduced = goods
     .map((g) => ({
       ...good(g),
       cls: classify(g),
       projected: round((projProduced.get(g) ?? 0) - (projConsumed.get(g) ?? 0)),
-      absorb: classify(g) === "surplus" ? absorbHint(g) : null,
+      absorb:
+        classify(g) === "surplus"
+          ? goalChangeByGood.get(g)
+            ? {
+                id: goalChangeByGood.get(g)!.id,
+                name: goalChangeByGood.get(g)!.name,
+                goalRate: goalChangeByGood.get(g)!.requiredRate,
+              }
+            : absorbHint(g)
+          : null,
     }))
     .filter((x) => (x.cls === "surplus" || x.cls === "intermediate") && x.projected > 1e-3)
     .sort((a, b) => b.projected - a.projected);
@@ -294,6 +385,7 @@ export async function factoryWhatIf(
       }))
       .sort((a, b) => b.projected - a.projected),
     overproduced,
+    goalChanges,
     supplyAllocations,
   };
 }

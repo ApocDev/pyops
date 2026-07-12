@@ -201,6 +201,73 @@ describe("factoryWhatIf", () => {
     expect(byId(doubledScience.blocks, biocrudSink.id).scale).toBeCloseTo(1);
   });
 
+  it("proposes changing a secondary consume goal to absorb byproduct surplus", async () => {
+    const kerogen: BlockWithFlows = {
+      id: 22,
+      name: "Kerogen",
+      rate: -6.188,
+      goals: [{ name: "kerogen", rate: -6.188 }],
+      flows: [{ item: "scrude", kind: "fluid", role: "byproduct", rate: 61.88 }],
+    };
+    const tar: BlockWithFlows = {
+      id: 23,
+      name: "Tar",
+      rate: -9.575,
+      goals: [
+        { name: "tar", rate: -9.575 },
+        { name: "scrude", rate: -20 },
+      ],
+      flows: [
+        { item: "tar", kind: "fluid", role: "import", rate: 9.575 },
+        { item: "scrude", kind: "fluid", role: "import", rate: 20 },
+      ],
+    };
+
+    const r = await factoryWhatIf([kerogen, tar]);
+
+    expect(byId(r.blocks, tar.id).scale).toBeCloseTo(1);
+    expect(r.goalChanges).toEqual([
+      expect.objectContaining({
+        id: tar.id,
+        good: "scrude",
+        currentRate: -20,
+        requiredRate: -61.88,
+        scale: 3.094,
+        goal: true,
+      }),
+    ]);
+    expect(r.overproduced.find((flow) => flow.good === "scrude")?.absorb).toEqual({
+      id: tar.id,
+      name: "Tar",
+      goalRate: -61.88,
+    });
+  });
+
+  it("keeps a primary consume goal as a scale hint rather than a goal change", async () => {
+    const source: BlockWithFlows = {
+      id: 24,
+      name: "Source",
+      rate: 1,
+      flows: [{ item: "waste", kind: "fluid", role: "byproduct", rate: 10 }],
+    };
+    const sink: BlockWithFlows = {
+      id: 25,
+      name: "Sink",
+      rate: -2,
+      goals: [{ name: "waste", rate: -2 }],
+      flows: [{ item: "waste", kind: "fluid", role: "import", rate: 2 }],
+    };
+
+    const r = await factoryWhatIf([source, sink]);
+
+    expect(r.goalChanges).toEqual([]);
+    expect(r.overproduced.find((flow) => flow.good === "waste")?.absorb).toEqual({
+      id: sink.id,
+      name: "Sink",
+      scale: 5,
+    });
+  });
+
   it("uses preferred supply before a fallback producer", async () => {
     const preferred: BlockWithFlows = {
       id: 30,

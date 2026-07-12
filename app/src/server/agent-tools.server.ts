@@ -1287,7 +1287,13 @@ export const whatIf = tool({
       overproduced: result.overproduced.map((o) => ({
         ...o,
         absorb: o.absorb
-          ? { blockId: o.absorb.id, name: o.absorb.name, scale: o.absorb.scale }
+          ? "goalRate" in o.absorb
+            ? {
+                blockId: o.absorb.id,
+                name: o.absorb.name,
+                goalRate: o.absorb.goalRate,
+              }
+            : { blockId: o.absorb.id, name: o.absorb.name, scale: o.absorb.scale }
           : null,
       })),
     };

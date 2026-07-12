@@ -36,9 +36,9 @@ import { rateLabel } from "../lib/format";
 // so treat it as balanced. Matches the server's re-balance convergence tolerance.
 const SCALE_EPS = 0.01;
 
-/** Factory what-if: the whole factory solved as one block. Set a final
- * product's rate and see the per-block scale changes needed to satisfy every
- * demand/consumption — your work list to scale each block (or ignore). */
+/** Factory what-if: the whole factory solved as one system. Set a final
+ * product's rate and see the per-goal changes needed to satisfy every
+ * demand/consumption. */
 function WhatIf() {
   const [overrides, setOverrides] = useState<Record<string, number>>({});
   const wf = useQuery({
@@ -49,7 +49,9 @@ function WhatIf() {
     placeholderData: keepPreviousData,
   });
   const r = wf.data;
-  const changed = (r?.blocks ?? []).filter((b) => Math.abs(b.scale - 1) > SCALE_EPS);
+  const changed = (r?.goalChanges ?? [])
+    .filter((goal) => Math.abs(goal.scale - 1) > SCALE_EPS)
+    .map((goal) => ({ ...goal, name: goal.display }));
 
   return (
     <div className="p-4 font-mono text-foreground">
@@ -69,7 +71,7 @@ function WhatIf() {
               <p>
                 Scenario solves your{" "}
                 <span className="text-foreground">whole factory as one system</span>. Set a target
-                rate on any final product and it shows the per-block changes needed to satisfy every
+                rate on any final product and it shows the goal changes needed to satisfy every
                 downstream demand — a speculative &quot;if I wanted N/s of X, what changes?&quot;
               </p>
               <p>
@@ -85,9 +87,9 @@ function WhatIf() {
                     drive the cascade.
                   </li>
                   <li>
-                    <span className="text-foreground">Block changes</span> — your work list: each
-                    block&apos;s current rate, the required rate, and the ×scale to get there. Click
-                    a block to open its editor.
+                    <span className="text-foreground">Goal changes</span> — your work list: each
+                    affected good&apos;s current target, required target, and ×scale. The block name
+                    shows where that goal lives; click the row to open it.
                   </li>
                   <li>
                     <span className="text-foreground">Supply priority</span> — when several blocks
@@ -121,11 +123,11 @@ function WhatIf() {
                   Say your automation-science block currently runs at{" "}
                   <span className="text-foreground">0.5/s</span> and you want{" "}
                   <span className="text-foreground">1/s</span>. Set its target to 1 and the cascade
-                  updates: <span className="text-foreground">Block changes</span> lists that block
-                  at <span className="text-foreground">×2</span>, plus every upstream block that
-                  feeds it rescaled to match; <span className="text-foreground">Raw inputs</span>{" "}
-                  shows the new draw (current vs projected) so you can check a mine or import can
-                  keep up. Nothing is saved until you open a listed block and apply its new rate.
+                  updates: <span className="text-foreground">Goal changes</span> lists that good at
+                  <span className="text-foreground">×2</span>, plus every upstream goal that feeds
+                  it; <span className="text-foreground">Raw inputs</span> shows the new draw
+                  (current vs projected) so you can check a mine or import can keep up. Nothing is
+                  saved until you apply the listed goal changes.
                 </p>
               </div>
               <p>
@@ -145,7 +147,7 @@ function WhatIf() {
         <Card>
           <CardHeader>
             <CardTitle className="normal-case">Final products</CardTitle>
-            <InfoHint content="Set a target rate to see the per-block changes." />
+            <InfoHint content="Set a target rate to see the per-goal changes." />
           </CardHeader>
           <div className="divide-y divide-border">
             {(r?.demands ?? []).map((d) => {
@@ -191,10 +193,10 @@ function WhatIf() {
           </div>
         </Card>
 
-        {/* Block changes — the work list */}
+        {/* Goal changes — the work list */}
         <Card className="lg:col-span-2">
           <CardHeader className="justify-between">
-            <CardTitle className="normal-case">Block changes ({changed.length})</CardTitle>
+            <CardTitle className="normal-case">Goal changes ({changed.length})</CardTitle>
             <div className="flex items-center gap-3">
               <RebalanceAllButton
                 changed={changed}
@@ -205,7 +207,7 @@ function WhatIf() {
             </div>
           </CardHeader>
           <StatTableHeader
-            lead="block"
+            lead="good"
             cols={[
               { label: "current/s", w: "w-24" },
               { label: "required/s", w: "w-24" },
@@ -220,17 +222,17 @@ function WhatIf() {
             </div>
           ) : changed.length === 0 ? (
             <Callout tone="success" variant="strip">
-              already balanced for these demands — no block changes needed
+              already balanced for these demands — no goal changes needed
             </Callout>
           ) : (
             changed.map((b) => (
               <Link
-                key={b.id}
+                key={`${b.id}-${b.goal ? b.good : "primary"}`}
                 to="/block/$id"
                 params={{ id: String(b.id) }}
                 className="flex flex-col gap-1 border-t border-border px-3 py-2 text-sm hover:bg-muted md:flex-row md:items-center md:py-1.5"
               >
-                <span className="min-w-0 flex-1 truncate text-primary underline">{b.name}</span>
+                <span className="min-w-0 flex-1 truncate text-primary underline">{b.display}</span>
                 <span className="grid grid-cols-3 gap-x-3 md:flex">
                   <StatCell label="current/s" w="md:w-24" className="text-muted-foreground">
                     {rateLabel(b.good ?? "", b.currentRate)}
@@ -292,9 +294,15 @@ function WhatIf() {
                       to="/block/$id"
                       params={{ id: String(x.absorb.id) }}
                       className="ml-2 bg-muted/60 px-1.5 py-0.5 text-sm text-primary hover:bg-muted"
-                      title={`scale ${x.absorb.name} to absorb the surplus`}
+                      title={
+                        "goalRate" in x.absorb
+                          ? `change ${x.absorb.name}'s ${x.display} consume goal to absorb the surplus`
+                          : `scale ${x.absorb.name} to absorb the surplus`
+                      }
                     >
-                      → {x.absorb.name} ×{x.absorb.scale}
+                      {"goalRate" in x.absorb
+                        ? `→ ${x.display} goal ${rateLabel(x.good, x.absorb.goalRate)}/s`
+                        : `→ ${x.absorb.name} ×${x.absorb.scale}`}
                     </Link>
                   ) : (
                     <Tooltip content="no block consumes this yet">

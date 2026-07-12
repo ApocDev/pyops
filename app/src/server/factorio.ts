@@ -336,6 +336,10 @@ export const factoryWhatIfFn = createServerFn({ method: "POST" })
       demands: result.demands.map((g) => ({ ...g, display: display(g.good) })),
       raws: result.raws.map((g) => ({ ...g, display: display(g.good) })),
       overproduced: result.overproduced.map((g) => ({ ...g, display: display(g.good) })),
+      goalChanges: result.goalChanges.map((change) => ({
+        ...change,
+        display: display(change.good),
+      })),
       supplyAllocations: result.supplyAllocations.map((allocation) => ({
         ...allocation,
         display: display(allocation.good),
@@ -382,6 +386,12 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
           iconName: row.iconName,
           doc: normalizeBlockData(row.data as SolveInput) as SolveInput,
           startRate: b.rate,
+          startGoals: new Map(
+            (normalizeBlockData(row.data as SolveInput).goals ?? []).map((goal) => [
+              goal.name,
+              goal.rate,
+            ]),
+          ),
           cachedFlows: b.flows, // fall back to these if a fresh solve is broken
           flows: b.flows,
           // The persisted flows already describe the starting doc, so pass one
@@ -414,25 +424,40 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
                   priority: b.doc.supplyPriorities?.[flow.item] ?? blockPriority,
                 }));
           }
-          return { id: b.id, name: b.name, rate: primaryRate(b.doc), flows: b.flows };
+          return {
+            id: b.id,
+            name: b.name,
+            rate: primaryRate(b.doc),
+            goals: b.doc.goals.map((goal) => ({
+              name: goal.name,
+              rate: goal.rate,
+              ...(goal.stock != null ? { stock: true } : {}),
+            })),
+            flows: b.flows,
+          };
         }),
       );
       const result = await factoryWhatIf(withFlows, overrides);
       status = result.status;
-      const scaleById = new Map(result.blocks.map((rb) => [rb.id, rb.scale]));
-      residual = result.blocks.reduce((m, rb) => Math.max(m, Math.abs(rb.scale - 1)), 0);
+      // Goal changes are the only actionable controls. A scale on a utility or
+      // goal-less block cannot be applied and must not keep the iteration alive.
+      residual = result.goalChanges.reduce(
+        (m, change) => Math.max(m, Math.abs(change.scale - 1)),
+        0,
+      );
       // a non-Optimal solve is not safe to apply — stop and report where we are
       if (status !== "Optimal" || residual <= REBALANCE_TOL) break;
-      for (const b of base) {
-        const s = scaleById.get(b.id) ?? 1;
-        if (Math.abs(s - 1) < 1e-9) continue;
-        const rate = primaryRate(b.doc);
-        const nextRate = +(rate * s).toFixed(4);
-        if (nextRate === rate) continue;
-        const nextDoc = withPrimaryRate(b.doc, nextRate) as SolveInput;
-        // Empty/utility blocks have no primary goal for withPrimaryRate to edit.
-        if (primaryRate(nextDoc) === rate) continue;
-        b.doc = nextDoc;
+      for (const change of result.goalChanges) {
+        const b = base.find((candidate) => candidate.id === change.id);
+        if (!b) continue;
+        const current = b.doc.goals.find((goal) => goal.name === change.good)?.rate;
+        if (current == null || current === change.requiredRate) continue;
+        b.doc = {
+          ...b.doc,
+          goals: b.doc.goals.map((goal) =>
+            goal.name === change.good ? { ...goal, rate: change.requiredRate } : goal,
+          ),
+        };
         b.dirty = true;
       }
     }
@@ -445,8 +470,11 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
           const finalRate = +primaryRate(b.doc).toFixed(4);
           // relative gate (matches the what-if UI's SCALE_EPS): don't rewrite a
           // block for a sub-percent wiggle — that's within rounding, not a change
-          const rel = b.startRate > 1e-9 ? Math.abs(finalRate / b.startRate - 1) : 0;
-          if (rel <= REBALANCE_TOL) continue;
+          const rel = Math.abs(b.startRate) > 1e-9 ? Math.abs(finalRate / b.startRate - 1) : 0;
+          const goalsChanged = b.doc.goals.some(
+            (goal) => Math.abs(goal.rate - (b.startGoals.get(goal.name) ?? goal.rate)) > 1e-9,
+          );
+          if (rel <= REBALANCE_TOL && !goalsChanged) continue;
           // A converged pass has already computed this exact doc. Only the pass-
           // cap case can leave a just-scaled doc dirty; solve that once here, then
           // persist the retained result rather than doing a redundant final solve.

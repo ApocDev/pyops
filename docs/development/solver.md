@@ -322,9 +322,16 @@ Factory Scenario is a separate LP over enabled blocks. Each block becomes a fixe
 super-recipe using its persisted boundary flows at the current scale. Variables are block
 scale factors.
 
+The LP still uses block scale factors internally as a linearization, but its actionable output
+is one change per throughput goal. Applying a scale multiplies every rate goal in that block;
+it never collapses a multi-goal block back to its first goal. A later negative goal can also
+move independently to absorb an overproduced good. **Apply all** updates the listed goals,
+re-solves each affected block, and repeats the factory projection until the new boundary flows
+settle. Stock goals keep their amount/window controls and are not rewritten as rates.
+
 Exact equality is unsuitable because multiproduct blocks force off-ratio surplus. The model
 uses production greater than or equal to demand and minimizes total scaling. It reports the
-required block changes without writing them.
+required goal changes without writing them.
 
 ### Primary outputs and byproducts
 

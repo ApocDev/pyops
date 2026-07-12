@@ -26,6 +26,8 @@ type BlockChange = {
   requiredRate: number;
   scale: number;
   delta: number;
+  /** true when this changes one secondary goal instead of the block's anchor */
+  goal?: boolean;
 };
 
 // Query families the apply touches — everything a block rate change feeds. Mirrors
@@ -45,7 +47,7 @@ const MOVERS_SHOWN = 6;
 
 /**
  * "Apply all" for the what-if page: commit the whole-factory re-balance the LP
- * found — set every listed block to its required rate in one undo step. Opens a
+ * found — set every listed goal to its required rate in one undo step. Opens a
  * (non-destructive) confirm summarizing the biggest movers first, since it's a
  * factory-wide write; the result is fully reversible via the undo toast.
  *
@@ -132,7 +134,7 @@ export function RebalanceAllButton({
           <span className="inline-flex">{button}</span>
         </Tooltip>
       ) : (
-        <Tooltip content="Set every listed block to its required rate in one step — undoable">
+        <Tooltip content="Set every listed goal to its required rate in one step — undoable">
           {button}
         </Tooltip>
       )}
@@ -145,14 +147,14 @@ export function RebalanceAllButton({
 
           <div className="flex min-h-0 flex-col gap-3 p-3">
             <DialogDescription>
-              Sets {changed.length} block{changed.length === 1 ? "" : "s"} to the rate the solve
-              found and re-solves each. This is a single undo step.
+              Applies {changed.length} block or goal change{changed.length === 1 ? "" : "s"} the
+              solve found and re-solves each affected block. This is a single undo step.
             </DialogDescription>
 
             <div className="max-h-64 min-h-0 overflow-auto border border-border">
               {movers.slice(0, MOVERS_SHOWN).map((b) => (
                 <div
-                  key={b.id}
+                  key={`${b.id}-${b.goal ? b.good : "primary"}`}
                   className="flex items-center gap-2 border-b border-border px-3 py-1.5 text-sm last:border-b-0"
                 >
                   <span className="min-w-0 flex-1 truncate">{b.name}</span>
@@ -185,7 +187,7 @@ export function RebalanceAllButton({
             <Button onClick={apply} disabled={applying}>
               {applying
                 ? "applying…"
-                : `Apply to ${changed.length} block${changed.length === 1 ? "" : "s"}`}
+                : `Apply ${changed.length} change${changed.length === 1 ? "" : "s"}`}
             </Button>
           </DialogFooter>
         </DialogContent>
