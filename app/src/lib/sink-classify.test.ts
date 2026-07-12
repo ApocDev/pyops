@@ -102,4 +102,31 @@ describe("drainsOnConsume", () => {
       }),
     ).toBe(false);
   });
+
+  it("drains a consumer whose product feeds back into an explicit sink goal", () => {
+    // Ash separation consumes the block's ash sink and exports soot. Choosing
+    // soot separation should process that surplus even though it returns a
+    // little ash to the preceding step.
+    expect(
+      drainsOnConsume({
+        good: "soot",
+        ingredients: [good("soot", 2)],
+        products: [good("iron-ore", 1), good("copper-ore", 1), good("ash", 1)],
+        consumedInBlock: new Set(["ash"]),
+        sinkGoals: new Set(["ash"]),
+      }),
+    ).toBe(true);
+  });
+
+  it("still does NOT drain feedback into a non-sink intermediate", () => {
+    expect(
+      drainsOnConsume({
+        good: "soot",
+        ingredients: [good("soot", 2)],
+        products: [good("ash", 1)],
+        consumedInBlock: new Set(["ash"]),
+        sinkGoals: new Set(),
+      }),
+    ).toBe(false);
+  });
 });

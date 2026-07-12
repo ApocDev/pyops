@@ -124,3 +124,42 @@ test("adding a coke consumer drains exported pitch and keeps a solved building c
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "0.67", exact: true })).toBeVisible();
 });
+
+test("adding a cyclic consumer processes surplus that returns to the sink goal", async ({
+  page,
+}) => {
+  // This is the real Ash separation -> Soot separation shape. Soot separation
+  // returns a little Ash to the explicit Ash sink; selecting it from the Soot
+  // export must still be the complete "process this surplus here" gesture.
+  const data = {
+    recipes: ["ash-separation"],
+    made: [],
+    pins: [{ kind: "drain", recipe: "ash-separation", item: "ash" }],
+    machines: { "ash-separation": "solid-separator" },
+    goals: [{ name: "ash", rate: -48.717 }],
+  };
+  const db = new DatabaseSync(activeProjectDbFile());
+  let id: number;
+  try {
+    db.exec("PRAGMA busy_timeout = 5000");
+    const inserted = db
+      .prepare("INSERT INTO blocks (name, data) VALUES (?, ?)")
+      .run(uniqueName("Ash soot cycle"), JSON.stringify(data));
+    id = Number(inserted.lastInsertRowid);
+  } finally {
+    db.close();
+  }
+
+  await goto(page, `/block/${id}`);
+  const soot = page.getByRole("button", { name: /^Soot 4\.87.*export/ }).first();
+  await expect(soot).toBeVisible();
+  await soot.click();
+
+  const picker = page.getByRole("dialog", { name: /Recipes that consume Soot/ });
+  await picker.getByRole("button", { name: /^Soot separation/ }).click();
+  await expect(picker).toBeHidden();
+
+  await expect(page.getByRole("button", { name: /^Soot .*export/ }).first()).toBeHidden();
+  await expect(page.getByLabel("routes all surplus Soot")).toBeVisible();
+  await expect(page.getByRole("button", { name: "2.56", exact: true })).toBeVisible();
+});

@@ -94,7 +94,9 @@ refining is still a pitch drain when coke leaves and its secondary oils are reus
 a drain or only mark the good as made. A reprocessor whose main product re-enters the block
 is only marked made, avoiding an implicit restructure of the whole chain. Recipes without a
 known main product use the conservative fallback: every non-input product must leave before
-the consumer becomes a drain.
+the consumer becomes a drain. Feedback into an explicit consume goal is also safe: selecting
+Soot separation from an exported Soot chip creates a drain even though it returns Ash to an
+Ash sink, because the sink goal continues to anchor the chain.
 
 The solved result also reports imports that an enabled in-block recipe could produce. The
 UI uses that signal to expose the common missing-made-rule case directly.

@@ -549,10 +549,12 @@ function Block({ blockId }: { blockId: number }) {
     // products feeds anything else in this block (they all leave). That's the
     // line between "consume the surplus" and "restructure production": a pure
     // void (coal-gas → ash, and nothing here uses ash) drains cleanly; a
-    // reprocessor whose output re-enters the chain (block 27's grade-2 →
-    // grade-3, which the chain consumes) is only marked made, never drained,
-    // so forcing it can't cascade. Read from the CURRENT solve (the block
-    // before this add), so newly-added terminal products still read as leaving.
+    // reprocessor whose output re-enters a non-goal intermediate (block 27's
+    // grade-2 → grade-3, which the chain consumes) is only marked made, never
+    // drained, so forcing it can't cascade. Feedback into an explicit sink goal
+    // is safe: that goal still anchors the chain. Read from the CURRENT solve
+    // (the block before this add), so newly-added terminal products still read
+    // as leaving.
     if (pickFor?.mode === "consume") {
       const good = pickFor.name;
       if (!goals.some((g) => g.name === good)) doc.markMade(good);
@@ -561,6 +563,7 @@ function Block({ blockId }: { blockId: number }) {
         const consumedInBlock = new Set(
           (res?.rows ?? []).flatMap((row) => row.ingredients.map((i) => i.name)),
         );
+        const sinkGoals = new Set(goals.filter((g) => g.rate < 0).map((g) => g.name));
         if (
           drainsOnConsume({
             good,
@@ -568,6 +571,7 @@ function Block({ blockId }: { blockId: number }) {
             ingredients: cand.ingredients,
             products: cand.products,
             consumedInBlock,
+            sinkGoals,
           })
         )
           doc.setPin({ kind: "drain", recipe: name, item: good });

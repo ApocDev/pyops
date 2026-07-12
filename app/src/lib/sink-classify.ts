@@ -14,21 +14,28 @@
  * feed back into the chain (pitch → coke also returns several oils); that should
  * not stop the explicitly chosen consumer from running. A reprocessor whose
  * main output re-enters the chain still stays unforced. Recipes without a known
- * main product retain the conservative all-products-must-leave fallback. */
+ * main product retain the conservative all-products-must-leave fallback. A
+ * product that returns to an explicit sink goal is safe feedback: the sink still
+ * fixes the block's purpose, so consuming the selected surplus cannot replace
+ * that purpose with a cheaper internal loop. */
 export function drainsOnConsume(opts: {
   good: string;
   mainProduct?: string | null;
   ingredients: readonly { name: string; amount?: number | null }[];
   products: readonly { name: string; amount?: number | null }[];
   consumedInBlock: ReadonlySet<string>;
+  sinkGoals?: ReadonlySet<string>;
 }): boolean {
   const { good, mainProduct, ingredients, products, consumedInBlock } = opts;
+  const sinkGoals = opts.sinkGoals ?? new Set<string>();
   const sum = (arr: readonly { name: string; amount?: number | null }[], name: string) =>
     arr.filter((c) => c.name === name).reduce((s, c) => s + (c.amount ?? 0), 0);
   // a net producer of the good isn't a sink for it
   const netConsumes = sum(products, good) < sum(ingredients, good);
   const terminal = mainProduct
-    ? mainProduct === good || !consumedInBlock.has(mainProduct)
-    : products.every((c) => c.name === good || !consumedInBlock.has(c.name));
+    ? mainProduct === good || !consumedInBlock.has(mainProduct) || sinkGoals.has(mainProduct)
+    : products.every(
+        (c) => c.name === good || !consumedInBlock.has(c.name) || sinkGoals.has(c.name),
+      );
   return netConsumes && terminal;
 }
