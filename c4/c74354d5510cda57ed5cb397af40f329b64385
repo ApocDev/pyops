@@ -1,0 +1,39 @@
+app/src/server/factorio.ts
+  s_999d363ffccad9::t_752fb82d2f6fc3 28-29,326-328,333,351-354,358-361,365,395,406,417-430,432-435,437,448,451-455,460,480-481,483,496,503
+app/src/server/factory-balance-step.server.ts
+  s_999d363ffccad9::t_ddbdf046d73226 1-267
+app/e2e/mut/rebalance.e2e.ts
+  s_999d363ffccad9::t_fa07f6e74c8f48 2,5-14,17,36-37,46,51,60-61,66,87-110,112-140,148,189,193-194
+app/src/components/whatif/rebalance-all-button.tsx
+  s_999d363ffccad9::t_5d14220ad421e2 29,31-32,51-52,56,76,128,148-150,176
+app/src/routes/factory_.scenario.tsx
+  s_999d363ffccad9::t_9f2408a0f11ac0 53,80-81,103-104,138-140,250,299,301
+app/src/server/factory-balance-step.test.ts
+  s_999d363ffccad9::t_d93b1e5d149248 1-150
+app/src/server/factory-balance.server.ts
+  s_999d363ffccad9::t_1a2aeedefcfb1f 1-212
+app/src/server/factory-rebalance.test.ts
+  s_999d363ffccad9::t_907f4daa657c70 21,61,82,84-85,151,153-154,158,187,203-205,211,227,238-329,361,369-370,386
+app/src/server/factory-solve.server.ts
+  s_999d363ffccad9::t_3a1989c44d1d63 25-33
+docs/development/solver.md
+  s_999d363ffccad9::t_76c19d9c81eb52 325-345,349-351
+docs/guide/balance.md
+  s_999d363ffccad9::t_4fcd7f8340ef8e 61-63,70-78,99-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "c4c74354d5510cda57ed5cb397af40f329b64385",
+  "prompts": {},
+  "sessions": {
+    "s_999d363ffccad9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f577a-fbbc-71c0-a7f7-f321dd8a611d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
