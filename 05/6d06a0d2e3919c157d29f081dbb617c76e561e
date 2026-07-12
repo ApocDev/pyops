@@ -1,0 +1,23 @@
+app/src/server/block-compute.server.ts
+  s_999d363ffccad9::t_e65fa2c2a3612a 1061-1067
+app/src/server/block-compute.test.ts
+  s_999d363ffccad9::t_43b455e2730479 74,80-82,117-129
+docs/guide/blocks.md
+  s_999d363ffccad9::t_a561477b839cf8 35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "056d06a0d2e3919c157d29f081dbb617c76e561e",
+  "prompts": {},
+  "sessions": {
+    "s_999d363ffccad9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f577a-fbbc-71c0-a7f7-f321dd8a611d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
