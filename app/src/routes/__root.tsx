@@ -9,6 +9,7 @@ import { AppNav } from "../components/app-nav";
 import { CommandPalette } from "../components/command-palette";
 import { DbMigrationsBanner } from "../components/db-migrations-banner";
 import { DriftModal } from "../components/drift-modal";
+import { GoodExplorerDialog } from "../components/good-explorer-dialog";
 import { NativeContextMenu } from "../components/native-context-menu";
 import { RouteError } from "../components/route-error";
 import { RoutePending } from "../components/route-pending";
@@ -90,6 +91,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <UndoHotkey />
         <Toaster />
         <DriftModal />
+        <GoodExplorerDialog />
         <UpdatePrompt />
         <TanStackDevtools
           config={{

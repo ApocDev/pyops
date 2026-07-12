@@ -82,6 +82,9 @@ test("the default icon shows no internal-name title (a rich hover card replaces 
   await waitFor(() => {
     expect(container.querySelector("span[style*='background-image']")).toBeTruthy();
   });
+  expect(
+    container.querySelector("[data-good-name='iron-plate'][data-good-kind='item']"),
+  ).toBeTruthy();
   // the sprite no longer leaks the internal name as a native tooltip
   expect(container.querySelector("[title='iron-plate']")).toBeNull();
 });

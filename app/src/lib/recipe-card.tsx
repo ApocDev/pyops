@@ -306,6 +306,7 @@ export function ItemCard({
       <div className="truncate text-sm text-muted-foreground">
         {name} · {kind}
       </div>
+      <div className="mt-1 text-sm text-info">Alt+Click to open the full recipe explorer</div>
       <HoverContext>{extraText}</HoverContext>
       {!data ? (
         <div className="mt-1.5 space-y-1.5">
@@ -683,6 +684,8 @@ export function ItemHover({
   return (
     <span
       className={className}
+      data-good-kind={kind}
+      data-good-name={name}
       onMouseEnter={(e) => setPos({ x: e.clientX, y: e.clientY })}
       onMouseMove={(e) => setPos({ x: e.clientX, y: e.clientY })}
       onMouseLeave={() => setPos(null)}
@@ -860,7 +863,12 @@ export function GoodHover({
       <ItemCard name={name} kind={kind} extraText={extraText} />
     );
   return (
-    <CursorHover card={card} className={className} z={60}>
+    <CursorHover
+      card={card}
+      className={className}
+      z={60}
+      good={kind === "item" || kind === "fluid" ? { kind, name } : undefined}
+    >
       {children}
     </CursorHover>
   );

@@ -34,6 +34,10 @@ Select a goal icon to open **Recipes that make _goal_**. Within a recipe row:
 
 - Select an ingredient chip to find recipes that make that ingredient.
 - Select a product chip to find recipes that consume that product.
+- Alt+Click any item or fluid icon to open the **Recipe explorer** without leaving the current
+  page. Switch between **Recipes** and **Uses** to inspect every producer or consumer, including
+  availability, machines, and filters; select an ingredient or product inside the dialog to
+  keep walking the graph.
 - Hover recipe, technology, and item details when you need the precise inputs, outputs, or
   unlock status.
 

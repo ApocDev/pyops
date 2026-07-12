@@ -20,6 +20,7 @@ export function RecipeList({
   query,
   onClearQuery,
   onPick,
+  variant = "dense",
 }: {
   title: string;
   cards: BrowseCard[];
@@ -30,6 +31,7 @@ export function RecipeList({
   query: string;
   onClearQuery: () => void;
   onPick: (name: string) => void;
+  variant?: "dense" | "comfortable";
 }) {
   const [showAll, setShowAll] = useState(false);
   const filtered = useFilteredList(cards, query, {
@@ -52,13 +54,24 @@ export function RecipeList({
     .filter((g) => g.cards.length > 0);
 
   return (
-    <Card className="self-start">
-      <CardHeader>
-        <CardTitle className="normal-case">{title}</CardTitle>
-      </CardHeader>
+    <Card
+      className={variant === "comfortable" ? "self-start border-0 bg-transparent" : "self-start"}
+    >
+      {variant === "dense" && (
+        <CardHeader>
+          <CardTitle className="normal-case">{title}</CardTitle>
+        </CardHeader>
+      )}
       {cards.length === 0 && <div className="px-3 pb-3 text-muted-foreground">{emptyText}</div>}
       {cards.length > 0 && filtered.length === 0 && (
         <FilterEmptyState className="px-3 pb-3" query={query} onClear={onClearQuery} />
+      )}
+      {variant === "comfortable" && filtered.length > 0 && (
+        <div className="hidden grid-cols-[minmax(13rem,0.8fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 border border-border bg-muted/40 px-3 py-2 text-sm font-medium text-muted-foreground md:grid">
+          <span>Recipe</span>
+          <span>Inputs</span>
+          <span>Outputs</span>
+        </div>
       )}
       {visible.map((g) => (
         <div key={g.id}>
@@ -71,7 +84,14 @@ export function RecipeList({
             </div>
           </Tooltip>
           {g.cards.map((c) => (
-            <RecipeRow key={c.name} card={c} focus={focus} maxFlow={maxFlow} onPick={onPick} />
+            <RecipeRow
+              key={c.name}
+              card={c}
+              focus={focus}
+              maxFlow={maxFlow}
+              onPick={onPick}
+              variant={variant}
+            />
           ))}
         </div>
       ))}

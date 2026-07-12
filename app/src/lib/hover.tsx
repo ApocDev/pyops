@@ -68,6 +68,7 @@ export function CursorHover({
   className,
   z = 50,
   block = false,
+  good,
   children,
 }: {
   card: React.ReactNode;
@@ -75,12 +76,16 @@ export function CursorHover({
   z?: number;
   /** Render the wrapper as a block-level `contents`-free box instead of inline. */
   block?: boolean;
+  /** Tag an item/fluid trigger for the global Alt+Click recipe explorer. */
+  good?: { name: string; kind: "item" | "fluid" };
   children: React.ReactNode;
 }) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   return (
     <span
       className={className}
+      data-good-kind={good?.kind}
+      data-good-name={good?.name}
       style={block ? undefined : { display: "inline-flex", verticalAlign: "middle" }}
       onMouseEnter={(e) => setPos({ x: e.clientX, y: e.clientY })}
       onMouseMove={(e) => setPos({ x: e.clientX, y: e.clientY })}
