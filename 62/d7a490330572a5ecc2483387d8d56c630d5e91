@@ -1,0 +1,31 @@
+app/src/components/block/balance-card.tsx
+  s_999d363ffccad9::t_950ca235e2d4a8 64-65,307,309-330,333,336-343,345-381,384-388,390-391
+app/e2e/mut/goal-rates.e2e.ts
+  s_999d363ffccad9::t_9652813a507e5e 2,5-15,39,64-91
+app/src/routes/block.$id.tsx
+  s_999d363ffccad9::t_5f72426c77c3f6 677,723
+app/src/server/block-compute.server.ts
+  s_999d363ffccad9::t_f016a8550ad117 1055-1061,1204
+app/src/server/block-compute.test.ts
+  s_999d363ffccad9::t_a790ea007cadb3 944
+docs/development/solver.md
+  s_999d363ffccad9::t_2c819328edd8db 59-62
+docs/guide/blocks.md
+  s_999d363ffccad9::t_2471d973801074 33-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "62d7a490330572a5ecc2483387d8d56c630d5e91",
+  "prompts": {},
+  "sessions": {
+    "s_999d363ffccad9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f577a-fbbc-71c0-a7f7-f321dd8a611d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
