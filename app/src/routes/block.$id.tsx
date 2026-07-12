@@ -674,6 +674,7 @@ function Block({ blockId }: { blockId: number }) {
   // goal, an unmade input (import), a surplus (export), or balanced in-block.
   const importSet = new Set(res?.imports.map((f) => f.name));
   const exportSet = new Set(res?.displayExports.map((f) => f.name));
+  const goalSet = new Set(goalNames);
   // good → kind (item|fluid), gathered from every flow/recipe in the solve so goal
   // icons render correctly even for fluid goals (the target isn't in imports/exports).
   const kindMap = new Map<string, string>();
@@ -719,7 +720,7 @@ function Block({ blockId }: { blockId: number }) {
   const producible = new Set(res?.producible ?? []); // imports a recipe could make in-block
   const fuelSet = new Set(res?.fuelItems ?? []); // items consumed as fuel (folded into the balance)
   const linkOf = (name: string): ItemLink =>
-    name === target
+    goalSet.has(name)
       ? "target"
       : importSet.has(name)
         ? "import"

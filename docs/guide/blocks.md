@@ -30,6 +30,9 @@ Right-click a goal and select **Keep in stock instead (buffer, not throughput)**
 intent is to refill a quantity over time rather than sustain a continuous rate. Stock-only
 production appears separately in Factory.
 
+A negative goal is already the block's visible import contract, so Block balance does not
+repeat that good under **Imports**. Other ingredients the block needs still appear there.
+
 ## Add recipes
 
 Select a positive goal icon to open **Recipes that make _goal_**. A negative consume goal

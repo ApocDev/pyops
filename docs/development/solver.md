@@ -56,6 +56,10 @@ A negative goal represents a sink and becomes a net-consumption ceiling. Interna
 rates are per second. The editor's seconds/minutes/hours unit changes input and display
 only.
 
+The solved good remains a canonical import for factory projections and flow graphs. In the
+block editor it is already represented by the negative goal, so `displayImports` removes it
+from the Block balance Imports list rather than rendering the same contract twice.
+
 A stock goal stores an amount and replenishment window. The compute layer converts it to
 `amount / window` for solving, then tags its persisted factory flow as stock replenishment
 rather than continuous output.

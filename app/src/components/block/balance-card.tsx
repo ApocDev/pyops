@@ -61,6 +61,8 @@ export function BalanceCard({
   const supplyPriority = useStore(doc.store, (s) => s.supplyPriority ?? 0);
   const supplyPriorities = useStore(doc.store, (s) => s.supplyPriorities ?? {});
   const spoilables = useSpoilables();
+  const showImports = !!res && (res.displayImports.length > 0 || res.displayExports.length === 0);
+  const showExports = !!res?.displayExports.length;
   // One mixed loop candidate: every solid item touching a belt in this block —
   // imports, exports, AND internal row-to-row flows all ride the same loop in
   // the "everything on one belt" pattern. A good's belt rate is
@@ -302,89 +304,91 @@ export function BalanceCard({
             </div>
           )}
           <div
-            className={`grid gap-4 p-3 ${res?.displayExports.length ? "grid-cols-2" : "grid-cols-1"}`}
+            className={`grid gap-4 p-3 ${showImports && showExports ? "grid-cols-2" : "grid-cols-1"}`}
           >
-            <div>
-              <div className="mb-1 text-sm font-semibold text-warning">Imports</div>
-              <div className="flex flex-wrap gap-x-3 gap-y-2">
-                {res?.imports.length ? (
-                  res.imports.map((f) => (
-                    <span key={f.name} className="group flex flex-col items-start gap-1.5">
-                      <span className="inline-flex items-center gap-1.5">
-                        <ItemChip
-                          name={f.name}
-                          kind={f.kind}
-                          display={res.display?.[f.name]}
-                          rate={f.rate}
-                          link="import"
-                          craftable={producible.has(f.name)}
-                          fuel={fuelSet.has(f.name)}
-                          onClick={() => onMakeFor(f.name)}
-                          onContext={(e) =>
-                            onCtxMenu(e, { name: f.name, kind: f.kind, link: "import" })
-                          }
-                        />
-                        {/* Locked-as-block-driver state (set via right-click → "Size block by this
+            {showImports && (
+              <div>
+                <div className="mb-1 text-sm font-semibold text-warning">Imports</div>
+                <div className="flex flex-wrap gap-x-3 gap-y-2">
+                  {res.displayImports.length ? (
+                    res.displayImports.map((f) => (
+                      <span key={f.name} className="group flex flex-col items-start gap-1.5">
+                        <span className="inline-flex items-center gap-1.5">
+                          <ItemChip
+                            name={f.name}
+                            kind={f.kind}
+                            display={res.display?.[f.name]}
+                            rate={f.rate}
+                            link="import"
+                            craftable={producible.has(f.name)}
+                            fuel={fuelSet.has(f.name)}
+                            onClick={() => onMakeFor(f.name)}
+                            onContext={(e) =>
+                              onCtxMenu(e, { name: f.name, kind: f.kind, link: "import" })
+                            }
+                          />
+                          {/* Locked-as-block-driver state (set via right-click → "Size block by this
                             input"): edit its rate inline + an unlock control. The toggle itself
                             lives in the context menu, so non-locked rows stay uncluttered. */}
-                        {/* the block imports this while an in-block recipe
+                          {/* the block imports this while an in-block recipe
                             produces it — usually the import-instead-of-make
                             trap (block 27); one click claims it in-block */}
-                        {res.importedProducible?.includes(f.name) && (
-                          <button
-                            title="an enabled recipe in this block produces this good, but the plan imports it. Click to mark it made in-block (production must cover consumption)."
-                            onClick={() => {
-                              doc.markMade(f.name);
-                              doc.note(`Mark "${res.display?.[f.name] ?? f.name}" made in-block`);
-                            }}
-                            className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
-                          >
-                            made here? · make in-block
-                          </button>
-                        )}
-                        {lockedInput === f.name && (
-                          <>
-                            <Tooltip content="locked rate — the block is sized to consume this much of this input">
-                              <Input
-                                type="number"
-                                value={lockedRate}
-                                step="0.01"
-                                min="0"
-                                autoFocus
-                                onChange={(e) => onLockedRateChange(Number(e.target.value) || 0)}
-                                className="h-7 w-16 border-info/60 px-1"
-                              />
-                            </Tooltip>
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              onClick={onUnlock}
-                              title="unlock — the Goal rate is editable again"
-                              className="text-info"
+                          {res.importedProducible?.includes(f.name) && (
+                            <button
+                              title="an enabled recipe in this block produces this good, but the plan imports it. Click to mark it made in-block (production must cover consumption)."
+                              onClick={() => {
+                                doc.markMade(f.name);
+                                doc.note(`Mark "${res.display?.[f.name] ?? f.name}" made in-block`);
+                              }}
+                              className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
                             >
-                              <Lock className="size-3.5" />
-                            </Button>
-                          </>
+                              made here? · make in-block
+                            </button>
+                          )}
+                          {lockedInput === f.name && (
+                            <>
+                              <Tooltip content="locked rate — the block is sized to consume this much of this input">
+                                <Input
+                                  type="number"
+                                  value={lockedRate}
+                                  step="0.01"
+                                  min="0"
+                                  autoFocus
+                                  onChange={(e) => onLockedRateChange(Number(e.target.value) || 0)}
+                                  className="h-7 w-16 border-info/60 px-1"
+                                />
+                              </Tooltip>
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                onClick={onUnlock}
+                                title="unlock — the Goal rate is editable again"
+                                className="text-info"
+                              >
+                                <Lock className="size-3.5" />
+                              </Button>
+                            </>
+                          )}
+                        </span>
+                        {logi.resolved && f.kind === "item" && (
+                          <LogiTag
+                            resolved={logi.resolved}
+                            rate={f.rate}
+                            machineCount={0}
+                            showBelts={logi.showBelts}
+                            showInserters={logi.showInserters}
+                            launch={logi.launchInfo(f.name, f.rate)}
+                          />
                         )}
                       </span>
-                      {logi.resolved && f.kind === "item" && (
-                        <LogiTag
-                          resolved={logi.resolved}
-                          rate={f.rate}
-                          machineCount={0}
-                          showBelts={logi.showBelts}
-                          showInserters={logi.showInserters}
-                          launch={logi.launchInfo(f.name, f.rate)}
-                        />
-                      )}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-sm text-muted-foreground">none</span>
-                )}
+                    ))
+                  ) : (
+                    <span className="text-sm text-muted-foreground">none</span>
+                  )}
+                </div>
               </div>
-            </div>
-            {!!res?.displayExports.length && (
+            )}
+            {showExports && (
               <div>
                 <div className="mb-1 text-sm font-semibold text-surplus">Exports</div>
                 <div className="flex flex-wrap gap-x-3 gap-y-2">

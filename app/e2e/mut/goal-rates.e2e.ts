@@ -1,6 +1,17 @@
 import { DatabaseSync } from "node:sqlite";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { activeProjectDbFile, expectUndoTop, goto, uniqueName } from "./helpers";
+
+async function dismissDataDriftPrompt(page: Page) {
+  const ignore = page.getByRole("button", { name: "Ignore for now" });
+  try {
+    await expect(ignore).toBeVisible({ timeout: 2_000 });
+    await ignore.click();
+  } catch {
+    // The prompt only appears when the copied project data differs from the
+    // currently installed mods. Most test runs have no drift to dismiss.
+  }
+}
 
 test("a secondary goal accepts and persists a negative consume rate", async ({ page }) => {
   // Block 38's shape: Tar remains the primary sink while Shale oil is added as
@@ -25,6 +36,7 @@ test("a secondary goal accepts and persists a negative consume rate", async ({ p
   }
 
   await goto(page, `/block/${id}`);
+  await dismissDataDriftPrompt(page);
   await page.getByRole("button", { name: "1", exact: true }).click();
   const input = page.locator("input:focus");
   await input.fill("-2.5");
@@ -48,4 +60,32 @@ test("a secondary goal accepts and persists a negative consume rate", async ({ p
   } finally {
     saved.close();
   }
+});
+
+test("a consume goal is not repeated in the Block balance imports", async ({ page }) => {
+  const data = {
+    recipes: ["burn-fluid-kerosene"],
+    goals: [
+      { name: "water", rate: -1 },
+      { name: "kerosene", rate: -5 },
+    ],
+  };
+  const db = new DatabaseSync(activeProjectDbFile());
+  let id: number;
+  try {
+    db.exec("PRAGMA busy_timeout = 5000");
+    const inserted = db
+      .prepare("INSERT INTO blocks (name, data) VALUES (?, ?)")
+      .run(uniqueName("Kerosene sink"), JSON.stringify(data));
+    id = Number(inserted.lastInsertRowid);
+  } finally {
+    db.close();
+  }
+
+  await goto(page, `/block/${id}`);
+  await dismissDataDriftPrompt(page);
+  await expect(page.getByRole("button", { name: /^Kerosene 5\/s · target/ })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^Kerosene 5\/s · (craftable|raw input)/ }),
+  ).toBeHidden();
 });

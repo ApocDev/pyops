@@ -941,6 +941,7 @@ describe("fluid-fuel supplier designation (#115)", () => {
     const res = await computeBlock(input);
     expect(res.status).toBe("solved");
     expect(res.imports.find((f) => f.name === "kerosene")?.rate).toBeCloseTo(5);
+    expect(res.displayImports.find((f) => f.name === "kerosene")).toBeUndefined();
     const flows = boundaryFlows(goalFlows(input), res);
     const kero = flows.filter((f) => f.item === "kerosene");
     expect(kero).toEqual([{ item: "kerosene", kind: "fluid", role: "import", rate: 5 }]); // exactly one

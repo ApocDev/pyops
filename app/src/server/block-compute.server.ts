@@ -1052,6 +1052,13 @@ export async function computeBlock(rawData: SolveInput) {
     const rate = flow.rate - (incidentalGoalRates.get(flow.name) ?? 0);
     return rate > EPS ? [{ ...flow, rate }] : [];
   });
+  // A negative goal is itself the block's visible consume/import contract. Keep
+  // the canonical import in `imports` for factory projections and flow math,
+  // but do not repeat the same good in the editor's Imports list.
+  const negativeGoalNames = new Set(
+    data.goals.filter((goal) => goal.rate < 0).map((goal) => goal.name),
+  );
+  const displayImports = imports.filter((flow) => !negativeGoalNames.has(flow.name));
   const fuelItems = [...fuelTotals.keys()]; // for the 🔥 tag in the UI
   const burntItems = [...burntTotals.keys()]; // ash / depleted cells from burning
 
@@ -1194,6 +1201,7 @@ export async function computeBlock(rawData: SolveInput) {
   return {
     ...result,
     imports,
+    displayImports,
     exports,
     displayExports,
     rows,
