@@ -2,7 +2,7 @@ import { useStore } from "@tanstack/react-store";
 import { AlertTriangle, Lock, Plus, Star, Timer, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
-import { STOCK_WINDOW_DEFAULT } from "../../lib/goals";
+import { goalConsumes, STOCK_WINDOW_DEFAULT } from "../../lib/goals";
 import { Icon } from "../../lib/icons";
 import { EditableRate } from "./editable-rate.tsx";
 import { ENERGY_PSEUDO, num } from "./format.ts";
@@ -59,7 +59,7 @@ export function GoalCard({
           {goals.map((goal, i) => {
             const g = goal.name;
             const isFirst = i === 0;
-            const consumes = goal.rate < 0;
+            const consumes = goalConsumes(goal);
             const kind = kindOf(g);
             const goalMissing = res?.missing?.goods.includes(g) ?? false;
             const incidentalRate =

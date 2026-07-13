@@ -7,10 +7,8 @@ import { ItemHover } from "../lib/recipe-card";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
-import { Input } from "#/components/ui/input.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
-import { EmptyState } from "#/components/empty-state.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { InfoHint } from "#/components/info-hint.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
@@ -18,6 +16,7 @@ import { RebalanceAllButton } from "#/components/whatif/rebalance-all-button.tsx
 import { StatCell } from "#/components/stat-cell.tsx";
 import { StatTableHeader } from "#/components/stat-table.tsx";
 import { SupplyAllocationCard } from "#/components/whatif/supply-allocation-card.tsx";
+import { FactoryPinsCard } from "#/components/whatif/factory-pins-card.tsx";
 
 export const Route = createFileRoute("/factory_/scenario")({
   component: () => (
@@ -29,16 +28,8 @@ export const Route = createFileRoute("/factory_/scenario")({
 
 import { rateLabel } from "../lib/format";
 
-// A block "needs a change" only if its solved scale is off by more than this
-// RELATIVE amount. An absolute delta threshold falsely flags a high-rate block
-// (e.g. 122/s) that's balanced to within rounding — 122 × 0.999 still trips a
-// 0.001 absolute test. Sub-1% is unbuildable precision (a fraction of a machine),
-// so treat it as balanced. Matches the server's re-balance convergence tolerance.
-const SCALE_EPS = 0.01;
-
-/** Factory what-if: the whole factory solved as one system. Set a final
- * product's rate and see the per-goal changes needed to satisfy every
- * demand/consumption. */
+/** Factory what-if: solve every enabled block goal from a small set of signed
+ * whole-factory pins. */
 function WhatIf() {
   const [overrides, setOverrides] = useState<Record<string, number>>({});
   const wf = useQuery({
@@ -49,9 +40,7 @@ function WhatIf() {
     placeholderData: keepPreviousData,
   });
   const r = wf.data;
-  const changed = (r?.goalChanges ?? [])
-    .filter((goal) => goal.activation || Math.abs(goal.scale - 1) > SCALE_EPS)
-    .map((goal) => ({ ...goal, name: goal.display }));
+  const changed = (r?.goalChanges ?? []).map((goal) => ({ ...goal, name: goal.display }));
 
   return (
     <div className="p-4 font-mono text-foreground">
@@ -70,9 +59,9 @@ function WhatIf() {
             <HelpButton title="What is Scenario?">
               <p>
                 Scenario solves your{" "}
-                <span className="text-foreground">whole factory as one system</span>. Set a target
-                rate on any final product and it shows the goal changes needed to satisfy every
-                downstream demand — a speculative &quot;if I wanted N/s of X, what changes?&quot;
+                <span className="text-foreground">whole factory as one system</span>. Pin the goods
+                that define its desired output or consumption, and it calculates every other block
+                goal.
               </p>
               <p>
                 <span className="text-foreground">vs Overview.</span> Overview shows your factory as
@@ -84,8 +73,9 @@ function WhatIf() {
                 <div className="font-semibold text-foreground">How to use it</div>
                 <ul className="mt-1 list-disc space-y-1 pl-5">
                   <li>
-                    <span className="text-foreground">Final products</span> — edit a target rate to
-                    drive the cascade.
+                    <span className="text-foreground">Factory pins</span> — the only fixed
+                    whole-factory targets. Use a positive rate for production or a negative rate for
+                    deliberate consumption.
                   </li>
                   <li>
                     <span className="text-foreground">Goal changes</span> — your work list: each
@@ -135,9 +125,9 @@ function WhatIf() {
               <p>
                 <span className="text-foreground">The solve pill</span> (next to this button)
                 reports the whole-factory solve. <span className="text-foreground">Optimal</span>{" "}
-                means it found a settled set of rates; any other status means an affected block
-                became infeasible or the passes did not converge — open those blocks to inspect
-                conflicting goals or pins.
+                means it found a complete set of rates; any other status means the pinned material
+                model could not solve. Applying also runs every full block solve and refuses to
+                write if that validation disagrees with the preview.
               </p>
             </HelpButton>
           </>
@@ -145,55 +135,10 @@ function WhatIf() {
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Demands — edit a target to drive the cascade */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="normal-case">Final products</CardTitle>
-            <InfoHint content="Set a target rate to see the per-goal changes." />
-          </CardHeader>
-          <div className="divide-y divide-border">
-            {(r?.demands ?? []).map((d) => {
-              const overridden = overrides[d.good] != null;
-              return (
-                <div key={d.good} className="flex items-center gap-2 px-3 py-1.5 text-sm">
-                  <Icon
-                    kind={d.kind as "item" | "fluid"}
-                    name={d.good}
-                    size="sm"
-                    title={d.display}
-                  />
-                  <span className="min-w-0 flex-1 truncate" title={d.display}>
-                    {d.display}
-                  </span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={overrides[d.good] ?? d.current}
-                    onChange={(e) =>
-                      setOverrides((o) => ({ ...o, [d.good]: Number(e.target.value) || 0 }))
-                    }
-                    className={`w-20 text-right ${overridden ? "border-info/60" : ""}`}
-                  />
-                  <span className="text-muted-foreground">/s</span>
-                </div>
-              );
-            })}
-            {wf.isLoading && (
-              <div className="space-y-2 p-3">
-                <Skeleton className="h-5 w-full" />
-                <Skeleton className="h-5 w-5/6" />
-                <Skeleton className="h-5 w-2/3" />
-              </div>
-            )}
-            {(r?.demands?.length ?? 0) === 0 && !wf.isLoading && (
-              <EmptyState
-                title="No final products"
-                description="Every output is consumed in-factory."
-              />
-            )}
-          </div>
-        </Card>
+        <FactoryPinsCard
+          overrides={overrides}
+          onOverride={(good, rate) => setOverrides((current) => ({ ...current, [good]: rate }))}
+        />
 
         {/* Goal changes — the work list */}
         <Card className="lg:col-span-2">
@@ -291,20 +236,9 @@ function WhatIf() {
                   </span>
                   <span className="text-surplus">+{rateLabel(x.good, x.projected)}</span>
                   <span className="text-muted-foreground">/s</span>
-                  {x.absorb ? (
-                    <Link
-                      to="/block/$id"
-                      params={{ id: String(x.absorb.id) }}
-                      className="ml-2 bg-muted/60 px-1.5 py-0.5 text-sm text-primary hover:bg-muted"
-                      title={`change ${x.absorb.name}'s ${x.display} consume goal to absorb the surplus`}
-                    >
-                      → {x.display} goal {rateLabel(x.good, x.absorb.goalRate)}/s
-                    </Link>
-                  ) : (
-                    <Tooltip content="no block consumes this yet">
-                      <span className="ml-2 text-sm text-warning/80">no consumer</span>
-                    </Tooltip>
-                  )}
+                  <Tooltip content="factory balance does not scale consumers to absorb surplus">
+                    <span className="ml-2 text-sm text-warning/80">surplus</span>
+                  </Tooltip>
                 </div>
               ))}
             </div>

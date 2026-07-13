@@ -21,6 +21,7 @@ import { BlockShareCard } from "../components/block-share-card.tsx";
 import { ProjectBackupCard } from "../components/project-backup-card.tsx";
 import { HorizonPicker } from "../components/horizon-picker";
 import { CompanionModCard } from "../components/companion-mod-card";
+import { FactorySolverDebugCard } from "../components/settings/factory-solver-debug-card.tsx";
 import { DriftChanges } from "../components/drift-changes";
 import { driftModal } from "../lib/drift-store";
 import { Badge } from "#/components/ui/badge.tsx";
@@ -61,6 +62,7 @@ const TABS = [
   { id: "data", label: "Game data" },
   { id: "link", label: "In-game link" },
   { id: "backup", label: "Backup & share" },
+  { id: "advanced", label: "Advanced" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 const isTabId = (v: unknown): v is TabId => TABS.some((t) => t.id === v);
@@ -123,6 +125,11 @@ function SettingsPage() {
           <div className={cols}>
             <ProjectBackupCard />
             <BlockShareCard />
+          </div>
+        )}
+        {tab === "advanced" && (
+          <div className={cols}>
+            <FactorySolverDebugCard />
           </div>
         )}
       </div>

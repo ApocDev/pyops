@@ -25,8 +25,16 @@ import * as dump from "./dump.server.ts";
 import * as cfg from "./app-config.server.ts";
 import { computeCostAnalysis } from "./cost-analysis.server.ts";
 import { currentDatabaseFile } from "../db/index.server.ts";
-import { factoryBalanceStep } from "./factory-balance-step.server.ts";
-import { previewFactoryBalance, withFactoryModel } from "./factory-balance.server.ts";
+import {
+  applyPinnedFactory,
+  getFactoryPins,
+  saveFactoryPins,
+  solvePinnedFactory,
+} from "./factory-plan.server.ts";
+import {
+  clearLatestFactorySolverTrace,
+  getLatestFactorySolverTrace,
+} from "./factory-debug.server.ts";
 import { APP_CONFIG_FILE, DATA_DIR, ICON_DATA_DIR, PROJECTS_DIR } from "./paths.server.ts";
 import { withUndoAction } from "./undo-action.server.ts";
 import { captureSnapshot } from "./snapshots.server.ts";
@@ -323,17 +331,17 @@ export const factoryTotalsFn = createServerFn({ method: "GET" }).handler(async (
   return q.factoryTotals();
 });
 
-/** Factory preview: compute the next per-goal changes that balance current
- * cross-block demand and surplus. `demands` can override a terminal product's
- * rate (e.g. science → 2/s); unspecified terminal goals stay pinned. */
+/** Factory preview: solve every enabled block goal from the explicit factory
+ * pins. `demands` contains unsaved rate edits from the Scenario page. */
 export const factoryWhatIfFn = createServerFn({ method: "POST" })
   .validator((d: { demands?: Record<string, number> }) => d)
   .handler(async ({ data }) => {
     await ensureSolvedProjections();
-    const result = await previewFactoryBalance(data.demands ?? {});
+    const result = await solvePinnedFactory(data.demands ?? {});
+    const { allGoalChanges: _allGoalChanges, ...visibleResult } = result;
     const display = (name: string) => pseudoDisplay(name) ?? q.classifyRef(name)?.display ?? name;
     return {
-      ...result,
+      ...visibleResult,
       demands: result.demands.map((g) => ({ ...g, display: display(g.good) })),
       raws: result.raws.map((g) => ({ ...g, display: display(g.good) })),
       overproduced: result.overproduced.map((g) => ({ ...g, display: display(g.good) })),
@@ -348,180 +356,34 @@ export const factoryWhatIfFn = createServerFn({ method: "POST" })
     };
   });
 
-// Factory balancing is a fixed-point loop like YAFC's: one pass adjusts declared
-// goals from the current cross-block mismatches, changed blocks re-solve, and the
-// next pass sees their new imports/byproducts. Repeat until no actionable goal
-// change remains, then persist the settled docs once.
-const REBALANCE_MAX_PASSES = 15;
-const REBALANCE_TOL = 0.005; // settled when the largest per-pass scale step < 0.5%
+export const factoryPinsFn = createServerFn({ method: "GET" }).handler(async () => {
+  const display = (name: string) => pseudoDisplay(name) ?? q.classifyRef(name)?.display ?? name;
+  return getFactoryPins().map((pin) => ({ ...pin, display: display(pin.good) }));
+});
 
-/** Apply a whole-factory balance: iterate the same goal-mismatch pass the Scenario
- * page shows — for the given demand overrides (empty = keep every final product at
- * its current rate) — to convergence, re-solving changed blocks between passes,
- * then persist every settled goal change. The whole batch is ONE undo step.
- *
- * All iteration is in memory (no intermediate writes): only the converged rates
- * are persisted, so the undo log holds a single clean before/after per block.
- * Blocks the balance leaves put (power/utility and ~0 deltas) never change; a
- * block that fails to re-solve is reported broken and left as-is. `passes` and
- * `residual` report how far it got — a non-Optimal solve or hitting the pass cap
- * means the target can't be balanced exactly (typically byproduct surplus). */
-export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
-  .validator((d: { demands?: Record<string, number> }) => d)
+export const setFactoryPinsFn = createServerFn({ method: "POST" })
+  .validator(
+    (
+      pins: {
+        good: string;
+        kind: string;
+        rate: number;
+        source?: "explicit" | "terminal" | "stock";
+      }[],
+    ) => pins,
+  )
   .handler(async ({ data }) => {
-    const overrides = data.demands ?? {};
-    // enabled blocks only (the set the what-if solves over), each with its live doc
-    const base = q
-      .blocksWithFlows()
-      .map((b) => {
-        const row = q.getBlock(b.id);
-        if (!row) return null;
-        return {
-          id: b.id,
-          name: b.name,
-          iconKind: row.iconKind,
-          iconName: row.iconName,
-          doc: normalizeBlockData(row.data as SolveInput) as SolveInput,
-          startRate: b.rate,
-          startGoals: new Map(
-            (normalizeBlockData(row.data as SolveInput).goals ?? []).map((goal) => [
-              goal.name,
-              goal.rate,
-            ]),
-          ),
-          cachedFlows: b.flows, // fall back to these if a fresh solve is broken
-          flows: b.flows,
-          // The persisted flows already describe the starting doc, so pass one
-          // can go straight to the balance pass. Later passes only solve docs whose
-          // primary rate actually changed in the preceding pass.
-          dirty: false,
-          latestResult: null as Awaited<ReturnType<typeof computeBlock>> | null,
-        };
-      })
-      .filter((b): b is NonNullable<typeof b> => b !== null);
-
-    let status = "Optimal";
-    let passes = 0;
-    let residual = 0;
-    const failedBlocks = new Map<number, string>();
-    const sinkBaselines = new Map(
-      base.flatMap((block) =>
-        [...block.startGoals]
-          .filter(([, rate]) => rate < 0)
-          .map(([good, rate]) => [`${block.id}\u0000${good}`, rate] as const),
-      ),
-    );
-    for (; passes < REBALANCE_MAX_PASSES; passes++) {
-      // Pass one uses SQLite's persisted boundary flows. On later passes, only
-      // re-solve docs whose rate changed; unchanged blocks keep their latest
-      // boundary projection instead of repeating identical block solves.
-      const withFlows = await Promise.all(
-        base.map(async (b) => {
-          if (b.dirty) {
-            const r = await computeBlock(b.doc);
-            b.latestResult = r;
-            b.dirty = false;
-            if (r.broken || r.status !== "solved") {
-              failedBlocks.set(b.id, b.name);
-              return {
-                id: b.id,
-                name: b.name,
-                rate: primaryRate(b.doc),
-                goals: b.doc.goals.map((goal) => ({
-                  name: goal.name,
-                  rate: goal.rate,
-                  ...(goal.stock != null ? { stock: true } : {}),
-                })),
-                flows: b.cachedFlows,
-              };
-            }
-            const blockPriority = b.doc.supplyPriority ?? 0;
-            b.flows = boundaryFlows(goalFlows(b.doc), r).map((flow) => ({
-              ...flow,
-              priority: b.doc.supplyPriorities?.[flow.item] ?? blockPriority,
-            }));
-          }
-          const block = {
-            id: b.id,
-            name: b.name,
-            rate: primaryRate(b.doc),
-            goals: b.doc.goals.map((goal) => ({
-              name: goal.name,
-              rate: goal.rate,
-              ...(goal.stock != null ? { stock: true } : {}),
-            })),
-            flows: b.flows,
-          };
-          return withFactoryModel(block, b.doc);
-        }),
-      );
-      if (failedBlocks.size > 0) {
-        status = "Infeasible";
-        break;
-      }
-      const result = factoryBalanceStep(withFlows, overrides, sinkBaselines);
-      status = result.status;
-      // Goal changes are the only actionable controls. A scale on a utility or
-      // goal-less block cannot be applied and must not keep the iteration alive.
-      residual = result.goalChanges.reduce(
-        (m, change) => Math.max(m, change.activation ? 1 : Math.abs(change.scale - 1)),
-        0,
-      );
-      // a non-Optimal solve is not safe to apply — stop and report where we are
-      if (status !== "Optimal" || residual <= REBALANCE_TOL) break;
-      for (const change of result.goalChanges) {
-        const b = base.find((candidate) => candidate.id === change.id);
-        if (!b) continue;
-        const current = b.doc.goals.find((goal) => goal.name === change.good)?.rate;
-        if (current == null || current === change.requiredRate) continue;
-        b.doc = {
-          ...b.doc,
-          goals: b.doc.goals.map((goal) =>
-            goal.name === change.good ? { ...goal, rate: change.requiredRate } : goal,
-          ),
-        };
-        b.dirty = true;
-      }
-    }
-
-    if (passes >= REBALANCE_MAX_PASSES && residual > REBALANCE_TOL) status = "IterationLimit";
-
-    const applied: { id: number; name: string; from: number; to: number }[] = [];
-    const broken = [...failedBlocks].map(([id, name]) => ({ id, name }));
-    if (status === "Optimal") {
-      await withUndoAction("Re-balance factory", async () => {
-        for (const b of base) {
-          const finalRate = +primaryRate(b.doc).toFixed(4);
-          // relative gate (matches the what-if UI's SCALE_EPS): don't rewrite a
-          // block for a sub-percent wiggle — that's within rounding, not a change
-          const rel = Math.abs(b.startRate) > 1e-9 ? Math.abs(finalRate / b.startRate - 1) : 0;
-          const goalsChanged = b.doc.goals.some(
-            (goal) => Math.abs(goal.rate - (b.startGoals.get(goal.name) ?? goal.rate)) > 1e-9,
-          );
-          if (rel <= REBALANCE_TOL && !goalsChanged) continue;
-          // A converged pass has already computed this exact doc. Only the pass-
-          // cap case can leave a just-adjusted doc dirty; solve that once here, then
-          // persist the retained result rather than doing a redundant final solve.
-          if (b.dirty || !b.latestResult) {
-            b.latestResult = await computeBlock(b.doc);
-            b.dirty = false;
-          }
-          const r = b.latestResult;
-          if (r.broken || r.status !== "solved") {
-            broken.push({ id: b.id, name: b.name });
-            continue;
-          }
-          await persistBlock(
-            { id: b.id, name: b.name, iconKind: b.iconKind, iconName: b.iconName },
-            b.doc,
-            r,
-          );
-          applied.push({ id: b.id, name: b.name, from: b.startRate, to: finalRate });
-        }
-      });
-    }
-    return { status, passes, residual: +residual.toFixed(4), applied, broken };
+    saveFactoryPins(data);
+    return { ok: true };
   });
+
+export const applyPinnedFactoryFn = createServerFn({ method: "POST" })
+  .validator((d: { demands?: Record<string, number> }) => d)
+  .handler(async ({ data }) => applyPinnedFactory(data.demands ?? {}));
+
+export const validatePinnedFactoryFn = createServerFn({ method: "POST" })
+  .validator((d: { demands?: Record<string, number> }) => d)
+  .handler(async ({ data }) => applyPinnedFactory(data.demands ?? {}, false));
 
 /** Per-machine required (across blocks) vs. built (live from the game), plus the
  * sync status — drives the "under-built" view. */
@@ -1057,6 +919,28 @@ export const setAiConfigFn = createServerFn({ method: "POST" })
     cfg.writeAppConfig(patch);
     return { ok: true };
   });
+
+/** Opt-in developer diagnostics for the factory solver. The trace is held only
+ * in process and contains planner inputs/results, never the rest of app-config. */
+export const factorySolverDebugSettingsFn = createServerFn({ method: "GET" }).handler(async () => ({
+  enabled: cfg.readAppConfig().factorySolverDebug === true,
+}));
+
+export const setFactorySolverDebugSettingsFn = createServerFn({ method: "POST" })
+  .validator((d: { enabled: boolean }) => d)
+  .handler(async ({ data }) => {
+    cfg.writeAppConfig({ factorySolverDebug: data.enabled });
+    return { ok: true };
+  });
+
+export const latestFactorySolverTraceFn = createServerFn({ method: "GET" }).handler(async () =>
+  getLatestFactorySolverTrace(),
+);
+
+export const clearFactorySolverTraceFn = createServerFn({ method: "POST" }).handler(async () => {
+  clearLatestFactorySolverTrace();
+  return { ok: true };
+});
 
 /** Resolve a good to the tech that first unlocks making it — for the target-horizon
  * picker, so the user can search by item and see which tech gates it. */

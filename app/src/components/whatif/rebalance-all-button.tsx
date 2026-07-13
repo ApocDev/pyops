@@ -15,7 +15,7 @@ import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { rateLabel } from "#/lib/format.ts";
 import { toast } from "#/lib/toast-store.ts";
 import { undoToast } from "#/lib/undo-client.ts";
-import { applyFactoryRebalanceFn } from "#/server/factorio.ts";
+import { applyPinnedFactoryFn } from "#/server/factorio.ts";
 
 /** One block on the what-if work list — the fields the confirm summary needs. */
 type BlockChange = {
@@ -48,14 +48,12 @@ const REFRESH_KEYS = [
 const MOVERS_SHOWN = 6;
 
 /**
- * Commit the whole-factory balance pass — set every listed goal to its
- * required rate in one undo step. Opens a
+ * Commit the pinned factory plan — set every listed goal to its required rate
+ * in one undo step. Opens a
  * (non-destructive) confirm summarizing the biggest movers first, since it's a
  * factory-wide write; the result is fully reversible via the undo toast.
  *
- * `status` is the balance status: a non-Optimal result means the target can't be
- * met with the current blocks, so applying its partial result could make things
- * worse — the button disables and says why instead.
+ * `status` is the LP status: a non-Optimal result has no safe plan to apply.
  */
 export function RebalanceAllButton({
   changed,
@@ -87,7 +85,7 @@ export function RebalanceAllButton({
   const apply = async () => {
     setApplying(true);
     try {
-      const res = await applyFactoryRebalanceFn({ data: { demands: overrides } });
+      const res = await applyPinnedFactoryFn({ data: { demands: overrides } });
       // a non-Optimal solve is left unapplied server-side — say so and stop
       if (res.status !== "Optimal") {
         toast({
@@ -102,13 +100,7 @@ export function RebalanceAllButton({
       onApplied();
       if (res.applied.length) {
         const n = res.applied.length;
-        // it settles over multiple passes (each re-linearizes the block scaling);
-        // if it hit the pass cap a small residual can remain — surface it honestly
-        const settled = res.residual > 0.01 ? `, ~${res.residual} off` : "";
-        undoToast(
-          qc,
-          `Re-balanced ${n} block${n === 1 ? "" : "s"} in ${res.passes} pass${res.passes === 1 ? "" : "es"}${settled}`,
-        );
+        undoToast(qc, `Balanced ${n} block${n === 1 ? "" : "s"} from the factory pins`);
       }
       if (res.broken.length)
         toast({

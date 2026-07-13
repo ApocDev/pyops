@@ -121,6 +121,53 @@ test("a consume goal (SINK) sizes the disposal recipe and imports the feed", asy
   expect(flow(res.imports, "tar")).toBeCloseTo(100);
 });
 
+test("a zero-rate consume goal retains its sink semantic without running", async () => {
+  const flare: RecipeDef = {
+    name: "flare",
+    energyRequired: 2,
+    ingredients: [{ kind: "fluid", name: "kerogen", amount: 4 }],
+    products: [],
+  };
+  const res = await solveBlockLp({
+    goals: [{ name: "kerogen", rate: 0, direction: "consume" }],
+    recipes: [flare],
+  });
+  expect(res.status).toBe("solved");
+  expect(res.unmade ?? []).not.toContain("kerogen");
+  expect(rate(res).flare ?? 0).toBe(0);
+});
+
+test("avoidable goal surplus is minimized before machine count", async () => {
+  const distill: RecipeDef = {
+    name: "distill-raw-coal",
+    energyRequired: 2,
+    ingredients: [{ kind: "item", name: "raw-coal", amount: 10 }],
+    products: [
+      { kind: "item", name: "coal", amount: 3 },
+      { kind: "fluid", name: "coal-gas", amount: 60 },
+    ],
+  };
+  const gasFromCoal: RecipeDef = {
+    name: "coal-gas-from-coal",
+    energyRequired: 3,
+    ingredients: [{ kind: "item", name: "coal", amount: 10 }],
+    products: [{ kind: "fluid", name: "coal-gas", amount: 40 }],
+  };
+  const res = await solveBlockLp({
+    goals: [
+      { name: "coal", rate: 0.2347 },
+      { name: "coal-gas", rate: 75 },
+    ],
+    recipes: [distill, gasFromCoal],
+  });
+
+  expect(res.status).toBe("solved");
+  expect(rate(res)["distill-raw-coal"]).toBeCloseTo(1.054706, 5);
+  expect(rate(res)["coal-gas-from-coal"]).toBeCloseTo(0.292942, 5);
+  expect(flow(res.exports, "coal")).toBeUndefined();
+  expect(flow(res.exports, "coal-gas")).toBeUndefined();
+});
+
 test("a rate pin drives a goalless block (supply-push)", async () => {
   const res = await solveBlockLp({
     goals: [],

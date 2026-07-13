@@ -19,7 +19,8 @@ The main implementation lives under `app/src/solver/`:
 - `migrate.ts` normalizes persisted block documents at the solver boundary.
 
 `app/src/server/block-compute.server.ts` resolves database records, machines, effects,
-fuels, and presentation metadata around that pure core. Factory-wide scaling lives in
+fuels, and presentation metadata around that pure core. Scenario's pinned factory model lives in
+`app/src/server/factory-plan.server.ts`; the assistant's read-only scaling analysis remains in
 `app/src/server/factory-solve.server.ts`.
 
 ## Core model
@@ -33,9 +34,10 @@ A block solve receives:
 - exact-rate, capacity, or flow-share pins.
 
 For each enabled recipe `r`, the model creates a nonnegative run-rate `xᵣ`. Ingredient and
-product coefficients define the net rate of every good. The objective minimizes total
-machine-seconds, with a tiny per-recipe epsilon that gives zero-time synthetic recipes a
-deterministic cost.
+product coefficients define the net rate of every good. The solve is lexicographic: it first
+minimizes avoidable surplus beyond the saved goal rates, then minimizes total machine-seconds.
+A tiny per-recipe epsilon gives zero-time synthetic recipes a deterministic cost in the second
+stage.
 
 The objective is a sizing and tie-breaking mechanism. It never adds a recipe the user did
 not select.
@@ -48,9 +50,11 @@ A positive goal becomes a net-production floor:
 net(good) ≥ target rate
 ```
 
-Because the objective minimizes required recipe work, the result normally binds at the
-target. A fixed coproduct ratio may force a larger net output, which correctly becomes
-surplus.
+The goal remains one-sided so a fixed coproduct ratio may force a larger net output. The
+goal-tightening stage removes only surplus that the selected recipe set can avoid, then the
+machine objective chooses the smallest implementation of that tighter result. This matters for
+coupled multi-goal blocks: a downstream recipe is not idled merely because exporting another
+goal would use fewer buildings.
 
 A negative goal represents a sink and becomes a net-consumption ceiling. Internally, all
 rates are per second. The editor's seconds/minutes/hours unit changes input and display
@@ -324,36 +328,61 @@ old generation, ensuring preserved values cannot be mistaken for current calcula
 
 ## Factory Scenario model
 
-Factory Scenario balances enabled blocks through repeated goal-and-solve passes, similar to
-YAFC's factory balancing. Each pass reads the persisted boundary flows, keeps terminal positive
-goals fixed, and computes the current mismatch for every good. Intermediate positive goals move
-to downstream demand after incidental byproducts are credited; negative goals move to absorb
-byproduct-only surplus. The negative rates present when balancing starts are retained as sink
-baselines: a pass may enlarge them to absorb real surplus, but a later pass returns them toward
-those baselines when the surplus disappears. This prevents transient byproducts from ratcheting
-consumer blocks upward across the iteration loop.
+Factory Scenario treats selected goods as factory pins and every enabled block goal as a possible
+factory activity. A pin is a signed net target: positive for desired output, negative for deliberate
+consumption. Stock goals contribute an always-derived positive pin equal to `stock / window`.
 
-The actionable output is one change per throughput goal—it never collapses a multi-goal block
-back to its first goal. **Balance factory** updates those goals, re-solves each affected block,
-recomputes boundary flows, and repeats until the mismatches settle. With an explicit
-final-product override the action is labelled **Apply scenario**. Stock goals keep their
-amount/window controls and are not rewritten as rates.
+`factory-plan.server.ts` solves the block at its complete goal vector, perturbs each goal in its
+saved direction, and uses the boundary-flow difference as a local response column. Keeping sibling
+goals active is essential because one block LP can change recipe bases as its goals interact. A
+zero-rate goal is probed with a small signed reference rate, allowing a configured producer or
+consumer to start without losing its saved direction.
 
-A block whose primary goal is `0/s` has no useful persisted ingredient/product rates. Before
-including it as an available producer, the factory model solves it at a temporary `1/s` primary
-goal without saving. The balance pass can then emit an activation goal change from the actual
-downstream demand. Once applied, the ordinary block solve supplies the next pass's real boundary
-flows.
+The factory model constructs a demand-reachability closure from positive pins. It follows imports
+from a selected production column to configured positive goals for those exact goods. A selected
+column's byproduct may add a matching negative goal column, and that consumer's byproducts may feed
+further configured sinks. Byproducts never add positive goal columns. Per-good producer-cap
+constraints also prevent a declared producer from running beyond demand for its own goal merely to
+obtain a coproduct. Explicit negative pins select consumption columns as boundary demand; an
+unpinned negative goal with no reached byproduct receives a solved target of zero. A zero-rate goal
+stores its `direction`, preserving produce-versus-consume intent without introducing a fake epsilon
+throughput; nonzero legacy goals continue to infer direction from their sign.
 
-The balance pass only adjusts goods with a configured production goal. A required ingredient
-without one remains an explicit raw import instead of making the entire factory balance
-infeasible.
+Each reached good receives a material-balance equality. A good without a selected producer has an
+import-slack variable, and ordinary outputs have a surplus-slack variable. A byproduct with an
+automatically reached sink instead has a closed equality: its natural production must feed that
+consumer and cannot be supplemented by an external import. Imports carry the dominant objective
+penalty; activity cost and supply priority break ties between configured producers. A missing
+producer therefore becomes a raw import rather than making the model infeasible.
+
+The actionable output is one change per goal—it never collapses a multi-goal block back to its
+first goal. Preview puts every proposed goal into memory, runs the full ordinary block solver for
+every enabled block, and compares aggregate real boundary flows with the response-model projection.
+A mismatch is measured against the good's gross factory throughput, not its near-zero net after
+producer and consumer cancellation. If that mismatch exceeds 0.5%, or the next goal vector still
+contains a change over the 1% balanced-rate tolerance, Scenario rebuilds the local responses around
+the proposed vector and tries again, up to a bounded pass limit. Zero transitions remain meaningful
+regardless of percentage. Any broken block or remaining mismatch rejects the plan before a write.
+Apply repeats the full validation as a final safety check, then persists the settled rates as one
+**Balance pinned factory** undo action.
+
+Stock pins describe desired net replenishment, but a stock block may also feed internal consumers.
+Its solved gross production is stored as `factoryRate` while the visible `stock` and `window` remain
+authoritative for the buffer target. User edits to either stock control clear that computed override.
+
+When `factorySolverDebug` is enabled in app config through **Settings → Advanced**, preview and
+apply create a bounded structured trace in `factory-debug.server.ts`. It records the pins, required
+goods, response columns, generated LP model, re-linearization validation, imports, surplus, and final
+result. Only the latest trace is retained in process; the server functions
+return it to the Advanced settings card without writing planner data to disk.
 
 ### Primary outputs and byproducts
 
-Only explicit positive goals can be resized to satisfy demand. Byproducts and incidental
-spoilage offset demand at their current solved amount but cannot run their source block solely
-to make more. Remaining demand falls through to a configured positive producer or a raw import.
+Only reached explicit positive goals can run to satisfy demand. Their response columns include
+all natural coproducts, which offset demand for the same good or feed a configured consumer. Those
+coproducts cannot add a positive producer, and producer caps prevent them from running their source
+block solely to make more. Remaining demand falls through to another selected positive producer or
+a raw import.
 
 This preserves the same boundary semantics as a single block: incidental production can
 offset demand but cannot silently redefine the plan.
@@ -363,10 +392,9 @@ offset demand but cannot silently redefine the plan.
 Blocks expose Preferred, Normal, and Fallback tiers, with numeric tiers available for
 advanced control. A block can override its default priority for one exported good.
 
-The allocation model exhausts available higher-priority supply before using lower tiers.
-Priority decides among valid suppliers; it does not change block goals, internal pins, or
-the recipe solve. The report records allocated rate, source block, good, priority, and
-whether the offer was incidental.
+Priority chooses among configured goal columns for the same required good. It does not change
+block-internal pins or the normalized recipe solve, and it never promotes an incidental output to
+a demand-reachable producer.
 
 ### Energy boundaries
 
@@ -388,7 +416,8 @@ Keep solver tests close to the mathematical layer:
 - `temps.test.ts` for temperature expansion and folding;
 - `subblock.test.ts` for nested contracts and flat-equivalence cases;
 - focused compute/effects tests for machines, fuels, modules, research, and cached results;
-- factory-solve tests for scaling, byproduct caps, energy boundaries, and supply priority.
+- `factory-plan.test.ts` for pins, reachability, imports, and validated apply;
+- `factory-solve.test.ts` for the assistant's scaling analysis.
 
 When changing a user gesture, test both the persisted document mapping and the resulting LP
 constraint. Run `vp test` and `vp check`, then exercise the corresponding editor flow and

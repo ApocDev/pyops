@@ -56,8 +56,8 @@ export type Pin =
     };
 
 export type LpBlockInput = {
-  /** rate > 0: produce ≥ rate/s in-block. rate < 0: consume ≥ |rate|/s (SINK). */
-  goals: { name: string; rate: number }[];
+  /** Direction remains explicit at zero; older inputs infer it from rate's sign. */
+  goals: { name: string; rate: number; direction?: "produce" | "consume" }[];
   recipes: RecipeDef[];
   /** items claimed produced in-block (net ≥ 0). Produce-goal items are
    * implicitly made; listing them again is harmless. */
@@ -105,6 +105,9 @@ const FLOW_EPS = 1e-9;
  * in-block throughput is numerical dust from near-cancellation, not a real flow
  * (comfortably above HiGHS' ~1e-7 rate error, far below any meaningful flow). */
 const DUST_REL = 1e-5;
+/** Numerical room for the second, machine-minimizing stage to retain the
+ * minimum goal surplus found by the first stage. */
+const GOAL_LEX_TOL = 1e-7;
 
 let highsP: ReturnType<typeof highsLoader> | null = null;
 const getHighs = () => (highsP ??= highsLoader());
@@ -170,7 +173,8 @@ export function buildModel(input: LpBlockInput): BlockModel {
 
   for (const g of goals) {
     const c = coeff[g.name];
-    if (!c || (g.rate >= 0 && !produced[g.name])) {
+    const consumes = g.direction === "consume" || g.rate < 0;
+    if (!c || (!consumes && !produced[g.name])) {
       // a produce goal nothing makes (or a goal on an untouched item) can't be
       // enforced without zeroing the block — report instead
       unmade.push(g.name);
@@ -179,7 +183,7 @@ export function buildModel(input: LpBlockInput): BlockModel {
     constraints.push({
       id: `goal_${cname(g.name)}`,
       parts: netParts(c),
-      op: g.rate >= 0 ? ">=" : "<=",
+      op: consumes ? "<=" : ">=",
       rhs: g.rate,
       prov: { type: "goal", item: g.name, rate: g.rate },
     });
@@ -336,6 +340,99 @@ export async function solveBlockLp(input: LpBlockInput): Promise<LpBlockResult> 
   }
   if (sol.status !== "Optimal") {
     return { status: "error", message: `solver returned ${sol.status}`, ...empty, ...unmadeOut };
+  }
+
+  // Goals are floors/ceilings so forced chemistry can remain feasible, but
+  // machine minimization alone may choose avoidable goal surplus. Example:
+  // one recipe makes Coal + Coal gas while another turns Coal into more gas;
+  // minimizing machines idles the second recipe and exports excess Coal even
+  // when both saved goal rates can be met exactly.
+  //
+  // Keep the fast one-solve path when the machine optimum already binds every
+  // goal. Otherwise solve lexicographically: minimize normalized goal surplus,
+  // then minimize machines while retaining that optimum. Equality + a
+  // nonnegative slack is exactly equivalent to the original one-sided goal.
+  const goalRows = constraints.flatMap((row, index) => {
+    if (row.prov.type !== "goal") return [];
+    const slack = `goalSlack${index}`;
+    const weight = 1 / Math.max(1, Math.abs(row.rhs));
+    return [{ row, slack, weight }];
+  });
+  const goalSurplus = (solution: Awaited<ReturnType<typeof runLp>>) =>
+    goalRows.reduce((sum, { row, weight }) => {
+      const c = coeff[row.prov.type === "goal" ? row.prov.item : ""] ?? [];
+      const net = c.reduce(
+        (total, value, index) => total + value * solution.primal(`x${index}`),
+        0,
+      );
+      const surplus = row.op === ">=" ? Math.max(0, net - row.rhs) : Math.max(0, row.rhs - net);
+      return sum + weight * surplus;
+    }, 0);
+  const machineGoalSurplus = goalSurplus(sol);
+  if (machineGoalSurplus > GOAL_LEX_TOL && goalRows.length > 0) {
+    const goalBounds = goalRows.map(({ slack }) => `0 <= ${slack} <= 1e12`);
+    const goalObjective = goalRows.map(({ slack, weight }) => term(weight, slack)).join(" ");
+    const goalConstraints = constraints.map((row) => {
+      const goal = goalRows.find((candidate) => candidate.row === row);
+      if (!goal) return row;
+      return {
+        ...row,
+        parts: [...row.parts, term(row.op === ">=" ? -1 : 1, goal.slack)],
+        op: "=" as const,
+      };
+    });
+    let goalSol: Awaited<ReturnType<typeof runLp>>;
+    try {
+      goalSol = await runLp(recipes, goalConstraints, {
+        objective: goalObjective,
+        extraBounds: goalBounds,
+      });
+    } catch (e) {
+      return {
+        status: "error",
+        message: e instanceof Error ? e.message : String(e),
+        ...empty,
+        ...unmadeOut,
+      };
+    }
+    if (goalSol.status !== "Optimal")
+      return {
+        status: goalSol.status === "Infeasible" ? "infeasible" : "error",
+        message: `goal-tightening solve returned ${goalSol.status}`,
+        ...empty,
+        ...unmadeOut,
+      };
+    const minimumSurplus = goalRows.reduce(
+      (sum, { slack, weight }) => sum + weight * goalSol.primal(slack),
+      0,
+    );
+    if (minimumSurplus + GOAL_LEX_TOL < machineGoalSurplus) {
+      const retainMinimum = {
+        id: "goal_surplus_optimum",
+        parts: goalRows.map(({ slack, weight }) => term(weight, slack)),
+        op: "<=",
+        rhs: minimumSurplus + GOAL_LEX_TOL * Math.max(1, minimumSurplus),
+      };
+      try {
+        sol = await runLp(recipes, [...goalConstraints, retainMinimum], {
+          extraBounds: goalBounds,
+        });
+      } catch (e) {
+        return {
+          status: "error",
+          message: e instanceof Error ? e.message : String(e),
+          ...empty,
+          ...unmadeOut,
+        };
+      }
+      if (sol.status !== "Optimal")
+        return {
+          status: sol.status === "Infeasible" ? "infeasible" : "error",
+          message: `machine tie-break solve returned ${sol.status}`,
+          ...empty,
+          ...unmadeOut,
+        };
+    }
   }
 
   const rates = recipes.map((_, i) => {

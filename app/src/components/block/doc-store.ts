@@ -199,10 +199,34 @@ export function createBlockDocStore() {
       })),
     removeGoal: (name: string) => edit((s) => ({ goals: s.goals.filter((g) => g.name !== name) })),
     setGoalRate: (name: string, rate: number) =>
-      edit((s) => ({ goals: s.goals.map((g) => (g.name === name ? { ...g, rate } : g)) })),
+      edit((s) => ({
+        goals: s.goals.map((g) =>
+          g.name === name
+            ? {
+                ...g,
+                rate,
+                ...(rate === 0
+                  ? { direction: g.rate < 0 ? "consume" : (g.direction ?? "produce") }
+                  : { direction: undefined }),
+              }
+            : g,
+        ),
+      })),
     /** Back-solve support for the sizing lock: set the FIRST goal's rate. */
     setPrimaryRate: (rate: number) =>
-      edit((s) => ({ goals: s.goals.map((g, i) => (i === 0 ? { ...g, rate } : g)) })),
+      edit((s) => ({
+        goals: s.goals.map((g, i) =>
+          i === 0
+            ? {
+                ...g,
+                rate,
+                ...(rate === 0
+                  ? { direction: g.rate < 0 ? "consume" : (g.direction ?? "produce") }
+                  : { direction: undefined }),
+              }
+            : g,
+        ),
+      })),
     // Rate window (#10): a display/input unit per goal — the stored rate stays /s.
     setGoalUnit: (name: string, unit: RateUnit) =>
       edit((s) => ({
@@ -218,26 +242,37 @@ export function createBlockDocStore() {
           if (g.name !== name) return g;
           const window = g.window ?? STOCK_WINDOW_DEFAULT;
           const stock = Math.max(1, Math.round(g.rate * window)) || 1;
-          return { ...g, stock, window, rate: stock / window };
+          return { ...g, stock, window, rate: stock / window, factoryRate: undefined };
         }),
       })),
     // keep the derived rate as the throughput target; drop the stock intent
     makeRateGoal: (name: string) =>
       edit((s) => ({
         goals: s.goals.map((g) =>
-          g.name === name ? { ...g, stock: undefined, window: undefined } : g,
+          g.name === name
+            ? { ...g, stock: undefined, window: undefined, factoryRate: undefined }
+            : g,
         ),
       })),
     setGoalStock: (name: string, stock: number) =>
       edit((s) => ({
         goals: s.goals.map((g) =>
-          g.name === name ? { ...g, stock, rate: stock / (g.window ?? STOCK_WINDOW_DEFAULT) } : g,
+          g.name === name
+            ? {
+                ...g,
+                stock,
+                rate: stock / (g.window ?? STOCK_WINDOW_DEFAULT),
+                factoryRate: undefined,
+              }
+            : g,
         ),
       })),
     setGoalWindow: (name: string, window: number) =>
       edit((s) => ({
         goals: s.goals.map((g) =>
-          g.name === name && g.stock != null ? { ...g, window, rate: g.stock / window } : g,
+          g.name === name && g.stock != null
+            ? { ...g, window, rate: g.stock / window, factoryRate: undefined }
+            : g,
         ),
       })),
     /** Swap a goal's item in place (keeps position + rate); drop it if the new

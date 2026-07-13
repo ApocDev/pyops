@@ -9,11 +9,11 @@ outline: [2, 3]
 Open **Factory** to enter the whole-plan workspace. Its three views use the same enabled
 blocks, but answer different questions.
 
-| View            | Question                                                           |
-| --------------- | ------------------------------------------------------------------ |
-| **Overview**    | What does the entire plan produce, consume, and still need?        |
-| **Connections** | Do the intended block-to-block supplies match their consumers?     |
-| **Scenario**    | How would every block need to change for a new final-product rate? |
+| View            | Question                                                              |
+| --------------- | --------------------------------------------------------------------- |
+| **Overview**    | What does the entire plan produce, consume, and still need?           |
+| **Connections** | Do the intended block-to-block supplies match their consumers?        |
+| **Scenario**    | What block goals satisfy the factory pins, and what remains external? |
 
 Start with [Overview](../getting-started/factory), then use **Connections** when totals can
 hide a connection problem and **Scenario** when planning a scale change.
@@ -53,32 +53,47 @@ change, or solver update. This re-solves saved blocks; it does not invent new re
 Select **Scenario** in the Factory workspace. It solves the enabled blocks as one
 speculative system without saving changes.
 
-1. Under **Final products**, edit the rate of the product you want to change.
-2. Read **Goal changes** for each affected good's current rate, required rate, and scale
-   factor. Select a good to open the block that owns its goal.
-3. Check **Raw inputs** for the projected demand from outside the planned factory.
-4. Check **Overproduced** for goods that would accumulate without another consumer.
-5. With the current final-product targets, select **Balance factory** to apply every listed
+1. Under **Factory pins**, add the goods that define the factory's desired outputs or
+   consumption. Positive rates request production; negative rates request consumption.
+2. Edit a pin's rate to preview another target. Stock goals appear as derived stock targets and
+   keep their amount and replenishment window.
+3. Read **Goal changes** for each affected good's current rate, required rate, and scale
+   factor. Differences within 1% are treated as balanced so rounding-scale corrections do not
+   keep reappearing. Select a good to open the block that owns its goal.
+4. Check **Raw inputs** for the projected demand from outside the planned factory.
+5. Check **Overproduced** for goods that would accumulate without another consumer.
+6. With the saved pin targets, select **Balance factory** to apply every listed
    goal change as one undoable action. After editing a final-product target, the same action
    is labelled **Apply scenario**.
 
-Scenario balances goals, not an opaque shared block rate. When a block has an additional
-negative goal, it can balance that intake without changing the block's first goal. For example,
-if a Tar block consumes Shale oil as its second goal, surplus Shale oil produces a
-**Shale oil** row with the required consume rate.
+Only factory pins are fixed. Every other block goal is a value for Scenario to calculate, including
+additional goals in a multi-goal block. On first use, PyOps proposes current terminal positive goals
+as initial pins; after you save the list, it uses that explicit list instead. Stock targets are always
+included.
 
-Terminal goals—goods nothing else in the factory consumes—anchor the balance. Intermediate
-production goals move to cover downstream demand, while negative goals can move to absorb
-surplus. After each change PyOps re-solves the affected block and repeats until its boundary
-flows settle. A consume goal can temporarily grow to handle that surplus, but it will not be
-left above the rate it had when balancing started after the surplus disappears. A valid producer
-currently set to `0/s` is probed at a normalized rate, so
-**Balance factory** can start it instead of reporting an infeasible zero-times-scale row.
+Scenario measures how each configured goal changes its complete multi-goal block, then builds one
+factory-wide material model from those local responses. Starting at the pins, it follows required
+ingredients to configured positive producers. A reached producer's natural byproduct can drive a
+configured consume goal for that same good. PyOps caps the source at the amount needed for its
+declared product, so the consumer cannot pull extra source production merely to obtain one of its own
+outputs. This allows Coal's natural Tar to feed a Tar consumer without enlarging Coal to manufacture
+Ash or Iron plate.
+
+An unpinned consumption goal with no reached byproduct settles at zero, but it remains a consume
+goal: its icon still opens consuming recipes and a later factory solve still probes its configured
+sink. Pin the good with a negative rate when it should consume a fixed boundary amount even without
+an in-factory source. A valid configured producer currently set to `0/s` can likewise be started
+because its response is probed in its saved produce or consume direction.
 
 If no enabled block can supply a required ingredient, Scenario keeps the solve usable and
 lists the shortfall under **Raw inputs** as an external import.
 
 Use **reset to current** to discard the speculative target.
+
+To inspect an unexpected result, enable **Capture structured solver traces** under
+**Settings → Advanced**, reproduce the Scenario calculation, then return there and select
+**Refresh**. The trace contains the pins, required-good closure, block-response columns,
+generated LP model, validation passes, imports, surplus, and final result as JSON.
 
 <AppScreenshot
   src="/images/factory-what-if.png"
@@ -99,6 +114,6 @@ suppliers; it does not scale a block solely to obtain an incidental byproduct.
 
 ::: info Scenario is not an optimizer for new designs
 Scenario balances the blocks and recipes already in the plan. It can start an idle configured
-producer, but it does not add recipes or blocks. Add a producer when an external import should
-be made inside the factory.
+producer, but it does not add recipes or blocks. A required good with no reached configured producer
+remains a **Raw input**; add and configure a producer when it should be made inside the factory.
 :::

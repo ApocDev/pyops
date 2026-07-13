@@ -400,9 +400,14 @@ export type RateUnit = "s" | "min" | "h";
 export type Goal = {
   name: string;
   rate: number;
+  /** Stable intent when rate is zero. Older documents infer this from the sign. */
+  direction?: "produce" | "consume";
   unit?: RateUnit;
   stock?: number; // "keep N on hand" — presence makes this a stock goal
   window?: number; // refill window in seconds (default 600); rate = stock / window
+  /** Factory-computed gross production needed to cover internal consumers while
+   * preserving the user's stock/window target. Effective rate is the larger. */
+  factoryRate?: number;
 };
 
 export type BlockData = {

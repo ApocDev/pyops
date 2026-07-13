@@ -1,0 +1,146 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pin, Plus, X } from "lucide-react";
+import { useState } from "react";
+import { factoryPinsFn, setFactoryPinsFn } from "#/server/factorio.ts";
+import { Icon } from "#/lib/icons.tsx";
+import { Button } from "#/components/ui/button.tsx";
+import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
+import { EmptyState } from "#/components/empty-state.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
+import { Input } from "#/components/ui/input.tsx";
+import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { FactoryPinPickerDialog } from "./factory-pin-picker-dialog.tsx";
+
+type PinRow = Awaited<ReturnType<typeof factoryPinsFn>>[number];
+
+export function FactoryPinsCard({
+  overrides,
+  onOverride,
+}: {
+  overrides: Record<string, number>;
+  onOverride: (good: string, rate: number) => void;
+}) {
+  const qc = useQueryClient();
+  const pins = useQuery({ queryKey: ["factoryPins"], queryFn: () => factoryPinsFn() });
+  const [picking, setPicking] = useState(false);
+  const [showStock, setShowStock] = useState(false);
+  const save = useMutation({
+    mutationFn: (
+      rows: {
+        good: string;
+        kind: string;
+        rate: number;
+        source?: "explicit" | "terminal" | "stock";
+      }[],
+    ) => setFactoryPinsFn({ data: rows }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["factoryPins"] });
+      await qc.invalidateQueries({ queryKey: ["whatif"] });
+    },
+  });
+  const rows = pins.data ?? [];
+  const stockRows = rows.filter((pin) => pin.source === "stock");
+  const visibleRows = [
+    ...rows.filter((pin) => pin.source !== "stock"),
+    ...(showStock ? stockRows : []),
+  ];
+  const persist = (next: PinRow[]) =>
+    save.mutate(next.map(({ good, kind, rate, source }) => ({ good, kind, rate, source })));
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="justify-between">
+          <div className="flex items-center gap-2">
+            <CardTitle className="normal-case">Factory pins</CardTitle>
+            <InfoHint content="The only fixed whole-factory targets. Every other goal is solved from these demands." />
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setPicking(true)}>
+            <Plus /> Pin good
+          </Button>
+        </CardHeader>
+        {pins.isPending ? (
+          <div className="space-y-2 p-3">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-5/6" />
+          </div>
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title="No factory pins"
+            description="Pin a desired output before solving the factory."
+          />
+        ) : (
+          <div className="divide-y divide-border">
+            {visibleRows.map((pin) => {
+              const value = overrides[pin.good] ?? pin.rate;
+              return (
+                <div key={pin.good} className="flex items-center gap-2 px-3 py-1.5 text-sm">
+                  <Pin className="size-3.5 shrink-0 text-primary" />
+                  <Icon
+                    kind={pin.kind as "item" | "fluid"}
+                    name={pin.good}
+                    size="sm"
+                    title={pin.display}
+                  />
+                  <span className="min-w-0 flex-1 truncate" title={pin.display}>
+                    {pin.display}
+                  </span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={value}
+                    onChange={(event) => onOverride(pin.good, Number(event.target.value) || 0)}
+                    onBlur={() => {
+                      if (Math.abs(value) <= 1e-9) return;
+                      persist(
+                        rows.map((row) => (row.good === pin.good ? { ...row, rate: value } : row)),
+                      );
+                    }}
+                    className="w-24 text-right"
+                    aria-label={`${pin.display} factory pin`}
+                  />
+                  <span className="text-muted-foreground">/s</span>
+                  {pin.source !== "stock" && (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={`Remove ${pin.display} factory pin`}
+                      title="Remove factory pin"
+                      onClick={() => persist(rows.filter((row) => row.good !== pin.good))}
+                    >
+                      <X />
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+            {stockRows.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="m-2"
+                onClick={() => setShowStock((current) => !current)}
+              >
+                {showStock ? "Hide" : "Show"} {stockRows.length} stock targets
+              </Button>
+            )}
+          </div>
+        )}
+      </Card>
+
+      {picking && (
+        <FactoryPinPickerDialog
+          onClose={() => setPicking(false)}
+          onPick={(good) => {
+            setPicking(false);
+            if (rows.some((pin) => pin.good === good.name)) return;
+            persist([
+              ...rows,
+              { good: good.name, kind: good.kind, rate: 1, display: good.name, source: "explicit" },
+            ]);
+          }}
+        />
+      )}
+    </>
+  );
+}

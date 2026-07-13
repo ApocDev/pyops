@@ -22,6 +22,7 @@ export type AppConfig = {
   active?: string; // the selected project id
   openrouterApiKey?: string;
   model?: string;
+  factorySolverDebug?: boolean;
 };
 
 export function readAppConfig(): AppConfig {

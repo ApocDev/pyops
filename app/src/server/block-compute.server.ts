@@ -167,7 +167,13 @@ export function pickDefaultMachine<
  * so adding a goal-flow too would list the block twice as a consumer and
  * double-count the demand in the factory totals. */
 export function boundaryFlows(
-  goals: { name: string; kind: string; rate: number; stock?: boolean }[],
+  goals: {
+    name: string;
+    kind: string;
+    rate: number;
+    direction?: "produce" | "consume";
+    stock?: boolean;
+  }[],
   r: {
     exports: { name: string; kind: string; rate: number }[];
     imports: { name: string; kind: string; rate: number }[];
@@ -175,7 +181,7 @@ export function boundaryFlows(
 ) {
   return [
     ...goals
-      .filter((g) => g.rate >= 0)
+      .filter((g) => g.direction !== "consume" && g.rate >= 0)
       .map((g) => ({
         item: g.name,
         kind: g.kind,
@@ -189,13 +195,18 @@ export function boundaryFlows(
 
 /** Resolve a block's goals to `{ name, kind, rate }` for the boundary cache (the
  * good's kind is needed so the flow icons correctly). */
-export function goalFlows(
-  data: SolveInput,
-): { name: string; kind: string; rate: number; stock?: boolean }[] {
+export function goalFlows(data: SolveInput): {
+  name: string;
+  kind: string;
+  rate: number;
+  direction?: "produce" | "consume";
+  stock?: boolean;
+}[] {
   return data.goals.map((g) => ({
     name: g.name,
     kind: q.getFluid(g.name) ? "fluid" : "item",
     rate: g.rate,
+    direction: g.direction ?? (g.rate < 0 ? "consume" : "produce"),
     stock: g.stock != null,
   }));
 }
@@ -554,6 +565,7 @@ export async function computeBlock(rawData: SolveInput) {
   const goals = targets.map((t) => ({
     name: t.name,
     rate: supersededGoals.has(t.name) ? 0 : t.rate,
+    direction: t.direction ?? (t.rate < 0 ? "consume" : "produce"),
   }));
   const made =
     data.made ??
@@ -1038,7 +1050,9 @@ export async function computeBlock(rawData: SolveInput) {
   // again under Exports duplicates that goal. The editor and in-game summary use
   // this folded view while boundaryFlows continues to use the canonical exports.
   const positiveGoalNames = new Set(
-    data.goals.filter((goal) => goal.rate > 0).map((goal) => goal.name),
+    data.goals
+      .filter((goal) => goal.direction !== "consume" && goal.rate > 0)
+      .map((goal) => goal.name),
   );
   const incidentalGoalRates = new Map<string, number>();
   for (const spoilage of incidentalSpoilage) {
@@ -1056,7 +1070,9 @@ export async function computeBlock(rawData: SolveInput) {
   // the canonical import in `imports` for factory projections and flow math,
   // but do not repeat the same good in the editor's Imports list.
   const negativeGoalNames = new Set(
-    data.goals.filter((goal) => goal.rate < 0).map((goal) => goal.name),
+    data.goals
+      .filter((goal) => goal.direction === "consume" || goal.rate < 0)
+      .map((goal) => goal.name),
   );
   const displayImports = imports
     .filter((flow) => !negativeGoalNames.has(flow.name))

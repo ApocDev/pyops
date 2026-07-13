@@ -17,6 +17,7 @@ desktop navigation or from the navigation drawer on a narrower window.
 | **Game data**      | Reference-data sync, detected mod versions, data drift, and local storage paths                |
 | **In-game link**   | Companion mod installation, Factorio launch, UDP bridge status, and live-state sync            |
 | **Backup & share** | Complete project backups and portable block JSON files                                         |
+| **Advanced**       | Opt-in diagnostic tools for investigating planner behavior                                     |
 
 The active project selector is separate from Settings. It appears beside Settings on a
 wide desktop and near the bottom of the navigation drawer on narrower windows.
@@ -36,6 +37,18 @@ hold factories with different saves or mod sets without mixing their recipes and
 
 The OpenRouter key and default Assistant model are app-level settings. They remain the same
 when you switch projects and are not included in a project backup.
+
+## Capture a factory solver trace
+
+Open **Settings → Advanced** and enable **Capture structured solver traces**. The next visit to
+Factory Scenario—or the next **Balance factory** action—records the factory pins, required-good
+closure, normalized block columns, generated LP model, imports, surplus, and final status.
+
+Return to **Settings → Advanced**, select **Refresh**, and inspect, copy, or download the JSON.
+Only the latest trace is kept in memory, and it disappears when PyOps exits or you select
+**Clear**. Traces include planner names, internal prototype IDs, and rates, so review them before
+sharing. They do not include API keys or unrelated app configuration. Leave tracing disabled
+during ordinary use.
 
 ## Find the data folder
 

@@ -563,7 +563,9 @@ function Block({ blockId }: { blockId: number }) {
         const consumedInBlock = new Set(
           (res?.rows ?? []).flatMap((row) => row.ingredients.map((i) => i.name)),
         );
-        const sinkGoals = new Set(goals.filter((g) => g.rate < 0).map((g) => g.name));
+        const sinkGoals = new Set(
+          goals.filter((g) => g.direction === "consume" || g.rate < 0).map((g) => g.name),
+        );
         if (
           drainsOnConsume({
             good,

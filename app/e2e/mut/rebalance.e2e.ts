@@ -12,6 +12,41 @@ async function dismissDataDriftPrompt(page: Page) {
   }
 }
 
+test("factory pins can add and persist a consumption target", async ({ page }) => {
+  await goto(page, "/factory/scenario");
+  await dismissDataDriftPrompt(page);
+
+  await page.getByRole("button", { name: "Pin good" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add factory pin" });
+  await dialog.getByPlaceholder("search an item or fluid…").fill("acetaldehyde");
+  await dialog.getByRole("button", { name: "Acetaldehyde", exact: true }).click();
+
+  const input = page.getByRole("spinbutton", { name: "Acetaldehyde factory pin" });
+  await expect(input).toBeVisible();
+  await input.fill("-2");
+  await input.blur();
+  await expect(input).toHaveValue("-2");
+  await expect
+    .poll(() => {
+      const db = new DatabaseSync(activeProjectDbFile(), { readOnly: true });
+      try {
+        const row = db.prepare("SELECT value FROM meta WHERE key = 'factory_pins_v1'").get() as
+          | { value: string }
+          | undefined;
+        return row?.value ?? "";
+      } finally {
+        db.close();
+      }
+    })
+    .toContain('"rate":-2');
+
+  await page.reload();
+  const persisted = page.getByRole("spinbutton", { name: "Acetaldehyde factory pin" });
+  await expect(persisted).toHaveValue("-2");
+  await page.getByRole("button", { name: "Remove Acetaldehyde factory pin" }).click();
+  await expect(persisted).toBeHidden();
+});
+
 test("what-if target stays editable while the factory re-solves", async ({ page }) => {
   await goto(page, "/factory/scenario");
   await dismissDataDriftPrompt(page);
@@ -50,7 +85,7 @@ test("applying a scenario re-balances the factory in one undoable step", async (
   await goto(page, "/factory/scenario");
   await dismissDataDriftPrompt(page);
 
-  // the Final products card is the only place with numeric (spinbutton) inputs
+  // the Factory pins card is the first place with numeric (spinbutton) inputs
   const firstDemand = page.getByRole("spinbutton").first();
   await expect(firstDemand).toBeVisible();
   const current = Number(await firstDemand.inputValue());
@@ -73,74 +108,23 @@ test("applying a scenario re-balances the factory in one undoable step", async (
   // the whole batch reports as one undoable action. The success toast is brief
   // and can expire while the final query invalidations settle; the undo label is
   // the durable proof that the write completed.
-  await expect(undoButton(page)).toHaveAccessibleName(/Undo: Re-balance factory/, {
+  await expect(undoButton(page)).toHaveAccessibleName(/Undo: Balance pinned factory/, {
     timeout: 15_000,
+  });
+  await expect(page.getByText("Goal changes (0)", { exact: true })).toBeVisible({
+    timeout: 30_000,
   });
 
   // one undo reverts this whole batch, leaving the shared scratch db as it was.
   // Assert the undo RAN via its toast rather than that the label clears — the seed
   // is a copy of the live project and may already carry an unrelated
-  // "Re-balance factory" action, so the label needn't return to something else.
+  // earlier factory action, so the label needn't return to something else.
   await expect(undoButton(page)).toBeEnabled();
   await undoButton(page).click();
-  await expect(toast(page, /Undid: Re-balance factory/)).toBeVisible({ timeout: 30_000 });
+  await expect(toast(page, /Undid: Balance pinned factory/)).toBeVisible({ timeout: 30_000 });
 });
 
-test("Scenario can start a valid zero-rate producer", async ({ page }) => {
-  test.setTimeout(120_000);
-  // Tar's current byproducts can eventually cover all Coke demand. Disable that
-  // competing incidental source in the scratch project so this test isolates
-  // the idle configured Coke producer rather than supply substitution.
-  const setup = new DatabaseSync(activeProjectDbFile());
-  const tarEnabled = (setup.prepare("SELECT enabled FROM blocks WHERE id = 38").get() as {
-    enabled: number;
-  }).enabled;
-  try {
-    setup.prepare("UPDATE blocks SET enabled = 0 WHERE id = 38").run();
-  } finally {
-    setup.close();
-  }
-
-  try {
-    await goto(page, "/factory/scenario");
-    await dismissDataDriftPrompt(page);
-
-    const change = page.getByRole("link", { name: /^Coke / });
-    await expect(change).toContainText("0");
-    await expect(change).toContainText("start");
-
-    await page.getByRole("button", { name: "Balance factory", exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: /Balance the whole factory/ });
-    await dialog.getByRole("button", { name: /^Apply \d+ change/ }).click();
-    await expect(dialog).toBeHidden({ timeout: 45_000 });
-    await expect(undoButton(page)).toHaveAccessibleName(/Undo: Re-balance factory/, {
-      timeout: 15_000,
-    });
-
-    const saved = new DatabaseSync(activeProjectDbFile(), { readOnly: true });
-    try {
-      const row = saved.prepare("SELECT data FROM blocks WHERE name = 'Coke'").get() as {
-        data: string;
-      };
-      const doc = JSON.parse(row.data) as { goals: { name: string; rate: number }[] };
-      expect(doc.goals.find((goal) => goal.name === "coke")?.rate).toBeGreaterThan(0);
-    } finally {
-      saved.close();
-    }
-
-    await undoButton(page).click();
-    await expect(toast(page, /Undid: Re-balance factory/)).toBeVisible({ timeout: 30_000 });
-  } finally {
-    const restore = new DatabaseSync(activeProjectDbFile());
-    try {
-      restore.prepare("UPDATE blocks SET enabled = ? WHERE id = 38").run(tarEnabled);
-    } finally {
-      restore.close();
-    }
-  }
-});
-
-test("Scenario applies a secondary consume goal independently", async ({ page }) => {
+test("Scenario zeros an unpinned consume goal without saving the preview", async ({ page }) => {
   test.setTimeout(120_000);
   // Resolve the copied project's existing projections before inserting the two
   // self-contained test blocks and their cached factory boundary flows.
@@ -185,42 +169,32 @@ test("Scenario applies a secondary consume goal independently", async ({ page })
     db.close();
   }
 
-  await goto(page, "/factory/scenario");
-  const change = page.getByRole("link", { name: /^Acetaldehyde -2/ });
-  await expect(change).toContainText("-2");
-  await expect(change).toContainText("-10");
-
-  await page.getByRole("button", { name: "Balance factory", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: /Balance the whole factory/ });
-  await dialog.getByRole("button", { name: /^Apply \d+ change/ }).click();
-  await expect(dialog).toBeHidden({ timeout: 45_000 });
-  await expect(toast(page, /Re-balanced \d+ block/)).toBeVisible({ timeout: 15_000 });
-  await expect(undoButton(page)).toHaveAccessibleName(/Undo: Re-balance factory/, {
-    timeout: 15_000,
-  });
-
-  const saved = new DatabaseSync(activeProjectDbFile(), { readOnly: true });
   try {
-    const row = saved.prepare("SELECT data FROM blocks WHERE id = ?").get(sinkId) as {
-      data: string;
-    };
-    const doc = JSON.parse(row.data) as { goals: { name: string; rate: number }[] };
-    expect(doc.goals.find((goal) => goal.name === "acetaldehyde")?.rate).toBe(-10);
-    expect(doc.goals.find((goal) => goal.name === "water")?.rate).toBe(-1);
-  } finally {
-    saved.close();
-  }
+    await goto(page, "/factory/scenario");
+    const change = page.getByRole("link", { name: /^Acetaldehyde / });
+    await expect(change).toContainText("-2");
+    await expect(change).toContainText("required/s0");
 
-  await undoButton(page).click();
-  await expect(toast(page, /Undid: Re-balance factory/)).toBeVisible({ timeout: 30_000 });
-
-  const cleanup = new DatabaseSync(activeProjectDbFile());
-  try {
-    cleanup.exec("PRAGMA busy_timeout = 5000");
-    cleanup.prepare("DELETE FROM block_flows WHERE block_id IN (?, ?)").run(sourceId, sinkId);
-    cleanup.prepare("DELETE FROM block_machines WHERE block_id IN (?, ?)").run(sourceId, sinkId);
-    cleanup.prepare("DELETE FROM blocks WHERE id IN (?, ?)").run(sourceId, sinkId);
+    const saved = new DatabaseSync(activeProjectDbFile(), { readOnly: true });
+    try {
+      const row = saved.prepare("SELECT data FROM blocks WHERE id = ?").get(sinkId) as {
+        data: string;
+      };
+      const doc = JSON.parse(row.data) as { goals: { name: string; rate: number }[] };
+      expect(doc.goals.find((goal) => goal.name === "acetaldehyde")?.rate).toBe(-2);
+      expect(doc.goals.find((goal) => goal.name === "water")?.rate).toBe(-1);
+    } finally {
+      saved.close();
+    }
   } finally {
-    cleanup.close();
+    const cleanup = new DatabaseSync(activeProjectDbFile());
+    try {
+      cleanup.exec("PRAGMA busy_timeout = 5000");
+      cleanup.prepare("DELETE FROM block_flows WHERE block_id IN (?, ?)").run(sourceId, sinkId);
+      cleanup.prepare("DELETE FROM block_machines WHERE block_id IN (?, ?)").run(sourceId, sinkId);
+      cleanup.prepare("DELETE FROM blocks WHERE id IN (?, ?)").run(sourceId, sinkId);
+    } finally {
+      cleanup.close();
+    }
   }
 });

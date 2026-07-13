@@ -59,7 +59,7 @@ export type TempFold = {
 
 export function expandTemps(
   input: {
-    goals: { name: string; rate: number }[];
+    goals: { name: string; rate: number; direction?: "produce" | "consume" }[];
     recipes: TempRecipeDef[];
     made: string[];
     pins: Pin[];
@@ -155,7 +155,7 @@ export function expandTemps(
   // a goal on an expanded fluid is a pool constraint; its variants still need
   // net ≥ 0 so the goal can't be met by importing variants
   for (const g of goals)
-    if (ranged.has(g.name) && g.rate >= 0)
+    if (ranged.has(g.name) && g.direction !== "consume" && g.rate >= 0)
       for (const t of variants.get(g.name) ?? []) outMade.push(variantKey(g.name, t));
 
   // a drained fluid's surplus must vanish per-variant AND per-pool

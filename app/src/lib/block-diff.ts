@@ -53,7 +53,12 @@ export type BlockDiff = {
 };
 
 const sameGoal = (a: Goal, b: Goal) =>
-  a.rate === b.rate && a.unit === b.unit && a.stock === b.stock && a.window === b.window;
+  a.rate === b.rate &&
+  a.direction === b.direction &&
+  a.unit === b.unit &&
+  a.stock === b.stock &&
+  a.window === b.window &&
+  a.factoryRate === b.factoryRate;
 
 const sameList = (a: string[] | null, b: string[] | null) =>
   a === b || (a != null && b != null && a.length === b.length && a.every((v, i) => v === b[i]));

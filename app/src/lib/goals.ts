@@ -38,7 +38,7 @@ export function normalizeBlockData<T extends RawBlockData>(d: T): BlockData {
       .map((g) => {
         if (g.stock == null) return g;
         const window = g.window ?? STOCK_WINDOW_DEFAULT;
-        return { ...g, window, rate: g.stock / window };
+        return { ...g, window, rate: Math.max(g.stock / window, g.factoryRate ?? 0) };
       });
     return { ...(rest as object), goals: kept } as BlockData;
   }
@@ -54,6 +54,13 @@ export const STOCK_WINDOW_DEFAULT = 600;
 
 /** The first goal (names the block + sizing anchor), or undefined for an empty block. */
 export const primaryGoal = (d: { goals?: Goal[] }): Goal | undefined => d.goals?.[0];
+
+/** A zero rate has no sign, so retain the last explicit goal intent separately. */
+export const goalDirection = (goal: Pick<Goal, "rate" | "direction">) =>
+  goal.rate < 0 ? "consume" : goal.rate > 0 ? "produce" : (goal.direction ?? "produce");
+
+export const goalConsumes = (goal: Pick<Goal, "rate" | "direction">): boolean =>
+  goalDirection(goal) === "consume";
 
 /** Every goal's good name, in order, de-duplicated and non-empty. */
 export const goalNames = (d: { goals?: Goal[] }): string[] => {
@@ -82,7 +89,10 @@ export function withPrimaryRate<T extends { goals?: Goal[] }>(d: T, rate: number
       ? {
           ...g,
           rate,
-          ...(g.stock != null ? { stock: rate * (g.window ?? STOCK_WINDOW_DEFAULT) } : {}),
+          ...(rate === 0 ? { direction: goalDirection(g) } : { direction: undefined }),
+          ...(g.stock != null
+            ? { stock: rate * (g.window ?? STOCK_WINDOW_DEFAULT), factoryRate: undefined }
+            : {}),
         }
       : g,
   );

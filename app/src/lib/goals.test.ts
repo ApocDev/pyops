@@ -91,4 +91,9 @@ describe("goal accessors", () => {
       { name: "splitter", rate: 2 },
     ]);
   });
+
+  it("preserves consume intent when a negative primary goal is balanced to zero", () => {
+    const out = withPrimaryRate({ goals: [{ name: "kerogen", rate: -40 }] }, 0);
+    expect(out.goals).toEqual([{ name: "kerogen", rate: 0, direction: "consume" }]);
+  });
 });
