@@ -328,7 +328,10 @@ Factory Scenario balances enabled blocks through repeated goal-and-solve passes,
 YAFC's factory balancing. Each pass reads the persisted boundary flows, keeps terminal positive
 goals fixed, and computes the current mismatch for every good. Intermediate positive goals move
 to downstream demand after incidental byproducts are credited; negative goals move to absorb
-byproduct-only surplus.
+byproduct-only surplus. The negative rates present when balancing starts are retained as sink
+baselines: a pass may enlarge them to absorb real surplus, but a later pass returns them toward
+those baselines when the surplus disappears. This prevents transient byproducts from ratcheting
+consumer blocks upward across the iteration loop.
 
 The actionable output is one change per throughput goal—it never collapses a multi-goal block
 back to its first goal. **Balance factory** updates those goals, re-solves each affected block,

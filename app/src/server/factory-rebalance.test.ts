@@ -367,23 +367,34 @@ describe("applyFactoryRebalanceFn solve reuse", () => {
     };
     vi.mocked(blockCompute.computeBlock).mockResolvedValue(solved as never);
     vi.mocked(factoryBalance.factoryBalanceStep)
-      .mockImplementationOnce((blocks) => ({
-        ...factoryResult(blocks, { 1: 1 }),
-        goalChanges: [
-          {
-            id: 1,
-            name: "Tar",
-            good: "scrude",
-            kind: "fluid",
-            currentRate: -20,
-            requiredRate: -61.88,
-            scale: 3.094,
-            delta: -41.88,
-            goal: true,
-          },
-        ],
-      }))
-      .mockImplementationOnce((blocks) => factoryResult(blocks, { 1: 1 }));
+      .mockImplementationOnce((blocks, _overrides, sinkBaselines) => {
+        expect(sinkBaselines).toEqual(
+          new Map([
+            [`1\u0000tar`, -9.575],
+            [`1\u0000scrude`, -20],
+          ]),
+        );
+        return {
+          ...factoryResult(blocks, { 1: 1 }),
+          goalChanges: [
+            {
+              id: 1,
+              name: "Tar",
+              good: "scrude",
+              kind: "fluid",
+              currentRate: -20,
+              requiredRate: -61.88,
+              scale: 3.094,
+              delta: -41.88,
+              goal: true,
+            },
+          ],
+        };
+      })
+      .mockImplementationOnce((blocks, _overrides, sinkBaselines) => {
+        expect(sinkBaselines?.get(`1\u0000scrude`)).toBe(-20);
+        return factoryResult(blocks, { 1: 1 });
+      });
 
     const result = await applyFactoryRebalanceFn({ data: {} });
 

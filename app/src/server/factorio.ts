@@ -404,6 +404,13 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
     let passes = 0;
     let residual = 0;
     const failedBlocks = new Map<number, string>();
+    const sinkBaselines = new Map(
+      base.flatMap((block) =>
+        [...block.startGoals]
+          .filter(([, rate]) => rate < 0)
+          .map(([good, rate]) => [`${block.id}\u0000${good}`, rate] as const),
+      ),
+    );
     for (; passes < REBALANCE_MAX_PASSES; passes++) {
       // Pass one uses SQLite's persisted boundary flows. On later passes, only
       // re-solve docs whose rate changed; unchanged blocks keep their latest
@@ -452,7 +459,7 @@ export const applyFactoryRebalanceFn = createServerFn({ method: "POST" })
         status = "Infeasible";
         break;
       }
-      const result = factoryBalanceStep(withFlows, overrides);
+      const result = factoryBalanceStep(withFlows, overrides, sinkBaselines);
       status = result.status;
       // Goal changes are the only actionable controls. A scale on a utility or
       // goal-less block cannot be applied and must not keep the iteration alive.

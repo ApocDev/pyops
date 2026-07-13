@@ -25,6 +25,7 @@ type GoalChange = {
 export function factoryBalanceStep(
   blocks: BlockWithFlows[],
   demandOverrides: Record<string, number> = {},
+  sinkBaselines: Map<string, number> = new Map(),
 ) {
   const kindOf = new Map<string, string>();
   const produced = new Map<string, number>();
@@ -157,11 +158,18 @@ export function factoryBalanceStep(
   for (const [good, entries] of sinks) {
     if (producers.has(good)) continue;
     const available = incidental.get(good) ?? 0;
-    if (available <= EPS) continue;
-    const current = entries.reduce((sum, entry) => sum + entry.rate, 0);
+    const baseline = entries.map((entry) =>
+      Math.abs(sinkBaselines.get(`${entry.block.id}\u0000${good}`) ?? -entry.rate),
+    );
+    const baselineTotal = baseline.reduce((sum, rate) => sum + rate, 0);
+    const required = Math.max(available, baselineTotal);
     entries.forEach((entry, index) => {
       const allocation =
-        current > EPS ? available * (entry.rate / current) : index === 0 ? available : 0;
+        baselineTotal > EPS
+          ? required * (baseline[index]! / baselineTotal)
+          : index === 0
+            ? required
+            : 0;
       addChange(entry.block, good, -allocation);
     });
   }

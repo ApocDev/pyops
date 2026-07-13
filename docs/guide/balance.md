@@ -70,7 +70,9 @@ if a Tar block consumes Shale oil as its second goal, surplus Shale oil produces
 Terminal goals—goods nothing else in the factory consumes—anchor the balance. Intermediate
 production goals move to cover downstream demand, while negative goals can move to absorb
 surplus. After each change PyOps re-solves the affected block and repeats until its boundary
-flows settle. A valid producer currently set to `0/s` is probed at a normalized rate, so
+flows settle. A consume goal can temporarily grow to handle that surplus, but it will not be
+left above the rate it had when balancing started after the surplus disappears. A valid producer
+currently set to `0/s` is probed at a normalized rate, so
 **Balance factory** can start it instead of reporting an infeasible zero-times-scale row.
 
 If no enabled block can supply a required ingredient, Scenario keeps the solve usable and

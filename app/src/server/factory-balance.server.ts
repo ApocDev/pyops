@@ -85,7 +85,14 @@ export async function previewFactoryBalance(demandOverrides: Record<string, numb
     );
 
   const initialModels = await models();
-  const initial = factoryBalanceStep(initialModels, demandOverrides);
+  const sinkBaselines = new Map(
+    base.flatMap((entry) =>
+      [...entry.startGoals]
+        .filter(([, rate]) => rate < 0)
+        .map(([good, rate]) => [`${entry.block.id}\u0000${good}`, rate] as const),
+    ),
+  );
+  const initial = factoryBalanceStep(initialModels, demandOverrides, sinkBaselines);
   let currentModels = initialModels;
   let settled = initial;
   let failed = false;
@@ -133,7 +140,7 @@ export async function previewFactoryBalance(demandOverrides: Record<string, numb
       break;
     }
     currentModels = await models();
-    settled = factoryBalanceStep(currentModels, demandOverrides);
+    settled = factoryBalanceStep(currentModels, demandOverrides, sinkBaselines);
   }
   const hitPassLimit = passes >= 15 && settled.goalChanges.length > 0;
 

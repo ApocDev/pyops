@@ -89,6 +89,19 @@ describe("factoryBalanceStep", () => {
     );
   });
 
+  it("returns an enlarged sink to its starting baseline when surplus disappears", () => {
+    const sink = block(2, "Sink", { name: "waste", rate: -10 }, [
+      { item: "waste", kind: "fluid", role: "import", rate: 10 },
+    ]);
+    const baselines = new Map([[`${sink.id}\u0000waste`, -2]]);
+
+    const result = factoryBalanceStep([sink], {}, baselines);
+
+    expect(result.goalChanges).toContainEqual(
+      expect.objectContaining({ good: "waste", currentRate: -10, requiredRate: -2 }),
+    );
+  });
+
   it("leaves a good with no configured producer as a raw import", () => {
     const gears = block(1, "Gears", { name: "gear", rate: 1 }, [
       { item: "gear", kind: "item", role: "primary", rate: 1 },
