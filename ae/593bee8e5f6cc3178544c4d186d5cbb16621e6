@@ -1,0 +1,31 @@
+app/src/server/agent-tools-goals.test.ts
+  s_999d363ffccad9::t_334a55a2c562e9 124-131
+app/src/db/queries.server.ts
+  s_999d363ffccad9::t_8286a5d1ce6eca 1914
+app/src/lib/goals.test.ts
+  s_999d363ffccad9::t_3110969675a8c2 54-61
+app/src/lib/goals.ts
+  s_999d363ffccad9::t_94820f1affa662 26,36-42
+app/src/server/agent-tools.server.ts
+  s_999d363ffccad9::t_daa25925dc7ae2 775
+docs/development/solver.md
+  s_999d363ffccad9::t_67c71467c373ea 66-67
+docs/guide/blocks.md
+  s_999d363ffccad9::t_c07bd6a4cc5db5 32-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "ae593bee8e5f6cc3178544c4d186d5cbb16621e6",
+  "prompts": {},
+  "sessions": {
+    "s_999d363ffccad9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f577a-fbbc-71c0-a7f7-f321dd8a611d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
