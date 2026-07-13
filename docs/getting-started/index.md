@@ -37,6 +37,12 @@ Home adapts to the active project. A new project shows these setup steps in orde
 you have a working plan, it becomes a command center for the next block problem, factory
 deficit, build shortfall, data drift, and game-link state.
 
+<AppScreenshot
+  src="/images/home-command-center.png"
+  alt="The Home command center showing the next factory action, balance, build status, project status, recent blocks, and planning shortcuts"
+  caption="Once a project has solved blocks, Home leads with the most urgent planning action and keeps the factory's current state visible without opening every workspace."
+/>
+
 1. [Install PyOps](./install).
 2. [Choose or create a project](./project) for this factory or mod set.
 3. [Sync game data](./sync-game-data) from Factorio into that project.
