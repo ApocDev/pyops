@@ -23,7 +23,7 @@ export type RawBlockData = Partial<Omit<BlockData, "goals">> & {
   target?: string;
   rate?: number;
   extraGoals?: string[];
-  goals?: Array<{ name: string; rate: number | null }>;
+  goals?: Array<Omit<Goal, "rate"> & { rate: number | null }>;
 };
 
 /** Migrate a possibly-legacy block doc to the `goals` shape. Idempotent: a doc that
@@ -33,7 +33,13 @@ export function normalizeBlockData<T extends RawBlockData>(d: T): BlockData {
   const { target, rate, extraGoals: _extraGoals, goals, ...rest } = d;
   if (Array.isArray(goals)) {
     // Drop any rate-less goals (old "unpinned co-products") — they're byproducts now.
-    const kept = goals.filter((g): g is Goal => !!g.name && g.rate != null);
+    const kept = goals
+      .filter((g): g is Goal => !!g.name && g.rate != null)
+      .map((g) => {
+        if (g.stock == null) return g;
+        const window = g.window ?? STOCK_WINDOW_DEFAULT;
+        return { ...g, window, rate: g.stock / window };
+      });
     return { ...(rest as object), goals: kept } as BlockData;
   }
   const next: Goal[] = [];

@@ -63,6 +63,8 @@ from the Block balance Imports list rather than rendering the same contract twic
 A stock goal stores an amount and replenishment window. The compute layer converts it to
 `amount / window` for solving, then tags its persisted factory flow as stock replenishment
 rather than continuous output.
+Normalization derives that rate on every read, making `stock` plus `window` authoritative even
+if an older document also contains a stale explicit rate.
 
 The first goal anchors the block's name, scaling controls, and default icon. Additional
 goals participate in the same solve without changing that identity.

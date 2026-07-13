@@ -29,6 +29,8 @@ Select **New block**, then use **+ goal** to choose an item or fluid.
 Right-click a goal and select **Keep in stock instead (buffer, not throughput)** when the
 intent is to refill a quantity over time rather than sustain a continuous rate. Stock-only
 production appears separately in Factory.
+The solver rate is always the stock amount divided by its refill window; an older saved rate
+cannot turn a buffer goal back into continuous production.
 
 A negative goal is already the block's visible import contract, so Block balance does not
 repeat that good under **Imports**. Other ingredients the block needs still appear there.

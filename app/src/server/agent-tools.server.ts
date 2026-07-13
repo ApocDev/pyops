@@ -772,7 +772,7 @@ function resolveGoals(input: {
   if (input.goals?.length) {
     return input.goals.map((g) => {
       const window = g.window ?? STOCK_WINDOW_DEFAULT;
-      const rate = g.rate ?? g.stock! / window;
+      const rate = g.stock != null ? g.stock / window : g.rate!;
       return { name: g.name, rate, ...(g.stock != null ? { stock: g.stock, window } : {}) };
     });
   }

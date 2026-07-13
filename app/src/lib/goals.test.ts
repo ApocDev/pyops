@@ -51,6 +51,14 @@ describe("normalizeBlockData", () => {
     expect(normalizeBlockData(data)).toEqual(data);
   });
 
+  it("repairs a stale stock-goal rate from its amount and refill window", () => {
+    expect(
+      normalizeBlockData({
+        goals: [{ name: "belt", rate: 1, stock: 100, window: 600 }],
+      }).goals,
+    ).toEqual([{ name: "belt", rate: 1 / 6, stock: 100, window: 600 }]);
+  });
+
   it("yields an empty goal list for an empty block", () => {
     expect(normalizeBlockData({ recipes: [] }).goals).toEqual([]);
   });

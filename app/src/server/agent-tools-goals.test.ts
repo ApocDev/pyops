@@ -121,6 +121,14 @@ describe("submitBlock/submitPlan/buildingBill: multi-goal + keep-in-stock goals 
     expect(res.goals).toEqual([{ name: "iron-plate", rate: 0.1, stock: 60, window: 600 }]);
   });
 
+  it("stock/window wins when a stale explicit rate is also present", async () => {
+    const res = await draft({
+      goals: [{ name: "iron-plate", rate: 1, stock: 100, window: 600 }],
+      recipes: ["iron-plate"],
+    });
+    expect(res.goals).toEqual([{ name: "iron-plate", rate: 1 / 6, stock: 100, window: 600 }]);
+  });
+
   it("supports multiple goals in one block — a rate goal and a stock goal together", async () => {
     const res = await draft({
       goals: [
