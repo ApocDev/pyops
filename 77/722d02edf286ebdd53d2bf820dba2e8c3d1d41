@@ -1,0 +1,35 @@
+app/e2e/mut/rebalance.e2e.ts
+  s_999d363ffccad9::t_93513e49ebd5f0 143,189-192,194-204,206-214
+app/src/routes/factory_.scenario.tsx
+  s_999d363ffccad9::t_5d490c02799bf8 294-296
+app/src/server/factorio.ts
+  s_999d363ffccad9::t_305a0259ad3f74 455
+app/src/server/factory-balance-step.server.ts
+  s_999d363ffccad9::t_c5e3f0a37ebc1b 22-24,202
+app/src/server/factory-balance-step.test.ts
+  s_999d363ffccad9::t_570fb3e658177c 76,87-89,93-111,114,116-124
+app/src/server/factory-balance.server.ts
+  s_999d363ffccad9::t_0cb1ae58d7bea9 88,136
+app/src/server/factory-rebalance.test.ts
+  s_999d363ffccad9::t_3e74657f6dc925 330,359-361,365-367
+docs/development/solver.md
+  s_999d363ffccad9::t_bae67102695c24 330-332
+docs/guide/balance.md
+  s_999d363ffccad9::t_0d8152c860b700 71-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "77722d02edf286ebdd53d2bf820dba2e8c3d1d41",
+  "prompts": {},
+  "sessions": {
+    "s_999d363ffccad9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f577a-fbbc-71c0-a7f7-f321dd8a611d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
