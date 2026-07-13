@@ -1,0 +1,53 @@
+app/src/components/block/item-chip.test.tsx
+  s_1ea4814b100698::t_429a60d3174809 14-31
+app/src/components/block/item-chip.tsx
+  s_1ea4814b100698::t_7d2c087742bb59 28-29,43-45,66-78,95,108-110
+app/src/components/block/recipe-picker-dialog.tsx
+  s_1ea4814b100698::t_fd106489d08d75 45,47-53,55-96,98-113,115-116,134,140,146-180
+app/src/db/synthesize.test.ts
+  s_1ea4814b100698::t_354d8953455502 203-269
+app/src/db/synthesize.ts
+  s_1ea4814b100698::t_b0f13c43c6517b 79,131-132,152-162,426-436,438-443,446-462,465,470-478
+app/src/lib/recipe-card.test.tsx
+  s_1ea4814b100698::t_d10937e769aaf8 107-135
+app/e2e/mut/count-pin.e2e.ts
+  s_1ea4814b100698::t_fee1242d1de486 1,3-9,48-143
+app/e2e/mut/helpers.ts
+  s_1ea4814b100698::t_5aa6a92c605128 115-130
+app/src/components/block/recipe-row.tsx
+  s_1ea4814b100698::t_1dda3c904111e0 457-458
+app/src/db/queries.server.ts
+  s_1ea4814b100698::t_6928cf2ee07a30 4531-4533,4555,4573-4586,4588-4591,4600-4611,4675-4676
+app/src/db/queries.test.ts
+  s_1ea4814b100698::t_4698484058baa3 614-701
+app/src/lib/recipe-card.tsx
+  s_1ea4814b100698::t_37887041d57279 32-35
+app/src/server/agent-tools.server.ts
+  s_1ea4814b100698::t_1f33967f485914 289
+app/src/server/block-compute.server.ts
+  s_1ea4814b100698::t_6f0ab65f0c5eb5 56,547-559,561-573,577-585,587,990-1010
+app/src/server/block-compute.test.ts
+  s_1ea4814b100698::t_9f3e5874e19cf4 965,976-978,982-985,987,989-993,1001,1015-1033
+docs/development/data-pipeline.md
+  s_1ea4814b100698::t_99728fa14d2442 139-147
+docs/development/solver.md
+  s_1ea4814b100698::t_3d259ed91db547 129-134
+docs/guide/blocks.md
+  s_1ea4814b100698::t_34730d5c5d4d17 53-57,91-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "734dd6d9761b37d57e6b38bc113cc7d7453f16b7",
+  "prompts": {},
+  "sessions": {
+    "s_1ea4814b100698": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5b9a-c41a-74f0-8031-b44c40bc575f",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
