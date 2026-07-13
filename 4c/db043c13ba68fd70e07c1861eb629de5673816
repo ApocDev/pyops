@@ -1,0 +1,31 @@
+app/src/server/factorio.ts
+  s_999d363ffccad9::t_9c466b19393dad 407-413,462
+app/src/server/factory-balance-step.server.ts
+  s_999d363ffccad9::t_78c1d91c7db1c4 28,161-165,168-172
+app/src/server/factory-balance-step.test.ts
+  s_999d363ffccad9::t_e5dcc2f240d3fa 92-104
+app/src/server/factory-balance.server.ts
+  s_999d363ffccad9::t_140ea7740bbfd5 88-95,143
+app/src/server/factory-rebalance.test.ts
+  s_999d363ffccad9::t_42ebfaed67518a 370-397
+docs/development/solver.md
+  s_999d363ffccad9::t_e1555854ee22d7 331-334
+docs/guide/balance.md
+  s_999d363ffccad9::t_6b3fdb814c5c1d 73-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "4cdb043c13ba68fd70e07c1861eb629de5673816",
+  "prompts": {},
+  "sessions": {
+    "s_999d363ffccad9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f577a-fbbc-71c0-a7f7-f321dd8a611d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
