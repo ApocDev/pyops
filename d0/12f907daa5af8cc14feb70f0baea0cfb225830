@@ -1,0 +1,19 @@
+docs/getting-started/index.md
+  s_4dd2f80d6b822d::t_69ded2ba2b7f4d 40-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "d012f907daa5af8cc14feb70f0baea0cfb225830",
+  "prompts": {},
+  "sessions": {
+    "s_4dd2f80d6b822d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f546e-a403-7280-90cb-d5d5ad59598c",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
