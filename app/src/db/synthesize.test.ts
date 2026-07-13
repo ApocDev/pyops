@@ -200,6 +200,73 @@ describe("synthesizePass2", () => {
   });
 });
 
+describe("synthesizePass2 variable generators", () => {
+  it("uses the planner-average surface coefficient and retains its power range", () => {
+    const windRaw = {
+      "surface-property": {
+        "py-wind-speed": { default_value: 1 },
+      },
+      planet: {
+        nauvis: {
+          surface_properties: {
+            "py-wind-speed": 60,
+            "py-wind-speed-min": 20,
+            "py-wind-speed-max": 100,
+          },
+        },
+      },
+      "solar-panel": {
+        "multiblade-turbine-mk01": {
+          production: 20_000,
+          placeable_by: { item: "multiblade-turbine-mk01" },
+          solar_coefficient_property: "py-wind-speed",
+          performance_at_day: 1,
+          performance_at_night: 1,
+        },
+        "multiblade-turbine-mk01-blank": {
+          production: 20_000,
+          placeable_by: { item: "multiblade-turbine-mk01" },
+          solar_coefficient_property: "py-wind-speed",
+        },
+        "tidal-mk01-solar": {
+          production: 800_000,
+          placeable_by: { item: "tidal-mk01" },
+          solar_coefficient_property: "py-wind-speed",
+        },
+        "ordinary-panel": { production: 60_000 },
+      },
+    };
+
+    synthesizePass2(fx.db, windRaw, ctx);
+
+    expect(
+      get<{ display: string }>(
+        `SELECT display FROM recipes WHERE name = 'generate-multiblade-turbine-mk01'`,
+      ),
+    ).toMatchObject({ display: "multiblade-turbine-mk01 power (average)" });
+    expect(
+      get<{ amount: number; min: number; max: number }>(
+        `SELECT amount, amount_min min, amount_max max FROM recipe_products
+         WHERE recipe = 'generate-multiblade-turbine-mk01' AND name = ?`,
+        ELECTRICITY,
+      ),
+    ).toMatchObject({ amount: 1.2, min: 0.4, max: 2 });
+    expect(
+      get<{ amount: number; min: number | null; max: number | null }>(
+        `SELECT amount, amount_min min, amount_max max FROM recipe_products
+         WHERE recipe = 'generate-ordinary-panel' AND name = ?`,
+        ELECTRICITY,
+      ),
+    ).toMatchObject({ amount: 0.06, min: null, max: null });
+    expect(
+      get(`SELECT name FROM recipes WHERE name = 'generate-multiblade-turbine-mk01-blank'`),
+    ).toBeUndefined();
+    expect(
+      get(`SELECT machine FROM machine_categories WHERE category = 'generate:tidal-mk01-solar'`),
+    ).toMatchObject({ machine: "tidal-mk01" });
+  });
+});
+
 describe("synthesizePass2 planting", () => {
   const seedSeed = () =>
     fx.db

@@ -4527,12 +4527,10 @@ export function allBlockRecipes(): string[] {
   ];
 }
 
-const BARREL_CATEGORIES = new Set(["py-barreling", "py-unbarreling", "barreling", "barrelling"]);
-
 /** Recipe-picker candidates (producing/consuming X) with lock + TURD state,
- * sorted: available first (cheapest first within a tier, per cost analysis),
- * tech-locked next, unselected-TURD after, barrel fill/empty dead last —
- * useful at times, rarely what you actually want. */
+ * sorted into usable and locked groups, cheapest first within each group. A
+ * candidate is usable only when both its recipe and at least one compatible
+ * building are available under the selected planning horizon. */
 export function recipeCandidatesBatch(names: string[], mode: "produce" | "consume") {
   const uniq = [...new Set(names)].filter((name) => name);
   if (!uniq.length) return new Map<string, never[]>();
@@ -4554,6 +4552,7 @@ export function recipeCandidatesBatch(names: string[], mode: "produce" | "consum
   const locksByRecipe = recipeLockStatesByRecipe(recipeNames, new Set(selections.values()));
   const horizon = getResearchHorizon();
   const availability = computeAvailByRecipe(allBase, locksByRecipe, horizon, selections);
+  const machineOptions = machineOptionsForRecipes(recipeNames);
   const comp = (c: {
     kind: string;
     name: string;
@@ -4571,12 +4570,25 @@ export function recipeCandidatesBatch(names: string[], mode: "produce" | "consum
       const turd = unlocks.find((u) => u.isTurdSub);
       const avail = availability.get(r.name)!;
       const available = r.enabled || (turd ? turd.turdSelected : unlocks.length > 0); // tech-locked counts as obtainable
-      // available-now (start-enabled or its unlock tech is researched/reached) ranks
-      // above tech-locked-but-not-yet-researched
-      let rank = r.enabled ? 0 : turd ? (turd.turdSelected ? 1 : 3) : avail.availableNow ? 1 : 2;
+      const machines = (machineOptions.get(r.name) ?? [])
+        .slice()
+        .sort((a, b) => a.craftingSpeed - b.craftingSpeed);
+      const machineAvailable =
+        machines.length === 0 ||
+        (horizon.mode === "future"
+          ? machines.some((machine) => machine.startEnabled || machine.unlockedBy.length > 0)
+          : machines.some((machine) => machine.availableNow));
+      const recipeAvailable =
+        horizon.mode === "future"
+          ? available
+          : horizon.mode === "now"
+            ? avail.buildableNow
+            : avail.availableNow;
       const superseded = supersededMap.get(r.name) ?? null;
-      if (superseded) rank = Math.max(rank, 6); // the selected TURD removed it in-game
-      if (BARREL_CATEGORIES.has(r.category ?? "")) rank += 10;
+      const selectable = recipeAvailable && machineAvailable && !superseded;
+      // Cost orders the usable and locked groups independently. Superseded
+      // recipes remain last because the selected TURD removed them in-game.
+      const rank = selectable ? 0 : superseded ? 2 : 1;
       // io summary so lookalike recipes (Py loves reusing names) tell apart at a glance
       const full = recipesByNameMap.get(r.name);
       return {
@@ -4585,6 +4597,18 @@ export function recipeCandidatesBatch(names: string[], mode: "produce" | "consum
         turd: turd ?? null,
         available,
         avail,
+        selectable,
+        horizonMode: horizon.mode,
+        machineAvailability: {
+          available: machineAvailable,
+          options: machines.map((machine) => ({
+            name: machine.name,
+            display: machine.display,
+            availableNow: machine.availableNow,
+            startEnabled: machine.startEnabled,
+            unlockedBy: machine.unlockedBy,
+          })),
+        },
         rank,
         cost: costs.get(r.name) ?? null,
         superseded,
@@ -4648,6 +4672,8 @@ function recipeCard(
       amount:
         c.amount ??
         (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0),
+      amountMin: c.amountMin,
+      amountMax: c.amountMax,
       probability: c.probability,
     })),
     machines,

@@ -11,6 +11,24 @@ vi.mock("#/server/factorio", () => ({
 }));
 
 describe("ItemChip spoil time", () => {
+  it("shows average, minimum, and maximum for variable power generation", () => {
+    const { getByRole, getByText } = render(
+      <ItemChip
+        name="pyops-electricity"
+        kind="fluid"
+        display="Electricity (MJ)"
+        rate={48}
+        rateMin={16}
+        rateMax={80}
+        link="target"
+        onClick={() => {}}
+      />,
+    );
+
+    expect(getByText("48 MW avg · 16 MW–80 MW").getAttribute("data-rate-range")).toBe("variable");
+    expect(getByRole("button").getAttribute("aria-label")).toContain("48 MW avg · 16 MW–80 MW");
+  });
+
   it("shows the product's spoil time and includes it in the accessible label", () => {
     const { getByRole, getByText } = render(
       <ItemChip

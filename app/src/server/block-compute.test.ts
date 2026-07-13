@@ -962,7 +962,7 @@ describe("fluid-fuel supplier designation (#115)", () => {
   });
 });
 
-describe("count pin supersedes a goal it produces (#121)", () => {
+describe("count pins and produced goals (#121)", () => {
   let fx: TestDb;
 
   beforeEach(async () => {
@@ -973,15 +973,24 @@ describe("count pin supersedes a goal it produces (#121)", () => {
     fx.db.exec(`
       INSERT INTO recipes (name, kind, category, energy_required, allow_productivity, enabled, hidden) VALUES
         ('mk-steel','real','smelting',1,0,1,0),
-        ('mk-iron','real','smelting',1,0,1,0);
+        ('mk-iron','real','smelting',1,0,1,0),
+        ('fixed-power','real','power',1,0,1,0),
+        ('flex-power','real','power',1,0,1,0);
       INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES ('mk-steel',0,'item','iron',1);
       INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
         ('mk-steel',0,'item','steel',1),
-        ('mk-iron',0,'item','iron',1);
+        ('mk-iron',0,'item','iron',1),
+        ('fixed-power',0,'fluid','pyops-electricity',0.02),
+        ('flex-power',0,'fluid','pyops-electricity',1);
+      UPDATE recipe_products SET amount_min=0.01, amount_max=0.03 WHERE recipe='fixed-power';
       INSERT INTO items (name, display) VALUES ('iron','Iron'),('steel','Steel');
+      INSERT INTO fluids (name, display) VALUES ('pyops-electricity','Electricity (MJ)');
       INSERT INTO crafting_machines (name, kind, crafting_speed, module_slots, energy_usage_w, energy_source)
-        VALUES ('foundry','assembling-machine',1,0,100000,'electric');
-      INSERT INTO machine_categories (machine, category) VALUES ('foundry','smelting'),('mk-iron','smelting');
+        VALUES ('foundry','assembling-machine',1,0,100000,'electric'),
+               ('fixed-generator','assembling-machine',1,0,0,'void'),
+               ('flex-generator','assembling-machine',1,0,0,'void');
+      INSERT INTO machine_categories (machine, category) VALUES
+        ('foundry','smelting'),('fixed-generator','power'),('flex-generator','power');
     `);
     fx.db.close();
     switchDatabase(fx.file);
@@ -989,7 +998,7 @@ describe("count pin supersedes a goal it produces (#121)", () => {
 
   afterEach(() => fx.cleanup());
 
-  it("relaxes the goal so a count pin drives output instead of fighting it", async () => {
+  it("relaxes the goal when exact pins determine all of its production", async () => {
     // one foundry = 1 steel/s; pin 2 → 2 steel/s. Goal 2.5/s would need 3.
     const res = await computeBlock({
       goals: [{ name: "steel", rate: 2.5 }],
@@ -1001,6 +1010,25 @@ describe("count pin supersedes a goal it produces (#121)", () => {
     expect(res.goalSuperseded).toEqual([
       { item: "steel", goalRate: 2.5, pinnedCount: 2, actualRate: 2, buildingsForGoal: 3 },
     ]);
+  });
+
+  it("keeps the goal binding when an unpinned producer can supply the remainder", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "pyops-electricity", rate: 1 }],
+      recipes: ["fixed-power", "flex-power"],
+      machines: { "fixed-power": "fixed-generator", "flex-power": "flex-generator" },
+      pins: [{ kind: "count", recipe: "fixed-power", count: 40 }],
+    });
+
+    expect(res.status).toBe("solved");
+    expect(res.rows.find((r) => r.recipe === "fixed-power")?.products[0]).toMatchObject({
+      rate: 0.8,
+      rateMin: 0.4,
+      rateMax: 1.2,
+    });
+    expect(res.rows.find((r) => r.recipe === "flex-power")?.products[0]?.rate).toBeCloseTo(0.2);
+    expect(res.goalSuperseded).toEqual([]);
+    expect(res.exports.find((flow) => flow.name === "pyops-electricity")).toBeUndefined();
   });
 
   it("a CAP pin does NOT supersede — the goal still binds and the shortfall flags", async () => {

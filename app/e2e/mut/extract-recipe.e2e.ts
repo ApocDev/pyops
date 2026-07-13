@@ -7,7 +7,7 @@ test("extract a recipe row into a dedicated block from the row icon menu", async
 
   await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const platePicker = page.getByRole("dialog", { name: /Recipes that make/ });
-  await platePicker.getByRole("button", { name: /Iron plate/ }).first().click();
+  await platePicker.locator('[data-recipe-candidate="iron-plate"]').click();
   await expect(platePicker).toBeHidden();
 
   await page.getByRole("button", { name: /^Iron ore.*(raw input|craftable)/ }).first().click();

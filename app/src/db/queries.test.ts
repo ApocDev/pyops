@@ -611,6 +611,94 @@ describe("recipeCandidates availability: prerequisite-gated techs (empty own cos
   });
 });
 
+describe("recipeCandidates combined recipe and building availability", () => {
+  const seedGenerators = () => {
+    db.run(sql`INSERT INTO fluids (name, display) VALUES ('power','Power')`);
+    db.run(sql`
+      INSERT INTO items (name, display) VALUES
+        ('steam-engine','Steam engine'),
+        ('wind-turbine','Wind turbine')
+    `);
+    db.run(sql`
+      INSERT INTO recipes (name, display, kind, category, hidden, enabled) VALUES
+        ('generate-steam','Steam power','generating','generate:steam',0,1),
+        ('generate-wind','Wind power','generating','generate:wind',0,1),
+        ('craft-steam-engine','Craft steam engine','real',NULL,0,1),
+        ('craft-wind-turbine','Craft wind turbine','real',NULL,0,0)
+    `);
+    db.run(sql`
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+        ('generate-steam',0,'fluid','power',1),
+        ('generate-wind',0,'fluid','power',1),
+        ('craft-steam-engine',0,'item','steam-engine',1),
+        ('craft-wind-turbine',0,'item','wind-turbine',1)
+    `);
+    db.run(sql`
+      INSERT INTO crafting_machines (name, display, kind, crafting_speed) VALUES
+        ('steam-engine','Steam engine','generator',1),
+        ('wind-turbine','Wind turbine','generator',1)
+    `);
+    db.run(sql`
+      INSERT INTO machine_categories (machine, category) VALUES
+        ('steam-engine','generate:steam'),
+        ('wind-turbine','generate:wind')
+    `);
+    db.run(sql`INSERT INTO technologies (name, display) VALUES ('wind-power','Wind power')`);
+    db.run(sql`
+      INSERT INTO tech_ingredients (technology, name, amount)
+      VALUES ('wind-power','py-science-pack-1',1)
+    `);
+    db.run(sql`
+      INSERT INTO tech_unlocks (technology, recipe)
+      VALUES ('wind-power','craft-wind-turbine')
+    `);
+    // Wind is deliberately cheaper: unlocked-first sorting must still put the
+    // more expensive usable steam option above it.
+    db.run(sql`
+      INSERT INTO cost_analysis (scope, name, kind, cost) VALUES
+        ('recipe','generate-steam','recipe',10),
+        ('recipe','generate-wind','recipe',1)
+    `);
+  };
+
+  it("groups a start-enabled synthetic recipe by whether its building is unlocked", () => {
+    seedGenerators();
+    setResearchHorizon({ mode: "now", packs: [], researched: [] });
+
+    const candidates = recipeCandidates("power", "produce");
+    expect(candidates.map((candidate) => candidate.name)).toEqual([
+      "generate-steam",
+      "generate-wind",
+    ]);
+    expect(candidates[0]).toMatchObject({ selectable: true, horizonMode: "now" });
+    expect(candidates[1]).toMatchObject({
+      selectable: false,
+      machineAvailability: {
+        available: false,
+        options: [
+          {
+            name: "wind-turbine",
+            availableNow: false,
+            unlockedBy: [{ tech: "wind-power", display: "Wind power" }],
+          },
+        ],
+      },
+    });
+  });
+
+  it("moves a generator into the usable cost-sorted group once its building unlocks", () => {
+    seedGenerators();
+    setResearchHorizon({ mode: "now", packs: [], researched: ["wind-power"] });
+
+    const candidates = recipeCandidates("power", "produce");
+    expect(candidates.map((candidate) => candidate.name)).toEqual([
+      "generate-wind",
+      "generate-steam",
+    ]);
+    expect(candidates.every((candidate) => candidate.selectable)).toBe(true);
+  });
+});
+
 describe("batched recipe reads", () => {
   const preparedStatements = <T>(read: () => T): { result: T; count: number } => {
     const prepare = vi.spyOn(db.$client, "prepare");

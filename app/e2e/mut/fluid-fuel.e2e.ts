@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { addGoal, blockNameInput, createBlock, expectUndoTop, goto, uniqueName } from "./helpers";
+import {
+  addGoal,
+  blockNameInput,
+  createBlock,
+  expectUndoTop,
+  goto,
+  setPlanningHorizon,
+  uniqueName,
+} from "./helpers";
 
 /**
  * Fungible fluid fuel (#25): a machine whose energy source burns UNFILTERED
@@ -9,13 +17,15 @@ import { addGoal, blockNameInput, createBlock, expectUndoTop, goto, uniqueName }
  * per-row fluid pick like the old behavior (which defaulted to petroleum-gas).
  */
 test("a fluid-burning drill demands the Fluid fuel pool, not a picked fluid", async ({ page }) => {
+  await goto(page, "/settings");
+  await setPlanningHorizon(page, "Future");
   await createBlock(page);
   await addGoal(page, "antimony ore", "Antimony ore");
 
   // several recipes make Antimony ore → the picker opens; take the drill's one
   await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const picker = page.getByRole("dialog", { name: /Recipes that make/ });
-  await picker.getByRole("button", { name: /Mine Antimony field/ }).click();
+  await picker.locator('[data-recipe-candidate="mine-antimonium"]').click();
   await expect(picker).toBeHidden();
   await expect(page.getByText("Mine Antimony field")).toBeVisible();
 
@@ -33,6 +43,7 @@ test("a fluid-burning drill demands the Fluid fuel pool, not a picked fluid", as
   await expect(page.getByLabel(/^Fluid fuel \(MJ\) \S+ [MkG]?W/).first()).toBeVisible();
   // the pre-#25 behavior defaulted fluid burners to a petroleum-gas import — gone
   await expect(page.getByLabel(/^Petroleum gas/)).toHaveCount(0);
+  await setPlanningHorizon(page, "Now");
 });
 
 /**

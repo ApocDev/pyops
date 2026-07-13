@@ -21,7 +21,7 @@ test("promote a sub-block to a composed module, edit its goal, and persist", asy
   // add the plate producer (self-links the goal)
   await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const platePicker = page.getByRole("dialog", { name: /Recipes that make/ });
-  await platePicker.getByRole("button", { name: /Iron plate/ }).first().click();
+  await platePicker.locator('[data-recipe-candidate="iron-plate"]').click();
   await expect(platePicker).toBeHidden();
 
   // add an iron-ore producer, so the block has a two-recipe chain to fold

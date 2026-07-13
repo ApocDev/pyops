@@ -13,7 +13,7 @@ test("sushi planner sizes one mixed loop for the block's flows", async ({ page }
   // plate recipe, then a producer for its ore ingredient → ore becomes internal
   await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const platePicker = page.getByRole("dialog", { name: /Recipes that make/ });
-  await platePicker.getByRole("button", { name: /Iron plate/ }).first().click();
+  await platePicker.locator('[data-recipe-candidate="iron-plate"]').click();
   await expect(platePicker).toBeHidden();
   await page.getByRole("button", { name: /^Iron ore.*(raw input|craftable)/ }).first().click();
   const orePicker = page.getByRole("dialog", { name: /Recipes that make/ });

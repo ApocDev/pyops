@@ -104,6 +104,35 @@ describe("RecipeCard", () => {
     // heading + muted subline both render the id when no display is available yet
     expect(getAllByText("copper-cable").length).toBeGreaterThan(0);
   });
+
+  it("shows a variable product's average and range", async () => {
+    recipeDetail.mockResolvedValue({
+      recipe: {
+        display: 'Multiblade "fish" turbine power (average)',
+        kind: "generating",
+        category: "generate:multiblade-turbine-mk01",
+        energyRequired: 1,
+        allowProductivity: false,
+        enabled: true,
+        ingredients: [],
+        products: [
+          {
+            kind: "fluid",
+            name: "pyops-electricity",
+            display: "Electricity (MJ)",
+            amount: 1.2,
+            amountMin: 0.4,
+            amountMax: 2,
+          },
+        ],
+      },
+      machines: [],
+      unlocks: [],
+    });
+
+    const { findByText } = withProviders(<RecipeCard name="generate-multiblade-turbine-mk01" />);
+    expect(await findByText(/1\.2 avg \(0\.4–2\).*Electricity/)).toBeTruthy();
+  });
 });
 
 describe("ItemCard", () => {

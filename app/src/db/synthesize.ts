@@ -76,7 +76,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       `INSERT OR REPLACE INTO recipe_ingredients (recipe,idx,kind,name,amount,min_temp,max_temp) VALUES (?,?,?,?,?,?,?)`,
     ),
     prod: db.prepare(
-      `INSERT OR REPLACE INTO recipe_products (recipe,idx,kind,name,amount,probability,temperature,ignored_by_productivity) VALUES (?,?,?,?,?,?,?,0)`,
+      `INSERT OR REPLACE INTO recipe_products (recipe,idx,kind,name,amount,amount_min,amount_max,probability,temperature,ignored_by_productivity) VALUES (?,?,?,?,?,?,?,?,?,0)`,
     ),
     fluid: db.prepare(
       `INSERT OR IGNORE INTO fluids (name,display,default_temperature,heat_capacity_j) VALUES (?,?,NULL,NULL)`,
@@ -128,6 +128,8 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       kind: string;
       name: string;
       amount: number;
+      amountMin?: number | null;
+      amountMax?: number | null;
       probability?: number | null;
       temperature?: number | null;
     }[];
@@ -147,7 +149,17 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       ins.ing.run(r.name, i, c.kind, c.name, c.amount, c.minTemp ?? null, c.maxTemp ?? null),
     );
     (r.products ?? []).forEach((c, i) =>
-      ins.prod.run(r.name, i, c.kind, c.name, c.amount, c.probability ?? 1, c.temperature ?? null),
+      ins.prod.run(
+        r.name,
+        i,
+        c.kind,
+        c.name,
+        c.amount,
+        c.amountMin ?? null,
+        c.amountMax ?? null,
+        c.probability ?? 1,
+        c.temperature ?? null,
+      ),
     );
   };
 
@@ -411,19 +423,59 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       });
       counts.generating++;
     }
-    // solar: free power (peak production — derate for day/night yourself)
+    // Solar-panel prototypes: ordinary panels are represented at peak (the
+    // day/night average depends on the surface). Mods can instead point
+    // `solar_coefficient_property` at a custom surface property. Factorio then
+    // multiplies production by that property's value and ignores the normal
+    // solar-power curve. Py uses this for wind/tidal machines and puts a planner
+    // average on Nauvis (`py-wind-speed = 60`) alongside explicit `-min`/`-max`
+    // bounds. Preserve all three: the LP plans against the average while the UI
+    // can show the operating range.
+    const nauvisProperties = raw.planet?.nauvis?.surface_properties ?? {};
+    const finite = (value: unknown): number | null =>
+      typeof value === "number" && Number.isFinite(value) ? value : null;
     for (const [name, s] of Object.entries(raw["solar-panel"] ?? {})) {
+      const placeableItem = typeof s.placeable_by?.item === "string" ? s.placeable_by.item : name;
+      // Py swaps several wind turbines to a visually blank entity at runtime.
+      // Both states advertise the same placeable item, production, and localized
+      // name; exposing the `-blank` state creates an indistinguishable duplicate
+      // recipe for a building the player cannot craft separately.
+      if (name.endsWith("-blank") && placeableItem !== name) continue;
       const peak = parseSI(s.production);
       if (!peak) continue;
-      machine({ name, kind: "generator", speed: 1, category: `generate:${name}` });
+      const coefficient =
+        typeof s.solar_coefficient_property === "string" ? s.solar_coefficient_property : null;
+      const plannerCoefficient = coefficient
+        ? (finite(nauvisProperties[coefficient]) ??
+          finite(raw["surface-property"]?.[coefficient]?.default_value) ??
+          1)
+        : 1;
+      const minCoefficient = coefficient ? finite(nauvisProperties[`${coefficient}-min`]) : null;
+      const maxCoefficient = coefficient ? finite(nauvisProperties[`${coefficient}-max`]) : null;
+      const hasRange =
+        minCoefficient != null &&
+        maxCoefficient != null &&
+        (minCoefficient !== plannerCoefficient || maxCoefficient !== plannerCoefficient);
+      // Use the item that places this entity as the synthetic machine. Some
+      // generators (notably tidal plants) produce power through a hidden child
+      // entity, but research unlocks the user-facing building item.
+      machine({ name: placeableItem, kind: "generator", speed: 1, category: `generate:${name}` });
       recipe({
         name: `generate-${name}`,
-        display: `${display(name) ?? name} power (peak)`,
+        display: `${display(name) ?? name} power (${hasRange ? "average" : coefficient ? "planning" : "peak"})`,
         kind: "generating",
         category: `generate:${name}`,
         energy: 1,
         source: name,
-        products: [{ kind: "fluid", name: ELECTRICITY, amount: peak / 1e6 }],
+        products: [
+          {
+            kind: "fluid",
+            name: ELECTRICITY,
+            amount: (peak * plannerCoefficient) / 1e6,
+            amountMin: minCoefficient == null ? null : (peak * minCoefficient) / 1e6,
+            amountMax: maxCoefficient == null ? null : (peak * maxCoefficient) / 1e6,
+          },
+        ],
       });
       counts.generating++;
     }

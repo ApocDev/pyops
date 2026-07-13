@@ -112,6 +112,22 @@ export function goalRateButton(page: Page) {
   return page.locator('button[title^="click to edit the goal rate"]');
 }
 
+/** Change the global planning horizon through the same header dialog a player
+ * uses. Advanced-recipe specs opt into Future explicitly now that locked recipe
+ * picker rows are intentionally disabled in Now mode. */
+export async function setPlanningHorizon(
+  page: Page,
+  mode: "Now" | "Future" | "Up to target",
+): Promise<void> {
+  await page.getByRole("button", { name: /^Horizon:/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Planning horizon" });
+  const choice = dialog.getByRole("button", { name: mode, exact: true });
+  await choice.click();
+  await expect(choice).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+}
+
 /** Click the goal rate, type a new value, commit with Enter. */
 export async function setGoalRate(page: Page, value: string): Promise<void> {
   await goalRateButton(page).click();

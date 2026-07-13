@@ -50,8 +50,11 @@ instead opens **Recipes that consume _goal_**. Within a recipe row:
 - Hover recipe, technology, and item details when you need the precise inputs, outputs, or
   unlock status.
 
-The picker orders useful candidates first and explains unavailable research, TURD choices,
-and recipes replaced by a TURD upgrade. PyOps never adds a full chain without your choice.
+The picker groups choices available under the current planning horizon first and sorts each
+group by ascending estimated cost. A recipe is available only when both its own research and
+at least one compatible building are available. Locked rows are disabled and name the missing
+recipe research or building research; recipes replaced by a TURD upgrade remain visible with
+their explanation. PyOps never adds a full chain without your choice.
 
 ## Choose machines, fuels, and modules
 
@@ -84,6 +87,10 @@ into the block's consume goal.
 
 The recipe table explains how that result was produced. **Table** is the editing view;
 **Flow** is a read-only diagram of the same solved recipes and goods.
+
+Variable generators show their average planned output and their minimum–maximum range on
+the electricity product chip. Building counts and block balances use the displayed average;
+the range shows how far live generation can move as the underlying surface condition changes.
 
 ::: warning A solved block is not necessarily self-contained
 A block can solve while importing ingredients. This is intentional: the block boundary

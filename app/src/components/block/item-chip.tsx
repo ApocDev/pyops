@@ -25,6 +25,8 @@ export function ItemChip({
   kind,
   display,
   rate,
+  rateMin,
+  rateMax,
   temp,
   spoilTicks,
   link,
@@ -38,6 +40,9 @@ export function ItemChip({
   kind: string;
   display?: string | null;
   rate?: number;
+  /** Variable energy production range; `rate` is the planner average. */
+  rateMin?: number;
+  rateMax?: number;
   /** temperature label for fluids ("125°", "≤101°") — shown after the rate */
   temp?: string | null;
   /** visible spoil time for a product; ingredient chips leave this unset */
@@ -58,6 +63,19 @@ export function ItemChip({
       ? "raw input — supply externally"
       : link;
   const spoilTime = spoilTicks != null ? fmtSpoilTime(spoilTicks) : null;
+  const variableRate =
+    rate != null &&
+    rateMin != null &&
+    rateMax != null &&
+    (Math.abs(rateMin - rate) > 1e-9 || Math.abs(rateMax - rate) > 1e-9);
+  const displayedRate =
+    rate == null
+      ? ""
+      : variableRate
+        ? `${rateLabel(name, rate)} avg · ${rateLabel(name, rateMin)}–${rateLabel(name, rateMax)}`
+        : rateLabel(name, rate);
+  const accessibleRate =
+    rate == null ? "" : variableRate ? displayedRate : rateLabel(name, rate, { perSec: true });
   return (
     <span className="inline-flex items-center gap-1">
       <ItemHover
@@ -74,7 +92,7 @@ export function ItemChip({
             e.preventDefault();
             onContext(e);
           }}
-          aria-label={`${display ?? name}${rate != null ? ` ${rateLabel(name, rate, { perSec: true })}` : ""}${spoilTime ? ` · spoils in ${spoilTime}` : ""}${incidental ? " · includes estimated incidental spoilage" : ""} · ${why}`}
+          aria-label={`${display ?? name}${accessibleRate ? ` ${accessibleRate}` : ""}${spoilTime ? ` · spoils in ${spoilTime}` : ""}${incidental ? " · includes estimated incidental spoilage" : ""} · ${why}`}
           className={`flex items-center gap-1 px-1.5 py-1 text-sm hover:brightness-95 ${cls}`}
         >
           <span className="relative flex">
@@ -87,7 +105,9 @@ export function ItemChip({
               />
             )}
           </span>
-          {rate != null && <span>{rateLabel(name, rate)}</span>}
+          {rate != null && (
+            <span data-rate-range={variableRate ? "variable" : undefined}>{displayedRate}</span>
+          )}
           {incidental && (
             <span
               data-incidental-spoilage

@@ -126,10 +126,12 @@ A share can use total production or the amount remaining after exact-count consu
 their fixed portion. Temperature expansion may supply an explicit set of source identities
 for the share base.
 
-An exact-count pin on a producer of a goal supersedes that goal's solve floor. The pin then
-defines output, while the saved goal remains the block's declared intent and factory role.
-The result reports the difference so the UI can explain whether the pinned capacity falls
-short. Capacity pins and exact pins elsewhere remain ordinary constraints and may make the
+When exact-count pins cover every producer of a goal, they supersede that goal's solve floor.
+The fixed producers then define output, while the saved goal remains the block's declared
+intent and factory role. The result reports the difference so the UI can explain whether the
+pinned capacity falls short. If an unpinned producer can make the same goal, the goal stays
+binding: exact pins provide their fixed contribution and the other producers supply the
+remainder. Capacity pins and exact pins elsewhere remain ordinary constraints and may make the
 block infeasible.
 
 ## Temperature-sensitive fluids

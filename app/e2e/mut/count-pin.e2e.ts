@@ -1,5 +1,12 @@
+import { DatabaseSync } from "node:sqlite";
 import { expect, test } from "@playwright/test";
-import { addGoal, createBlock } from "./helpers";
+import {
+  activeProjectDbFile,
+  addGoal,
+  createBlock,
+  goto,
+  uniqueName,
+} from "./helpers";
 
 /**
  * Inline building-count pin (#121): a recipe row's building count is click-to-
@@ -37,4 +44,100 @@ test("building count: click to fix, tint shows fixed, clear to unpin", async ({ 
   await field2.press("Enter");
   await expect(page.locator('button[title="click to fix the building count"]')).toBeVisible();
   await expect(page.locator('button[title^="fixed at"]')).toHaveCount(0);
+});
+
+test("variable generator shows its average and min-max output", async ({ page }) => {
+  const db = new DatabaseSync(activeProjectDbFile());
+  db.exec("PRAGMA busy_timeout = 5000");
+  const product = db
+    .prepare(
+      `SELECT amount, amount_min, amount_max FROM recipe_products
+       WHERE recipe = 'generate-multiblade-turbine-mk01' AND name = 'pyops-electricity'`,
+    )
+    .get() as { amount: number; amount_min: number | null; amount_max: number | null };
+  let id: number;
+  try {
+    db.prepare(
+      `UPDATE recipe_products SET amount = 1.2, amount_min = 0.4, amount_max = 2
+       WHERE recipe = 'generate-multiblade-turbine-mk01' AND name = 'pyops-electricity'`,
+    ).run();
+    const data = {
+      recipes: [
+        "generate-steam-engine-250",
+        "boil-steam-250",
+        "generate-multiblade-turbine-mk01",
+      ],
+      made: ["steam"],
+      pins: [{ kind: "count", recipe: "generate-multiblade-turbine-mk01", count: 40 }],
+      machines: {
+        "generate-steam-engine-250": "steam-engine",
+        "boil-steam-250": "boiler",
+        "generate-multiblade-turbine-mk01": "multiblade-turbine-mk01",
+      },
+      fuels: { "boil-steam-250": "raw-coal" },
+      goals: [{ name: "pyops-electricity", rate: 50 }],
+    };
+    const inserted = db
+      .prepare("INSERT INTO blocks (name, data) VALUES (?, ?)")
+      .run(uniqueName("Variable power"), JSON.stringify(data));
+    id = Number(inserted.lastInsertRowid);
+  } finally {
+    db.close();
+  }
+
+  try {
+    await goto(page, `/block/${id}`);
+    const ignore = page.getByRole("button", { name: "Ignore for now" });
+    if (await ignore.isVisible()) await ignore.click();
+    await expect(page.locator('[data-rate-range="variable"]')).toHaveText(
+      "48 MW avg · 16 MW–80 MW",
+    );
+  } finally {
+    const cleanup = new DatabaseSync(activeProjectDbFile());
+    try {
+      cleanup.exec("PRAGMA busy_timeout = 5000");
+      cleanup
+        .prepare(
+          `UPDATE recipe_products SET amount = ?, amount_min = ?, amount_max = ?
+           WHERE recipe = 'generate-multiblade-turbine-mk01' AND name = 'pyops-electricity'`,
+        )
+        .run(product.amount, product.amount_min, product.amount_max);
+      cleanup.prepare("DELETE FROM blocks WHERE id = ?").run(id);
+    } finally {
+      cleanup.close();
+    }
+  }
+});
+
+test("recipe picker groups unlocked choices and disables locked buildings", async ({ page }) => {
+  await createBlock(page);
+  await page.locator('button[title="add a goal product"]').click();
+  const goalDialog = page.getByRole("dialog", { name: "Add a goal product" });
+  await goalDialog.getByPlaceholder("search an item or fluid…").fill("pyops electricity");
+  await goalDialog.getByRole("button", { name: "Electricity (MJ)", exact: true }).click();
+  await expect(goalDialog).toBeHidden();
+  await page.locator('button[aria-label^="add a recipe that makes "]').click();
+
+  const picker = page.getByRole("dialog", { name: "Recipes that make Electricity (MJ)" });
+  const unlocked = picker.getByText("Unlocked now", { exact: true });
+  const locked = picker.getByText("Locked or unavailable", { exact: true });
+  await expect(unlocked).toBeVisible();
+  await expect(locked).toBeVisible();
+  expect((await unlocked.boundingBox())!.y).toBeLessThan((await locked.boundingBox())!.y);
+
+  const steam = picker.getByRole("button", { name: /Steam engine power \(150°\)/ });
+  await expect(steam).toHaveAttribute("aria-disabled", "false");
+  await expect(steam).toContainText("unlocked now · Steam engine");
+
+  const solar = picker.getByRole("button", { name: /Solar panel power \(peak\)/ });
+  await expect(solar).toHaveAttribute("aria-disabled", "true");
+  await expect(solar).toContainText("building locked · Solar panel · needs Solar energy");
+  await solar.click({ force: true });
+  await expect(picker).toBeVisible();
+
+  // Py's `-blank` runtime entity uses the same localized name and output. It is
+  // an alternate state of this building, not a second recipe choice.
+  await expect(
+    picker.getByText('Multiblade "fish" turbine power (average)', { exact: true }),
+  ).toHaveCount(1);
 });

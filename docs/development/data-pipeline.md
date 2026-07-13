@@ -136,6 +136,15 @@ Generators receive one synthetic recipe for each usable input temperature becaus
 depends on available thermal energy. Temperature-fed machines store the drain information
 required to turn their heat source into a real solver flow.
 
+Solar-panel prototypes with a custom `solar_coefficient_property` use the matching Nauvis
+surface property as their planning multiplier. When the mod also publishes matching
+`-min` and `-max` properties, the synthetic recipe retains that range while the solver uses
+the planner value. Py wind turbines, for example, publish their average wind speed for
+planners and their runtime speed bounds separately. Synthetic generator machines use the
+item named by `placeable_by`, so building research gates hidden child entities correctly.
+Alternate `-blank` runtime states that point to the same placeable item are not exposed as
+duplicate recipes.
+
 ### Energy goods
 
 Electricity, heat, and fungible fluid-fuel energy use synthetic goods measured in

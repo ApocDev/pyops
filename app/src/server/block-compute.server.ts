@@ -53,6 +53,7 @@ import { ensureBridge, sendToPeer } from "./bridge/server.ts";
  * `burn-fluid-*` conversion recipe in the block gets sized to supply it. */
 const HEAT = "pyops-heat";
 const FLUID_FUEL = "pyops-fluid-fuel";
+const ELECTRICITY = "pyops-electricity";
 
 /** How a fluid-energy-source machine takes in fuel (#25/#114), from the dump's
  * FluidEnergySource: `burns_fluid` machines burn by fuel_value — any
@@ -543,24 +544,47 @@ export async function computeBlock(rawData: SolveInput) {
   // Explicit doc state wins; a legacy doc (no `made`) derives it from its old
   // dispositions via the migration mapping the parity report validated. The
   // derived set is echoed back on the result so the editor persists it.
-  // Supply-push (#121): a COUNT pin on a recipe that PRODUCES a pinned goal good
-  // re-states the block's size from that building count, so the goal's rate stops
-  // forcing total output. Without this the two fight — 2 foundries make 0.133/s,
-  // a 0.14/s goal needs 2.1, and an exact-count pin plus a ≥-floor can't both
-  // hold → a spurious infeasibility over a rounding sliver. Only COUNT pins (exact
-  // "I built N of these") relax the goal, and only on a producer OF that goal; a
-  // CAP pin ("at most N") is a ceiling the goal may legitimately exceed, so its
-  // shortfall must still flag, and a count pin on a mid-chain row stays a hard
-  // constraint that can honestly conflict. The doc goal is untouched (naming,
-  // rollups); only the solver floor is relaxed, and `goalSuperseded` reports the
-  // gap so the UI can note "N buildings make X/s; your target needs M".
+  // Supply-push (#121): when every recipe that can produce a pinned goal has an
+  // exact COUNT pin, those counts completely determine the output, so the goal's
+  // rate stops forcing a conflicting total. Without this the two fight — 2
+  // foundries make 0.133/s, a 0.14/s goal needs 2.1, and an exact-count pin plus a
+  // ≥-floor can't both hold → a spurious infeasibility over a rounding sliver.
+  //
+  // A mixed-source goal is different: an exact producer establishes its fixed
+  // contribution while any unpinned producer can supply the remainder. Keep the
+  // goal binding in that case (e.g. 800 kW of pinned fish turbines plus an
+  // unpinned steam chain for the rest of a 1 MW goal). CAP pins also leave the
+  // goal binding: their ceiling should produce an honest shortfall diagnosis.
+  // The doc goal is untouched (naming, rollups); when all producers are fixed,
+  // only the solver floor is relaxed and `goalSuperseded` reports the gap.
   const productsByRecipe = new Map(defs.map((d) => [d.name, d.products.map((p) => p.name)]));
+  const countPinnedRecipes = new Set(
+    (data.pins ?? []).flatMap((pin) => (pin.kind === "count" ? [pin.recipe] : [])),
+  );
+  const producersByGoal = new Map(
+    targets.map((target) => [
+      target.name,
+      defs.flatMap((def) =>
+        def.products.some((product) => product.name === target.name && product.amount > 0)
+          ? [def.name]
+          : [],
+      ),
+    ]),
+  );
   const supersededGoals = new Map<string, { recipe: string; count: number }>();
   for (const p of data.pins ?? []) {
     if (p.kind !== "count") continue;
-    for (const prod of productsByRecipe.get(p.recipe) ?? [])
-      if (targets.some((t) => t.name === prod && t.rate != null) && !supersededGoals.has(prod))
+    for (const prod of productsByRecipe.get(p.recipe) ?? []) {
+      const producers = producersByGoal.get(prod) ?? [];
+      const outputIsFullyPinned =
+        producers.length > 0 && producers.every((recipe) => countPinnedRecipes.has(recipe));
+      if (
+        outputIsFullyPinned &&
+        targets.some((t) => t.name === prod && t.rate != null) &&
+        !supersededGoals.has(prod)
+      )
         supersededGoals.set(prod, { recipe: p.recipe, count: p.count });
+    }
   }
   const goals = targets.map((t) => ({
     name: t.name,
@@ -963,14 +987,27 @@ export async function computeBlock(rawData: SolveInput) {
         temp: c.kind === "fluid" ? fmtTempRange(c.minTemp, c.maxTemp) : null,
       })),
       // product rates from the productivity-scaled defs (the real output)
-      products: def.products.map((c, i) => ({
-        name: c.name,
-        kind: c.kind,
-        display: c.display,
-        rate: (scaled.products[i]?.amount ?? 0) * (c.probability ?? 1) * rr.rate,
-        // produced temperature, for the chip label (fluids only)
-        temp: c.kind === "fluid" ? fmtTemp(c.temperature) : null,
-      })),
+      products: def.products.map((c, i) => {
+        const averageAmount =
+          c.amount ??
+          (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0);
+        const scaledAmount = scaled.products[i]?.amount ?? 0;
+        const amountScale = averageAmount !== 0 ? scaledAmount / averageAmount : 1;
+        const flowScale = amountScale * (c.probability ?? 1) * rr.rate;
+        const powerRange =
+          c.name === ELECTRICITY && c.amountMin != null && c.amountMax != null
+            ? { rateMin: c.amountMin * flowScale, rateMax: c.amountMax * flowScale }
+            : {};
+        return {
+          name: c.name,
+          kind: c.kind,
+          display: c.display,
+          rate: scaledAmount * (c.probability ?? 1) * rr.rate,
+          ...powerRange,
+          // produced temperature, for the chip label (fluids only)
+          temp: c.kind === "fluid" ? fmtTemp(c.temperature) : null,
+        };
+      }),
     };
   });
   const power = {
@@ -1022,7 +1059,6 @@ export async function computeBlock(rawData: SolveInput) {
   // 1 MJ → rate/s = MW). Generating recipes in-block produce it through the
   // solver; any shortfall shows as an "Electricity" import you can click to
   // add a generator recipe. Same netting rule as fuel: no auto-spawning.
-  const ELECTRICITY = "pyops-electricity";
   if (totalPowerW > EPS) {
     const cur = flowNet.get(ELECTRICITY) ?? { kind: "fluid", net: 0 };
     cur.net -= totalPowerW / 1e6;

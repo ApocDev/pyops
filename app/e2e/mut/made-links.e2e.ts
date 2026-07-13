@@ -21,7 +21,7 @@ test("marking an import made without a producer keeps it a silent import", async
 
   await page.locator('button[aria-label^="add a recipe that makes "]').click();
   const platePicker = page.getByRole("dialog", { name: /Recipes that make/ });
-  await platePicker.getByRole("button", { name: /Iron plate/ }).first().click();
+  await platePicker.locator('[data-recipe-candidate="iron-plate"]').click();
   await expect(platePicker).toBeHidden();
 
   const oreImport = page.getByRole("button", { name: /^Iron ore.*(raw input|craftable)/ }).first();

@@ -454,6 +454,8 @@ export function RecipeRow({
                       kind={c.kind}
                       display={c.display}
                       rate={c.rate}
+                      rateMin={c.rateMin}
+                      rateMax={c.rateMax}
                       temp={c.temp}
                       spoilTicks={spoilables[c.name]}
                       link={linkOf(c.name)}

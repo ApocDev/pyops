@@ -29,7 +29,10 @@ function Comp(c: {
     <div className="flex items-center gap-1.5 py-0.5">
       <Icon kind={c.kind as "item" | "fluid"} name={c.name} size="md" />
       <span className="truncate">
-        {c.amount ?? `${c.amountMin}–${c.amountMax}`}× {c.display ?? c.name}
+        {c.amount != null && c.amountMin != null && c.amountMax != null
+          ? `${c.amount} avg (${c.amountMin}–${c.amountMax})`
+          : (c.amount ?? `${c.amountMin}–${c.amountMax}`)}
+        × {c.display ?? c.name}
         {c.temperature != null && <span className="text-info"> @{c.temperature}°</span>}
         {c.kind === "fluid" && (c.minTemp != null || c.maxTemp != null) && (
           <span className="text-info">
