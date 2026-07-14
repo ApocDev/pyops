@@ -38,6 +38,8 @@ type Column = {
   kind: string;
   sign: 1 | -1;
   priority: number;
+  /** Whether this marginal basis is active at the reference goal vector. */
+  activeAtReference: boolean;
   flows: Flow[];
 };
 type FixedFlow = { item: string; kind: string; net: number };
@@ -256,9 +258,9 @@ function signedBoundary(
  * A multi-goal block is one coupled LP: probing each goal with every sibling at
  * zero can combine mutually incompatible recipe bases. Finite differences at
  * the solved full vector recover the active LP basis, including negative
- * marginal flows when increasing one goal reduces another recipe. A separate
- * zero-activity solve captures operational estimates such as incidental
- * spoilage without mistaking a non-smooth recipe-basis change for fixed flow.
+ * marginal flows when increasing one goal reduces another recipe. The affine
+ * intercept makes the response pass through that full solved reference point,
+ * retaining operational and activation flows that have zero local derivative.
  * Final apply validation catches a target that crosses into another basis. */
 async function responseColumns(
   row: NonNullable<ReturnType<typeof q.getBlock>>,
@@ -272,40 +274,81 @@ async function responseColumns(
       const baseResult = await computeBlock(reference);
       if (baseResult.broken || baseResult.status !== "solved") return { columns: [], fixed: [] };
       const base = signedBoundary(reference, baseResult);
-      const idle: SolveInput = {
-        ...reference,
-        goals: reference.goals.map((goal) => ({
-          ...goal,
-          rate: 0,
-          direction: goalConsumes(goal) ? "consume" : "produce",
-        })),
-      };
-      const idleResult = await computeBlock(idle);
+      const anchorResult = reference.goals.some(
+        (goal, index) => goal.rate !== doc.goals[index]?.rate,
+      )
+        ? await computeBlock(doc)
+        : baseResult;
+      const anchor =
+        anchorResult.broken || anchorResult.status !== "solved"
+          ? new Map<string, { kind: string; net: number }>()
+          : signedBoundary(doc, anchorResult);
       const columns = await Promise.all(
         reference.goals.map(async (goal, goalIndex): Promise<Column | null> => {
           const sign: 1 | -1 = goalConsumes(goal) ? -1 : 1;
-          const delta = Math.max(1e-3, Math.abs(goal.rate) * 1e-3);
-          const perturbed: SolveInput = {
-            ...reference,
-            goals: reference.goals.map((candidate, index) =>
-              index === goalIndex
-                ? { ...candidate, rate: candidate.rate + sign * delta }
-                : candidate,
-            ),
+          const solveBoundaryAt = async (rate: number) => {
+            const perturbed: SolveInput = {
+              ...reference,
+              goals: reference.goals.map((candidate, index) =>
+                index === goalIndex ? { ...candidate, rate } : candidate,
+              ),
+            };
+            const result = await computeBlock(perturbed);
+            if (result.broken || result.status !== "solved" || result.unmade?.includes(goal.name))
+              return null;
+            return signedBoundary(perturbed, result);
           };
-          const result = await computeBlock(perturbed);
-          if (result.broken || result.status !== "solved" || result.unmade?.includes(goal.name))
-            return null;
-          const next = signedBoundary(perturbed, result);
+          let delta = Math.max(1e-3, Math.abs(goal.rate) * 1e-3);
+          let previous = base;
+          let next = await solveBoundaryAt(goal.rate + sign * delta);
+          if (!next) return null;
+
+          // A sibling goal can already make more of this good than its own
+          // minimum asks for. A tiny perturbation then consumes only that
+          // existing surplus: total block output stays flat and the local
+          // derivative is zero even though the goal becomes scalable after the
+          // surplus is exhausted. Coupled goals can create the same plateau by
+          // substituting one recipe basis for another. Search outward for the
+          // next segment where the goal changes its own boundary flow, then
+          // measure that segment locally so the plateau does not dilute its
+          // true marginal response.
+          const localOwnNet =
+            ((next.get(goal.name)?.net ?? 0) - (base.get(goal.name)?.net ?? 0)) / delta;
+          const activeAtReference = sign * localOwnNet > EPS;
+          const coveredRate = sign * (base.get(goal.name)?.net ?? 0);
+          if (sign * localOwnNet <= EPS) {
+            let segmentMagnitude =
+              Math.max(Math.abs(goal.rate), coveredRate, RATE_CHANGE_ABS_TOL) * 1.001;
+            for (let attempt = 0; attempt < 6; attempt += 1) {
+              const segmentDelta = Math.max(1e-3, segmentMagnitude * 1e-3);
+              const segmentStart = sign * segmentMagnitude;
+              const segmentBase = await solveBoundaryAt(segmentStart);
+              const segmentNext = await solveBoundaryAt(segmentStart + sign * segmentDelta);
+              const segmentOwnNet =
+                segmentBase && segmentNext
+                  ? ((segmentNext.get(goal.name)?.net ?? 0) -
+                      (segmentBase.get(goal.name)?.net ?? 0)) /
+                    segmentDelta
+                  : 0;
+              if (segmentBase && segmentNext && sign * segmentOwnNet > EPS) {
+                previous = segmentBase;
+                next = segmentNext;
+                delta = segmentDelta;
+                break;
+              }
+              segmentMagnitude *= 2;
+            }
+          }
+
           const priority = doc.supplyPriorities?.[goal.name] ?? doc.supplyPriority ?? 0;
-          const goods = new Set([...base.keys(), ...next.keys()]);
+          const goods = new Set([...previous.keys(), ...next.keys()]);
           const flows: Flow[] = [...goods].flatMap((good) => {
-            const marginal = ((next.get(good)?.net ?? 0) - (base.get(good)?.net ?? 0)) / delta;
+            const marginal = ((next.get(good)?.net ?? 0) - (previous.get(good)?.net ?? 0)) / delta;
             if (Math.abs(marginal) <= EPS) return [];
             return [
               {
                 item: good,
-                kind: next.get(good)?.kind ?? base.get(good)?.kind ?? "item",
+                kind: next.get(good)?.kind ?? previous.get(good)?.kind ?? "item",
                 role:
                   marginal < 0
                     ? "import"
@@ -325,6 +368,7 @@ async function responseColumns(
             kind,
             sign,
             priority,
+            activeAtReference,
             flows,
           };
         }),
@@ -332,39 +376,25 @@ async function responseColumns(
       const solvedColumns = columns.filter(
         (column): column is Column => column != null && !FREE_GOODS.has(column.good),
       );
-      const fixedBoundary =
-        idleResult.broken || idleResult.status !== "solved"
-          ? new Map<string, { kind: string; net: number }>()
-          : signedBoundary(idle, idleResult);
-      if (reference.goals.some((goal) => FREE_GOODS.has(goal.name))) {
-        const withoutFree: SolveInput = {
-          ...reference,
-          goals: reference.goals.map((goal) =>
-            FREE_GOODS.has(goal.name)
-              ? {
-                  ...goal,
-                  rate: 0,
-                  direction: goalConsumes(goal) ? "consume" : "produce",
-                }
-              : goal,
-          ),
-        };
-        const withoutFreeResult = await computeBlock(withoutFree);
-        if (!withoutFreeResult.broken && withoutFreeResult.status === "solved") {
-          const withoutFreeBoundary = signedBoundary(withoutFree, withoutFreeResult);
-          for (const item of new Set([...base.keys(), ...withoutFreeBoundary.keys()])) {
-            const frozen = (base.get(item)?.net ?? 0) - (withoutFreeBoundary.get(item)?.net ?? 0);
-            if (Math.abs(frozen) <= EPS) continue;
-            const current = fixedBoundary.get(item);
-            fixedBoundary.set(item, {
-              kind:
-                base.get(item)?.kind ??
-                withoutFreeBoundary.get(item)?.kind ??
-                current?.kind ??
-                "item",
-              net: (current?.net ?? 0) + frozen,
-            });
-          }
+      // fixed = anchor - J * anchor goals. This local affine intercept retains
+      // flows that switch on with an active recipe but stay flat under tiny
+      // perturbations; an idle-only intercept silently dropped them on every
+      // re-linearization pass. A marginal basis found beyond a coproduct
+      // plateau is excluded because that segment is not active at the current
+      // reference point.
+      const fixedBoundary = new Map(
+        [...anchor].map(([item, flow]) => [item, { ...flow }] as const),
+      );
+      for (const column of solvedColumns) {
+        if (!column.activeAtReference) continue;
+        const anchorGoal = doc.goals.find((goal) => goal.name === column.good);
+        const magnitude = Math.abs(anchorGoal?.rate ?? 0);
+        for (const flow of column.flows) {
+          const current = fixedBoundary.get(flow.item);
+          fixedBoundary.set(flow.item, {
+            kind: current?.kind ?? flow.kind,
+            net: (current?.net ?? 0) - magnitude * flow.rate * (flow.role === "import" ? -1 : 1),
+          });
         }
       }
       const fixed = [...fixedBoundary].flatMap(([item, flow]) =>

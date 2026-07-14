@@ -415,8 +415,9 @@ export async function solveBlockLp(input: LpBlockInput): Promise<LpBlockResult> 
         op: "<=",
         rhs: minimumSurplus + GOAL_LEX_TOL * Math.max(1, minimumSurplus),
       };
+      let machineSol: Awaited<ReturnType<typeof runLp>>;
       try {
-        sol = await runLp(recipes, [...goalConstraints, retainMinimum], {
+        machineSol = await runLp(recipes, [...goalConstraints, retainMinimum], {
           extraBounds: goalBounds,
         });
       } catch (e) {
@@ -427,13 +428,12 @@ export async function solveBlockLp(input: LpBlockInput): Promise<LpBlockResult> 
           ...unmadeOut,
         };
       }
-      if (sol.status !== "Optimal")
-        return {
-          status: sol.status === "Infeasible" ? "infeasible" : "error",
-          message: `machine tie-break solve returned ${sol.status}`,
-          ...empty,
-          ...unmadeOut,
-        };
+      // This third solve is only an optional tie-break. HiGHS can reject its
+      // extremely tight retained-optimum row on high-throughput coproduct
+      // models even though the preceding goal-minimizing solution is feasible.
+      // Keep that feasible lexicographic solution instead of turning a
+      // numerical tie-break failure into a false block infeasibility.
+      sol = machineSol.status === "Optimal" ? machineSol : goalSol;
     }
   }
 

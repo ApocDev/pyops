@@ -199,7 +199,7 @@ test("Scenario zeros an unpinned consume goal without saving the preview", async
   }
 });
 
-test("Scenario explains an infeasible material balance", async ({ page }) => {
+test("Scenario scales a goal beyond recovered coproduct supply", async ({ page }) => {
   test.setTimeout(120_000);
   const db = new DatabaseSync(activeProjectDbFile());
   const pins = db.prepare("SELECT value FROM meta WHERE key = 'factory_pins_v1'").get() as
@@ -224,18 +224,11 @@ test("Scenario explains an infeasible material balance", async ({ page }) => {
     await goto(page, "/factory/scenario");
     await dismissDataDriftPrompt(page);
 
-    const diagnostic = page.getByTestId("scenario-validation");
-    await expect(diagnostic.getByText("Scenario solve failed: Infeasible")).toBeVisible({
+    await expect(page.getByRole("link", { name: /^Creosote / })).toBeVisible({
       timeout: 60_000,
     });
-    const conflicts = diagnostic.getByRole("region", { name: "Factory material conflicts" });
-    await expect(conflicts.getByText(/Creosote shortage:/)).toBeVisible();
-    await expect(conflicts.getByText(/required · .* available/).first()).toBeVisible();
-    await expect(conflicts.getByRole("link", { name: "Simple circuit board" }).first()).toBeVisible();
-    await expect(conflicts.getByRole("link", { name: "Coal gas" })).toBeVisible();
-    await expect(
-      conflicts.getByText("The configured Creosote goal has no additional scalable output."),
-    ).toBeVisible();
+    await expect(page.getByTestId("scenario-validation")).toBeHidden();
+    await expect(page.getByRole("button", { name: "Balance factory" })).toBeEnabled();
   } finally {
     const cleanup = new DatabaseSync(activeProjectDbFile());
     if (pins)

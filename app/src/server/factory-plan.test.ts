@@ -11,6 +11,7 @@ let ashSinkAdditive = 0;
 let infeasibleIronAbove = Number.POSITIVE_INFINITY;
 let nonlinearElectricity = false;
 let recoveredIronPerCoke = 10;
+let ironGoalScalable = true;
 let solveVersion = 0;
 const blocks = [
   {
@@ -111,11 +112,11 @@ vi.mock("./block-compute.server.ts", () => ({
       const cokeRate = Math.abs(cokeGoal.rate);
       const ironRate = Math.abs(recoveredIronGoal.rate);
       const recoveredIron = cokeRate * recoveredIronPerCoke;
-      const dedicatedIron = Math.max(0, ironRate - recoveredIron);
+      const dedicatedIron = ironGoalScalable ? Math.max(0, ironRate - recoveredIron) : 0;
       return {
         broken: false,
         status: "solved",
-        unmade: [],
+        unmade: !ironGoalScalable && ironRate > recoveredIron ? ["iron"] : [],
         imports: [{ name: "ore", kind: "item", rate: cokeRate * 3 + dedicatedIron * 2 }],
         exports:
           recoveredIron > ironRate
@@ -230,6 +231,7 @@ beforeEach(() => {
   infeasibleIronAbove = Number.POSITIVE_INFINITY;
   nonlinearElectricity = false;
   recoveredIronPerCoke = 10;
+  ironGoalScalable = true;
   for (const doc of docs.values()) doc.updatedAt = new Date(++solveVersion * 1000);
   blocks.splice(4);
   docs.delete(5);
@@ -352,8 +354,53 @@ describe("pinned factory solve", () => {
     expect(saved?.goals.find((goal) => goal.name === "iron")?.rate).toBeCloseTo(4);
   });
 
-  it("reports the material and blocks that make the factory LP infeasible", async () => {
+  it("scales a goal past supply recovered from a sibling goal", async () => {
     recoveredIronPerCoke = 2;
+    blocks.push({
+      id: 5,
+      name: "Coke and iron",
+      rate: 0,
+      goals: [
+        { name: "coke", rate: 0 },
+        { name: "iron", rate: 0 },
+      ],
+      flows: [],
+    });
+    docs.set(5, {
+      id: 5,
+      name: "Coke and iron",
+      updatedAt: new Date(++solveVersion * 1000),
+      data: {
+        goals: [
+          { name: "coke", rate: 0 },
+          { name: "iron", rate: 0 },
+        ],
+        recipes: ["recipe-5"],
+        supplyPriority: 1,
+      },
+    });
+    plan.saveFactoryPins([
+      { good: "science", kind: "item", rate: 1 },
+      { good: "coke", kind: "item", rate: 1 },
+    ]);
+
+    const result = await plan.solvePinnedFactory();
+
+    expect(result.status).toBe("Optimal");
+    expect(result.validation).toBeNull();
+    expect(result.goalChanges).toContainEqual(
+      expect.objectContaining({
+        id: 5,
+        good: "iron",
+        requiredRate: 4,
+        projectedOutput: 4,
+      }),
+    );
+  });
+
+  it("reports a configured goal whose output is genuinely not scalable", async () => {
+    recoveredIronPerCoke = 2;
+    ironGoalScalable = false;
     blocks.push({
       id: 5,
       name: "Coke and iron",
@@ -478,15 +525,14 @@ describe("pinned factory solve", () => {
     expect(result.raws).toContainEqual(expect.objectContaining({ good: "ore", projected: 12 }));
   });
 
-  it("measures validation residue against gross throughput", async () => {
+  it("captures a fixed response offset after re-linearizing", async () => {
     ironImportOffset = 0.02;
 
     const result = await plan.solvePinnedFactory();
 
     expect(result.status).toBe("Optimal");
     expect(result.passes).toBe(2);
-    expect(result.residual).toBeGreaterThan(0);
-    expect(result.residual).toBeLessThan(0.005);
+    expect(result.residual).toBe(0);
   });
 
   it("balances fixed incidental outputs as factory surplus", async () => {

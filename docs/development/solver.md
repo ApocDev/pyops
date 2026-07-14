@@ -37,7 +37,9 @@ For each enabled recipe `r`, the model creates a nonnegative run-rate `xᵣ`. In
 product coefficients define the net rate of every good. The solve is lexicographic: it first
 minimizes avoidable surplus beyond the saved goal rates, then minimizes total machine-seconds.
 A tiny per-recipe epsilon gives zero-time synthetic recipes a deterministic cost in the second
-stage.
+stage. If HiGHS rejects only the tightly constrained machine tie-break because of numerical
+rounding, the solver retains the preceding feasible minimum-surplus solution; an optional
+tie-break cannot turn a feasible block into an infeasible one.
 
 The objective is a sizing and tie-breaking mechanism. It never adds a recipe the user did
 not select.
@@ -332,13 +334,18 @@ factory activity. A pin is a signed net target: positive for desired output, neg
 consumption. Stock goals contribute an always-derived positive pin equal to `stock / window`.
 
 `factory-plan.server.ts` solves the block at its complete goal vector, perturbs each goal in its
-saved direction, and uses the boundary-flow difference as a local response column. It also retains
-the boundary flow from a separate zero-activity solve as a fixed intercept. This affine response
-keeps operational flows such as estimated incidental spoilage in factory material balances without
-making them scalable production or mistaking a recipe-basis change for fixed flow. Keeping sibling
-goals active is essential because one block LP can change recipe bases as its goals interact. A
-zero-rate goal is probed with a small signed reference rate, allowing a configured producer or
-consumer to start without losing its saved direction.
+saved direction, and uses the boundary-flow difference as a local response column. The affine
+intercept is anchored at the block's actual goal vector, so operational and recipe-activation flows
+that remain constant under a small perturbation are retained in factory material balances. Keeping
+sibling goals active is essential because one block LP can change recipe bases as its goals
+interact. A zero-rate goal is probed with a small signed reference rate, allowing a configured
+producer or consumer to start without losing its saved direction.
+
+If a goal is already covered by a sibling goal's coproduct, a small perturbation may only reduce
+surplus while total output stays flat. Scenario searches outward past that plateau and measures the
+next locally scalable segment instead of treating the zero derivative as proof that the goal cannot
+scale. That breakpoint segment remains separate from the affine intercept because it is not active
+at the current goal vector.
 
 The factory model constructs a demand-reachability closure from positive pins. It follows imports
 from a selected production column to configured positive goals for those exact goods. A selected
