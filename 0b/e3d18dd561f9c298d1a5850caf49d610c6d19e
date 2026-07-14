@@ -1,0 +1,33 @@
+app/e2e/mut/factory-debug.e2e.ts
+  s_f0d31cf3b84a09::t_d53710412bac67 18,24-26,38-39
+app/e2e/mut/rebalance.e2e.ts
+  s_f0d31cf3b84a09::t_32f6d0f0b62085 176
+app/src/components/whatif/supply-allocation-card.tsx
+  s_f0d31cf3b84a09::t_0662c05b996001 4,31-32
+app/src/routes/factory_.scenario.tsx
+  s_f0d31cf3b84a09::t_f4f83edb8acb01 88-90,126-129,158-161,173,175-179,201-202,206-207,212-219
+app/src/server/factory-plan.server.ts
+  s_f0d31cf3b84a09::t_fa073f1b738de6 53-57,598-602,615,623-706,711-712,724-728,793,809
+app/src/server/factory-plan.test.ts
+  s_f0d31cf3b84a09::t_78f7a0b23e3999 95-112,287-340
+docs/development/solver.md
+  s_f0d31cf3b84a09::t_ca3816e98ee9bf 399-403
+docs/guide/balance.md
+  s_f0d31cf3b84a09::t_3176f070a925c6 60-63,75-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "0be3d18dd561f9c298d1a5850caf49d610c6d19e",
+  "prompts": {},
+  "sessions": {
+    "s_f0d31cf3b84a09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5e9a-5c16-7871-9bf7-d4c778d16fc7",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
