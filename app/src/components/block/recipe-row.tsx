@@ -23,6 +23,7 @@ import { EditableCount } from "./editable-count.tsx";
 import { IncidentalSpoilageChip } from "./incidental-spoilage-chip.tsx";
 import { SortableRow } from "./sortable-row.tsx";
 import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
+import { LoadingFitCount } from "./loading-fit-count.tsx";
 import { LogiTag } from "./logi-tag.tsx";
 import { ReactorLayoutChip } from "./reactor-layout-chip.tsx";
 import { RecipeSpoilageIndicator } from "./recipe-spoilage-indicator.tsx";
@@ -134,14 +135,20 @@ export function RecipeRow({
   useEffect(() => {
     if (highlight) rowRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [highlight]);
+  const surface = (dragging: boolean) =>
+    dragging ? "bg-card shadow-lg" : off ? "bg-muted/30" : grouped ? "bg-foreground/[0.025]" : "";
   return (
     <SortableRow key={name} id={name}>
       {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
         <div
           ref={rowRef}
-          className={`${gridClass} relative border-t border-border ${grouped ? "border-l-2 border-l-primary/50" : ""}  ${off ? "bg-muted/30" : ""} ${isDragging ? "bg-card shadow-lg" : ""} ${highlight ? "ring-2 ring-primary ring-inset" : ""}`}
+          data-recipe-row={name}
+          className={`${gridClass} relative border-t border-border ${grouped ? "border-l-2 border-l-primary/50" : ""} ${surface(isDragging)} ${highlight ? "ring-2 ring-primary ring-inset" : ""}`}
         >
-          <RecipeHover name={name} className="flex min-w-0 items-center gap-2">
+          <RecipeHover
+            name={name}
+            className={`flex min-w-0 items-center gap-2 ${grouped ? "pl-2" : ""}`}
+          >
             <span
               ref={setActivatorNodeRef}
               {...attributes}
@@ -234,49 +241,62 @@ export function RecipeRow({
                       extraText="Click to change building."
                     />
                   </button>
-                  <EditableCount
-                    count={row.machine.count}
-                    pin={rowPin}
-                    onSetCount={(n) => {
-                      doc.setPin({ kind: "count", recipe: name, count: n });
-                      doc.note(`Fix "${display}" at ${n} buildings`);
-                    }}
-                    onClear={() => {
-                      doc.clearPin(name);
-                      doc.note(`Unfix "${display}" building count`);
-                    }}
-                    onOpenPins={() => open.pinsFor(name)}
-                  />
-                  {shareCount > 0 && (
-                    <Tooltip
-                      content={`${shareCount} routed input share${shareCount > 1 ? "s" : ""}; click to manage`}
-                    >
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label={`manage ${shareCount} routed input share${shareCount > 1 ? "s" : ""}`}
-                        onClick={() => open.pinsFor(name)}
-                        className="size-5 bg-info/20 text-sm text-info ring-1 ring-info/40 hover:bg-info/30 hover:text-info"
-                      >
-                        %
-                      </Button>
-                    </Tooltip>
-                  )}
-                  {drainItems.length > 0 && (
-                    <Tooltip
-                      content={`routes all surplus ${drainDisplay} into this recipe; click to manage`}
-                    >
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label={`routes all surplus ${drainDisplay}`}
-                        onClick={() => open.pinsFor(name)}
-                        className="size-5 bg-info/20 text-info ring-1 ring-info/40 hover:bg-info/30 hover:text-info"
-                      >
-                        <Route className="size-3.5" />
-                      </Button>
-                    </Tooltip>
-                  )}
+                  <span className="flex flex-col items-start">
+                    <span className="flex items-center gap-1">
+                      <EditableCount
+                        count={row.machine.count}
+                        pin={rowPin}
+                        onSetCount={(n) => {
+                          doc.setPin({ kind: "count", recipe: name, count: n });
+                          doc.note(`Fix "${display}" at ${n} buildings`);
+                        }}
+                        onClear={() => {
+                          doc.clearPin(name);
+                          doc.note(`Unfix "${display}" building count`);
+                        }}
+                        onOpenPins={() => open.pinsFor(name)}
+                      />
+                      {shareCount > 0 && (
+                        <Tooltip
+                          content={`${shareCount} routed input share${shareCount > 1 ? "s" : ""}; click to manage`}
+                        >
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={`manage ${shareCount} routed input share${shareCount > 1 ? "s" : ""}`}
+                            onClick={() => open.pinsFor(name)}
+                            className="size-5 bg-info/20 text-sm text-info ring-1 ring-info/40 hover:bg-info/30 hover:text-info"
+                          >
+                            %
+                          </Button>
+                        </Tooltip>
+                      )}
+                      {drainItems.length > 0 && (
+                        <Tooltip
+                          content={`routes all surplus ${drainDisplay} into this recipe; click to manage`}
+                        >
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={`routes all surplus ${drainDisplay}`}
+                            onClick={() => open.pinsFor(name)}
+                            className="size-5 bg-info/20 text-info ring-1 ring-info/40 hover:bg-info/30 hover:text-info"
+                          >
+                            <Route className="size-3.5" />
+                          </Button>
+                        </Tooltip>
+                      )}
+                    </span>
+                    {logi.resolved && logi.showInserters && (
+                      <LoadingFitCount
+                        logistics={logi.resolved}
+                        machine={row.machine}
+                        ingredients={row.ingredients}
+                        products={row.products}
+                        fuel={row.fuel}
+                      />
+                    )}
+                  </span>
                 </span>
                 {/* electricity, when the machine draws power */}
                 {row.machine.energySource === "electric" && (

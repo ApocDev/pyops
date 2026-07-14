@@ -11,7 +11,7 @@
  * synthetic mining/pumping recipes; electricity through generating recipes.
  *
  * Deliberate deviations from YAFC:
- *  - building footprint (tile size) isn't in our dataset → constant size
+ *  - imported building footprints are not yet used by this cost model → constant size
  *  - no fuel-as-ingredient refinement, no pollution term, flat mining penalty
  *  - barrel fill/empty recipes get a heavy logistics penalty so fluids are
  *    never priced through barrel round-trips (and the recipes sort last)

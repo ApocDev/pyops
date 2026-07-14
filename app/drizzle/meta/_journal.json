@@ -92,6 +92,13 @@
       "when": 1783118357227,
       "tag": "0012_temperature-fed-fluid-energy",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1783954463910,
+      "tag": "0013_add-machine-footprint",
+      "breakpoints": true
     }
   ]
 }

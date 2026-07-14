@@ -962,6 +962,8 @@ export async function computeBlock(rawData: SolveInput) {
         count,
         powerW,
         craftingSpeed: chosen.craftingSpeed,
+        tileWidth: chosen.tileWidth,
+        tileHeight: chosen.tileHeight,
         moduleSlots: chosen.moduleSlots,
       },
       machines: machines.map((m) => ({

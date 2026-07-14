@@ -212,7 +212,7 @@ export function importFactorioDump(
     ),
     recipeCat: db.prepare(`INSERT OR IGNORE INTO recipe_categories (name) VALUES (?)`),
     machine: db.prepare(
-      `INSERT INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,burns_fluid,fluid_fuel_filter,fluid_fuel_per_sec,fluid_fuel_energy_j) VALUES (@name,@display,@kind,@crafting_speed,@module_slots,@energy_usage_w,@energy_source,@pollution_per_min,@allowed_effects,@allowed_module_categories,@burns_fluid,@fluid_fuel_filter,@fluid_fuel_per_sec,@fluid_fuel_energy_j)`,
+      `INSERT INTO crafting_machines (name,display,kind,crafting_speed,tile_width,tile_height,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,burns_fluid,fluid_fuel_filter,fluid_fuel_per_sec,fluid_fuel_energy_j) VALUES (@name,@display,@kind,@crafting_speed,@tile_width,@tile_height,@module_slots,@energy_usage_w,@energy_source,@pollution_per_min,@allowed_effects,@allowed_module_categories,@burns_fluid,@fluid_fuel_filter,@fluid_fuel_per_sec,@fluid_fuel_energy_j)`,
     ),
     machineCat: db.prepare(
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
@@ -385,6 +385,22 @@ export function importFactorioDump(
       };
     };
 
+    // Tile footprint from the placed box. Factorio's dump normally emits
+    // selection_box as [[left,top],[right,bottom]]; accept the named-point shape
+    // too, and fall back to collision_box for unusual prototypes.
+    const boxPoint = (p: any, axis: "x" | "y", index: number) =>
+      Array.isArray(p) ? p[index] : p?.[axis];
+    const boxTiles = (box: any, axis: "x" | "y") => {
+      const a = boxPoint(Array.isArray(box) ? box[0] : box?.left_top, axis, axis === "x" ? 0 : 1);
+      const b = boxPoint(
+        Array.isArray(box) ? box[1] : box?.right_bottom,
+        axis,
+        axis === "x" ? 0 : 1,
+      );
+      const span = Number(b) - Number(a);
+      return Number.isFinite(span) && span > 0 ? Math.max(1, Math.ceil(span - 1e-9)) : null;
+    };
+
     // crafting machines (+ categories + fuel categories)
     for (const kind of MACHINE_TYPES) {
       for (const [name, m] of Object.entries(raw[kind] ?? {})) {
@@ -401,11 +417,14 @@ export function importFactorioDump(
           es.type === "fluid" && !es.burns_fluid
             ? temperatureFedDrain(es, usage, tempFedFluid(es.fluid_box?.filter))
             : { perSec: null, energyJPerUnit: null };
+        const placedBox = m.selection_box ?? m.collision_box;
         ins.machine.run({
           name,
           display: localeByKind.entity?.names?.[name] ?? productDisplay[name] ?? null,
           kind,
           crafting_speed: m.crafting_speed ?? 1,
+          tile_width: boxTiles(placedBox, "x"),
+          tile_height: boxTiles(placedBox, "y"),
           module_slots: m.module_slots ?? 0,
           energy_usage_w: usage != null ? usage / effectivity : null,
           energy_source: es.type ?? null,

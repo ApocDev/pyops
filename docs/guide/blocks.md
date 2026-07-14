@@ -58,6 +58,16 @@ building are available. Locked rows are disabled and name the missing recipe res
 building research; recipes replaced by a TURD upgrade remain visible with their explanation.
 PyOps never adds a full chain without your choice.
 
+## Organize recipes into sub-blocks
+
+Right-click a recipe name and select **New sub-block from this row** to start a named,
+collapsible group. Drag another recipe onto the sub-block header or one of its indented rows
+to add it. Drag the sub-block header to move the whole group together.
+
+Grouping is visual by default and does not change the solve. Use the module control on the
+sub-block header when the grouped recipes should instead solve as a separate module with its
+own internal goals and a boundary contract for the parent block.
+
 ## Choose machines, fuels, and modules
 
 Each recipe row shows its selected machine and required building count.
@@ -73,6 +83,19 @@ default for that row.
 Fractional building counts are exact capacity requirements. `0.5` means half of one
 machine's capacity; `5.2` means five machines are insufficient and six provide spare
 capacity. PyOps leaves the construction decision visible instead of rounding the solve.
+
+When **Logistics → Inserters / loaders** is enabled, an amber hammer and a second count can
+appear beneath the solved building count. It is the suggested physical build count: the
+selected movers, item inputs and outputs, fuel, burnt results, and active fluid connections
+need more adjacent access positions than the capacity-rounded buildings provide. The
+estimate uses the selected machine's footprint and increases the whole-building count until
+those connections fit around its perimeter.
+
+This is a conservative loading estimate, not a generated layout. It does not prove that
+belts and pipes can reach every access position, account for beacon spacing, or model direct
+insertion and circuit-controlled sharing. Hover the badge to see the footprint, position
+budget, and selected mover used by the estimate. Machine footprints populate during
+**Settings → Data sync**; an existing project may need one sync before the badge appears.
 
 ## Read the result
 

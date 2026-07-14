@@ -166,9 +166,15 @@ folded into stored energy use.
 ### Logistics and research effects
 
 Belts, loaders, and inserters store only the prototype fields needed by
-`app/src/lib/logistics.ts`. Technology tables record belt-stack, inserter-stack, and bulk
-capacity bonuses. The client can then recalculate row logistics instantly when the selected
-tier or planning horizon changes, without invoking the block solver.
+`app/src/lib/logistics.ts`. Crafting machines also store tile dimensions derived from their
+selection or collision box. The block editor combines those dimensions with whole mover
+counts, fuel/byproduct access, and active fluid connections to warn when loading access needs
+more physical buildings than production capacity alone.
+
+Technology tables record belt-stack, inserter-stack, and bulk capacity bonuses. The client
+can then recalculate row logistics and loading fit instantly when the selected tier or
+planning horizon changes, without invoking the block solver. Loading fit checks available
+perimeter positions only; belt and pipe route feasibility remains outside this model.
 
 Recipe and mining productivity technology effects are stored separately. The effects stage
 combines them with the active research horizon. In **Now** mode, bridge-synchronized force

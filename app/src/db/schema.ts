@@ -117,6 +117,12 @@ export const craftingMachines = sqliteTable("crafting_machines", {
   display: text(),
   kind: text().notNull(), // assembling-machine | furnace | rocket-silo
   craftingSpeed: real("crafting_speed").notNull(),
+  // Placed tile footprint, derived from the prototype selection/collision box.
+  // The block UI uses the perimeter (2w + 2h) as a conservative count of
+  // adjacent inserter/loader/pipe access positions. Null on legacy imports
+  // until the next game-data sync.
+  tileWidth: integer("tile_width"),
+  tileHeight: integer("tile_height"),
   moduleSlots: integer("module_slots").notNull().default(0),
   energyUsageW: real("energy_usage_w"),
   energySource: text("energy_source"), // electric | burner | ...

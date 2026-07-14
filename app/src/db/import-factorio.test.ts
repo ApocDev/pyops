@@ -49,6 +49,66 @@ describe("importFactorioDump — recipe categories", () => {
   });
 });
 
+describe("importFactorioDump — machine footprints", () => {
+  it("derives placed tile dimensions from array and named selection boxes", () => {
+    const db = runImport({
+      "assembling-machine": {
+        burner: {
+          crafting_categories: ["crafting"],
+          selection_box: [
+            [-1.5, -1.5],
+            [1.5, 1.5],
+          ],
+        },
+        odd: {
+          crafting_categories: ["crafting"],
+          selection_box: {
+            left_top: { x: -1, y: -1.5 },
+            right_bottom: { x: 1, y: 1.5 },
+          },
+        },
+      },
+    });
+    const rows = db
+      .prepare(
+        `SELECT name, tile_width tileWidth, tile_height tileHeight
+         FROM crafting_machines ORDER BY name`,
+      )
+      .all();
+    expect(rows).toEqual([
+      { name: "burner", tileWidth: 3, tileHeight: 3 },
+      { name: "odd", tileWidth: 2, tileHeight: 3 },
+    ]);
+    db.close();
+  });
+
+  it("falls back to the collision box and leaves missing boxes unknown", () => {
+    const db = runImport({
+      furnace: {
+        boxed: {
+          crafting_categories: ["smelting"],
+          collision_box: [
+            [-1.2, -1.2],
+            [1.2, 1.2],
+          ],
+        },
+        legacy: { crafting_categories: ["smelting"] },
+      },
+    });
+    const rows = db
+      .prepare(
+        `SELECT name, tile_width tileWidth, tile_height tileHeight
+         FROM crafting_machines ORDER BY name`,
+      )
+      .all();
+    expect(rows).toEqual([
+      { name: "boxed", tileWidth: 3, tileHeight: 3 },
+      { name: "legacy", tileWidth: null, tileHeight: null },
+    ]);
+    db.close();
+  });
+});
+
 describe("importFactorioDump — TURD master detection", () => {
   it("infers current planner masters from their sub-tech gate prerequisites", () => {
     const db = runImport({

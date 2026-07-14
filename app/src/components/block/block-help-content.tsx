@@ -80,6 +80,7 @@ export function BlockHelpContent() {
           <p>
             Right-click a recipe name to group related rows into a collapsible sub-block. Grouping
             changes presentation unless you explicitly promote it to a separately solved module.
+            Drag another recipe onto the sub-block header or any of its indented rows to add it.
           </p>
           <p>
             The toolbar provides copy, share-file export, snapshots, in-game display, construction

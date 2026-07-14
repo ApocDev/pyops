@@ -77,7 +77,7 @@ export function GroupHeaderRow({
       <SortableRow key={`grp:${g.id}`} id={`grp:${g.id}`}>
         {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
           <div
-            className={`relative flex flex-wrap items-center gap-2 border-t border-border border-l-2 bg-muted/40 px-2 py-2 ${composed ? "border-l-primary" : "border-l-primary/50"} ${isDragging ? "bg-card shadow-lg" : ""}`}
+            className={`relative flex flex-wrap items-center gap-2 border-t border-border border-l-2 px-2 py-2 ${composed ? "border-l-primary" : "border-l-primary/50"} ${isDragging ? "bg-card shadow-lg" : "bg-foreground/[0.055]"}`}
           >
             <span
               ref={setActivatorNodeRef}

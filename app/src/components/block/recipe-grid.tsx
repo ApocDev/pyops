@@ -115,7 +115,9 @@ export function RecipeGrid({
   );
   // Reorder is display/authoring only — the solver is order-independent. Sub-blocks
   // (#7) make it three cases: drag a group header to move the whole span; drop a row
-  // on a header to join that group; drop a row between two members to adopt their group.
+  // on a header or member to join that group; drop a row between two members to adopt
+  // their group. Accepting a member as the target is important for one-row groups: their
+  // narrow header otherwise loses closest-center collision detection to the larger row.
   const onRecipeDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
     const aid = String(active.id);
@@ -134,6 +136,11 @@ export function RecipeGrid({
     }
     if (oid.startsWith("grp:")) {
       doc.joinRecipeToGroup(aid, Number(oid.slice(4)));
+      return;
+    }
+    const targetGroup = recipeGroups[oid];
+    if (targetGroup != null && recipeGroups[aid] !== targetGroup) {
+      doc.joinRecipeToGroup(aid, targetGroup);
       return;
     }
     const from = recipes.indexOf(aid);

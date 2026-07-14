@@ -47,8 +47,34 @@ test("promote a sub-block to a composed module, edit its goal, and persist", asy
   const header = page.locator("div").filter({ hasText: "Plate module" }).last();
   await expect(page.getByText("Plate module")).toBeVisible();
 
+  // A new sub-block has only one member. Drop the ore recipe onto that member row:
+  // the member is a deliberately generous target for joining the group, since the
+  // short header is difficult for closest-center collision detection to select.
+  const oreHandle = page.locator(
+    '[data-recipe-row="mine-iron-ore"] [title="drag to reorder this recipe"]',
+  );
+  const plateRow = page.locator('[data-recipe-row="iron-plate"]');
+  const source = await oreHandle.boundingBox();
+  const target = await plateRow.boundingBox();
+  expect(source).not.toBeNull();
+  expect(target).not.toBeNull();
+  await page.mouse.move(source!.x + source!.width / 2, source!.y + source!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(source!.x + source!.width / 2 + 10, source!.y + source!.height / 2, {
+    steps: 3,
+  });
+  await page.mouse.move(target!.x + target!.width / 2, target!.y + target!.height / 2, {
+    steps: 12,
+  });
+  await page.mouse.up();
+  await page.mouse.move(0, 0);
+  await expect(header).toContainText("2 recipes");
+
   // compose it: the Boxes button promotes the display fold to a real module
   await page.locator('button[title^="compose — solve this sub-block"]').click();
+  await expect(
+    page.locator('button[title^="revert to a display-only sub-block"]'),
+  ).toBeVisible();
   await expect(page.getByText("module", { exact: true })).toBeVisible();
   // the block still solves (no infeasible badge on the module)
   await expect(header.getByText("infeasible")).toBeHidden();
