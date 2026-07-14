@@ -1,0 +1,23 @@
+app/e2e/mut/factory-debug.e2e.ts
+  s_f0d31cf3b84a09::t_47559e11c58d74 16,21-29
+app/src/routes/factory_.scenario.tsx
+  s_f0d31cf3b84a09::t_c5656c8fa72eea 46-49,140,147
+app/src/server/factorio.ts
+  s_f0d31cf3b84a09::t_1c1111b049c6b4 61-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "eea1b59a6d21cefff923212104791ddfe4a65c71",
+  "prompts": {},
+  "sessions": {
+    "s_f0d31cf3b84a09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5e9a-5c16-7871-9bf7-d4c778d16fc7",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
