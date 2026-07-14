@@ -1,0 +1,39 @@
+app/src/components/whatif/scenario-validation-card.tsx
+  s_f8fb7822c86326::t_e926eced5edf86 8-23,60-61,80-127
+app/src/server/factory-plan.server.ts
+  s_f0d31cf3b84a09::t_d534b2d4b6aa6b 65-80,549,558,599,615-711,942-948,997,1145
+app/src/components/whatif/scenario-validation-card.test.tsx
+  s_f0d31cf3b84a09::t_41d39916b4620a 19,45-92
+app/src/server/factorio.ts
+  s_f0d31cf3b84a09::t_c7b7398ef081f1 350-353
+app/src/server/factory-plan.test.ts
+  s_f0d31cf3b84a09::t_4964c39b2b4b32 13,54-66,113,232,355-407
+docs/development/solver.md
+  s_f0d31cf3b84a09::t_d095417ae6e475 380-387
+docs/guide/balance.md
+  s_f0d31cf3b84a09::t_90a62682480a47 100-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "3fed877aac421acf79bfdfd86c0fd8075cfc30ab",
+  "prompts": {},
+  "sessions": {
+    "s_f0d31cf3b84a09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5e9a-5c16-7871-9bf7-d4c778d16fc7",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f8fb7822c86326": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f60ae-b355-7c70-9180-27c979895810",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
