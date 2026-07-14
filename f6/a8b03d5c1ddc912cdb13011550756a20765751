@@ -1,0 +1,23 @@
+app/src/components/block-folder-menu.tsx
+  s_f8fb7822c86326::t_939eb40df7e434 1-31
+app/src/routes/block.tsx
+  s_f8fb7822c86326::t_240dfde2f1106a 9,64-65,95,101,115,175-180,384-390,557-560,669-677
+app/src/server/block-folders.ts
+  s_f8fb7822c86326::t_f484bb5b646b20 1-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "f6a8b03d5c1ddc912cdb13011550756a20765751",
+  "prompts": {},
+  "sessions": {
+    "s_f8fb7822c86326": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f60ae-b355-7c70-9180-27c979895810",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
