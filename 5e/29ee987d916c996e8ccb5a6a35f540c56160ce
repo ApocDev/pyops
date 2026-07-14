@@ -1,0 +1,81 @@
+app/drizzle/0013_add-machine-footprint.sql
+  s_8d18c2fb66c69e::t_b9f234a3db4acb 1-2
+app/drizzle/meta/0013_snapshot.json
+  s_8d18c2fb66c69e::t_ee9b3649877547 1-2631
+app/drizzle/meta/_journal.json
+  s_8d18c2fb66c69e::t_fa89a2b22f7d92 95-101
+app/src/components/block/group-header-row.tsx
+  s_739c24aa414347::t_81a45bdfc26923 80
+app/src/components/block/recipe-row.tsx
+  s_f0d31cf3b84a09::t_1dedc729045c5f 26,138-139,145-146,148-151,244-299
+app/src/db/queries.server.ts
+  s_7dacf746ced279::t_cec208fbd44a7f 225-226,388-389
+docs/guide/blocks.md
+  s_f0d31cf3b84a09::t_e906b9d7057bcf 61-70,87-99
+app/e2e/mut/loading-fit.e2e.ts
+  s_8d18c2fb66c69e::t_0abda6acb09113 1-50
+app/e2e/mut/subblock.e2e.ts
+  s_739c24aa414347::t_b1b80f8eba0360 50-72,75-77
+app/src/components/block/block-help-content.tsx
+  s_739c24aa414347::t_e33286319b9891 83
+app/src/components/block/loading-fit-count.tsx
+  s_8d18c2fb66c69e::t_c93b1b1f086e0f 1-87
+app/src/components/block/recipe-grid.tsx
+  s_739c24aa414347::t_7be1c49f4cb3b8 118-120,141-145
+app/src/db/import-factorio.test.ts
+  s_8d18c2fb66c69e::t_85951f7a607b37 52-111
+app/src/db/import-factorio.ts
+  s_8d18c2fb66c69e::t_8a9f09f9582170 215,388-403,420,426-427
+app/src/db/schema.ts
+  s_8d18c2fb66c69e::t_1b3a8c86a96e7b 120-125
+app/src/lib/loading-fit.test.ts
+  s_8d18c2fb66c69e::t_9b0cd11e80589d 1-130
+app/src/lib/loading-fit.ts
+  s_8d18c2fb66c69e::t_cc35c8cf131f1e 1-171
+app/src/server/block-compute.server.ts
+  s_8d18c2fb66c69e::t_e93b2c8fc4bf78 965-966
+app/src/server/cost-analysis.server.ts
+  s_8d18c2fb66c69e::t_2c5d25cd9238a1 14
+docs/development/data-pipeline.md
+  s_8d18c2fb66c69e::t_1e907a45da467e 169-177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "5e29ee987d916c996e8ccb5a6a35f540c56160ce",
+  "prompts": {},
+  "sessions": {
+    "s_739c24aa414347": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5e8c-bae6-7092-83a9-7add5bbcb568",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_7dacf746ced279": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5e90-56fd-7cf2-acd6-290fce29379d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_8d18c2fb66c69e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5be2-9d82-7aa2-84ce-b0c121a90d83",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f0d31cf3b84a09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5e9a-5c16-7871-9bf7-d4c778d16fc7",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
