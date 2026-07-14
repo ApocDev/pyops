@@ -116,6 +116,10 @@ test("goals can be reordered and the new primary order persists", async ({ page 
   const copper = page.locator('[data-goal="copper-plate"]');
   const copperHandle = copper.locator('button[aria-label^="drag to reorder"]');
   const iron = page.locator('[data-goal="iron-plate"]');
+  const goalWidths = await page.locator("[data-goal]").evaluateAll((goals) =>
+    goals.map((goal) => goal.getBoundingClientRect().width),
+  );
+  expect(Math.max(...goalWidths) - Math.min(...goalWidths)).toBeLessThanOrEqual(1);
   const source = await copperHandle.boundingBox();
   const target = await iron.boundingBox();
   expect(source).not.toBeNull();
