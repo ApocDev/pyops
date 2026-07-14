@@ -1,5 +1,6 @@
 import { useStore } from "@tanstack/react-store";
-import { AlertTriangle, Cloud, Lock, Timer } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, CircleAlert, Cloud, Lock, Timer } from "lucide-react";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
@@ -14,6 +15,7 @@ import { OutputPriorityOverride } from "./output-priority-override.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
 import { num } from "./format.ts";
+import { producedImportsFn } from "../../server/block-flow-status.ts";
 
 /** The Block balance card: solve status + pollution in the header, root-cause
  * (IIS) cards on an infeasible solve, unmade/temperature warnings, and the
@@ -21,6 +23,7 @@ import { num } from "./format.ts";
  * sizing-lock controls. Electricity and heat aren't summarised here — both
  * surface as their own import chips (pyops-electricity / pyops-heat). */
 export function BalanceCard({
+  blockId,
   doc,
   res,
   statusColor,
@@ -37,6 +40,7 @@ export function BalanceCard({
   onCtxMenu,
   onOpenSpoilDialog,
 }: {
+  blockId: number;
   doc: BlockDocStore;
   res: SolveResult | undefined;
   statusColor: string;
@@ -63,6 +67,14 @@ export function BalanceCard({
   const spoilables = useSpoilables();
   const showImports = !!res && (res.displayImports.length > 0 || res.displayExports.length === 0);
   const showExports = !!res?.displayExports.length;
+  const importNames = res?.displayImports.map((flow) => flow.name) ?? [];
+  const producedImports = useQuery({
+    queryKey: ["producedImports", blockId, importNames],
+    queryFn: () => producedImportsFn({ data: { blockId, goods: importNames } }),
+    enabled: importNames.length > 0,
+    staleTime: 0,
+  });
+  const producedElsewhere = new Set(producedImports.data ?? []);
   // One mixed loop candidate: every solid item touching a belt in this block —
   // imports, exports, AND internal row-to-row flows all ride the same loop in
   // the "everything on one belt" pattern. A good's belt rate is
@@ -304,12 +316,12 @@ export function BalanceCard({
             </div>
           )}
           <div
-            className={`grid gap-4 p-3 ${showImports && showExports ? "grid-cols-2" : "grid-cols-1"}`}
+            className={`grid grid-cols-1 gap-4 p-3 ${showImports && showExports ? "md:grid-cols-2" : ""}`}
           >
             {showImports && (
               <div>
                 <div className="mb-1 text-sm font-semibold text-warning">Imports</div>
-                <div className="flex flex-wrap gap-x-3 gap-y-2">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] items-start gap-x-3 gap-y-2">
                   {res.displayImports.length ? (
                     res.displayImports.map((f) => (
                       <span key={f.name} className="group flex flex-col items-start gap-1.5">
@@ -327,6 +339,17 @@ export function BalanceCard({
                               onCtxMenu(e, { name: f.name, kind: f.kind, link: "import" })
                             }
                           />
+                          {producedImports.isSuccess && !producedElsewhere.has(f.name) && (
+                            <Tooltip content="No other enabled block currently exports this. It may still be an intentional raw or external input.">
+                              <span
+                                data-unsourced-import={f.name}
+                                aria-label={`${res.display?.[f.name] ?? f.name} is not produced by another enabled block`}
+                                className="flex shrink-0 text-warning/80"
+                              >
+                                <CircleAlert className="size-3.5" />
+                              </span>
+                            </Tooltip>
+                          )}
                           {/* Locked-as-block-driver state (set via right-click → "Size block by this
                             input"): edit its rate inline + an unlock control. The toggle itself
                             lives in the context menu, so non-locked rows stay uncluttered. */}
@@ -391,7 +414,7 @@ export function BalanceCard({
             {showExports && (
               <div>
                 <div className="mb-1 text-sm font-semibold text-surplus">Exports</div>
-                <div className="flex flex-wrap gap-x-3 gap-y-2">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] items-start gap-x-3 gap-y-2">
                   {res.displayExports.map((f) => {
                     const incidental = res.incidentalSpoilage.filter((s) => s.result === f.name);
                     return (

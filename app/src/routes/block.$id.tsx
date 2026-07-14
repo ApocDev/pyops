@@ -811,6 +811,7 @@ function Block({ blockId }: { blockId: number }) {
           onOpenGoalPicker={() => setGoalPicker({})}
         />
         <BalanceCard
+          blockId={blockId}
           doc={doc}
           res={res}
           statusColor={statusColor}

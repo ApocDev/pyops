@@ -43,6 +43,9 @@ cannot turn a buffer goal back into continuous production.
 A negative goal is already the block's visible import contract, so Block balance does not
 repeat that good under **Imports**. Other ingredients the block needs still appear there.
 Electricity is listed first, followed by the remaining imports from highest to lowest rate.
+An alert beside an import means no other enabled block currently exports it. This is a
+planning cue rather than an error: raw resources and intentionally external supplies can
+remain unsourced. Right-click an import to jump to the blocks that do produce it.
 
 ## Add recipes
 

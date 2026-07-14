@@ -8,7 +8,7 @@
  * comes later via the mod bridge.
  */
 import { createHash } from "node:crypto";
-import { and, eq, inArray, isNotNull, sql, type AnyColumn } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, ne, sql, type AnyColumn } from "drizzle-orm";
 import { db } from "./index.server.ts";
 import {
   recipes,
@@ -2183,6 +2183,27 @@ export function blocksForGood(good: string) {
       .map(shape),
     consumers: rows.filter((r) => r.role === "import").map(shape),
   };
+}
+
+/** Which goods in a block's import list are produced by some OTHER enabled
+ * block. Batched for the block editor so it never issues one query per chip. */
+export function producedGoodsOutsideBlock(goods: string[], blockId: number): string[] {
+  const unique = [...new Set(goods)];
+  if (unique.length === 0) return [];
+  return db
+    .selectDistinct({ item: blockFlows.item })
+    .from(blockFlows)
+    .innerJoin(blocks, eq(blocks.id, blockFlows.blockId))
+    .where(
+      and(
+        inArray(blockFlows.item, unique),
+        inArray(blockFlows.role, ["primary", "stock", "byproduct"]),
+        ne(blockFlows.blockId, blockId),
+        eq(blocks.enabled, true),
+      ),
+    )
+    .all()
+    .map((row) => row.item);
 }
 
 /** Factory coherence: the block-to-block wiring. Every good that crosses a block
