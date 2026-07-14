@@ -1,0 +1,35 @@
+app/src/components/block/recipe-row.tsx
+  s_f0d31cf3b84a09::t_b9e2b35a90072a 252,254-260,262,267,269-271,273-274,277
+docs/guide/blocks.md
+  s_f0d31cf3b84a09::t_404065ca27e6a0 88
+app/e2e/mut/made-links.e2e.ts
+  s_f0d31cf3b84a09::t_4ef9c88a2f6430 128-185
+app/src/components/block/recipe-picker-dialog.tsx
+  s_f0d31cf3b84a09::t_f03aede80295cf 25,89,104-108
+app/src/lib/sink-classify.test.ts
+  s_f0d31cf3b84a09::t_62d2b10daf7cea 18-20,27,30
+app/src/lib/sink-classify.ts
+  s_f0d31cf3b84a09::t_73e836f776c685 1-6,12,15
+app/src/routes/block.$id.tsx
+  s_f0d31cf3b84a09::t_3ba514a6355b6b 535,543-548,566-570,575-579
+docs/development/solver.md
+  s_f0d31cf3b84a09::t_1683b8069e5680 98-106
+docs/guide/block-boundaries.md
+  s_f0d31cf3b84a09::t_90299e2f4fb124 52-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "39bf86f08e949e2ea0799c31ceadddc363724a46",
+  "prompts": {},
+  "sessions": {
+    "s_f0d31cf3b84a09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5e9a-5c16-7871-9bf7-d4c778d16fc7",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
