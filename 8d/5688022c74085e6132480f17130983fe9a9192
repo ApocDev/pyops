@@ -1,0 +1,21 @@
+app/src/lib/recipe-card.test.tsx
+  s_f8fb7822c86326::t_6455553f77cfdf 136-165
+app/src/lib/recipe-card.tsx
+  s_f8fb7822c86326::t_e4bd804020ef22 29,31,44,65-66,68-70,72,117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "8d5688022c74085e6132480f17130983fe9a9192",
+  "prompts": {},
+  "sessions": {
+    "s_f8fb7822c86326": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f60ae-b355-7c70-9180-27c979895810",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
