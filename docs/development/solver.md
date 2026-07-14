@@ -377,6 +377,14 @@ unmade goods; aggregate failures include the largest expected-versus-actual mate
 and goals that did not settle between response passes. The Scenario UI links block failures back to
 their editor and shows the diagnostic rates without requiring structured trace capture.
 
+When the factory LP itself is infeasible, Scenario diagnoses closed material conflicts by relaxing
+one material-balance equality at a time while keeping every pin, producer cap, and other balance
+fixed. If that single relaxation makes the model optimal, its shortage or excess is actionable
+evidence. The diagnostic reports required and available rates plus each contributing block. It also
+marks a configured producer whose local response column has no positive marginal output for the
+good, which distinguishes an absent producer from a multi-goal block that cannot scale the requested
+coproduct in its current recipe basis.
+
 Stock pins describe desired net replenishment, but a stock block may also feed internal consumers.
 Its solved gross production is stored as `factoryRate` while the visible `stock` and `window` remain
 authoritative for the buffer target. User edits to either stock control clear that computed override.

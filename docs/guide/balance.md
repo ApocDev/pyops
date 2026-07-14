@@ -97,6 +97,13 @@ because its response is probed in its saved produce or consume direction.
 If no enabled block can supply a required ingredient, Scenario keeps the solve usable and
 lists the shortfall under **Raw inputs** as an external import.
 
+If the factory material model is infeasible, Scenario shows the conflicting material balances
+before the work list. Each conflict states the shortage or excess, the total rate required and
+available, and the blocks consuming or supplying that good. A configured producer is called out
+when its current multi-goal response cannot scale that output any further. Follow the block links to
+change its goals or recipes, add another producer, or reduce the downstream demand. Nothing is
+saved from an infeasible preview.
+
 If the factory model solves but the proposed rates fail a full block re-solve, Scenario shows a
 **Scenario validation failed** card before the work list. It links each affected block and lists the
 exact proposed goals and block-solver status. Material-flow mismatches show the expected and actual

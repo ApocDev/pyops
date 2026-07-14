@@ -62,6 +62,22 @@ type FactoryGoalChange = {
 };
 
 export type FactoryValidation = {
+  materialConflicts: {
+    good: string;
+    kind: string;
+    direction: "shortage" | "excess";
+    amount: number;
+    required: number;
+    available: number;
+    blocks: {
+      id: number;
+      name: string;
+      supplied: number;
+      consumed: number;
+      configuredProducer: boolean;
+      scalableProducer: boolean;
+    }[];
+  }[];
   blocks: {
     id: number;
     name: string;
@@ -530,6 +546,7 @@ export async function solvePinnedFactory(
     // Otherwise the objective can prefer discarding the byproduct and zeroing a
     // deliberate waste block merely because its supporting inputs are costly.
     const surplusGoods = new Set([...goods].filter((good) => !autoSinkGoods.has(good)));
+    const materialGoods = [...goods];
 
     const constraints: string[] = [];
     const importVarByGood = new Map<string, number>();
@@ -538,7 +555,7 @@ export async function solvePinnedFactory(
         .filter((column) => column.sign > 0 && !FREE_GOODS.has(column.good))
         .map((column) => column.good),
     );
-    for (const good of goods) {
+    for (const good of materialGoods) {
       const parts: string[] = [];
       columns.forEach((column, index) => {
         const net = columnNet(column, good);
@@ -579,7 +596,7 @@ export async function solvePinnedFactory(
       ].join(" ") || "+ 0 surplus_0";
     const bounds = [
       ...columns.map((_, index) => `0 <= x${index} <= 1e9`),
-      ...[...goods].flatMap((good, index) => [
+      ...materialGoods.flatMap((good, index) => [
         ...(importVarByGood.has(good) ? [`0 <= import_${index} <= 1e12`] : []),
         ...(surplusGoods.has(good) ? [`0 <= surplus_${index} <= 1e12`] : []),
       ]),
@@ -595,6 +612,103 @@ export async function solvePinnedFactory(
     const highs = await highsLoader();
     const solution = highs.solve(model);
     const optimal = solution.Status === "Optimal";
+    const materialConflicts: FactoryValidation["materialConflicts"] = [];
+    if (!optimal) {
+      // Relax one material balance at a time while keeping every pin, producer
+      // cap, and other material balance intact. A relaxation that repairs the
+      // model identifies a concrete conflict without letting a smaller-unit
+      // upstream good hide the actual missing downstream material.
+      materialGoods.forEach((good, goodIndex) => {
+        const relaxedConstraints = constraints.map((constraint, index) =>
+          index === goodIndex
+            ? constraint.replace(" =", ` + 1 shortage_${goodIndex} - 1 excess_${goodIndex} =`)
+            : constraint,
+        );
+        const relaxedModel = `Minimize\n obj: + 1000000000 shortage_${goodIndex} + 1000000000 excess_${goodIndex} ${objective}\nSubject To\n ${relaxedConstraints.join("\n ")}\nBounds\n ${bounds.join("\n ")}\n 0 <= shortage_${goodIndex} <= 1e12\n 0 <= excess_${goodIndex} <= 1e12\nEnd`;
+        const relaxed = highs.solve(relaxedModel);
+        if (relaxed.Status !== "Optimal") return;
+        const shortage =
+          (relaxed.Columns[`shortage_${goodIndex}`] as { Primal?: number } | undefined)?.Primal ??
+          0;
+        const excess =
+          (relaxed.Columns[`excess_${goodIndex}`] as { Primal?: number } | undefined)?.Primal ?? 0;
+        if (shortage <= 1e-4 && excess <= 1e-4) return;
+
+        const blockDetails = new Map<
+          number,
+          FactoryValidation["materialConflicts"][number]["blocks"][number]
+        >();
+        const detail = (id: number, name: string) => {
+          const existing = blockDetails.get(id);
+          if (existing) return existing;
+          const created = {
+            id,
+            name,
+            supplied: 0,
+            consumed: 0,
+            configuredProducer: false,
+            scalableProducer: false,
+          };
+          blockDetails.set(id, created);
+          return created;
+        };
+        let requiredRate = Math.max(0, pinByGood.get(good)?.rate ?? 0);
+        let availableRate = 0;
+        responses.forEach((response, responseIndex) => {
+          const row = rows[responseIndex]?.row;
+          if (!row) return;
+          for (const flow of response.fixed.filter((candidate) => candidate.item === good)) {
+            const block = detail(row.id, row.name);
+            if (flow.net > 0) {
+              availableRate += flow.net;
+              block.supplied += flow.net;
+            } else {
+              requiredRate -= flow.net;
+              block.consumed -= flow.net;
+            }
+          }
+        });
+        columns.forEach((column, columnIndex) => {
+          const amount =
+            (relaxed.Columns[`x${columnIndex}`] as { Primal?: number } | undefined)?.Primal ?? 0;
+          const net = columnNet(column, good) * amount;
+          if (Math.abs(net) <= EPS) return;
+          const block = detail(column.blockId, column.blockName);
+          if (net > 0) {
+            availableRate += net;
+            block.supplied += net;
+          } else {
+            requiredRate -= net;
+            block.consumed -= net;
+          }
+        });
+        for (const producer of positiveByGood.get(good) ?? []) {
+          const block = detail(producer.blockId, producer.blockName);
+          block.configuredProducer = true;
+          block.scalableProducer ||= columnNet(producer, good) > EPS;
+        }
+        const direction = shortage >= excess ? "shortage" : "excess";
+        materialConflicts.push({
+          good,
+          kind: kindOf.get(good) ?? "item",
+          direction,
+          amount: round(direction === "shortage" ? shortage : excess),
+          required: round(requiredRate),
+          available: round(availableRate),
+          blocks: [...blockDetails.values()]
+            .map((block) => ({
+              ...block,
+              supplied: round(block.supplied),
+              consumed: round(block.consumed),
+            }))
+            .filter(
+              (block) => block.supplied > 1e-4 || block.consumed > 1e-4 || block.configuredProducer,
+            )
+            .sort((a, b) => b.consumed + b.supplied - (a.consumed + a.supplied) || a.id - b.id),
+        });
+      });
+      materialConflicts.sort((a, b) => b.amount - a.amount);
+    }
     const columnAmounts = columns.map((_, index) =>
       optimal
         ? ((solution.Columns[`x${index}`] as { Primal?: number } | undefined)?.Primal ?? 0)
@@ -825,6 +939,13 @@ export async function solvePinnedFactory(
       })),
       validation: null,
     };
+    if (!optimal)
+      result.validation = {
+        materialConflicts,
+        blocks: [],
+        discrepancies: [],
+        unstableGoals: [],
+      };
 
     if (optimal) {
       const proposedRates = new Map<string, number>();
@@ -873,6 +994,7 @@ export async function solvePinnedFactory(
         result.status = "ValidationFailed";
         result.residual = 1;
         result.validation = {
+          materialConflicts: [],
           blocks: broken.map(({ row, doc, result: blockResult }) => ({
             id: row.id,
             name: row.name,
@@ -1020,6 +1142,7 @@ export async function solvePinnedFactory(
           }
           result.status = "ValidationFailed";
           result.validation = {
+            materialConflicts: [],
             blocks: [],
             discrepancies: discrepancies.slice(0, 20),
             unstableGoals: goalDifferences.slice(0, 20),

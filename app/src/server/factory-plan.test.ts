@@ -10,6 +10,7 @@ let fixedAsh = 0;
 let ashSinkAdditive = 0;
 let infeasibleIronAbove = Number.POSITIVE_INFINITY;
 let nonlinearElectricity = false;
+let recoveredIronPerCoke = 10;
 let solveVersion = 0;
 const blocks = [
   {
@@ -50,7 +51,19 @@ const blocks = [
     ],
   },
 ];
-const docs = new Map(
+const docs = new Map<
+  number,
+  {
+    id: number;
+    name: string;
+    updatedAt: Date;
+    data: {
+      goals: { name: string; rate: number }[];
+      recipes: string[];
+      supplyPriority?: number;
+    };
+  }
+>(
   blocks.map((block) => [
     block.id,
     {
@@ -97,7 +110,7 @@ vi.mock("./block-compute.server.ts", () => ({
     if (cokeGoal && recoveredIronGoal) {
       const cokeRate = Math.abs(cokeGoal.rate);
       const ironRate = Math.abs(recoveredIronGoal.rate);
-      const recoveredIron = cokeRate * 10;
+      const recoveredIron = cokeRate * recoveredIronPerCoke;
       const dedicatedIron = Math.max(0, ironRate - recoveredIron);
       return {
         broken: false,
@@ -216,6 +229,7 @@ beforeEach(() => {
   ashSinkAdditive = 0;
   infeasibleIronAbove = Number.POSITIVE_INFINITY;
   nonlinearElectricity = false;
+  recoveredIronPerCoke = 10;
   for (const doc of docs.values()) doc.updatedAt = new Date(++solveVersion * 1000);
   blocks.splice(4);
   docs.delete(5);
@@ -336,6 +350,59 @@ describe("pinned factory solve", () => {
       ([meta]) => (meta as { id?: number } | undefined)?.id === 5,
     )?.[1] as { goals: { name: string; rate: number }[] } | undefined;
     expect(saved?.goals.find((goal) => goal.name === "iron")?.rate).toBeCloseTo(4);
+  });
+
+  it("reports the material and blocks that make the factory LP infeasible", async () => {
+    recoveredIronPerCoke = 2;
+    blocks.push({
+      id: 5,
+      name: "Coke and iron",
+      rate: 0,
+      goals: [
+        { name: "coke", rate: 0 },
+        { name: "iron", rate: 0 },
+      ],
+      flows: [],
+    });
+    docs.set(5, {
+      id: 5,
+      name: "Coke and iron",
+      updatedAt: new Date(++solveVersion * 1000),
+      data: {
+        goals: [
+          { name: "coke", rate: 0 },
+          { name: "iron", rate: 0 },
+        ],
+        recipes: ["recipe-5"],
+        supplyPriority: 1,
+      },
+    });
+    plan.saveFactoryPins([
+      { good: "science", kind: "item", rate: 1 },
+      { good: "coke", kind: "item", rate: 1 },
+    ]);
+
+    const result = await plan.solvePinnedFactory();
+
+    expect(result.status).toBe("Infeasible");
+    expect(result.validation?.materialConflicts).toContainEqual(
+      expect.objectContaining({
+        good: "iron",
+        direction: "shortage",
+        amount: 2,
+        required: 4,
+        available: 2,
+        blocks: expect.arrayContaining([
+          expect.objectContaining({ id: 1, consumed: 4 }),
+          expect.objectContaining({
+            id: 5,
+            supplied: 2,
+            configuredProducer: true,
+            scalableProducer: false,
+          }),
+        ]),
+      }),
+    );
   });
 
   it("sends fixed and scalable byproducts through the configured consumer", async () => {

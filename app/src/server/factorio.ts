@@ -347,6 +347,10 @@ export const factoryWhatIfFn = createServerFn({ method: "POST" })
       overproduced: result.overproduced.map((g) => ({ ...g, display: display(g.good) })),
       validation: result.validation && {
         ...result.validation,
+        materialConflicts: result.validation.materialConflicts.map((conflict) => ({
+          ...conflict,
+          display: display(conflict.good),
+        })),
         blocks: result.validation.blocks.map((block) => ({
           ...block,
           goals: block.goals.map((goal) => ({ ...goal, display: display(goal.good) })),

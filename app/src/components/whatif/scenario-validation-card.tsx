@@ -5,6 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card.t
 import { rateLabel } from "#/lib/format.ts";
 
 type ValidationData = {
+  materialConflicts: {
+    good: string;
+    display: string;
+    direction: "shortage" | "excess";
+    amount: number;
+    required: number;
+    available: number;
+    blocks: {
+      id: number;
+      name: string;
+      supplied: number;
+      consumed: number;
+      configuredProducer: boolean;
+      scalableProducer: boolean;
+    }[];
+  }[];
   blocks: {
     id: number;
     name: string;
@@ -41,7 +57,8 @@ export function ScenarioValidationCard({
   const validationFailed = status === "ValidationFailed";
   const hasDetails =
     validation != null &&
-    (validation.blocks.length > 0 ||
+    (validation.materialConflicts.length > 0 ||
+      validation.blocks.length > 0 ||
       validation.discrepancies.length > 0 ||
       validation.unstableGoals.length > 0);
 
@@ -60,6 +77,54 @@ export function ScenarioValidationCard({
 
       {hasDetails ? (
         <CardContent className="space-y-4">
+          {validation.materialConflicts.length > 0 && (
+            <section className="space-y-3" aria-label="Factory material conflicts">
+              {validation.materialConflicts.slice(0, 5).map((conflict) => (
+                <div key={conflict.good} className="space-y-2 border-t pt-2 first:border-t-0">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-semibold text-warning">
+                      {conflict.display} {conflict.direction}:{" "}
+                      {rateLabel(conflict.good, conflict.amount, { perSec: true })}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {rateLabel(conflict.good, conflict.required, { perSec: true })} required ·{" "}
+                      {rateLabel(conflict.good, conflict.available, { perSec: true })} available
+                    </span>
+                  </div>
+                  <div className="grid gap-x-6 gap-y-1 lg:grid-cols-2">
+                    {conflict.blocks.map((block) => (
+                      <div
+                        key={block.id}
+                        className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-1 border-t py-1"
+                      >
+                        <Link
+                          to="/block/$id"
+                          params={{ id: String(block.id) }}
+                          className="text-primary underline"
+                        >
+                          {block.name}
+                        </Link>
+                        <span className="text-muted-foreground">
+                          {block.consumed > 0 &&
+                            `uses ${rateLabel(conflict.good, block.consumed, { perSec: true })}`}
+                          {block.consumed > 0 && block.supplied > 0 && " · "}
+                          {block.supplied > 0 &&
+                            `supplies ${rateLabel(conflict.good, block.supplied, { perSec: true })}`}
+                        </span>
+                        {block.configuredProducer && !block.scalableProducer && (
+                          <span className="col-span-full text-warning">
+                            The configured {conflict.display} goal has no additional scalable
+                            output.
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </section>
+          )}
+
           {validation.blocks.map((block) => (
             <section key={block.id} className="space-y-2" aria-label={`${block.name} validation`}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
