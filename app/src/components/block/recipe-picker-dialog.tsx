@@ -9,8 +9,8 @@ import { fmtCost } from "./format.ts";
 
 type Candidate = Awaited<ReturnType<typeof recipeCandidatesFn>>[number];
 
-/** Recipe picker — the candidates that make/consume a good, availability-sorted,
- * with io at a glance and TURD/tech lock state. Floats over everything. */
+/** Recipe picker — current unlocks first, then horizon choices and locked rows,
+ * with cost ordering inside each group. Floats over everything. */
 export function RecipePickerDialog({
   mode,
   goodDisplay,
@@ -46,7 +46,15 @@ export function RecipePickerDialog({
               const isAdded = added.includes(r.name);
               const locked = !r.selectable && !r.superseded;
               const previous = candidates[index - 1];
-              const beginsGroup = !previous || previous.selectable !== r.selectable;
+              const group = r.unlockedNow ? "now" : r.selectable ? "horizon" : "locked";
+              const previousGroup = previous
+                ? previous.unlockedNow
+                  ? "now"
+                  : previous.selectable
+                    ? "horizon"
+                    : "locked"
+                : null;
+              const beginsGroup = group !== previousGroup;
               const machines = r.machineAvailability.options;
               const availableMachine =
                 machines.find((machine) => machine.availableNow) ?? machines[0];
@@ -55,13 +63,15 @@ export function RecipePickerDialog({
                 <div key={r.name}>
                   {beginsGroup && (
                     <div
-                      className={`px-3 pt-3 pb-1 text-sm font-semibold uppercase ${r.selectable ? "text-success" : "text-destructive"}`}
+                      className={`px-3 pt-3 pb-1 text-sm font-semibold uppercase ${group === "locked" ? "text-destructive" : "text-success"}`}
                     >
-                      {r.selectable
-                        ? r.horizonMode === "now"
-                          ? "Unlocked now"
-                          : "Available in planning horizon"
-                        : "Locked or unavailable"}
+                      {group === "now"
+                        ? "Unlocked now"
+                        : group === "horizon"
+                          ? r.horizonMode === "now"
+                            ? "Available with current science"
+                            : "Available in planning horizon"
+                          : "Locked or unavailable"}
                     </div>
                   )}
                   <button
@@ -86,7 +96,7 @@ export function RecipePickerDialog({
                         <span className="text-base">{r.display ?? r.name}</span>
                         <span className="ml-auto flex shrink-0 items-center gap-2">
                           {r.cost != null && (
-                            <Tooltip content="estimated cost per craft (cost analysis) — sorted cheapest first">
+                            <Tooltip content="estimated cost per craft (cost analysis) — sorted cheapest first within each availability group">
                               <span className="text-sm text-muted-foreground">
                                 ¥{fmtCost(r.cost)}
                               </span>
@@ -170,7 +180,11 @@ export function RecipePickerDialog({
                       {r.selectable && (
                         <span className="flex items-center gap-1 text-sm text-success">
                           <Check className="size-3.5 shrink-0" />
-                          {r.horizonMode === "now" ? "unlocked now" : "available in horizon"}
+                          {r.unlockedNow
+                            ? "unlocked now"
+                            : r.horizonMode === "now"
+                              ? "available with current science"
+                              : "available in horizon"}
                           {availableMachine &&
                             ` · ${availableMachine.display ?? availableMachine.name}`}
                         </span>

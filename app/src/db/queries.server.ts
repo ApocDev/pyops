@@ -523,9 +523,24 @@ export function unlockedItems(names: string[]): Set<string> {
 type MachineOption = ReturnType<typeof machinesForRecipe>[number] & {
   startEnabled: boolean;
   unlockedBy: { tech: string; display: string | null }[];
+  unlockedNow: boolean;
   availableNow: boolean;
   favorite: boolean;
 };
+
+/** Whether the recipe exists in the synced save right now, independent of the
+ * broader planning horizon. TURD recipes count only when their branch is the
+ * selected one; stale researched-tech data must not resurrect another branch. */
+function isRecipeUnlockedNow(
+  enabled: boolean,
+  unlocks: RecipeLockState,
+  researched: ReadonlySet<string>,
+): boolean {
+  return (
+    enabled ||
+    unlocks.some((unlock) => (unlock.isTurdSub ? unlock.turdSelected : researched.has(unlock.tech)))
+  );
+}
 
 /** Request-scoped machine enrichment for several recipe candidates. */
 export function machineOptionsForRecipes(recipeNames: string[]): Map<string, MachineOption[]> {
@@ -549,6 +564,7 @@ export function machineOptionsForRecipes(recipeNames: string[]): Map<string, Mac
     craftRows.map((recipe) => recipe.name),
     new Set(selections.values()),
   );
+  const researched = syncedResearchedTechs();
   const availability = computeAvailByRecipe(
     craftRows,
     locksByRecipe,
@@ -585,6 +601,9 @@ export function machineOptionsForRecipes(recipeNames: string[]): Map<string, Mac
           ...machine,
           startEnabled: crafts.some((recipe) => recipe.enabled),
           unlockedBy,
+          unlockedNow: crafts.some((recipe) =>
+            isRecipeUnlockedNow(recipe.enabled, locksByRecipe.get(recipe.name) ?? [], researched),
+          ),
           availableNow: crafts.some((recipe) => availability.get(recipe.name)?.availableNow),
           favorite: machine.name === favorite,
         };
@@ -4527,10 +4546,11 @@ export function allBlockRecipes(): string[] {
   ];
 }
 
-/** Recipe-picker candidates (producing/consuming X) with lock + TURD state,
- * sorted into usable and locked groups, cheapest first within each group. A
- * candidate is usable only when both its recipe and at least one compatible
- * building are available under the selected planning horizon. */
+/** Recipe-picker candidates (producing/consuming X) with lock + TURD state.
+ * Recipes and buildings unlocked in the synced save rank first, followed by
+ * other horizon-usable choices and then locked choices; cost breaks ties inside
+ * each group. A candidate is usable only when both its recipe and at least one
+ * compatible building are available under the selected planning horizon. */
 export function recipeCandidatesBatch(names: string[], mode: "produce" | "consume") {
   const uniq = [...new Set(names)].filter((name) => name);
   if (!uniq.length) return new Map<string, never[]>();
@@ -4550,6 +4570,7 @@ export function recipeCandidatesBatch(names: string[], mode: "produce" | "consum
   const recipesByNameMap = recipesByName(recipeNames);
   const selections = getTurdSelections();
   const locksByRecipe = recipeLockStatesByRecipe(recipeNames, new Set(selections.values()));
+  const researched = syncedResearchedTechs();
   const horizon = getResearchHorizon();
   const availability = computeAvailByRecipe(allBase, locksByRecipe, horizon, selections);
   const machineOptions = machineOptionsForRecipes(recipeNames);
@@ -4586,9 +4607,13 @@ export function recipeCandidatesBatch(names: string[], mode: "produce" | "consum
             : avail.availableNow;
       const superseded = supersededMap.get(r.name) ?? null;
       const selectable = recipeAvailable && machineAvailable && !superseded;
-      // Cost orders the usable and locked groups independently. Superseded
-      // recipes remain last because the selected TURD removed them in-game.
-      const rank = selectable ? 0 : superseded ? 2 : 1;
+      const recipeUnlockedNow = isRecipeUnlockedNow(r.enabled, unlocks, researched);
+      const machineUnlockedNow =
+        machines.length === 0 || machines.some((machine) => machine.unlockedNow);
+      const unlockedNow = selectable && recipeUnlockedNow && machineUnlockedNow;
+      // Cost orders each availability group independently. Superseded recipes
+      // remain last because the selected TURD removed them in-game.
+      const rank = unlockedNow ? 0 : selectable ? 1 : superseded ? 3 : 2;
       // io summary so lookalike recipes (Py loves reusing names) tell apart at a glance
       const full = recipesByNameMap.get(r.name);
       return {
@@ -4598,12 +4623,14 @@ export function recipeCandidatesBatch(names: string[], mode: "produce" | "consum
         available,
         avail,
         selectable,
+        unlockedNow,
         horizonMode: horizon.mode,
         machineAvailability: {
           available: machineAvailable,
           options: machines.map((machine) => ({
             name: machine.name,
             display: machine.display,
+            unlockedNow: machine.unlockedNow,
             availableNow: machine.availableNow,
             startEnabled: machine.startEnabled,
             unlockedBy: machine.unlockedBy,

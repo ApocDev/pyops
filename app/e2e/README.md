@@ -106,6 +106,8 @@ Mutating (`mut/`, against the isolated server):
 - **`module-presets.e2e.ts`** — module templates (#99): save a row's loadout as
   a preset from the modules dialog, star it as the default template, and a
   compatible new recipe row starts with that loadout baked in.
+- **`recipe-order.e2e.ts`** — recipe selection keeps the best currently unlocked
+  recipe above cheaper choices that are only available in the future horizon.
 
 ## CI
 

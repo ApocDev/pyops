@@ -609,6 +609,23 @@ describe("recipeCandidates availability: prerequisite-gated techs (empty own cos
     const exotic = recipeCandidates("circuit", "produce").find((c) => c.name === "circuit-exotic")!;
     expect(exotic.avail.research).toBe("available");
   });
+
+  it("sorts a currently unlocked recipe before a cheaper horizon-only recipe", () => {
+    seed();
+    db.run(sql`
+      INSERT INTO cost_analysis (scope, name, kind, cost) VALUES
+        ('recipe','circuit-basic','recipe',10),
+        ('recipe','circuit-exotic','recipe',1)
+    `);
+    setResearchHorizon({ mode: "future", researched: ["t-basic"] });
+
+    const candidates = recipeCandidates("circuit", "produce");
+    expect(candidates.map((candidate) => candidate.name)).toEqual([
+      "circuit-basic",
+      "circuit-exotic",
+    ]);
+    expect(candidates.map((candidate) => candidate.unlockedNow)).toEqual([true, false]);
+  });
 });
 
 describe("recipeCandidates combined recipe and building availability", () => {
@@ -695,6 +712,19 @@ describe("recipeCandidates combined recipe and building availability", () => {
       "generate-wind",
       "generate-steam",
     ]);
+    expect(candidates.every((candidate) => candidate.selectable)).toBe(true);
+  });
+
+  it("sorts a recipe with a current building before a cheaper horizon-only building", () => {
+    seedGenerators();
+    setResearchHorizon({ mode: "future", packs: [], researched: [] });
+
+    const candidates = recipeCandidates("power", "produce");
+    expect(candidates.map((candidate) => candidate.name)).toEqual([
+      "generate-steam",
+      "generate-wind",
+    ]);
+    expect(candidates.map((candidate) => candidate.unlockedNow)).toEqual([true, false]);
     expect(candidates.every((candidate) => candidate.selectable)).toBe(true);
   });
 });

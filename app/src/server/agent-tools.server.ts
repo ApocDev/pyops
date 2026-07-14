@@ -262,6 +262,7 @@ function optionsFor(
           fastest && resolved && fastest.craftingSpeed > resolved.craftingSpeed
             ? describe(fastest)
             : undefined,
+        unlockedNow: r.unlockedNow, // recipe + at least one building exist in the synced save
         // availability vs the user's planning horizon (now vs future)
         availableNow: r.avail.availableNow, // research reached, turd not blocked (pickable counts)
         buildableNow: r.avail.buildableNow, // stricter: turd ACTIVE — no unmade pick (NOW planning)
@@ -286,7 +287,7 @@ function optionsFor(
 
 export const recipeOptions = tool({
   description:
-    "List the recipes that PRODUCE (or CONSUME) a good, ranked the way the picker ranks them: recipes whose research and building are available under the planning horizon first, then locked choices, cheapest by cost analysis within each group. Each candidate already includes its inputs (in), outputs (out), lock state, cost, and unlocking tech — so you rarely need recipeInfo afterward. Cost is an LP shadow price — a HINT for tie-breaking, NOT the deciding factor: the right recipe is usually about the correct production TIER and chain, not the cheapest. `machine` names the building a draft would ACTUALLY solve with — the user's stored favorite for this recipe's category, else the same safe low-tier fallback `computeBlock` defaults to (never necessarily the fastest); its availability note (\"needs <tech>\") describes THIS machine, since that's what really gates buildability. `fastestMachine` is included only when a strictly faster tier exists beyond that pick, so you can still see whether upgrading the favorite is worth it. To resolve SEVERAL goods at once, prefer recipeOptionsBatch.",
+    "List the recipes that PRODUCE (or CONSUME) a good, ranked the way the picker ranks them: choices whose recipe and building are unlocked in the synced save first, then other planning-horizon choices, then locked choices; cheapest by cost analysis within each group. `unlockedNow` identifies that first group. Each candidate already includes its inputs (in), outputs (out), lock state, cost, and unlocking tech — so you rarely need recipeInfo afterward. Cost is an LP shadow price — a HINT for tie-breaking, NOT the deciding factor: the right recipe is usually about the correct production TIER and chain, not the cheapest. `machine` names the building a draft would ACTUALLY solve with — the user's stored favorite for this recipe's category, else the same safe low-tier fallback `computeBlock` defaults to (never necessarily the fastest); its availability note (\"needs <tech>\") describes THIS machine, since that's what really gates buildability. `fastestMachine` is included only when a strictly faster tier exists beyond that pick, so you can still see whether upgrading the favorite is worth it. To resolve SEVERAL goods at once, prefer recipeOptionsBatch.",
   inputSchema: z.object({
     good: z.string().describe("Internal good name (from searchGoods), e.g. 'molten-iron'"),
     direction: z
