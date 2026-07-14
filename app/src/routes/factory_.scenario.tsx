@@ -43,7 +43,10 @@ function WhatIf() {
   const changed = (r?.goalChanges ?? []).map((goal) => ({ ...goal, name: goal.display }));
 
   return (
-    <div className="p-4 font-mono text-foreground">
+    <div
+      className="mx-auto max-w-[100rem] p-4 font-mono text-foreground"
+      data-testid="scenario-workspace"
+    >
       <PageHeader
         title="Scenario"
         actions={
@@ -134,14 +137,14 @@ function WhatIf() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(20rem,28rem)_minmax(0,1fr)]">
         <FactoryPinsCard
           overrides={overrides}
           onOverride={(good, rate) => setOverrides((current) => ({ ...current, [good]: rate }))}
         />
 
         {/* Goal changes — the work list */}
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader className="justify-between">
             <CardTitle className="normal-case">Goal changes ({changed.length})</CardTitle>
             <div className="flex items-center gap-3">

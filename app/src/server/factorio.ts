@@ -58,9 +58,9 @@ import {
 export type { SolveInput } from "./block-compute.server.ts";
 
 function pseudoDisplay(name: string) {
-  if (name === "pyops-heat") return "heat";
-  if (name === "pyops-electricity") return "electricity";
-  if (name === "pyops-fluid-fuel") return "fluid fuel";
+  if (name === "pyops-heat") return "Heat";
+  if (name === "pyops-electricity") return "Electricity";
+  if (name === "pyops-fluid-fuel") return "Fluid fuel";
   return null;
 }
 
