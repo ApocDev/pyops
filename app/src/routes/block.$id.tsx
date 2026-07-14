@@ -30,6 +30,7 @@ import { blockActionName } from "../lib/undo-names";
 import { launchesForRate, resolveLogistics } from "../lib/logistics";
 import { recordRecent } from "../lib/recents";
 import { createCoalescedRunner } from "../lib/coalesced-runner";
+import { bestUnlockedNonBarrelingRecipe } from "../lib/recipe-shortcuts";
 import { IconProvider, useSpoilables } from "../lib/icons";
 import { ModulesModal } from "../lib/modules-modal";
 import { Callout } from "#/components/ui/callout.tsx";
@@ -156,9 +157,11 @@ function Block({ blockId }: { blockId: number }) {
     toast({ message: `Extracted "${out.name}" into a new block.` });
     void navigate({ to: "/block/$id", params: { id: String(out.id) } });
   };
-  const [pickFor, setPickFor] = useState<{ name: string; mode: "produce" | "consume" } | null>(
-    null,
-  );
+  const [pickFor, setPickFor] = useState<{
+    name: string;
+    mode: "produce" | "consume";
+    quick?: boolean;
+  } | null>(null);
   const [pickMachineFor, setPickMachineFor] = useState<string | null>(null); // recipe whose machine we're choosing
   const [pickFuelFor, setPickFuelFor] = useState<string | null>(null); // recipe whose fuel we're choosing
   const [pickModulesFor, setPickModulesFor] = useState<string | null>(null); // recipe whose modules we're editing
@@ -579,12 +582,33 @@ function Block({ blockId }: { blockId: number }) {
       });
   };
 
+  const quickRecipe = pickFor?.quick
+    ? bestUnlockedNonBarrelingRecipe(picker.data ?? [])
+    : undefined;
+  useEffect(() => {
+    if (!pickFor?.quick || (!picker.isSuccess && !picker.isError)) return;
+    if (picker.isError) {
+      toast({ message: "Could not load recipe choices.", tone: "destructive" });
+      setPickFor(null);
+    } else if (quickRecipe) add(quickRecipe.name);
+    else {
+      toast({
+        message: `No unlocked non-barreling recipe is available for ${res?.display?.[pickFor.name] ?? pickFor.name}.`,
+      });
+      setPickFor(null);
+    }
+    // `add` intentionally consumes the current picker state and closes it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickFor?.quick, picker.isSuccess, picker.isError, quickRecipe?.name]);
+
   // When a flow has exactly one craftable recipe, skip the picker dialog and add
   // it directly. A superseded recipe (its base no longer exists in-game) or one
   // that's already in the block still opens the dialog, so the explanation/state
   // stays visible rather than the click silently doing nothing.
   const loneRecipe =
-    pickFor && picker.data?.length === 1 && !picker.data[0].superseded ? picker.data[0] : null;
+    pickFor && !pickFor.quick && picker.data?.length === 1 && !picker.data[0].superseded
+      ? picker.data[0]
+      : null;
   const autoAddRecipe = loneRecipe && !recipes.includes(loneRecipe.name) ? loneRecipe.name : null;
   useEffect(() => {
     if (autoAddRecipe) add(autoAddRecipe);
@@ -718,6 +742,8 @@ function Block({ blockId }: { blockId: number }) {
           : "linked";
   const makeFor = (name: string) => setPickFor({ name, mode: "produce" });
   const useFor = (name: string) => setPickFor({ name, mode: "consume" });
+  const quickRecipeFor = (name: string, mode: "produce" | "consume") =>
+    setPickFor({ name, mode, quick: true });
   const openCtxMenu = (
     e: { clientX: number; clientY: number },
     d: { name: string; kind: string; link: ItemLink },
@@ -808,6 +834,7 @@ function Block({ blockId }: { blockId: number }) {
           onGoalMenu={(e, name) => setGoalMenu({ x: e.clientX, y: e.clientY, name })}
           onMakeFor={makeFor}
           onUseFor={useFor}
+          onQuickRecipeFor={quickRecipeFor}
           onOpenGoalPicker={() => setGoalPicker({})}
         />
         <BalanceCard
@@ -953,7 +980,7 @@ function Block({ blockId }: { blockId: number }) {
       )}
 
       {/* Recipe picker — floats over everything, dismissable */}
-      {pickFor && !picker.isLoading && !autoAddRecipe && (
+      {pickFor && !pickFor.quick && !picker.isLoading && !autoAddRecipe && (
         <RecipePickerDialog
           mode={pickFor.mode}
           goodDisplay={res?.display?.[pickFor.name] ?? pickFor.name}

@@ -56,7 +56,10 @@ remain unsourced. Right-click an import to jump to the blocks that do produce it
 ## Add recipes
 
 Select a positive goal icon to open **Recipes that make _goal_**. A negative consume goal
-instead opens **Recipes that consume _goal_**. Within a recipe row:
+instead opens **Recipes that consume _goal_**. Ctrl+Click (or Command+Click) a goal icon to
+immediately add its highest-ranked currently unlocked recipe. This shortcut uses the same
+logistic-cost ordering as the picker and ignores barrel fill/empty recipes. Within a recipe
+row:
 
 - Select an ingredient chip to find recipes that make that ingredient.
 - Select a product chip to find recipes that consume that product.

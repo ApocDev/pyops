@@ -44,6 +44,7 @@ export function GoalCard({
   onGoalMenu,
   onMakeFor,
   onUseFor,
+  onQuickRecipeFor,
   onOpenGoalPicker,
 }: {
   doc: BlockDocStore;
@@ -55,6 +56,7 @@ export function GoalCard({
   onGoalMenu: (e: { clientX: number; clientY: number }, name: string) => void;
   onMakeFor: (name: string) => void;
   onUseFor: (name: string) => void;
+  onQuickRecipeFor: (name: string, mode: "produce" | "consume") => void;
   onOpenGoalPicker: () => void;
 }) {
   const goals = useStore(doc.store, (s) => s.goals);
@@ -123,12 +125,15 @@ export function GoalCard({
                 const extraText = goalMissing ? (
                   "No longer exists in the current data."
                 ) : goalUnmade ? (
-                  `No recipe in this block ${consumes ? "consumes" : "makes"} it. Click to add one.`
+                  `No recipe in this block ${consumes ? "consumes" : "makes"} it. Click to choose one, or Ctrl+Click to add the best unlocked non-barreling recipe.`
                 ) : (
                   <div className="space-y-1">
                     <div>
                       {isFirst ? "Primary goal · names the block" : "Goal"} · right-click for
                       options
+                    </div>
+                    <div className="text-muted-foreground">
+                      Ctrl+Click · add best unlocked non-barreling recipe
                     </div>
                     {incidentalRate > 0 && (
                       <div className="flex items-center gap-1 text-warning">
@@ -192,7 +197,14 @@ export function GoalCard({
                           </button>
                         </div>
                         <button
-                          onClick={() => (consumes ? onUseFor(g) : onMakeFor(g))}
+                          onClick={(event) => {
+                            if (event.ctrlKey || event.metaKey) {
+                              onQuickRecipeFor(g, consumes ? "consume" : "produce");
+                              return;
+                            }
+                            if (consumes) onUseFor(g);
+                            else onMakeFor(g);
+                          }}
                           aria-label={`add a recipe that ${consumes ? "consumes" : "makes"} ${res?.display?.[g] ?? g}`}
                         >
                           <Icon kind={kind} name={g} size="lg" extraText={extraText} />
