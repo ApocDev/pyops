@@ -1,4 +1,5 @@
 import { Flame, Timer } from "lucide-react";
+import type { ReactNode } from "react";
 import { ItemHover } from "../../lib/recipe-card";
 import { fmtSpoilTime, Icon } from "../../lib/icons";
 import { rateLabel } from "./format.ts";
@@ -33,6 +34,8 @@ export function ItemChip({
   craftable,
   fuel,
   incidental,
+  indicator,
+  indicatorLabel,
   onClick,
   onContext,
 }: {
@@ -52,6 +55,10 @@ export function ItemChip({
   fuel?: boolean;
   /** some/all of this export is projected from incidental spoilage */
   incidental?: boolean;
+  /** Compact status rendered inside the chip rather than between grid columns. */
+  indicator?: ReactNode;
+  /** Accessible text corresponding to `indicator`. */
+  indicatorLabel?: string;
   onClick: () => void;
   onContext?: (e: { clientX: number; clientY: number }) => void;
 }) {
@@ -92,7 +99,7 @@ export function ItemChip({
             e.preventDefault();
             onContext(e);
           }}
-          aria-label={`${display ?? name}${accessibleRate ? ` ${accessibleRate}` : ""}${spoilTime ? ` · spoils in ${spoilTime}` : ""}${incidental ? " · includes estimated incidental spoilage" : ""} · ${why}`}
+          aria-label={`${display ?? name}${accessibleRate ? ` ${accessibleRate}` : ""}${spoilTime ? ` · spoils in ${spoilTime}` : ""}${incidental ? " · includes estimated incidental spoilage" : ""}${indicatorLabel ? ` · ${indicatorLabel}` : ""} · ${why}`}
           className={`flex items-center gap-1 px-1.5 py-1 text-sm hover:brightness-95 ${cls}`}
         >
           <span className="relative flex">
@@ -129,6 +136,7 @@ export function ItemChip({
             </>
           )}
           {temp && <span className="text-sm text-muted-foreground">{temp}</span>}
+          {indicator}
         </button>
       </ItemHover>
     </span>

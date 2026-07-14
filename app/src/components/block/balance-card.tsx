@@ -334,22 +334,28 @@ export function BalanceCard({
                             link="import"
                             craftable={producible.has(f.name)}
                             fuel={fuelSet.has(f.name)}
+                            indicatorLabel={
+                              producedImports.isSuccess && !producedElsewhere.has(f.name)
+                                ? "not produced by another enabled block"
+                                : undefined
+                            }
+                            indicator={
+                              producedImports.isSuccess && !producedElsewhere.has(f.name) ? (
+                                <Tooltip content="No other enabled block currently exports this. It may still be an intentional raw or external input.">
+                                  <span
+                                    data-unsourced-import={f.name}
+                                    className="flex shrink-0 text-warning/80"
+                                  >
+                                    <CircleAlert className="size-3.5" />
+                                  </span>
+                                </Tooltip>
+                              ) : undefined
+                            }
                             onClick={() => onMakeFor(f.name)}
                             onContext={(e) =>
                               onCtxMenu(e, { name: f.name, kind: f.kind, link: "import" })
                             }
                           />
-                          {producedImports.isSuccess && !producedElsewhere.has(f.name) && (
-                            <Tooltip content="No other enabled block currently exports this. It may still be an intentional raw or external input.">
-                              <span
-                                data-unsourced-import={f.name}
-                                aria-label={`${res.display?.[f.name] ?? f.name} is not produced by another enabled block`}
-                                className="flex shrink-0 text-warning/80"
-                              >
-                                <CircleAlert className="size-3.5" />
-                              </span>
-                            </Tooltip>
-                          )}
                           {/* Locked-as-block-driver state (set via right-click → "Size block by this
                             input"): edit its rate inline + an unlock control. The toggle itself
                             lives in the context menu, so non-locked rows stay uncluttered. */}
