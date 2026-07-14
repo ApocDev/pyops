@@ -1,0 +1,31 @@
+app/src/server/factory-plan.server.ts
+  s_f0d31cf3b84a09::t_3890e2b42e8774 41-42,261-263,277-285,289-299,301-342,344,346,351,371,379-397
+app/src/solver/lp.ts
+  s_f8fb7822c86326::t_7939c29a6bec7a 418,420,431-436
+app/src/server/factory-plan.test.ts
+  s_f0d31cf3b84a09::t_3ee77f317b046d 14,115,119,234,357,389-433,528,535
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "32ea0a5e866a73abad1a9b2f11ef0fa4c3328b41",
+  "prompts": {},
+  "sessions": {
+    "s_f0d31cf3b84a09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5e9a-5c16-7871-9bf7-d4c778d16fc7",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f8fb7822c86326": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f60ae-b355-7c70-9180-27c979895810",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
