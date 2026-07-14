@@ -173,7 +173,7 @@ test("Scenario zeros an unpinned consume goal without saving the preview", async
     await goto(page, "/factory/scenario");
     const change = page.getByRole("link", { name: /^Acetaldehyde / });
     await expect(change).toContainText("-2");
-    await expect(change).toContainText("required/s0");
+    await expect(change).toContainText("next goal/s0");
 
     const saved = new DatabaseSync(activeProjectDbFile(), { readOnly: true });
     try {

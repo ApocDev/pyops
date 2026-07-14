@@ -57,9 +57,10 @@ speculative system without saving changes.
    consumption. Positive rates request production; negative rates request consumption.
 2. Edit a pin's rate to preview another target. Stock goals appear as derived stock targets and
    keep their amount and replenishment window.
-3. Read **Goal changes** for each affected good's current rate, required rate, and scale
-   factor. Differences within 1% are treated as balanced so rounding-scale corrections do not
-   keep reappearing. Select a good to open the block that owns its goal.
+3. Read **Goal changes** for each affected good's current and next block goal, whole-factory use,
+   actual block output, and factory surplus. Differences within 1% are treated as balanced so
+   rounding-scale corrections do not keep reappearing. Select a good to open the block that owns
+   its goal.
 4. Check **Raw inputs** for the projected demand from outside the planned factory.
 5. Check **Overproduced** for goods that would accumulate without another consumer.
 6. With the saved pin targets, select **Balance factory** to apply every listed
@@ -71,9 +72,13 @@ additional goals in a multi-goal block. On first use, PyOps proposes current ter
 as initial pins; after you save the list, it uses that explicit list instead. Stock targets are always
 included.
 
-A produce goal is a minimum, including a Scenario target of `0/s`: unavoidable coproduct above that
-rate remains valid and leaves the block as surplus. To process that excess, open the block and select
-the exported good to add a consuming recipe, or route it to a dedicated consume block.
+A produce goal is a minimum. When another recipe in the same block already makes a needed good as a
+coproduct, Scenario keeps the amount the factory uses as that block's goal without requesting extra
+dedicated production. **Block output** shows everything the block will actually export and
+**Surplus** shows the amount left after projected use. **Recovered supply** calls out the portion of
+a goal covered this way. If factory use is genuinely zero, the next goal can still be `0/s` while
+unavoidable output remains visible as surplus. To process that excess, open the block and select the
+exported good to add a consuming recipe, or route it to a dedicated consume block.
 
 Scenario measures how each configured goal changes its complete multi-goal block, then builds one
 factory-wide material model from those local responses. Starting at the pins, it follows required

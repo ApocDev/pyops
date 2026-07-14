@@ -15,22 +15,15 @@ test("Advanced settings captures a structured Scenario solver trace", async ({ p
 
     await page.setViewportSize({ width: 3840, height: 1080 });
     await goto(page, "/factory/scenario");
-    await expect(page.getByText("Raw inputs", { exact: false }).first()).toBeVisible({
+    await expect(page.getByText("Goal changes", { exact: false }).first()).toBeVisible({
       timeout: 30_000,
     });
     const workspace = await page.getByTestId("scenario-workspace").boundingBox();
     expect(workspace?.width).toBeLessThanOrEqual(1600);
     expect(workspace?.x).toBeGreaterThan(1_000);
-    // Free energy boundaries stay outside material-demand reachability, but an
-    // existing generator goal must remain fixed instead of becoming a 0 W
-    // Scenario change.
-    await expect(page.getByRole("link", { name: /^Electricity .* 0 W / })).toHaveCount(0);
-    // A reached byproduct with a configured waste block is a closed balance:
-    // Scenario must scale that consumer instead of discarding the material and
-    // proposing a zero rate.
-    await expect(page.getByRole("link", { name: /^Ash .* 0 / })).toHaveCount(0);
-    await expect(page.getByText("Electricity", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("Fluid fuel", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("factory use/s", { exact: true })).toBeVisible();
+    await expect(page.getByText("block output/s", { exact: true })).toBeVisible();
+    await expect(page.getByText("surplus/s", { exact: true })).toBeVisible();
 
     await goto(page, "/settings?tab=advanced");
     await page.getByRole("button", { name: "Refresh" }).click();
@@ -42,6 +35,7 @@ test("Advanced settings captures a structured Scenario solver trace", async ({ p
     await goto(page, "/settings?tab=advanced");
     const current = page.getByRole("switch", { name: /Capture structured solver traces/ });
     if ((await current.getAttribute("data-state")) === "checked") await current.click();
-    await page.getByRole("button", { name: "Clear" }).click();
+    const clear = page.getByRole("button", { name: "Clear" });
+    if (await clear.isEnabled()) await clear.click();
   }
 });

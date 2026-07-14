@@ -92,6 +92,24 @@ vi.mock("./block-compute.server.ts", () => ({
         imports: [],
         exports: [],
       };
+    const cokeGoal = doc.goals.find((goal) => goal.name === "coke");
+    const recoveredIronGoal = doc.goals.find((goal) => goal.name === "iron");
+    if (cokeGoal && recoveredIronGoal) {
+      const cokeRate = Math.abs(cokeGoal.rate);
+      const ironRate = Math.abs(recoveredIronGoal.rate);
+      const recoveredIron = cokeRate * 10;
+      const dedicatedIron = Math.max(0, ironRate - recoveredIron);
+      return {
+        broken: false,
+        status: "solved",
+        unmade: [],
+        imports: [{ name: "ore", kind: "item", rate: cokeRate * 3 + dedicatedIron * 2 }],
+        exports:
+          recoveredIron > ironRate
+            ? [{ name: "iron", kind: "item", rate: recoveredIron - ironRate }]
+            : [],
+      };
+    }
     const unitFlows: Record<
       string,
       {
@@ -264,6 +282,60 @@ describe("pinned factory solve", () => {
       expect.objectContaining({ good: "iron", projected: 10 }),
     );
     expect(result.overproduced.some((flow) => flow.good === "coal")).toBe(false);
+  });
+
+  it("retains demand covered by a coproduct as the block goal", async () => {
+    blocks.push({
+      id: 5,
+      name: "Coke and iron",
+      rate: 0,
+      goals: [
+        { name: "coke", rate: 0 },
+        { name: "iron", rate: 0 },
+      ],
+      flows: [],
+    });
+    docs.set(5, {
+      id: 5,
+      name: "Coke and iron",
+      updatedAt: new Date(++solveVersion * 1000),
+      data: {
+        goals: [
+          { name: "coke", rate: 0 },
+          { name: "iron", rate: 0 },
+        ],
+        recipes: ["recipe-5"],
+      },
+    });
+    plan.saveFactoryPins([
+      { good: "science", kind: "item", rate: 1 },
+      { good: "coke", kind: "item", rate: 1 },
+    ]);
+
+    const result = await plan.solvePinnedFactory();
+
+    expect(result.status).toBe("Optimal");
+    const iron = result.goalChanges.find((change) => change.id === 5 && change.good === "iron");
+    expect(iron).toEqual(
+      expect.objectContaining({
+        dedicatedRate: 0,
+        factoryNeed: 4,
+        projectedOutput: 10,
+        factorySurplus: 6,
+        recoveredRate: 4,
+      }),
+    );
+    expect(iron?.requiredRate).toBeCloseTo(4);
+    expect(result.supplyAllocations).toContainEqual(
+      expect.objectContaining({ blockId: 5, good: "iron", incidental: true, rate: 4 }),
+    );
+
+    const applied = await plan.applyPinnedFactory();
+    expect(applied.status).toBe("Optimal");
+    const saved = persistBlock.mock.calls.find(
+      ([meta]) => (meta as { id?: number } | undefined)?.id === 5,
+    )?.[1] as { goals: { name: string; rate: number }[] } | undefined;
+    expect(saved?.goals.find((goal) => goal.name === "iron")?.rate).toBeCloseTo(4);
   });
 
   it("sends fixed and scalable byproducts through the configured consumer", async () => {

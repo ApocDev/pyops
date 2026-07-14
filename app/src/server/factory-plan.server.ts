@@ -50,6 +50,11 @@ type FactoryGoalChange = {
   kind: string;
   currentRate: number;
   requiredRate: number;
+  dedicatedRate: number;
+  factoryNeed: number;
+  projectedOutput: number;
+  factorySurplus: number;
+  recoveredRate: number;
   scale: number;
   delta: number;
   goal: true;
@@ -590,6 +595,11 @@ export async function solvePinnedFactory(
     const highs = await highsLoader();
     const solution = highs.solve(model);
     const optimal = solution.Status === "Optimal";
+    const columnAmounts = columns.map((_, index) =>
+      optimal
+        ? ((solution.Columns[`x${index}`] as { Primal?: number } | undefined)?.Primal ?? 0)
+        : 0,
+    );
 
     const targetByGoal = new Map<string, { rate: number; kind: string }>();
     for (const { row, originalDoc } of rows) {
@@ -602,9 +612,7 @@ export async function solvePinnedFactory(
       }
     }
     columns.forEach((column, index) => {
-      const amount = optimal
-        ? ((solution.Columns[`x${index}`] as { Primal?: number } | undefined)?.Primal ?? 0)
-        : 0;
+      const amount = columnAmounts[index] ?? 0;
       targetByGoal.set(`${column.blockId}\u0000${column.good}`, {
         // Keep solver precision for apply/validation. Four-decimal goal
         // rounding can amplify into whole units on high-throughput recipes.
@@ -612,11 +620,96 @@ export async function solvePinnedFactory(
         kind: column.kind,
       });
     });
+
+    // An x value is the extra dedicated production needed after coproducts are
+    // credited. It is not necessarily the useful block goal. Keep the portion
+    // of factory demand already covered by another recipe in the same block as
+    // that block's goal, then let the full block solve below prove that raising
+    // the minimum goal does not activate additional recipes.
+    const factoryNeedByGood = new Map<string, number>();
+    const outputByBlockGood = new Map<string, number>();
+    for (const pin of pins) if (pin.rate > EPS) add(factoryNeedByGood, pin.good, pin.rate);
+    responses.forEach((response, responseIndex) => {
+      const blockId = rows[responseIndex]?.row.id;
+      if (blockId == null) return;
+      for (const flow of response.fixed) {
+        if (flow.net < -EPS) add(factoryNeedByGood, flow.item, -flow.net);
+        if (flow.net > EPS) add(outputByBlockGood, `${blockId}\u0000${flow.item}`, flow.net);
+      }
+    });
+    columns.forEach((column, index) => {
+      const amount = columnAmounts[index] ?? 0;
+      for (const flow of column.flows) {
+        if (flow.role === "import") add(factoryNeedByGood, flow.item, amount * flow.rate);
+        else add(outputByBlockGood, `${column.blockId}\u0000${flow.item}`, amount * flow.rate);
+      }
+    });
+    const dedicatedRateByGoal = new Map(
+      [...targetByGoal].map(([key, target]) => [key, target.rate] as const),
+    );
+    const recoveredRateByGoal = new Map<string, number>();
+    const recoveredAllocations: PinnedFactoryResult["supplyAllocations"] = [];
+    for (const [good, factoryNeed] of factoryNeedByGood) {
+      const goalBlocks = rows.flatMap(({ row, originalDoc }) => {
+        const goal = originalDoc.goals.find(
+          (candidate) => candidate.name === good && !goalConsumes(candidate),
+        );
+        if (!goal) return [];
+        const key = `${row.id}\u0000${good}`;
+        const output = outputByBlockGood.get(key) ?? 0;
+        const dedicated = Math.max(0, dedicatedRateByGoal.get(key) ?? 0);
+        const priority = originalDoc.supplyPriorities?.[good] ?? originalDoc.supplyPriority ?? 0;
+        return [{ key, row, output, dedicated, priority }];
+      });
+      const goalBlockIds = new Set(goalBlocks.map(({ row }) => row.id));
+      const unownedOutput = [...outputByBlockGood].reduce((total, [key, output]) => {
+        const separator = key.indexOf("\u0000");
+        const blockId = Number(key.slice(0, separator));
+        const outputGood = key.slice(separator + 1);
+        return outputGood === good && !goalBlockIds.has(blockId) ? total + output : total;
+      }, 0);
+      let remaining = Math.max(0, factoryNeed - unownedOutput);
+      goalBlocks.sort(
+        (a, b) =>
+          Math.max(0, b.output - b.dedicated) - Math.max(0, a.output - a.dedicated) ||
+          b.priority - a.priority ||
+          a.row.id - b.row.id,
+      );
+      for (const allocation of goalBlocks) {
+        const supplied = Math.min(allocation.output, remaining);
+        remaining = Math.max(0, remaining - supplied);
+        const retainedGoal = Math.max(allocation.dedicated, supplied);
+        const target = targetByGoal.get(allocation.key);
+        if (target && retainedGoal > target.rate + EPS)
+          targetByGoal.set(allocation.key, { ...target, rate: retainedGoal });
+        const recovered = Math.max(0, Math.min(supplied, allocation.output - allocation.dedicated));
+        if (recovered <= EPS) continue;
+        recoveredRateByGoal.set(allocation.key, recovered);
+        recoveredAllocations.push({
+          blockId: allocation.row.id,
+          blockName: allocation.row.name,
+          good,
+          kind: kindOf.get(good) ?? "item",
+          priority: allocation.priority,
+          incidental: true,
+          rate: round(recovered),
+        });
+      }
+    }
+    const factorySurplusByGood = new Map(
+      [...goods].map((good, index) => [
+        good,
+        optimal
+          ? ((solution.Columns[`surplus_${index}`] as { Primal?: number } | undefined)?.Primal ?? 0)
+          : 0,
+      ]),
+    );
     // Every non-stock goal is a factory decision variable. If it was reached
     // by neither demand nor a natural byproduct sink chain, its value is zero.
     const allGoalChanges: FactoryGoalChange[] = rows.flatMap(({ row, originalDoc }) =>
       originalDoc.goals.flatMap((goal) => {
-        const target = targetByGoal.get(`${row.id}\u0000${goal.name}`);
+        const key = `${row.id}\u0000${goal.name}`;
+        const target = targetByGoal.get(key);
         const requiredRate = target?.rate ?? 0;
         const current = goal.rate;
         if (Math.abs(requiredRate - current) <= 1e-4) return [];
@@ -628,6 +721,11 @@ export async function solvePinnedFactory(
             kind: target?.kind ?? kindOf.get(goal.name) ?? "item",
             currentRate: round(current),
             requiredRate,
+            dedicatedRate: dedicatedRateByGoal.get(key) ?? 0,
+            factoryNeed: round(factoryNeedByGood.get(goal.name) ?? 0),
+            projectedOutput: round(outputByBlockGood.get(key) ?? 0),
+            factorySurplus: round(factorySurplusByGood.get(goal.name) ?? 0),
+            recoveredRate: round(recoveredRateByGoal.get(key) ?? 0),
             scale: round(Math.abs(current) > EPS ? requiredRate / current : requiredRate),
             delta: round(requiredRate - current),
             goal: true as const,
@@ -692,9 +790,7 @@ export async function solvePinnedFactory(
     const projectedNet = new Map(fixedNet);
     const projectedGross = new Map(fixedGross);
     columns.forEach((column, index) => {
-      const amount = optimal
-        ? ((solution.Columns[`x${index}`] as { Primal?: number } | undefined)?.Primal ?? 0)
-        : 0;
+      const amount = columnAmounts[index] ?? 0;
       for (const flow of column.flows) {
         add(projectedNet, flow.item, amount * (flow.role === "import" ? -flow.rate : flow.rate));
         add(projectedGross, flow.item, amount * flow.rate);
@@ -710,15 +806,7 @@ export async function solvePinnedFactory(
       allGoalChanges: allGoalChanges.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)),
       raws: rawImports.sort((a, b) => b.projected - a.projected),
       overproduced: surplus.sort((a, b) => b.projected - a.projected),
-      supplyAllocations: [] as {
-        blockId: number;
-        blockName: string;
-        good: string;
-        kind: string;
-        priority: number;
-        incidental: boolean;
-        rate: number;
-      }[],
+      supplyAllocations: recoveredAllocations.sort((a, b) => b.rate - a.rate),
       blocks: goalChanges.map((change) => ({
         id: change.id,
         name: change.name,

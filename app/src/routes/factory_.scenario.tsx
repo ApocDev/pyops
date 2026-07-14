@@ -85,8 +85,9 @@ function WhatIf() {
                   </li>
                   <li>
                     <span className="text-foreground">Goal changes</span> — your work list: each
-                    affected good&apos;s current target, required target, and ×scale. The block name
-                    shows where that goal lives; click the row to open it.
+                    affected good&apos;s current and next block goal, total factory use, actual
+                    block output, and remaining surplus. The block name shows where that goal lives;
+                    click the row to open it.
                   </li>
                   <li>
                     <span className="text-foreground">Supply priority</span> — when several blocks
@@ -122,10 +123,10 @@ function WhatIf() {
                   <span className="text-foreground">0.5/s</span> and you want{" "}
                   <span className="text-foreground">1/s</span>. Set its target to 1 and the cascade
                   updates: <span className="text-foreground">Goal changes</span> lists that good at
-                  <span className="text-foreground">×2</span>, plus every upstream goal that feeds
-                  it; <span className="text-foreground">Raw inputs</span> shows the new draw
-                  (current vs projected) so you can check a mine or import can keep up. Nothing is
-                  saved until you apply the listed goal changes.
+                  <span className="text-foreground">1/s next goal</span>, plus every upstream goal
+                  that feeds it; <span className="text-foreground">Raw inputs</span> shows the new
+                  draw (current vs projected) so you can check a mine or import can keep up. Nothing
+                  is saved until you apply the listed goal changes.
                 </p>
               </div>
               <p>
@@ -154,7 +155,10 @@ function WhatIf() {
         {/* Goal changes — the work list */}
         <Card>
           <CardHeader className="justify-between">
-            <CardTitle className="normal-case">Goal changes ({changed.length})</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="normal-case">Goal changes ({changed.length})</CardTitle>
+              <InfoHint content="Next goal is the useful demand assigned to this block. Block output includes coproduct made by its other recipes; factory surplus is what remains after every projected use." />
+            </div>
             <div className="flex items-center gap-3">
               <RebalanceAllButton
                 changed={changed}
@@ -166,10 +170,13 @@ function WhatIf() {
           </CardHeader>
           <StatTableHeader
             lead="good"
+            className="gap-x-4"
             cols={[
-              { label: "current/s", w: "w-24" },
-              { label: "required/s", w: "w-24" },
-              { label: "×scale", w: "w-20" },
+              { label: "current goal/s", w: "w-28" },
+              { label: "next goal/s", w: "w-28" },
+              { label: "factory use/s", w: "w-28" },
+              { label: "block output/s", w: "w-28" },
+              { label: "surplus/s", w: "w-24" },
             ]}
           />
           {wf.isLoading ? (
@@ -191,19 +198,25 @@ function WhatIf() {
                 className="flex flex-col gap-1 border-t border-border px-3 py-2 text-sm hover:bg-muted md:flex-row md:items-center md:py-1.5"
               >
                 <span className="min-w-0 flex-1 truncate text-primary underline">{b.display}</span>
-                <span className="grid grid-cols-3 gap-x-3 md:flex">
-                  <StatCell label="current/s" w="md:w-24" className="text-muted-foreground">
+                <span className="grid grid-cols-2 gap-x-4 gap-y-2 md:flex">
+                  <StatCell label="current goal/s" w="md:w-28" className="text-muted-foreground">
                     {rateLabel(b.good ?? "", b.currentRate)}
                   </StatCell>
                   <StatCell
-                    label="required/s"
-                    w="md:w-24"
+                    label="next goal/s"
+                    w="md:w-28"
                     className={`font-semibold ${b.delta > 0 ? "text-warning" : "text-info"}`}
                   >
                     {rateLabel(b.good ?? "", b.requiredRate)}
                   </StatCell>
-                  <StatCell label="×scale" w="md:w-20" className="text-muted-foreground">
-                    {b.activation ? "start" : `×${b.scale}`}
+                  <StatCell label="factory use/s" w="md:w-28" className="text-foreground">
+                    {rateLabel(b.good ?? "", b.factoryNeed)}
+                  </StatCell>
+                  <StatCell label="block output/s" w="md:w-28" className="text-foreground">
+                    {rateLabel(b.good ?? "", b.projectedOutput)}
+                  </StatCell>
+                  <StatCell label="surplus/s" w="md:w-24" className="text-surplus">
+                    {rateLabel(b.good ?? "", b.factorySurplus)}
                   </StatCell>
                 </span>
               </Link>

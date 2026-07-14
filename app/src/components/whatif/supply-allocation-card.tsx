@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowUp, Minus } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 import { Icon } from "#/lib/icons.tsx";
 import { rateLabel } from "#/lib/format.ts";
 
@@ -27,7 +28,8 @@ export function SupplyAllocationCard({ rows }: { rows: SupplyAllocation[] }) {
   return (
     <Card className="lg:col-span-2">
       <CardHeader>
-        <CardTitle className="normal-case">Supply allocation</CardTitle>
+        <CardTitle className="normal-case">Recovered supply</CardTitle>
+        <InfoHint content="Demand covered by a coproduct from another recipe in the same block. The block keeps the useful goal, but does not run extra dedicated production for it." />
       </CardHeader>
       <div className="divide-y divide-border">
         {rows.map((row) => {

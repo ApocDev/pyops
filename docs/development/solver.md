@@ -396,7 +396,11 @@ block solely to make more. Remaining demand falls through to another selected po
 a raw import.
 
 This preserves the same boundary semantics as a single block: incidental production can
-offset demand but cannot silently redefine the plan.
+offset demand but cannot silently redefine the plan. After the factory LP solves, Scenario assigns
+the useful portion of same-block coproduct output back to that block's configured goal. The LP's
+marginal dedicated activity, total factory use, block output, and remaining surplus stay distinct.
+The subsequent full block solve verifies that retaining this minimum goal does not activate extra
+recipes before preview or apply can succeed.
 
 ### Supply priority
 
