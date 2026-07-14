@@ -34,6 +34,12 @@ Select **New block**, then use **+ goal** to choose an item or fluid.
 - Right-click a non-primary goal and select **Move to front (names the block)** to make it
   the primary goal.
 
+Use **Copy goals** in the Goal heading, open another block, and select **Paste goals** to
+reuse a set of targets. Pasted goals keep their rates, stock amounts, refill windows, and
+source order. They are appended after the destination's existing goals, so its primary goal
+does not change; goods already present are skipped. Recipes, machines, modules, and other
+block settings are not copied.
+
 Right-click a goal and select **Keep in stock instead (buffer, not throughput)** when the
 intent is to refill a quantity over time rather than sustain a continuous rate. Stock-only
 production appears separately in Factory.

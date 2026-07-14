@@ -296,6 +296,21 @@ export function createBlockDocStore() {
     /** Persist the complete visual goal order after a drag. The first entry keeps
      * its existing semantic role as the block's primary naming/scaling anchor. */
     reorderGoals: (goals: Goal[]) => edit(() => ({ goals })),
+    /** Append complete copied goal definitions without replacing destination
+     * goals. Existing goods (and repeated goods in the payload) are skipped, so
+     * the destination's first goal remains its naming/scaling anchor. */
+    appendGoals: (goals: readonly Goal[]): { added: number; skipped: number } => {
+      const names = new Set(store.state.goals.map((goal) => goal.name));
+      const additions: Goal[] = [];
+      for (const input of goals) {
+        if (names.has(input.name)) continue;
+        names.add(input.name);
+        const { factoryRate: _factoryRate, ...goal } = input;
+        additions.push(goal);
+      }
+      if (additions.length) edit((s) => ({ goals: [...s.goals, ...additions] }));
+      return { added: additions.length, skipped: goals.length - additions.length };
+    },
 
     /* ── block face ── */
     // Block icon (#40): an explicit item/fluid, or null = follow the first goal.

@@ -79,6 +79,35 @@ describe("goals", () => {
     expect(doc.store.state.dirty).toBe(true);
   });
 
+  it("appendGoals preserves destination order, skips duplicates, and drops derived factory rates", () => {
+    const doc = seeded();
+    const result = doc.appendGoals([
+      { name: "iron-plate", rate: 99 },
+      { name: "steel-plate", rate: 3, unit: "min", factoryRate: 4 },
+      { name: "steel-plate", rate: 7 },
+      { name: "stone-brick", rate: 20 / 3600, stock: 20, window: 3600 },
+    ]);
+
+    expect(result).toEqual({ added: 2, skipped: 2 });
+    expect(doc.store.state.goals).toEqual([
+      { name: "iron-plate", rate: 2 },
+      { name: "copper-plate", rate: 0.5 },
+      { name: "steel-plate", rate: 3, unit: "min" },
+      { name: "stone-brick", rate: 20 / 3600, stock: 20, window: 3600 },
+    ]);
+    expect(doc.store.state.dirty).toBe(true);
+  });
+
+  it("appendGoals leaves the document clean when every copied goal already exists", () => {
+    const doc = seeded();
+    expect(doc.appendGoals([{ name: "iron-plate", rate: 99 }])).toEqual({
+      added: 0,
+      skipped: 1,
+    });
+    expect(doc.store.state.goals[0]).toEqual({ name: "iron-plate", rate: 2 });
+    expect(doc.store.state.dirty).toBe(false);
+  });
+
   it("stock goals derive rate = stock / window and convert back losslessly", () => {
     const doc = seeded();
     doc.makeStockGoal("iron-plate"); // rate 2/s × default window

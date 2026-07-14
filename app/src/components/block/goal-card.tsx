@@ -28,6 +28,7 @@ import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
 import { SortableGoal } from "./sortable-goal.tsx";
 import { SupplyPriorityControl } from "./supply-priority-control.tsx";
+import { GoalClipboardActions } from "./goal-clipboard-actions.tsx";
 
 /** The Goal card: goals as compact stacked cells (icon over rate) so many fit —
  * a block can target several products at once. Each goal has a target rate (a
@@ -75,13 +76,24 @@ export function GoalCard({
     <Card>
       <CardHeader className="justify-between">
         <CardTitle>Goal</CardTitle>
-        <SupplyPriorityControl
-          value={supplyPriority}
-          onChange={(priority) => {
-            doc.setSupplyPriority(priority);
-            doc.note("Set block supply priority");
-          }}
-        />
+        <div className="flex items-center gap-1">
+          <GoalClipboardActions
+            goals={goals}
+            onPaste={(copied) => {
+              const result = doc.appendGoals(copied);
+              if (result.added)
+                doc.note(`Paste ${result.added} goal${result.added === 1 ? "" : "s"}`);
+              return result;
+            }}
+          />
+          <SupplyPriorityControl
+            value={supplyPriority}
+            onChange={(priority) => {
+              doc.setSupplyPriority(priority);
+              doc.note("Set block supply priority");
+            }}
+          />
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         <DndContext
