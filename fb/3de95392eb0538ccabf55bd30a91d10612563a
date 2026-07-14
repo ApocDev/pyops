@@ -1,0 +1,25 @@
+app/src/components/block/goal-card.tsx
+  s_f8fb7822c86326::t_7343a69a802abd 2-17,28,61-72,86-113,115-229,232-252,256-288
+app/src/components/block/doc-store.test.ts
+  s_f8fb7822c86326::t_d3c54f10825cd9 72-81
+app/src/components/block/doc-store.ts
+  s_f8fb7822c86326::t_e3c3f81fa7dd3b 296-298
+app/src/components/block/sortable-goal.tsx
+  s_f8fb7822c86326::t_9f04dd69880fb6 1-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "fb3de95392eb0538ccabf55bd30a91d10612563a",
+  "prompts": {},
+  "sessions": {
+    "s_f8fb7822c86326": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f60ae-b355-7c70-9180-27c979895810",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
