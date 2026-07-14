@@ -532,6 +532,7 @@ function Block({ blockId }: { blockId: number }) {
   const showInserters = !!logiPrefs?.showInserters;
 
   const add = (name: string) => {
+    const alreadyAdded = recipes.includes(name);
     doc.addRecipe(name);
     // Adding a producer via an item's chip is the linking gesture (#91): the
     // block now claims in-block production for that item. Goal items skip the
@@ -539,41 +540,22 @@ function Block({ blockId }: { blockId: number }) {
     if (pickFor?.mode === "produce" && !goals.some((g) => g.name === pickFor.name))
       doc.markMade(pickFor.name);
     // Adding a CONSUMER via a byproduct's chip means "deal with MY surplus":
-    // mark the good made — without this, a reprocessing recipe lets the plan
-    // IMPORT the byproduct and shut down the real producers (the block-27
-    // failure). Then, when the consumer is a TERMINAL sink, also DRAIN the good
-    // (net = 0 → the surplus must be consumed in-block, not vented) so the sink
-    // actually runs instead of idling at 0 next to an untouched export.
-    //
-    // Terminal = the consumer net-consumes the good AND none of its OTHER
-    // products feeds anything else in this block (they all leave). That's the
-    // line between "consume the surplus" and "restructure production": a pure
-    // void (coal-gas → ash, and nothing here uses ash) drains cleanly; a
-    // reprocessor whose output re-enters a non-goal intermediate (block 27's
-    // grade-2 → grade-3, which the chain consumes) is only marked made, never
-    // drained, so forcing it can't cascade. Feedback into an explicit sink goal
-    // is safe: that goal still anchors the chain. Read from the CURRENT solve
-    // (the block before this add), so newly-added terminal products still read
-    // as leaving.
+    // mark the good made so a feedback recipe cannot import the byproduct and
+    // replace its real source, then DRAIN it (net = 0) whenever the selected
+    // recipe net-consumes it. The explicit gesture links production to
+    // consumption even when the consumer's output feeds back into this block;
+    // otherwise the machine-minimizing objective may leave the chosen recycler
+    // idle and export the untouched surplus.
     if (pickFor?.mode === "consume") {
       const good = pickFor.name;
       if (!goals.some((g) => g.name === good)) doc.markMade(good);
       const cand = picker.data?.find((c) => c.name === name);
       if (cand) {
-        const consumedInBlock = new Set(
-          (res?.rows ?? []).flatMap((row) => row.ingredients.map((i) => i.name)),
-        );
-        const sinkGoals = new Set(
-          goals.filter((g) => g.direction === "consume" || g.rate < 0).map((g) => g.name),
-        );
         if (
           drainsOnConsume({
             good,
-            mainProduct: cand.mainProduct,
             ingredients: cand.ingredients,
             products: cand.products,
-            consumedInBlock,
-            sinkGoals,
           })
         )
           doc.setPin({ kind: "drain", recipe: name, item: good });
@@ -581,15 +563,20 @@ function Block({ blockId }: { blockId: number }) {
     }
     // label the save for the undo stack — the picker rows carry the display name
     const display = picker.data?.find((c) => c.name === name)?.display;
-    doc.note(`Add recipe "${display ?? name}"`);
+    doc.note(
+      alreadyAdded && pickFor
+        ? `Link "${res?.display?.[pickFor.name] ?? pickFor.name}" through "${display ?? name}"`
+        : `Add recipe "${display ?? name}"`,
+    );
     setPickFor(null);
     // Bake the preferred (favorite, else lowest-tier/cheapest) building + fuel for
     // this recipe into the block's stored picks (#18). New recipes only — existing
     // rows already have their picks and aren't touched.
-    void recipeDefaultsFn({ data: [name] }).then((defaults) => {
-      const d = defaults[name];
-      if (d) doc.applyRecipeDefaults(name, d);
-    });
+    if (!alreadyAdded)
+      void recipeDefaultsFn({ data: [name] }).then((defaults) => {
+        const d = defaults[name];
+        if (d) doc.applyRecipeDefaults(name, d);
+      });
   };
 
   // When a flow has exactly one craftable recipe, skip the picker dialog and add

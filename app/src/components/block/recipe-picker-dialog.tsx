@@ -22,7 +22,7 @@ export function RecipePickerDialog({
   mode: "produce" | "consume";
   goodDisplay: string;
   candidates: Candidate[] | undefined;
-  /** recipes already in the block (their rows disable) */
+  /** recipes already in the block (selecting one links the clicked good) */
   added: string[];
   onAdd: (recipe: string) => void;
   onClose: () => void;
@@ -86,8 +86,7 @@ export function RecipePickerDialog({
                     onClick={() => {
                       if (!locked && !r.superseded) onAdd(r.name);
                     }}
-                    aria-disabled={locked || !!r.superseded || isAdded}
-                    disabled={isAdded}
+                    aria-disabled={locked || !!r.superseded}
                   >
                     <Icon kind="recipe" name={r.name} size="lg" noTitle />
                     <span className="min-w-0 flex-1 space-y-1">
@@ -102,7 +101,11 @@ export function RecipePickerDialog({
                               </span>
                             </Tooltip>
                           )}
-                          {isAdded && <span className="text-sm text-muted-foreground">added</span>}
+                          {isAdded && (
+                            <span className="text-sm text-muted-foreground">
+                              added · select to link
+                            </span>
+                          )}
                         </span>
                       </span>
                       {/* io at a glance — hover any icon for the item card */}

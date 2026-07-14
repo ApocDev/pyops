@@ -49,9 +49,13 @@ good and select **Make a goal** when the block should guarantee that output rath
 treat it as incidental surplus.
 
 To consume a byproduct inside the block, select its product chip and add a consuming
-recipe. When that recipe's main product leaves the block, PyOps routes all surplus of the
-selected byproduct into it. The route marker on the recipe row records that boundary rule;
-the displayed building count is still calculated normally by the solver.
+recipe. PyOps then links production and consumption of the selected byproduct: all of its
+surplus must be consumed inside the block, even when the consumer recycles material back
+into an earlier step. The route marker on the recipe row records that boundary rule; the
+displayed building count is still calculated normally by the solver. Select the route
+marker to change or clear the link. If the consuming recipe is already present but unlinked,
+select the exported good and choose that existing recipe again to create the link without
+duplicating or resetting the row.
 
 When several consumers should split the same in-block production, right-click a recipe name
 and open **Pins — count / cap / route…** to route a fixed percentage to that row. Percentage

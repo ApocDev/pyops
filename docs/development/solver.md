@@ -95,18 +95,15 @@ the rest of an unfinished block can still solve.
 ### Byproduct drains
 
 A drain requires a good's net flow to equal zero. It is used when the user selects a
-consumer for an exported byproduct and that consumer's main product leaves the block. The
-drain makes the selected recipe consume all surplus instead of remaining idle under the
-minimizing objective. Secondary products may feed back into the chain; for example, pitch
-refining is still a pitch drain when coke leaves and its secondary oils are reused.
+net-consuming recipe for an exported byproduct. The drain makes production and consumption
+match, so the selected route participates instead of remaining idle under the
+machine-minimizing objective. This applies equally to terminal sinks and feedback
+reprocessors: recycling a byproduct back into an earlier intermediate changes the solved
+recipe mix while preserving the block's explicit goals.
 
-`app/src/lib/sink-classify.ts` decides whether selecting a byproduct consumer should create
-a drain or only mark the good as made. A reprocessor whose main product re-enters the block
-is only marked made, avoiding an implicit restructure of the whole chain. Recipes without a
-known main product use the conservative fallback: every non-input product must leave before
-the consumer becomes a drain. Feedback into an explicit consume goal is also safe: selecting
-Soot separation from an exported Soot chip creates a drain even though it returns Ash to an
-Ash sink, because the sink goal continues to anchor the chain.
+`app/src/lib/sink-classify.ts` verifies that the selected recipe net-consumes the clicked
+good before the editor creates the drain. The same gesture also marks the good as made so a
+feedback recipe cannot import the byproduct and replace the block's real source.
 
 The solved result also reports imports that an enabled in-block recipe could produce. The
 UI uses that signal to expose the common missing-made-rule case directly.

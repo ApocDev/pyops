@@ -85,7 +85,7 @@ The **Block balance** card summarizes:
 
 Select an exported good to add a recipe that consumes its surplus inside the block. The
 selected consumer runs as part of the chain, including when one of its products feeds back
-into the block's consume goal.
+into another recipe in the block.
 
 The recipe table explains how that result was produced. **Table** is the editing view;
 **Flow** is a read-only diagram of the same solved recipes and goods.

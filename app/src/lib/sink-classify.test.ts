@@ -11,29 +11,26 @@ describe("drainsOnConsume", () => {
         good: "coal-gas",
         ingredients: [good("coal-gas", 50)],
         products: [good("ash", 1)],
-        consumedInBlock: new Set(["coal", "raw-coal", "tar", "steam", "water"]),
       }),
     ).toBe(true);
   });
 
-  it("does NOT drain a reprocessor whose output re-enters the chain (block 27)", () => {
-    // grade-2-crush: consumes grade-2-iron, makes grade-3-iron which the chain uses
+  it("drains a reprocessor whose output re-enters the chain", () => {
+    // The byproduct-chip gesture explicitly links the surplus to this consumer;
+    // returning grade 3 to the chain must not make the selected row optional.
     expect(
       drainsOnConsume({
         good: "grade-2-iron",
-        mainProduct: "grade-3-iron",
         ingredients: [good("grade-2-iron", 4)],
         products: [good("grade-3-iron", 2), good("iron-slime", 1)],
-        consumedInBlock: new Set(["grade-2-iron", "grade-3-iron", "iron-slime"]),
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
-  it("drains pitch into coke when only secondary oils re-enter the chain", () => {
+  it("drains pitch into coke when its products re-enter the chain", () => {
     expect(
       drainsOnConsume({
         good: "pitch",
-        mainProduct: "coke",
         ingredients: [good("pitch", 100), good("steam", 100)],
         products: [
           good("hydrogen", 10),
@@ -42,7 +39,6 @@ describe("drainsOnConsume", () => {
           good("anthracene-oil", 30),
           good("coke", 10),
         ],
-        consumedInBlock: new Set(["light-oil", "naphthalene-oil", "anthracene-oil"]),
       }),
     ).toBe(true);
   });
@@ -53,7 +49,6 @@ describe("drainsOnConsume", () => {
         good: "pollution",
         ingredients: [good("pollution", 10)],
         products: [],
-        consumedInBlock: new Set(["iron-plate"]),
       }),
     ).toBe(true);
   });
@@ -64,7 +59,6 @@ describe("drainsOnConsume", () => {
         good: "sludge",
         ingredients: [good("sludge", 10)],
         products: [good("sludge", 3)],
-        consumedInBlock: new Set(),
       }),
     ).toBe(true);
   });
@@ -76,56 +70,6 @@ describe("drainsOnConsume", () => {
         good: "steam",
         ingredients: [good("steam", 10)],
         products: [good("steam", 20)],
-        consumedInBlock: new Set(),
-      }),
-    ).toBe(false);
-  });
-
-  it("drains a multi-output void when every other product leaves the block", () => {
-    expect(
-      drainsOnConsume({
-        good: "waste-water",
-        ingredients: [good("waste-water", 100)],
-        products: [good("mineral-sludge", 1), good("stone", 1)],
-        consumedInBlock: new Set(["waste-water"]), // neither product used elsewhere
-      }),
-    ).toBe(true);
-  });
-
-  it("does NOT drain when ANY other product feeds the block", () => {
-    expect(
-      drainsOnConsume({
-        good: "waste-water",
-        ingredients: [good("waste-water", 100)],
-        products: [good("stone", 1), good("iron-ore", 1)],
-        consumedInBlock: new Set(["iron-ore"]), // iron-ore re-enters the chain
-      }),
-    ).toBe(false);
-  });
-
-  it("drains a consumer whose product feeds back into an explicit sink goal", () => {
-    // Ash separation consumes the block's ash sink and exports soot. Choosing
-    // soot separation should process that surplus even though it returns a
-    // little ash to the preceding step.
-    expect(
-      drainsOnConsume({
-        good: "soot",
-        ingredients: [good("soot", 2)],
-        products: [good("iron-ore", 1), good("copper-ore", 1), good("ash", 1)],
-        consumedInBlock: new Set(["ash"]),
-        sinkGoals: new Set(["ash"]),
-      }),
-    ).toBe(true);
-  });
-
-  it("still does NOT drain feedback into a non-sink intermediate", () => {
-    expect(
-      drainsOnConsume({
-        good: "soot",
-        ingredients: [good("soot", 2)],
-        products: [good("ash", 1)],
-        consumedInBlock: new Set(["ash"]),
-        sinkGoals: new Set(),
       }),
     ).toBe(false);
   });

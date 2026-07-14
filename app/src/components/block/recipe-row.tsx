@@ -249,23 +249,32 @@ export function RecipeRow({
                   />
                   {shareCount > 0 && (
                     <Tooltip
-                      content={`${shareCount} routed input share${shareCount > 1 ? "s" : ""} (right-click the row → Pins to change)`}
+                      content={`${shareCount} routed input share${shareCount > 1 ? "s" : ""}; click to manage`}
                     >
-                      <span className="bg-info/20 px-1 text-sm text-info ring-1 ring-info/40">
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={`manage ${shareCount} routed input share${shareCount > 1 ? "s" : ""}`}
+                        onClick={() => open.pinsFor(name)}
+                        className="size-5 bg-info/20 text-sm text-info ring-1 ring-info/40 hover:bg-info/30 hover:text-info"
+                      >
                         %
-                      </span>
+                      </Button>
                     </Tooltip>
                   )}
                   {drainItems.length > 0 && (
                     <Tooltip
-                      content={`routes all surplus ${drainDisplay} into this recipe; building count is solved normally`}
+                      content={`routes all surplus ${drainDisplay} into this recipe; click to manage`}
                     >
-                      <span
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
                         aria-label={`routes all surplus ${drainDisplay}`}
-                        className="bg-info/20 px-1 text-info ring-1 ring-info/40"
+                        onClick={() => open.pinsFor(name)}
+                        className="size-5 bg-info/20 text-info ring-1 ring-info/40 hover:bg-info/30 hover:text-info"
                       >
                         <Route className="size-3.5" />
-                      </span>
+                      </Button>
                     </Tooltip>
                   )}
                 </span>

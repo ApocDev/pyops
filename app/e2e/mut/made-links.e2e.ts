@@ -125,6 +125,64 @@ test("adding a coke consumer drains exported pitch and keeps a solved building c
   await expect(page.getByRole("button", { name: "0.67", exact: true })).toBeVisible();
 });
 
+test("adding a feedback recycler consumes the copper byproduct", async ({ page }) => {
+  // Screening copper ore makes grade 2 for the plate goal and leaves grade 1
+  // as a byproduct. Crushing grade 1 returns more grade 2 to the same chain, so
+  // this covers the feedback shape that used to be classified as unsafe and
+  // left the explicitly selected crusher idle. Start with that old persisted
+  // state: the crusher already exists, but there is no route pin.
+  const data = {
+    recipes: ["copper-plate-4", "grade-2-copper", "grade-1-copper-crush"],
+    supplyPriority: -100,
+    made: ["copper-ore", "grade-1-copper", "grade-2-copper"],
+    machines: {
+      "copper-plate-4": "stone-furnace",
+      "grade-2-copper": "automated-screener-mk01",
+      "grade-1-copper-crush": "jaw-crusher",
+    },
+    fuels: { "copper-plate-4": "raw-coal" },
+    goals: [{ name: "copper-plate", rate: 7.88066 }],
+  };
+  const db = new DatabaseSync(activeProjectDbFile());
+  let id: number;
+  try {
+    db.exec("PRAGMA busy_timeout = 5000");
+    const inserted = db
+      .prepare("INSERT INTO blocks (name, data) VALUES (?, ?)")
+      .run(uniqueName("Copper feedback"), JSON.stringify(data));
+    id = Number(inserted.lastInsertRowid);
+  } finally {
+    db.close();
+  }
+
+  await goto(page, `/block/${id}`);
+  const grade1 = page
+    .getByRole("button", { name: /^Copper \(grade 1\).*export/ })
+    .first();
+  await expect(grade1).toBeVisible();
+  await grade1.click();
+
+  const picker = page.getByRole("dialog", { name: /Recipes that consume Copper \(grade 1\)/ });
+  const existingCrusher = picker.locator('[data-recipe-candidate="grade-1-copper-crush"]');
+  await expect(existingCrusher).toContainText("added · select to link");
+  await existingCrusher.click();
+  await expect(picker).toBeHidden();
+
+  await expect(
+    page.getByRole("button", { name: /^Copper \(grade 1\).*export/ }).first(),
+  ).toBeHidden();
+  const route = page.getByLabel("routes all surplus Copper (grade 1)");
+  await expect(route).toBeVisible();
+  await expect(page.getByRole("button", { name: "11.82", exact: true })).toBeVisible();
+
+  // Like YAFC's linked-good interaction, the visible link state is also the
+  // direct way back to its controls; clearing it does not require discovering
+  // the recipe-row context menu.
+  await route.click();
+  const pins = page.getByRole("dialog", { name: /Pins — Copper \(grade 2\)/ });
+  await expect(pins.getByText("drains all surplus Copper (grade 1) (nothing exports)")).toBeVisible();
+});
+
 test("adding a cyclic consumer processes surplus that returns to the sink goal", async ({
   page,
 }) => {
