@@ -28,21 +28,21 @@ export function EditableStock({
     onWindowChange(STOCK_WINDOWS[(STOCK_WINDOWS.indexOf(win) + 1) % STOCK_WINDOWS.length]);
   if (!editing) {
     return (
-      <span className="flex items-center gap-1 tabular-nums">
+      <span className="flex flex-col items-center gap-0.5 leading-tight tabular-nums">
         <button
           onClick={() => {
             setDraft(String(stock));
             setEditing(true);
           }}
           title="keep this many on hand — click to edit"
-          className="hover:text-info"
+          className="whitespace-nowrap hover:text-info"
         >
           keep {formatQty(stock)}
         </button>
         <button
           onClick={cycle}
           title="refill window — machines are sized to rebuild the buffer within this time; click to cycle"
-          className="flex items-center gap-0.5 text-muted-foreground hover:text-info"
+          className="flex items-center gap-0.5 whitespace-nowrap text-muted-foreground hover:text-info"
         >
           <RefreshCw className="size-3" />
           {fmtWindow(win)}
