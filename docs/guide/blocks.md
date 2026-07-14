@@ -23,6 +23,7 @@ Select **New block**, then use **+ goal** to choose an item or fluid.
 - Enter a negative rate when the block should consume that item or fluid rather than produce
   it. For example, `-10/min` makes the block consume at least 10 per minute.
 - Add more goals when the same production unit must guarantee several outputs.
+- Drag a goal by its grip to reorder the goal tiles.
 - Right-click a non-primary goal and select **Move to front (names the block)** to make it
   the primary goal.
 

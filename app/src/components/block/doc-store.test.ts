@@ -69,6 +69,16 @@ describe("goals", () => {
     expect(doc.store.state.goals.map((g) => g.name)).toEqual(["copper-plate"]);
   });
 
+  it("reorderGoals preserves complete goal definitions and marks the document dirty", () => {
+    const doc = seeded();
+    const [iron, copper] = doc.store.state.goals;
+    doc.reorderGoals([copper!, iron!]);
+
+    expect(doc.store.state.goals).toEqual([copper, iron]);
+    expect(doc.store.state.goals[0]).toMatchObject({ name: "copper-plate", rate: 0.5 });
+    expect(doc.store.state.dirty).toBe(true);
+  });
+
   it("stock goals derive rate = stock / window and convert back losslessly", () => {
     const doc = seeded();
     doc.makeStockGoal("iron-plate"); // rate 2/s × default window

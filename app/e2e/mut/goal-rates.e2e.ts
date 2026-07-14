@@ -89,3 +89,60 @@ test("a consume goal is not repeated in the Block balance imports", async ({ pag
     page.getByRole("button", { name: /^Kerosene 5\/s · (craftable|raw input)/ }),
   ).toBeHidden();
 });
+
+test("goals can be reordered and the new primary order persists", async ({ page }) => {
+  const data = {
+    recipes: [],
+    goals: [
+      { name: "iron-plate", rate: 2 },
+      { name: "copper-plate", rate: 0.5 },
+    ],
+  };
+  const db = new DatabaseSync(activeProjectDbFile());
+  let id: number;
+  try {
+    db.exec("PRAGMA busy_timeout = 5000");
+    const inserted = db
+      .prepare("INSERT INTO blocks (name, data) VALUES (?, ?)")
+      .run(uniqueName("Goal order"), JSON.stringify(data));
+    id = Number(inserted.lastInsertRowid);
+  } finally {
+    db.close();
+  }
+
+  await goto(page, `/block/${id}`);
+  await dismissDataDriftPrompt(page);
+
+  const copper = page.locator('[data-goal="copper-plate"]');
+  const copperHandle = copper.locator('button[aria-label^="drag to reorder"]');
+  const iron = page.locator('[data-goal="iron-plate"]');
+  const source = await copperHandle.boundingBox();
+  const target = await iron.boundingBox();
+  expect(source).not.toBeNull();
+  expect(target).not.toBeNull();
+  await page.mouse.move(source!.x + source!.width / 2, source!.y + source!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(source!.x + source!.width / 2 - 8, source!.y + source!.height / 2, {
+    steps: 3,
+  });
+  await page.mouse.move(target!.x + target!.width / 2, target!.y + target!.height / 2, {
+    steps: 12,
+  });
+  await page.mouse.up();
+  await page.mouse.move(0, 0);
+
+  await expect(page.locator("[data-goal]").first()).toHaveAttribute("data-goal", "copper-plate");
+  await expectUndoTop(page, /Reorder goals/);
+  await page.waitForTimeout(1200);
+  await page.reload();
+  await expect(page.locator("[data-goal]").first()).toHaveAttribute("data-goal", "copper-plate");
+
+  const saved = new DatabaseSync(activeProjectDbFile(), { readOnly: true });
+  try {
+    const row = saved.prepare("SELECT data FROM blocks WHERE id = ?").get(id) as { data: string };
+    const parsed = JSON.parse(row.data) as { goals: { name: string }[] };
+    expect(parsed.goals.map((goal) => goal.name)).toEqual(["copper-plate", "iron-plate"]);
+  } finally {
+    saved.close();
+  }
+});

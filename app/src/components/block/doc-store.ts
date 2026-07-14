@@ -293,6 +293,9 @@ export function createBlockDocStore() {
         const g = s.goals.find((x) => x.name === name);
         return g ? { goals: [g, ...s.goals.filter((x) => x.name !== name)] } : {};
       }),
+    /** Persist the complete visual goal order after a drag. The first entry keeps
+     * its existing semantic role as the block's primary naming/scaling anchor. */
+    reorderGoals: (goals: Goal[]) => edit(() => ({ goals })),
 
     /* ── block face ── */
     // Block icon (#40): an explicit item/fluid, or null = follow the first goal.
