@@ -1,0 +1,19 @@
+app/src/components/block/goal-card.tsx
+  s_613ae639d37a29::t_674edd74f5dab7 105,311
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "5ace7059461d0752a11f3aeca247dd99c353c829",
+  "prompts": {},
+  "sessions": {
+    "s_613ae639d37a29": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6135-651c-7ea2-ac6f-cde052817786",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
