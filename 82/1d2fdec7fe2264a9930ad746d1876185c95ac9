@@ -1,0 +1,19 @@
+app/src/server/factorio.ts
+  s_f8fb7822c86326::t_7d4e513b34d3e5 220
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "821d2fdec7fe2264a9930ad746d1876185c95ac9",
+  "prompts": {},
+  "sessions": {
+    "s_f8fb7822c86326": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f60ae-b355-7c70-9180-27c979895810",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
