@@ -1,0 +1,37 @@
+app/e2e/mut/unsourced-import.e2e.ts
+  s_f0d31cf3b84a09::t_d5a5d7605a1dd1 1-79
+app/src/components/block/balance-card.tsx
+  s_f8fb7822c86326::t_bd8046e1502461 2-3,18,26,43,70-77,319,324,342-352,417
+app/src/db/queries.server.ts
+  s_f8fb7822c86326::t_780f11b3719367 11,2188-2208
+app/src/routes/block.$id.tsx
+  s_f8fb7822c86326::t_be19847ebaad63 814
+app/src/server/block-flow-status.ts
+  s_f8fb7822c86326::t_a3cf8710665ae7 1-11
+docs/guide/blocks.md
+  s_f0d31cf3b84a09::t_cced61ad1c3c6f 46-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "0de20f08d7563cf18c2287be67c265fcf9faf09d",
+  "prompts": {},
+  "sessions": {
+    "s_f0d31cf3b84a09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5e9a-5c16-7871-9bf7-d4c778d16fc7",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f8fb7822c86326": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f60ae-b355-7c70-9180-27c979895810",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
