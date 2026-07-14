@@ -1,0 +1,19 @@
+app/src/components/block/balance-card.tsx
+  s_f8fb7822c86326::t_903f78adb75a3e 324,327-330,426,430-433
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "2ee282a9aa3b03613d9a0ec365f3086c22d79e95",
+  "prompts": {},
+  "sessions": {
+    "s_f8fb7822c86326": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f60ae-b355-7c70-9180-27c979895810",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
