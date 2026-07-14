@@ -1,0 +1,23 @@
+app/e2e/mut/goal-rates.e2e.ts
+  s_f8fb7822c86326::t_ab19f243d7bc3c 119-122
+app/src/components/block/goal-card.tsx
+  s_f8fb7822c86326::t_531b36b0844a36 20,92,288
+app/src/components/measured-wrap-grid.tsx
+  s_f8fb7822c86326::t_d9200a51b5f9f5 1-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e9854aae6bbe6e581de5e2665e3eb9daeabffd5d",
+  "prompts": {},
+  "sessions": {
+    "s_f8fb7822c86326": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f60ae-b355-7c70-9180-27c979895810",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
