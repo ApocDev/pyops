@@ -17,7 +17,6 @@ import {
 import { AlertTriangle, GripVertical, Lock, Plus, Star, Timer, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
-import { MeasuredWrapGrid } from "#/components/measured-wrap-grid.tsx";
 import { goalConsumes, STOCK_WINDOW_DEFAULT } from "../../lib/goals";
 import { Icon } from "../../lib/icons";
 import { EditableRate } from "./editable-rate.tsx";
@@ -103,7 +102,7 @@ export function GoalCard({
           collisionDetection={closestCenter}
           onDragEnd={onGoalDragEnd}
         >
-          <MeasuredWrapGrid minColumnWidth={80} className="gap-2">
+          <div className="grid auto-rows-max grid-cols-[repeat(auto-fill,minmax(5rem,1fr))] gap-2">
             <SortableContext items={goals.map((g) => g.name)} strategy={rectSortingStrategy}>
               {goals.map((goal, i) => {
                 const g = goal.name;
@@ -309,7 +308,7 @@ export function GoalCard({
               <Plus className="size-6" />
               <span className="text-sm">goal</span>
             </button>
-          </MeasuredWrapGrid>
+          </div>
         </DndContext>
         {!target && (
           <div className="text-sm text-muted-foreground">
