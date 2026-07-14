@@ -10,7 +10,6 @@ import {
   goodInfoFn,
   itemWeightsFn,
   loadBlockFn,
-  logisticsContextFn,
   moduleSuggestionsFn,
   recipeCandidatesFn,
   recipeDefaultsFn,
@@ -28,6 +27,7 @@ import { toast } from "../lib/toast-store";
 import { epochSeconds } from "../lib/undo-client";
 import { blockActionName } from "../lib/undo-names";
 import { launchesForRate, resolveLogistics } from "../lib/logistics";
+import { logisticsContextSubscription } from "../lib/live-query-options";
 import { recordRecent } from "../lib/recents";
 import { createCoalescedRunner } from "../lib/coalesced-runner";
 import { bestUnlockedNonBarrelingRecipe } from "../lib/recipe-shortcuts";
@@ -522,11 +522,7 @@ function Block({ blockId }: { blockId: number }) {
   });
   // Per-row belts & inserters readout (#21). Fetched once; the math runs client-side
   // (resolveLogistics) so changing belt/inserter tier from the header is instant.
-  const logistics = useQuery({
-    queryKey: ["logisticsContext"],
-    queryFn: () => logisticsContextFn(),
-    refetchInterval: 5000,
-  });
+  const logistics = useQuery(logisticsContextSubscription);
   const logiPrefs = logistics.data?.prefs;
   const logiAny =
     !!logiPrefs && (logiPrefs.showBelts || logiPrefs.showInserters || logiPrefs.showRockets);
@@ -1029,10 +1025,12 @@ function Block({ blockId }: { blockId: number }) {
       {pickFuelFor &&
         (() => {
           const fr = res?.rows?.find((r) => r.recipe === pickFuelFor);
+          if (!fr?.machine) return null;
           return (
             <FuelPickerDialog
+              recipe={pickFuelFor}
               recipeDisplay={res?.recipeDisplay?.[pickFuelFor] ?? pickFuelFor}
-              fuels={fr?.availableFuels ?? []}
+              machine={fr.machine.name}
               current={fr?.fuel?.chosen ?? null}
               onPick={(f) => {
                 pickFuel(pickFuelFor, f);

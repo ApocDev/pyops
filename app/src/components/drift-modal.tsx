@@ -3,7 +3,7 @@ import { AlertTriangle, Check, Loader2, RefreshCw, X, type LucideIcon } from "lu
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { factorioRunningFn, modDriftFn, startDataSyncFn, syncStateFn } from "../server/factorio";
-import { bridgeStatusFn } from "../server/bridge/fns";
+import { bridgeStatusSubscription } from "../lib/live-query-options";
 import { driftModal, useDriftModalOpen } from "../lib/drift-store";
 import { type StepStatus, stepStatuses, stepsForRun } from "../lib/sync-steps";
 import { DriftChanges } from "./drift-changes";
@@ -70,10 +70,7 @@ export function DriftModal() {
     queryFn: () => syncStateFn(),
     refetchInterval: (q) => (RUNNING.has(q.state.data?.phase ?? "") ? 1000 : false),
   });
-  const bridge = useQuery({
-    queryKey: ["bridgeStatus"],
-    queryFn: () => bridgeStatusFn(),
-  });
+  const bridge = useQuery(bridgeStatusSubscription);
   // Proactively check whether the game is running while the prompt is open, so we
   // can warn and block the sync (it would just fail on the engine's instance lock).
   const gameRunning = useQuery({

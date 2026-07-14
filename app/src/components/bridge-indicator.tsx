@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { bridgeStatusFn } from "../server/bridge/fns";
+import { bridgeStatusSubscription } from "../lib/live-query-options";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 
 /** Treat the mod as connected if we've heard from it within this window (its
@@ -12,10 +12,7 @@ const FRESH_MS = 6000;
  * ["bridgeStatus"] query owned by AppLiveQueries, which also starts the UDP
  * listener and keeps the bridge live on every page. */
 export function BridgeIndicator() {
-  const status = useQuery({
-    queryKey: ["bridgeStatus"],
-    queryFn: () => bridgeStatusFn(),
-  });
+  const status = useQuery(bridgeStatusSubscription);
   const s = status.data;
   const peer = s?.lastPeer ?? null;
   const connected = peer != null && Date.now() - peer.lastSeenMs < FRESH_MS;

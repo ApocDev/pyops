@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Clock } from "lucide-react";
-import { researchHorizonFn } from "../server/factorio";
+import { researchHorizonSubscription } from "../lib/live-query-options";
 import { HorizonHelpButton } from "./horizon-help";
 import { HorizonPicker, horizonLabel } from "./horizon-picker";
 import { Button } from "#/components/ui/button.tsx";
@@ -18,10 +18,7 @@ import {
  * opens a dialog to change it (Now / Future / Up to target). */
 export function HorizonMenu() {
   const [open, setOpen] = useState(false);
-  const h = useQuery({
-    queryKey: ["researchHorizon"],
-    queryFn: () => researchHorizonFn(),
-  });
+  const h = useQuery(researchHorizonSubscription);
   const label = h.data ? horizonLabel(h.data) : "…";
 
   return (

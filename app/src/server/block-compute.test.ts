@@ -61,6 +61,7 @@ import {
   boundaryFlows,
   computeBlock,
   computeModuleSuggestions,
+  editorBlockResult,
   goalFlows,
 } from "./block-compute.server.ts";
 
@@ -624,7 +625,11 @@ describe("fluid-fueled machines (#25)", () => {
     expect(row.machine?.count).toBeCloseTo(4);
     expect(row.fuel).toMatchObject({ name: "pyops-fluid-fuel", pool: true });
     expect(row.fuel!.perSec).toBeCloseTo(40);
-    expect(row.availableFuels).toEqual([]); // no per-row pick — supply via a Burn recipe
+    expect(row).not.toHaveProperty("availableFuels"); // picker options load only on demand
+    const editor = editorBlockResult(res);
+    expect(editor).not.toHaveProperty("recipes");
+    expect(editor.rows[0]).not.toHaveProperty("machines");
+    expect(editor.rows[0]).not.toHaveProperty("availableFuels");
     expect(res.imports.find((f) => f.name === "pyops-fluid-fuel")?.rate).toBeCloseTo(40);
     // the pre-#25 behavior defaulted fluid burners to petroleum-gas — gone
     expect(res.imports.find((f) => f.name === "petroleum-gas")).toBeUndefined();
@@ -653,7 +658,7 @@ describe("fluid-fueled machines (#25)", () => {
     expect(row.machine?.count).toBeCloseTo(20 / 3);
     expect(row.fuel).toMatchObject({ name: "diesel", pinned: true });
     expect(row.fuel!.perSec).toBeCloseTo(200e6 / 1.5e6);
-    expect(row.availableFuels.map((f) => f.name)).toEqual(["diesel"]);
+    expect(row).not.toHaveProperty("availableFuels");
     expect(res.imports.find((f) => f.name === "diesel")?.rate).toBeCloseTo(200e6 / 1.5e6);
     expect(res.imports.find((f) => f.name === "pyops-fluid-fuel")).toBeUndefined();
   });
@@ -665,7 +670,7 @@ describe("fluid-fueled machines (#25)", () => {
     });
     const row = res.rows.find((r) => r.recipe === "nuclear-molten-thorium-reactor")!;
     expect(row.fuel).toBeNull();
-    expect(row.availableFuels).toEqual([]);
+    expect(row).not.toHaveProperty("availableFuels");
     // only the recipe's real ingredient imports — no uf6/pool/petroleum-gas fuel
     expect(res.imports.map((f) => f.name)).toEqual(["molten-fluoride-thorium"]);
   });
@@ -728,7 +733,7 @@ describe("temperature-fed fluid energy sources (#114)", () => {
     // the chip mirrors the drain: 2.5 × 60.0024 ≈ 150.006 uf6/s, no per-row pick
     expect(row.fuel).toMatchObject({ name: "uf6", kind: "fluid", temperature: true });
     expect(row.fuel!.perSec).toBeCloseTo(150.006, 3);
-    expect(row.availableFuels).toEqual([]);
+    expect(row).not.toHaveProperty("availableFuels");
     // the drain is a REAL solver ingredient → it surfaces as a uf6 import
     // (previously the block showed no demand for the feed fluid at all)
     expect(res.imports.find((f) => f.name === "uf6")?.rate).toBeCloseTo(150.006, 3);

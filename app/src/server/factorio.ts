@@ -46,6 +46,7 @@ import {
   computeBlock,
   computeModuleSuggestions,
   defaultFuel,
+  editorBlockResult,
   ensureSolvedProjections,
   goalFlows,
   persistBlock,
@@ -118,7 +119,7 @@ export const entityDetailFn = createServerFn({ method: "GET" })
   .validator((name: string) => name)
   .handler(async ({ data }) => q.entityDetail(data));
 
-export const moduleInfoFn = createServerFn({ method: "GET" })
+export const moduleInfoFn = createServerFn({ method: "POST" })
   .validator((names: string[]) => names)
   .handler(async ({ data }) => q.moduleInfo(data));
 
@@ -138,19 +139,9 @@ export const recipesProducingFn = createServerFn({ method: "GET" })
 /** Resolve item-vs-fluid kind + display name for a set of goods — used to icon
  * and auto-name goal cells before a solve exists (a fluid goal with no recipe
  * yet, or naming a block after its first goal). */
-export const goodInfoFn = createServerFn({ method: "GET" })
+export const goodInfoFn = createServerFn({ method: "POST" })
   .validator((names: string[]) => names)
-  .handler(async ({ data }) => {
-    const out: Record<string, { kind: "item" | "fluid"; display: string }> = {};
-    for (const n of data) {
-      const c = q.classifyRef(n);
-      out[n] =
-        c && (c.kind === "item" || c.kind === "fluid")
-          ? { kind: c.kind, display: c.display }
-          : { kind: "item", display: n };
-    }
-    return out;
-  });
+  .handler(async ({ data }) => q.goodInfo(data));
 
 /** Recipe-picker candidates with lock + TURD state, availability-sorted. */
 export const recipeCandidatesFn = createServerFn({ method: "GET" })
@@ -166,6 +157,28 @@ export const recipesConsumingFn = createServerFn({ method: "GET" })
 export const machineOptionsFn = createServerFn({ method: "GET" })
   .validator((recipe: string) => recipe)
   .handler(async ({ data }) => q.machineOptionsForRecipe(data));
+
+/** Fuel choices for the building currently selected on one recipe row. Loaded
+ * only when its picker opens instead of repeated in every live-solve row. */
+export const fuelPickerOptionsFn = createServerFn({ method: "GET" })
+  .validator((d: { recipe: string; machine: string }) => d)
+  .handler(async ({ data }) => {
+    const machine = q.machinesForRecipe(data.recipe).find((m) => m.name === data.machine);
+    if (!machine || machine.energySource !== "burner") return [];
+    const favorites = q.getFavoriteFuels();
+    const favoriteNames = new Set(
+      machine.fuelCategories
+        .map((category) => favorites[category])
+        .filter((name): name is string => !!name),
+    );
+    return q.fuelsForCategories(machine.fuelCategories).map((fuel) => ({
+      name: fuel.name,
+      display: fuel.display,
+      kind: fuel.kind,
+      fuelValueJ: fuel.fuelValueJ,
+      favorite: favoriteNames.has(fuel.name),
+    }));
+  });
 
 /** Module + beacon options for one recipe row (for the modules popup): the
  * chosen machine's slots, eligible modules, and beacon variants with their
@@ -219,7 +232,7 @@ export type { BeaconConfig } from "./effects";
 /** Solve a block live (for the editor). */
 export const solveBlockFn = createServerFn({ method: "POST" })
   .validator((d: SolveInput) => d)
-  .handler(async ({ data }) => computeBlock(data));
+  .handler(async ({ data }) => editorBlockResult(await computeBlock(data)));
 
 /** Module auto-fill hints for an authoritative solve's recipe rates. Kept out
  * of `computeBlock` so the editor can paint the solved block as soon as its
@@ -284,7 +297,7 @@ export const saveBlockFn = createServerFn({ method: "POST" })
       id,
       name,
       updatedAt: blockUpdatedAt(id),
-      solve: data.returnSolve ? r : null,
+      solve: data.returnSolve ? editorBlockResult(r) : null,
     };
   });
 
@@ -818,7 +831,7 @@ export const logisticsContextFn = createServerFn({ method: "GET" }).handler(asyn
 );
 
 /** Rocket-lift weights for the given items (null = unset → default applies). */
-export const itemWeightsFn = createServerFn({ method: "GET" })
+export const itemWeightsFn = createServerFn({ method: "POST" })
   .validator((names: string[]) => names)
   .handler(async ({ data }) => q.itemWeights(data));
 
@@ -972,7 +985,7 @@ export const goodUnlockTechFn = createServerFn({ method: "GET" })
 export const searchTechsFn = createServerFn({ method: "GET" })
   .validator((q: string) => q)
   .handler(async ({ data }) => q.searchTechs(data, 30));
-export const techDisplaysFn = createServerFn({ method: "GET" })
+export const techDisplaysFn = createServerFn({ method: "POST" })
   .validator((names: string[]) => names)
   .handler(async ({ data }) => [...q.techDisplays(data).entries()]);
 

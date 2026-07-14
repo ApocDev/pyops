@@ -14,7 +14,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import { bridgeStatusFn } from "../server/bridge/fns";
+import { bridgeStatusSubscription } from "../lib/live-query-options";
 import {
   dataStatusFn,
   factoryTotalsFn,
@@ -42,7 +42,7 @@ function Home() {
     queryFn: () => machineSufficiencyFn(),
   });
   const drift = useQuery({ queryKey: ["modDrift"], queryFn: () => modDriftFn() });
-  const bridge = useQuery({ queryKey: ["bridgeStatus"], queryFn: () => bridgeStatusFn() });
+  const bridge = useQuery(bridgeStatusSubscription);
 
   const failed = [data, blocks, totals, machines, drift, bridge].some((query) => query.isError);
   // Project data is enough to choose the next action. Slower live-game and

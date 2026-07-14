@@ -12,6 +12,7 @@ import {
   dataCapabilities,
   deleteGroup,
   getResearchHorizon,
+  goodInfo,
   goodExists,
   goodGraphCounts,
   factoryBlocks,
@@ -834,6 +835,24 @@ describe("batched recipe reads", () => {
       "furnace",
     ]);
     expect(large.count).toBeLessThanOrEqual(small.count + 2);
+  });
+
+  it("resolves growing good-info sets with a flat statement count", () => {
+    db.run(
+      sql`INSERT INTO fluids (name, display) VALUES ('plate', 'Fluid plate'), ('steam', 'Steam')`,
+    );
+    const small = preparedStatements(() => goodInfo(["plate"]));
+    const { goods } = seedBulkGoods(24);
+    const large = preparedStatements(() => goodInfo(["plate", "steam", "missing", ...goods]));
+
+    expect(large.count).toBe(small.count);
+    expect(large.result.plate).toEqual({ kind: "item", display: "Plate" });
+    expect(large.result.steam).toEqual({ kind: "fluid", display: "Steam" });
+    expect(large.result.missing).toEqual({ kind: "item", display: "missing" });
+    expect(large.result["bulk-good-23"]).toEqual({
+      kind: "item",
+      display: "Bulk good 23",
+    });
   });
 
   it("keeps browser-detail statement count flat and preserves card enrichment", () => {

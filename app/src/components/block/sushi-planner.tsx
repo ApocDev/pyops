@@ -5,7 +5,8 @@ import { planSushi, type ResolvedLogistics, type SushiFlow } from "../../lib/log
 import { constantCombinatorBlueprint, encodeBlueprint } from "../../lib/blueprint";
 import { fmtSpoilTime, Icon, useSpoilables } from "../../lib/icons";
 import { toast } from "../../lib/toast-store";
-import { bridgeBlueprintFn, bridgeStatusFn, sushiTraceInfoFn } from "../../server/bridge/fns";
+import { bridgeStatusSubscription } from "../../lib/live-query-options";
+import { bridgeBlueprintFn, sushiTraceInfoFn } from "../../server/bridge/fns";
 import { fmtCount } from "./format.ts";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
@@ -127,12 +128,7 @@ export function SushiPlanner({
   // only the block-inputs section ships ACTIVE (imports are what's injected from
   // outside, so they're what needs gating); outputs and intermediates free-flow,
   // their set-points parked in disabled sections as flippable reference.
-  const bridge = useQuery({
-    queryKey: ["bridgeStatus"],
-    queryFn: () => bridgeStatusFn(),
-    enabled: open,
-    refetchInterval: 3000,
-  });
+  const bridge = useQuery(bridgeStatusSubscription);
   const peer = bridge.data?.lastPeer ?? null;
   const connected = peer != null && Date.now() - peer.lastSeenMs < FRESH_MS;
   // the mod's ALT+B loop tracer pushes its measurement here — offer, don't overwrite

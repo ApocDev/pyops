@@ -278,6 +278,15 @@ export async function computeBlock(rawData: SolveInput) {
   // Tolerate the legacy { target, rate, extraGoals } shape from older saved docs.
   const data = normalizeBlockData(rawData) as SolveInput;
   const refs = q.createBlockSolveContext(data.recipes);
+  const fuelsByCategorySet = new Map<string, ReturnType<typeof q.fuelsForCategories>>();
+  const fuelsForCategories = (categories: string[]) => {
+    const key = [...categories].sort().join("\u0000");
+    const cached = fuelsByCategorySet.get(key);
+    if (cached) return cached;
+    const fuels = q.fuelsForCategories(categories);
+    fuelsByCategorySet.set(key, fuels);
+    return fuels;
+  };
 
   // Drift guard: if the block references a recipe or goal good that no longer
   // exists in the current reference data (a mod was updated/disabled/removed),
@@ -340,10 +349,6 @@ export async function computeBlock(rawData: SolveInput) {
   // rearrange themselves when research unlocks better tiers or counts drift.
   const settings = q.metaAll();
   const moduleHints = (settings.autofill ?? "1") !== "0"; // hint visibility only
-  // Preferred fuels per category (for marking the favorite in the fuel picker).
-  // Favorites are baked into a block's stored picks at recipe-add time, so the
-  // solve fallback here stays favorite-independent (lowest tier / cheapest fuel).
-  const favoriteFuels = q.getFavoriteFuels();
   // Machine eligibility: in NOW mode the default pick is restricted to buildings
   // the player has actually unlocked (real research from the bridge, else the
   // science-pack proxy). FUTURE mode allows any machine. An explicit per-recipe
@@ -397,7 +402,6 @@ export async function computeBlock(rawData: SolveInput) {
       return [
         r.name,
         {
-          machines,
           chosen,
           machineModules,
           beaconCfgs,
@@ -442,7 +446,7 @@ export async function computeBlock(rawData: SolveInput) {
         fueling?.mode === "pinned"
           ? q.fluidFuelEntry(fueling.fluid)
           : (() => {
-              const all = q.fuelsForCategories(chosen.fuelCategories);
+              const all = fuelsForCategories(chosen.fuelCategories);
               return all.find((f) => f.name === data.fuels?.[r.name]) ?? defaultFuel(all);
             })();
       if (pick?.fuelValueJ && producedInBlock.has(pick.name)) {
@@ -774,14 +778,7 @@ export async function computeBlock(rawData: SolveInput) {
   const rows = result.recipes.map((rr) => {
     const def = byName.get(rr.recipe)!;
     const scaled = defByName.get(rr.recipe)!;
-    const {
-      machines,
-      chosen,
-      machineModules,
-      beaconCfgs,
-      turdModules,
-      effects: fx,
-    } = setup.get(rr.recipe)!;
+    const { chosen, machineModules, beaconCfgs, turdModules, effects: fx } = setup.get(rr.recipe)!;
     const speed = (chosen?.craftingSpeed ?? 1) * fx.speedMult;
     // fractional building requirement (machine-seconds/sec ÷ speed); the UI
     // shows this and the whole-machine build target alongside it
@@ -808,13 +805,6 @@ export async function computeBlock(rawData: SolveInput) {
        * ingredient — never folded post-hoc) — no per-row pick */
       temperature?: boolean;
     } | null = null;
-    let availableFuels: {
-      name: string;
-      display: string | null;
-      kind: string;
-      fuelValueJ: number | null;
-      favorite: boolean;
-    }[] = [];
     const fueling = chosen?.energySource === "fluid" ? fluidFueling(chosen) : null;
     const burns =
       chosen?.energySource === "burner" ||
@@ -838,7 +828,7 @@ export async function computeBlock(rawData: SolveInput) {
       if (fueling?.mode === "pool") {
         // fungible fluid fuel (#25): the draw is MJ/s of the pool; which fluid
         // fills it is the block's choice of burn-fluid-* conversion recipe, so
-        // there's no per-row fuel pick (availableFuels stays empty)
+        // there's no per-row fuel pick
         fuel = {
           name: FLUID_FUEL,
           display: refs.getFluid(FLUID_FUEL)?.display ?? "Fluid fuel (MJ)",
@@ -852,20 +842,7 @@ export async function computeBlock(rawData: SolveInput) {
         const pinned = fueling?.mode === "pinned";
         const all = pinned
           ? [q.fluidFuelEntry(fueling.fluid)].filter((f) => f != null)
-          : q.fuelsForCategories(chosen.fuelCategories);
-        // a fuel is the favorite when it's the stored pick for any of the machine's
-        // fuel categories (solid fuels carry exactly one category); a pinned fluid
-        // is forced by the machine, so favorites don't apply
-        const favSet = new Set(
-          chosen.fuelCategories.map((c) => favoriteFuels[c]).filter((n): n is string => !!n),
-        );
-        availableFuels = all.map((f) => ({
-          name: f.name,
-          display: f.display,
-          kind: f.kind,
-          fuelValueJ: f.fuelValueJ,
-          favorite: !pinned && favSet.has(f.name),
-        }));
+          : fuelsForCategories(chosen.fuelCategories);
         const pick = pinned
           ? all[0]
           : (all.find((f) => f.name === data.fuels?.[rr.recipe]) ?? defaultFuel(all));
@@ -966,15 +943,7 @@ export async function computeBlock(rawData: SolveInput) {
         tileHeight: chosen.tileHeight,
         moduleSlots: chosen.moduleSlots,
       },
-      machines: machines.map((m) => ({
-        name: m.name,
-        display: m.display,
-        craftingSpeed: m.craftingSpeed,
-        energyUsageW: m.energyUsageW,
-        energySource: m.energySource,
-      })),
       fuel,
-      availableFuels,
       modules: machineModules,
       turdModules: turdModules.map((m) => ({ name: m.name, display: m.display })),
       beacons: beaconCfgs,
@@ -1291,6 +1260,15 @@ export async function computeBlock(rawData: SolveInput) {
     // editor resolves suggestion rows lazily; this gates the ambient icon.
     moduleHints,
   };
+}
+
+/** Keep the editor transport focused on data needed for its first paint. Machine
+ * and fuel picker choices are reference-data catalogs, not solve output; sending
+ * them on every row makes large mall blocks grow by hundreds of kilobytes. The
+ * raw LP recipe list is likewise an internal intermediate duplicated by `rows`. */
+export function editorBlockResult(result: Awaited<ReturnType<typeof computeBlock>>) {
+  const { recipes: _recipes, ...editor } = result;
+  return editor;
 }
 
 /** Compute module auto-fill hints from an already-solved block.

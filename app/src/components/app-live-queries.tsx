@@ -1,8 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { bridgeStatusFn } from "../server/bridge/fns";
-import { logisticsContextFn, researchHorizonFn } from "../server/factorio";
-import { undoStatusFn } from "../server/undo";
+import {
+  bridgeStatusQuery,
+  LIVE_QUERY_INTERVALS,
+  logisticsContextQuery,
+  researchHorizonQuery,
+  undoStatusQuery,
+} from "../lib/live-query-options";
 
 /**
  * Single owner for the app-shell's recurring status reads. Desktop and mobile
@@ -13,24 +17,20 @@ import { undoStatusFn } from "../server/undo";
  */
 export function AppLiveQueries() {
   useQuery({
-    queryKey: ["bridgeStatus"],
-    queryFn: () => bridgeStatusFn(),
-    refetchInterval: 2000,
+    ...bridgeStatusQuery,
+    refetchInterval: LIVE_QUERY_INTERVALS.bridge,
   });
   useQuery({
-    queryKey: ["researchHorizon"],
-    queryFn: () => researchHorizonFn(),
-    refetchInterval: 4000,
+    ...researchHorizonQuery,
+    refetchInterval: LIVE_QUERY_INTERVALS.horizon,
   });
   useQuery({
-    queryKey: ["logisticsContext"],
-    queryFn: () => logisticsContextFn(),
-    refetchInterval: 5000,
+    ...logisticsContextQuery,
+    refetchInterval: LIVE_QUERY_INTERVALS.logistics,
   });
   useQuery({
-    queryKey: ["undoStatus"],
-    queryFn: () => undoStatusFn(),
-    refetchInterval: 5000,
+    ...undoStatusQuery,
+    refetchInterval: LIVE_QUERY_INTERVALS.undo,
   });
 
   return null;

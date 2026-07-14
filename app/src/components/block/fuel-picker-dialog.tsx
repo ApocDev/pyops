@@ -1,11 +1,12 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Star } from "lucide-react";
-import { setFavoriteFuelFn } from "../../server/factorio";
+import { fuelPickerOptionsFn, setFavoriteFuelFn } from "../../server/factorio";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "#/components/ui/dialog.tsx";
 import { Icon } from "../../lib/icons";
 import { fmtJ } from "./format.ts";
 import { rowBtn } from "./styles.ts";
+import { Skeleton } from "#/components/ui/skeleton.tsx";
 
 /** Fuel picker — choose what a SOLID burner burns (energy value shown to
  * compare), with the favorite star (#18). Favorites are app-level prefs;
@@ -13,28 +14,30 @@ import { rowBtn } from "./styles.ts";
  * block's picks. Fluid burners never open this: unfiltered ones draw from the
  * shared fluid-fuel pool and filtered ones are pinned to one fluid (#25). */
 export function FuelPickerDialog({
+  recipe,
   recipeDisplay,
-  fuels,
+  machine,
   current,
   onPick,
   onClose,
 }: {
+  recipe: string;
   recipeDisplay: string;
-  fuels: {
-    name: string;
-    display: string | null;
-    kind: string;
-    fuelValueJ: number | null;
-    favorite: boolean;
-  }[];
+  machine: string;
   /** the fuel the current solve burns for this recipe */
   current: string | null;
   onPick: (fuel: string) => void;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const fuels = useQuery({
+    queryKey: ["fuelOptions", recipe, machine],
+    queryFn: () => fuelPickerOptionsFn({ data: { recipe, machine } }),
+    staleTime: 60_000,
+  });
   const toggleFavorite = (fuel: string, isFav: boolean) => {
     void setFavoriteFuelFn({ data: { fuel, clear: isFav } }).then(() => {
+      void qc.invalidateQueries({ queryKey: ["fuelOptions"] });
       void qc.invalidateQueries({ queryKey: ["solve"] });
     });
   };
@@ -50,7 +53,14 @@ export function FuelPickerDialog({
           <DialogTitle className="truncate">Fuel for {recipeDisplay}</DialogTitle>
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-auto p-2">
-          {fuels.map((f) => {
+          {fuels.isLoading && (
+            <div className="space-y-1.5 p-2">
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-3/4" />
+            </div>
+          )}
+          {fuels.data?.map((f) => {
             const cur = current === f.name;
             return (
               <button
@@ -82,7 +92,7 @@ export function FuelPickerDialog({
               </button>
             );
           })}
-          {!fuels.length && (
+          {fuels.data?.length === 0 && (
             <div className="px-2 py-1 text-sm text-muted-foreground">
               no fuels for this machine's categories
             </div>

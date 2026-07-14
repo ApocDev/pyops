@@ -22,8 +22,9 @@ vi.mock("../server/bridge/fns", () => ({ bridgeStatusFn: bridgeStatus }));
 afterEach(cleanup);
 beforeEach(() => bridgeStatus.mockReset());
 
-function renderIndicator() {
+async function renderIndicator() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(["bridgeStatus"], await bridgeStatus());
   return render(
     <QueryClientProvider client={client}>
       <BridgeIndicator />
@@ -42,7 +43,7 @@ describe("BridgeIndicator", () => {
       appProtocolVersion: 4,
       lastPeer: { lastSeenMs: Date.now(), protocolVersion: 4, player: "jim" },
     });
-    const { findByText, findByRole, getByTestId } = renderIndicator();
+    const { findByText, findByRole, getByTestId } = await renderIndicator();
     expect(await findByText("game linked")).toBeTruthy();
     expect(dot(getByTestId("bridge-link")).className).toContain("bg-success");
     fireEvent.focus(getByTestId("bridge-link"));
@@ -57,7 +58,7 @@ describe("BridgeIndicator", () => {
       appProtocolVersion: 4,
       lastPeer: { lastSeenMs: Date.now(), protocolVersion: 3, player: "jim" },
     });
-    const { findByText, getByTestId } = renderIndicator();
+    const { findByText, getByTestId } = await renderIndicator();
     expect(await findByText("mod mismatch")).toBeTruthy();
     expect(dot(getByTestId("bridge-link")).className).toContain("bg-destructive");
   });
@@ -70,7 +71,7 @@ describe("BridgeIndicator", () => {
       appProtocolVersion: 4,
       lastPeer: null,
     });
-    const { findByText, getByTestId } = renderIndicator();
+    const { findByText, getByTestId } = await renderIndicator();
     expect(await findByText("no game")).toBeTruthy();
     expect(dot(getByTestId("bridge-link")).className).toContain("bg-warning");
   });
@@ -83,7 +84,7 @@ describe("BridgeIndicator", () => {
       appProtocolVersion: 4,
       lastPeer: { lastSeenMs: Date.now() - 60_000, protocolVersion: 4, player: "jim" },
     });
-    const { findByText } = renderIndicator();
+    const { findByText } = await renderIndicator();
     expect(await findByText("no game")).toBeTruthy();
   });
 
@@ -96,7 +97,7 @@ describe("BridgeIndicator", () => {
       appProtocolVersion: 4,
       lastPeer: null,
     });
-    const { findByText, findByRole, getByTestId } = renderIndicator();
+    const { findByText, findByRole, getByTestId } = await renderIndicator();
     expect(await findByText("bridge error")).toBeTruthy();
     fireEvent.focus(getByTestId("bridge-link"));
     expect((await findByRole("tooltip")).textContent).toContain("EADDRINUSE");

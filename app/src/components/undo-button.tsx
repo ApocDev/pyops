@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Undo2 } from "lucide-react";
 
 import { runUndo } from "../lib/undo-client";
-import { undoStatusFn } from "../server/undo";
+import { undoStatusSubscription } from "../lib/live-query-options";
 import { Button } from "#/components/ui/button.tsx";
 
 /** The nav undo affordance (#90): an unobtrusive icon button whose tooltip
@@ -11,10 +11,7 @@ import { Button } from "#/components/ui/button.tsx";
  * query owner keeps the label fresh between immediate mutation invalidations. */
 export function UndoButton() {
   const qc = useQueryClient();
-  const status = useQuery({
-    queryKey: ["undoStatus"],
-    queryFn: () => undoStatusFn(),
-  });
+  const status = useQuery(undoStatusSubscription);
   const undo = useMutation({ mutationFn: () => runUndo(qc) });
   const top = status.data?.top ?? null;
   const empty = (status.data?.depth ?? 0) === 0;

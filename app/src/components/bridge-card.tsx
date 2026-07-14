@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AlertTriangle, RefreshCw } from "lucide-react";
-import { bridgeRequestSyncFn, bridgeStatusFn } from "../server/bridge/fns";
+import { bridgeRequestSyncFn } from "../server/bridge/fns";
+import { bridgeStatusSubscription } from "../lib/live-query-options";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
@@ -14,10 +15,7 @@ const FRESH_MS = 6000;
 
 /** Live UDP bridge status from the app-shell query owner. */
 export function BridgeCard() {
-  const status = useQuery({
-    queryKey: ["bridgeStatus"],
-    queryFn: () => bridgeStatusFn(),
-  });
+  const status = useQuery(bridgeStatusSubscription);
   const s = status.data;
   const peer = s?.lastPeer ?? null;
   const connected = peer != null && Date.now() - peer.lastSeenMs < FRESH_MS;

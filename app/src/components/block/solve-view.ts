@@ -4,7 +4,8 @@
 import type { computeBlock } from "../../server/block-compute.server.ts";
 import type { ResolvedLogistics } from "../../lib/logistics";
 
-type CoreSolveResult = Awaited<ReturnType<typeof computeBlock>>;
+type ComputedBlockResult = Awaited<ReturnType<typeof computeBlock>>;
+type CoreSolveResult = Omit<ComputedBlockResult, "recipes">;
 
 /** The editor enriches authoritative core rows with lazy presentation-only
  * module hints. They are deliberately absent from `computeBlock` itself. */

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { logisticsContextFn, setLogisticsPrefsFn } from "../server/factorio";
+import { setLogisticsPrefsFn } from "../server/factorio";
+import { logisticsContextSubscription } from "../lib/live-query-options";
 import {
   type LogisticsPrefs,
   MAX_BELT_STACK,
@@ -33,10 +34,7 @@ import { Tooltip } from "#/components/ui/tooltip.tsx";
  * or off. Mirrors the Horizon menu — owns its own query/mutation. */
 export function LogisticsMenu() {
   const [open, setOpen] = useState(false);
-  const ctx = useQuery({
-    queryKey: ["logisticsContext"],
-    queryFn: () => logisticsContextFn(),
-  });
+  const ctx = useQuery(logisticsContextSubscription);
   const d = ctx.data;
   const beltName = d
     ? (d.options.belts.find((b) => b.name === d.prefs.belt)?.name ?? d.prefs.belt)
@@ -79,10 +77,7 @@ export function LogisticsMenu() {
 /** The logistics control body — belt/mover pickers + stacking. Reusable. */
 export function LogisticsPicker() {
   const qc = useQueryClient();
-  const ctx = useQuery({
-    queryKey: ["logisticsContext"],
-    queryFn: () => logisticsContextFn(),
-  });
+  const ctx = useQuery(logisticsContextSubscription);
   const save = useMutation({
     mutationFn: (p: Partial<LogisticsPrefs>) => setLogisticsPrefsFn({ data: p }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["logisticsContext"] }),

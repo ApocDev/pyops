@@ -3,12 +3,12 @@ import { useState } from "react";
 import { Check } from "lucide-react";
 import {
   goodInfoFn,
-  researchHorizonFn,
   searchAllFn,
   searchTechsFn,
   setResearchHorizonFn,
   techDisplaysFn,
 } from "../server/factorio";
+import { researchHorizonSubscription } from "../lib/live-query-options";
 import { Icon, IconProvider } from "../lib/icons";
 import { TechHover } from "../lib/recipe-card";
 import { InfoHint } from "./info-hint";
@@ -51,10 +51,7 @@ const MODE_OPTIONS = [
  * blocks and refreshes recipe availability everywhere. */
 export function HorizonPicker() {
   const qc = useQueryClient();
-  const h = useQuery({
-    queryKey: ["researchHorizon"],
-    queryFn: () => researchHorizonFn(),
-  });
+  const h = useQuery(researchHorizonSubscription);
   const save = useMutation({
     mutationFn: (d: SaveArgs) => setResearchHorizonFn({ data: d }),
     onSuccess: () => {

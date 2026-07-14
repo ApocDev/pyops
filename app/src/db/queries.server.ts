@@ -2973,6 +2973,32 @@ export function classifyRef(
   return null;
 }
 
+/** Item/fluid kind + display for a caller-supplied set of goods. Unlike repeated
+ * `classifyRef` calls, this stays at two statements as the set grows. Items win
+ * over fluids when an internal name exists in both namespaces. Unknown names
+ * retain the editor's historical item fallback. */
+export function goodInfo(
+  names: string[],
+): Record<string, { kind: "item" | "fluid"; display: string }> {
+  const uniq = [...new Set(names)];
+  const out: Record<string, { kind: "item" | "fluid"; display: string }> = {};
+  if (!uniq.length) return out;
+  for (const row of db
+    .select({ name: items.name, display: items.display })
+    .from(items)
+    .where(inArray(items.name, uniq))
+    .all())
+    out[row.name] = { kind: "item", display: row.display ?? row.name };
+  for (const row of db
+    .select({ name: fluids.name, display: fluids.display })
+    .from(fluids)
+    .where(inArray(fluids.name, uniq))
+    .all())
+    out[row.name] ??= { kind: "fluid", display: row.display ?? row.name };
+  for (const name of uniq) out[name] ??= { kind: "item", display: name };
+  return out;
+}
+
 /* ── Exclusions: glob patterns over name / subgroup / category ──────────────── */
 
 // Always-on: Editor-Extensions creative content (uncraftable — map-editor only).
