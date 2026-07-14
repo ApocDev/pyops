@@ -133,6 +133,36 @@ describe("RecipeCard", () => {
     const { findByText } = withProviders(<RecipeCard name="generate-multiblade-turbine-mk01" />);
     expect(await findByText(/1\.2 avg \(0\.4–2\).*Electricity/)).toBeTruthy();
   });
+
+  it("wraps long component labels and keeps probability visible as a percentage", async () => {
+    recipeDetail.mockResolvedValue({
+      recipe: {
+        display: "Probabilistic ash recovery",
+        kind: "real",
+        category: "crafting",
+        energyRequired: 1,
+        allowProductivity: false,
+        enabled: true,
+        ingredients: [],
+        products: [
+          {
+            kind: "item",
+            name: "ash",
+            display: "A deliberately long localized ash product name",
+            amount: 1,
+            probability: 0.2,
+          },
+        ],
+      },
+      machines: [],
+      unlocks: [],
+    });
+
+    const { findByText } = withProviders(<RecipeCard name="probabilistic-ash" />);
+    const line = await findByText(/A deliberately long localized ash product name/);
+    expect(line.className).not.toContain("truncate");
+    expect(line.textContent).toContain("20% chance");
+  });
 });
 
 describe("ItemCard", () => {

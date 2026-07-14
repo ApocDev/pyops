@@ -26,9 +26,9 @@ function Comp(c: {
   maxTemp?: number | null;
 }) {
   return (
-    <div className="flex items-center gap-1.5 py-0.5">
+    <div className="flex items-start gap-1.5 py-0.5">
       <Icon kind={c.kind as "item" | "fluid"} name={c.name} size="md" />
-      <span className="truncate">
+      <span className="min-w-0 whitespace-normal [overflow-wrap:anywhere]">
         {c.amount != null && c.amountMin != null && c.amountMax != null
           ? `${c.amount} avg (${c.amountMin}–${c.amountMax})`
           : (c.amount ?? `${c.amountMin}–${c.amountMax}`)}
@@ -41,7 +41,7 @@ function Comp(c: {
           </span>
         )}
         {c.probability != null && c.probability < 1 && (
-          <span className="text-warning"> p={c.probability}</span>
+          <span className="text-warning"> · {formatQty(c.probability * 100)}% chance</span>
         )}
       </span>
     </div>
@@ -62,12 +62,14 @@ export function RecipeCard({ name, extraText }: { name: string; extraText?: Reac
   });
   const r = data?.recipe;
   return (
-    <div className="w-[26rem] border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
-      <div className="flex items-center gap-2 text-base font-semibold">
+    <div className="w-[30rem] max-w-[calc(100vw-1rem)] border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
+      <div className="flex items-start gap-2 text-base font-semibold">
         <Icon kind="recipe" name={name} size="md" />
-        <span className="truncate">{r?.display ?? name}</span>
+        <span className="min-w-0 whitespace-normal [overflow-wrap:anywhere]">
+          {r?.display ?? name}
+        </span>
       </div>
-      <div className="mb-2 truncate text-sm text-muted-foreground">{name}</div>
+      <div className="mb-2 text-sm text-muted-foreground [overflow-wrap:anywhere]">{name}</div>
       <HoverContext>{extraText}</HoverContext>
       {!r ? (
         <div className="space-y-2">
@@ -112,7 +114,7 @@ export function RecipeCard({ name, extraText }: { name: string; extraText?: Reac
               {data!.unlocks.map((u) => (
                 <div key={u.tech} className="flex flex-wrap items-center gap-1.5">
                   <span className="text-muted-foreground">unlock</span>
-                  <span className="truncate" title={u.tech}>
+                  <span className="min-w-0 [overflow-wrap:anywhere]" title={u.tech}>
                     {u.display ?? u.tech}
                   </span>
                   {u.science.map((s) => (
