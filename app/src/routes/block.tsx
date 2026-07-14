@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MouseEventHandler,
   type MutableRefObject,
   type ReactNode,
 } from "react";
@@ -60,6 +61,8 @@ import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
+import { BlockFolderMenu } from "../components/block-folder-menu.tsx";
+import { createBlockInGroupFn } from "../server/block-folders.ts";
 
 export const Route = createFileRoute("/block")({
   component: () => (
@@ -89,11 +92,13 @@ function DndRow({
   id,
   className,
   style,
+  onContextMenu,
   children,
 }: {
   id: string;
   className?: string;
   style?: CSSProperties;
+  onContextMenu?: MouseEventHandler<HTMLDivElement>;
   children: ReactNode;
 }) {
   const drag = useDraggable({ id });
@@ -107,6 +112,7 @@ function DndRow({
       ref={setRef}
       style={style}
       className={`${className ?? ""} ${drag.isDragging ? "opacity-40" : ""}`}
+      onContextMenu={onContextMenu}
       {...drag.listeners}
     >
       {children}
@@ -165,6 +171,12 @@ function Shell() {
     name: string;
     recipeCount: number;
     goalCount: number;
+  } | null>(null);
+  const [folderMenu, setFolderMenu] = useState<{
+    x: number;
+    y: number;
+    id: number;
+    name: string;
   } | null>(null);
   const refresh = () => void qc.invalidateQueries({ queryKey: ["blocks"] });
   const refreshGroups = () => void qc.invalidateQueries({ queryKey: ["groups"] });
@@ -369,10 +381,13 @@ function Shell() {
   }, [activeId, blocks.data, navigate]);
 
   const open = (id: number) => void navigate({ to: "/block/$id", params: { id: String(id) } });
-  const newBlock = async () => {
-    const res = await saveBlockFn({
-      data: { name: "New block", data: { goals: [], recipes: [] } },
-    });
+  const newBlock = async (groupId?: number) => {
+    const res =
+      groupId == null
+        ? await saveBlockFn({
+            data: { name: "New block", data: { goals: [], recipes: [] } },
+          })
+        : await createBlockInGroupFn({ data: groupId });
     void qc.invalidateQueries({ queryKey: ["blocks"] });
     open(res.id);
   };
@@ -539,6 +554,10 @@ function Shell() {
         <DndRow
           id={key}
           style={{ marginLeft: depth * 12 }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setFolderMenu({ x: e.clientX, y: e.clientY, id: group.id, name: group.name });
+          }}
           className={`group relative flex cursor-grab items-center gap-1 px-1 py-1 text-sm font-semibold tracking-wide text-muted-foreground uppercase select-none hover:bg-muted/50 active:cursor-grabbing ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
         >
           {showLine && (
@@ -647,6 +666,15 @@ function Shell() {
         confirmLabel="Delete block"
         onConfirm={() => void confirmDelete()}
       />
+      {folderMenu && (
+        <BlockFolderMenu
+          x={folderMenu.x}
+          y={folderMenu.y}
+          name={folderMenu.name}
+          onCreateBlock={() => void newBlock(folderMenu.id)}
+          onClose={() => setFolderMenu(null)}
+        />
+      )}
       <SidebarShell
         className="bg-background font-mono text-foreground"
         width="w-64"

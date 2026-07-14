@@ -14,6 +14,13 @@ Blocks do not need to match one physical building. A block can represent one rec
 complete production chain, or a section of the factory you want to build and operate as a
 unit.
 
+## Organize blocks
+
+Use the folder button in the Blocks sidebar to group related production units. Drag an
+existing block onto a folder to move it. To start in the right place, right-click a folder
+and select **New block here**. The main **New block** button continues to create blocks under
+**Ungrouped**.
+
 ## Set goals and rates
 
 Select **New block**, then use **+ goal** to choose an item or fluid.
