@@ -1,0 +1,21 @@
+app/src/components/block/balance-card.tsx
+  s_f8fb7822c86326::t_6dc97ac6859fab 324,417
+app/src/components/block/goal-card.tsx
+  s_f8fb7822c86326::t_5dd51f0549937b 91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e17e646844b7c55f53876c4414e7bd94fe3c9e92",
+  "prompts": {},
+  "sessions": {
+    "s_f8fb7822c86326": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f60ae-b355-7c70-9180-27c979895810",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
