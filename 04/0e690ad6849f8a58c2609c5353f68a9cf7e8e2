@@ -1,0 +1,39 @@
+app/src/db/queries.server.ts
+  s_7dacf746ced279::t_5303fdbf17d77c 526,531-544,567,604-606,4549-4553,4573,4610-4616,4626,4633
+app/src/server/agent-tools.server.ts
+  s_739c24aa414347::t_9a1b596d8762fa 265,290
+docs/guide/blocks.md
+  s_7dacf746ced279::t_d61e131878968f 53-59
+app/e2e/README.md
+  s_7dacf746ced279::t_cd0c39dd5e4698 109-110
+app/e2e/mut/recipe-order.e2e.ts
+  s_7dacf746ced279::t_47d3e5b30b0b1e 1-21
+app/src/components/block/recipe-picker-dialog.tsx
+  s_7dacf746ced279::t_0aca01cdc816b8 12-13,49-57,66,68-74,99,183-187
+app/src/db/queries.test.ts
+  s_7dacf746ced279::t_becdf7a486835c 612-628,717-729
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "040e690ad6849f8a58c2609c5353f68a9cf7e8e2",
+  "prompts": {},
+  "sessions": {
+    "s_739c24aa414347": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5e8c-bae6-7092-83a9-7add5bbcb568",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_7dacf746ced279": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5e90-56fd-7cf2-acd6-290fce29379d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
