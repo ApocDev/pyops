@@ -1,0 +1,41 @@
+app/src/components/block/goal-card.tsx
+  s_f0d31cf3b84a09::t_91455bdfe0a30f 31,79-96
+app/src/components/block/goal-clipboard-actions.tsx
+  s_f0d31cf3b84a09::t_291b702facf08f 1-92
+app/src/lib/goal-clipboard.test.ts
+  s_f0d31cf3b84a09::t_05e39e413b7588 1-35
+app/src/lib/goal-clipboard.ts
+  s_f8fb7822c86326::t_adcafb119f9461 1-76
+app/e2e/mut/goal-clipboard.e2e.ts
+  s_f8fb7822c86326::t_d93e49af484b43 1-81
+app/src/components/block/doc-store.test.ts
+  s_f8fb7822c86326::t_46d6187c7a3402 82-110
+app/src/components/block/doc-store.ts
+  s_f8fb7822c86326::t_82a3fb4f664a8c 299-313
+docs/guide/blocks.md
+  s_f8fb7822c86326::t_bd9560b7f8bf25 37-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "075d1fbc9cbeca3c493e292c1dbce0cdf9f166dd",
+  "prompts": {},
+  "sessions": {
+    "s_f0d31cf3b84a09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5e9a-5c16-7871-9bf7-d4c778d16fc7",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f8fb7822c86326": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f60ae-b355-7c70-9180-27c979895810",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
