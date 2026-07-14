@@ -1,0 +1,21 @@
+app/src/components/block/balance-card.tsx
+  s_f8fb7822c86326::t_1a14ec17a82307 337-353
+app/src/components/block/item-chip.tsx
+  s_f8fb7822c86326::t_f5ec041a092953 2,37-38,58-61,102,139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "e71a29f1a13fe35e356e7969fa4e89ee23faac41",
+  "prompts": {},
+  "sessions": {
+    "s_f8fb7822c86326": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f60ae-b355-7c70-9180-27c979895810",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
