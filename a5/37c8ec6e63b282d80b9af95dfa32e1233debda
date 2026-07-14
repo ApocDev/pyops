@@ -1,0 +1,21 @@
+app/src/components/block/editable-stock.tsx
+  s_f8fb7822c86326::t_3d1c4e2bb0694c 31,38,45
+app/src/components/block/goal-card.tsx
+  s_f8fb7822c86326::t_b0a39dbad89a32 91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "a537c8ec6e63b282d80b9af95dfa32e1233debda",
+  "prompts": {},
+  "sessions": {
+    "s_f8fb7822c86326": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f60ae-b355-7c70-9180-27c979895810",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
