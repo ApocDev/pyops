@@ -332,7 +332,10 @@ factory activity. A pin is a signed net target: positive for desired output, neg
 consumption. Stock goals contribute an always-derived positive pin equal to `stock / window`.
 
 `factory-plan.server.ts` solves the block at its complete goal vector, perturbs each goal in its
-saved direction, and uses the boundary-flow difference as a local response column. Keeping sibling
+saved direction, and uses the boundary-flow difference as a local response column. It also retains
+the boundary flow from a separate zero-activity solve as a fixed intercept. This affine response
+keeps operational flows such as estimated incidental spoilage in factory material balances without
+making them scalable production or mistaking a recipe-basis change for fixed flow. Keeping sibling
 goals active is essential because one block LP can change recipe bases as its goals interact. A
 zero-rate goal is probed with a small signed reference rate, allowing a configured producer or
 consumer to start without losing its saved direction.
@@ -350,9 +353,11 @@ throughput; nonzero legacy goals continue to infer direction from their sign.
 Each reached good receives a material-balance equality. A good without a selected producer has an
 import-slack variable, and ordinary outputs have a surplus-slack variable. A byproduct with an
 automatically reached sink instead has a closed equality: its natural production must feed that
-consumer and cannot be supplemented by an external import. Imports carry the dominant objective
-penalty; activity cost and supply priority break ties between configured producers. A missing
-producer therefore becomes a raw import rather than making the model infeasible.
+consumer and cannot be supplemented by an external import. Fixed positive flows offset matching
+demand or remain surplus without making a consumer goal reachable by themselves. Imports carry the
+dominant objective penalty; activity cost and supply priority break ties between configured
+producers. A missing producer therefore becomes a raw import rather than making the model
+infeasible.
 
 The actionable output is one change per goal—it never collapses a multi-goal block back to its
 first goal. Preview puts every proposed goal into memory, runs the full ordinary block solver for
@@ -361,9 +366,10 @@ A mismatch is measured against the good's gross factory throughput, not its near
 producer and consumer cancellation. If that mismatch exceeds 0.5%, or the next goal vector still
 contains a change over the 1% balanced-rate tolerance, Scenario rebuilds the local responses around
 the proposed vector and tries again, up to a bounded pass limit. Zero transitions remain meaningful
-regardless of percentage. Any broken block or remaining mismatch rejects the plan before a write.
-Apply repeats the full validation as a final safety check, then persists the settled rates as one
-**Balance pinned factory** undo action.
+regardless of percentage. Free energy boundaries are excluded from this material-residual check;
+their external slack is intentionally unconstrained. Any broken block or remaining material
+mismatch rejects the plan before a write. Apply repeats the full validation as a final safety check,
+then persists the settled rates as one **Balance pinned factory** undo action.
 
 Stock pins describe desired net replenishment, but a stock block may also feed internal consumers.
 Its solved gross production is stored as `factoryRate` while the visible `stock` and `window` remain
@@ -400,7 +406,10 @@ a demand-reachable producer.
 Electricity remains grid-distributed and heat remains block-local, so
 `pyops-electricity` and `pyops-heat` are free boundaries in Factory Scenario. Balancing
 electricity through the same dependency model would create a power-production feedback
-loop.
+loop. Existing electricity and heat goals remain fixed instead of being zeroed as unreached
+material goals. Their configured production and material inputs still participate in the factory
+projection; after the real block re-solve, Scenario replaces the approximate energy projection with
+the actual net external need.
 
 `pyops-fluid-fuel` is a normal matchable good. A block with a primary fluid-fuel energy goal
 can scale as a dedicated supplier; a byproduct energy export remains capped like any other

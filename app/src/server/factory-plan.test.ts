@@ -5,6 +5,8 @@ const persistBlock = vi.fn(async (..._args: unknown[]) => 1);
 const traceEvents: { type: string; data: unknown }[] = [];
 let piecewiseIron = false;
 let ironImportOffset = 0;
+let fixedBiocrud = 0;
+let nonlinearElectricity = false;
 let solveVersion = 0;
 const blocks = [
   {
@@ -122,7 +124,11 @@ vi.mock("./block-compute.server.ts", () => ({
         })),
       );
       exports.push(...unit.exports.map((flow) => ({ ...flow, rate: flow.rate * magnitude })));
+      if (nonlinearElectricity && goal.name === "iron")
+        imports.push({ name: "pyops-electricity", kind: "fluid", rate: magnitude ** 2 });
     }
+    if (fixedBiocrud > 0 && doc.goals.some((goal) => goal.name === "science"))
+      exports.push({ name: "biocrud", kind: "fluid", rate: fixedBiocrud });
     return {
       broken: false,
       status: "solved",
@@ -167,6 +173,8 @@ beforeEach(() => {
   traceEvents.length = 0;
   piecewiseIron = false;
   ironImportOffset = 0;
+  fixedBiocrud = 0;
+  nonlinearElectricity = false;
   for (const doc of docs.values()) doc.updatedAt = new Date(++solveVersion * 1000);
   blocks.splice(4);
   docs.delete(5);
@@ -270,5 +278,59 @@ describe("pinned factory solve", () => {
     expect(result.passes).toBe(2);
     expect(result.residual).toBeGreaterThan(0);
     expect(result.residual).toBeLessThan(0.005);
+  });
+
+  it("balances fixed incidental outputs as factory surplus", async () => {
+    fixedBiocrud = 0.01;
+
+    const result = await plan.solvePinnedFactory();
+
+    expect(result.status).toBe("Optimal");
+    expect(result.residual).toBe(0);
+    expect(result.overproduced).toContainEqual(
+      expect.objectContaining({ good: "biocrud", projected: 0.01 }),
+    );
+    expect(result.projection).toContainEqual(
+      expect.objectContaining({ good: "biocrud", net: 0.01 }),
+    );
+  });
+
+  it("does not fail material validation on a free energy boundary", async () => {
+    nonlinearElectricity = true;
+
+    const preview = await plan.solvePinnedFactory();
+    const apply = await plan.applyPinnedFactory({}, false);
+
+    expect(preview.status).toBe("Optimal");
+    expect(preview.residual).toBe(0);
+    expect(apply).toEqual(expect.objectContaining({ status: "Optimal", validated: true }));
+  });
+
+  it("retains an existing power goal and reports only real external demand", async () => {
+    nonlinearElectricity = true;
+    blocks.push({
+      id: 5,
+      name: "Power",
+      rate: 10,
+      goals: [{ name: "pyops-electricity", rate: 10 }],
+      flows: [{ item: "pyops-electricity", kind: "fluid", role: "primary", rate: 10 }],
+    });
+    docs.set(5, {
+      id: 5,
+      name: "Power",
+      updatedAt: new Date(++solveVersion * 1000),
+      data: { goals: [{ name: "pyops-electricity", rate: 10 }], recipes: ["recipe-5"] },
+    });
+    plan.saveFactoryPins([{ good: "science", kind: "item", rate: 1 }]);
+
+    const result = await plan.solvePinnedFactory();
+
+    expect(result.status).toBe("Optimal");
+    expect(result.goalChanges).not.toContainEqual(
+      expect.objectContaining({ id: 5, good: "pyops-electricity" }),
+    );
+    expect(result.raws).toContainEqual(
+      expect.objectContaining({ good: "pyops-electricity", projected: 6 }),
+    );
   });
 });
