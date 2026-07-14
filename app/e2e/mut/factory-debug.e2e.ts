@@ -25,6 +25,10 @@ test("Advanced settings captures a structured Scenario solver trace", async ({ p
     // existing generator goal must remain fixed instead of becoming a 0 W
     // Scenario change.
     await expect(page.getByRole("link", { name: /^Electricity .* 0 W / })).toHaveCount(0);
+    // A reached byproduct with a configured waste block is a closed balance:
+    // Scenario must scale that consumer instead of discarding the material and
+    // proposing a zero rate.
+    await expect(page.getByRole("link", { name: /^Ash .* 0 / })).toHaveCount(0);
     await expect(page.getByText("Electricity", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Fluid fuel", { exact: true }).first()).toBeVisible();
 

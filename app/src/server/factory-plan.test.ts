@@ -6,6 +6,9 @@ const traceEvents: { type: string; data: unknown }[] = [];
 let piecewiseIron = false;
 let ironImportOffset = 0;
 let fixedBiocrud = 0;
+let fixedAsh = 0;
+let ashSinkAdditive = 0;
+let infeasibleIronAbove = Number.POSITIVE_INFINITY;
 let nonlinearElectricity = false;
 let solveVersion = 0;
 const blocks = [
@@ -79,6 +82,16 @@ vi.mock("./undo-action.server.ts", () => ({
 
 vi.mock("./block-compute.server.ts", () => ({
   computeBlock: vi.fn(async (doc: { goals: { name: string; rate: number }[] }) => {
+    const ironGoal = doc.goals.find((goal) => goal.name === "iron");
+    if (ironGoal && Math.abs(ironGoal.rate) > infeasibleIronAbove)
+      return {
+        broken: false,
+        status: "infeasible",
+        message: "No rates satisfy the proposed iron goal.",
+        unmade: [],
+        imports: [],
+        exports: [],
+      };
     const unitFlows: Record<
       string,
       {
@@ -99,7 +112,12 @@ vi.mock("./block-compute.server.ts", () => ({
         exports: [{ name: "ash", kind: "item", rate: 1 }],
       },
       ash: {
-        imports: [{ name: "ash", kind: "item", rate: 1 }],
+        imports: [
+          { name: "ash", kind: "item", rate: 1 },
+          ...(ashSinkAdditive > 0
+            ? [{ name: "additive", kind: "item", rate: ashSinkAdditive }]
+            : []),
+        ],
         exports: [{ name: "iron", kind: "item", rate: 1 }],
       },
       coal: {
@@ -129,6 +147,8 @@ vi.mock("./block-compute.server.ts", () => ({
     }
     if (fixedBiocrud > 0 && doc.goals.some((goal) => goal.name === "science"))
       exports.push({ name: "biocrud", kind: "fluid", rate: fixedBiocrud });
+    if (fixedAsh > 0 && doc.goals.some((goal) => goal.name === "science"))
+      exports.push({ name: "ash", kind: "item", rate: fixedAsh });
     return {
       broken: false,
       status: "solved",
@@ -174,6 +194,9 @@ beforeEach(() => {
   piecewiseIron = false;
   ironImportOffset = 0;
   fixedBiocrud = 0;
+  fixedAsh = 0;
+  ashSinkAdditive = 0;
+  infeasibleIronAbove = Number.POSITIVE_INFINITY;
   nonlinearElectricity = false;
   for (const doc of docs.values()) doc.updatedAt = new Date(++solveVersion * 1000);
   blocks.splice(4);
@@ -243,6 +266,36 @@ describe("pinned factory solve", () => {
     expect(result.overproduced.some((flow) => flow.good === "coal")).toBe(false);
   });
 
+  it("sends fixed and scalable byproducts through the configured consumer", async () => {
+    fixedAsh = 5;
+    ashSinkAdditive = 0.1;
+    blocks.push({
+      id: 5,
+      name: "Coal",
+      rate: 0,
+      goals: [{ name: "coal", rate: 0 }],
+      flows: [{ item: "coal", kind: "item", role: "primary", rate: 0 }],
+    });
+    docs.set(5, {
+      id: 5,
+      name: "Coal",
+      updatedAt: new Date(0),
+      data: { goals: [{ name: "coal", rate: 0 }], recipes: ["recipe-5"] },
+    });
+    plan.saveFactoryPins([{ good: "coal", kind: "item", rate: 1 }]);
+
+    const result = await plan.solvePinnedFactory();
+
+    expect(result.status).toBe("Optimal");
+    expect(result.goalChanges).toContainEqual(
+      expect.objectContaining({ id: 4, good: "ash", requiredRate: -15 }),
+    );
+    expect(result.raws).toContainEqual(
+      expect.objectContaining({ good: "additive", projected: 1.5 }),
+    );
+    expect(result.overproduced.some((flow) => flow.good === "ash")).toBe(false);
+  });
+
   it("re-solves the combined docs before applying them", async () => {
     const result = await plan.applyPinnedFactory();
 
@@ -253,6 +306,23 @@ describe("pinned factory solve", () => {
       ([meta]) => (meta as { id?: number } | undefined)?.id === 3,
     )?.[1] as { goals: { name: string; rate: number; direction?: string }[] } | undefined;
     expect(tarDoc?.goals).toContainEqual({ name: "tar", rate: 0, direction: "consume" });
+  });
+
+  it("returns the block and proposed goals when full validation fails", async () => {
+    infeasibleIronAbove = 2;
+
+    const result = await plan.solvePinnedFactory();
+
+    expect(result.status).toBe("ValidationFailed");
+    expect(result.validation?.blocks).toContainEqual(
+      expect.objectContaining({
+        id: 2,
+        name: "Iron",
+        status: "infeasible",
+        message: "No rates satisfy the proposed iron goal.",
+        goals: [expect.objectContaining({ good: "iron", rate: 4 })],
+      }),
+    );
   });
 
   it("re-linearizes when proposed goals cross a block solve basis", async () => {

@@ -345,6 +345,22 @@ export const factoryWhatIfFn = createServerFn({ method: "POST" })
       demands: result.demands.map((g) => ({ ...g, display: display(g.good) })),
       raws: result.raws.map((g) => ({ ...g, display: display(g.good) })),
       overproduced: result.overproduced.map((g) => ({ ...g, display: display(g.good) })),
+      validation: result.validation && {
+        ...result.validation,
+        blocks: result.validation.blocks.map((block) => ({
+          ...block,
+          goals: block.goals.map((goal) => ({ ...goal, display: display(goal.good) })),
+          unmade: block.unmade.map((good) => ({ good, display: display(good) })),
+        })),
+        discrepancies: result.validation.discrepancies.map((flow) => ({
+          ...flow,
+          display: display(flow.good),
+        })),
+        unstableGoals: result.validation.unstableGoals.map((goal) => ({
+          ...goal,
+          display: display(goal.good),
+        })),
+      },
       goalChanges: result.goalChanges.map((change) => ({
         ...change,
         display: display(change.good),

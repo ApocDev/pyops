@@ -56,6 +56,26 @@ type FactoryGoalChange = {
   activation?: true;
 };
 
+export type FactoryValidation = {
+  blocks: {
+    id: number;
+    name: string;
+    status: string;
+    message?: string;
+    goals: { good: string; rate: number; direction?: "produce" | "consume" }[];
+    unmade: string[];
+  }[];
+  discrepancies: { good: string; expected: number; actual: number; relative: number }[];
+  unstableGoals: {
+    blockId: number;
+    blockName: string;
+    good: string;
+    reference: number;
+    rate: number;
+    delta: number;
+  }[];
+};
+
 export type PinnedFactoryResult = {
   status: string;
   passes: number;
@@ -93,6 +113,8 @@ export type PinnedFactoryResult = {
     delta: number;
   }[];
   projection: { good: string; net: number; gross: number }[];
+  /** Actionable evidence from the final full-block validation pass. */
+  validation: FactoryValidation | null;
 };
 
 const responseCache = new Map<string, Promise<BlockResponse>>();
@@ -497,9 +519,12 @@ export async function solvePinnedFactory(
     const goods = new Set(pins.map((pin) => pin.good));
     for (const good of fixedNet.keys()) goods.add(good);
     for (const column of columns) for (const flow of column.flows) goods.add(flow.item);
-    const surplusGoods = new Set(
-      [...goods].filter((good) => !autoSinkGoods.has(good) || (fixedNet.get(good) ?? 0) > EPS),
-    );
+    // Reaching a configured byproduct consumer closes that material balance.
+    // Fixed boundary output belongs to the same balance as scalable output: it
+    // must feed the consumer too, even when operating that sink needs imports.
+    // Otherwise the objective can prefer discarding the byproduct and zeroing a
+    // deliberate waste block merely because its supporting inputs are costly.
+    const surplusGoods = new Set([...goods].filter((good) => !autoSinkGoods.has(good)));
 
     const constraints: string[] = [];
     const importVarByGood = new Map<string, number>();
@@ -543,9 +568,6 @@ export async function solvePinnedFactory(
     const objective =
       [
         ...[...importVarByGood.values()].map((index) => `+ 1000000 import_${index}`),
-        ...[...goods].flatMap((good, index) =>
-          autoSinkGoods.has(good) && surplusGoods.has(good) ? [`+ 1000 surplus_${index}`] : [],
-        ),
         ...columns.map(
           (column, index) => `+ ${1 + Math.max(0, -column.priority) * 0.001} x${index}`,
         ),
@@ -713,6 +735,7 @@ export async function solvePinnedFactory(
         net,
         gross: projectedGross.get(good) ?? Math.abs(net),
       })),
+      validation: null,
     };
 
     if (optimal) {
@@ -751,6 +774,7 @@ export async function solvePinnedFactory(
           goals: doc.goals,
           status: blockResult.status,
           broken: blockResult.broken,
+          message: blockResult.message,
           unmade: blockResult.unmade ?? [],
         })),
       });
@@ -760,6 +784,22 @@ export async function solvePinnedFactory(
       if (broken.length > 0) {
         result.status = "ValidationFailed";
         result.residual = 1;
+        result.validation = {
+          blocks: broken.map(({ row, doc, result: blockResult }) => ({
+            id: row.id,
+            name: row.name,
+            status: blockResult.status,
+            ...(blockResult.message ? { message: blockResult.message } : {}),
+            goals: doc.goals.map((goal) => ({
+              good: goal.name,
+              rate: goal.rate,
+              ...(goal.direction ? { direction: goal.direction } : {}),
+            })),
+            unmade: blockResult.unmade ?? [],
+          })),
+          discrepancies: [],
+          unstableGoals: [],
+        };
         trace?.event("linearization-validation", {
           pass,
           residual: 1,
@@ -841,7 +881,20 @@ export async function solvePinnedFactory(
         const goalDifferences = [...proposedRates].flatMap(([key, rate]) => {
           const reference = referenceRates.get(key) ?? 0;
           const delta = Math.abs(rate - reference);
-          return meaningfulRateChange(reference, rate) ? [{ key, reference, rate, delta }] : [];
+          if (!meaningfulRateChange(reference, rate)) return [];
+          const separator = key.indexOf("\u0000");
+          const blockId = Number(key.slice(0, separator));
+          const good = key.slice(separator + 1);
+          return [
+            {
+              blockId,
+              blockName: rows.find(({ row }) => row.id === blockId)?.row.name ?? `Block ${blockId}`,
+              good,
+              reference,
+              rate,
+              delta,
+            },
+          ];
         });
         goalDifferences.sort((a, b) => b.delta - a.delta);
         const goalsStable = goalDifferences.length === 0;
@@ -878,6 +931,11 @@ export async function solvePinnedFactory(
             return refined;
           }
           result.status = "ValidationFailed";
+          result.validation = {
+            blocks: [],
+            discrepancies: discrepancies.slice(0, 20),
+            unstableGoals: goalDifferences.slice(0, 20),
+          };
         }
       }
     }

@@ -198,3 +198,43 @@ test("Scenario zeros an unpinned consume goal without saving the preview", async
     }
   }
 });
+
+test("Scenario explains which proposed block goals failed validation", async ({ page }) => {
+  test.setTimeout(120_000);
+  const db = new DatabaseSync(activeProjectDbFile());
+  const row = db.prepare("SELECT data FROM blocks WHERE id = 83").get() as
+    | { data: string }
+    | undefined;
+  if (!row) {
+    db.close();
+    throw new Error("seed is missing the Coal gas validation fixture (block 83)");
+  }
+  const original = row.data;
+  const doc = JSON.parse(original) as {
+    pins?: { kind: string; recipe: string; count?: number }[];
+  };
+  doc.pins = [
+    ...(doc.pins ?? []).filter((pin) => pin.recipe !== "distilled-raw-coal"),
+    { kind: "cap", recipe: "distilled-raw-coal", count: 1 },
+  ];
+  db.prepare("UPDATE blocks SET data = ? WHERE id = 83").run(JSON.stringify(doc));
+  db.close();
+
+  try {
+    await goto(page, "/factory/scenario");
+    await dismissDataDriftPrompt(page);
+
+    const diagnostic = page.getByTestId("scenario-validation");
+    await expect(diagnostic.getByText("Scenario validation failed")).toBeVisible({
+      timeout: 60_000,
+    });
+    await expect(diagnostic.getByRole("link", { name: "Coal gas" })).toBeVisible();
+    await expect(diagnostic.getByText("block solve: infeasible")).toBeVisible();
+    await expect(diagnostic.getByText("Proposed goals on validation pass")).toBeVisible();
+    await expect(diagnostic.getByText("Coke")).toBeVisible();
+  } finally {
+    const cleanup = new DatabaseSync(activeProjectDbFile());
+    cleanup.prepare("UPDATE blocks SET data = ? WHERE id = 83").run(original);
+    cleanup.close();
+  }
+});

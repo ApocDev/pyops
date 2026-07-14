@@ -78,6 +78,28 @@ test("forced byproduct surplus exports; both ≥ goals hold (1:2 co-product)", a
   expect(flow(res.exports, "a")).toBeUndefined();
 });
 
+test("a zero-rate produce goal allows unavoidable overproduction to export", async () => {
+  const coproducts: RecipeDef = {
+    name: "coproducts",
+    energyRequired: 1,
+    ingredients: [{ kind: "item", name: "feed", amount: 1 }],
+    products: [
+      { kind: "item", name: "coke", amount: 1 },
+      { kind: "fluid", name: "coal-gas", amount: 8 },
+    ],
+  };
+  const res = await solveBlockLp({
+    goals: [
+      { name: "coke", rate: 10 },
+      { name: "coal-gas", rate: 0, direction: "produce" },
+    ],
+    recipes: [coproducts],
+  });
+
+  expect(res.status).toBe("solved");
+  expect(flow(res.exports, "coal-gas")).toBeCloseTo(80);
+});
+
 test("incidental byproduct offsets an import, never scales to cover it", async () => {
   // consumer needs 10 iron/s; a side recipe happens to make 0.02/s. iron is
   // NOT made → net import 9.98/s and the side recipe is sized by ITS product.

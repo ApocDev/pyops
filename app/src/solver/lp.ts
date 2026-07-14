@@ -106,8 +106,10 @@ const FLOW_EPS = 1e-9;
  * (comfortably above HiGHS' ~1e-7 rate error, far below any meaningful flow). */
 const DUST_REL = 1e-5;
 /** Numerical room for the second, machine-minimizing stage to retain the
- * minimum goal surplus found by the first stage. */
-const GOAL_LEX_TOL = 1e-7;
+ * minimum goal surplus found by the first stage. One part per million leaves
+ * room for HiGHS primal rounding on high-throughput coproduct chains without
+ * materially weakening the lexicographic optimum. */
+const GOAL_LEX_TOL = 1e-6;
 
 let highsP: ReturnType<typeof highsLoader> | null = null;
 const getHighs = () => (highsP ??= highsLoader());

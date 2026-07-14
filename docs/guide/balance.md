@@ -71,6 +71,10 @@ additional goals in a multi-goal block. On first use, PyOps proposes current ter
 as initial pins; after you save the list, it uses that explicit list instead. Stock targets are always
 included.
 
+A produce goal is a minimum, including a Scenario target of `0/s`: unavoidable coproduct above that
+rate remains valid and leaves the block as surplus. To process that excess, open the block and select
+the exported good to add a consuming recipe, or route it to a dedicated consume block.
+
 Scenario measures how each configured goal changes its complete multi-goal block, then builds one
 factory-wide material model from those local responses. Starting at the pins, it follows required
 ingredients to configured positive producers. A reached producer's natural byproduct can drive a
@@ -87,6 +91,12 @@ because its response is probed in its saved produce or consume direction.
 
 If no enabled block can supply a required ingredient, Scenario keeps the solve usable and
 lists the shortfall under **Raw inputs** as an external import.
+
+If the factory model solves but the proposed rates fail a full block re-solve, Scenario shows a
+**Scenario validation failed** card before the work list. It links each affected block and lists the
+exact proposed goals and block-solver status. Material-flow mismatches show the expected and actual
+rates; a solve that does not settle shows the goals still changing between passes. Scenario does not
+save any of these proposed rates.
 
 Use **reset to current** to discard the speculative target.
 

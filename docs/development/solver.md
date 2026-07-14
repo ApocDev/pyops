@@ -353,11 +353,11 @@ throughput; nonzero legacy goals continue to infer direction from their sign.
 Each reached good receives a material-balance equality. A good without a selected producer has an
 import-slack variable, and ordinary outputs have a surplus-slack variable. A byproduct with an
 automatically reached sink instead has a closed equality: its natural production must feed that
-consumer and cannot be supplemented by an external import. Fixed positive flows offset matching
-demand or remain surplus without making a consumer goal reachable by themselves. Imports carry the
-dominant objective penalty; activity cost and supply priority break ties between configured
-producers. A missing producer therefore becomes a raw import rather than making the model
-infeasible.
+consumer and cannot be supplemented by an external import. Once scalable output reaches that sink,
+fixed positive flows of the same good enter the same closed balance and must feed the consumer too;
+they do not make a consumer goal reachable by themselves. Imports carry the dominant objective
+penalty; activity cost and supply priority break ties between configured producers. A missing
+producer therefore becomes a raw import rather than making the model infeasible.
 
 The actionable output is one change per goal—it never collapses a multi-goal block back to its
 first goal. Preview puts every proposed goal into memory, runs the full ordinary block solver for
@@ -370,6 +370,12 @@ regardless of percentage. Free energy boundaries are excluded from this material
 their external slack is intentionally unconstrained. Any broken block or remaining material
 mismatch rejects the plan before a write. Apply repeats the full validation as a final safety check,
 then persists the settled rates as one **Balance pinned factory** undo action.
+
+The Scenario response retains the final validation evidence instead of reducing it to a status:
+blocks that fail their full solve include their proposed goal vector, solve status, message, and
+unmade goods; aggregate failures include the largest expected-versus-actual material discrepancies
+and goals that did not settle between response passes. The Scenario UI links block failures back to
+their editor and shows the diagnostic rates without requiring structured trace capture.
 
 Stock pins describe desired net replenishment, but a stock block may also feed internal consumers.
 Its solved gross production is stored as `factoryRate` while the visible `stock` and `window` remain

@@ -17,6 +17,7 @@ import { StatCell } from "#/components/stat-cell.tsx";
 import { StatTableHeader } from "#/components/stat-table.tsx";
 import { SupplyAllocationCard } from "#/components/whatif/supply-allocation-card.tsx";
 import { FactoryPinsCard } from "#/components/whatif/factory-pins-card.tsx";
+import { ScenarioValidationCard } from "#/components/whatif/scenario-validation-card.tsx";
 
 export const Route = createFileRoute("/factory_/scenario")({
   component: () => (
@@ -57,7 +58,9 @@ function WhatIf() {
               </Button>
             )}
             {r && r.status !== "Optimal" && (
-              <span className="text-sm text-warning">solve: {r.status}</span>
+              <span className="text-sm text-warning">
+                solve: {r.status === "ValidationFailed" ? "validation failed" : r.status}
+              </span>
             )}
             <HelpButton title="What is Scenario?">
               <p>
@@ -128,14 +131,19 @@ function WhatIf() {
               <p>
                 <span className="text-foreground">The solve pill</span> (next to this button)
                 reports the whole-factory solve. <span className="text-foreground">Optimal</span>{" "}
-                means it found a complete set of rates; any other status means the pinned material
-                model could not solve. Applying also runs every full block solve and refuses to
-                write if that validation disagrees with the preview.
+                means it found a complete set of rates. A failure shows an on-page diagnostic with
+                the affected blocks, proposed goals, or material mismatches. Applying also runs
+                every full block solve and refuses to write if that validation disagrees with the
+                preview.
               </p>
             </HelpButton>
           </>
         }
       />
+
+      {r && r.status !== "Optimal" && (
+        <ScenarioValidationCard status={r.status} validation={r.validation} />
+      )}
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(20rem,28rem)_minmax(0,1fr)]">
         <FactoryPinsCard
