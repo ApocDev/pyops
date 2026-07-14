@@ -217,7 +217,7 @@ export const setModulePresetDefaultFn = createServerFn({ method: "POST" })
 export type { BeaconConfig } from "./effects";
 
 /** Solve a block live (for the editor). */
-export const solveBlockFn = createServerFn({ method: "GET" })
+export const solveBlockFn = createServerFn({ method: "POST" })
   .validator((d: SolveInput) => d)
   .handler(async ({ data }) => computeBlock(data));
 
