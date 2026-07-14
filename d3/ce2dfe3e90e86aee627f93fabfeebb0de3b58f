@@ -1,0 +1,41 @@
+app/src/components/whatif/scenario-validation-card.tsx
+  s_f0d31cf3b84a09::t_c771c01dd11edc 1-151
+app/e2e/mut/factory-debug.e2e.ts
+  s_f0d31cf3b84a09::t_9f6182e80a7e6b 28-31
+app/e2e/mut/rebalance.e2e.ts
+  s_f0d31cf3b84a09::t_e0749de9e954c3 201-240
+app/src/components/whatif/scenario-validation-card.test.tsx
+  s_f0d31cf3b84a09::t_11014fa877d344 1-43
+app/src/routes/factory_.scenario.tsx
+  s_f0d31cf3b84a09::t_81a3e47192c3f7 20,61-63,134-137,144-147
+app/src/server/factorio.ts
+  s_f0d31cf3b84a09::t_498f1d461d7582 348-363
+app/src/server/factory-plan.server.ts
+  s_f0d31cf3b84a09::t_1be5161d12be76 59-78,116-117,522-527,738,777,787-802,884-897,934-938
+app/src/server/factory-plan.test.ts
+  s_f0d31cf3b84a09::t_2a6dc4d71fdaff 9-11,85-94,115-120,150-151,197-199,269-298,311-327
+app/src/solver/lp.test.ts
+  s_f0d31cf3b84a09::t_3c93e05f7cbdfc 81-102
+app/src/solver/lp.ts
+  s_f0d31cf3b84a09::t_fcf8e3e7684e69 109-112
+docs/development/solver.md
+  s_f0d31cf3b84a09::t_1c0271777bc9a1 356-360,374-379
+docs/guide/balance.md
+  s_f0d31cf3b84a09::t_f69516c81df36f 74-77,95-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "d3ce2dfe3e90e86aee627f93fabfeebb0de3b58f",
+  "prompts": {},
+  "sessions": {
+    "s_f0d31cf3b84a09": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5e9a-5c16-7871-9bf7-d4c778d16fc7",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
