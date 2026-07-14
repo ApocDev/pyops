@@ -321,7 +321,7 @@ export function BalanceCard({
             {showImports && (
               <div>
                 <div className="mb-1 text-sm font-semibold text-warning">Imports</div>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] items-start gap-x-3 gap-y-2">
+                <div className="grid auto-rows-max grid-cols-[repeat(auto-fit,minmax(5rem,max-content))] items-start justify-start gap-x-3 gap-y-2">
                   {res.displayImports.length ? (
                     res.displayImports.map((f) => (
                       <span key={f.name} className="group flex flex-col items-start gap-1.5">
@@ -414,7 +414,7 @@ export function BalanceCard({
             {showExports && (
               <div>
                 <div className="mb-1 text-sm font-semibold text-surplus">Exports</div>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] items-start gap-x-3 gap-y-2">
+                <div className="grid auto-rows-max grid-cols-[repeat(auto-fit,minmax(5rem,max-content))] items-start justify-start gap-x-3 gap-y-2">
                   {res.displayExports.map((f) => {
                     const incidental = res.incidentalSpoilage.filter((s) => s.result === f.name);
                     return (

@@ -88,7 +88,7 @@ export function GoalCard({
           collisionDetection={closestCenter}
           onDragEnd={onGoalDragEnd}
         >
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2">
+          <div className="grid auto-rows-max grid-cols-[repeat(auto-fit,minmax(5rem,max-content))] justify-start gap-2">
             <SortableContext items={goals.map((g) => g.name)} strategy={rectSortingStrategy}>
               {goals.map((goal, i) => {
                 const g = goal.name;
