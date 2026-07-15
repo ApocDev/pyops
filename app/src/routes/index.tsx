@@ -3,11 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ArrowRight,
+  BookOpen,
   Blocks,
   Check,
   CircleDot,
   Factory,
   Gamepad2,
+  Github,
   Hammer,
   ListChecks,
   Search,
@@ -105,7 +107,31 @@ function Home() {
           </span>
         }
         description="Plan the next factory change, then keep the running build on target."
-        actions={<LaunchFactorioButton size="sm" />}
+        actions={
+          <>
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+              <a
+                href="https://apocdev.github.io/pyops/"
+                target="_blank"
+                rel="noreferrer"
+                title="Read the PyOps documentation"
+              >
+                <BookOpen /> Docs
+              </a>
+            </Button>
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+              <a
+                href="https://github.com/ApocDev/pyops"
+                target="_blank"
+                rel="noreferrer"
+                title="View PyOps on GitHub"
+              >
+                <Github /> GitHub
+              </a>
+            </Button>
+            <LaunchFactorioButton size="sm" />
+          </>
+        }
       />
 
       {failed && (

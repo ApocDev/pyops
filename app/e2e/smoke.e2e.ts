@@ -89,6 +89,14 @@ test("saved links redirect to canonical workspace URLs", async ({ page }) => {
 
 test("home presents project status and a next action", async ({ page }) => {
   await page.goto("/");
+  await expect(page.getByRole("link", { name: "Docs" })).toHaveAttribute(
+    "href",
+    "https://apocdev.github.io/pyops/",
+  );
+  await expect(page.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+    "href",
+    "https://github.com/ApocDev/pyops",
+  );
   await expect(page.getByText("Next action", { exact: true })).toBeVisible();
   await expect(page.getByText("Factory balance", { exact: true })).toBeVisible();
   await expect(page.getByText("Project status", { exact: true })).toBeVisible();
