@@ -95,6 +95,9 @@ row:
   keep walking the graph.
 - Hover recipe, technology, and item details when you need the precise inputs, outputs, or
   unlock status.
+- A probabilistic product shows its chance as a small percentage beneath its expected rate.
+  Hover the product for its amount on success and expected amount per craft. The flask icon by
+  the recipe rate summarizes every variable result in one tooltip.
 
 The picker puts choices already unlocked in the synced save first, then recipes available
 later in the current planning horizon, and finally locked choices. It sorts each group by

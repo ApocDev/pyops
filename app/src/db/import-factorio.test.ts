@@ -49,6 +49,47 @@ describe("importFactorioDump — recipe categories", () => {
   });
 });
 
+describe("importFactorioDump — Factorio 2.1 product probability", () => {
+  it("combines independent and shared rolls with legacy and default fallbacks", () => {
+    const db = runImport({
+      recipe: {
+        chance: {
+          results: [
+            { type: "item", name: "default", amount: 1 },
+            { type: "item", name: "legacy", amount: 1, probability: 0.25 },
+            { type: "item", name: "independent", amount: 1, independent_probability: 0.4 },
+            {
+              type: "item",
+              name: "shared",
+              amount: 1,
+              shared_probability: { min: 0.2, max: 0.7 },
+            },
+            {
+              type: "item",
+              name: "both",
+              amount: 1,
+              independent_probability: 0.5,
+              shared_probability: { min: 0.6, max: 0.8 },
+            },
+          ],
+        },
+      },
+    });
+    const rows = db.prepare(`SELECT name, probability FROM recipe_products ORDER BY idx`).all() as {
+      name: string;
+      probability: number;
+    }[];
+    expect(rows[0]).toEqual({ name: "default", probability: 1 });
+    expect(rows[1]).toEqual({ name: "legacy", probability: 0.25 });
+    expect(rows[2]).toEqual({ name: "independent", probability: 0.4 });
+    expect(rows[3].name).toBe("shared");
+    expect(rows[3].probability).toBeCloseTo(0.5);
+    expect(rows[4].name).toBe("both");
+    expect(rows[4].probability).toBeCloseTo(0.1);
+    db.close();
+  });
+});
+
 describe("importFactorioDump — machine footprints", () => {
   it("derives placed tile dimensions from array and named selection boxes", () => {
     const db = runImport({

@@ -221,17 +221,20 @@ export function RecipeRow({
                   <RecipeSpoilageIndicator products={row.products} spoilables={spoilables} />
                 </span>
               ) : null}
-              {campaign && uncertainProducts.length > 0 && (
+              {uncertainProducts.length > 0 && (
                 <Tooltip
                   content={uncertainProducts
                     .map(
                       (product) =>
-                        `${product.display ?? product.name}: ${num(product.amountMin)}–${num(product.amountMax)} each${product.probability < 1 ? ` · ${num(product.probability * 100)}% chance` : ""} · ${num(product.amountExpected * (row?.rate ?? 0) * campaign.duration)} expected total`,
+                        `${product.display ?? product.name}: ${product.amountMin === product.amountMax ? num(product.amountMin) : `${num(product.amountMin)}–${num(product.amountMax)}`} on success${product.probability < 1 ? ` · ${num(product.probability * 100)}% chance` : ""} · ${num(product.amountExpected)} expected/craft${campaign ? ` · ${num(product.amountExpected * (row?.rate ?? 0) * campaign.duration)} expected total` : ""}`,
                     )
                     .join("\n")}
                 >
-                  <span className="flex items-center gap-1 text-sm text-warning">
-                    <FlaskConical className="size-3" /> Variable result · hover for range and chance
+                  <span
+                    aria-label="Variable recipe results"
+                    className="flex cursor-help text-warning"
+                  >
+                    <FlaskConical className="size-3.5" />
                   </span>
                 </Tooltip>
               )}
@@ -544,10 +547,13 @@ export function RecipeRow({
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-3">
             <FieldLabel className="w-full md:hidden">Products ↑</FieldLabel>
-            {row?.products.map((c) => {
+            {row?.products.map((c, productIndex) => {
               const incidental = incidentalSpoilage.filter((s) => s.source === c.name);
               return (
-                <div key={c.name} className="flex flex-col items-start gap-1.5">
+                <div
+                  key={`${c.name}:${productIndex}`}
+                  className="flex flex-col items-start gap-1.5"
+                >
                   <div className="flex flex-wrap items-center gap-1.5">
                     <ItemChip
                       name={c.name}
@@ -556,6 +562,10 @@ export function RecipeRow({
                       rate={c.rate}
                       rateMin={c.rateMin}
                       rateMax={c.rateMax}
+                      probability={c.probability}
+                      amountExpected={c.amountExpected}
+                      amountMin={c.amountMin}
+                      amountMax={c.amountMax}
                       temp={c.temp}
                       spoilTicks={spoilables[c.name]}
                       link={linkOf(c.name)}

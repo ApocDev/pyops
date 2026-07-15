@@ -98,7 +98,9 @@ The importer converts Factorio's flexible prototype shapes into stable relationa
 Recipe products with ranges are represented by their expected amount for planning. Product
 probability, temperature, productivity exclusions, and the original range remain available
 where the solver or UI needs them. The parser accepts the prototype variants Factorio may
-emit, including recipe category arrays and singular categories.
+emit, including recipe category arrays and singular categories. For Factorio 2.1 products it
+stores the effective chance: the independent probability multiplied by the width of the shared
+probability range. Legacy dumps with a single probability field remain supported.
 
 Localized display names come from the locale dumps. When a recipe or machine inherits its
 name from a product or placeable item, the importer uses that localized prototype name as a

@@ -2,7 +2,7 @@ import { Flame, Timer } from "lucide-react";
 import type { ReactNode } from "react";
 import { ItemHover } from "../../lib/recipe-card";
 import { fmtSpoilTime, Icon } from "../../lib/icons";
-import { quantityLabel, rateLabel } from "./format.ts";
+import { num, quantityLabel, rateLabel } from "./format.ts";
 
 /** A block item's role under the current solve — drives the chip colour so it's
  * obvious which flows are linked internally vs. need a recipe vs. spill out. */
@@ -27,6 +27,10 @@ export function ItemChip({
   display,
   rate,
   total,
+  probability,
+  amountExpected,
+  amountMin,
+  amountMax,
   rateMin,
   rateMax,
   temp,
@@ -48,6 +52,11 @@ export function ItemChip({
   /** Finite campaign amount. Replaces the throughput rate as the chip's
    * primary value; the caller may show the derived average separately. */
   total?: number;
+  /** Per-craft chance and yield context for a recipe product. */
+  probability?: number;
+  amountExpected?: number;
+  amountMin?: number;
+  amountMax?: number;
   /** Variable energy production range; `rate` is the planner average. */
   rateMin?: number;
   rateMax?: number;
@@ -96,11 +105,28 @@ export function ItemChip({
     rate == null ? "" : variableRate ? displayedRate : rateLabel(name, rate, { perSec: true });
   const displayedTotal = total == null ? "" : `${quantityLabel(name, total)} total`;
   const totalRate = total != null && rate != null ? rateLabel(name, rate, { perSec: true }) : "";
+  const chance = probability != null && probability < 1 ? `${num(probability * 100)}%` : "";
+  const chanceContext = chance ? (
+    <div>
+      <div className="text-warning">{chance} chance per craft</div>
+      {amountExpected != null && (
+        <div className="text-muted-foreground">
+          {amountMin != null && amountMax != null
+            ? amountMin === amountMax
+              ? `${num(amountMin)} on success · `
+              : `${num(amountMin)}–${num(amountMax)} on success · `
+            : ""}
+          {num(amountExpected)} expected per craft
+        </div>
+      )}
+    </div>
+  ) : undefined;
   return (
     <span className={`inline-flex items-center gap-1 ${cls}`}>
       <ItemHover
         name={name}
         kind={kind as "item" | "fluid"}
+        extraText={chanceContext}
         className="inline-flex"
         // the rich card (cost, produced-by / used-in) replaces the old native title;
         // role is the chip colour, rate is shown on the chip, actions are on right-click
@@ -112,7 +138,7 @@ export function ItemChip({
             e.preventDefault();
             onContext(e);
           }}
-          aria-label={`${display ?? name}${displayedTotal ? ` ${displayedTotal}${totalRate ? ` · ${totalRate} average` : ""}` : accessibleRate ? ` ${accessibleRate}` : ""}${spoilTime ? ` · spoils in ${spoilTime}` : ""}${incidental ? " · includes estimated incidental spoilage" : ""}${indicatorLabel ? ` · ${indicatorLabel}` : ""} · ${why}`}
+          aria-label={`${display ?? name}${displayedTotal ? ` ${displayedTotal}${totalRate ? ` · ${totalRate} average` : ""}` : accessibleRate ? ` ${accessibleRate}` : ""}${chance ? ` · ${chance} chance` : ""}${spoilTime ? ` · spoils in ${spoilTime}` : ""}${incidental ? " · includes estimated incidental spoilage" : ""}${indicatorLabel ? ` · ${indicatorLabel}` : ""} · ${why}`}
           className="flex items-center gap-1 px-1.5 py-1 text-sm hover:brightness-95"
         >
           <span className="relative flex">
@@ -137,7 +163,16 @@ export function ItemChip({
               )}
             </span>
           ) : rate != null ? (
-            <span data-rate-range={variableRate ? "variable" : undefined}>{displayedRate}</span>
+            chance ? (
+              <span className="flex flex-col items-start leading-tight tabular-nums">
+                <span data-rate-range={variableRate ? "variable" : undefined}>{displayedRate}</span>
+                <span data-product-probability className="text-xs text-warning">
+                  {chance}
+                </span>
+              </span>
+            ) : (
+              <span data-rate-range={variableRate ? "variable" : undefined}>{displayedRate}</span>
+            )
           ) : null}
           {incidental && (
             <span

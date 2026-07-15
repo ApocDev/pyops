@@ -76,6 +76,26 @@ function normComponent(c: unknown): Component {
   if (Array.isArray(c)) return { type: "item", name: c[0], amount: c[1] };
   return c as Component;
 }
+
+/** Effective chance that Factorio gives one product entry. Factorio 2.1 split
+ * the old `probability` into an independent roll and a shared-roll interval;
+ * both tests must pass. Keep the legacy field as the independent fallback so
+ * older dumps remain importable. */
+function productProbability(c: Component): number {
+  const independent =
+    typeof c.independent_probability === "number"
+      ? c.independent_probability
+      : typeof c.probability === "number"
+        ? c.probability
+        : 1;
+  const shared =
+    c.shared_probability && typeof c.shared_probability === "object"
+      ? (c.shared_probability as { min?: unknown; max?: unknown })
+      : null;
+  const min = typeof shared?.min === "number" ? shared.min : 0;
+  const max = typeof shared?.max === "number" ? shared.max : 1;
+  return independent * Math.max(0, max - min);
+}
 /** Lua serializes an empty table as `{}` (object), not `[]`. Coerce to array. */
 const arr = <T = any>(x: unknown): T[] => (Array.isArray(x) ? (x as T[]) : []);
 /** Non-empty string list → JSON text; empty/missing → NULL (= "no restriction"). */
@@ -320,7 +340,7 @@ export function importFactorioDump(
             amount: c.amount ?? null,
             amount_min: (c.amount_min as number) ?? null,
             amount_max: (c.amount_max as number) ?? null,
-            probability: (c.probability as number) ?? 1,
+            probability: productProbability(c),
             temperature: (c.temperature as number) ?? null,
             // Factorio 2.0: an AMOUNT (the catalytic part of the product that
             // productivity never multiplies), not a flag. Kovarex: u-235 out 41

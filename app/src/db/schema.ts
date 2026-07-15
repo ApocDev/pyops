@@ -94,6 +94,8 @@ export const recipeProducts = sqliteTable(
     amount: real(), // null when amount_min/max used
     amountMin: real("amount_min"),
     amountMax: real("amount_max"),
+    // Effective product chance: independent_probability × shared range width
+    // in Factorio 2.1, with legacy probability support during import.
     probability: real().notNull().default(1),
     temperature: real(), // exact produced temperature (fluids)
     // AMOUNT of this product not scaled by productivity (Factorio 2.0 semantics:
