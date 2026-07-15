@@ -1,0 +1,73 @@
+app/src/components/block/doc-store.test.ts
+  s_6a76dee2624516::t_1763b0db613d7c 148-181,379-390
+app/src/components/block/doc-store.ts
+  s_6a76dee2624516::t_e48d55c35081ca 17,23,44,79,108,164,207-220,222-230,233-234,244-260,263-265,275-291,354-364,366-376,400-414,418-489
+app/src/components/block/goal-menu.tsx
+  s_6a76dee2624516::t_deda95371d2675 15,31,57-66
+app/src/lib/campaign.ts
+  s_6a76dee2624516::t_f5b010b8b14520 1-104
+app/src/server/block-compute.server.ts
+  s_6a76dee2624516::t_1204403398b039 37,277-279,1199-1202
+app/src/components/block/editable-campaign-quantity.tsx
+  s_6a76dee2624516::t_c83466bc159231 1-49
+app/src/components/block/format.ts
+  s_9b414c9756d93c::t_7830f2058e0cb8 5
+app/src/components/block/recipe-row.tsx
+  s_6a76dee2624516::t_0825765c0feeea 113,139-143,216-220,224-237
+app/src/components/block/snapshot-diff.tsx
+  s_6a76dee2624516::t_ba7647f40f2a58 7,75-88,274-280
+app/src/components/whatif/factory-pins-card.tsx
+  s_6a76dee2624516::t_54ab02df5a0234 33,43-44,46-47,94-99,105,119,126
+app/src/db/schema.ts
+  s_6a76dee2624516::t_f51141698990c5 406-416,438-440
+app/src/lib/block-diff.test.ts
+  s_6a76dee2624516::t_ee96373755512b 56-72
+app/src/lib/block-diff.ts
+  s_6a76dee2624516::t_a37feb6ebc6ddb 35-38,73-76,158-159,173
+app/src/lib/campaign.test.ts
+  s_6a76dee2624516::t_f6484b7267ed16 1-48
+app/src/lib/format.ts
+  s_9b414c9756d93c::t_58f413f0b07fc7 122-127
+app/src/lib/goals.test.ts
+  s_6a76dee2624516::t_6d6c2599366a15 11-20
+app/src/lib/goals.ts
+  s_6a76dee2624516::t_2fadb74c587b47 18,34,37-48,50-57,61-64,67-71
+app/src/routes/block.$id.tsx
+  s_6a76dee2624516::t_9bbf34cbcb18ce 275,277-281,283-288,516-533,867-869,985
+app/src/server/block-compute.test.ts
+  s_6a76dee2624516::t_21a1aa1b598cea 74-75,87-88,100-102,209-224
+app/src/server/factorio.ts
+  s_6a76dee2624516::t_5bed748528658c 377
+app/src/server/factory-plan.server.ts
+  s_6a76dee2624516::t_ae9b1d25bcf0f7 39,219-225,234-236,245,247,252,270-271,273-277,281,292-293,362-374,637-642,656-659,1141-1145,1191-1192,1320-1335,1337-1339
+app/src/server/factory-plan.test.ts
+  s_6a76dee2624516::t_e22986488eab1c 66-70,396-399,433-453
+docs/development/solver.md
+  s_6a76dee2624516::t_245b717708c95c 75-84,354-357
+docs/getting-started/factory.md
+  s_6a76dee2624516::t_1d7ff9568f0fd5 24-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "4de0c03e8c85a532c988770fef68f60df6f75956",
+  "prompts": {},
+  "sessions": {
+    "s_6a76dee2624516": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f65b5-e9c4-7c83-b7a7-d2e38c5410dd",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_9b414c9756d93c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f66bf-358c-7d10-ba54-029fd74359cc",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
