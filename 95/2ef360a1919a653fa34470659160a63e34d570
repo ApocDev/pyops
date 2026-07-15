@@ -1,0 +1,43 @@
+app/src/components/drift-modal.tsx
+  s_9b414c9756d93c::t_6f45a040ad9f69 52-55,100-105,130-131,179-180,198-199,201,284-285,287,293-294,296,310-318,320-327
+app/src/lib/data-format.test.ts
+  s_9b414c9756d93c::t_b6a4b9490b8ca0 1-25
+app/src/server/factorio.ts
+  s_9b414c9756d93c::t_8a00c2b073da83 14,1097-1101,1106,1121-1122,1124-1128
+app/e2e/mut/data-format-drift.e2e.ts
+  s_9b414c9756d93c::t_670d36eaebb655 1-39
+app/src/components/app-nav.tsx
+  s_9b414c9756d93c::t_db489bc3a9be6a 17-19,24
+app/src/db/import-factorio.test.ts
+  s_9b414c9756d93c::t_de94694d92a1d0 6-9,97-108
+app/src/db/import-factorio.ts
+  s_9b414c9756d93c::t_7add6c523da300 18-21,184,631-633,637-643
+app/src/lib/data-format.ts
+  s_9b414c9756d93c::t_8288cae4182a4a 1-31
+app/src/routes/settings.tsx
+  s_9b414c9756d93c::t_779981aa988638 154-155,176-186,309
+app/src/server/dump.server.ts
+  s_9b414c9756d93c::t_3fa1136192908c 602
+docs/development/data-pipeline.md
+  s_9b414c9756d93c::t_224b3aca147d38 88-94,288-292
+docs/getting-started/sync-game-data.md
+  s_9b414c9756d93c::t_a7896dcc47470c 75-79
+docs/reference/settings-and-storage.md
+  s_9b414c9756d93c::t_7d906f862255a7 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "952ef360a1919a653fa34470659160a63e34d570",
+  "prompts": {},
+  "sessions": {
+    "s_9b414c9756d93c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f66bf-358c-7d10-ba54-029fd74359cc",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
