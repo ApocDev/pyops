@@ -1,0 +1,35 @@
+app/e2e/mut/product-probability.e2e.ts
+  s_9b414c9756d93c::t_f7eeee1fa2dbe3 1-49
+app/src/components/block/item-chip.test.tsx
+  s_9b414c9756d93c::t_c3b8a2711d99f6 3,14-19,21-47
+app/src/components/block/item-chip.tsx
+  s_9b414c9756d93c::t_b0732ae98a3a13 5,30-33,55-59,108-123,129,141,166-175
+app/src/components/block/recipe-row.tsx
+  s_9b414c9756d93c::t_292eb29bd5f05e 224,229,233-237,550,553-556,565-568
+app/src/db/import-factorio.test.ts
+  s_9b414c9756d93c::t_23d6dde05c1cdc 52-92
+app/src/db/import-factorio.ts
+  s_9b414c9756d93c::t_c1b8e93ec843e3 79-98,343
+app/src/db/schema.ts
+  s_9b414c9756d93c::t_2ef3c60958c231 97-98
+docs/development/data-pipeline.md
+  s_9b414c9756d93c::t_390103585c4b8f 101-103
+docs/guide/blocks.md
+  s_9b414c9756d93c::t_b49ab0912e1d06 98-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "1964dfdc9f60b2511b27758a6dd3d293bd1d80e9",
+  "prompts": {},
+  "sessions": {
+    "s_9b414c9756d93c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f66bf-358c-7d10-ba54-029fd74359cc",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
