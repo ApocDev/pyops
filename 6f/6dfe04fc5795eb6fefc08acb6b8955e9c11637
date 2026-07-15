@@ -1,0 +1,269 @@
+app/src/components/browse/good-detail.tsx
+  s_67a45f82fe75dd::t_ef8a15dc2c508f 82,112,138,148,159,172,181
+app/src/components/horizon-picker.tsx
+  s_67a45f82fe75dd::t_108f9c43cb37b3 81,89,100,119,125,134,159,161,163,165,231,241,247,265,283-284,322,327,370
+app/src/design-system.test.ts
+  s_67a45f82fe75dd::t_f55f00e6244e97 5,46-181,208-223
+app/src/routes/assistant.tsx
+  s_67a45f82fe75dd::t_d831d4b2dd0ef9 155,178,194,203,218,823,921,1024,1029,1033,1262,1443,1460,1486,1517,1533-1534,1540,1547,1549,1563,1584,1596,1674,1818-1819,1914,1939-1940,2009,2018,2028-2029
+app/src/routes/settings.tsx
+  s_67a45f82fe75dd::t_1db0d32e116be1 154-155,168,171,174,304,317,372,387,419,439,442,452,522,531,534,540,632,639-641,663,671,674,698,705,791,802
+docs/development/design.md
+  s_67a45f82fe75dd::t_5a390715df54ee 41-46,53-70
+app/e2e/bridge.e2e.ts
+  s_67a45f82fe75dd::t_c94e5669a27628 26-30,40,50,54-58,71-73
+app/e2e/deps.e2e.ts
+  s_67a45f82fe75dd::t_f9c0120d308f4a 21,38-39,42,46-47,50,53,55
+app/e2e/explorer-alt-click.e2e.ts
+  s_67a45f82fe75dd::t_1e13b5aa84aebc 14
+app/e2e/factory-machines.e2e.ts
+  s_67a45f82fe75dd::t_d54ced9722b3b6 31-32,42,50,61,63
+app/e2e/filter.e2e.ts
+  s_67a45f82fe75dd::t_a22d79ae400b46 17,20,22,34,37,50,54
+app/e2e/mut/backup.e2e.ts
+  s_67a45f82fe75dd::t_ef5f2bb18a31bf 62
+app/e2e/mut/block-folders.e2e.ts
+  s_67a45f82fe75dd::t_258fb0ea6ea8d3 9
+app/e2e/mut/count-pin.e2e.ts
+  s_67a45f82fe75dd::t_03755f298a4330 20,26,34,45-46,68,72-73,157,159,162,173,177
+app/e2e/mut/destructive.e2e.ts
+  s_67a45f82fe75dd::t_83cdb16440278f 31,46,69
+app/e2e/mut/explorer.e2e.ts
+  s_67a45f82fe75dd::t_55a36959eb9f5c 31,44,49,52
+app/e2e/mut/extract-recipe.e2e.ts
+  s_67a45f82fe75dd::t_dfd06b5d2fcc6a 8,13
+app/e2e/mut/factory-debug.e2e.ts
+  s_67a45f82fe75dd::t_8eb0b63a9079b3 24-26
+app/e2e/mut/flow-view.e2e.ts
+  s_67a45f82fe75dd::t_0cc9d482e2133d 18
+app/e2e/mut/fluid-fuel.e2e.ts
+  s_67a45f82fe75dd::t_8c656ce43cd38b 26,35,62,64,67,70
+app/e2e/mut/goal-rates.e2e.ts
+  s_67a45f82fe75dd::t_69caecc411c707 49,87,89,117
+app/e2e/mut/goal-recipe-shortcut.e2e.ts
+  s_67a45f82fe75dd::t_d44def6135acc3 9
+app/e2e/mut/helpers.ts
+  s_67a45f82fe75dd::t_389dfe7698c44c 75,94,101,103,112
+app/e2e/mut/horizon.e2e.ts
+  s_67a45f82fe75dd::t_49c32e948ae003 10,14,18
+app/e2e/mut/loading-fit.e2e.ts
+  s_67a45f82fe75dd::t_8d6069bc677155 23,28,45
+app/e2e/mut/made-links.e2e.ts
+  s_67a45f82fe75dd::t_67213b765e8ab4 16,18,22,27,40,42,47,51,109,119-121,123,160,172,174,183,212,220-221
+app/e2e/mut/module-autofill.e2e.ts
+  s_67a45f82fe75dd::t_14f00cf8090fe2 11,28,30,35,46-47
+app/e2e/mut/module-presets.e2e.ts
+  s_67a45f82fe75dd::t_4fa564117f5bc2 9,30,32,51,58-59,66
+app/e2e/mut/overlays.e2e.ts
+  s_67a45f82fe75dd::t_f7deb441dd196c 19
+app/e2e/mut/palette.e2e.ts
+  s_67a45f82fe75dd::t_f46343c42edc19 37,48
+app/e2e/mut/project-dialog.e2e.ts
+  s_67a45f82fe75dd::t_5e0f5320285457 14,24
+app/e2e/mut/reactor-layout.e2e.ts
+  s_67a45f82fe75dd::t_6684f261d27291 21,23,35,49,53
+app/e2e/mut/rebalance.e2e.ts
+  s_67a45f82fe75dd::t_8d492e2104d71e 21,176,273
+app/e2e/mut/recipe-order.e2e.ts
+  s_67a45f82fe75dd::t_052f2904188da0 9
+app/e2e/mut/snapshots.e2e.ts
+  s_67a45f82fe75dd::t_ad8f2846ff8e4d 37,45,64
+app/e2e/mut/spoilage.e2e.ts
+  s_67a45f82fe75dd::t_ace7717d167e8c 12,21,28-29,34
+app/e2e/mut/subblock.e2e.ts
+  s_67a45f82fe75dd::t_ccc8bfc1f746a3 15,17,22,29,54,74,76,78,80,83,86,93,96-97
+app/e2e/mut/sushi.e2e.ts
+  s_67a45f82fe75dd::t_bef95c34a5ba6e 11-18,22,26,31,36,38,41,43,47,51-52
+app/e2e/mut/temp-warnings.e2e.ts
+  s_67a45f82fe75dd::t_961c49a2d90e0d 20,22,27,46-48,53,59-61
+app/src/components/app-nav.tsx
+  s_67a45f82fe75dd::t_b4ddaa0b524aa8 31,43
+app/src/components/assistant/follow-up-chips.tsx
+  s_67a45f82fe75dd::t_b47077818fdcf4 92
+app/src/components/assistant/game-eval-card.test.tsx
+  s_67a45f82fe75dd::t_f0c466dc2325d3 36,42
+app/src/components/assistant/game-eval-card.tsx
+  s_67a45f82fe75dd::t_c269729545e6cc 41,44,84,89,93,106,110,126
+app/src/components/assistant/show-in-game-button.test.tsx
+  s_67a45f82fe75dd::t_630b6d3e8f7c15 23,30
+app/src/components/assistant/show-in-game-button.tsx
+  s_67a45f82fe75dd::t_320cc5b9bfafae 47,50
+app/src/components/block-share-card.tsx
+  s_67a45f82fe75dd::t_a19b06b0117470 66,69,77,101,104,109,128,130,136
+app/src/components/block/balance-card.tsx
+  s_67a45f82fe75dd::t_5811f1464c1d34 139,149-153,175,180,192,207,214,223,236,243-244,263,284,310,346,374,381,386,401,422,468
+app/src/components/block/block-flow-view.tsx
+  s_67a45f82fe75dd::t_e251f5ff48c2dc 85,89-91,96
+app/src/components/block/block-toolbar.tsx
+  s_67a45f82fe75dd::t_f815f1fd30aa4f 85-86,116,121,124,212,214,272,276,280-284
+app/src/components/block/building-picker-dialog.tsx
+  s_67a45f82fe75dd::t_d79edb4522dbe8 85,94,117,126
+app/src/components/block/editable-count.tsx
+  s_67a45f82fe75dd::t_369b296e10ffea 79,81-82
+app/src/components/block/editable-rate.tsx
+  s_67a45f82fe75dd::t_de64da09071301 48,50-51,61
+app/src/components/block/editable-stock.tsx
+  s_67a45f82fe75dd::t_63f90ae6ce973b 37,40,44
+app/src/components/block/fuel-picker-dialog.tsx
+  s_67a45f82fe75dd::t_6e8a875e8b6d0f 74,97
+app/src/components/block/goal-card.tsx
+  s_67a45f82fe75dd::t_add010b1bfefc6 165,170,180,192,207,213,250,260,262,305,309,319,321
+app/src/components/block/goal-picker-dialog.tsx
+  s_67a45f82fe75dd::t_40265cbcc57385 30
+app/src/components/block/good-menu.tsx
+  s_67a45f82fe75dd::t_0a998cb5c885a1 123
+app/src/components/block/group-compose-dialog.tsx
+  s_67a45f82fe75dd::t_3438033dcb4fc5 101
+app/src/components/block/group-header-row.tsx
+  s_67a45f82fe75dd::t_2592d53a5aa6ad 86,95,124,135,175,198-199,209
+app/src/components/block/icon-picker-dialog.tsx
+  s_67a45f82fe75dd::t_9328b62115cc91 45-46,50
+app/src/components/block/item-chip.test.tsx
+  s_67a45f82fe75dd::t_458dab3a9d3f67 66,99
+app/src/components/block/item-chip.tsx
+  s_67a45f82fe75dd::t_16411c1498d313 68,70-75,113,129
+app/src/components/block/item-search-list.tsx
+  s_67a45f82fe75dd::t_284e0d93aa1ec2 35,58,64
+app/src/components/block/loading-fit-count.tsx
+  s_67a45f82fe75dd::t_7fcfbcd5a086bf 66,80
+app/src/components/block/missing-recipe-row.tsx
+  s_67a45f82fe75dd::t_cdb5bf4149a762 28,30,39
+app/src/components/block/output-priority-override.tsx
+  s_67a45f82fe75dd::t_4a767f9e804af8 29,31,43
+app/src/components/block/pin-dialog.tsx
+  s_67a45f82fe75dd::t_29287b2d3bb9cd 85,87,93,95,115,127,133,147,178,185,194,204,213
+app/src/components/block/reactor-layout-chip.tsx
+  s_67a45f82fe75dd::t_cc1e6b7724dfab 34
+app/src/components/block/recipe-grid.tsx
+  s_67a45f82fe75dd::t_ba19809c9ea65e 182,185,190
+app/src/components/block/recipe-picker-dialog.tsx
+  s_67a45f82fe75dd::t_cf8a5583a9a070 66,98,106,118,122,133-134,154,156,165,171,187,189-190,203-204
+app/src/components/block/recipe-row.tsx
+  s_67a45f82fe75dd::t_e1a043e92e2047 167,193-194,197,199,203-204,220-221,231,234,251,283,293,298,321,328,407,434
+app/src/components/block/recipe-spoilage-indicator.test.tsx
+  s_67a45f82fe75dd::t_04610c53795662 17,34
+app/src/components/block/recipe-spoilage-indicator.tsx
+  s_67a45f82fe75dd::t_b0d0a470e7a4ed 29
+app/src/components/block/snapshot-diff.tsx
+  s_67a45f82fe75dd::t_2c92f19674c2b2 62,112,119,126,133,149,160,171,179,187,221
+app/src/components/block/snapshot-sheet.tsx
+  s_67a45f82fe75dd::t_682f07210807cf 120,131,153,177,214,254,256
+app/src/components/block/spoil-rate-dialog.tsx
+  s_67a45f82fe75dd::t_1309ba2173cf67 55,59,70,80
+app/src/components/block/styles.ts
+  s_67a45f82fe75dd::t_b21c31b3a87c55 6
+app/src/components/block/supply-priority-control.tsx
+  s_67a45f82fe75dd::t_8f876893c4f01f 62
+app/src/components/block/sushi-planner.tsx
+  s_67a45f82fe75dd::t_1a91636b3cc1b3 44-48,57-58,61,65,69,187,256,263,273,280,288,311,314-316,334-335,338,344,358,374-375,384,387,389,392,394
+app/src/components/block/temp-warnings.test.ts
+  s_67a45f82fe75dd::t_5531f1790650d1 57,76
+app/src/components/block/temp-warnings.ts
+  s_67a45f82fe75dd::t_b1a12f0068f02c 51
+app/src/components/bridge-card.tsx
+  s_67a45f82fe75dd::t_7eeea5ff7c0d47 36-37,60,62-63,65-66,86,115
+app/src/components/bridge-indicator.test.tsx
+  s_67a45f82fe75dd::t_ffb1f1c5195bc2 38,47,62,66,75,88,101
+app/src/components/bridge-indicator.tsx
+  s_67a45f82fe75dd::t_4098ab2e9eabf7 29,35,41,47,52
+app/src/components/browse/flow-stale-callout.tsx
+  s_67a45f82fe75dd::t_8fc9435e68b3be 26
+app/src/components/browse/recipe-list.tsx
+  s_67a45f82fe75dd::t_16e8b247340b71 62,104
+app/src/components/browse/recipe-row.tsx
+  s_67a45f82fe75dd::t_299e204f905e63 94,99,131,133,162,165,172,243,266,269
+app/src/components/command-palette.tsx
+  s_67a45f82fe75dd::t_36f914e01044f4 301
+app/src/components/companion-mod-card.tsx
+  s_67a45f82fe75dd::t_d79d9ed45fd737 57,60,63,109,151,160,169
+app/src/components/deps/deps-filter-results.tsx
+  s_67a45f82fe75dd::t_c8038ea7ce24c2 62,73,83
+app/src/components/deps/deps-node.tsx
+  s_67a45f82fe75dd::t_fa05e8e8318715 24-26,104-105,120,162-163,167-168,174,185,195
+app/src/components/deps/deps-tree-pane.tsx
+  s_67a45f82fe75dd::t_5d53c006c23011 57-58,87,98,108,114,122,129,164-165,167-168
+app/src/components/drift-changes.tsx
+  s_67a45f82fe75dd::t_c724e33268a407 34,38-40,57,62
+app/src/components/drift-modal.tsx
+  s_67a45f82fe75dd::t_05033ce9c5dbb1 208,226,228,372
+app/src/components/factory/machines-card.tsx
+  s_67a45f82fe75dd::t_c76e124d99ca49 61-64,113,120,137,148,175,178,182,204,207,211
+app/src/components/filter-empty-state.tsx
+  s_67a45f82fe75dd::t_60a3fe9e0bd1a0 24
+app/src/components/filter-input.tsx
+  s_67a45f82fe75dd::t_58098b3eaddc23 44
+app/src/components/goods-table.tsx
+  s_67a45f82fe75dd::t_7bbe0520ae3854 45-49,52,84,98,144,151,180,182,188,191,195,209,213
+app/src/components/launch-factorio-button.tsx
+  s_67a45f82fe75dd::t_9e3ff4d3c8248a 58
+app/src/components/logistics-menu.tsx
+  s_67a45f82fe75dd::t_d131b264c947bf 209,223,232,235
+app/src/components/project-backup-card.tsx
+  s_67a45f82fe75dd::t_3dea361b85c284 77,101,105
+app/src/components/project-switcher.test.tsx
+  s_67a45f82fe75dd::t_a15c129a7a1d9b 51,56,58,63,71-72,87-88,98-99,108-109,117,119
+app/src/components/project-switcher.tsx
+  s_67a45f82fe75dd::t_76be9fa06417d8 73,101,113
+app/src/components/settings/factory-solver-debug-card.tsx
+  s_67a45f82fe75dd::t_833f39f0724d00 66
+app/src/components/shortcut-help-sheet.tsx
+  s_67a45f82fe75dd::t_3420466a1b0afb 61
+app/src/components/stat-sort-header.tsx
+  s_67a45f82fe75dd::t_3e5bd62b3dd9f9 36
+app/src/components/ui/card.tsx
+  s_67a45f82fe75dd::t_219d8a2a4ef3cd 32
+app/src/components/whatif/factory-pins-card.tsx
+  s_67a45f82fe75dd::t_9f39d07e30239d 55
+app/src/components/whatif/rebalance-all-button.tsx
+  s_67a45f82fe75dd::t_51712418590ba7 120,186
+app/src/components/whatif/scenario-validation-card.test.tsx
+  s_67a45f82fe75dd::t_e8ceb0ccc11236 41
+app/src/components/whatif/scenario-validation-card.tsx
+  s_67a45f82fe75dd::t_f11682d1b5f4ed 68,138,174
+app/src/components/whatif/supply-allocation-card.tsx
+  s_67a45f82fe75dd::t_faf6846b22026d 24,31,53
+app/src/lib/modules-modal.tsx
+  s_67a45f82fe75dd::t_c9604e228a1a17 100,208,225,280,286,321,588,591,593,603,605,623,630,648,671-672,698,700,706,719,721,743,757,762-763,766,771,795,823,840
+app/src/lib/recipe-card.test.tsx
+  s_67a45f82fe75dd::t_c81a1e7f0f69a8 61,69
+app/src/lib/recipe-card.tsx
+  s_67a45f82fe75dd::t_7120ff619dae38 90,98,106,116,161,179,188,306,324,337,342,348,350,352,605,611,619,630,782,789,807,897
+app/src/routes/block.$id.tsx
+  s_67a45f82fe75dd::t_9d12280f1ff194 801,811,862
+app/src/routes/block.index.tsx
+  s_67a45f82fe75dd::t_c3314c638d7a40 14
+app/src/routes/block.tsx
+  s_67a45f82fe75dd::t_712352659f4f08 475,477,480,526,534,561,578-579,583,609,643,690,695,702,729,829,835
+app/src/routes/explore.tsx
+  s_67a45f82fe75dd::t_18921ea1348349 82,95,107,126
+app/src/routes/explore_.dependencies.tsx
+  s_67a45f82fe75dd::t_dc3123afbca874 110,117,129,155,160,201
+app/src/routes/factory.tsx
+  s_67a45f82fe75dd::t_375d595139d7fd 185,201,208,213,307,314,354,367,380,389,400,458,466,489,491,495,500,503,580,632,635,648,653,679,682,685,688,700,705,712
+app/src/routes/factory_.connections.tsx
+  s_67a45f82fe75dd::t_1d97c57f01cbf7 112,206,219,229,241,256,267,346,352,406,431,433,462-463,466,468,570,615,626,652,663,704
+app/src/routes/factory_.scenario.tsx
+  s_67a45f82fe75dd::t_54a75b39f80f1f 57,62,159,172,175-179,190,202,206,212,215,218,232,239-240,244,261-262,291
+app/src/routes/index.tsx
+  s_67a45f82fe75dd::t_3ee4dab2eb2d94 287,298,309,320,325-326
+app/src/routes/tasks.tsx
+  s_67a45f82fe75dd::t_4535d9ea3c11c6 65-71,268,429,507,691,775,867,910,995,1006,1048,1060-1061,1135
+app/src/routes/turd.tsx
+  s_67a45f82fe75dd::t_2ae7e77adfd766 104,219,222,225,229,231
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "6f6dfe04fc5795eb6fefc08acb6b8955e9c11637",
+  "prompts": {},
+  "sessions": {
+    "s_67a45f82fe75dd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6376-740a-7e73-9150-9ab3dfaeaf62",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
