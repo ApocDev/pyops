@@ -65,6 +65,7 @@ export function RecipeRow({
   display,
   grouped,
   off,
+  error,
   gridClass,
   confirmRemove,
   onRequestRemove,
@@ -86,6 +87,8 @@ export function RecipeRow({
   grouped: boolean;
   /** toggled out of the solve (#73) */
   off: boolean;
+  /** the block solve failed while this enabled recipe participated */
+  error: boolean;
   /** pinned to 0 — nothing in the block needs it */
   gridClass: string;
   /** the click-to-confirm remove is armed on this row */
@@ -136,7 +139,15 @@ export function RecipeRow({
     if (highlight) rowRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [highlight]);
   const surface = (dragging: boolean) =>
-    dragging ? "bg-card shadow-lg" : off ? "bg-muted/30" : grouped ? "bg-foreground/[0.025]" : "";
+    dragging
+      ? "bg-card shadow-lg"
+      : off
+        ? "bg-muted/30"
+        : error
+          ? "bg-destructive/10"
+          : grouped
+            ? "bg-foreground/[0.025]"
+            : "";
   return (
     <SortableRow key={name} id={name}>
       {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
@@ -181,6 +192,12 @@ export function RecipeRow({
               {off ? (
                 <Tooltip content="excluded from the solve">
                   <span className="text-sm font-semibold text-muted-foreground">disabled</span>
+                </Tooltip>
+              ) : error ? (
+                <Tooltip content="the block solve failed — edit this row to repair it">
+                  <span className="flex items-center gap-1 text-sm font-semibold text-destructive">
+                    <AlertTriangle className="size-3" /> solve failed
+                  </span>
                 </Tooltip>
               ) : idle ? (
                 <Tooltip content="nothing in this block pulls it">

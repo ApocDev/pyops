@@ -775,7 +775,19 @@ export async function computeBlock(rawData: SolveInput) {
   let totalPollutionPerMin = 0;
   const fuelTotals = new Map<string, { display: string | null; kind: string; perSec: number }>();
   const burntTotals = new Map<string, { display: string | null; perSec: number }>(); // burnt result (ash, …)
-  const rows = result.recipes.map((rr) => {
+  // An infeasible/error solve has no usable rates, but the editor still needs
+  // the selected machine, fuel, modules, and recipe I/O to remain reachable so
+  // the player can repair the block. Add zero-rate presentation rows for every
+  // enabled recipe the solver omitted. These are editor metadata only: the raw
+  // result, boundary flows, and persistence still use `result.recipes`.
+  const resultRecipeNames = new Set(result.recipes.map((r) => r.recipe));
+  const rowRecipes = [
+    ...result.recipes,
+    ...fetched
+      .filter((recipe) => !resultRecipeNames.has(recipe.name))
+      .map((recipe) => ({ recipe: recipe.name, rate: 0, machines1x: 0 })),
+  ];
+  const rows = rowRecipes.map((rr) => {
     const def = byName.get(rr.recipe)!;
     const scaled = defByName.get(rr.recipe)!;
     const { chosen, machineModules, beaconCfgs, turdModules, effects: fx } = setup.get(rr.recipe)!;

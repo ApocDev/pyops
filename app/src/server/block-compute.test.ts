@@ -1044,6 +1044,9 @@ describe("count pins and produced goals (#121)", () => {
     });
     expect(res.status).toBe("infeasible"); // 2.5/s needs 3 buildings, cap says ≤ 2
     expect(res.goalSuperseded).toEqual([]);
+    expect(res.rows.map((row) => row.recipe)).toEqual(["mk-steel", "mk-iron"]);
+    expect(res.rows.every((row) => row.rate === 0)).toBe(true);
+    expect(res.rows.find((row) => row.recipe === "mk-steel")?.machine?.name).toBe("foundry");
   });
 
   it("a count pin on a NON-goal producer leaves the goal binding", async () => {

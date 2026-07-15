@@ -70,6 +70,7 @@ export function RecipeGrid({
   const rowGroups = useStore(doc.store, (s) => s.rowGroups);
   const recipeGroups = useStore(doc.store, (s) => s.recipeGroups);
   const disabled = useStore(doc.store, (s) => s.disabled);
+  const solveFailed = res?.status === "infeasible" || res?.status === "error";
 
   // Sub-block fold state is a view preference — localStorage, not the doc, so
   // folding doesn't churn auto-save.
@@ -231,6 +232,7 @@ export function RecipeGrid({
                 display={res?.recipeDisplay?.[name] ?? name}
                 grouped={recipeGroups[name] != null}
                 off={off}
+                error={solveFailed && !off}
                 gridClass={GRID}
                 confirmRemove={confirmRemove === name}
                 onRequestRemove={() => requestRemove(name)}

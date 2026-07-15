@@ -46,6 +46,49 @@ test("building count: click to fix, tint shows fixed, clear to unpin", async ({ 
   await expect(page.locator('button[title^="fixed at"]')).toHaveCount(0);
 });
 
+test("an infeasible block keeps its burner row editable", async ({ page }) => {
+  const db = new DatabaseSync(activeProjectDbFile());
+  db.exec("PRAGMA busy_timeout = 5000");
+  const data = {
+    recipes: ["boil-steam-250"],
+    made: ["steam"],
+    pins: [{ kind: "cap", recipe: "boil-steam-250", count: 0 }],
+    machines: { "boil-steam-250": "boiler" },
+    fuels: { "boil-steam-250": "coal" },
+    goals: [{ name: "steam", rate: 1 }],
+  };
+  const inserted = db
+    .prepare("INSERT INTO blocks (name, data) VALUES (?, ?)")
+    .run(uniqueName("Recoverable boiler"), JSON.stringify(data));
+  const id = Number(inserted.lastInsertRowid);
+  db.close();
+
+  try {
+    await goto(page, `/block/${id}`);
+    await expect(page.getByText(/infeasible/).first()).toBeVisible();
+
+    const row = page.locator('[data-recipe-row="boil-steam-250"]');
+    await expect(row).toHaveClass(/bg-destructive\/10/);
+    await expect(row.getByText("solve failed", { exact: true })).toBeVisible();
+    await expect(row.getByLabel("change Boiler building")).toBeVisible();
+    await expect(row.getByTitle(/Coal .* click to change fuel/)).toBeVisible();
+    await expect(row.getByLabel(/^Water /)).toBeVisible();
+    await expect(row.getByLabel(/^Steam /)).toBeVisible();
+
+    await row.getByTitle(/Coal .* click to change fuel/).click();
+    const fuels = page.getByRole("dialog", { name: "Fuel for Boil Steam (250°)" });
+    await expect(fuels.getByRole("button", { name: /^Raw coal/ })).toBeVisible();
+  } finally {
+    const cleanup = new DatabaseSync(activeProjectDbFile());
+    try {
+      cleanup.exec("PRAGMA busy_timeout = 5000");
+      cleanup.prepare("DELETE FROM blocks WHERE id = ?").run(id);
+    } finally {
+      cleanup.close();
+    }
+  }
+});
+
 test("variable generator shows its average and min-max output", async ({ page }) => {
   const db = new DatabaseSync(activeProjectDbFile());
   db.exec("PRAGMA busy_timeout = 5000");
