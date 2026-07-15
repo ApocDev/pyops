@@ -1,0 +1,21 @@
+app/e2e/mut/count-pin.e2e.ts
+  s_6a76dee2624516::t_20be2300f04361 92-154
+app/src/components/block/fuel-picker-dialog.tsx
+  s_6a76dee2624516::t_fcad76cf06615a 13-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "97e88cc5833f073a666940dfcfbff3ef73dce529",
+  "prompts": {},
+  "sessions": {
+    "s_6a76dee2624516": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f65b5-e9c4-7c83-b7a7-d2e38c5410dd",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
