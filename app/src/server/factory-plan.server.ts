@@ -12,6 +12,7 @@ import {
   startFactorySolverTrace,
   type FactorySolverTraceRecorder,
 } from "./factory-debug.server.ts";
+import type { FactorySolveProgressReporter } from "./factory-progress.server.ts";
 import { withUndoAction } from "./undo-action.server.ts";
 
 const PINS_META_KEY = "factory_pins_v1";
@@ -140,7 +141,30 @@ export type PinnedFactoryResult = {
   validation: FactoryValidation | null;
 };
 
+const RESPONSE_CACHE_MAX_ENTRIES = 512;
 const responseCache = new Map<string, Promise<BlockResponse>>();
+
+function cachedBlockResponse(key: string): Promise<BlockResponse> | undefined {
+  const pending = responseCache.get(key);
+  if (!pending) return undefined;
+  // Refresh insertion order so frequently reused response models survive the
+  // bounded cache while old re-linearization passes are discarded.
+  responseCache.delete(key);
+  responseCache.set(key, pending);
+  return pending;
+}
+
+function cacheBlockResponse(key: string, pending: Promise<BlockResponse>) {
+  responseCache.set(key, pending);
+  while (responseCache.size > RESPONSE_CACHE_MAX_ENTRIES) {
+    const oldest = responseCache.keys().next().value;
+    if (oldest == null) break;
+    responseCache.delete(oldest);
+  }
+  void pending.catch(() => {
+    if (responseCache.get(key) === pending) responseCache.delete(key);
+  });
+}
 
 function parsePins(): FactoryPin[] | null {
   const raw = q.metaAll()[PINS_META_KEY];
@@ -267,7 +291,7 @@ async function responseColumns(
   doc: SolveInput,
 ): Promise<BlockResponse> {
   const key = `${row.id}\u0000${String(row.updatedAt)}\u0000${JSON.stringify(doc)}`;
-  let pending = responseCache.get(key);
+  let pending = cachedBlockResponse(key);
   if (!pending) {
     pending = (async () => {
       const reference = responseReferenceDoc(doc);
@@ -402,7 +426,7 @@ async function responseColumns(
       );
       return { columns: solvedColumns, fixed };
     })();
-    responseCache.set(key, pending);
+    cacheBlockResponse(key, pending);
   }
   return pending;
 }
@@ -432,6 +456,7 @@ export async function solvePinnedFactory(
   parentTrace?: FactorySolverTraceRecorder | null,
   linearization?: ReadonlyMap<string, number>,
   pass = 1,
+  progress?: FactorySolveProgressReporter | null,
 ): Promise<PinnedFactoryResult> {
   const trace = parentTrace === undefined ? startFactorySolverTrace(traceSource) : parentTrace;
   const ownsTrace = parentTrace === undefined;
@@ -457,7 +482,30 @@ export async function solvePinnedFactory(
     }));
     const pinByGood = new Map(pins.map((pin) => [pin.good, pin]));
 
-    const responses = await Promise.all(rows.map(({ row, doc }) => responseColumns(row, doc)));
+    let completedResponses = 0;
+    progress?.update({
+      phase: "responses",
+      message: `Building block response models · ${rows.length} blocks`,
+      pass,
+      maxPasses: MAX_LINEARIZATION_PASSES,
+      current: 0,
+      total: rows.length,
+    });
+    const responses = await Promise.all(
+      rows.map(async ({ row, doc }) => {
+        const response = await responseColumns(row, doc);
+        completedResponses += 1;
+        progress?.update({
+          phase: "responses",
+          message: `Building block response models · ${completedResponses}/${rows.length}`,
+          pass,
+          maxPasses: MAX_LINEARIZATION_PASSES,
+          current: completedResponses,
+          total: rows.length,
+        });
+        return response;
+      }),
+    );
     const candidates = responses.flatMap((response) => response.columns);
     const fixedNet = new Map<string, number>();
     const fixedGross = new Map<string, number>();
@@ -638,6 +686,14 @@ export async function solvePinnedFactory(
       autoSinkGoods: [...autoSinkGoods],
       columns,
       model,
+    });
+    progress?.update({
+      phase: "solving",
+      message: `Solving factory model · ${columns.length} activities`,
+      pass,
+      maxPasses: MAX_LINEARIZATION_PASSES,
+      current: undefined,
+      total: undefined,
     });
     const highs = await highsLoader();
     const solution = highs.solve(model);
@@ -984,6 +1040,15 @@ export async function solvePinnedFactory(
           doc.goals.map((goal) => [`${row.id}\u0000${goal.name}`, goal.rate] as const),
         ),
       );
+      let validatedBlocks = 0;
+      progress?.update({
+        phase: "validating",
+        message: `Validating blocks · pass ${pass}/${MAX_LINEARIZATION_PASSES} · 0/${rows.length}`,
+        pass,
+        maxPasses: MAX_LINEARIZATION_PASSES,
+        current: 0,
+        total: rows.length,
+      });
       const solved = await Promise.all(
         rows.map(async ({ row, originalDoc }) => {
           const finalDoc: SolveInput = {
@@ -1002,6 +1067,15 @@ export async function solvePinnedFactory(
             }),
           };
           const blockResult = await computeBlock(finalDoc);
+          validatedBlocks += 1;
+          progress?.update({
+            phase: "validating",
+            message: `Validating blocks · pass ${pass}/${MAX_LINEARIZATION_PASSES} · ${validatedBlocks}/${rows.length}`,
+            pass,
+            maxPasses: MAX_LINEARIZATION_PASSES,
+            current: validatedBlocks,
+            total: rows.length,
+          });
           return { row, doc: finalDoc, result: blockResult };
         }),
       );
@@ -1152,6 +1226,14 @@ export async function solvePinnedFactory(
         });
         if (residual > VALIDATION_TOL || !goalsStable) {
           if (pass < MAX_LINEARIZATION_PASSES) {
+            progress?.update({
+              phase: "refining",
+              message: `Refining scenario · starting pass ${pass + 1}/${MAX_LINEARIZATION_PASSES}`,
+              pass: pass + 1,
+              maxPasses: MAX_LINEARIZATION_PASSES,
+              current: undefined,
+              total: undefined,
+            });
             trace?.event("relinearize", {
               pass,
               nextPass: pass + 1,
@@ -1166,6 +1248,7 @@ export async function solvePinnedFactory(
               trace,
               proposedRates,
               pass + 1,
+              progress,
             );
             if (ownsTrace) trace?.finish(refined);
             return refined;
@@ -1194,6 +1277,7 @@ export async function solvePinnedFactory(
 export async function applyPinnedFactory(
   demandOverrides: Record<string, number> = {},
   persistChanges = true,
+  progress?: FactorySolveProgressReporter | null,
 ) {
   const trace = startFactorySolverTrace("balance-apply");
   const complete = <T>(result: T): T => {
@@ -1201,7 +1285,14 @@ export async function applyPinnedFactory(
     return result;
   };
   try {
-    const plan = await solvePinnedFactory(demandOverrides, "balance-apply", trace);
+    const plan = await solvePinnedFactory(
+      demandOverrides,
+      "balance-apply",
+      trace,
+      undefined,
+      1,
+      progress,
+    );
     if (plan.status !== "Optimal")
       return complete({
         status: plan.status,
@@ -1225,7 +1316,15 @@ export async function applyPinnedFactory(
       changed: boolean;
     }[] = [];
     const broken: { id: number; name: string }[] = [];
-    for (const block of q.blocksWithFlows()) {
+    const enabledBlocks = q.blocksWithFlows();
+    let validatedBlocks = 0;
+    progress?.update({
+      phase: "validating",
+      message: `Final safety validation · 0/${enabledBlocks.length}`,
+      current: 0,
+      total: enabledBlocks.length,
+    });
+    for (const block of enabledBlocks) {
       const row = q.getBlock(block.id);
       if (!row) continue;
       const changes = changesByBlock.get(block.id) ?? [];
@@ -1247,6 +1346,13 @@ export async function applyPinnedFactory(
         }),
       };
       const result = await computeBlock(finalDoc);
+      validatedBlocks += 1;
+      progress?.update({
+        phase: "validating",
+        message: `Final safety validation · ${validatedBlocks}/${enabledBlocks.length}`,
+        current: validatedBlocks,
+        total: enabledBlocks.length,
+      });
       trace?.event("validation-block", {
         blockId: row.id,
         blockName: row.name,
@@ -1333,6 +1439,14 @@ export async function applyPinnedFactory(
       });
 
     const applied: { id: number; name: string; from: number; to: number }[] = [];
+    const changedEntries = solved.filter((entry) => entry.changed);
+    let appliedBlocks = 0;
+    progress?.update({
+      phase: "applying",
+      message: `Applying scenario · 0/${changedEntries.length}`,
+      current: 0,
+      total: changedEntries.length,
+    });
     await withUndoAction("Balance pinned factory", async () => {
       for (const entry of solved) {
         if (!entry.changed) continue;
@@ -1346,6 +1460,13 @@ export async function applyPinnedFactory(
           entry.doc,
           entry.result,
         );
+        appliedBlocks += 1;
+        progress?.update({
+          phase: "applying",
+          message: `Applying scenario · ${appliedBlocks}/${changedEntries.length}`,
+          current: appliedBlocks,
+          total: changedEntries.length,
+        });
         if (!changedBlockIds.has(entry.row.id)) continue;
         const change = changesByBlock.get(entry.row.id)![0]!;
         applied.push({

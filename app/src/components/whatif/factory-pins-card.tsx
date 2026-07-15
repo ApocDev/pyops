@@ -35,7 +35,7 @@ export function FactoryPinsCard({
     ) => setFactoryPinsFn({ data: rows }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["factoryPins"] });
-      await qc.invalidateQueries({ queryKey: ["whatif"] });
+      await qc.invalidateQueries({ queryKey: ["factoryScenarioSnapshot"] });
     },
   });
   const rows = pins.data ?? [];
@@ -90,12 +90,6 @@ export function FactoryPinsCard({
                     step="0.01"
                     value={value}
                     onChange={(event) => onOverride(pin.good, Number(event.target.value) || 0)}
-                    onBlur={() => {
-                      if (Math.abs(value) <= 1e-9) return;
-                      persist(
-                        rows.map((row) => (row.good === pin.good ? { ...row, rate: value } : row)),
-                      );
-                    }}
                     className="w-24 text-right"
                     aria-label={`${pin.display} factory pin`}
                   />

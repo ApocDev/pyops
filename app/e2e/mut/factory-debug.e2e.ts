@@ -15,15 +15,22 @@ test("Advanced settings captures a structured Scenario solver trace", async ({ p
 
     await page.setViewportSize({ width: 3840, height: 1080 });
     await goto(page, "/factory/scenario");
+    const status = page.getByTestId("scenario-status");
+    await expect(status).toBeVisible();
+    await expect(status).toHaveAttribute("data-state", /^(current|stale|empty|calculating)$/);
+    if (["empty", "calculating"].includes((await status.getAttribute("data-state")) ?? ""))
+      await expect(status).toHaveAttribute("data-state", "current", { timeout: 90_000 });
+    await status.getByRole("button", { name: "Recalculate" }).click();
+    await expect(status).toHaveAttribute("data-state", "current", { timeout: 90_000 });
     await expect(page.getByText("Goal changes", { exact: false }).first()).toBeVisible({
       timeout: 30_000,
     });
     const workspace = await page.getByTestId("scenario-workspace").boundingBox();
     expect(workspace?.width).toBeLessThanOrEqual(1600);
     expect(workspace?.x).toBeGreaterThan(1_000);
-    await expect(page.getByText("Factory use/s", { exact: true })).toBeVisible();
-    await expect(page.getByText("Block output/s", { exact: true })).toBeVisible();
-    await expect(page.getByText("Surplus/s", { exact: true })).toBeVisible();
+    await expect(page.getByText("Factory use/s", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Block output/s", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Surplus/s", { exact: true }).first()).toBeVisible();
 
     await goto(page, "/settings?tab=advanced");
     await page.getByRole("button", { name: "Refresh" }).click();

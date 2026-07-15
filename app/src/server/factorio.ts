@@ -25,12 +25,13 @@ import * as dump from "./dump.server.ts";
 import * as cfg from "./app-config.server.ts";
 import { computeCostAnalysis } from "./cost-analysis.server.ts";
 import { currentDatabaseFile } from "../db/index.server.ts";
+import { applyPinnedFactory, getFactoryPins, saveFactoryPins } from "./factory-plan.server.ts";
 import {
-  applyPinnedFactory,
-  getFactoryPins,
-  saveFactoryPins,
-  solvePinnedFactory,
-} from "./factory-plan.server.ts";
+  applyFactoryScenario,
+  calculateFactoryScenario,
+  factoryScenarioProgress,
+  getFactoryScenarioSnapshot,
+} from "./factory-scenario.server.ts";
 import {
   clearLatestFactorySolverTrace,
   getLatestFactorySolverTrace,
@@ -344,50 +345,21 @@ export const factoryTotalsFn = createServerFn({ method: "GET" }).handler(async (
   return q.factoryTotals();
 });
 
-/** Factory preview: solve every enabled block goal from the explicit factory
- * pins. `demands` contains unsaved rate edits from the Scenario page. */
+/** Read the last persisted Scenario result and report whether its deterministic
+ * factory-input key still matches the current project. This never solves. */
+export const factoryScenarioSnapshotFn = createServerFn({ method: "GET" }).handler(async () =>
+  getFactoryScenarioSnapshot(),
+);
+
+/** Explicit Factory Scenario calculation. `demands` contains draft rate edits;
+ * requestId connects the long-running request to its lightweight progress feed. */
 export const factoryWhatIfFn = createServerFn({ method: "POST" })
-  .validator((d: { demands?: Record<string, number> }) => d)
-  .handler(async ({ data }) => {
-    await ensureSolvedProjections();
-    const result = await solvePinnedFactory(data.demands ?? {});
-    const { allGoalChanges: _allGoalChanges, ...visibleResult } = result;
-    const display = (name: string) => pseudoDisplay(name) ?? q.classifyRef(name)?.display ?? name;
-    return {
-      ...visibleResult,
-      demands: result.demands.map((g) => ({ ...g, display: display(g.good) })),
-      raws: result.raws.map((g) => ({ ...g, display: display(g.good) })),
-      overproduced: result.overproduced.map((g) => ({ ...g, display: display(g.good) })),
-      validation: result.validation && {
-        ...result.validation,
-        materialConflicts: result.validation.materialConflicts.map((conflict) => ({
-          ...conflict,
-          display: display(conflict.good),
-        })),
-        blocks: result.validation.blocks.map((block) => ({
-          ...block,
-          goals: block.goals.map((goal) => ({ ...goal, display: display(goal.good) })),
-          unmade: block.unmade.map((good) => ({ good, display: display(good) })),
-        })),
-        discrepancies: result.validation.discrepancies.map((flow) => ({
-          ...flow,
-          display: display(flow.good),
-        })),
-        unstableGoals: result.validation.unstableGoals.map((goal) => ({
-          ...goal,
-          display: display(goal.good),
-        })),
-      },
-      goalChanges: result.goalChanges.map((change) => ({
-        ...change,
-        display: display(change.good),
-      })),
-      supplyAllocations: result.supplyAllocations.map((allocation) => ({
-        ...allocation,
-        display: display(allocation.good),
-      })),
-    };
-  });
+  .validator((d: { demands?: Record<string, number>; requestId?: string }) => d)
+  .handler(async ({ data }) => calculateFactoryScenario(data));
+
+export const factoryScenarioProgressFn = createServerFn({ method: "GET" })
+  .validator((requestId: string) => requestId)
+  .handler(async ({ data }) => factoryScenarioProgress(data));
 
 export const factoryPinsFn = createServerFn({ method: "GET" }).handler(async () => {
   const display = (name: string) => pseudoDisplay(name) ?? q.classifyRef(name)?.display ?? name;
@@ -411,8 +383,8 @@ export const setFactoryPinsFn = createServerFn({ method: "POST" })
   });
 
 export const applyPinnedFactoryFn = createServerFn({ method: "POST" })
-  .validator((d: { demands?: Record<string, number> }) => d)
-  .handler(async ({ data }) => applyPinnedFactory(data.demands ?? {}));
+  .validator((d: { demands?: Record<string, number>; requestId?: string }) => d)
+  .handler(async ({ data }) => applyFactoryScenario(data));
 
 export const validatePinnedFactoryFn = createServerFn({ method: "POST" })
   .validator((d: { demands?: Record<string, number> }) => d)

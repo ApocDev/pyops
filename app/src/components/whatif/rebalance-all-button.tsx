@@ -35,7 +35,7 @@ type BlockChange = {
 // Query families the apply touches — everything a block rate change feeds. Mirrors
 // undo-client's UNDO_QUERY_KEYS (this is a bulk block write) plus the what-if solve.
 const REFRESH_KEYS = [
-  ["whatif"],
+  ["factoryScenarioSnapshot"],
   ["blocks"],
   ["block"],
   ["blocksForGood"],
@@ -59,11 +59,17 @@ export function RebalanceAllButton({
   changed,
   overrides,
   status,
+  previewStale,
+  onProgressStart,
+  onProgressEnd,
   onApplied,
 }: {
   changed: BlockChange[];
   overrides: Record<string, number>;
   status: string | undefined;
+  previewStale: boolean;
+  onProgressStart: (requestId: string) => void;
+  onProgressEnd: () => void;
   onApplied: () => void;
 }) {
   const qc = useQueryClient();
@@ -72,8 +78,9 @@ export function RebalanceAllButton({
 
   const notOptimal = status != null && status !== "Optimal";
   const applyingScenario = Object.keys(overrides).length > 0;
-  const disabledReason =
-    changed.length === 0
+  const disabledReason = previewStale
+    ? "Recalculate the Scenario before applying these targets"
+    : changed.length === 0
       ? "Nothing to re-balance — every block already meets demand"
       : notOptimal
         ? `The solve is ${status} — the target can't be met, so there's nothing safe to apply`
@@ -84,8 +91,11 @@ export function RebalanceAllButton({
 
   const apply = async () => {
     setApplying(true);
+    const requestId = globalThis.crypto.randomUUID();
+    onProgressStart(requestId);
+    let refreshScenario = false;
     try {
-      const res = await applyPinnedFactoryFn({ data: { demands: overrides } });
+      const res = await applyPinnedFactoryFn({ data: { demands: overrides, requestId } });
       // a non-Optimal solve is left unapplied server-side — say so and stop
       if (res.status !== "Optimal") {
         toast({
@@ -97,7 +107,7 @@ export function RebalanceAllButton({
       await Promise.all(
         REFRESH_KEYS.map((queryKey) => qc.invalidateQueries({ queryKey: [...queryKey] })),
       );
-      onApplied();
+      refreshScenario = true;
       if (res.applied.length) {
         const n = res.applied.length;
         undoToast(qc, `Balanced ${n} block${n === 1 ? "" : "s"} from the factory pins`);
@@ -110,9 +120,11 @@ export function RebalanceAllButton({
       if (!res.applied.length && !res.broken.length)
         toast({ message: "Already balanced — nothing to apply", tone: "success" });
     } finally {
+      onProgressEnd();
       setApplying(false);
       setOpen(false);
     }
+    if (refreshScenario) onApplied();
   };
 
   const button = (

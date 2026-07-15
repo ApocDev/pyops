@@ -1,7 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { factoryWhatIfFn } from "../server/factorio";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  factoryScenarioProgressFn,
+  factoryScenarioSnapshotFn,
+  factoryWhatIfFn,
+} from "../server/factorio";
 import { Icon, IconProvider } from "../lib/icons";
 import { ItemHover } from "../lib/recipe-card";
 import { Button } from "#/components/ui/button.tsx";
@@ -18,6 +22,7 @@ import { StatTableHeader } from "#/components/stat-table.tsx";
 import { SupplyAllocationCard } from "#/components/whatif/supply-allocation-card.tsx";
 import { FactoryPinsCard } from "#/components/whatif/factory-pins-card.tsx";
 import { ScenarioValidationCard } from "#/components/whatif/scenario-validation-card.tsx";
+import { ScenarioStatusBar } from "#/components/whatif/scenario-status-bar.tsx";
 
 export const Route = createFileRoute("/factory_/scenario")({
   component: () => (
@@ -32,15 +37,51 @@ import { rateLabel } from "../lib/format";
 /** Factory what-if: solve every enabled block goal from a small set of signed
  * whole-factory pins. */
 function WhatIf() {
+  const qc = useQueryClient();
   const [overrides, setOverrides] = useState<Record<string, number>>({});
-  const wf = useQuery({
-    queryKey: ["whatif", overrides],
-    queryFn: () => factoryWhatIfFn({ data: { demands: overrides } }),
-    // Changing a target starts a fresh whole-factory solve. Keep the demand rows
-    // mounted while it runs so the active input does not lose focus mid-edit.
-    placeholderData: keepPreviousData,
+  const [calculatedOverrideKey, setCalculatedOverrideKey] = useState("{}");
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const autoCalculateStarted = useRef(false);
+  const overrideKey = (values: Record<string, number>) =>
+    JSON.stringify(Object.entries(values).sort(([a], [b]) => a.localeCompare(b)));
+  const draftOverrideKey = useMemo(() => overrideKey(overrides), [overrides]);
+  const snapshot = useQuery({
+    queryKey: ["factoryScenarioSnapshot"],
+    queryFn: () => factoryScenarioSnapshotFn(),
   });
-  const r = wf.data;
+  const calculate = useMutation({
+    mutationFn: (variables: { demands: Record<string, number>; requestId: string }) =>
+      factoryWhatIfFn({ data: variables }),
+    onSuccess: (next, variables) => {
+      qc.setQueryData(["factoryScenarioSnapshot"], next);
+      void qc.invalidateQueries({ queryKey: ["factoryPins"] });
+      setCalculatedOverrideKey(overrideKey(variables.demands));
+    },
+    onSettled: () => setActiveRequestId(null),
+  });
+  const progress = useQuery({
+    queryKey: ["factoryScenarioProgress", activeRequestId],
+    queryFn: () => factoryScenarioProgressFn({ data: activeRequestId! }),
+    enabled: activeRequestId != null,
+    refetchInterval: activeRequestId != null ? 250 : false,
+  });
+  const recalculate = (demands = overrides) => {
+    if (calculate.isPending) return;
+    const requestId = globalThis.crypto.randomUUID();
+    setActiveRequestId(requestId);
+    calculate.mutate({ demands, requestId });
+  };
+  useEffect(() => {
+    if (snapshot.data?.state !== "empty" || autoCalculateStarted.current) return;
+    autoCalculateStarted.current = true;
+    recalculate({});
+    // Initial empty-cache calculation runs once; later stale results wait for
+    // an explicit click so route visits never hide expensive background work.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshot.data?.state]);
+
+  const r = snapshot.data?.result;
+  const dirty = snapshot.data?.state !== "current" || draftOverrideKey !== calculatedOverrideKey;
   const changed = (r?.goalChanges ?? []).map((goal) => ({ ...goal, name: goal.display }));
 
   return (
@@ -142,6 +183,17 @@ function WhatIf() {
         }
       />
 
+      <ScenarioStatusBar
+        state={snapshot.isPending ? "loading" : (snapshot.data?.state ?? "empty")}
+        dirty={dirty}
+        calculating={calculate.isPending || activeRequestId != null}
+        progress={progress.data}
+        calculatedAt={snapshot.data?.calculatedAt}
+        durationMs={snapshot.data?.durationMs}
+        error={snapshot.isError || calculate.isError}
+        onRecalculate={() => recalculate()}
+      />
+
       {r && r.status !== "Optimal" && (
         <ScenarioValidationCard status={r.status} validation={r.validation} />
       )}
@@ -164,7 +216,13 @@ function WhatIf() {
                 changed={changed}
                 overrides={overrides}
                 status={r?.status}
-                onApplied={() => setOverrides({})}
+                previewStale={dirty || calculate.isPending}
+                onProgressStart={setActiveRequestId}
+                onProgressEnd={() => setActiveRequestId(null)}
+                onApplied={() => {
+                  setOverrides({});
+                  recalculate({});
+                }}
               />
             </div>
           </CardHeader>
@@ -179,7 +237,7 @@ function WhatIf() {
               { label: "Surplus/s", w: "w-24" },
             ]}
           />
-          {wf.isLoading ? (
+          {!r ? (
             <div className="space-y-2 p-3">
               <Skeleton className="h-5 w-full" />
               <Skeleton className="h-5 w-5/6" />

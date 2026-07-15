@@ -50,20 +50,28 @@ change, or solver update. This re-solves saved blocks; it does not invent new re
 
 ## Preview a target with Scenario
 
-Select **Scenario** in the Factory workspace. It solves the enabled blocks as one
-speculative system without saving changes.
+Select **Scenario** in the Factory workspace. It previews the enabled blocks as one speculative
+system without saving proposed block-goal changes. PyOps reuses the last result while its factory
+inputs remain current, so revisiting the page does not run the solver again. The first visit
+calculates automatically; after a block, factory pin, research context, or other solver input
+changes, the previous result stays visible and the status bar marks it **Scenario needs
+recalculation**.
 
 1. Under **Factory pins**, add the goods that define the factory's desired outputs or
    consumption. Positive rates request production; negative rates request consumption.
-2. Edit a pin's rate to preview another target. Stock goals appear as derived stock targets and
-   keep their amount and replenishment window.
-3. Read **Goal changes** for each affected good's current and next block goal, whole-factory use,
+2. Edit one or more pin rates. These edits are drafts: they mark the current preview out of date
+   without starting a whole-factory solve for every keystroke. Stock goals appear as derived stock
+   targets and keep their amount and replenishment window.
+3. Select **Recalculate**. This saves the edited pin targets and starts the preview. The status bar
+   reports the real phase—preparing block responses, solving the factory model, validating blocks,
+   or refining another pass—and keeps the previous result mounted while work continues.
+4. Read **Goal changes** for each affected good's current and next block goal, whole-factory use,
    actual block output, and factory surplus. Differences within 1% are treated as balanced so
    rounding-scale corrections do not keep reappearing. Select a good to open the block that owns
    its goal.
-4. Check **Raw inputs** for the projected demand from outside the planned factory.
-5. Check **Overproduced** for goods that would accumulate without another consumer.
-6. With the saved pin targets, select **Balance factory** to apply every listed
+5. Check **Raw inputs** for the projected demand from outside the planned factory.
+6. Check **Overproduced** for goods that would accumulate without another consumer.
+7. With the saved pin targets, select **Balance factory** to apply every listed
    goal change as one undoable action. After editing a final-product target, the same action
    is labelled **Apply scenario**.
 
@@ -110,7 +118,8 @@ exact proposed goals and block-solver status. Material-flow mismatches show the 
 rates; a solve that does not settle shows the goals still changing between passes. Scenario does not
 save any of these proposed rates.
 
-Use **reset to current** to discard the speculative target.
+Use **Reset to current** to discard draft target overrides. If the factory itself changed, the
+cached result remains marked out of date until you select **Recalculate**.
 
 To inspect an unexpected result, enable **Capture structured solver traces** under
 **Settings → Advanced**, reproduce the Scenario calculation, then return there and select

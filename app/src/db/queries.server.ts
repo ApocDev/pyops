@@ -2059,6 +2059,25 @@ export function blocksWithFlows(): {
   });
 }
 
+/** Minimal deterministic input for the persisted Factory Scenario cache.
+ * Include the normalized source document itself rather than trusting the
+ * second-resolution updated_at value, so two rapid edits cannot share a key. */
+export function factoryScenarioCacheBlocks() {
+  return db
+    .select({
+      id: blocks.id,
+      name: blocks.name,
+      enabled: blocks.enabled,
+      data: blocks.data,
+      dataFingerprint: blocks.dataFingerprint,
+    })
+    .from(blocks)
+    .where(eq(blocks.enabled, true))
+    .orderBy(blocks.id)
+    .all()
+    .map((block) => ({ ...block, data: normalizeBlockData(block.data) }));
+}
+
 /** Aggregate net production across all blocks — the factory over/under view. */
 /** Existing blocks with what each produces (primary), has spare (byproducts),
  * and imports — the factory context the planner consults to reuse blocks. */

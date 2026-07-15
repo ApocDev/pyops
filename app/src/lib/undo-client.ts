@@ -23,6 +23,7 @@ const UNDO_QUERY_KEYS = [
   ["blocksForGood"],
   ["factory"],
   ["factoryTotals"],
+  ["factoryScenarioSnapshot"],
   ["coherence"],
   ["groups"],
   ["modulePresets"],

@@ -12,6 +12,18 @@ async function dismissDataDriftPrompt(page: Page) {
   }
 }
 
+async function recalculateScenario(page: Page) {
+  const status = page.getByTestId("scenario-status");
+  await expect(status).toBeVisible({ timeout: 30_000 });
+  await expect(status).toHaveAttribute("data-state", /^(current|stale|empty|calculating)$/, {
+    timeout: 30_000,
+  });
+  const state = await status.getAttribute("data-state");
+  if (state === "stale")
+    await status.getByRole("button", { name: "Recalculate" }).click();
+  await expect(status).toHaveAttribute("data-state", "current", { timeout: 90_000 });
+}
+
 test("factory pins can add and persist a consumption target", async ({ page }) => {
   await goto(page, "/factory/scenario");
   await dismissDataDriftPrompt(page);
@@ -24,8 +36,11 @@ test("factory pins can add and persist a consumption target", async ({ page }) =
   const input = page.getByRole("spinbutton", { name: "Acetaldehyde factory pin" });
   await expect(input).toBeVisible();
   await input.fill("-2");
-  await input.blur();
   await expect(input).toHaveValue("-2");
+  await page.getByTestId("scenario-status").getByRole("button", { name: "Recalculate" }).click();
+  await expect(page.getByTestId("scenario-status")).toHaveAttribute("data-state", "current", {
+    timeout: 90_000,
+  });
   await expect
     .poll(() => {
       const db = new DatabaseSync(activeProjectDbFile(), { readOnly: true });
@@ -47,24 +62,55 @@ test("factory pins can add and persist a consumption target", async ({ page }) =
   await expect(persisted).toBeHidden();
 });
 
-test("what-if target stays editable while the factory re-solves", async ({ page }) => {
+test("Scenario target waits for explicit recalculation and reports progress", async ({ page }) => {
+  test.setTimeout(120_000);
   await goto(page, "/factory/scenario");
   await dismissDataDriftPrompt(page);
+  await recalculateScenario(page);
 
   const firstDemand = page.getByRole("spinbutton").first();
   await expect(firstDemand).toBeVisible();
+  const originalTarget = await firstDemand.inputValue();
   await firstDemand.selectText();
   await firstDemand.pressSequentially("12.34", { delay: 100 });
 
-  // Each character starts another solve. The demand list must remain mounted,
-  // preserving both the in-progress value and keyboard focus throughout them.
+  // Typing is now a cheap draft: it preserves focus and marks the previous
+  // result stale instead of launching a whole-factory solve per character.
   await expect(firstDemand).toBeFocused();
   await expect(firstDemand).toHaveValue("12.34");
-  await expect(page.getByText("Goal changes", { exact: false }).first()).toBeVisible({
-    timeout: 15_000,
-  });
-  await expect(firstDemand).toBeFocused();
-  await expect(firstDemand).toHaveValue("12.34");
+  const status = page.getByTestId("scenario-status");
+  await expect(status).toHaveAttribute("data-state", "stale");
+  await expect(status).toContainText("Targets or factory inputs changed");
+
+  await status.getByRole("button", { name: "Recalculate" }).click();
+  await expect(status).toHaveAttribute("data-state", "calculating");
+  await expect(status).toContainText(/Preparing|response models|Solving factory|Validating blocks/);
+  await expect(status).toHaveAttribute("data-state", "current", { timeout: 90_000 });
+  await expect(status).toContainText("Scenario is up to date");
+
+  // Restore the shared scratch project's target and its cached result for the
+  // remaining tests in this serial mutating suite.
+  await firstDemand.fill(originalTarget);
+  await expect(status).toHaveAttribute("data-state", "stale");
+  await status.getByRole("button", { name: "Recalculate" }).click();
+  await expect(status).toHaveAttribute("data-state", "current", { timeout: 90_000 });
+});
+
+test("revisiting Scenario reuses the current persisted result", async ({ page }) => {
+  test.setTimeout(120_000);
+  await goto(page, "/factory/scenario");
+  await dismissDataDriftPrompt(page);
+  await recalculateScenario(page);
+  const status = page.getByTestId("scenario-status");
+  const calculatedAt = await status.getAttribute("data-calculated-at");
+  expect(calculatedAt).toBeTruthy();
+
+  await page.getByRole("link", { name: "Connections", exact: true }).click();
+  await expect(page).toHaveURL(/\/factory\/connections$/);
+  await page.getByRole("link", { name: "Scenario", exact: true }).click();
+  await expect(page).toHaveURL(/\/factory\/scenario$/);
+  await expect(status).toHaveAttribute("data-state", "current");
+  await expect(status).toHaveAttribute("data-calculated-at", calculatedAt!);
 });
 
 /**
@@ -84,6 +130,7 @@ test("applying a scenario re-balances the factory in one undoable step", async (
   test.setTimeout(120_000);
   await goto(page, "/factory/scenario");
   await dismissDataDriftPrompt(page);
+  await recalculateScenario(page);
 
   // the Factory pins card is the first place with numeric (spinbutton) inputs
   const firstDemand = page.getByRole("spinbutton").first();
@@ -91,6 +138,11 @@ test("applying a scenario re-balances the factory in one undoable step", async (
   const current = Number(await firstDemand.inputValue());
   // 2× + 1 guarantees a real increase even if the current target reads 0
   await firstDemand.fill(String(current * 2 + 1));
+
+  await page.getByTestId("scenario-status").getByRole("button", { name: "Recalculate" }).click();
+  await expect(page.getByTestId("scenario-status")).toHaveAttribute("data-state", "current", {
+    timeout: 90_000,
+  });
 
   // the doubled demand cascades into real per-block changes → Apply scenario enables
   const applyAll = page.getByRole("button", { name: "Apply scenario" });
@@ -171,6 +223,7 @@ test("Scenario zeros an unpinned consume goal without saving the preview", async
 
   try {
     await goto(page, "/factory/scenario");
+    await recalculateScenario(page);
     const change = page.getByRole("link", { name: /^Acetaldehyde / });
     await expect(change).toContainText("-2");
     await expect(change).toContainText("Next goal/s0");
@@ -223,6 +276,7 @@ test("Scenario scales a goal beyond recovered coproduct supply", async ({ page }
   try {
     await goto(page, "/factory/scenario");
     await dismissDataDriftPrompt(page);
+    await recalculateScenario(page);
 
     await expect(page.getByRole("link", { name: /^Creosote / })).toBeVisible({
       timeout: 60_000,
@@ -264,6 +318,7 @@ test("Scenario explains which proposed block goals failed validation", async ({ 
   try {
     await goto(page, "/factory/scenario");
     await dismissDataDriftPrompt(page);
+    await recalculateScenario(page);
 
     const diagnostic = page.getByTestId("scenario-validation");
     await expect(diagnostic.getByText("Scenario validation failed")).toBeVisible({

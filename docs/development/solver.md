@@ -333,6 +333,15 @@ Factory Scenario treats selected goods as factory pins and every enabled block g
 factory activity. A pin is a signed net target: positive for desired output, negative for deliberate
 consumption. Stock goals contribute an always-derived positive pin equal to `stock / window`.
 
+Scenario persists its latest completed preview in the project database. A deterministic cache key
+combines the Scenario model version, solve-projection generation, data fingerprint, every enabled
+block's normalized document/reference fingerprint, and the effective factory pins. A route visit
+only compares that key and reads the cached result; it does not solve again while the key remains
+current. A stale result stays visible until the player explicitly recalculates, and draft pin edits
+do not create a cache entry or launch work per keystroke. The server reports lightweight progress
+for response-column preparation, the factory LP, full-block validation, re-linearization passes,
+and apply-time validation without enabling the much larger diagnostic trace.
+
 `factory-plan.server.ts` solves the block at its complete goal vector, perturbs each goal in its
 saved direction, and uses the boundary-flow difference as a local response column. The affine
 intercept is anchored at the block's actual goal vector, so operational and recipe-activation flows
