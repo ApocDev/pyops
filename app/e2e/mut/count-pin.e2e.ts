@@ -89,6 +89,69 @@ test("an infeasible block keeps its burner row editable", async ({ page }) => {
   }
 });
 
+test("favoriting a fuel keeps the burner rows on the current solve", async ({ page }) => {
+  const db = new DatabaseSync(activeProjectDbFile());
+  db.exec("PRAGMA busy_timeout = 5000");
+  const favoriteFuels = db
+    .prepare("SELECT value FROM meta WHERE key = 'favorite_fuels'")
+    .get() as { value: string } | undefined;
+  const data = {
+    recipes: ["boil-steam-250"],
+    made: ["steam"],
+    machines: { "boil-steam-250": "boiler" },
+    fuels: { "boil-steam-250": "coal" },
+    goals: [{ name: "steam", rate: 1 }],
+  };
+  const inserted = db
+    .prepare("INSERT INTO blocks (name, data) VALUES (?, ?)")
+    .run(uniqueName("Favorite fuel"), JSON.stringify(data));
+  const id = Number(inserted.lastInsertRowid);
+  db.close();
+
+  try {
+    await goto(page, `/block/${id}`);
+    const row = page.locator('[data-recipe-row="boil-steam-250"]');
+
+    // Make a post-load editor change. The solve query's initial loader still
+    // holds the original coal document, while the live saved solve now uses raw
+    // coal — invalidating that query would put the row back on stale data.
+    await row.getByTitle(/Coal .* click to change fuel/).click();
+    let fuels = page.getByRole("dialog", { name: "Fuel for Boil Steam (250°)" });
+    await fuels.getByRole("button", { name: /^Raw coal/ }).click();
+    await expect(fuels).toBeHidden();
+    await expect(row.getByTitle(/Raw coal .* click to change fuel/)).toBeVisible();
+
+    await row.getByTitle(/Raw coal .* click to change fuel/).click();
+    fuels = page.getByRole("dialog", { name: "Fuel for Boil Steam (250°)" });
+    const rawCoal = fuels.getByRole("button", { name: /^Raw coal/ });
+    const star = rawCoal.locator('[title*="favorite fuel" i]');
+    const previousTitle = await star.getAttribute("title");
+    await star.click();
+    await expect(star).not.toHaveAttribute("title", previousTitle!);
+
+    // Let any invalidated background query settle: the favorite is an app-level
+    // default for future rows and must not replace this editor's live solve.
+    await page.waitForTimeout(750);
+    await expect(row.getByTitle(/Raw coal .* click to change fuel/)).toBeVisible();
+  } finally {
+    const cleanup = new DatabaseSync(activeProjectDbFile());
+    try {
+      cleanup.exec("PRAGMA busy_timeout = 5000");
+      if (favoriteFuels)
+        cleanup
+          .prepare(
+            `INSERT INTO meta (key, value) VALUES ('favorite_fuels', ?)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+          )
+          .run(favoriteFuels.value);
+      else cleanup.prepare("DELETE FROM meta WHERE key = 'favorite_fuels'").run();
+      cleanup.prepare("DELETE FROM blocks WHERE id = ?").run(id);
+    } finally {
+      cleanup.close();
+    }
+  }
+});
+
 test("variable generator shows its average and min-max output", async ({ page }) => {
   const db = new DatabaseSync(activeProjectDbFile());
   db.exec("PRAGMA busy_timeout = 5000");

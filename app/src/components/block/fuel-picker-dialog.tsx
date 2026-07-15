@@ -10,9 +10,9 @@ import { Skeleton } from "#/components/ui/skeleton.tsx";
 
 /** Fuel picker — choose what a SOLID burner burns (energy value shown to
  * compare), with the favorite star (#18). Favorites are app-level prefs;
- * toggling one refetches the solve so its ☆ updates without touching the
- * block's picks. Fluid burners never open this: unfiltered ones draw from the
- * shared fluid-fuel pool and filtered ones are pinned to one fluid (#25). */
+ * toggling one refetches the picker so its ☆ updates without touching the block's
+ * picks or solve. Fluid burners never open this: unfiltered ones draw from the shared
+ * fluid-fuel pool and filtered ones are pinned to one fluid (#25). */
 export function FuelPickerDialog({
   recipe,
   recipeDisplay,
@@ -38,7 +38,6 @@ export function FuelPickerDialog({
   const toggleFavorite = (fuel: string, isFav: boolean) => {
     void setFavoriteFuelFn({ data: { fuel, clear: isFav } }).then(() => {
       void qc.invalidateQueries({ queryKey: ["fuelOptions"] });
-      void qc.invalidateQueries({ queryKey: ["solve"] });
     });
   };
   return (
