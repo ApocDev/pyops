@@ -1,0 +1,21 @@
+app/e2e/smoke.e2e.ts
+  s_877b1fabf4796f::t_371f65be4c0aac 92-99
+app/src/routes/index.tsx
+  s_877b1fabf4796f::t_209cc39c6ae5ef 6,12,110-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "44c5a118a4dd70f3191e08cd2c7a4046fbf75799",
+  "prompts": {},
+  "sessions": {
+    "s_877b1fabf4796f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f680a-590d-7550-ab33-2a456b0ee0c7",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
