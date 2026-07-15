@@ -63,6 +63,11 @@ const docs = new Map<
       recipes: string[];
       supplyPriority?: number;
       fluidTemperatures?: Record<string, Record<string, number>>;
+      campaign?: {
+        duration: number;
+        quantities: Record<string, number>;
+        confidence: "expected" | "90" | "95";
+      };
     };
   }
 >(
@@ -388,7 +393,10 @@ beforeEach(() => {
   nonlinearElectricity = false;
   recoveredIronPerCoke = 10;
   ironGoalScalable = true;
-  for (const doc of docs.values()) doc.updatedAt = new Date(++solveVersion * 1000);
+  for (const doc of docs.values()) {
+    doc.updatedAt = new Date(++solveVersion * 1000);
+    delete doc.data.campaign;
+  }
   blocks.splice(4);
   docs.delete(5);
 });
@@ -420,6 +428,27 @@ describe("pinned factory solve", () => {
     expect(plan.getFactoryPins()).toContainEqual(
       expect.objectContaining({ good: "science", rate: 2, source: "explicit" }),
     );
+  });
+
+  it("holds an active temporary campaign fixed and scales its upstream chain", async () => {
+    docs.get(1)!.data.campaign = {
+      duration: 3600,
+      quantities: { science: 10 },
+      confidence: "expected",
+    };
+
+    expect(plan.getFactoryPins()).toContainEqual(
+      expect.objectContaining({ good: "science", rate: 10 / 3600, source: "temporary" }),
+    );
+    plan.saveFactoryPins([{ good: "science", kind: "item", rate: 99 }]);
+    expect(plan.getFactoryPins()).toContainEqual(
+      expect.objectContaining({ good: "science", rate: 10 / 3600, source: "temporary" }),
+    );
+
+    const result = await plan.solvePinnedFactory();
+    expect(result.goalChanges).not.toContainEqual(expect.objectContaining({ id: 1 }));
+    const iron = result.goalChanges.find((change) => change.id === 2 && change.good === "iron");
+    expect(iron?.requiredRate).toBeCloseTo(40 / 3600, 6);
   });
 
   it("uses a configured consumer for reached byproduct without scaling its source", async () => {

@@ -8,6 +8,16 @@ import {
 } from "./goals.ts";
 
 describe("normalizeBlockData", () => {
+  it("derives temporary campaign rates and removes incompatible stock intent", () => {
+    const out = normalizeBlockData({
+      goals: [{ name: "vrauk", rate: 1, stock: 1, window: 3600 }],
+      campaign: { duration: 3600, quantities: { vrauk: 1 }, confidence: "90" },
+      recipes: [],
+    });
+    expect(out.campaign?.quantities).toEqual({ vrauk: 1 });
+    expect(out.goals[0].rate * 3600).toBeCloseTo(Math.log(10), 5);
+    expect(out.goals[0].stock).toBeUndefined();
+  });
   it("migrates the legacy single-target shape to goals[]", () => {
     const out = normalizeBlockData({
       target: "transport-belt",

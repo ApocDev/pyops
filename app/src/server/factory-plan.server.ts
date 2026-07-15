@@ -36,7 +36,7 @@ export type FactoryPin = {
   good: string;
   kind: string;
   rate: number;
-  source?: "explicit" | "terminal" | "stock";
+  source?: "explicit" | "terminal" | "stock" | "temporary";
 };
 
 type Flow = {
@@ -216,7 +216,13 @@ function inferredPins(): FactoryPin[] {
     const doc = normalizeBlockData(row.data as SolveInput);
     for (const goal of doc.goals) {
       if (goal.rate <= EPS) continue;
-      const source = goal.stock != null ? "stock" : !consumed.has(goal.name) ? "terminal" : null;
+      const source = doc.campaign
+        ? "temporary"
+        : goal.stock != null
+          ? "stock"
+          : !consumed.has(goal.name)
+            ? "terminal"
+            : null;
       if (!source) continue;
       const existing = pins.get(goal.name);
       pins.set(goal.name, {
@@ -225,7 +231,9 @@ function inferredPins(): FactoryPin[] {
         rate:
           source === "stock"
             ? (existing?.rate ?? 0) + goal.stock! / (goal.window ?? 600)
-            : goal.rate,
+            : source === "temporary"
+              ? (existing?.rate ?? 0) + goal.rate
+              : goal.rate,
         source,
       });
     }
@@ -234,14 +242,14 @@ function inferredPins(): FactoryPin[] {
 }
 
 export function saveFactoryPins(pins: FactoryPin[]): void {
-  const stockGoods = new Set(
+  const derivedGoods = new Set(
     inferredPins()
-      .filter((pin) => pin.source === "stock")
+      .filter((pin) => pin.source === "stock" || pin.source === "temporary")
       .map((pin) => pin.good),
   );
   const clean = pins
     .filter(
-      (pin) => !stockGoods.has(pin.good) && Number.isFinite(pin.rate) && Math.abs(pin.rate) > EPS,
+      (pin) => !derivedGoods.has(pin.good) && Number.isFinite(pin.rate) && Math.abs(pin.rate) > EPS,
     )
     .map((pin) => ({
       good: pin.good,
@@ -259,14 +267,18 @@ export function getFactoryPins(): FactoryPin[] {
   const saved = parsePins();
   const inferred = inferredPins();
   const stock = inferred.filter((pin) => pin.source === "stock");
+  const temporary = inferred.filter((pin) => pin.source === "temporary");
+  const derivedGoods = new Set([...stock, ...temporary].map((pin) => pin.good));
   const editable = saved
-    ? saved.map((pin) => ({ ...pin, source: "explicit" as const }))
-    : inferred.filter((pin) => pin.source === "terminal");
-  return [...editable, ...stock].sort((a, b) => a.good.localeCompare(b.good));
+    ? saved
+        .filter((pin) => !derivedGoods.has(pin.good))
+        .map((pin) => ({ ...pin, source: "explicit" as const }))
+    : inferred.filter((pin) => pin.source === "terminal" && !derivedGoods.has(pin.good));
+  return [...editable, ...stock, ...temporary].sort((a, b) => a.good.localeCompare(b.good));
 }
 
 function responseReferenceDoc(doc: SolveInput): SolveInput {
-  return {
+  const referenceDoc: SolveInput = {
     ...doc,
     goals: doc.goals.map((goal) => {
       const rate = Math.abs(goal.rate) > EPS ? goal.rate : goalConsumes(goal) ? -1 : 1;
@@ -277,6 +289,8 @@ function responseReferenceDoc(doc: SolveInput): SolveInput {
       return reference;
     }),
   };
+  delete referenceDoc.campaign;
+  return referenceDoc;
 }
 
 function signedBoundary(
@@ -345,6 +359,19 @@ async function responseColumns(
   let pending = cachedBlockResponse(key);
   if (!pending) {
     pending = (async () => {
+      // A temporary campaign is an operating commitment, not a scalable factory
+      // option. Hold its entire solved boundary fixed; Scenario may resize its
+      // upstream suppliers, but only the block editor may change its finite
+      // quantity or deadline.
+      if (doc.campaign) {
+        const campaignResult = await computeBlock(doc);
+        if (campaignResult.broken || campaignResult.status !== "solved")
+          return { columns: [], fixed: [] };
+        const fixed = [...signedBoundary(doc, campaignResult)].flatMap(([item, flow]) =>
+          Math.abs(flow.net) > EPS ? [{ item, kind: flow.kind, net: flow.net }] : [],
+        );
+        return { columns: [], fixed };
+      }
       const reference = responseReferenceDoc(doc);
       const baseResult = await computeBlock(reference);
       if (baseResult.broken || baseResult.status !== "solved") return { columns: [], fixed: [] };
@@ -607,6 +634,12 @@ export async function solvePinnedFactory(
     for (const response of responses)
       for (const flow of response.fixed) kindOf.set(flow.item, flow.kind);
     for (const pin of pins) kindOf.set(pin.good, pin.kind);
+    const campaignRequired = new Set<string>();
+    responses.forEach((response, index) => {
+      if (!rows[index]?.originalDoc.campaign) return;
+      for (const flow of response.fixed)
+        if (flow.net < -EPS && !FREE_GOODS.has(flow.item)) campaignRequired.add(flow.item);
+    });
     const positiveByGood = new Map<string, Column[]>();
     const negativeByGood = new Map<string, Column[]>();
     for (const column of candidates) {
@@ -620,7 +653,10 @@ export async function solvePinnedFactory(
     // A reached column's natural byproducts may activate a configured consume
     // goal, but never another positive goal. Producer caps below prevent that
     // sink chain from pulling extra source production merely for its outputs.
-    const required = new Set(pins.filter((pin) => pin.rate > 0).map(materialPinKey));
+    const required = new Set([
+      ...pins.filter((pin) => pin.rate > 0).map(materialPinKey),
+      ...campaignRequired,
+    ]);
     const selected = new Map<string, Column>();
     const queue = [...required];
     const explicitSinkGoods = new Set(pins.filter((pin) => pin.rate < 0).map(materialPinKey));
@@ -1102,10 +1138,11 @@ export async function solvePinnedFactory(
           : 0,
       ]),
     );
-    // Every non-stock goal is a factory decision variable. If it was reached
-    // by neither demand nor a natural byproduct sink chain, its value is zero.
-    const allGoalChanges: FactoryGoalChange[] = rows.flatMap(({ row, originalDoc }) =>
-      originalDoc.goals.flatMap((goal) => {
+    // Every ongoing non-stock goal is a factory decision variable. Temporary
+    // campaigns are fixed operating commitments and never become goal changes.
+    const allGoalChanges: FactoryGoalChange[] = rows.flatMap(({ row, originalDoc }) => {
+      if (originalDoc.campaign) return [];
+      return originalDoc.goals.flatMap((goal) => {
         const key = `${row.id}\u0000${goal.name}`;
         const target = targetByGoal.get(key);
         const requiredRate = target?.rate ?? 0;
@@ -1151,8 +1188,8 @@ export async function solvePinnedFactory(
               : {}),
           },
         ];
-      }),
-    );
+      });
+    });
     const goalChanges = allGoalChanges.filter((change) =>
       meaningfulRateChange(change.currentRate, change.requiredRate),
     );
@@ -1280,21 +1317,26 @@ export async function solvePinnedFactory(
       });
       const solved = await Promise.all(
         rows.map(async ({ row, originalDoc }) => {
-          const finalDoc: SolveInput = {
-            ...originalDoc,
-            goals: originalDoc.goals.map((goal) => {
-              const rate = targetByGoal.get(`${row.id}\u0000${goal.name}`)?.rate ?? 0;
-              proposedRates.set(`${row.id}\u0000${goal.name}`, rate);
-              return {
-                ...goal,
-                rate,
-                ...(rate === 0
-                  ? { direction: goalConsumes(goal) ? "consume" : "produce" }
-                  : { direction: undefined }),
-                ...(goal.stock != null ? { factoryRate: rate } : {}),
+          const finalDoc: SolveInput = originalDoc.campaign
+            ? originalDoc
+            : {
+                ...originalDoc,
+                goals: originalDoc.goals.map((goal) => {
+                  const rate = targetByGoal.get(`${row.id}\u0000${goal.name}`)?.rate ?? 0;
+                  proposedRates.set(`${row.id}\u0000${goal.name}`, rate);
+                  return {
+                    ...goal,
+                    rate,
+                    ...(rate === 0
+                      ? { direction: goalConsumes(goal) ? "consume" : "produce" }
+                      : { direction: undefined }),
+                    ...(goal.stock != null ? { factoryRate: rate } : {}),
+                  };
+                }),
               };
-            }),
-          };
+          if (originalDoc.campaign)
+            for (const goal of originalDoc.goals)
+              proposedRates.set(`${row.id}\u0000${goal.name}`, goal.rate);
           const blockResult = await computeBlock(finalDoc);
           validatedBlocks += 1;
           progress?.update({

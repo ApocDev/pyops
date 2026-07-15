@@ -2,7 +2,7 @@
  * quantity format; the rest are page-specific compactions. */
 import { formatQty } from "../../lib/format";
 
-export { ENERGY_PSEUDO, fmtPower, rateLabel } from "../../lib/format";
+export { ENERGY_PSEUDO, fmtPower, quantityLabel, rateLabel } from "../../lib/format";
 
 export const num = formatQty; // adaptive precision (#74) — shared with every other table
 

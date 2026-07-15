@@ -2,7 +2,7 @@ import { Flame, Timer } from "lucide-react";
 import type { ReactNode } from "react";
 import { ItemHover } from "../../lib/recipe-card";
 import { fmtSpoilTime, Icon } from "../../lib/icons";
-import { rateLabel } from "./format.ts";
+import { quantityLabel, rateLabel } from "./format.ts";
 
 /** A block item's role under the current solve — drives the chip colour so it's
  * obvious which flows are linked internally vs. need a recipe vs. spill out. */
@@ -26,6 +26,7 @@ export function ItemChip({
   kind,
   display,
   rate,
+  total,
   rateMin,
   rateMax,
   temp,
@@ -44,6 +45,9 @@ export function ItemChip({
   kind: string;
   display?: string | null;
   rate?: number;
+  /** Finite campaign amount. Replaces the throughput rate as the chip's
+   * primary value; the caller may show the derived average separately. */
+  total?: number;
   /** Variable energy production range; `rate` is the planner average. */
   rateMin?: number;
   rateMax?: number;
@@ -90,6 +94,8 @@ export function ItemChip({
         : rateLabel(name, rate);
   const accessibleRate =
     rate == null ? "" : variableRate ? displayedRate : rateLabel(name, rate, { perSec: true });
+  const displayedTotal = total == null ? "" : `${quantityLabel(name, total)} total`;
+  const totalRate = total != null && rate != null ? rateLabel(name, rate, { perSec: true }) : "";
   return (
     <span className={`inline-flex items-center gap-1 ${cls}`}>
       <ItemHover
@@ -106,7 +112,7 @@ export function ItemChip({
             e.preventDefault();
             onContext(e);
           }}
-          aria-label={`${display ?? name}${accessibleRate ? ` ${accessibleRate}` : ""}${spoilTime ? ` · spoils in ${spoilTime}` : ""}${incidental ? " · includes estimated incidental spoilage" : ""}${indicatorLabel ? ` · ${indicatorLabel}` : ""} · ${why}`}
+          aria-label={`${display ?? name}${displayedTotal ? ` ${displayedTotal}${totalRate ? ` · ${totalRate} average` : ""}` : accessibleRate ? ` ${accessibleRate}` : ""}${spoilTime ? ` · spoils in ${spoilTime}` : ""}${incidental ? " · includes estimated incidental spoilage" : ""}${indicatorLabel ? ` · ${indicatorLabel}` : ""} · ${why}`}
           className="flex items-center gap-1 px-1.5 py-1 text-sm hover:brightness-95"
         >
           <span className="relative flex">
@@ -119,9 +125,20 @@ export function ItemChip({
               />
             )}
           </span>
-          {rate != null && (
+          {displayedTotal ? (
+            <span className="flex flex-col items-start leading-tight tabular-nums">
+              <span data-campaign-total className="font-semibold">
+                {displayedTotal}
+              </span>
+              {totalRate && (
+                <span data-campaign-rate className="text-xs font-normal text-muted-foreground">
+                  {totalRate}
+                </span>
+              )}
+            </span>
+          ) : rate != null ? (
             <span data-rate-range={variableRate ? "variable" : undefined}>{displayedRate}</span>
-          )}
+          ) : null}
           {incidental && (
             <span
               data-incidental-spoilage

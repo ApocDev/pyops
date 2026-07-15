@@ -53,6 +53,23 @@ describe("diffBlockDocs", () => {
     expect(diffBlockDocs(from, unit).goals.changed).toHaveLength(1);
   });
 
+  it("temporary campaign mode and completion state count as changes", () => {
+    const campaign = {
+      duration: 3600,
+      quantities: { plate: 10 },
+      confidence: "expected" as const,
+    };
+    const added = diffBlockDocs(base(), base({ campaign }));
+    expect(added.campaign).toEqual({ from: null, to: campaign });
+    expect(added.unchanged).toBe(false);
+
+    const completed = { ...campaign, completedAt: "2026-07-15T00:00:00.000Z" };
+    expect(diffBlockDocs(base({ campaign }), base({ campaign: completed })).campaign).toEqual({
+      from: campaign,
+      to: completed,
+    });
+  });
+
   it("recipes: added, removed, and enabled/disabled toggles", () => {
     const from = base({ recipes: ["a", "b", "c"], disabledRecipes: ["b"] });
     const to = base({ recipes: ["b", "c", "d"], disabledRecipes: ["c"] });

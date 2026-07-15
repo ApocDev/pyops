@@ -29,6 +29,9 @@ import { SortableGoal } from "./sortable-goal.tsx";
 import { SupplyPriorityControl } from "./supply-priority-control.tsx";
 import { GoalClipboardActions } from "./goal-clipboard-actions.tsx";
 import { FluidTemperaturePicker } from "./fluid-temperature-picker.tsx";
+import { EditableCampaignQuantity } from "./editable-campaign-quantity.tsx";
+import { TemporaryCampaignControls } from "./temporary-campaign-controls.tsx";
+import { campaignGoalQuantity } from "../../lib/campaign.ts";
 
 /** The Goal card: goals as compact stacked cells (icon over rate) so many fit —
  * a block can target several products at once. Each goal has a target rate (a
@@ -46,6 +49,9 @@ export function GoalCard({
   onUseFor,
   onQuickRecipeFor,
   onOpenGoalPicker,
+  blockEnabled,
+  onCompleteCampaign,
+  onReactivateCampaign,
 }: {
   doc: BlockDocStore;
   res: SolveResult | undefined;
@@ -58,8 +64,12 @@ export function GoalCard({
   onUseFor: (name: string) => void;
   onQuickRecipeFor: (name: string, mode: "produce" | "consume") => void;
   onOpenGoalPicker: () => void;
+  blockEnabled: boolean;
+  onCompleteCampaign: () => void;
+  onReactivateCampaign: () => void;
 }) {
   const goals = useStore(doc.store, (s) => s.goals);
+  const campaign = useStore(doc.store, (s) => s.campaign);
   const supplyPriority = useStore(doc.store, (s) => s.supplyPriority ?? 0);
   const target = goals[0]?.name ?? "";
   const goalSensors = useSensors(
@@ -79,6 +89,12 @@ export function GoalCard({
       <CardHeader className="justify-between">
         <CardTitle>Goal</CardTitle>
         <div className="flex items-center gap-1">
+          <TemporaryCampaignControls
+            doc={doc}
+            blockEnabled={blockEnabled}
+            onComplete={onCompleteCampaign}
+            onReactivate={onReactivateCampaign}
+          />
           <GoalClipboardActions
             goals={goals}
             onPaste={(copied) => {
@@ -214,6 +230,16 @@ export function GoalCard({
                           <span className="flex items-center gap-0.5 text-sm font-semibold text-destructive">
                             <AlertTriangle className="size-3" /> Gone
                           </span>
+                        ) : campaign ? (
+                          <span className="text-sm">
+                            <EditableCampaignQuantity
+                              quantity={campaignGoalQuantity(campaign, goal)}
+                              onChange={(quantity) => {
+                                doc.setCampaignQuantity(g, quantity);
+                                doc.note(`Set "${res?.display?.[g] ?? g}" campaign quantity`);
+                              }}
+                            />
+                          </span>
                         ) : goal.stock != null ? (
                           <span className="text-sm">
                             <EditableStock
@@ -276,6 +302,7 @@ export function GoalCard({
                     some around", which is a stock goal's job (#38), not a rate's. */}
                         {!goalMissing &&
                           goal.stock == null &&
+                          !campaign &&
                           goal.rate !== 0 &&
                           Math.abs(goal.rate) < 1e-4 && (
                             <Tooltip content="Rates this small can fall below the solver's noise floor — flows may read as zero. If the intent is 'just make/keep some', a keep-in-stock goal (planned) will express that better than a tiny rate.">
@@ -284,7 +311,7 @@ export function GoalCard({
                               </span>
                             </Tooltip>
                           )}
-                        {logi.resolved && kind === "item" && !goalMissing && (
+                        {logi.resolved && kind === "item" && !goalMissing && !campaign && (
                           <LogiTag
                             resolved={logi.resolved}
                             rate={Math.abs(goal.rate)}

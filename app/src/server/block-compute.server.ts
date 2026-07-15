@@ -34,7 +34,7 @@ import { prodScaledAmount } from "../lib/productivity";
 import { reactorHeatMultiplier, REACTOR_LAYOUT_DEFAULT, type ReactorLayout } from "../lib/reactor";
 import { goalNames, normalizeBlockData } from "../lib/goals";
 import { fmtTemp, fmtTempRange } from "../lib/format";
-import type { Goal } from "../db/schema.ts";
+import type { Goal, TemporaryCampaign } from "../db/schema.ts";
 import * as q from "../db/queries.server.ts";
 import {
   currentSolveGeneration,
@@ -274,6 +274,9 @@ export type SolveInput = {
   // becomes a solver target; an unpinned goal (null rate) is a co-product relabeled
   // from a surplus export. goals[0] anchors naming/icon and the rate-scaling tools.
   goals: Goal[];
+  /** Finite production intent. Normalization derives ordinary per-second goals
+   * from its quantities and shared duration before the LP is built. */
+  campaign?: TemporaryCampaign;
   icon?: { kind: string; name: string }; // explicit block icon (#40); unset = first goal's
   recipes: string[];
   disabledRecipes?: string[]; // recipes kept in the block but excluded from the solve (#73)
@@ -1193,6 +1196,10 @@ export async function computeBlock(rawData: SolveInput) {
           kind: c.kind,
           display: c.display,
           rate: scaledAmount * (c.probability ?? 1) * rr.rate,
+          amountExpected: scaledAmount * (c.probability ?? 1),
+          amountMin: c.amountMin != null ? c.amountMin * amountScale : scaledAmount,
+          amountMax: c.amountMax != null ? c.amountMax * amountScale : scaledAmount,
+          probability: c.probability ?? 1,
           ...powerRange,
           // A product without an explicit temperature is emitted at its fluid
           // prototype's default. Show it only when this fluid has real variants.

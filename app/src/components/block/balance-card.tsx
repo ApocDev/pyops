@@ -64,6 +64,7 @@ export function BalanceCard({
   const blockName = useStore(doc.store, (s) => s.blockName);
   const supplyPriority = useStore(doc.store, (s) => s.supplyPriority ?? 0);
   const supplyPriorities = useStore(doc.store, (s) => s.supplyPriorities ?? {});
+  const campaign = useStore(doc.store, (s) => s.campaign);
   const spoilables = useSpoilables();
   const showImports = !!res && (res.displayImports.length > 0 || res.displayExports.length === 0);
   const showExports = !!res?.displayExports.length;
@@ -338,6 +339,7 @@ export function BalanceCard({
                             kind={f.kind}
                             display={res.display?.[f.name]}
                             rate={f.rate}
+                            total={campaign ? f.rate * campaign.duration : undefined}
                             temp={f.temp}
                             link="import"
                             craftable={producible.has(f.name)}
@@ -441,6 +443,7 @@ export function BalanceCard({
                           kind={f.kind}
                           display={res.display?.[f.name]}
                           rate={f.rate}
+                          total={campaign ? f.rate * campaign.duration : undefined}
                           temp={f.temp}
                           link="export"
                           fuel={fuelSet.has(f.name)}

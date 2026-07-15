@@ -46,6 +46,32 @@ production appears separately in Factory.
 The solver rate is always the stock amount divided by its refill window; an older saved rate
 cannot turn a buffer goal back into continuous production.
 
+In the Goal heading, select the ∞ ongoing-mode control (tooltip: **Ongoing throughput — click
+to make this a temporary campaign**) when the block should make a finite amount and then stop,
+such as the first creature in an uplifting chain. The icon changes to a timer while the campaign
+is active. Set **Make** on each goal and the shared clock window. Select the window unit to cycle
+through seconds, minutes, and hours, using the same compact interaction as goal-rate units. PyOps
+derives ordinary
+per-second recipe, machine, fuel, power,
+and import rates from those values, so the temporary block participates in Factory exactly
+like other enabled production while it is active. Block balance shows the expected campaign
+total as the primary value for every import and export, with the smaller derived average rate
+directly beneath it in the same chip. Item logistics remain beneath the chip when enabled; fluids
+do not show belt logistics.
+
+Use **Expected** when average yield is enough. Choose **90% confidence** or **95% confidence**
+to add an operational reserve for random finite results; the goal tile shows both the amount
+requested and the larger expected amount PyOps plans. Variable recipe rows show their result
+range and chance, and hovering the warning shows the expected total over the campaign. This
+reserve is a probability estimate, not a guarantee: Factorio can still produce an unusually
+unlucky run.
+
+Select the checkmark (tooltip: **Mark complete and remove this campaign from factory planning**)
+after the finite target is crafted. PyOps disables the block so it no
+longer contributes to Factory or Factory Scenario, while retaining the campaign as history.
+Select the history icon to reactivate it if more are needed, or select the timer mode control to
+return to ongoing throughput while keeping the derived rate.
+
 A negative goal is already the block's visible import contract, so Block balance does not
 repeat that good under **Imports**. Other ingredients the block needs still appear there.
 Electricity is listed first, followed by the remaining imports from highest to lowest rate.

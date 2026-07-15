@@ -72,6 +72,16 @@ rather than continuous output.
 Normalization derives that rate on every read, making `stock` plus `window` authoritative even
 if an older document also contains a stale explicit rate.
 
+A temporary campaign stores finite quantities, one shared duration, a confidence mode, and an
+optional completion timestamp. Normalization turns every campaign quantity into an ordinary goal
+rate before building the LP. **Expected** uses `quantity / duration`. The 90% and 95% modes find
+the Poisson mean whose probability of producing at least the requested integer quantity reaches
+the selected threshold, then divide that larger expected quantity by the duration. Recipe
+coefficients still use their imported expected yields, including prototype probability and
+minimum/maximum amounts; the campaign multiplier is an operational reserve across the finite
+chain rather than a separate stochastic LP. Completion disables the block, so the persisted
+campaign remains available to reactivate but contributes no enabled boundary flows.
+
 The first goal anchors the block's name, scaling controls, and default icon. Additional
 goals participate in the same solve without changing that identity.
 
@@ -341,6 +351,10 @@ old generation, ensuring preserved values cannot be mistaken for current calcula
 Factory Scenario treats selected goods as factory pins and every enabled block goal as a possible
 factory activity. A pin is a signed net target: positive for desired output, negative for deliberate
 consumption. Stock goals contribute an always-derived positive pin equal to `stock / window`.
+Active temporary campaign goals contribute always-derived pins at their confidence-adjusted
+campaign rates. They therefore remain fixed commitments even when the produced good is consumed by
+another block; users edit the campaign quantity or duration in the block rather than overriding its
+rate in Factory Scenario.
 
 Scenario persists its latest completed preview in the project database. A deterministic cache key
 combines the Scenario model version, solve-projection generation, data fingerprint, every enabled

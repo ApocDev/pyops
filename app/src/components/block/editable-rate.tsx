@@ -2,11 +2,10 @@ import { useState } from "react";
 import type { RateUnit } from "../../db/schema";
 import { Input } from "#/components/ui/input.tsx";
 import { fmtPower, fmtRate, parseRateInput } from "./format.ts";
+import { TIME_UNIT_FACTOR, TimeUnitControl } from "./time-unit-control.tsx";
 
 /** Rate windows (#10): the display/input unit of a goal. The STORED rate stays
  * per-second (the solver's canonical unit) — these only convert at the UI edge. */
-const RATE_UNITS: RateUnit[] = ["s", "min", "h"];
-const UNIT_FACTOR: Record<RateUnit, number> = { s: 1, min: 60, h: 3600 };
 
 /** A rate shown as plain text ("1.0623/s") that turns into an input on click;
  * commits on blur/Enter, reverts on Escape. Read-only mode just renders the text. */
@@ -30,9 +29,7 @@ export function EditableRate({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
-  const factor = UNIT_FACTOR[unit];
-  const cycleUnit = () =>
-    onUnitChange?.(RATE_UNITS[(RATE_UNITS.indexOf(unit) + 1) % RATE_UNITS.length]);
+  const factor = TIME_UNIT_FACTOR[unit];
   if (!editing) {
     return (
       <span className="tabular-nums">
@@ -55,14 +52,12 @@ export function EditableRate({
           {power ? fmtPower(value) : fmtRate(value * factor)}
         </button>
         {/* watts are already per-second — no rate window on power display */}
-        {!power && (
-          <button
-            onClick={cycleUnit}
+        {!power && onUnitChange && (
+          <TimeUnitControl
+            unit={unit}
+            onChange={onUnitChange}
             title="Rate window — click to cycle per second / minute / hour"
-            className="text-muted-foreground hover:text-info"
-          >
-            /{unit}
-          </button>
+          />
         )}
       </span>
     );

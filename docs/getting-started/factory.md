@@ -21,6 +21,10 @@ flows from all enabled blocks. It answers a different question from the block ed
 | Balanced      | Planned production and consumption are effectively equal.   | No immediate planning action.                            |
 | Stock buffers | Production exists only to satisfy a **keep in stock** goal. | Treat it as replenishment, not continuous surplus.       |
 
+An active temporary campaign contributes its derived rate to these same totals until you select
+**Complete** on its block. Completion disables the block but keeps the campaign definition, so
+Factory immediately stops counting its finite build without losing the plan.
+
 The first automation-science block creates deficits for every ingredient left as an
 import. Pick one of those deficits and make it the goal of your next block. As you add
 producer blocks, return to Factory to see which deficits remain.

@@ -71,7 +71,8 @@ describe("fluid ingredient temperature selections", () => {
   beforeEach(async () => {
     fx = await makeTestDb();
     fx.db.exec(`
-      INSERT INTO items (name, display) VALUES ('tin','Tin'),('formic-product','Formic product');
+      INSERT INTO items (name, display) VALUES
+        ('tin','Tin'),('formic-product','Formic product'),('random-result','Random result');
       INSERT INTO fluids (name, display, default_temperature, max_temperature) VALUES
         ('steam','Steam',15,5000),
         ('formic-acid','Formic acid',15,NULL),
@@ -83,7 +84,8 @@ describe("fluid ingredient temperature selections", () => {
         ('make-formic','Make formic acid','real',1,1,0),
         ('use-formic','Use formic acid','real',1,1,0),
         ('pump-water','Pump water','real',1,1,0),
-        ('hot-water','Hot water','real',1,1,0);
+        ('hot-water','Hot water','real',1,1,0),
+        ('random-output','Random output','real',1,1,0);
       INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
         ('tin-steam',0,'fluid','steam',10),
         ('use-formic',0,'fluid','formic-acid',5);
@@ -95,6 +97,9 @@ describe("fluid ingredient temperature selections", () => {
         ('use-formic',0,'item','formic-product',1,NULL),
         ('pump-water',0,'fluid','water',10,NULL),
         ('hot-water',0,'fluid','water',10,125);
+      INSERT INTO recipe_products
+        (recipe, idx, kind, name, amount_min, amount_max, probability) VALUES
+        ('random-output',0,'item','random-result',1,3,0.25);
     `);
     fx.db.close();
     switchDatabase(fx.file);
@@ -198,6 +203,22 @@ describe("fluid ingredient temperature selections", () => {
       temperatureMode: "exact",
       minTemp: 15,
       maxTemp: 15,
+    });
+  });
+
+  it("exposes finite-campaign probability and output ranges on solved rows", async () => {
+    const solved = await computeBlock({
+      goals: [{ name: "random-result", rate: 1 }],
+      recipes: ["random-output"],
+    });
+
+    expect(solved.rows[0]?.rate).toBeCloseTo(2);
+    expect(solved.rows[0]?.products[0]).toMatchObject({
+      probability: 0.25,
+      amountMin: 1,
+      amountMax: 3,
+      amountExpected: 0.5,
+      rate: 1,
     });
   });
 

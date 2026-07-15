@@ -272,13 +272,20 @@ function Block({ blockId }: { blockId: number }) {
   });
   // Toggle the whole block on/off (#73). Optimistic; refreshes the sidebar + factory
   // views (which now exclude disabled blocks). Not a block-data edit, so no markEdited.
-  const toggleBlockEnabled = () => {
+  const toggleBlockEnabled = async () => {
     const next = !blockEnabled;
+    if (next && doc.store.state.campaign?.completedAt) {
+      doc.setCampaignCompletedAt(null);
+      doc.note("Reactivate temporary campaign");
+      await persist();
+    }
     setBlockEnabled(next);
-    void setBlockEnabledFn({ data: { blockId, enabled: next } }).then(() => {
-      void qc.invalidateQueries({ queryKey: ["blocks"] });
-      void qc.invalidateQueries({ queryKey: ["factory"] });
-    });
+    await setBlockEnabledFn({ data: { blockId, enabled: next } });
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["blocks"] }),
+      qc.invalidateQueries({ queryKey: ["factory"] }),
+      qc.invalidateQueries({ queryKey: ["factoryScenarioSnapshot"] }),
+    ]);
   };
   const pickMachine = doc.pickMachine;
   const pickFuel = doc.pickFuel;
@@ -505,6 +512,24 @@ function Block({ blockId }: { blockId: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
+
+  const setCampaignActive = async (active: boolean) => {
+    doc.setCampaignCompletedAt(active ? null : new Date().toISOString());
+    doc.note(active ? "Reactivate temporary campaign" : "Complete temporary campaign");
+    await persist();
+    setBlockEnabled(active);
+    await setBlockEnabledFn({ data: { blockId, enabled: active } });
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["blocks"] }),
+      qc.invalidateQueries({ queryKey: ["factory"] }),
+      qc.invalidateQueries({ queryKey: ["factoryScenarioSnapshot"] }),
+    ]);
+    toast({
+      message: active
+        ? "Temporary campaign reactivated."
+        : "Temporary campaign completed and removed from factory planning.",
+    });
+  };
 
   // Report this (active) block's live emptiness so closing its tab can discard an
   // untouched "New block" without racing the unmount auto-save above. Cleared on
@@ -839,6 +864,9 @@ function Block({ blockId }: { blockId: number }) {
           onUseFor={useFor}
           onQuickRecipeFor={quickRecipeFor}
           onOpenGoalPicker={() => setGoalPicker({})}
+          blockEnabled={blockEnabled}
+          onCompleteCampaign={() => void setCampaignActive(false)}
+          onReactivateCampaign={() => void setCampaignActive(true)}
         />
         <BalanceCard
           blockId={blockId}
@@ -954,6 +982,7 @@ function Block({ blockId }: { blockId: number }) {
           kind={kindOf(goalMenu.name)}
           isPrimary={goalMenu.name === target}
           isStock={goals.find((x) => x.name === goalMenu.name)?.stock != null}
+          temporary={!!s.campaign}
           onChangeItem={() => setGoalPicker({ replace: goalMenu.name })}
           onMakePrimary={() => makePrimary(goalMenu.name)}
           onMakeStock={() => makeStockGoal(goalMenu.name)}

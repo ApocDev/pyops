@@ -14,12 +14,13 @@
  * the solve result and all reference data stay in TanStack Query.
  */
 import { Store } from "@tanstack/store";
-import type { Goal, RateUnit } from "../../db/schema";
+import type { CampaignConfidence, Goal, RateUnit, TemporaryCampaign } from "../../db/schema";
 import type { Disposition } from "../../solver/migrate";
 import type { BeaconConfig } from "../../server/effects";
 import type { ReactorLayout } from "../../lib/reactor";
 import type { DocPin, SolveInput } from "../../server/block-compute.server.ts";
 import { normalizeBlockData, STOCK_WINDOW_DEFAULT, type RawBlockData } from "../../lib/goals";
+import { CAMPAIGN_DURATION_DEFAULT, campaignGoalRate } from "../../lib/campaign";
 import { mergeActionLabel } from "../../lib/undo-names";
 import {
   joinGroup,
@@ -40,6 +41,7 @@ export type BlockDocState = {
    * `mergeActionLabel`; consumed (cleared) when a save starts. */
   pendingAction: string | null;
   goals: Goal[];
+  campaign: TemporaryCampaign | null;
   customIcon: { kind: string; name: string } | null;
   recipes: string[];
   disabled: ReadonlySet<string>;
@@ -74,6 +76,7 @@ const EMPTY: BlockDocState = {
   dirty: false,
   pendingAction: null,
   goals: [],
+  campaign: null,
   customIcon: null,
   recipes: [],
   disabled: new Set(),
@@ -102,6 +105,7 @@ export function solveInputOf(s: BlockDocState): SolveInput {
   const disabledRecipes = [...s.disabled].sort();
   return {
     goals: s.goals,
+    ...(s.campaign ? { campaign: s.campaign } : {}),
     ...(s.customIcon ? { icon: s.customIcon } : {}),
     recipes: s.recipes,
     ...(disabledRecipes.length ? { disabledRecipes } : {}),
@@ -157,6 +161,7 @@ export function createBlockDocStore() {
       dirty: false,
       pendingAction: null,
       goals: d.goals,
+      campaign: d.campaign ?? null,
       customIcon: d.icon ?? null,
       recipes: ng.recipes,
       rowGroups: ng.groups,
@@ -199,15 +204,34 @@ export function createBlockDocStore() {
     /* ── goals ── */
     // A new goal starts pinned to 1/s; duplicates are ignored.
     addGoal: (name: string, temperature?: number) =>
+      edit((s) => {
+        if (s.goals.some((g) => g.name === name)) return {};
+        const goal = { name, rate: 1, ...(temperature != null ? { temperature } : {}) };
+        if (!s.campaign) return { goals: [...s.goals, goal] };
+        const campaign = {
+          ...s.campaign,
+          quantities: { ...s.campaign.quantities, [name]: 1 },
+        };
+        return {
+          campaign,
+          goals: [...s.goals, { ...goal, rate: campaignGoalRate(campaign, goal) }],
+        };
+      }),
+    removeGoal: (name: string) =>
       edit((s) => ({
-        goals: s.goals.some((g) => g.name === name)
-          ? s.goals
-          : [...s.goals, { name, rate: 1, ...(temperature != null ? { temperature } : {}) }],
+        goals: s.goals.filter((g) => g.name !== name),
+        ...(s.campaign
+          ? {
+              campaign: {
+                ...s.campaign,
+                quantities: withoutKey(s.campaign.quantities, name),
+              },
+            }
+          : {}),
       })),
-    removeGoal: (name: string) => edit((s) => ({ goals: s.goals.filter((g) => g.name !== name) })),
     setGoalRate: (name: string, rate: number) =>
-      edit((s) => ({
-        goals: s.goals.map((g) =>
+      edit((s) => {
+        const nextGoals = s.goals.map((g) =>
           g.name === name
             ? {
                 ...g,
@@ -217,12 +241,28 @@ export function createBlockDocStore() {
                   : { direction: undefined }),
               }
             : g,
-        ),
-      })),
+        );
+        if (!s.campaign) return { goals: nextGoals };
+        const campaign = {
+          ...s.campaign,
+          quantities: {
+            ...s.campaign.quantities,
+            [name]: Math.max(1, Math.abs(rate) * s.campaign.duration),
+          },
+        };
+        return {
+          campaign,
+          goals: nextGoals.map((goal) => ({
+            ...goal,
+            rate: campaignGoalRate(campaign, goal),
+          })),
+        };
+      }),
     /** Back-solve support for the sizing lock: set the FIRST goal's rate. */
     setPrimaryRate: (rate: number) =>
-      edit((s) => ({
-        goals: s.goals.map((g, i) =>
+      edit((s) => {
+        const primary = s.goals[0];
+        const nextGoals = s.goals.map((g, i) =>
           i === 0
             ? {
                 ...g,
@@ -232,8 +272,23 @@ export function createBlockDocStore() {
                   : { direction: undefined }),
               }
             : g,
-        ),
-      })),
+        );
+        if (!s.campaign || !primary) return { goals: nextGoals };
+        const campaign = {
+          ...s.campaign,
+          quantities: {
+            ...s.campaign.quantities,
+            [primary.name]: Math.max(1, Math.abs(rate) * s.campaign.duration),
+          },
+        };
+        return {
+          campaign,
+          goals: nextGoals.map((goal) => ({
+            ...goal,
+            rate: campaignGoalRate(campaign, goal),
+          })),
+        };
+      }),
     // Rate window (#10): a display/input unit per goal — the stored rate stays /s.
     setGoalUnit: (name: string, unit: RateUnit) =>
       edit((s) => ({
@@ -296,20 +351,29 @@ export function createBlockDocStore() {
       edit((s) => {
         if (to === from) return {};
         const exists = s.goals.some((g) => g.name === to);
+        const campaign = s.campaign
+          ? {
+              ...s.campaign,
+              quantities: exists
+                ? withoutKey(s.campaign.quantities, from)
+                : {
+                    ...withoutKey(s.campaign.quantities, from),
+                    [to]: s.campaign.quantities[from] ?? 1,
+                  },
+            }
+          : null;
         return {
-          goals: s.goals.flatMap((g) =>
-            g.name === from
-              ? exists
-                ? []
-                : [
-                    {
-                      ...g,
-                      name: to,
-                      temperature: temperature == null ? undefined : temperature,
-                    },
-                  ]
-              : [g],
-          ),
+          ...(campaign ? { campaign } : {}),
+          goals: s.goals.flatMap((g) => {
+            if (g.name !== from) return [g];
+            if (exists) return [];
+            const goal = {
+              ...g,
+              name: to,
+              temperature: temperature == null ? undefined : temperature,
+            };
+            return campaign ? [{ ...goal, rate: campaignGoalRate(campaign, goal) }] : [goal];
+          }),
         };
       }),
     /** Move a goal to the front, so it names the block + anchors rate scaling. */
@@ -333,9 +397,95 @@ export function createBlockDocStore() {
         const { factoryRate: _factoryRate, ...goal } = input;
         additions.push(goal);
       }
-      if (additions.length) edit((s) => ({ goals: [...s.goals, ...additions] }));
+      if (additions.length)
+        edit((s) => {
+          if (!s.campaign) return { goals: [...s.goals, ...additions] };
+          const quantities = { ...s.campaign.quantities };
+          for (const goal of additions)
+            quantities[goal.name] = Math.max(1, Math.abs(goal.rate) * s.campaign.duration);
+          const campaign = { ...s.campaign, quantities };
+          return {
+            campaign,
+            goals: [
+              ...s.goals,
+              ...additions.map((goal) => ({ ...goal, rate: campaignGoalRate(campaign, goal) })),
+            ],
+          };
+        });
       return { added: additions.length, skipped: goals.length - additions.length };
     },
+
+    /* ── temporary campaign ── */
+    makeTemporary: (duration = CAMPAIGN_DURATION_DEFAULT) =>
+      edit((s) => {
+        const campaign: TemporaryCampaign = {
+          duration,
+          confidence: "expected",
+          quantities: Object.fromEntries(
+            s.goals.map((goal) => [
+              goal.name,
+              goal.stock ?? Math.max(1, Math.abs(goal.rate) * duration),
+            ]),
+          ),
+        };
+        return {
+          campaign,
+          goals: s.goals.map((goal) => {
+            const {
+              stock: _stock,
+              window: _window,
+              factoryRate: _factoryRate,
+              unit: _unit,
+              ...plainGoal
+            } = goal;
+            return { ...plainGoal, rate: campaignGoalRate(campaign, plainGoal) };
+          }),
+        };
+      }),
+    makeOngoing: () => edit(() => ({ campaign: null })),
+    setCampaignDuration: (duration: number) =>
+      edit((s) => {
+        if (!s.campaign || !(duration > 0)) return {};
+        const campaign = { ...s.campaign, duration };
+        return {
+          campaign,
+          goals: s.goals.map((goal) => ({ ...goal, rate: campaignGoalRate(campaign, goal) })),
+        };
+      }),
+    setCampaignConfidence: (confidence: CampaignConfidence) =>
+      edit((s) => {
+        if (!s.campaign) return {};
+        const campaign = { ...s.campaign, confidence };
+        return {
+          campaign,
+          goals: s.goals.map((goal) => ({ ...goal, rate: campaignGoalRate(campaign, goal) })),
+        };
+      }),
+    setCampaignQuantity: (name: string, quantity: number) =>
+      edit((s) => {
+        if (!s.campaign || !(quantity > 0)) return {};
+        const campaign = {
+          ...s.campaign,
+          quantities: { ...s.campaign.quantities, [name]: quantity },
+        };
+        return {
+          campaign,
+          goals: s.goals.map((goal) =>
+            goal.name === name ? { ...goal, rate: campaignGoalRate(campaign, goal) } : goal,
+          ),
+        };
+      }),
+    setCampaignCompletedAt: (completedAt: string | null) =>
+      edit((s) =>
+        s.campaign
+          ? {
+              campaign: {
+                ...s.campaign,
+                ...(completedAt ? { completedAt } : { completedAt: undefined }),
+              },
+            }
+          : {},
+      ),
 
     /* ── block face ── */
     // Block icon (#40): an explicit item/fluid, or null = follow the first goal.

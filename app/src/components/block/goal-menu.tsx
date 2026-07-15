@@ -12,6 +12,7 @@ export function GoalMenu({
   kind,
   isPrimary,
   isStock,
+  temporary,
   onChangeItem,
   onMakePrimary,
   onMakeStock,
@@ -27,6 +28,7 @@ export function GoalMenu({
   /** the first goal names the block — hide "move to front" on it */
   isPrimary: boolean;
   isStock: boolean;
+  temporary?: boolean;
   onChangeItem: () => void;
   onMakePrimary: () => void;
   onMakeStock: () => void;
@@ -52,15 +54,16 @@ export function GoalMenu({
           <Star className="size-3.5" /> Move to front (names the block)
         </ContextMenuItem>
       )}
-      {!isStock ? (
-        <ContextMenuItem onClick={act(onMakeStock)}>
-          <RefreshCw className="size-3.5" /> Keep in stock instead (buffer, not throughput)
-        </ContextMenuItem>
-      ) : (
-        <ContextMenuItem onClick={act(onMakeRate)}>
-          <RefreshCw className="size-3.5" /> Track a rate instead
-        </ContextMenuItem>
-      )}
+      {!temporary &&
+        (!isStock ? (
+          <ContextMenuItem onClick={act(onMakeStock)}>
+            <RefreshCw className="size-3.5" /> Keep in stock instead (buffer, not throughput)
+          </ContextMenuItem>
+        ) : (
+          <ContextMenuItem onClick={act(onMakeRate)}>
+            <RefreshCw className="size-3.5" /> Track a rate instead
+          </ContextMenuItem>
+        ))}
       <div className="my-1 border-t border-border" />
       <ContextMenuItem onClick={act(onRemove)}>
         <X className="size-3.5" /> Remove goal

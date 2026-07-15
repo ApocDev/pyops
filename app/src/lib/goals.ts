@@ -15,6 +15,7 @@
  * without a destructive rewrite (a save persists the new shape going forward).
  */
 import type { BlockData, Goal } from "../db/schema.ts";
+import { campaignGoalRate, normalizeCampaign } from "./campaign.ts";
 
 /** A block doc as it may exist on disk: the current `goals` shape, the legacy
  * single-`target` shape, or an interim `goals` with nullable rates (older co-product
@@ -30,23 +31,44 @@ export type RawBlockData = Partial<Omit<BlockData, "goals">> & {
  * already has well-formed `goals` is returned with the legacy fields stripped. */
 export function normalizeBlockData<T extends RawBlockData>(d: T): BlockData {
   // extraGoals is intentionally dropped (legacy unpinned co-products → byproducts).
-  const { target, rate, extraGoals: _extraGoals, goals, ...rest } = d;
+  const { target, rate, extraGoals: _extraGoals, goals, campaign: rawCampaign, ...rest } = d;
   if (Array.isArray(goals)) {
     // Drop any rate-less goals (old "unpinned co-products") — they're byproducts now.
-    const kept = goals
-      .filter((g): g is Goal => !!g.name && g.rate != null)
-      .map((g) => {
-        if (g.stock == null) return g;
-        const window = g.window ?? STOCK_WINDOW_DEFAULT;
-        return { ...g, window, rate: Math.max(g.stock / window, g.factoryRate ?? 0) };
+    const kept = goals.filter((g): g is Goal => !!g.name && g.rate != null);
+    const campaign = normalizeCampaign(rawCampaign, kept);
+    if (campaign) {
+      const campaignGoals = kept.map((goal) => {
+        const {
+          stock: _stock,
+          window: _window,
+          factoryRate: _factoryRate,
+          unit: _unit,
+          ...plainGoal
+        } = goal;
+        return { ...plainGoal, rate: campaignGoalRate(campaign, goal) };
       });
-    return { ...(rest as object), goals: kept } as BlockData;
+      return { ...(rest as object), campaign, goals: campaignGoals } as BlockData;
+    }
+    const stockGoals = kept.map((g) => {
+      if (g.stock == null) return g;
+      const window = g.window ?? STOCK_WINDOW_DEFAULT;
+      return { ...g, window, rate: Math.max(g.stock / window, g.factoryRate ?? 0) };
+    });
+    return { ...(rest as object), goals: stockGoals } as BlockData;
   }
   const next: Goal[] = [];
   if (target) next.push({ name: target, rate: rate ?? 1 });
+  const campaign = normalizeCampaign(rawCampaign, next);
+  const campaignGoals = campaign
+    ? next.map((goal) => ({ ...goal, rate: campaignGoalRate(campaign, goal) }))
+    : next;
   // legacy `extraGoals` carried no rate, so they were never solver constraints —
   // they become plain byproducts (dropped from the goal list).
-  return { ...(rest as object), goals: next } as BlockData;
+  return {
+    ...(rest as object),
+    ...(campaign ? { campaign } : {}),
+    goals: campaignGoals,
+  } as BlockData;
 }
 
 /** Default stock-goal refill window (#38), seconds: rebuild the buffer in 10 min. */

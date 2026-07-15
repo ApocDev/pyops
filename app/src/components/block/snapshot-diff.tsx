@@ -4,7 +4,7 @@
  * scale-plan drawer. Presentational — the sheet fetches the diff (computed by
  * lib/block-diff via snapshotDiffFn, display names resolved server-side).
  */
-import type { Goal } from "../../db/schema.ts";
+import type { Goal, TemporaryCampaign } from "../../db/schema.ts";
 import type { BlockDiff } from "../../lib/block-diff";
 import { Icon } from "../../lib/icons";
 import { fmtReactorLayout } from "../../lib/reactor";
@@ -69,6 +69,20 @@ export function SnapshotDiffView({
       {nameChange && (
         <DiffSection title="Name">
           <Row left={<FromTo from={nameChange.from} to={nameChange.to} />} />
+        </DiffSection>
+      )}
+
+      {diff.campaign && (
+        <DiffSection title="Temporary campaign">
+          <Row
+            left="Mode"
+            right={
+              <FromTo
+                from={diff.campaign.from ? campaignLabel(diff.campaign.from) : "Ongoing"}
+                to={diff.campaign.to ? campaignLabel(diff.campaign.to) : "Ongoing"}
+              />
+            }
+          />
         </DiffSection>
       )}
 
@@ -256,6 +270,13 @@ export function SnapshotDiffView({
     </div>
   );
 }
+
+const campaignLabel = (campaign: TemporaryCampaign) => {
+  const hours = +(campaign.duration / 3600).toFixed(2);
+  const state = campaign.completedAt ? "completed" : "active";
+  const confidence = campaign.confidence === "expected" ? "expected" : `${campaign.confidence}%`;
+  return `${state} · ${hours}h · ${confidence}`;
+};
 
 const moduleLabel = (m: string[] | null) =>
   m == null ? "auto" : m.length === 0 ? "none" : `${m.length} set`;

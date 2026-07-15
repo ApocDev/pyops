@@ -30,7 +30,7 @@ export function FactoryPinsCard({
         good: string;
         kind: string;
         rate: number;
-        source?: "explicit" | "terminal" | "stock";
+        source?: "explicit" | "terminal" | "stock" | "temporary";
       }[],
     ) => setFactoryPinsFn({ data: rows }),
     onSuccess: async () => {
@@ -40,9 +40,11 @@ export function FactoryPinsCard({
   });
   const rows = pins.data ?? [];
   const stockRows = rows.filter((pin) => pin.source === "stock");
+  const temporaryRows = rows.filter((pin) => pin.source === "temporary");
+  const derivedRows = [...stockRows, ...temporaryRows];
   const visibleRows = [
-    ...rows.filter((pin) => pin.source !== "stock"),
-    ...(showStock ? stockRows : []),
+    ...rows.filter((pin) => pin.source !== "stock" && pin.source !== "temporary"),
+    ...(showStock ? derivedRows : []),
   ];
   const persist = (next: PinRow[]) =>
     save.mutate(next.map(({ good, kind, rate, source }) => ({ good, kind, rate, source })));
@@ -89,12 +91,18 @@ export function FactoryPinsCard({
                     type="number"
                     step="0.01"
                     value={value}
+                    disabled={pin.source === "temporary"}
+                    title={
+                      pin.source === "temporary"
+                        ? "Edit this temporary campaign's quantity or duration in its block"
+                        : undefined
+                    }
                     onChange={(event) => onOverride(pin.good, Number(event.target.value) || 0)}
                     className="w-24 text-right"
                     aria-label={`${pin.display} factory pin`}
                   />
                   <span className="text-muted-foreground">/s</span>
-                  {pin.source !== "stock" && (
+                  {pin.source !== "stock" && pin.source !== "temporary" && (
                     <Button
                       variant="ghost"
                       size="icon-xs"
@@ -108,14 +116,14 @@ export function FactoryPinsCard({
                 </div>
               );
             })}
-            {stockRows.length > 0 && (
+            {derivedRows.length > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="m-2"
                 onClick={() => setShowStock((current) => !current)}
               >
-                {showStock ? "Hide" : "Show"} {stockRows.length} stock targets
+                {showStock ? "Hide" : "Show"} {derivedRows.length} derived stock/campaign targets
               </Button>
             )}
           </div>

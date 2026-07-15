@@ -11,6 +11,41 @@ vi.mock("#/server/factorio", () => ({
 }));
 
 describe("ItemChip spoil time", () => {
+  it("makes a finite campaign total the primary chip value", () => {
+    const { getByRole, getByText } = render(
+      <ItemChip
+        name="iron-ore"
+        kind="item"
+        display="Iron ore"
+        rate={0.17}
+        total={10}
+        link="import"
+        onClick={() => {}}
+      />,
+    );
+
+    expect(getByText("10 total").getAttribute("data-campaign-total")).not.toBeNull();
+    expect(getByText("0.17/s").getAttribute("data-campaign-rate")).not.toBeNull();
+    expect(getByRole("button").getAttribute("aria-label")).toContain(
+      "Iron ore 10 total · 0.17/s average",
+    );
+  });
+
+  it("labels finite energy totals in MJ", () => {
+    const { getByText } = render(
+      <ItemChip
+        name="pyops-electricity"
+        kind="fluid"
+        display="Electricity (MJ)"
+        total={400}
+        link="import"
+        onClick={() => {}}
+      />,
+    );
+
+    expect(getByText("400 MJ total")).toBeTruthy();
+  });
+
   it("shows average, minimum, and maximum for variable power generation", () => {
     const { getByRole, getByText } = render(
       <ItemChip

@@ -374,7 +374,7 @@ export const setFactoryPinsFn = createServerFn({ method: "POST" })
         good: string;
         kind: string;
         rate: number;
-        source?: "explicit" | "terminal" | "stock";
+        source?: "explicit" | "terminal" | "stock" | "temporary";
       }[],
     ) => pins,
   )

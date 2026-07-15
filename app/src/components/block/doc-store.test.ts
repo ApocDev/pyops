@@ -145,6 +145,40 @@ describe("goals", () => {
     expect(doc.store.state.goals[0].rate).toBe(7);
     expect(doc.store.state.goals[1].rate).toBe(0.5);
   });
+
+  it("converts goals into a finite temporary campaign and re-derives its rates", () => {
+    const doc = seeded();
+    doc.makeTemporary(3600);
+
+    expect(doc.store.state.campaign).toEqual({
+      duration: 3600,
+      confidence: "expected",
+      quantities: { "iron-plate": 7200, "copper-plate": 1800 },
+    });
+    doc.setCampaignQuantity("iron-plate", 1);
+    doc.setCampaignConfidence("90");
+    expect(doc.store.state.goals[0].rate * 3600).toBeCloseTo(Math.log(10), 5);
+
+    doc.setCampaignDuration(7200);
+    expect(doc.store.state.goals[0].rate * 7200).toBeCloseTo(Math.log(10), 5);
+    doc.setCampaignCompletedAt("2026-07-15T00:00:00.000Z");
+    expect(solveInputOf(doc.store.state).campaign?.completedAt).toBe("2026-07-15T00:00:00.000Z");
+  });
+
+  it("keeps campaign quantities aligned when goals change", () => {
+    const doc = seeded();
+    doc.makeTemporary();
+    doc.changeGoalItem("iron-plate", "steel-plate");
+    doc.removeGoal("copper-plate");
+    doc.addGoal("stone-brick");
+
+    expect(doc.store.state.campaign?.quantities).toEqual({
+      "steel-plate": 7200,
+      "stone-brick": 1,
+    });
+    doc.makeOngoing();
+    expect(doc.store.state.campaign).toBeNull();
+  });
 });
 
 describe("recipes", () => {
@@ -341,5 +375,17 @@ describe("solveInputOf", () => {
     const doc2 = createBlockDocStore();
     doc2.hydrate(saved, "Iron");
     expect(solveInputOf(doc2.store.state)).toEqual(saved);
+  });
+
+  it("round-trips temporary campaign intent", () => {
+    const doc = seeded();
+    doc.makeTemporary(7200);
+    doc.setCampaignQuantity("iron-plate", 3);
+    doc.setCampaignConfidence("95");
+    const saved = solveInputOf(doc.store.state);
+
+    const reloaded = createBlockDocStore();
+    reloaded.hydrate(saved, "Iron");
+    expect(solveInputOf(reloaded.store.state)).toEqual(saved);
   });
 });

@@ -119,6 +119,12 @@ export const rateLabel = (
   return `${sign}${formatQty(rate)}${opts?.perSec ? "/s" : ""}`;
 };
 
+/** A finite amount of a good. Energy pseudo-fluids use MJ as their stored
+ * quantity unit, so campaign totals need an energy unit rather than looking
+ * like an unexplained item count. */
+export const quantityLabel = (good: string, quantity: number) =>
+  ENERGY_PSEUDO.has(good) ? `${formatQty(quantity)} MJ` : formatQty(quantity);
+
 // compact temperature values: 4000 → "4k", 2500 → "2.5k", 125 → "125"
 const tempVal = (t: number) =>
   Math.abs(t) >= 1000 ? `${String(Math.round((t / 1000) * 10) / 10)}k` : String(t);

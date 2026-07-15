@@ -32,6 +32,10 @@ export type PickChange = {
 export type ValueChange<T> = { name: string; from: T | null; to: T | null };
 
 export type BlockDiff = {
+  campaign: {
+    from: BlockData["campaign"] | null;
+    to: BlockData["campaign"] | null;
+  } | null;
   goals: { added: Goal[]; removed: Goal[]; changed: GoalChange[] };
   recipes: {
     added: string[];
@@ -66,6 +70,10 @@ const sameList = (a: string[] | null, b: string[] | null) =>
 
 /** Compare two normalized block docs. See the module docs for direction. */
 export function diffBlockDocs(from: BlockData, to: BlockData): BlockDiff {
+  const campaign =
+    JSON.stringify(from.campaign ?? null) === JSON.stringify(to.campaign ?? null)
+      ? null
+      : { from: from.campaign ?? null, to: to.campaign ?? null };
   const fromGoals = new Map((from.goals ?? []).map((g) => [g.name, g]));
   const toGoals = new Map((to.goals ?? []).map((g) => [g.name, g]));
   const goals: BlockDiff["goals"] = { added: [], removed: [], changed: [] };
@@ -147,7 +155,8 @@ export function diffBlockDocs(from: BlockData, to: BlockData): BlockDiff {
   const pins = diffMap(pinsA, pinsB);
 
   const unchanged =
-    goals.added.length +
+    (campaign ? 1 : 0) +
+      goals.added.length +
       goals.removed.length +
       goals.changed.length +
       recipes.added.length +
@@ -161,7 +170,7 @@ export function diffBlockDocs(from: BlockData, to: BlockData): BlockDiff {
       spoilRates.length ===
     0;
 
-  return { goals, recipes, picks, dispositions, made, pins, spoilRates, unchanged };
+  return { campaign, goals, recipes, picks, dispositions, made, pins, spoilRates, unchanged };
 }
 
 /** Every internal name a diff references, split by NAMESPACE — `recipes` (recipe

@@ -110,6 +110,7 @@ export function RecipeRow({
   goodDisplay?: Readonly<Record<string, string>>;
 }) {
   const spoilables = useSpoilables();
+  const campaign = useStore(doc.store, (s) => s.campaign);
   // Debounce the suggestion hint (#117): the suggested fill recomputes per
   // solve, so it can flip while a rate is being dragged. The sparkle only
   // appears once the suggestion has held still for a beat — mid-edit churn
@@ -135,6 +136,11 @@ export function RecipeRow({
   // v2 solver (#91): rates are ≥ 0 by construction. A row at exactly 0 is
   // idle — nothing in the block pulls it (not an error; often a parked option).
   const idle = !off && row != null && Math.abs(row.rate) < 1e-9;
+  const uncertainProducts =
+    row?.products.filter(
+      (product) =>
+        product.probability < 1 || Math.abs(product.amountMax - product.amountMin) > 1e-9,
+    ) ?? [];
   const rowRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (highlight) rowRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -207,9 +213,28 @@ export function RecipeRow({
               ) : row ? (
                 <span className="flex items-center gap-1 text-sm text-muted-foreground">
                   {num(row.rate)}/s
+                  {campaign && (
+                    <span className="tabular-nums">
+                      · {num(row.rate * campaign.duration)} crafts total
+                    </span>
+                  )}
                   <RecipeSpoilageIndicator products={row.products} spoilables={spoilables} />
                 </span>
               ) : null}
+              {campaign && uncertainProducts.length > 0 && (
+                <Tooltip
+                  content={uncertainProducts
+                    .map(
+                      (product) =>
+                        `${product.display ?? product.name}: ${num(product.amountMin)}–${num(product.amountMax)} each${product.probability < 1 ? ` · ${num(product.probability * 100)}% chance` : ""} · ${num(product.amountExpected * (row?.rate ?? 0) * campaign.duration)} expected total`,
+                    )
+                    .join("\n")}
+                >
+                  <span className="flex items-center gap-1 text-sm text-warning">
+                    <FlaskConical className="size-3" /> Variable result · hover for range and chance
+                  </span>
+                </Tooltip>
+              )}
             </span>
             <Button
               variant="ghost"

@@ -403,6 +403,17 @@ export type BeaconConfig = { beacon: string; modules: string[]; count: number };
  * machines are sized to rebuild the buffer within the window. Its boundary flow
  * is cached with role "stock" so factory views can mark refill demands. */
 export type RateUnit = "s" | "min" | "h";
+export type CampaignConfidence = "expected" | "90" | "95";
+export type TemporaryCampaign = {
+  /** Shared planning window in seconds. Goal rates derive from quantity/window. */
+  duration: number;
+  /** Finite amount requested for every goal, keyed by the goal's internal name. */
+  quantities: Record<string, number>;
+  /** Expected-value solve, or an operational Poisson reserve for a finite target. */
+  confidence: CampaignConfidence;
+  /** A completed campaign remains as history while its block is disabled. */
+  completedAt?: string;
+};
 export type Goal = {
   name: string;
   rate: number;
@@ -424,6 +435,9 @@ export type BlockData = {
   // rate-scaling tools; it's also the DEFAULT icon source. See lib/goals.ts for the
   // migration from the legacy { target, rate, extraGoals } shape.
   goals: Goal[];
+  /** A finite production campaign uses the normal rate solver while active, but
+   * derives each goal from a total quantity over one shared duration. */
+  campaign?: TemporaryCampaign;
   // Explicit block icon (#40): any item/fluid the user picked, independent of the
   // goals. Unset = the icon follows the first goal (the pre-#40 behavior). The
   // resolved choice is cached in the blocks.icon_kind/icon_name columns on save.
