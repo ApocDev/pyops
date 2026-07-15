@@ -1,0 +1,27 @@
+app/e2e/mut/count-pin.e2e.ts
+  s_67a45f82fe75dd::t_fd254e0c7a52eb 49-91
+app/src/components/block/recipe-grid.tsx
+  s_67a45f82fe75dd::t_dd284a9139c450 73,235
+app/src/components/block/recipe-row.tsx
+  s_67a45f82fe75dd::t_4ddc208643b4f5 68,90-91,142-150,196-201
+app/src/server/block-compute.server.ts
+  s_67a45f82fe75dd::t_3de0eebbf7c81b 778-790
+app/src/server/block-compute.test.ts
+  s_67a45f82fe75dd::t_733fadf2f0f2ed 1047-1049
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "c547ee6bcff208a9f6eb4e10f7b2e35770a4b6c4",
+  "prompts": {},
+  "sessions": {
+    "s_67a45f82fe75dd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6376-740a-7e73-9150-9ab3dfaeaf62",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
