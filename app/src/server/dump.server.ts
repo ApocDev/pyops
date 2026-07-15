@@ -599,7 +599,7 @@ export function startDataSync(opts: { icons?: boolean } = {}): SyncState {
       step("import", "importing dump into sqlite");
       const summary = importFactorioDump({ dbUrl: currentDatabaseFile() });
       state.log.push(
-        `imported ${summary.counts.recipes} recipes / ${summary.counts.items} items in ${summary.ms}ms`,
+        `imported ${summary.counts.recipes} recipes / ${summary.counts.items} items with data reader v${summary.dataFormatVersion} in ${summary.ms}ms`,
       );
       if (icons) {
         step("atlas", "rebuilding icon atlas");

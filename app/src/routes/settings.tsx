@@ -151,8 +151,8 @@ function GameDataTab() {
         <CardHeader className="justify-between">
           <CardTitle>Reference data</CardTitle>
           {drift.data?.needsRedump && (
-            <Tooltip content="The game's enabled mods or their versions changed since the last sync">
-              <Badge variant="destructive">Stale — mods changed</Badge>
+            <Tooltip content="The game's mods or PyOps' data reader changed since the last sync">
+              <Badge variant="destructive">Stale — re-sync needed</Badge>
             </Tooltip>
           )}
         </CardHeader>
@@ -173,6 +173,17 @@ function GameDataTab() {
                 {status.data.currentFingerprint &&
                   ` · Current mod list ${status.data.currentFingerprint}`}
               </div>
+              {drift.data?.dataFormat && (
+                <div
+                  className={`text-xs ${drift.data.dataFormat.stale ? "text-warning" : "text-muted-foreground"}`}
+                >
+                  Imported data format{" "}
+                  {drift.data.dataFormat.imported == null
+                    ? "unversioned"
+                    : `v${drift.data.dataFormat.imported}`}
+                  {" · "}Current reader v{drift.data.dataFormat.current}
+                </div>
+              )}
             </>
           )}
           <Button onClick={() => driftModal.open()} className="mt-1">
@@ -295,7 +306,7 @@ function ModDriftCard({ data }: { data: Awaited<ReturnType<typeof modDriftFn>> |
     );
   }
   const d = data.drift;
-  if (!data.needsRedump) {
+  if (!data.modsChanged || !d) {
     return (
       <Card>
         <CardHeader className="justify-between">

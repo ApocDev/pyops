@@ -14,14 +14,14 @@ import { driftModal } from "../lib/drift-store";
 import { Button } from "#/components/ui/button.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 
-/** Persistent re-entry point for the data-sync modal: a small warning-toned chip in the
- * nav whenever the game's mods have drifted from the project's reference data
- * (so dismissing the popup doesn't strand it). Hidden when data is in sync. */
+/** Persistent re-entry point for the data-sync modal: a small warning-toned chip
+ * whenever the game's mods or PyOps' data reader have drifted from the project's
+ * reference data. Hidden when data is in sync. */
 function DataDriftIndicator() {
   const drift = useQuery({ queryKey: ["modDrift"], queryFn: () => modDriftFn() });
   if (!drift.data?.needsRedump) return null;
   return (
-    <Tooltip content="The game's mods changed since your last data sync — click to review and re-sync.">
+    <Tooltip content="Reference data no longer matches the current mods or data reader — click to review and re-sync.">
       <Button
         variant="ghost"
         onClick={() => driftModal.open()}

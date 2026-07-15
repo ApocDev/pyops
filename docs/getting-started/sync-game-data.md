@@ -72,8 +72,10 @@ A successful run ends at **Reference data updated**. Select **Done**, then check
 **Reference data** card on **Settings → Game data**. It should list non-zero recipe, item,
 fluid, and machine counts.
 
-After a later mod change, this page can report that PyOps differs from the game. Use
-**Re-sync now** to refresh the project. **Ignore for now** leaves the existing data and
-plans unchanged.
+After a later mod change—or a PyOps update that reads additional or changed dump data—the app
+shows **Data stale** and opens the same re-sync prompt. The dialog identifies whether the mods,
+the PyOps data reader, or both changed. Use **Re-sync now** to refresh the project. **Ignore for
+now** leaves the existing data and plans unchanged, with **Data stale** kept in the navigation as
+a way back.
 
 Continue to [Build your first block](./first-block).

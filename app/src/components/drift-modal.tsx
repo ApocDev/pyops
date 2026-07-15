@@ -49,10 +49,10 @@ const writeDismissed = (sig: string) => {
   }
 };
 
-/** The guided data-sync experience: a themed modal that pops when mod drift is
- * detected (or is opened from the nav / Settings), lets you ignore or re-sync, and
- * then walks the dump as a step-by-step progress flow ending in a summary. Mounted
- * once in the root; it owns the periodic drift check and the sync polling. */
+/** The guided data-sync experience: a themed modal that pops when mod or importer
+ * drift is detected (or is opened from the nav / Settings), lets you ignore or
+ * re-sync, and then walks the dump as a step-by-step progress flow ending in a
+ * summary. Mounted once in the root; it owns the periodic drift check and polling. */
 export function DriftModal() {
   const qc = useQueryClient();
   const isOpen = useDriftModalOpen();
@@ -97,8 +97,12 @@ export function DriftModal() {
     prevConnected.current = connected;
   }, [connected, qc]);
 
-  // Auto-open once per drift signature (until it's dismissed or resolved by a sync).
-  const sig = drift.data?.needsRedump ? JSON.stringify(drift.data.drift) : null;
+  // Auto-open once per combined drift signature (until dismissed or resolved).
+  // Include the reader versions so each future format bump prompts exactly once,
+  // even when the mod set itself has not changed.
+  const sig = drift.data?.needsRedump
+    ? JSON.stringify({ mods: drift.data.drift, dataFormat: drift.data.dataFormat })
+    : null;
   useEffect(() => {
     if (sig && readDismissed() !== sig) driftModal.open();
   }, [sig]);
@@ -123,6 +127,8 @@ export function DriftModal() {
   if (!isOpen) return null;
 
   const hasDrift = !!drift.data?.needsRedump;
+  const hasModDrift = !!drift.data?.modsChanged;
+  const hasDataFormatDrift = !!drift.data?.dataFormat.stale;
   const gameUp = gameRunning.data?.running === true; // can't sync while the game runs
   const running = RUNNING.has(phase);
   const view: "prompt" | "running" | "done" | "error" = running
@@ -170,8 +176,8 @@ export function DriftModal() {
           <HelpButton title="Data drift" className="mr-7 ml-auto">
             <p>
               PyOps plans against a snapshot of the game&apos;s prototype data (recipes, items,
-              machines, techs). When the game&apos;s mod set changes, that snapshot drifts out of
-              date and this dialog offers a re-sync.
+              machines, techs). When the game&apos;s mod set or PyOps&apos; data reader changes,
+              that snapshot drifts out of date and this dialog offers a re-sync.
             </p>
             <p>
               A re-sync launches a headless copy of Factorio to re-dump the data, then imports it.
@@ -189,7 +195,10 @@ export function DriftModal() {
           {view === "prompt" && (
             <PromptBody
               hasDrift={hasDrift}
+              hasModDrift={hasModDrift}
+              hasDataFormatDrift={hasDataFormatDrift}
               drift={drift.data?.drift ?? null}
+              dataFormat={drift.data?.dataFormat}
               icons={icons}
               setIcons={setIcons}
               gameUp={gameUp}
@@ -272,13 +281,19 @@ const TITLES: Record<"running" | "done" | "error", TitleSpec> = {
 
 function PromptBody({
   hasDrift,
+  hasModDrift,
+  hasDataFormatDrift,
   drift,
+  dataFormat,
   icons,
   setIcons,
   gameUp,
 }: {
   hasDrift: boolean;
+  hasModDrift: boolean;
+  hasDataFormatDrift: boolean;
   drift: Parameters<typeof DriftChanges>[0]["drift"];
+  dataFormat?: { current: number; imported: number | null; stale: boolean };
   icons: boolean;
   setIcons: (v: boolean) => void;
   gameUp: boolean;
@@ -292,11 +307,24 @@ function PromptBody({
         </Callout>
       )}
       <p className="text-sm text-muted-foreground">
-        {hasDrift
-          ? "The game's mods changed since your last sync — re-sync to plan against the current data."
-          : "Re-dump the game's prototype data from the current mods and import it."}
+        {hasModDrift && hasDataFormatDrift
+          ? "The game's mods and PyOps' data reader changed since your last sync. Re-sync to rebuild this project's reference data."
+          : hasModDrift
+            ? "The game's mods changed since your last sync — re-sync to plan against the current data."
+            : hasDataFormatDrift
+              ? "PyOps now reads the Factorio dump differently than the version that built this project's reference data. Re-sync to rebuild it with the current reader."
+              : hasDrift
+                ? "This project's reference data needs to be rebuilt before planning continues."
+                : "Re-dump the game's prototype data from the current mods and import it."}
       </p>
-      {hasDrift && (
+      {hasDataFormatDrift && dataFormat && (
+        <div className="border border-warning/30 bg-warning/10 p-2 text-sm text-warning">
+          Imported data format:{" "}
+          {dataFormat.imported == null ? "unversioned" : `v${dataFormat.imported}`}
+          {" · "}Current reader: v{dataFormat.current}
+        </div>
+      )}
+      {hasModDrift && drift && (
         <div className="max-h-48 overflow-y-auto border border-border bg-muted/20 p-2">
           <DriftChanges drift={drift} />
         </div>

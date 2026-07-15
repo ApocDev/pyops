@@ -11,6 +11,7 @@ import {
 } from "../lib/goals";
 import { extractRecipeToBlockDocs, withRecipeSet } from "../lib/block-doc";
 import type { FactoryFlowQualifier } from "../lib/factory-flow.ts";
+import { referenceDataFormatStatus } from "../lib/data-format.ts";
 
 /**
  * Server functions exposing the query layer to the client. Server-only modules
@@ -1093,14 +1094,16 @@ export const dataStatusFn = createServerFn({ method: "GET" }).handler(async () =
   };
 });
 
-/** Mod-drift check: compare the game's CURRENT mod set (live from the mods dir)
- * against the baseline this project's data was dumped from (#28, `meta.mod_list`),
- * by name AND version. Returns the categorized drift plus `needsRedump` — the
- * signal that the reference data no longer matches the game and a re-dump is due.
+/** Reference-data drift check: compare the game's CURRENT mod set (live from the
+ * mods dir) against the baseline this project's data was dumped from (#28,
+ * `meta.mod_list`), and compare the importer format recorded in project metadata
+ * against the app's current reader. Returns both causes plus `needsRedump` — the
+ * shared signal that the reference data needs to be rebuilt.
  * Cheap (two small file reads), so it's safe to poll on app start, on project
  * switch (a full reload re-runs it), on bridge reconnect, and periodically. */
 export const modDriftFn = createServerFn({ method: "GET" }).handler(async () => {
   const metaMap = q.metaAll();
+  const dataFormat = referenceDataFormatStatus(metaMap.data_format_version, q.stats().recipes > 0);
   let baseline: dump.ModEntry[] | null = null;
   if (metaMap.mod_list) {
     try {
@@ -1115,12 +1118,14 @@ export const modDriftFn = createServerFn({ method: "GET" }).handler(async () => 
   } catch {
     current = null; // factorio dir missing — can't compare, don't nag
   }
-  if (!baseline || !current)
-    return { haveBaseline: !!baseline, drift: null, needsRedump: false } as const;
+  const drift = baseline && current ? dump.diffMods(baseline, current) : null;
+  const modsChanged = baseline && current ? dump.redumpNeeded(baseline, current) : false;
   return {
-    haveBaseline: true,
-    drift: dump.diffMods(baseline, current),
-    needsRedump: dump.redumpNeeded(baseline, current),
+    haveBaseline: !!baseline,
+    drift,
+    modsChanged,
+    dataFormat,
+    needsRedump: modsChanged || dataFormat.stale,
   };
 });
 

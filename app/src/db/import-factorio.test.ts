@@ -3,6 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
+import {
+  REFERENCE_DATA_FORMAT_META_KEY,
+  REFERENCE_DATA_FORMAT_VERSION,
+} from "../lib/data-format.ts";
 import { importFactorioDump } from "./import-factorio.ts";
 import { type TestDb, makeTestDb } from "./test-helpers.ts";
 
@@ -86,6 +90,18 @@ describe("importFactorioDump — Factorio 2.1 product probability", () => {
     expect(rows[3].probability).toBeCloseTo(0.5);
     expect(rows[4].name).toBe("both");
     expect(rows[4].probability).toBeCloseTo(0.1);
+    db.close();
+  });
+});
+
+describe("importFactorioDump — data format version", () => {
+  it("records the reader version after a successful two-pass import", () => {
+    const db = runImport({ recipe: {} });
+    const stored = db
+      .prepare("SELECT value FROM meta WHERE key = ?")
+      .pluck()
+      .get(REFERENCE_DATA_FORMAT_META_KEY);
+    expect(stored).toBe(String(REFERENCE_DATA_FORMAT_VERSION));
     db.close();
   });
 });

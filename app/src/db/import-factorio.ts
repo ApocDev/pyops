@@ -15,6 +15,10 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { synthesizePass2 } from "./synthesize.ts";
 import { temperatureFedDrain, type TempFedFluid } from "./fluid-energy.ts";
+import {
+  REFERENCE_DATA_FORMAT_META_KEY,
+  REFERENCE_DATA_FORMAT_VERSION,
+} from "../lib/data-format.ts";
 import { PROJECTS_DIR } from "../server/paths.server.ts";
 import { configureSqliteConnection } from "../server/provision.ts";
 
@@ -177,6 +181,7 @@ export type ImportSummary = {
   dump: string;
   dbUrl: string;
   ms: number;
+  dataFormatVersion: number;
   counts: Record<string, number>;
 };
 
@@ -623,8 +628,17 @@ export function importFactorioDump(
       null,
     parseSI,
   });
+  // Record compatibility only after both importer passes complete. A failed
+  // upgrade therefore keeps the previous version stale and prompts another sync.
+  ins.meta.run(REFERENCE_DATA_FORMAT_META_KEY, String(REFERENCE_DATA_FORMAT_VERSION));
   const count = (t: string) => (db.prepare(`SELECT count(*) c FROM ${t}`).get() as { c: number }).c;
   const counts = Object.fromEntries(COUNT_TABLES.map((t) => [t, count(t)]));
   db.close();
-  return { dump: DUMP, dbUrl: DB_URL, ms: Date.now() - t0, counts: { ...counts, ...synthetic } };
+  return {
+    dump: DUMP,
+    dbUrl: DB_URL,
+    ms: Date.now() - t0,
+    dataFormatVersion: REFERENCE_DATA_FORMAT_VERSION,
+    counts: { ...counts, ...synthetic },
+  };
 }

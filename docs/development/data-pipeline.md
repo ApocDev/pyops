@@ -85,6 +85,13 @@ project applies a branch selection.
 `*-locale.json` file. It replaces reference tables in the active SQLite database while
 leaving user-owned planning tables intact.
 
+After both import passes complete, the importer writes `data_format_version` to project
+metadata. `REFERENCE_DATA_FORMAT_VERSION` in `app/src/lib/data-format.ts` describes the
+meaning of normalized reference rows, independently of the SQLite schema version. The shared
+reference-data drift check compares the stored and current versions alongside mod drift. A
+non-empty project with a missing or different version gets the existing re-sync prompt; an empty
+project remains in the normal first-sync flow.
+
 ### Normalization
 
 The importer converts Factorio's flexible prototype shapes into stable relational rows:
@@ -278,8 +285,11 @@ When importing a new prototype property or production mechanism:
    one stable representation.
 4. Update solver/effects consumers and invalidate the solve generation when the new value
    changes planning output.
-5. Add focused importer or synthesis fixtures covering missing and modded values.
-6. Update the user guide only when the property creates a visible choice, result, or sync
+5. Bump `REFERENCE_DATA_FORMAT_VERSION` when existing imported rows must be rebuilt for the
+   change to take effect. Do not bump it for code changes that read the existing normalized rows
+   without changing their meaning.
+6. Add focused importer or synthesis fixtures covering missing and modded values.
+7. Update the user guide only when the property creates a visible choice, result, or sync
    requirement.
 
 Verify the importer and affected solver modules with `vp test`, then run a real sync against
