@@ -568,15 +568,14 @@ function PlannerCard() {
                 the start.
               </p>
               <p>
-                To prefer something else, open a recipe's building or fuel picker in the block
-                editor and click its <Star className="inline size-3.5" /> star: the next new recipe
-                in that category uses your pick (once it's researched). Existing blocks keep their
-                choices.
+                To prefer something else, open a recipe&apos;s building, fuel, or fluid-temperature
+                picker in the block editor and click its <Star className="inline size-3.5" /> star.
+                The next new compatible recipe row uses your pick. Existing rows keep their choices.
               </p>
             </HelpButton>
           </div>
           <p className="text-sm text-muted-foreground">
-            Star a building or fuel in a recipe picker to make it the default for new recipes.
+            Star a building, fuel, or fluid temperature to make it the default for new recipes.
           </p>
         </div>
       </div>

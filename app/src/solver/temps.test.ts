@@ -26,19 +26,24 @@ const mdh4000: TempRecipeDef = {
 
 const noDefault = () => null;
 
-const solve = (defs: TempRecipeDef[], goals: { name: string; rate: number }[], made: string[]) => {
+const solve = (
+  defs: TempRecipeDef[],
+  goals: { name: string; rate: number; temperature?: number }[],
+  made: string[],
+) => {
   const { input, fold } = expandTemps({ goals, recipes: defs, made, pins: [] }, noDefault);
   return { fold, res: solveBlockLp(input) };
 };
 
-test("fluids without ranged consumers pass through untouched", () => {
+test("producer-only fluids retain exact temperature identity for the factory boundary", () => {
   const { input, fold } = expandTemps(
     { goals: [{ name: "neutron", rate: 1 }], recipes: [dtHe3], made: [], pins: [] },
     noDefault,
   );
-  expect(input.recipes).toHaveLength(1);
-  expect(input.recipes[0].products[0].name).toBe("neutron");
-  expect(fold.isSynthetic("anything")).toBe(false);
+  const product = input.recipes.find((recipe) => recipe.name === "dt-he3")!.products[0].name;
+  expect(fold.bare(product)).toBe("neutron");
+  expect(fold.qualifierOf(product)).toEqual({ mode: "exact", minTemp: 3000, maxTemp: 3000 });
+  expect(input.recipes.some((recipe) => fold.isSynthetic(recipe.name))).toBe(true);
 });
 
 test("an out-of-range producer cannot feed a ranged consumer — the pool imports", async () => {
@@ -134,6 +139,31 @@ test("a goal on an expanded fluid is satisfied by any temperature, variants stay
   expect(r.unmade ?? []).toEqual([]);
   const imports = r.imports.map((f) => `${fold.bare(f.name)} ${fold.tempOf(f.name) ?? ""}`.trim());
   expect(imports).toContain("water ≤101°");
+});
+
+test("an exact fluid goal only runs the selected produced temperature", async () => {
+  const steam250: TempRecipeDef = {
+    name: "steam-250",
+    energyRequired: 2,
+    ingredients: [],
+    products: [{ kind: "fluid", name: "steam", amount: 100, temperature: 250 }],
+  };
+  const steam2000: TempRecipeDef = {
+    name: "steam-2000",
+    energyRequired: 1,
+    ingredients: [],
+    products: [{ kind: "fluid", name: "steam", amount: 100, temperature: 2000 }],
+  };
+  const { res } = solve(
+    [steam250, steam2000],
+    [{ name: "steam", rate: 100, temperature: 250 }],
+    [],
+  );
+  const result = await res;
+  const rates = Object.fromEntries(result.recipes.map((row) => [row.recipe, row.rate]));
+  expect(result.status).toBe("solved");
+  expect(rates["steam-250"]).toBeCloseTo(1);
+  expect(rates["steam-2000"]).toBeCloseTo(0);
 });
 
 test("share pins follow the consumer onto its pool", async () => {

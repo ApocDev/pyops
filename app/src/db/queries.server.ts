@@ -64,6 +64,7 @@ import {
 import { goalNames, normalizeBlockData, primaryRate } from "../lib/goals.ts";
 import { prodScaledAmount } from "../lib/productivity.ts";
 import { wholeMachines } from "../lib/machine-count.ts";
+import { factoryFlowKey, type FactoryFlowQualifier } from "../lib/factory-flow.ts";
 import {
   bumpSolveGeneration,
   currentSolveGeneration,
@@ -308,6 +309,40 @@ export function recipesConsuming(name: string) {
     .innerJoin(recipes, eq(recipes.name, recipeIngredients.recipe))
     .where(eq(recipeIngredients.name, name))
     .all();
+}
+
+/** Exact temperatures that the current reference data can actually produce for
+ * each requested fluid. A product without an explicit temperature comes out at
+ * the fluid prototype's default temperature. Used by the block ingredient
+ * picker; it intentionally does not invent arbitrary temperatures. */
+export function producedFluidTemperatures(names: string[]): Map<string, number[]> {
+  const requested = [...new Set(names)].filter(Boolean);
+  const out = new Map(requested.map((name) => [name, [] as number[]]));
+  if (!requested.length) return out;
+  const defaults = new Map(
+    db
+      .select({ name: fluids.name, temperature: fluids.defaultTemperature })
+      .from(fluids)
+      .where(inArray(fluids.name, requested))
+      .all()
+      .map((row) => [row.name, row.temperature] as const),
+  );
+  const values = new Map(requested.map((name) => [name, new Set<number>()]));
+  for (const product of db
+    .select({ name: recipeProducts.name, temperature: recipeProducts.temperature })
+    .from(recipeProducts)
+    .where(inArray(recipeProducts.name, requested))
+    .all()) {
+    const temperature = product.temperature ?? defaults.get(product.name);
+    if (temperature != null && Number.isFinite(temperature))
+      values.get(product.name)?.add(temperature);
+  }
+  for (const name of requested)
+    out.set(
+      name,
+      [...(values.get(name) ?? [])].sort((a, b) => a - b),
+    );
+  return out;
 }
 
 function recipesConsumingByGoods(names: string[]): Map<string, RecipeSummaryRow[]> {
@@ -1847,6 +1882,9 @@ export function getBlockFlows(id: number) {
       kind: blockFlows.kind,
       role: blockFlows.role,
       rate: blockFlows.rate,
+      temperatureMode: blockFlows.temperatureMode,
+      minTemp: blockFlows.minTemp,
+      maxTemp: blockFlows.maxTemp,
     })
     .from(blockFlows)
     .where(eq(blockFlows.blockId, id))
@@ -1952,7 +1990,15 @@ export function deleteBlock(id: number) {
   db.delete(blocks).where(eq(blocks.id, id)).run();
 }
 
-export type BlockFlow = { item: string; kind: string; role: string; rate: number };
+export type BlockFlow = {
+  item: string;
+  kind: string;
+  role: string;
+  rate: number;
+  temperatureMode?: "exact" | "range" | null;
+  minTemp?: number | null;
+  maxTemp?: number | null;
+};
 export type BlockMachine = { machine: string; recipe: string; count: number };
 /** Insert or update a block + replace its cached I/O flows (one transaction).
  *
@@ -2121,13 +2167,20 @@ function enabledFlowsByBlock(): Map<number, BlockFlow[]> {
       kind: blockFlows.kind,
       role: blockFlows.role,
       rate: blockFlows.rate,
+      temperatureMode: blockFlows.temperatureMode,
+      minTemp: blockFlows.minTemp,
+      maxTemp: blockFlows.maxTemp,
     })
     .from(blockFlows)
     .innerJoin(blocks, eq(blockFlows.blockId, blocks.id))
     .where(eq(blocks.enabled, true))
     .all();
   const grouped = new Map<number, BlockFlow[]>();
-  for (const { blockId, ...flow } of rows) {
+  for (const { blockId, temperatureMode, minTemp, maxTemp, ...base } of rows) {
+    const flow: BlockFlow = {
+      ...base,
+      ...(temperatureMode ? { temperatureMode, minTemp, maxTemp } : {}),
+    };
     const flows = grouped.get(blockId) ?? [];
     flows.push(flow);
     grouped.set(blockId, flows);
@@ -2172,7 +2225,8 @@ export function blockImporters(good: string): { blockId: number; blockName: stri
 /** Drill-down for one good in the factory view: which blocks produce it (primary
  * or byproduct) and which consume it (import), each with its per-second rate.
  * Drives "click a resource → see who makes/uses it + make a new block for it". */
-export function blocksForGood(good: string) {
+export function blocksForGood(filter: string | FactoryFlowQualifier) {
+  const good = typeof filter === "string" ? filter : filter.item;
   const rows = db
     .select({
       blockId: blockFlows.blockId,
@@ -2181,12 +2235,29 @@ export function blocksForGood(good: string) {
       iconName: blocks.iconName,
       role: blockFlows.role,
       rate: blockFlows.rate,
+      kind: blockFlows.kind,
+      temperatureMode: blockFlows.temperatureMode,
+      minTemp: blockFlows.minTemp,
+      maxTemp: blockFlows.maxTemp,
     })
     .from(blockFlows)
     .innerJoin(blocks, eq(blocks.id, blockFlows.blockId))
     .where(and(eq(blockFlows.item, good), eq(blocks.enabled, true)))
     .all();
-  const shape = (r: (typeof rows)[number]) => ({
+  const qualifiedRows =
+    typeof filter === "string" || filter.hasTemperatureVariants === false
+      ? rows
+      : rows.filter(
+          (row) =>
+            factoryFlowKey({
+              item: good,
+              kind: row.kind,
+              temperatureMode: row.temperatureMode,
+              minTemp: row.minTemp,
+              maxTemp: row.maxTemp,
+            }) === factoryFlowKey(filter),
+        );
+  const shape = (r: (typeof qualifiedRows)[number]) => ({
     blockId: r.blockId,
     blockName: r.name,
     iconKind: r.iconKind,
@@ -2197,10 +2268,10 @@ export function blocksForGood(good: string) {
   return {
     good,
     display: getItem(good)?.display ?? getFluid(good)?.display ?? null,
-    producers: rows
+    producers: qualifiedRows
       .filter((r) => r.role === "primary" || r.role === "stock" || r.role === "byproduct")
       .map(shape),
-    consumers: rows.filter((r) => r.role === "import").map(shape),
+    consumers: qualifiedRows.filter((r) => r.role === "import").map(shape),
   };
 }
 
@@ -2382,19 +2453,37 @@ export function goodSuppliers(): Map<
 }
 
 export function factoryTotals() {
-  return db
+  const rows = db
     .select({
       item: blockFlows.item,
       kind: blockFlows.kind,
       role: blockFlows.role,
+      temperatureMode: blockFlows.temperatureMode,
+      minTemp: blockFlows.minTemp,
+      maxTemp: blockFlows.maxTemp,
       rate: sql<number>`sum(${blockFlows.rate})`,
     })
     .from(blockFlows)
     .innerJoin(blocks, eq(blocks.id, blockFlows.blockId)) // ignore orphans from deleted blocks
     .where(eq(blocks.enabled, true)) // disabled blocks (#73) don't count factory-wide
-    .groupBy(blockFlows.item, blockFlows.role)
-    .all()
-    .map((r) => ({ ...r, display: compDisplay(r.kind, r.item) }));
+    .groupBy(
+      blockFlows.item,
+      blockFlows.kind,
+      blockFlows.role,
+      blockFlows.temperatureMode,
+      blockFlows.minTemp,
+      blockFlows.maxTemp,
+    )
+    .all();
+  const producedTemperatures = producedFluidTemperatures(
+    rows.filter((row) => row.kind === "fluid").map((row) => row.item),
+  );
+  return rows.map((r) => ({
+    ...r,
+    display: compDisplay(r.kind, r.item),
+    hasTemperatureVariants:
+      r.kind === "fluid" && (producedTemperatures.get(r.item)?.length ?? 0) > 1,
+  }));
 }
 
 /* ── Built machines (live count from the game) vs. what blocks require ────────── */
@@ -4879,8 +4968,9 @@ export function metaDelete(key: string) {
  * block's stored picks. Changing a favorite never rewrites existing blocks — the
  * solver fallback (lowest tier / cheapest fuel) is favorite-independent.
  *
- * `favorite_machines`: recipe crafting/resource category → machine name.
- * `favorite_fuels`:     fuel category → fuel item name. */
+ * `favorite_machines`:          recipe category → machine name.
+ * `favorite_fuels`:             fuel category → fuel item name.
+ * `favorite_fluid_temperatures`: fluid name → exact produced temperature. */
 function readJsonMap(key: string): Record<string, string> {
   const raw = metaAll()[key];
   if (!raw) return {};
@@ -4900,6 +4990,15 @@ export function getFavoriteFuels(): Record<string, string> {
   return readJsonMap("favorite_fuels");
 }
 
+export function getFavoriteFluidTemperatures(): Record<string, number> {
+  const raw = readJsonMap("favorite_fluid_temperatures");
+  return Object.fromEntries(
+    Object.entries(raw)
+      .map(([fluid, temperature]) => [fluid, Number(temperature)] as const)
+      .filter((entry): entry is [string, number] => Number.isFinite(entry[1])),
+  );
+}
+
 /** Set (or clear, when `machine` is null) the preferred machine for a category. */
 export function setFavoriteMachine(category: string, machine: string | null) {
   const map = getFavoriteMachines();
@@ -4914,6 +5013,14 @@ export function setFavoriteFuel(fuelCategory: string, fuel: string | null) {
   if (fuel) map[fuelCategory] = fuel;
   else delete map[fuelCategory];
   metaSet("favorite_fuels", JSON.stringify(map));
+}
+
+/** Set (or clear) the preferred produced temperature for one canonical fluid. */
+export function setFavoriteFluidTemperature(fluid: string, temperature: number | null) {
+  const map = getFavoriteFluidTemperatures();
+  if (temperature != null && Number.isFinite(temperature)) map[fluid] = temperature;
+  else delete map[fluid];
+  metaSet("favorite_fluid_temperatures", JSON.stringify(map));
 }
 
 // (The old global "preferred fluid fuel" pick is gone: unfiltered fluid burners

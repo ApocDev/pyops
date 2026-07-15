@@ -54,6 +54,7 @@ export type BlockDiff = {
 
 const sameGoal = (a: Goal, b: Goal) =>
   a.rate === b.rate &&
+  a.temperature === b.temperature &&
   a.direction === b.direction &&
   a.unit === b.unit &&
   a.stock === b.stock &&

@@ -2,9 +2,8 @@ import { expect, test } from "@playwright/test";
 import { createBlock } from "./helpers";
 
 /**
- * Per-producer fluid-temperature warnings (#110 interim): the solver pools all
- * temperature variants of a fluid by name, so a producer whose output
- * temperature a consumer can't accept is silently blended in. Build the
+ * Per-producer fluid-temperature warnings (#110): temperature identity prevents
+ * an incompatible producer from feeding the consumer. Build the
  * issue's real fusion block — the MHD generator (accepts neutron @4000° only)
  * fed by dt-he3 (neutron @3000°) — and check the mismatch is flagged on the
  * balance card and both rows' chips. Then add b-h (neutron @4000°, satisfies

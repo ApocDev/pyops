@@ -24,6 +24,20 @@ async function recalculateScenario(page: Page) {
   await expect(status).toHaveAttribute("data-state", "current", { timeout: 90_000 });
 }
 
+function hydrocarbonScenarioBlock(db: DatabaseSync): {
+  id: number;
+  name: string;
+  data: string;
+} {
+  const row = db
+    .prepare(
+      "SELECT id, name, data FROM blocks WHERE data LIKE '%\"distilled-raw-coal\"%' LIMIT 1",
+    )
+    .get() as { id: number; name: string; data: string } | undefined;
+  if (!row) throw new Error("seed is missing the Hydrocarbons Scenario fixture");
+  return row;
+}
+
 test("factory pins can add and persist a consumption target", async ({ page }) => {
   await goto(page, "/factory/scenario");
   await dismissDataDriftPrompt(page);
@@ -252,17 +266,13 @@ test("Scenario zeros an unpinned consume goal without saving the preview", async
   }
 });
 
-test("Scenario scales a goal beyond recovered coproduct supply", async ({ page }) => {
+test("Scenario converges with temperature-qualified coproduct and grid power", async ({ page }) => {
   test.setTimeout(120_000);
   const db = new DatabaseSync(activeProjectDbFile());
   const pins = db.prepare("SELECT value FROM meta WHERE key = 'factory_pins_v1'").get() as
     | { value: string }
     | undefined;
-  const coalGas = db.prepare("SELECT 1 FROM blocks WHERE id = 83").get();
-  if (!coalGas) {
-    db.close();
-    throw new Error("seed is missing the Coal gas material-conflict fixture (block 83)");
-  }
+  hydrocarbonScenarioBlock(db);
   db.prepare(
     "INSERT INTO meta (key, value) VALUES ('factory_pins_v1', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
   ).run(
@@ -278,9 +288,11 @@ test("Scenario scales a goal beyond recovered coproduct supply", async ({ page }
     await dismissDataDriftPrompt(page);
     await recalculateScenario(page);
 
-    await expect(page.getByRole("link", { name: /^Creosote / })).toBeVisible({
+    await expect(page.getByRole("link", { name: /^Steam 250° / })).toBeVisible({
       timeout: 60_000,
     });
+    await expect(page.getByRole("link", { name: /^Electricity / })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Coal gas / })).toBeVisible();
     await expect(page.getByTestId("scenario-validation")).toBeHidden();
     await expect(page.getByRole("button", { name: "Balance factory" })).toBeEnabled();
   } finally {
@@ -297,13 +309,7 @@ test("Scenario scales a goal beyond recovered coproduct supply", async ({ page }
 test("Scenario explains which proposed block goals failed validation", async ({ page }) => {
   test.setTimeout(120_000);
   const db = new DatabaseSync(activeProjectDbFile());
-  const row = db.prepare("SELECT data FROM blocks WHERE id = 83").get() as
-    | { data: string }
-    | undefined;
-  if (!row) {
-    db.close();
-    throw new Error("seed is missing the Coal gas validation fixture (block 83)");
-  }
+  const row = hydrocarbonScenarioBlock(db);
   const original = row.data;
   const doc = JSON.parse(original) as {
     pins?: { kind: string; recipe: string; count?: number }[];
@@ -312,7 +318,7 @@ test("Scenario explains which proposed block goals failed validation", async ({ 
     ...(doc.pins ?? []).filter((pin) => pin.recipe !== "distilled-raw-coal"),
     { kind: "cap", recipe: "distilled-raw-coal", count: 1 },
   ];
-  db.prepare("UPDATE blocks SET data = ? WHERE id = 83").run(JSON.stringify(doc));
+  db.prepare("UPDATE blocks SET data = ? WHERE id = ?").run(JSON.stringify(doc), row.id);
   db.close();
 
   try {
@@ -324,13 +330,13 @@ test("Scenario explains which proposed block goals failed validation", async ({ 
     await expect(diagnostic.getByText("Scenario validation failed")).toBeVisible({
       timeout: 60_000,
     });
-    await expect(diagnostic.getByRole("link", { name: "Coal gas" })).toBeVisible();
+    await expect(diagnostic.getByRole("link", { name: row.name })).toBeVisible();
     await expect(diagnostic.getByText("Block solve: infeasible")).toBeVisible();
     await expect(diagnostic.getByText("Proposed goals on validation pass")).toBeVisible();
     await expect(diagnostic.getByText("Coke")).toBeVisible();
   } finally {
     const cleanup = new DatabaseSync(activeProjectDbFile());
-    cleanup.prepare("UPDATE blocks SET data = ? WHERE id = 83").run(original);
+    cleanup.prepare("UPDATE blocks SET data = ? WHERE id = ?").run(original, row.id);
     cleanup.close();
   }
 });

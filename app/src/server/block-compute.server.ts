@@ -6,9 +6,8 @@
  * (`resolveAllBlocks`). Extracted from factorio.ts so the server-fn layer
  * stays client-importable while this module imports the query layer statically.
  */
-import type { RecipeDef } from "../solver/lp";
 import type { Disposition } from "../solver/migrate";
-import { expandTemps } from "../solver/temps";
+import { expandTemps, type TempComponent, type TempRecipeDef } from "../solver/temps";
 import { solveBlockLp, type LpBlockInput, type Pin } from "../solver/lp";
 import {
   composeSubBlocks,
@@ -18,6 +17,7 @@ import {
 } from "../solver/subblock";
 import { diagnoseBlock, type DiagnosisCard } from "../solver/diagnose";
 import { migrateToLpInput } from "../solver/migrate";
+import type { TemperatureQualifier } from "../solver/temperature-flow";
 
 /** A pin as stored in the block doc (#91): counts are in BUILDINGS (what the
  * user sees on the row); the solve converts to executions/sec via the row's
@@ -178,19 +178,55 @@ export function boundaryFlows(
   r: {
     exports: { name: string; kind: string; rate: number }[];
     imports: { name: string; kind: string; rate: number }[];
+    qualifiedImports?: ({ name: string; kind: string; rate: number } & TemperatureQualifier)[];
+    qualifiedExports?: ({ name: string; kind: string; rate: number } & TemperatureQualifier)[];
+    qualifiedGoals?: Record<string, ({ rate: number } & TemperatureQualifier)[]>;
   },
 ) {
+  const goalRows = goals
+    .filter((g) => g.direction !== "consume" && g.rate >= 0)
+    .flatMap((g) => {
+      const qualified = r.qualifiedGoals?.[g.name];
+      if (!qualified?.length)
+        return [{ item: g.name, kind: g.kind, role: g.stock ? "stock" : "primary", rate: g.rate }];
+      const total = qualified.reduce((sum, flow) => sum + flow.rate, 0);
+      let assigned = 0;
+      return qualified.map((flow, index) => {
+        const sourceRate = flow.rate;
+        const rate =
+          index === qualified.length - 1
+            ? Math.max(0, g.rate - assigned)
+            : total > 0
+              ? (g.rate * sourceRate) / total
+              : 0;
+        assigned += rate;
+        return {
+          item: g.name,
+          kind: g.kind,
+          role: g.stock ? "stock" : "primary",
+          rate,
+          ...(flow.temperatureMode
+            ? {
+                temperatureMode: flow.temperatureMode,
+                minTemp: flow.minTemp,
+                maxTemp: flow.maxTemp,
+              }
+            : {}),
+        };
+      });
+    });
   return [
-    ...goals
-      .filter((g) => g.direction !== "consume" && g.rate >= 0)
-      .map((g) => ({
-        item: g.name,
-        kind: g.kind,
-        role: g.stock ? "stock" : "primary",
-        rate: g.rate,
-      })),
-    ...r.exports.map((f) => ({ item: f.name, kind: f.kind, role: "byproduct", rate: f.rate })),
-    ...r.imports.map((f) => ({ item: f.name, kind: f.kind, role: "import", rate: f.rate })),
+    ...goalRows,
+    ...(r.qualifiedExports ?? r.exports).map(({ name, ...f }) => ({
+      ...f,
+      item: name,
+      role: "byproduct",
+    })),
+    ...(r.qualifiedImports ?? r.imports).map(({ name, ...f }) => ({
+      ...f,
+      item: name,
+      role: "import",
+    })),
   ];
 }
 
@@ -265,6 +301,10 @@ export type SolveInput = {
   pins?: DocPin[];
   machines?: Record<string, string>; // recipe → chosen machine (else fastest)
   fuels?: Record<string, string>; // recipe → chosen fuel (else cheapest available)
+  /** Per-recipe planned temperature for a fluid ingredient. Missing means Auto
+   * (the prototype's full accepted range). This is routing intent, not a change
+   * to the Factorio recipe prototype. */
+  fluidTemperatures?: Record<string, Record<string, number>>;
   // Reactor farm layout per reactor recipe row (#94): the assumed x×y grid whose
   // neighbour bonus scales the row's heat output (absent = 1×1, no bonus).
   reactorLayouts?: Record<string, ReactorLayout>;
@@ -307,6 +347,15 @@ export async function computeBlock(rawData: SolveInput) {
         .filter((name) => !disabled.has(name))
         .map((name) => refs.getRecipe(name))
         .filter((r): r is NonNullable<ReturnType<typeof q.getRecipe>> => !!r);
+  const fluidTemperatureOptions = q.producedFluidTemperatures([
+    ...fetched.flatMap((recipe) =>
+      [...recipe.ingredients, ...recipe.products].flatMap((component) =>
+        component.kind === "fluid" ? [component.name] : [],
+      ),
+    ),
+    ...data.goals.flatMap((goal) => (refs.getFluid(goal.name) ? [goal.name] : [])),
+  ]);
+  const favoriteFluidTemperatures = q.getFavoriteFluidTemperatures();
 
   // Machine choice + module/beacon effects per recipe, BEFORE the solve —
   // productivity scales the recipe's products, which changes the balance.
@@ -417,21 +466,30 @@ export async function computeBlock(rawData: SolveInput) {
   // imported (handled post-hoc as a fuel import).
   const producedInBlock = new Set(fetched.flatMap((r) => r.products.map((p) => p.name)));
   const selfFueled = new Set<string>(); // recipes whose fuel is modeled in the LP (skip the post-hoc fold)
-  const defs: RecipeDef[] = fetched.map((r) => {
+  const defs: TempRecipeDef[] = fetched.map((r) => {
     const s = setup.get(r.name)!;
     const fx = s.effects;
     const chosen = s.chosen;
-    const ingredients = r.ingredients.map((c) => ({
-      kind: c.kind,
-      name: c.name,
-      amount: c.amount,
-    }));
-    const extraProducts: {
-      kind: string;
-      name: string;
-      amount: number;
-      probability?: number | null;
-    }[] = [];
+    const ingredients: TempComponent[] = r.ingredients.map((c) => {
+      const selected = data.fluidTemperatures?.[r.name]?.[c.name];
+      const fluid = c.kind === "fluid" ? refs.getFluid(c.name) : null;
+      const acceptedMin = c.minTemp ?? fluid?.defaultTemperature ?? null;
+      const acceptedMax = c.maxTemp ?? fluid?.maxTemperature ?? null;
+      const validSelection =
+        c.kind === "fluid" &&
+        selected != null &&
+        Number.isFinite(selected) &&
+        (acceptedMin == null || selected >= acceptedMin) &&
+        (acceptedMax == null || selected <= acceptedMax);
+      return {
+        kind: c.kind,
+        name: c.name,
+        amount: c.amount,
+        minTemp: validSelection ? selected : acceptedMin,
+        maxTemp: validSelection ? selected : c.maxTemp,
+      };
+    });
+    const extraProducts: TempComponent[] = [];
     // Self-fueling burners: when a machine burns a fuel this block PRODUCES (e.g. a
     // burner-mining-drill mining raw-coal while burning raw-coal), model the burn in
     // the LP — a fuel ingredient (+ its ash product) per execution. The solver then
@@ -524,6 +582,7 @@ export async function computeBlock(rawData: SolveInput) {
           kind: c.kind,
           name: c.name,
           probability: c.probability,
+          temperature: c.temperature,
           // productivity scales only the non-ignored part of each product (#93);
           // reactor farm layouts then scale heat output only (#94)
           amount:
@@ -590,11 +649,21 @@ export async function computeBlock(rawData: SolveInput) {
         supersededGoals.set(prod, { recipe: p.recipe, count: p.count });
     }
   }
-  const goals = targets.map((t) => ({
-    name: t.name,
-    rate: supersededGoals.has(t.name) ? 0 : t.rate,
-    direction: t.direction ?? (t.rate < 0 ? "consume" : "produce"),
-  }));
+  const goals = targets.map((t) => {
+    const producedTemperatures = fluidTemperatureOptions.get(t.name) ?? [];
+    const temperature =
+      t.temperature != null &&
+      Number.isFinite(t.temperature) &&
+      producedTemperatures.includes(t.temperature)
+        ? t.temperature
+        : undefined;
+    return {
+      name: t.name,
+      rate: supersededGoals.has(t.name) ? 0 : t.rate,
+      direction: t.direction ?? (t.rate < 0 ? "consume" : "produce"),
+      ...(temperature != null ? { temperature } : {}),
+    };
+  });
   const made =
     data.made ??
     migrateToLpInput({ targets: goals, recipes: defs, dispositions: data.dispositions }).made ??
@@ -716,6 +785,114 @@ export async function computeBlock(rawData: SolveInput) {
     }
     return [...merged].map(([name, v]) => ({ name, ...v }));
   };
+  type QualifiedResultFlow = {
+    name: string;
+    kind: string;
+    rate: number;
+    temperatureMode?: "exact" | "range" | null;
+    minTemp?: number | null;
+    maxTemp?: number | null;
+  };
+  const selectorInputs = new Map<string, { fluid: string; temperature: number; rate: number }[]>();
+  for (const row of rawResult.recipes) {
+    const selector = fold.selectorOf(row.recipe);
+    if (!selector || row.rate <= 1e-9) continue;
+    const list = selectorInputs.get(selector.pool) ?? [];
+    list.push({ fluid: selector.fluid, temperature: selector.temperature, rate: row.rate });
+    selectorInputs.set(selector.pool, list);
+  }
+  const mergeQualified = (flows: QualifiedResultFlow[]) => {
+    const merged = new Map<string, QualifiedResultFlow>();
+    for (const flow of flows) {
+      const key = `${flow.name}\u0000${flow.temperatureMode ?? ""}\u0000${flow.minTemp ?? ""}\u0000${flow.maxTemp ?? ""}`;
+      const current = merged.get(key);
+      if (current) current.rate += flow.rate;
+      else merged.set(key, { ...flow });
+    }
+    return [...merged.values()].filter((flow) => flow.rate > 1e-9);
+  };
+  const qualifyFlows = (
+    flows: { name: string; kind: string; rate: number }[],
+    direction: "import" | "export",
+  ): QualifiedResultFlow[] =>
+    mergeQualified(
+      flows.flatMap((flow) => {
+        const name = fold.bare(flow.name);
+        const qualifier = fold.qualifierOf(flow.name);
+        if (qualifier?.mode === "exact")
+          return [
+            {
+              ...flow,
+              name,
+              temperatureMode: "exact" as const,
+              minTemp: qualifier.minTemp,
+              maxTemp: qualifier.maxTemp,
+            },
+          ];
+        if (qualifier?.mode === "range" && direction === "import")
+          return [
+            {
+              ...flow,
+              name,
+              temperatureMode: "range" as const,
+              minTemp: qualifier.minTemp,
+              maxTemp: qualifier.maxTemp,
+            },
+          ];
+        if (qualifier?.mode === "range") {
+          const inputs = selectorInputs.get(flow.name) ?? [];
+          const total = inputs.reduce((sum, input) => sum + input.rate, 0);
+          if (total > 1e-9)
+            return inputs.map((input) => ({
+              name,
+              kind: flow.kind,
+              rate: (flow.rate * input.rate) / total,
+              temperatureMode: "exact" as const,
+              minTemp: input.temperature,
+              maxTemp: input.temperature,
+            }));
+        }
+        // A real fluid imported without an explicit prototype range is an Auto
+        // consumer. Pseudo-fluids have no prototype default and remain bare.
+        const fluid = flow.kind === "fluid" ? refs.getFluid(name) : null;
+        if (direction === "import" && fluid?.defaultTemperature != null)
+          return [
+            {
+              ...flow,
+              name,
+              temperatureMode: "range" as const,
+              minTemp: null,
+              maxTemp: null,
+            },
+          ];
+        return [{ ...flow, name }];
+      }),
+    );
+  const qualifiedRawImports = qualifyFlows(rawResult.imports, "import");
+  const qualifiedRawExports = qualifyFlows(rawResult.exports, "export");
+  const qualifiedGoals: Record<string, QualifiedResultFlow[]> = {};
+  for (const goal of goals) {
+    if (goal.direction === "consume" || goal.rate < 0 || !refs.getFluid(goal.name)) continue;
+    const candidates = [...selectorInputs.entries()].flatMap(([pool, inputs]) => {
+      const qualifier = fold.qualifierOf(pool);
+      const expectedMin = goal.temperature ?? null;
+      const expectedMax = goal.temperature ?? null;
+      return fold.bare(pool) === goal.name &&
+        qualifier?.mode === "range" &&
+        qualifier.minTemp === expectedMin &&
+        qualifier.maxTemp === expectedMax
+        ? inputs.map((input) => ({
+            name: goal.name,
+            kind: "fluid",
+            rate: input.rate,
+            temperatureMode: "exact" as const,
+            minTemp: input.temperature,
+            maxTemp: input.temperature,
+          }))
+        : [];
+    });
+    if (candidates.length) qualifiedGoals[goal.name] = mergeQualified(candidates);
+  }
   // unmade entries fold to bare names (icons/actions resolve); the temperature
   // qualifier survives in unmadeTemp for the strip label ("nothing makes water
   // ≤101°" vs plain "water")
@@ -758,6 +935,9 @@ export async function computeBlock(rawData: SolveInput) {
     recipes: solvedRecipes,
     imports: foldFlows(rawResult.imports),
     exports: foldFlows(rawResult.exports),
+    qualifiedImports: qualifiedRawImports,
+    qualifiedExports: qualifiedRawExports,
+    qualifiedGoals,
   };
 
   // Per-recipe rows for the grid: each recipe's ingredients/products at the
@@ -961,16 +1141,43 @@ export async function computeBlock(rawData: SolveInput) {
       beacons: beaconCfgs,
       beaconPowerW,
       effects: { speed: fx.speedBonus, productivity: fx.prodBonus, consumption: fx.consBonus },
-      ingredients: def.ingredients.map((c) => ({
-        name: c.name,
-        kind: c.kind,
-        display: c.display,
-        rate: c.amount * rr.rate,
-        // accepted temperature range, for the chip label (fluids only)
-        temp: c.kind === "fluid" ? fmtTempRange(c.minTemp, c.maxTemp) : null,
-      })),
+      ingredients: def.ingredients.map((c) => {
+        const fluid = c.kind === "fluid" ? refs.getFluid(c.name) : null;
+        const acceptedMin = c.minTemp ?? fluid?.defaultTemperature ?? null;
+        const selectedTemperature = data.fluidTemperatures?.[rr.recipe]?.[c.name] ?? null;
+        const producedTemperatures = fluidTemperatureOptions.get(c.name) ?? [];
+        return {
+          name: c.name,
+          kind: c.kind,
+          display: c.display,
+          rate: c.amount * rr.rate,
+          // planned exact temperature, or the effective accepted range. An
+          // unspecified Factorio ingredient starts at the fluid default.
+          temp:
+            c.kind === "fluid"
+              ? selectedTemperature == null
+                ? fmtTempRange(acceptedMin, c.maxTemp)
+                : fmtTemp(selectedTemperature)
+              : null,
+          ...(c.kind === "fluid"
+            ? {
+                acceptedTemperature: fmtTempRange(acceptedMin, c.maxTemp),
+                selectedTemperature,
+                favoriteTemperature: favoriteFluidTemperatures[c.name] ?? null,
+                hasTemperatureVariants: producedTemperatures.length > 1,
+                temperatureOptions: producedTemperatures.filter(
+                  (temperature) =>
+                    (acceptedMin == null || temperature >= acceptedMin) &&
+                    (c.maxTemp == null || temperature <= c.maxTemp),
+                ),
+              }
+            : {}),
+        };
+      }),
       // product rates from the productivity-scaled defs (the real output)
       products: def.products.map((c, i) => {
+        const fluid = c.kind === "fluid" ? refs.getFluid(c.name) : null;
+        const producedTemperature = c.temperature ?? fluid?.defaultTemperature ?? null;
         const averageAmount =
           c.amount ??
           (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0);
@@ -987,8 +1194,12 @@ export async function computeBlock(rawData: SolveInput) {
           display: c.display,
           rate: scaledAmount * (c.probability ?? 1) * rr.rate,
           ...powerRange,
-          // produced temperature, for the chip label (fluids only)
-          temp: c.kind === "fluid" ? fmtTemp(c.temperature) : null,
+          // A product without an explicit temperature is emitted at its fluid
+          // prototype's default. Show it only when this fluid has real variants.
+          temp:
+            c.kind === "fluid" && (fluidTemperatureOptions.get(c.name)?.length ?? 0) > 1
+              ? fmtTemp(producedTemperature)
+              : null,
         };
       }),
     };
@@ -1064,6 +1275,32 @@ export async function computeBlock(rawData: SolveInput) {
   // Goals are solver targets (excluded from the solver's exports), so every surplus
   // here is a genuine byproduct. A good you don't target is never a "primary output".
   const exports = allExports;
+  // Raw LP flows carry the temperature identity. Post-solve accounting can add
+  // ordinary fuel, burnt-result, spoilage, and electricity flows or partially
+  // net an LP flow away. Preserve qualifiers on the surviving LP portion, then
+  // qualify only the genuinely additional remainder.
+  const reconcileQualified = (
+    flows: { name: string; kind: string; rate: number }[],
+    qualified: QualifiedResultFlow[],
+    direction: "import" | "export",
+  ): QualifiedResultFlow[] =>
+    mergeQualified(
+      flows.flatMap((flow) => {
+        const sources = qualified.filter((candidate) => candidate.name === flow.name);
+        const total = sources.reduce((sum, candidate) => sum + candidate.rate, 0);
+        if (total <= EPS) return qualifyFlows([flow], direction);
+        const retained = Math.min(flow.rate, total);
+        const distributed = sources.map((source) => ({
+          ...source,
+          rate: (retained * source.rate) / total,
+        }));
+        return flow.rate > retained + EPS
+          ? [...distributed, ...qualifyFlows([{ ...flow, rate: flow.rate - retained }], direction)]
+          : distributed;
+      }),
+    );
+  const qualifiedImports = reconcileQualified(imports, qualifiedRawImports, "import");
+  const qualifiedExports = reconcileQualified(exports, qualifiedRawExports, "export");
   // Keep incidental spoilage as a canonical byproduct for factory balancing and
   // persistence. When its result is also a positive goal, however, presenting it
   // again under Exports duplicates that goal. The editor and in-game summary use
@@ -1100,6 +1337,23 @@ export async function computeBlock(rawData: SolveInput) {
       if (b.name === ELECTRICITY) return 1;
       return b.rate - a.rate || byNameAsc(a, b);
     });
+  const boundaryTemp = (flow: QualifiedResultFlow) => {
+    if (flow.kind !== "fluid" || (fluidTemperatureOptions.get(flow.name)?.length ?? 0) <= 1)
+      return null;
+    return flow.temperatureMode === "exact"
+      ? fmtTemp(flow.minTemp)
+      : flow.temperatureMode === "range"
+        ? fmtTempRange(flow.minTemp, flow.maxTemp)
+        : null;
+  };
+  const qualifiedDisplayImports = qualifiedImports
+    .filter((flow) => !negativeGoalNames.has(flow.name))
+    .map((flow) => ({ ...flow, temp: boundaryTemp(flow) }))
+    .sort((a, b) => b.rate - a.rate || byNameAsc(a, b));
+  const qualifiedDisplayExports = qualifiedExports.map((flow) => ({
+    ...flow,
+    temp: boundaryTemp(flow),
+  }));
   const fuelItems = [...fuelTotals.keys()]; // for the 🔥 tag in the UI
   const burntItems = [...burntTotals.keys()]; // ash / depleted cells from burning
 
@@ -1122,14 +1376,10 @@ export async function computeBlock(rawData: SolveInput) {
     .filter((f) => refs.recipesProducing(f.name).length > 0)
     .map((f) => f.name);
 
-  // Fluid temperature sanity (#110 interim): the solver links fluids by NAME,
-  // pooling every temperature variant into one good, so a producer whose output
-  // temperature falls outside a consumer's accepted range is silently blended in
-  // (e.g. dt-he3's 3000° neutrons pooled into a 4000°-only MHD generator). Flag
-  // every mismatched producer→consumer pair — per PRODUCER, so one in-range
-  // producer can no longer mask another that's out of range (the old check
-  // warned only when NO in-block temperature satisfied the range). The full
-  // per-temperature identity model lands with the solver rewrite (#91).
+  // Surface incompatible enabled producer→consumer routes. Temperature identity
+  // prevents these pairs from balancing each other now, so the producer will
+  // idle or export unless another consumer accepts its output. The warning helps
+  // explain that outcome when several temperatures of one fluid share a block.
   const fluidProducers = new Map<string, { recipe: string; temp: number }[]>();
   for (const r of fetched)
     for (const p of r.products)
@@ -1167,7 +1417,7 @@ export async function computeBlock(rawData: SolveInput) {
           consumer: r.name,
           item: c.name,
           temp: p.temp,
-          needs: fmtTempRange(c.minTemp, c.maxTemp) ?? "any°",
+          needs: fmtTempRange(c.minTemp, c.maxTemp)!,
           partial: anyOk,
         });
       }
@@ -1239,12 +1489,36 @@ export async function computeBlock(rawData: SolveInput) {
     unmade: s.unmade,
   }));
 
+  const goalTemperatureChoices = Object.fromEntries(
+    targets.flatMap((goal) => {
+      const fluid = refs.getFluid(goal.name);
+      const options = fluidTemperatureOptions.get(goal.name) ?? [];
+      if (!fluid || options.length <= 1) return [];
+      const selected = goals.find((candidate) => candidate.name === goal.name)?.temperature ?? null;
+      return [
+        [
+          goal.name,
+          {
+            acceptedTemperature: fmtTempRange(fluid.defaultTemperature, null)!,
+            selectedTemperature: selected,
+            favoriteTemperature: favoriteFluidTemperatures[goal.name] ?? null,
+            temperatureOptions: options,
+          },
+        ] as const,
+      ];
+    }),
+  );
+
   return {
     ...result,
     imports,
+    qualifiedImports,
     displayImports,
+    qualifiedDisplayImports,
     exports,
+    qualifiedExports,
     displayExports,
+    qualifiedDisplayExports,
     rows,
     subBlocks,
     display,
@@ -1266,6 +1540,7 @@ export async function computeBlock(rawData: SolveInput) {
     tempWarnings,
     incidentalSpoilage,
     buildCost,
+    goalTemperatureChoices,
     broken,
     missing,
     // module-suggestion hints are a per-project preference (Settings). The

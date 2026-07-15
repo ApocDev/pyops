@@ -36,6 +36,7 @@ export function ItemChip({
   incidental,
   indicator,
   indicatorLabel,
+  temperatureControl,
   onClick,
   onContext,
 }: {
@@ -59,6 +60,8 @@ export function ItemChip({
   indicator?: ReactNode;
   /** Accessible text corresponding to `indicator`. */
   indicatorLabel?: string;
+  /** Interactive replacement for `temp`, kept inside the same chip surface. */
+  temperatureControl?: ReactNode;
   onClick: () => void;
   onContext?: (e: { clientX: number; clientY: number }) => void;
 }) {
@@ -88,7 +91,7 @@ export function ItemChip({
   const accessibleRate =
     rate == null ? "" : variableRate ? displayedRate : rateLabel(name, rate, { perSec: true });
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className={`inline-flex items-center gap-1 ${cls}`}>
       <ItemHover
         name={name}
         kind={kind as "item" | "fluid"}
@@ -104,7 +107,7 @@ export function ItemChip({
             onContext(e);
           }}
           aria-label={`${display ?? name}${accessibleRate ? ` ${accessibleRate}` : ""}${spoilTime ? ` · spoils in ${spoilTime}` : ""}${incidental ? " · includes estimated incidental spoilage" : ""}${indicatorLabel ? ` · ${indicatorLabel}` : ""} · ${why}`}
-          className={`flex items-center gap-1 px-1.5 py-1 text-sm hover:brightness-95 ${cls}`}
+          className="flex items-center gap-1 px-1.5 py-1 text-sm hover:brightness-95"
         >
           <span className="relative flex">
             <Icon kind={kind as "item" | "fluid"} name={name} size="md" noHover />
@@ -143,6 +146,7 @@ export function ItemChip({
           {indicator}
         </button>
       </ItemHover>
+      {temperatureControl && <span className="pr-1.5">{temperatureControl}</span>}
     </span>
   );
 }

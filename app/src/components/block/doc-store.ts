@@ -60,6 +60,8 @@ export type BlockDocState = {
   recipeGroups: GroupAssign;
   machines: Record<string, string>;
   fuels: Record<string, string>;
+  /** recipe → fluid ingredient → exact planned temperature */
+  fluidTemperatures: Record<string, Record<string, number>>;
   modules: Record<string, string[]>;
   beacons: Record<string, BeaconConfig[]>;
   /** reactor rows' assumed x×y farm (#94) — absent = 1×1, no neighbour bonus */
@@ -85,6 +87,7 @@ const EMPTY: BlockDocState = {
   recipeGroups: {},
   machines: {},
   fuels: {},
+  fluidTemperatures: {},
   modules: {},
   beacons: {},
   reactorLayouts: {},
@@ -113,6 +116,7 @@ export function solveInputOf(s: BlockDocState): SolveInput {
     ...(!s.made && Object.keys(s.dispositions).length ? { dispositions: s.dispositions } : {}),
     ...(Object.keys(s.machines).length ? { machines: s.machines } : {}),
     ...(Object.keys(s.fuels).length ? { fuels: s.fuels } : {}),
+    ...(Object.keys(s.fluidTemperatures).length ? { fluidTemperatures: s.fluidTemperatures } : {}),
     ...(Object.keys(s.reactorLayouts).length ? { reactorLayouts: s.reactorLayouts } : {}),
     // module entries are kept even when EMPTY: an explicit [] means "no modules"
     // and suppresses auto-fill for that row ("reset to auto" deletes the key)
@@ -166,6 +170,7 @@ export function createBlockDocStore() {
       supplyPriorities: d.supplyPriorities ?? {},
       machines: d.machines ?? {},
       fuels: d.fuels ?? {},
+      fluidTemperatures: d.fluidTemperatures ?? {},
       modules: d.modules ?? {},
       beacons: (d.beacons ?? {}) as Record<string, BeaconConfig[]>,
       reactorLayouts: d.reactorLayouts ?? {},
@@ -193,9 +198,11 @@ export function createBlockDocStore() {
 
     /* ── goals ── */
     // A new goal starts pinned to 1/s; duplicates are ignored.
-    addGoal: (name: string) =>
+    addGoal: (name: string, temperature?: number) =>
       edit((s) => ({
-        goals: s.goals.some((g) => g.name === name) ? s.goals : [...s.goals, { name, rate: 1 }],
+        goals: s.goals.some((g) => g.name === name)
+          ? s.goals
+          : [...s.goals, { name, rate: 1, ...(temperature != null ? { temperature } : {}) }],
       })),
     removeGoal: (name: string) => edit((s) => ({ goals: s.goals.filter((g) => g.name !== name) })),
     setGoalRate: (name: string, rate: number) =>
@@ -232,6 +239,14 @@ export function createBlockDocStore() {
       edit((s) => ({
         goals: s.goals.map((g) =>
           g.name === name ? { ...g, ...(unit === "s" ? { unit: undefined } : { unit }) } : g,
+        ),
+      })),
+    setGoalTemperature: (name: string, temperature: number | null) =>
+      edit((s) => ({
+        goals: s.goals.map((g) =>
+          g.name === name
+            ? { ...g, temperature: temperature == null ? undefined : temperature }
+            : g,
         ),
       })),
     // Stock goals (#38): "keep N on hand" — the stored rate stays canonical /s but
@@ -277,13 +292,23 @@ export function createBlockDocStore() {
       })),
     /** Swap a goal's item in place (keeps position + rate); drop it if the new
      * item is already a goal. */
-    changeGoalItem: (from: string, to: string) =>
+    changeGoalItem: (from: string, to: string, temperature?: number) =>
       edit((s) => {
         if (to === from) return {};
         const exists = s.goals.some((g) => g.name === to);
         return {
           goals: s.goals.flatMap((g) =>
-            g.name === from ? (exists ? [] : [{ ...g, name: to }]) : [g],
+            g.name === from
+              ? exists
+                ? []
+                : [
+                    {
+                      ...g,
+                      name: to,
+                      temperature: temperature == null ? undefined : temperature,
+                    },
+                  ]
+              : [g],
           ),
         };
       }),
@@ -329,20 +354,34 @@ export function createBlockDocStore() {
     /* ── recipes ── */
     addRecipe: (name: string) =>
       edit((s) => ({ recipes: s.recipes.includes(name) ? s.recipes : [...s.recipes, name] })),
-    /** Bake the preferred building + fuel (#18) and the default module template
+    /** Bake preferred building, fuel, fluid temperatures (#18/#158), and module template
      * (#99) into the stored picks — new rows only: an existing pick is never
      * overwritten. The template's modules/beacons land as ONE loadout, gated on
      * neither key existing (a row the user already configured — even to an
      * explicit "no modules" — keeps its config). */
     applyRecipeDefaults: (
       name: string,
-      d: { machine?: string; fuel?: string; modules?: string[]; beacons?: BeaconConfig[] },
+      d: {
+        machine?: string;
+        fuel?: string;
+        fluidTemperatures?: Record<string, number>;
+        modules?: string[];
+        beacons?: BeaconConfig[];
+      },
     ) =>
       edit((s) => ({
         ...(d.machine && !s.machines[name]
           ? { machines: { ...s.machines, [name]: d.machine } }
           : {}),
         ...(d.fuel && !s.fuels[name] ? { fuels: { ...s.fuels, [name]: d.fuel } } : {}),
+        ...(d.fluidTemperatures && !(name in s.fluidTemperatures)
+          ? {
+              fluidTemperatures: {
+                ...s.fluidTemperatures,
+                [name]: d.fluidTemperatures,
+              },
+            }
+          : {}),
         ...(d.modules && !(name in s.modules) && !(name in s.beacons)
           ? {
               modules: { ...s.modules, [name]: d.modules },
@@ -365,6 +404,7 @@ export function createBlockDocStore() {
           disabled,
           machines: withoutKey(s.machines, name),
           fuels: withoutKey(s.fuels, name),
+          fluidTemperatures: withoutKey(s.fluidTemperatures, name),
           modules: withoutKey(s.modules, name),
           beacons: withoutKey(s.beacons, name),
           reactorLayouts: withoutKey(s.reactorLayouts, name),
@@ -389,6 +429,20 @@ export function createBlockDocStore() {
       edit((s) => ({ machines: { ...s.machines, [recipe]: machine } })),
     pickFuel: (recipe: string, fuel: string) =>
       edit((s) => ({ fuels: { ...s.fuels, [recipe]: fuel } })),
+    /** Select an exact planned temperature for one fluid ingredient. `null`
+     * restores the recipe prototype's accepted range (Auto). */
+    pickFluidTemperature: (recipe: string, fluid: string, temperature: number | null) =>
+      edit((s) => {
+        const current = s.fluidTemperatures[recipe] ?? {};
+        const nextForRecipe =
+          temperature == null ? withoutKey(current, fluid) : { ...current, [fluid]: temperature };
+        return {
+          fluidTemperatures:
+            Object.keys(nextForRecipe).length > 0
+              ? { ...s.fluidTemperatures, [recipe]: nextForRecipe }
+              : withoutKey(s.fluidTemperatures, recipe),
+        };
+      }),
     /** Reactor farm layout (#94): the 1×1 default (or null) clears the key, so
      * the stored doc only carries real bonus assumptions. */
     setReactorLayout: (recipe: string, layout: ReactorLayout | null) =>

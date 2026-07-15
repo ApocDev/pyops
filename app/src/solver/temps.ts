@@ -4,9 +4,9 @@ import type { LpBlockInput, Pin, RecipeDef } from "./lp.ts";
  * Fluid-temperature identity (#110): the full model, as a PURE transformation
  * of the solver input — the LP core is untouched.
  *
- * A fluid is expanded when some enabled consumer in the block declares an
- * accepted temperature range (otherwise nothing about temperature can matter
- * and the fluid stays a single bare good):
+ * A real fluid is expanded when an enabled recipe produces it or declares an
+ * accepted temperature range. Producer-only blocks expand too so their factory
+ * boundary retains exact temperature identity:
  *   - each producer's output becomes a VARIANT good `F⟨T⟩` (explicit product
  *     temperature, else the fluid's prototype default)
  *   - each distinct consumer range becomes a POOL good; zero-cost SELECTOR
@@ -18,7 +18,8 @@ import type { LpBlockInput, Pin, RecipeDef } from "./lp.ts";
  *     TEMPERATURE: a pool with no in-range producer surfaces as unmade
  *     ("nothing makes F at 4000°"), which is the honest version of the old
  *     interim warning
- *   - goals move to a full-range pool (any temperature satisfies a rate goal);
+ *   - fluid goals move to either their selected one-temperature pool or a
+ *     full-range pool when no exact temperature is selected;
  *     share pins follow their consumer onto its pool.
  *
  * `fold` maps the solve's synthetic goods/recipes back for display: selector
@@ -55,11 +56,28 @@ export type TempFold = {
   bare: (good: string) => string;
   /** synthetic good → its temperature qualifier for display ("125°", "4000–5000°"), null for normal goods */
   tempOf: (good: string) => string | null;
+  /** Structured boundary identity. Variants are exact; pools retain the
+   * consumer's accepted range. `null` means this good was not temperature
+   * expanded (items and temperature-insensitive pseudo-fluids). */
+  qualifierOf: (
+    good: string,
+  ) =>
+    | { mode: "exact"; minTemp: number; maxTemp: number }
+    | { mode: "range"; minTemp: number | null; maxTemp: number | null }
+    | null;
+  /** Selector provenance used to turn an exported pool back into the exact
+   * temperatures that physically entered it. */
+  selectorOf: (recipe: string) => { fluid: string; temperature: number; pool: string } | null;
 };
 
 export function expandTemps(
   input: {
-    goals: { name: string; rate: number; direction?: "produce" | "consume" }[];
+    goals: {
+      name: string;
+      rate: number;
+      direction?: "produce" | "consume";
+      temperature?: number;
+    }[];
     recipes: TempRecipeDef[];
     made: string[];
     pins: Pin[];
@@ -70,17 +88,39 @@ export function expandTemps(
   const { recipes, goals, made, pins } = input;
   const drains = input.drains ?? [];
 
-  // which fluids expand: an enabled consumer declares a range
+  // Which fluids expand: an enabled consumer declares a range OR a recipe
+  // produces the fluid. Producer-only blocks still need exact identities at
+  // their factory boundary; previously those blocks collapsed straight back to
+  // the bare fluid and the factory solver could not distinguish temperatures.
   const ranged = new Set<string>();
   for (const r of recipes)
-    for (const c of r.ingredients)
-      if (c.kind === "fluid" && (c.minTemp != null || c.maxTemp != null)) ranged.add(c.name);
-  const goalRates = new Map(goals.map((g) => [g.name, g.rate]));
+    for (const c of [...r.ingredients, ...r.products])
+      if (
+        c.kind === "fluid" &&
+        !c.name.startsWith("pyops-") &&
+        (c.temperature != null ||
+          c.minTemp != null ||
+          c.maxTemp != null ||
+          (r.products.includes(c) && defaultTemp(c.name) != null))
+      )
+        ranged.add(c.name);
+  for (const goal of goals) if (defaultTemp(goal.name) != null) ranged.add(goal.name);
+
+  const baseGoal = <T extends (typeof goals)[number]>(goal: T) => {
+    const { temperature: _temperature, ...rest } = goal;
+    return rest;
+  };
 
   if (!ranged.size) {
     return {
-      input: { goals, recipes: recipes as RecipeDef[], made, pins, drains },
-      fold: { isSynthetic: () => false, bare: (g) => g, tempOf: () => null },
+      input: { goals: goals.map(baseGoal), recipes: recipes as RecipeDef[], made, pins, drains },
+      fold: {
+        isSynthetic: () => false,
+        bare: (g) => g,
+        tempOf: () => null,
+        qualifierOf: () => null,
+        selectorOf: () => null,
+      },
     };
   }
 
@@ -95,7 +135,7 @@ export function expandTemps(
         variants.set(c.name, set);
       }
 
-  // pools: consumer ranges, plus a full-range pool for goals on expanded fluids
+  // pools: consumer ranges, plus an exact or full-range pool for each goal
   const pools = new Map<string, { fluid: string; lo: number; hi: number }>();
   const poolOf = (fluid: string, lo: number, hi: number) => {
     const key = poolKey(fluid, lo, hi);
@@ -118,17 +158,26 @@ export function expandTemps(
     }),
   }));
 
-  const outGoals = goals.map((g) =>
-    ranged.has(g.name) ? { ...g, name: poolOf(g.name, -Infinity, Infinity) } : g,
-  );
+  const goalPools = new Map<string, string>();
+  const outGoals = goals.map((g) => {
+    const goal = baseGoal(g);
+    if (!ranged.has(g.name)) return goal;
+    const lo = g.temperature ?? -Infinity;
+    const hi = g.temperature ?? Infinity;
+    const pool = poolOf(g.name, lo, hi);
+    goalPools.set(g.name, pool);
+    return { ...goal, name: pool };
+  });
 
   // selectors: variant → pool for every in-range pairing
   const selNames = new Set<string>();
+  const selectors = new Map<string, { fluid: string; temperature: number; pool: string }>();
   for (const [pKey, p] of pools) {
     for (const t of variants.get(p.fluid) ?? []) {
       if (t < p.lo || t > p.hi) continue;
       const name = `${SEL}${pKey}${SEP}${t}`;
       selNames.add(name);
+      selectors.set(name, { fluid: p.fluid, temperature: t, pool: pKey });
       outDefs.push({
         name,
         energyRequired: 0, // ε-cost in the LP keeps it deterministic
@@ -149,7 +198,7 @@ export function expandTemps(
     for (const t of variants.get(m) ?? []) outMade.push(variantKey(m, t));
     // every consumer pool needs coverage; the goal constraint subsumes only
     // the goal's own full-range pool
-    const goalPool = goalRates.has(m) ? poolKey(m, -Infinity, Infinity) : null;
+    const goalPool = goalPools.get(m) ?? null;
     for (const [pKey, p] of pools) if (p.fluid === m && pKey !== goalPool) outMade.push(pKey);
   }
   // a goal on an expanded fluid is a pool constraint; its variants still need
@@ -166,7 +215,7 @@ export function expandTemps(
       continue;
     }
     for (const t of variants.get(m) ?? []) outDrains.push(variantKey(m, t));
-    const goalPool = goalRates.has(m) ? poolKey(m, -Infinity, Infinity) : null;
+    const goalPool = goalPools.get(m) ?? null;
     for (const [pKey, p] of pools) if (p.fluid === m && pKey !== goalPool) outDrains.push(pKey);
   }
 
@@ -214,6 +263,27 @@ export function expandTemps(
         if (!Number.isFinite(hi)) return `≥${fmtT(lo)}°`;
         return lo === hi ? `${fmtT(lo)}°` : `${fmtT(lo)}–${fmtT(hi)}°`;
       },
+      qualifierOf: (good) => {
+        const i = good.indexOf(SEP);
+        if (i < 0) return null;
+        const rest = good.slice(i + 1);
+        if (rest.startsWith("@")) {
+          const temperature = Number(rest.slice(1));
+          return Number.isFinite(temperature)
+            ? { mode: "exact", minTemp: temperature, maxTemp: temperature }
+            : null;
+        }
+        const m = new RegExp(`pool${SEP}(.+?)\\.\\.(.+)$`).exec(rest);
+        if (!m) return null;
+        const lo = Number(m[1]);
+        const hi = Number(m[2]);
+        return {
+          mode: "range",
+          minTemp: Number.isFinite(lo) ? lo : null,
+          maxTemp: Number.isFinite(hi) ? hi : null,
+        };
+      },
+      selectorOf: (recipe) => selectors.get(recipe) ?? null,
     },
   };
 }

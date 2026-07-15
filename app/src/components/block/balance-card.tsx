@@ -307,7 +307,7 @@ export function BalanceCard({
               {res.tempWarnings.map((w) => (
                 <Tooltip
                   key={`${w.producer}-${w.consumer}-${w.item}-${w.temp}`}
-                  content="The solver links fluids by name and pools all temperatures — in-game this producer's output can't feed this consumer"
+                  content="This producer's fluid temperature is outside the consumer's accepted range, so PyOps will not route it to that recipe"
                 >
                   <div className="flex items-center gap-1">
                     <AlertTriangle className="size-3.5 shrink-0" />{" "}
@@ -327,9 +327,9 @@ export function BalanceCard({
                 <div className="mb-1 text-sm font-semibold text-warning">Imports</div>
                 <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
                   {res.displayImports.length ? (
-                    res.displayImports.map((f) => (
+                    res.qualifiedDisplayImports.map((f) => (
                       <span
-                        key={f.name}
+                        key={`${f.name}:${f.temperatureMode ?? ""}:${f.minTemp ?? ""}:${f.maxTemp ?? ""}`}
                         className="group flex w-max shrink-0 flex-col items-start gap-1.5"
                       >
                         <span className="inline-flex items-center gap-1.5">
@@ -338,6 +338,7 @@ export function BalanceCard({
                             kind={f.kind}
                             display={res.display?.[f.name]}
                             rate={f.rate}
+                            temp={f.temp}
                             link="import"
                             craftable={producible.has(f.name)}
                             fuel={fuelSet.has(f.name)}
@@ -428,11 +429,11 @@ export function BalanceCard({
               <div>
                 <div className="mb-1 text-sm font-semibold text-surplus">Exports</div>
                 <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-                  {res.displayExports.map((f) => {
+                  {res.qualifiedDisplayExports.map((f) => {
                     const incidental = res.incidentalSpoilage.filter((s) => s.result === f.name);
                     return (
                       <span
-                        key={f.name}
+                        key={`${f.name}:${f.temperatureMode ?? ""}:${f.minTemp ?? ""}:${f.maxTemp ?? ""}`}
                         className="flex w-max shrink-0 flex-col items-start gap-1.5"
                       >
                         <ItemChip
@@ -440,6 +441,7 @@ export function BalanceCard({
                           kind={f.kind}
                           display={res.display?.[f.name]}
                           rate={f.rate}
+                          temp={f.temp}
                           link="export"
                           fuel={fuelSet.has(f.name)}
                           incidental={incidental.length > 0}

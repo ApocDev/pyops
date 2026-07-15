@@ -59,9 +59,10 @@ const docs = new Map<
     name: string;
     updatedAt: Date;
     data: {
-      goals: { name: string; rate: number }[];
+      goals: { name: string; rate: number; temperature?: number }[];
       recipes: string[];
       supplyPriority?: number;
+      fluidTemperatures?: Record<string, Record<string, number>>;
     };
   }
 >(
@@ -95,105 +96,205 @@ vi.mock("./undo-action.server.ts", () => ({
 }));
 
 vi.mock("./block-compute.server.ts", () => ({
-  computeBlock: vi.fn(async (doc: { goals: { name: string; rate: number }[] }) => {
-    const ironGoal = doc.goals.find((goal) => goal.name === "iron");
-    if (ironGoal && Math.abs(ironGoal.rate) > infeasibleIronAbove)
-      return {
-        broken: false,
-        status: "infeasible",
-        message: "No rates satisfy the proposed iron goal.",
-        unmade: [],
-        imports: [],
-        exports: [],
+  computeBlock: vi.fn(
+    async (doc: {
+      goals: { name: string; rate: number; temperature?: number }[];
+      recipes?: string[];
+      fluidTemperatures?: Record<string, Record<string, number>>;
+    }) => {
+      const steamGoal = doc.goals.find((goal) => goal.name === "steam");
+      const steamTemperature = doc.recipes?.includes("steam-250")
+        ? 250
+        : doc.recipes?.includes("steam-2000")
+          ? 2000
+          : null;
+      if (steamGoal && steamTemperature != null)
+        return {
+          broken: false,
+          status: "solved",
+          unmade: [],
+          imports: [],
+          exports: [],
+          qualifiedGoals: {
+            steam: [
+              {
+                name: "steam",
+                kind: "fluid",
+                rate: Math.abs(steamGoal.rate),
+                temperatureMode: "exact" as const,
+                minTemp: steamTemperature,
+                maxTemp: steamTemperature,
+              },
+            ],
+          },
+        };
+      const cokeGoal = doc.goals.find((goal) => goal.name === "coke");
+      if (cokeGoal && steamGoal && doc.recipes?.includes("coke-steam")) {
+        const cokeRate = Math.abs(cokeGoal.rate);
+        const steamRate = Math.abs(steamGoal.rate);
+        const recoveredSteam = cokeRate * 10;
+        const totalSteam = Math.max(recoveredSteam, steamRate);
+        // highs-js reads its pretty solution output, which exposes selector
+        // primals at roughly six significant digits.
+        const selectorRate = Number(steamRate.toPrecision(6));
+        const surplusSteam = Math.max(0, totalSteam - selectorRate);
+        return {
+          broken: false,
+          status: "solved",
+          unmade: [],
+          imports: [],
+          exports:
+            surplusSteam > 1e-9 ? [{ name: "steam", kind: "fluid", rate: surplusSteam }] : [],
+          qualifiedExports:
+            surplusSteam > 1e-9
+              ? [
+                  {
+                    name: "steam",
+                    kind: "fluid",
+                    rate: surplusSteam,
+                    temperatureMode: "exact" as const,
+                    minTemp: 250,
+                    maxTemp: 250,
+                  },
+                ]
+              : [],
+          qualifiedGoals: {
+            steam: [
+              {
+                name: "steam",
+                kind: "fluid",
+                rate: selectorRate,
+                temperatureMode: "exact" as const,
+                minTemp: 250,
+                maxTemp: 250,
+              },
+            ],
+          },
+        };
+      }
+      const tinGoal = doc.goals.find((goal) => goal.name === "tin");
+      if (tinGoal && doc.recipes?.includes("tin-steam")) {
+        const rate = Math.abs(tinGoal.rate);
+        const temperature = doc.fluidTemperatures?.["tin-steam"]?.steam ?? 250;
+        return {
+          broken: false,
+          status: "solved",
+          unmade: [],
+          imports: [{ name: "steam", kind: "fluid", rate: 10 * rate }],
+          qualifiedImports: [
+            {
+              name: "steam",
+              kind: "fluid",
+              rate: 10 * rate,
+              temperatureMode: "range" as const,
+              minTemp: temperature,
+              maxTemp: temperature,
+            },
+          ],
+          exports: [],
+        };
+      }
+      const ironGoal = doc.goals.find((goal) => goal.name === "iron");
+      if (ironGoal && Math.abs(ironGoal.rate) > infeasibleIronAbove)
+        return {
+          broken: false,
+          status: "infeasible",
+          message: "No rates satisfy the proposed iron goal.",
+          unmade: [],
+          imports: [],
+          exports: [],
+        };
+      const recoveredIronGoal = doc.goals.find((goal) => goal.name === "iron");
+      if (cokeGoal && recoveredIronGoal) {
+        const cokeRate = Math.abs(cokeGoal.rate);
+        const ironRate = Math.abs(recoveredIronGoal.rate);
+        const recoveredIron = cokeRate * recoveredIronPerCoke;
+        const dedicatedIron = ironGoalScalable ? Math.max(0, ironRate - recoveredIron) : 0;
+        return {
+          broken: false,
+          status: "solved",
+          unmade: !ironGoalScalable && ironRate > recoveredIron ? ["iron"] : [],
+          imports: [{ name: "ore", kind: "item", rate: cokeRate * 3 + dedicatedIron * 2 }],
+          exports:
+            recoveredIron > ironRate
+              ? [{ name: "iron", kind: "item", rate: recoveredIron - ironRate }]
+              : [],
+        };
+      }
+      const unitFlows: Record<
+        string,
+        {
+          imports: { name: string; kind: string; rate: number }[];
+          exports: { name: string; kind: string; rate: number }[];
+        }
+      > = {
+        science: {
+          imports: [{ name: "iron", kind: "item", rate: 4 }],
+          exports: [],
+        },
+        iron: {
+          imports: [{ name: "ore", kind: "item", rate: 2 }],
+          exports: [],
+        },
+        tar: {
+          imports: [{ name: "tar", kind: "fluid", rate: 1 }],
+          exports: [{ name: "ash", kind: "item", rate: 1 }],
+        },
+        ash: {
+          imports: [
+            { name: "ash", kind: "item", rate: 1 },
+            ...(ashSinkAdditive > 0
+              ? [{ name: "additive", kind: "item", rate: ashSinkAdditive }]
+              : []),
+          ],
+          exports: [{ name: "iron", kind: "item", rate: 1 }],
+        },
+        coal: {
+          imports: [{ name: "ore", kind: "item", rate: 3 }],
+          exports: [{ name: "tar", kind: "fluid", rate: 10 }],
+        },
       };
-    const cokeGoal = doc.goals.find((goal) => goal.name === "coke");
-    const recoveredIronGoal = doc.goals.find((goal) => goal.name === "iron");
-    if (cokeGoal && recoveredIronGoal) {
-      const cokeRate = Math.abs(cokeGoal.rate);
-      const ironRate = Math.abs(recoveredIronGoal.rate);
-      const recoveredIron = cokeRate * recoveredIronPerCoke;
-      const dedicatedIron = ironGoalScalable ? Math.max(0, ironRate - recoveredIron) : 0;
+      const imports: { name: string; kind: string; rate: number }[] = [];
+      const exports: { name: string; kind: string; rate: number }[] = [];
+      for (const goal of doc.goals) {
+        const magnitude = Math.abs(goal.rate);
+        if (magnitude <= 1e-9) continue;
+        const unit = unitFlows[goal.name];
+        if (!unit) continue;
+        const basisScale = piecewiseIron && goal.name === "iron" && magnitude > 2 ? 1.5 : 1;
+        imports.push(
+          ...unit.imports.map((flow) => ({
+            ...flow,
+            rate:
+              flow.rate * magnitude * basisScale +
+              (goal.name === "iron" && flow.name === "ore" ? ironImportOffset : 0),
+          })),
+        );
+        exports.push(...unit.exports.map((flow) => ({ ...flow, rate: flow.rate * magnitude })));
+        if (nonlinearElectricity && goal.name === "iron")
+          imports.push({ name: "pyops-electricity", kind: "fluid", rate: magnitude ** 2 });
+      }
+      if (fixedBiocrud > 0 && doc.goals.some((goal) => goal.name === "science"))
+        exports.push({ name: "biocrud", kind: "fluid", rate: fixedBiocrud });
+      if (fixedAsh > 0 && doc.goals.some((goal) => goal.name === "science"))
+        exports.push({ name: "ash", kind: "item", rate: fixedAsh });
       return {
         broken: false,
         status: "solved",
-        unmade: !ironGoalScalable && ironRate > recoveredIron ? ["iron"] : [],
-        imports: [{ name: "ore", kind: "item", rate: cokeRate * 3 + dedicatedIron * 2 }],
-        exports:
-          recoveredIron > ironRate
-            ? [{ name: "iron", kind: "item", rate: recoveredIron - ironRate }]
-            : [],
+        unmade: [],
+        imports,
+        exports,
       };
-    }
-    const unitFlows: Record<
-      string,
-      {
-        imports: { name: string; kind: string; rate: number }[];
-        exports: { name: string; kind: string; rate: number }[];
-      }
-    > = {
-      science: {
-        imports: [{ name: "iron", kind: "item", rate: 4 }],
-        exports: [],
-      },
-      iron: {
-        imports: [{ name: "ore", kind: "item", rate: 2 }],
-        exports: [],
-      },
-      tar: {
-        imports: [{ name: "tar", kind: "fluid", rate: 1 }],
-        exports: [{ name: "ash", kind: "item", rate: 1 }],
-      },
-      ash: {
-        imports: [
-          { name: "ash", kind: "item", rate: 1 },
-          ...(ashSinkAdditive > 0
-            ? [{ name: "additive", kind: "item", rate: ashSinkAdditive }]
-            : []),
-        ],
-        exports: [{ name: "iron", kind: "item", rate: 1 }],
-      },
-      coal: {
-        imports: [{ name: "ore", kind: "item", rate: 3 }],
-        exports: [{ name: "tar", kind: "fluid", rate: 10 }],
-      },
-    };
-    const imports: { name: string; kind: string; rate: number }[] = [];
-    const exports: { name: string; kind: string; rate: number }[] = [];
-    for (const goal of doc.goals) {
-      const magnitude = Math.abs(goal.rate);
-      if (magnitude <= 1e-9) continue;
-      const unit = unitFlows[goal.name];
-      if (!unit) continue;
-      const basisScale = piecewiseIron && goal.name === "iron" && magnitude > 2 ? 1.5 : 1;
-      imports.push(
-        ...unit.imports.map((flow) => ({
-          ...flow,
-          rate:
-            flow.rate * magnitude * basisScale +
-            (goal.name === "iron" && flow.name === "ore" ? ironImportOffset : 0),
-        })),
-      );
-      exports.push(...unit.exports.map((flow) => ({ ...flow, rate: flow.rate * magnitude })));
-      if (nonlinearElectricity && goal.name === "iron")
-        imports.push({ name: "pyops-electricity", kind: "fluid", rate: magnitude ** 2 });
-    }
-    if (fixedBiocrud > 0 && doc.goals.some((goal) => goal.name === "science"))
-      exports.push({ name: "biocrud", kind: "fluid", rate: fixedBiocrud });
-    if (fixedAsh > 0 && doc.goals.some((goal) => goal.name === "science"))
-      exports.push({ name: "ash", kind: "item", rate: fixedAsh });
-    return {
-      broken: false,
-      status: "solved",
-      unmade: [],
-      imports,
-      exports,
-    };
-  }),
+    },
+  ),
   persistBlock,
   goalFlows: vi.fn((doc: { goals: { name: string; rate: number }[] }) =>
     doc.goals
       .filter((goal) => Math.abs(goal.rate) > 1e-9)
-      .map((goal) => ({ ...goal, kind: goal.name === "tar" ? "fluid" : "item" })),
+      .map((goal) => ({
+        ...goal,
+        kind: goal.name === "tar" || goal.name === "steam" ? "fluid" : "item",
+      })),
   ),
   boundaryFlows: vi.fn(
     (
@@ -201,18 +302,73 @@ vi.mock("./block-compute.server.ts", () => ({
       result: {
         imports: { name: string; kind: string; rate: number }[];
         exports: { name: string; kind: string; rate: number }[];
+        qualifiedImports?: Array<{
+          name: string;
+          kind: string;
+          rate: number;
+          temperatureMode: "exact" | "range";
+          minTemp: number | null;
+          maxTemp: number | null;
+        }>;
+        qualifiedExports?: Array<{
+          name: string;
+          kind: string;
+          rate: number;
+          temperatureMode: "exact" | "range";
+          minTemp: number | null;
+          maxTemp: number | null;
+        }>;
+        qualifiedGoals?: Record<
+          string,
+          Array<{
+            name: string;
+            kind: string;
+            rate: number;
+            temperatureMode: "exact" | "range";
+            minTemp: number | null;
+            maxTemp: number | null;
+          }>
+        >;
       },
     ) => [
-      ...goals.map((goal) => ({
-        item: goal.name,
-        kind: goal.kind,
-        role: goal.rate < 0 ? "import" : "primary",
-        rate: Math.abs(goal.rate),
-      })),
-      ...result.imports
+      ...goals.flatMap((goal) => {
+        const qualified = result.qualifiedGoals?.[goal.name];
+        if (qualified?.length) {
+          const total = qualified.reduce((sum, flow) => sum + flow.rate, 0);
+          let assigned = 0;
+          return qualified.map(({ name: _name, ...flow }, index) => {
+            const rate =
+              index === qualified.length - 1
+                ? Math.max(0, Math.abs(goal.rate) - assigned)
+                : total > 0
+                  ? (Math.abs(goal.rate) * flow.rate) / total
+                  : 0;
+            assigned += rate;
+            return {
+              ...flow,
+              item: goal.name,
+              role: goal.rate < 0 ? "import" : "primary",
+              rate,
+            };
+          });
+        }
+        return [
+          {
+            item: goal.name,
+            kind: goal.kind,
+            role: goal.rate < 0 ? "import" : "primary",
+            rate: Math.abs(goal.rate),
+          },
+        ];
+      }),
+      ...(result.qualifiedImports ?? result.imports)
         .filter((flow) => !goals.some((goal) => goal.name === flow.name))
-        .map((flow) => ({ ...flow, item: flow.name, role: "import" })),
-      ...result.exports.map((flow) => ({ ...flow, item: flow.name, role: "byproduct" })),
+        .map(({ name, ...flow }) => ({ ...flow, item: name, role: "import" })),
+      ...(result.qualifiedExports ?? result.exports).map(({ name, ...flow }) => ({
+        ...flow,
+        item: name,
+        role: "byproduct",
+      })),
     ],
   ),
 }));
@@ -452,6 +608,156 @@ describe("pinned factory solve", () => {
     );
   });
 
+  it("routes a pinned fluid ingredient only from a compatible temperature source", async () => {
+    blocks.push(
+      {
+        id: 5,
+        name: "250C steam",
+        rate: 0,
+        goals: [{ name: "steam", rate: 0 }],
+        flows: [],
+      },
+      {
+        id: 6,
+        name: "2000C steam",
+        rate: 0,
+        goals: [{ name: "steam", rate: 0 }],
+        flows: [],
+      },
+      {
+        id: 7,
+        name: "Tin",
+        rate: 0,
+        goals: [{ name: "tin", rate: 0 }],
+        flows: [],
+      },
+    );
+    docs.set(5, {
+      id: 5,
+      name: "250C steam",
+      updatedAt: new Date(++solveVersion * 1000),
+      data: { goals: [{ name: "steam", rate: 0 }], recipes: ["steam-250"] },
+    });
+    docs.set(6, {
+      id: 6,
+      name: "2000C steam",
+      updatedAt: new Date(++solveVersion * 1000),
+      data: {
+        goals: [{ name: "steam", rate: 0 }],
+        recipes: ["steam-2000"],
+        supplyPriority: 100,
+      },
+    });
+    docs.set(7, {
+      id: 7,
+      name: "Tin",
+      updatedAt: new Date(++solveVersion * 1000),
+      data: {
+        goals: [{ name: "tin", rate: 0 }],
+        recipes: ["tin-steam"],
+        fluidTemperatures: { "tin-steam": { steam: 250 } },
+      },
+    });
+    plan.saveFactoryPins([{ good: "tin", kind: "item", rate: 1 }]);
+
+    const result = await plan.solvePinnedFactory();
+
+    expect(result.status).toBe("Optimal");
+    expect(result.goalChanges).toContainEqual(
+      expect.objectContaining({ id: 5, good: "steam", requiredRate: 10 }),
+    );
+    expect(result.goalChanges).not.toContainEqual(
+      expect.objectContaining({ id: 6, good: "steam", requiredRate: expect.any(Number) }),
+    );
+  });
+
+  it("recovers a temperature-qualified fluid goal from a limited-precision coproduct plateau", async () => {
+    blocks.push(
+      {
+        id: 5,
+        name: "Coke and 250C steam",
+        rate: 1,
+        goals: [
+          { name: "coke", rate: 1 },
+          { name: "steam", rate: 1.666665 },
+        ],
+        flows: [],
+      },
+      {
+        id: 6,
+        name: "2000C steam",
+        rate: 0,
+        goals: [{ name: "steam", rate: 0 }],
+        flows: [],
+      },
+      {
+        id: 7,
+        name: "Tin",
+        rate: 0,
+        goals: [{ name: "tin", rate: 0 }],
+        flows: [],
+      },
+    );
+    docs.set(5, {
+      id: 5,
+      name: "Coke and 250C steam",
+      updatedAt: new Date(++solveVersion * 1000),
+      data: {
+        goals: [
+          { name: "coke", rate: 1 },
+          { name: "steam", rate: 1.666665, temperature: 250 },
+        ],
+        recipes: ["coke-steam"],
+      },
+    });
+    docs.set(6, {
+      id: 6,
+      name: "2000C steam",
+      updatedAt: new Date(++solveVersion * 1000),
+      data: {
+        goals: [{ name: "steam", rate: 0 }],
+        recipes: ["steam-2000"],
+        supplyPriority: 100,
+      },
+    });
+    docs.set(7, {
+      id: 7,
+      name: "Tin",
+      updatedAt: new Date(++solveVersion * 1000),
+      data: {
+        goals: [{ name: "tin", rate: 0 }],
+        recipes: ["tin-steam"],
+        fluidTemperatures: { "tin-steam": { steam: 250 } },
+      },
+    });
+    plan.saveFactoryPins([
+      { good: "coke", kind: "item", rate: 1 },
+      { good: "tin", kind: "item", rate: 0.5 },
+    ]);
+
+    const result = await plan.solvePinnedFactory();
+
+    expect(
+      result.status,
+      JSON.stringify({
+        result,
+        trace: traceEvents.filter((event) => event.type.includes("linear")),
+      }),
+    ).toBe("Optimal");
+    expect(result.goalChanges).toContainEqual(
+      expect.objectContaining({ id: 5, good: "steam", requiredRate: 5, temperature: 250 }),
+    );
+    expect(result.goalChanges).not.toContainEqual(
+      expect.objectContaining({ id: 6, good: "steam", requiredRate: expect.any(Number) }),
+    );
+    const model = traceEvents.find((event) => event.type === "pinned-model")?.data as
+      | { columns?: Array<{ blockId: number; good: string; activeAtReference: boolean }> }
+      | undefined;
+    expect(model?.columns).toContainEqual(
+      expect.objectContaining({ blockId: 5, good: "steam", activeAtReference: false }),
+    );
+  });
+
   it("sends fixed and scalable byproducts through the configured consumer", async () => {
     fixedAsh = 5;
     ashSinkAdditive = 0.1;
@@ -550,7 +856,7 @@ describe("pinned factory solve", () => {
     );
   });
 
-  it("does not fail material validation on a free energy boundary", async () => {
+  it("keeps electricity external when the factory has no configured supplier", async () => {
     nonlinearElectricity = true;
 
     const preview = await plan.solvePinnedFactory();
@@ -558,10 +864,13 @@ describe("pinned factory solve", () => {
 
     expect(preview.status).toBe("Optimal");
     expect(preview.residual).toBe(0);
+    expect(preview.raws).toContainEqual(
+      expect.objectContaining({ good: "pyops-electricity", projected: 16 }),
+    );
     expect(apply).toEqual(expect.objectContaining({ status: "Optimal", validated: true }));
   });
 
-  it("retains an existing power goal and reports only real external demand", async () => {
+  it("scales a configured power goal to cover coupled electricity demand", async () => {
     nonlinearElectricity = true;
     blocks.push({
       id: 5,
@@ -581,11 +890,14 @@ describe("pinned factory solve", () => {
     const result = await plan.solvePinnedFactory();
 
     expect(result.status).toBe("Optimal");
-    expect(result.goalChanges).not.toContainEqual(
-      expect.objectContaining({ id: 5, good: "pyops-electricity" }),
+    expect(result.goalChanges).toContainEqual(
+      expect.objectContaining({
+        id: 5,
+        good: "pyops-electricity",
+        currentRate: 10,
+        requiredRate: 16,
+      }),
     );
-    expect(result.raws).toContainEqual(
-      expect.objectContaining({ good: "pyops-electricity", projected: 6 }),
-    );
+    expect(result.raws).not.toContainEqual(expect.objectContaining({ good: "pyops-electricity" }));
   });
 });

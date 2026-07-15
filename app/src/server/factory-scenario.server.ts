@@ -18,12 +18,13 @@ import {
   startFactorySolveProgress,
   type FactorySolveProgress,
 } from "./factory-progress.server.ts";
+import { fmtTemp } from "../lib/format.ts";
 
 const CACHE_META_KEY = "factory_scenario_cache_v1";
 const CACHE_VERSION = 1;
 // Bump when the Scenario model changes in a way that leaves block projection
 // fingerprints untouched. Block/reference changes are covered by stateKey.
-const SCENARIO_MODEL_VERSION = "scenario-v1";
+const SCENARIO_MODEL_VERSION = "scenario-v4";
 
 type ScenarioCacheRecord = {
   version: 1;
@@ -121,7 +122,10 @@ function presentResult(result: PinnedFactoryResult) {
     },
     goalChanges: result.goalChanges.map((change) => ({
       ...change,
-      display: display(change.good),
+      display:
+        change.temperature == null
+          ? display(change.good)
+          : `${display(change.good)} ${fmtTemp(change.temperature)}`,
     })),
     supplyAllocations: result.supplyAllocations.map((allocation) => ({
       ...allocation,

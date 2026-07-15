@@ -25,8 +25,14 @@ import { rateLabel } from "../lib/format";
 import { usePersistedFold, usePersistedSorting } from "../lib/use-table-prefs";
 
 export type GoodsRow = {
+  /** Temperature-qualified row identity; item remains the real prototype name. */
+  flowKey: string;
   item: string;
   kind: string;
+  temperatureMode?: "exact" | "range" | null;
+  minTemp?: number | null;
+  maxTemp?: number | null;
+  hasTemperatureVariants?: boolean;
   display: string | null;
   produced: number;
   consumed: number;
@@ -162,9 +168,9 @@ export function GoodsSection({
           <StatSortHeader headers={table.getFlatHeaders()} widths={HEAD_W} />
           {table.getRowModel().rows.map(({ original: r }) => (
             <button
-              key={r.item}
+              key={r.flowKey}
               onClick={() => onSelect(r)}
-              className={`flex w-full flex-col gap-1 border-t border-border px-3 py-2 text-left text-sm hover:bg-muted md:flex-row md:items-center md:gap-2 md:py-1.5 ${selectedItem === r.item ? "bg-accent" : ""}`}
+              className={`flex w-full flex-col gap-1 border-t border-border px-3 py-2 text-left text-sm hover:bg-muted md:flex-row md:items-center md:gap-2 md:py-1.5 ${selectedItem === r.flowKey ? "bg-accent" : ""}`}
             >
               <span className="flex min-w-0 items-center gap-2 md:flex-1">
                 <Icon

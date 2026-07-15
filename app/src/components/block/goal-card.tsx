@@ -28,6 +28,7 @@ import type { LogiView, SolveResult } from "./solve-view.ts";
 import { SortableGoal } from "./sortable-goal.tsx";
 import { SupplyPriorityControl } from "./supply-priority-control.tsx";
 import { GoalClipboardActions } from "./goal-clipboard-actions.tsx";
+import { FluidTemperaturePicker } from "./fluid-temperature-picker.tsx";
 
 /** The Goal card: goals as compact stacked cells (icon over rate) so many fit —
  * a block can target several products at once. Each goal has a target rate (a
@@ -109,6 +110,7 @@ export function GoalCard({
                 const isFirst = i === 0;
                 const consumes = goalConsumes(goal);
                 const kind = kindOf(g);
+                const temperatureChoice = res?.goalTemperatureChoices?.[g];
                 const goalMissing = res?.missing?.goods.includes(g) ?? false;
                 const incidentalRate =
                   goal.rate > 0
@@ -236,6 +238,25 @@ export function GoalCard({
                               onUnitChange={(u) => doc.setGoalUnit(g, u)}
                             />
                           </span>
+                        )}
+                        {temperatureChoice && (
+                          <FluidTemperaturePicker
+                            scope="goal"
+                            fluid={g}
+                            display={res?.display?.[g] ?? g}
+                            accepted={temperatureChoice.acceptedTemperature}
+                            selected={temperatureChoice.selectedTemperature}
+                            favorite={temperatureChoice.favoriteTemperature}
+                            options={temperatureChoice.temperatureOptions}
+                            onChange={(temperature) => {
+                              doc.setGoalTemperature(g, temperature);
+                              doc.note(
+                                temperature == null
+                                  ? `Use ${temperatureChoice.acceptedTemperature} ${res?.display?.[g] ?? g} goal`
+                                  : `Use ${temperature}°C ${res?.display?.[g] ?? g} goal`,
+                              );
+                            }}
+                          />
                         )}
                         {incidentalRate > 0 && (
                           <span

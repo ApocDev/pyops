@@ -5,6 +5,7 @@ import {
   blockBuildStatus,
   blockMissingRefs,
   blockReferenceFingerprint,
+  blocksForGood,
   blocksWithFlows,
   browseDetail,
   buildCost,
@@ -12,10 +13,12 @@ import {
   dataCapabilities,
   deleteGroup,
   getResearchHorizon,
+  getFavoriteFluidTemperatures,
   goodInfo,
   goodExists,
   goodGraphCounts,
   factoryBlocks,
+  factoryTotals,
   listBlocks,
   listGroups,
   logisticsForGood,
@@ -32,6 +35,7 @@ import {
   setBlockOrder,
   setBlockGroup,
   setBuiltMachines,
+  setFavoriteFluidTemperature,
   setGroupParent,
   setGroupOrder,
   setResearchHorizon,
@@ -143,6 +147,20 @@ describe("research horizon round-trip", () => {
     const h = getResearchHorizon();
     expect(h.mode).toBe("now");
     expect([...h.researched].sort()).toEqual(["automation", "logistics"]);
+  });
+});
+
+describe("favorite fluid temperatures", () => {
+  it("persists one exact default per canonical fluid and clears it", () => {
+    setFavoriteFluidTemperature("steam", 250);
+    setFavoriteFluidTemperature("water", 15);
+    expect(getFavoriteFluidTemperatures()).toEqual({ steam: 250, water: 15 });
+
+    setFavoriteFluidTemperature("steam", 2000);
+    expect(getFavoriteFluidTemperatures()).toEqual({ steam: 2000, water: 15 });
+
+    setFavoriteFluidTemperature("steam", null);
+    expect(getFavoriteFluidTemperatures()).toEqual({ water: 15 });
   });
 });
 
@@ -1129,6 +1147,176 @@ describe("batched block projections", () => {
       byproducts: [{ item: "gear", kind: "item", rate: 2 }],
       imports: [{ item: "drill", kind: "item", rate: -4 }],
     });
+  });
+
+  it("keeps fluid temperature qualifiers distinct in factory totals", () => {
+    db.run(
+      sql`INSERT INTO fluids (name, display, default_temperature) VALUES ('steam', 'Steam', 15)`,
+    );
+    db.run(sql`
+      INSERT INTO recipes (name, kind, hidden) VALUES
+        ('steam-250-test', 'real', 0),
+        ('steam-500-test', 'real', 0)
+    `);
+    db.run(sql`
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount, temperature) VALUES
+        ('steam-250-test', 0, 'fluid', 'steam', 1, 250),
+        ('steam-500-test', 0, 'fluid', 'steam', 1, 500)
+    `);
+    saveBlockRow(
+      {
+        name: "250 steam",
+        iconKind: null,
+        iconName: null,
+        data: { goals: [], recipes: [] },
+        electricityW: null,
+        dataFingerprint: null,
+      },
+      [
+        {
+          item: "steam",
+          kind: "fluid",
+          role: "primary",
+          rate: 10,
+          temperatureMode: "exact",
+          minTemp: 250,
+          maxTemp: 250,
+        },
+      ],
+    );
+    saveBlockRow(
+      {
+        name: "250 steam consumer",
+        iconKind: null,
+        iconName: null,
+        data: { goals: [], recipes: [] },
+        electricityW: null,
+        dataFingerprint: null,
+      },
+      [
+        {
+          item: "steam",
+          kind: "fluid",
+          role: "import",
+          rate: 7,
+          temperatureMode: "range",
+          minTemp: 250,
+          maxTemp: 250,
+        },
+      ],
+    );
+    saveBlockRow(
+      {
+        name: "500 steam",
+        iconKind: null,
+        iconName: null,
+        data: { goals: [], recipes: [] },
+        electricityW: null,
+        dataFingerprint: null,
+      },
+      [
+        {
+          item: "steam",
+          kind: "fluid",
+          role: "primary",
+          rate: 4,
+          temperatureMode: "exact",
+          minTemp: 500,
+          maxTemp: 500,
+        },
+      ],
+    );
+    saveBlockRow(
+      {
+        name: "wide steam consumer",
+        iconKind: null,
+        iconName: null,
+        data: { goals: [], recipes: [] },
+        electricityW: null,
+        dataFingerprint: null,
+      },
+      [
+        {
+          item: "steam",
+          kind: "fluid",
+          role: "import",
+          rate: 3,
+          temperatureMode: "range",
+          minTemp: 15,
+          maxTemp: null,
+        },
+      ],
+    );
+
+    expect(
+      factoryTotals()
+        .filter((flow) => flow.item === "steam")
+        .map(({ display: _display, ...flow }) => flow)
+        .sort((a, b) => a.role.localeCompare(b.role) || (a.minTemp ?? 0) - (b.minTemp ?? 0)),
+    ).toEqual([
+      {
+        item: "steam",
+        kind: "fluid",
+        role: "import",
+        temperatureMode: "range",
+        minTemp: 15,
+        maxTemp: null,
+        rate: 3,
+        hasTemperatureVariants: true,
+      },
+      {
+        item: "steam",
+        kind: "fluid",
+        role: "import",
+        temperatureMode: "range",
+        minTemp: 250,
+        maxTemp: 250,
+        rate: 7,
+        hasTemperatureVariants: true,
+      },
+      {
+        item: "steam",
+        kind: "fluid",
+        role: "primary",
+        temperatureMode: "exact",
+        minTemp: 250,
+        maxTemp: 250,
+        rate: 10,
+        hasTemperatureVariants: true,
+      },
+      {
+        item: "steam",
+        kind: "fluid",
+        role: "primary",
+        temperatureMode: "exact",
+        minTemp: 500,
+        maxTemp: 500,
+        rate: 4,
+        hasTemperatureVariants: true,
+      },
+    ]);
+
+    const exact = blocksForGood({
+      item: "steam",
+      kind: "fluid",
+      temperatureMode: "exact",
+      minTemp: 250,
+      maxTemp: 250,
+      hasTemperatureVariants: true,
+    });
+    expect(exact.producers.map((row) => row.blockName)).toEqual(["250 steam"]);
+    expect(exact.consumers.map((row) => row.blockName)).toEqual(["250 steam consumer"]);
+
+    const wide = blocksForGood({
+      item: "steam",
+      kind: "fluid",
+      temperatureMode: "range",
+      minTemp: 15,
+      maxTemp: null,
+      hasTemperatureVariants: true,
+    });
+    expect(wide.producers).toEqual([]);
+    expect(wide.consumers.map((row) => row.blockName)).toEqual(["wide steam consumer"]);
   });
 });
 

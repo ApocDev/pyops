@@ -15,7 +15,7 @@ import { meta } from "./schema.ts";
 const KEY = "solve_projection_generation";
 const RESOLVED_KEY = "solve_projection_resolved_generation";
 const VERSION_KEY = "solve_projection_version";
-const CURRENT_VERSION = "sv3";
+const CURRENT_VERSION = "sv4";
 const INITIAL_GENERATION = 1;
 
 function parseGeneration(value: string | null | undefined): number {

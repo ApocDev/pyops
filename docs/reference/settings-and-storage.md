@@ -29,6 +29,7 @@ Each project keeps its own:
 - synced Factorio recipes, goods, technologies, machines, and mod versions;
 - blocks, groups, snapshots, tasks, and notes;
 - planning horizon, manually recorded research, recipe exclusions, and TURD selections;
+- preferred machine, fuel, and fluid-temperature defaults for newly added recipe rows;
 - Factory Overview and Connections data derived from those blocks;
 - conversations associated with that planning workspace.
 

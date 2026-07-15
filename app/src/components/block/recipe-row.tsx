@@ -20,6 +20,7 @@ import { RecipeHover } from "../../lib/recipe-card";
 import { fmtSpoilTime, Icon, useSpoilables } from "../../lib/icons";
 import { ModulesChip } from "../../lib/modules-modal";
 import { EditableCount } from "./editable-count.tsx";
+import { FluidTemperaturePicker } from "./fluid-temperature-picker.tsx";
 import { IncidentalSpoilageChip } from "./incidental-spoilage-chip.tsx";
 import { SortableRow } from "./sortable-row.tsx";
 import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
@@ -457,7 +458,35 @@ export function RecipeRow({
                   kind={c.kind}
                   display={c.display}
                   rate={c.rate}
-                  temp={c.temp}
+                  temp={
+                    c.hasTemperatureVariants && (c.temperatureOptions?.length ?? 0) <= 1
+                      ? c.temp
+                      : null
+                  }
+                  temperatureControl={
+                    c.kind === "fluid" &&
+                    c.hasTemperatureVariants &&
+                    (c.temperatureOptions?.length ?? 0) > 1 &&
+                    c.acceptedTemperature ? (
+                      <FluidTemperaturePicker
+                        recipe={name}
+                        fluid={c.name}
+                        display={c.display ?? c.name}
+                        accepted={c.acceptedTemperature}
+                        selected={c.selectedTemperature ?? null}
+                        favorite={c.favoriteTemperature ?? null}
+                        options={c.temperatureOptions ?? []}
+                        onChange={(temperature) => {
+                          doc.pickFluidTemperature(name, c.name, temperature);
+                          doc.note(
+                            temperature == null
+                              ? `Use ${c.acceptedTemperature} ${c.display ?? c.name}`
+                              : `Use ${temperature}°C ${c.display ?? c.name}`,
+                          );
+                        }}
+                      />
+                    ) : null
+                  }
                   link={linkOf(c.name)}
                   craftable={producible.has(c.name)}
                   onClick={() => open.makeFor(c.name)}

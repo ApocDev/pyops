@@ -16,7 +16,7 @@
  * `depleted-uranium-fuel-cell`), then checks that an assumed farm layout
  * scales heat output — and ONLY heat output; fuel stays per-reactor.
  *
- * #110 (interim) — per-producer fluid-temperature warnings. Seeds Py's real
+ * #110 — per-producer fluid-temperature compatibility warnings. Seeds Py's real
  * MHD/fusion chain verbatim from py.db (`b-h`: neutron 10000 @4000°;
  * `dt-he3`: neutron 7500 @3000°; `generate-mdh-4000`/`-3000`: neutron 24000
  * min=max 4000/3000; `enriched-water`: water 1000 ≤101°;
@@ -55,7 +55,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import { switchDatabase } from "../db/index.server.ts";
-import { computeRecipeScenario } from "../db/queries.server.ts";
+import { computeRecipeScenario, setFavoriteFluidTemperature } from "../db/queries.server.ts";
 import { type TestDb, makeTestDb } from "../db/test-helpers.ts";
 import {
   boundaryFlows,
@@ -64,6 +64,162 @@ import {
   editorBlockResult,
   goalFlows,
 } from "./block-compute.server.ts";
+
+describe("fluid ingredient temperature selections", () => {
+  let fx: TestDb;
+
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    fx.db.exec(`
+      INSERT INTO items (name, display) VALUES ('tin','Tin'),('formic-product','Formic product');
+      INSERT INTO fluids (name, display, default_temperature, max_temperature) VALUES
+        ('steam','Steam',15,5000),
+        ('formic-acid','Formic acid',15,NULL),
+        ('water','Water',15,1000);
+      INSERT INTO recipes (name, display, kind, energy_required, enabled, hidden) VALUES
+        ('steam-250','Steam 250C','real',1,1,0),
+        ('steam-2000','Steam 2000C','real',1,1,0),
+        ('tin-steam','Tin from steam','real',1,1,0),
+        ('make-formic','Make formic acid','real',1,1,0),
+        ('use-formic','Use formic acid','real',1,1,0),
+        ('pump-water','Pump water','real',1,1,0),
+        ('hot-water','Hot water','real',1,1,0);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
+        ('tin-steam',0,'fluid','steam',10),
+        ('use-formic',0,'fluid','formic-acid',5);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount, temperature) VALUES
+        ('steam-250',0,'fluid','steam',10,250),
+        ('steam-2000',0,'fluid','steam',10,2000),
+        ('tin-steam',0,'item','tin',1,NULL),
+        ('make-formic',0,'fluid','formic-acid',5,NULL),
+        ('use-formic',0,'item','formic-product',1,NULL),
+        ('pump-water',0,'fluid','water',10,NULL),
+        ('hot-water',0,'fluid','water',10,125);
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+
+  afterEach(() => fx.cleanup());
+
+  it("pins one recipe ingredient to an exact produced temperature", async () => {
+    setFavoriteFluidTemperature("steam", 250);
+    const solved = await computeBlock({
+      goals: [{ name: "tin", rate: 1 }],
+      recipes: ["steam-250", "steam-2000", "tin-steam"],
+      made: ["steam"],
+      fluidTemperatures: { "tin-steam": { steam: 250 } },
+    });
+
+    expect(solved.status).toBe("solved");
+    expect(solved.rows.find((row) => row.recipe === "steam-250")?.rate).toBeCloseTo(1);
+    expect(solved.rows.find((row) => row.recipe === "steam-2000")?.rate).toBeCloseTo(0);
+    expect(solved.rows.find((row) => row.recipe === "tin-steam")?.ingredients[0]).toMatchObject({
+      selectedTemperature: 250,
+      favoriteTemperature: 250,
+      hasTemperatureVariants: true,
+      temperatureOptions: [250, 2000],
+    });
+  });
+
+  it("marks a single-temperature fluid as having no selectable variants", async () => {
+    const solved = await computeBlock({
+      goals: [{ name: "formic-product", rate: 1 }],
+      recipes: ["use-formic"],
+    });
+
+    expect(solved.rows.find((row) => row.recipe === "use-formic")?.ingredients[0]).toMatchObject({
+      hasTemperatureVariants: false,
+      temperatureOptions: [15],
+    });
+    expect(solved.qualifiedDisplayImports).toContainEqual(
+      expect.objectContaining({ name: "formic-acid", temp: null }),
+    );
+  });
+
+  it("persists an exact temperature on a producer-only block boundary", async () => {
+    const input = {
+      goals: [{ name: "steam", rate: 10 }],
+      recipes: ["steam-2000"],
+    };
+    const solved = await computeBlock(input);
+
+    expect(boundaryFlows(goalFlows(input), solved)).toContainEqual({
+      item: "steam",
+      kind: "fluid",
+      role: "primary",
+      rate: 10,
+      temperatureMode: "exact",
+      minTemp: 2000,
+      maxTemp: 2000,
+    });
+  });
+
+  it("pins a fluid goal to one produced temperature and exposes the goal control", async () => {
+    setFavoriteFluidTemperature("steam", 250);
+    const input = {
+      goals: [{ name: "steam", rate: 10, temperature: 250 }],
+      recipes: ["steam-250", "steam-2000"],
+    };
+    const solved = await computeBlock(input);
+
+    expect(solved.rows.find((row) => row.recipe === "steam-250")?.rate).toBeCloseTo(1);
+    expect(solved.rows.find((row) => row.recipe === "steam-2000")?.rate).toBeCloseTo(0);
+    expect(solved.goalTemperatureChoices.steam).toEqual({
+      acceptedTemperature: "≥15°",
+      selectedTemperature: 250,
+      favoriteTemperature: 250,
+      temperatureOptions: [250, 2000],
+    });
+    expect(boundaryFlows(goalFlows(input), solved)).toContainEqual({
+      item: "steam",
+      kind: "fluid",
+      role: "primary",
+      rate: 10,
+      temperatureMode: "exact",
+      minTemp: 250,
+      maxTemp: 250,
+    });
+  });
+
+  it("shows a default-temperature product when that fluid has other variants", async () => {
+    const input = {
+      goals: [{ name: "water", rate: 10 }],
+      recipes: ["pump-water"],
+    };
+    const solved = await computeBlock(input);
+
+    expect(solved.rows.find((row) => row.recipe === "pump-water")?.products[0]?.temp).toBe("15°");
+    expect(boundaryFlows(goalFlows(input), solved)).toContainEqual({
+      item: "water",
+      kind: "fluid",
+      role: "primary",
+      rate: 10,
+      temperatureMode: "exact",
+      minTemp: 15,
+      maxTemp: 15,
+    });
+  });
+
+  it("shows the selected requirement on the block import chip", async () => {
+    const solved = await computeBlock({
+      goals: [{ name: "tin", rate: 1 }],
+      recipes: ["tin-steam"],
+      fluidTemperatures: { "tin-steam": { steam: 250 } },
+    });
+
+    expect(solved.qualifiedDisplayImports).toContainEqual(
+      expect.objectContaining({
+        name: "steam",
+        rate: 10,
+        temperatureMode: "range",
+        minTemp: 250,
+        maxTemp: 250,
+        temp: "250°",
+      }),
+    );
+  });
+});
 
 describe("module suggestions outside the core solve", () => {
   let fx: TestDb;

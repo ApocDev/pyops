@@ -25,6 +25,17 @@ The first automation-science block creates deficits for every ingredient left as
 import. Pick one of those deficits and make it the goal of your next block. As you add
 producer blocks, return to Factory to see which deficits remain.
 
+Temperature-sensitive fluids retain their boundary contract here. A pinned steam import appears
+as **Steam 250°**, and it balances with steam produced at exactly 250°. Other exact temperatures
+and wider accepted ranges, such as **Steam ≥15°**, remain separate rows so a high-temperature
+supply is not silently counted against the wrong demand. Fluids with only one producible
+temperature remain unqualified.
+
+Select a qualified row to see only the blocks connected to that contract. For example, the
+**Steam 250°** drawer includes exact 250° producers and consumers pinned to 250°, while the
+**Steam ≥15°** drawer lists range-based consumers separately. Creating a block from an exact row
+also carries that temperature into the new fluid goal.
+
 <AppScreenshot
   src="/images/first-factory-view.png"
   alt="The Factory page for a five-block Automation science plan, showing deficits, a final-product surplus, balanced intermediates, and live machine sufficiency"

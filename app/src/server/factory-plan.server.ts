@@ -13,6 +13,14 @@ import {
   type FactorySolverTraceRecorder,
 } from "./factory-debug.server.ts";
 import type { FactorySolveProgressReporter } from "./factory-progress.server.ts";
+import {
+  acceptsTemperature,
+  baseGoodName,
+  exactTemperature,
+  qualifiedGoodKey,
+  qualifierFromKey,
+  type TemperatureQualifier,
+} from "../solver/temperature-flow.ts";
 import { withUndoAction } from "./undo-action.server.ts";
 
 const PINS_META_KEY = "factory_pins_v1";
@@ -21,7 +29,7 @@ const VALIDATION_TOL = 0.005;
 const RATE_CHANGE_ABS_TOL = 1e-4;
 const RATE_CHANGE_REL_TOL = 0.01;
 const MAX_LINEARIZATION_PASSES = 8;
-const FREE_GOODS = new Set(["pyops-electricity", "pyops-heat"]);
+const FREE_GOODS = new Set(["pyops-heat"]);
 const round = (value: number) => +value.toFixed(4);
 
 export type FactoryPin = {
@@ -31,7 +39,13 @@ export type FactoryPin = {
   source?: "explicit" | "terminal" | "stock";
 };
 
-type Flow = { item: string; kind: string; role: string; rate: number; priority?: number };
+type Flow = {
+  item: string;
+  kind: string;
+  role: string;
+  rate: number;
+  priority?: number;
+} & TemperatureQualifier;
 type Column = {
   blockId: number;
   blockName: string;
@@ -61,6 +75,8 @@ type FactoryGoalChange = {
   scale: number;
   delta: number;
   goal: true;
+  /** Exact produced temperature selected on this fluid goal. */
+  temperature?: number;
   activation?: true;
 };
 
@@ -269,11 +285,46 @@ function signedBoundary(
 ): Map<string, { kind: string; net: number }> {
   const net = new Map<string, { kind: string; net: number }>();
   for (const flow of boundaryFlows(goalFlows(doc), result)) {
-    const current = net.get(flow.item);
-    net.set(flow.item, {
+    const key = qualifiedGoodKey(flow);
+    const current = net.get(key);
+    net.set(key, {
       kind: flow.kind,
       net: (current?.net ?? 0) + (flow.role === "import" ? -flow.rate : flow.rate),
     });
+  }
+  return net;
+}
+
+/** The temperature selector recipes are ordinary HiGHS columns, and highs-js's
+ * pretty-solution transport exposes their primals at limited precision. For a
+ * fluid goal sitting on a coproduct plateau, the configured goal row and the
+ * rounded selector row can therefore fail to cancel by a few ten-thousandths.
+ * Use the physical selector rate only to decide whether the local basis is
+ * active; keep the configured goal rate in signedBoundary for the actual
+ * response coefficients, persisted projection, and validation contract. */
+function physicalSignedBoundary(
+  doc: SolveInput,
+  result: Awaited<ReturnType<typeof computeBlock>>,
+): Map<string, { kind: string; net: number }> {
+  const flows = boundaryFlows(goalFlows(doc), result);
+  const net = signedBoundary(doc, result);
+  for (const goal of doc.goals) {
+    const actual = result.qualifiedGoals?.[goal.name];
+    if (!actual?.length) continue;
+    for (const flow of flows.filter(
+      (candidate) =>
+        candidate.item === goal.name &&
+        (candidate.role === "primary" || candidate.role === "stock"),
+    )) {
+      const key = qualifiedGoodKey(flow);
+      const current = net.get(key);
+      net.set(key, { kind: flow.kind, net: (current?.net ?? 0) - flow.rate });
+    }
+    for (const flow of actual) {
+      const key = qualifiedGoodKey({ ...flow, item: goal.name });
+      const current = net.get(key);
+      net.set(key, { kind: flow.kind, net: (current?.net ?? 0) + flow.rate });
+    }
   }
   return net;
 }
@@ -298,6 +349,7 @@ async function responseColumns(
       const baseResult = await computeBlock(reference);
       if (baseResult.broken || baseResult.status !== "solved") return { columns: [], fixed: [] };
       const base = signedBoundary(reference, baseResult);
+      const physicalBase = physicalSignedBoundary(reference, baseResult);
       const anchorResult = reference.goals.some(
         (goal, index) => goal.rate !== doc.goals[index]?.rate,
       )
@@ -320,12 +372,16 @@ async function responseColumns(
             const result = await computeBlock(perturbed);
             if (result.broken || result.status !== "solved" || result.unmade?.includes(goal.name))
               return null;
-            return signedBoundary(perturbed, result);
+            return {
+              boundary: signedBoundary(perturbed, result),
+              physical: physicalSignedBoundary(perturbed, result),
+            };
           };
           let delta = Math.max(1e-3, Math.abs(goal.rate) * 1e-3);
           let previous = base;
-          let next = await solveBoundaryAt(goal.rate + sign * delta);
-          if (!next) return null;
+          const localNext = await solveBoundaryAt(goal.rate + sign * delta);
+          if (!localNext) return null;
+          let next = localNext.boundary;
 
           // A sibling goal can already make more of this good than its own
           // minimum asks for. A tiny perturbation then consumes only that
@@ -337,9 +393,10 @@ async function responseColumns(
           // measure that segment locally so the plateau does not dilute its
           // true marginal response.
           const localOwnNet =
-            ((next.get(goal.name)?.net ?? 0) - (base.get(goal.name)?.net ?? 0)) / delta;
+            (mapBaseNet(localNext.physical, goal.name) - mapBaseNet(physicalBase, goal.name)) /
+            delta;
           const activeAtReference = sign * localOwnNet > EPS;
-          const coveredRate = sign * (base.get(goal.name)?.net ?? 0);
+          const coveredRate = sign * mapBaseNet(base, goal.name);
           if (sign * localOwnNet <= EPS) {
             let segmentMagnitude =
               Math.max(Math.abs(goal.rate), coveredRate, RATE_CHANGE_ABS_TOL) * 1.001;
@@ -350,13 +407,13 @@ async function responseColumns(
               const segmentNext = await solveBoundaryAt(segmentStart + sign * segmentDelta);
               const segmentOwnNet =
                 segmentBase && segmentNext
-                  ? ((segmentNext.get(goal.name)?.net ?? 0) -
-                      (segmentBase.get(goal.name)?.net ?? 0)) /
+                  ? (mapBaseNet(segmentNext.physical, goal.name) -
+                      mapBaseNet(segmentBase.physical, goal.name)) /
                     segmentDelta
                   : 0;
               if (segmentBase && segmentNext && sign * segmentOwnNet > EPS) {
-                previous = segmentBase;
-                next = segmentNext;
+                previous = segmentBase.boundary;
+                next = segmentNext.boundary;
                 delta = segmentDelta;
                 break;
               }
@@ -376,7 +433,7 @@ async function responseColumns(
                 role:
                   marginal < 0
                     ? "import"
-                    : sign > 0 && good === goal.name
+                    : sign > 0 && baseGoodName(good) === goal.name
                       ? "primary"
                       : "byproduct",
                 rate: Math.abs(marginal),
@@ -384,7 +441,7 @@ async function responseColumns(
               },
             ];
           });
-          const kind = flows.find((flow) => flow.item === goal.name)?.kind ?? "item";
+          const kind = flows.find((flow) => baseGoodName(flow.item) === goal.name)?.kind ?? "item";
           return {
             blockId: row.id,
             blockName: row.name,
@@ -443,6 +500,31 @@ const columnNet = (column: Column, good: string) =>
     .filter((flow) => flow.item === good)
     .reduce((sum, flow) => sum + (flow.role === "import" ? -flow.rate : flow.rate), 0);
 
+const mapBaseNet = (flows: ReadonlyMap<string, { net: number }>, good: string) =>
+  [...flows].reduce((sum, [key, flow]) => (baseGoodName(key) === good ? sum + flow.net : sum), 0);
+
+const columnBaseNet = (column: Column, good: string) =>
+  column.flows
+    .filter((flow) => baseGoodName(flow.item) === good)
+    .reduce((sum, flow) => sum + (flow.role === "import" ? -flow.rate : flow.rate), 0);
+
+const materialPinKey = (pin: Pick<FactoryPin, "good" | "kind">) =>
+  pin.kind === "fluid" && !pin.good.startsWith("pyops-")
+    ? qualifiedGoodKey({
+        item: pin.good,
+        kind: pin.kind,
+        temperatureMode: "range",
+        minTemp: null,
+        maxTemp: null,
+      })
+    : pin.good;
+
+const compatibleFlow = (flowKey: string, requestedKey: string): boolean => {
+  if (baseGoodName(flowKey) !== baseGoodName(requestedKey)) return false;
+  const temperature = exactTemperature(flowKey);
+  return temperature == null || acceptsTemperature(requestedKey, temperature);
+};
+
 function meaningfulRateChange(current: number, required: number): boolean {
   const delta = Math.abs(required - current);
   if (delta <= RATE_CHANGE_ABS_TOL) return false;
@@ -481,6 +563,7 @@ export async function solvePinnedFactory(
       rate: demandOverrides[pin.good] ?? pin.rate,
     }));
     const pinByGood = new Map(pins.map((pin) => [pin.good, pin]));
+    const pinByMaterialGood = new Map(pins.map((pin) => [materialPinKey(pin), pin]));
 
     let completedResponses = 0;
     progress?.update({
@@ -537,13 +620,21 @@ export async function solvePinnedFactory(
     // A reached column's natural byproducts may activate a configured consume
     // goal, but never another positive goal. Producer caps below prevent that
     // sink chain from pulling extra source production merely for its outputs.
-    const required = new Set(pins.filter((pin) => pin.rate > 0).map((pin) => pin.good));
+    const required = new Set(pins.filter((pin) => pin.rate > 0).map(materialPinKey));
     const selected = new Map<string, Column>();
     const queue = [...required];
-    const explicitSinkGoods = new Set(pins.filter((pin) => pin.rate < 0).map((pin) => pin.good));
+    const explicitSinkGoods = new Set(pins.filter((pin) => pin.rate < 0).map(materialPinKey));
     const autoSinkGoods = new Set<string>();
     for (const pin of pins.filter((candidate) => candidate.rate < 0)) {
-      const offers = negativeByGood.get(pin.good) ?? [];
+      const requested = materialPinKey(pin);
+      const offers = (negativeByGood.get(pin.good) ?? []).filter((offer) =>
+        offer.flows.some(
+          (flow) =>
+            flow.role === "import" &&
+            baseGoodName(flow.item) === pin.good &&
+            compatibleFlow(requested, flow.item),
+        ),
+      );
       const top = Math.max(...offers.map((offer) => offer.priority));
       for (const offer of offers.filter((candidate) => candidate.priority === top)) {
         selected.set(`${offer.blockId}\u0000${offer.good}`, offer);
@@ -552,7 +643,7 @@ export async function solvePinnedFactory(
         for (const flow of offer.flows) {
           if (
             flow.role !== "import" ||
-            flow.item === pin.good ||
+            baseGoodName(flow.item) === pin.good ||
             FREE_GOODS.has(flow.item) ||
             required.has(flow.item)
           )
@@ -567,7 +658,17 @@ export async function solvePinnedFactory(
     while (queue.length > 0 || addedSink) {
       while (queue.length > 0) {
         const good = queue.shift()!;
-        const offers = positiveByGood.get(good) ?? [];
+        const offers = (positiveByGood.get(baseGoodName(good)) ?? []).filter((offer) =>
+          qualifierFromKey(good) == null &&
+          !offer.flows.some((flow) => baseGoodName(flow.item) === baseGoodName(good))
+            ? true
+            : offer.flows.some(
+                (flow) =>
+                  flow.role !== "import" &&
+                  columnNet(offer, flow.item) > EPS &&
+                  compatibleFlow(flow.item, good),
+              ),
+        );
         if (offers.length === 0) continue;
         const top = Math.max(...offers.map((offer) => offer.priority));
         for (const offer of offers.filter((candidate) => candidate.priority === top)) {
@@ -591,7 +692,14 @@ export async function solvePinnedFactory(
         )
           continue;
         consideredByproducts.add(flow.item);
-        const offers = negativeByGood.get(flow.item) ?? [];
+        const offers = (negativeByGood.get(baseGoodName(flow.item)) ?? []).filter((offer) =>
+          offer.flows.some(
+            (candidate) =>
+              candidate.role === "import" &&
+              baseGoodName(candidate.item) === baseGoodName(flow.item) &&
+              compatibleFlow(flow.item, candidate.item),
+          ),
+        );
         if (offers.length === 0) continue;
         const top = Math.max(...offers.map((offer) => offer.priority));
         for (const offer of offers.filter((candidate) => candidate.priority === top)) {
@@ -599,11 +707,17 @@ export async function solvePinnedFactory(
           if (selected.has(key)) continue;
           selected.set(key, offer);
           autoSinkGoods.add(flow.item);
+          for (const consumed of offer.flows)
+            if (
+              consumed.role === "import" &&
+              baseGoodName(consumed.item) === baseGoodName(flow.item)
+            )
+              autoSinkGoods.add(consumed.item);
           addedSink = true;
           for (const ingredient of offer.flows) {
             if (
               ingredient.role !== "import" ||
-              ingredient.item === offer.good ||
+              baseGoodName(ingredient.item) === offer.good ||
               FREE_GOODS.has(ingredient.item) ||
               required.has(ingredient.item)
             )
@@ -615,7 +729,7 @@ export async function solvePinnedFactory(
       }
     }
     const columns = [...selected.values()];
-    const goods = new Set(pins.map((pin) => pin.good));
+    const goods = new Set(pins.map(materialPinKey));
     for (const good of fixedNet.keys()) goods.add(good);
     for (const column of columns) for (const flow of column.flows) goods.add(flow.item);
     // Reaching a configured byproduct consumer closes that material balance.
@@ -628,41 +742,74 @@ export async function solvePinnedFactory(
 
     const constraints: string[] = [];
     const importVarByGood = new Map<string, number>();
-    const producers = new Set(
+    const producerGoals = new Set(
       columns
         .filter((column) => column.sign > 0 && !FREE_GOODS.has(column.good))
         .map((column) => column.good),
     );
+    const producerGoods = new Set<string>();
+    for (const column of columns.filter((candidate) => candidate.sign > 0))
+      for (const flow of column.flows)
+        if (
+          baseGoodName(flow.item) === column.good &&
+          flow.role !== "import" &&
+          columnNet(column, flow.item) > EPS
+        )
+          producerGoods.add(flow.item);
+    const transferPairs = [...goods].flatMap((target) => {
+      if (qualifierFromKey(target)?.temperatureMode !== "range") return [];
+      return [...goods].flatMap((source) => {
+        const temperature = exactTemperature(source);
+        return temperature != null && compatibleFlow(source, target) ? [{ source, target }] : [];
+      });
+    });
+    const hasProducer = (good: string) => {
+      if (!producerGoals.has(baseGoodName(good))) return false;
+      const qualifier = qualifierFromKey(good);
+      if (!qualifier) return true;
+      return (
+        producerGoods.has(good) ||
+        (qualifier.temperatureMode === "range" &&
+          [...producerGoods].some((source) => compatibleFlow(source, good)))
+      );
+    };
     for (const good of materialGoods) {
       const parts: string[] = [];
       columns.forEach((column, index) => {
         const net = columnNet(column, good);
         if (Math.abs(net) > EPS) parts.push(lpTerm(net, `x${index}`));
       });
-      if ((!producers.has(good) && !autoSinkGoods.has(good)) || FREE_GOODS.has(good)) {
+      transferPairs.forEach((pair, index) => {
+        if (pair.source === good) parts.push(`- 1 transfer_${index}`);
+        if (pair.target === good) parts.push(`+ 1 transfer_${index}`);
+      });
+      if ((!hasProducer(good) && !autoSinkGoods.has(good)) || FREE_GOODS.has(good)) {
         importVarByGood.set(good, constraints.length);
         parts.push(`+ 1 import_${constraints.length}`);
       }
       if (surplusGoods.has(good)) parts.push(`- 1 surplus_${constraints.length}`);
       constraints.push(
-        `g${constraints.length}: ${parts.join(" ")} = ${(pinByGood.get(good)?.rate ?? 0) - (fixedNet.get(good) ?? 0)}`,
+        `g${constraints.length}: ${parts.join(" ")} = ${(pinByMaterialGood.get(good)?.rate ?? 0) - (fixedNet.get(good) ?? 0)}`,
       );
     }
 
     // A declared producer may cover demand for its own goal, but may not run
     // beyond that demand just to obtain an incidental output. Incidental supply
     // can still reduce the declared producer's activity or remain surplus.
-    for (const good of producers) {
+    for (const good of producerGoals) {
       const parts: string[] = [];
       columns.forEach((column, index) => {
-        const net = columnNet(column, good);
+        const net = columnBaseNet(column, good);
         if (column.sign > 0 && column.good === good && net > EPS)
           parts.push(lpTerm(net, `x${index}`));
         else if (net < -EPS) parts.push(lpTerm(net, `x${index}`));
       });
-      constraints.push(
-        `cap${constraints.length}: ${parts.join(" ")} <= ${Math.max(0, (pinByGood.get(good)?.rate ?? 0) - (fixedNet.get(good) ?? 0))}`,
+      const cap = Math.max(
+        0,
+        (pinByGood.get(good)?.rate ?? 0) -
+          mapBaseNet(new Map([...fixedNet].map(([key, net]) => [key, { net }])), good),
       );
+      constraints.push(`cap${constraints.length}: ${parts.join(" ")} <= ${cap + 1e-6}`);
     }
 
     const objective =
@@ -671,9 +818,11 @@ export async function solvePinnedFactory(
         ...columns.map(
           (column, index) => `+ ${1 + Math.max(0, -column.priority) * 0.001} x${index}`,
         ),
+        ...transferPairs.map((_, index) => `+ 0.000001 transfer_${index}`),
       ].join(" ") || "+ 0 surplus_0";
     const bounds = [
       ...columns.map((_, index) => `0 <= x${index} <= 1e9`),
+      ...transferPairs.map((_, index) => `0 <= transfer_${index} <= 1e12`),
       ...materialGoods.flatMap((good, index) => [
         ...(importVarByGood.has(good) ? [`0 <= import_${index} <= 1e12`] : []),
         ...(surplusGoods.has(good) ? [`0 <= surplus_${index} <= 1e12`] : []),
@@ -768,14 +917,14 @@ export async function solvePinnedFactory(
             block.consumed -= net;
           }
         });
-        for (const producer of positiveByGood.get(good) ?? []) {
+        for (const producer of positiveByGood.get(baseGoodName(good)) ?? []) {
           const block = detail(producer.blockId, producer.blockName);
           block.configuredProducer = true;
           block.scalableProducer ||= columnNet(producer, good) > EPS;
         }
         const direction = shortage >= excess ? "shortage" : "excess";
         materialConflicts.push({
-          good,
+          good: baseGoodName(good),
           kind: kindOf.get(good) ?? "item",
           direction,
           amount: round(direction === "shortage" ? shortage : excess),
@@ -828,7 +977,8 @@ export async function solvePinnedFactory(
     // the minimum goal does not activate additional recipes.
     const factoryNeedByGood = new Map<string, number>();
     const outputByBlockGood = new Map<string, number>();
-    for (const pin of pins) if (pin.rate > EPS) add(factoryNeedByGood, pin.good, pin.rate);
+    for (const pin of pins)
+      if (pin.rate > EPS) add(factoryNeedByGood, materialPinKey(pin), pin.rate);
     responses.forEach((response, responseIndex) => {
       const blockId = rows[responseIndex]?.row.id;
       if (blockId == null) return;
@@ -849,16 +999,37 @@ export async function solvePinnedFactory(
     );
     const recoveredRateByGoal = new Map<string, number>();
     const recoveredAllocations: PinnedFactoryResult["supplyAllocations"] = [];
-    for (const [good, factoryNeed] of factoryNeedByGood) {
+
+    // Consumer ranges and exact producer outputs are separate factory rows.
+    // Recover goal rate on the SOURCE identity selected by the solved transfer,
+    // not by collapsing every temperature to the base fluid (which could let a
+    // 2000 C producer claim demand that only accepts 250 C).
+    const recoveryNeedByGood = new Map<string, number>();
+    for (const [good, rate] of factoryNeedByGood)
+      if (qualifierFromKey(good)?.temperatureMode !== "range") add(recoveryNeedByGood, good, rate);
+    transferPairs.forEach((pair, index) => {
+      const rate = optimal
+        ? ((solution.Columns[`transfer_${index}`] as { Primal?: number } | undefined)?.Primal ?? 0)
+        : 0;
+      if (rate > EPS) add(recoveryNeedByGood, pair.source, rate);
+    });
+
+    const suppliedByGoal = new Map<string, number>();
+    const allocationByGoal = new Map<
+      string,
+      { blockId: number; blockName: string; good: string; kind: string; priority: number }
+    >();
+    for (const [good, factoryNeed] of recoveryNeedByGood) {
+      const base = baseGoodName(good);
       const goalBlocks = rows.flatMap(({ row, originalDoc }) => {
         const goal = originalDoc.goals.find(
-          (candidate) => candidate.name === good && !goalConsumes(candidate),
+          (candidate) => candidate.name === base && !goalConsumes(candidate),
         );
         if (!goal) return [];
-        const key = `${row.id}\u0000${good}`;
-        const output = outputByBlockGood.get(key) ?? 0;
+        const key = `${row.id}\u0000${base}`;
+        const output = outputByBlockGood.get(`${row.id}\u0000${good}`) ?? 0;
         const dedicated = Math.max(0, dedicatedRateByGoal.get(key) ?? 0);
-        const priority = originalDoc.supplyPriorities?.[good] ?? originalDoc.supplyPriority ?? 0;
+        const priority = originalDoc.supplyPriorities?.[base] ?? originalDoc.supplyPriority ?? 0;
         return [{ key, row, output, dedicated, priority }];
       });
       const goalBlockIds = new Set(goalBlocks.map(({ row }) => row.id));
@@ -878,23 +1049,50 @@ export async function solvePinnedFactory(
       for (const allocation of goalBlocks) {
         const supplied = Math.min(allocation.output, remaining);
         remaining = Math.max(0, remaining - supplied);
-        const retainedGoal = Math.max(allocation.dedicated, supplied);
-        const target = targetByGoal.get(allocation.key);
-        if (target && retainedGoal > target.rate + EPS)
-          targetByGoal.set(allocation.key, { ...target, rate: retainedGoal });
-        const recovered = Math.max(0, Math.min(supplied, allocation.output - allocation.dedicated));
-        if (recovered <= EPS) continue;
-        recoveredRateByGoal.set(allocation.key, recovered);
-        recoveredAllocations.push({
+        add(suppliedByGoal, allocation.key, supplied);
+        allocationByGoal.set(allocation.key, {
           blockId: allocation.row.id,
           blockName: allocation.row.name,
-          good,
-          kind: kindOf.get(good) ?? "item",
+          good: base,
+          kind: kindOf.get(good) ?? kindOf.get(base) ?? "item",
+          priority: allocation.priority,
+        });
+      }
+    }
+
+    // A single block goal may distribute across more than one exact-temperature
+    // output. Recombine compatible allocations before setting its one saved rate.
+    for (const [key, supplied] of suppliedByGoal) {
+      const dedicated = Math.max(0, dedicatedRateByGoal.get(key) ?? 0);
+      const retainedGoal = Math.max(dedicated, supplied);
+      const target = targetByGoal.get(key);
+      if (target && retainedGoal > target.rate + EPS)
+        targetByGoal.set(key, { ...target, rate: retainedGoal });
+
+      const separator = key.indexOf("\u0000");
+      const blockId = Number(key.slice(0, separator));
+      const base = key.slice(separator + 1);
+      const output = [...outputByBlockGood].reduce((sum, [outputKey, rate]) => {
+        const outputSeparator = outputKey.indexOf("\u0000");
+        return Number(outputKey.slice(0, outputSeparator)) === blockId &&
+          baseGoodName(outputKey.slice(outputSeparator + 1)) === base
+          ? sum + rate
+          : sum;
+      }, 0);
+      const recovered = Math.max(0, Math.min(supplied, output - dedicated));
+      if (recovered <= EPS) continue;
+      recoveredRateByGoal.set(key, recovered);
+      const allocation = allocationByGoal.get(key);
+      if (allocation)
+        recoveredAllocations.push({
+          blockId: allocation.blockId,
+          blockName: allocation.blockName,
+          good: allocation.good,
+          kind: allocation.kind,
           priority: allocation.priority,
           incidental: true,
           rate: round(recovered),
         });
-      }
     }
     const factorySurplusByGood = new Map(
       [...goods].map((good, index) => [
@@ -922,13 +1120,32 @@ export async function solvePinnedFactory(
             currentRate: round(current),
             requiredRate,
             dedicatedRate: dedicatedRateByGoal.get(key) ?? 0,
-            factoryNeed: round(factoryNeedByGood.get(goal.name) ?? 0),
-            projectedOutput: round(outputByBlockGood.get(key) ?? 0),
-            factorySurplus: round(factorySurplusByGood.get(goal.name) ?? 0),
+            factoryNeed: round(
+              [...factoryNeedByGood].reduce(
+                (sum, [good, rate]) => (baseGoodName(good) === goal.name ? sum + rate : sum),
+                0,
+              ),
+            ),
+            projectedOutput: round(
+              [...outputByBlockGood].reduce((sum, [outputKey, rate]) => {
+                const separator = outputKey.indexOf("\u0000");
+                return Number(outputKey.slice(0, separator)) === row.id &&
+                  baseGoodName(outputKey.slice(separator + 1)) === goal.name
+                  ? sum + rate
+                  : sum;
+              }, 0),
+            ),
+            factorySurplus: round(
+              [...factorySurplusByGood].reduce(
+                (sum, [good, rate]) => (baseGoodName(good) === goal.name ? sum + rate : sum),
+                0,
+              ),
+            ),
             recoveredRate: round(recoveredRateByGoal.get(key) ?? 0),
             scale: round(Math.abs(current) > EPS ? requiredRate / current : requiredRate),
             delta: round(requiredRate - current),
             goal: true as const,
+            ...(goal.temperature != null ? { temperature: goal.temperature } : {}),
             ...(Math.abs(current) <= EPS && Math.abs(requiredRate) > EPS
               ? { activation: true as const }
               : {}),
@@ -945,38 +1162,50 @@ export async function solvePinnedFactory(
     for (const { block } of rows)
       for (const flow of block.flows)
         add(flow.role === "import" ? currentConsumed : currentProduced, flow.item, flow.rate);
-    const rawImports = [...goods].flatMap((good, index) => {
+    const rawByGood = new Map<string, { kind: string; projected: number }>();
+    [...goods].forEach((good, index) => {
       if (!importVarByGood.has(good)) return [];
       const projected = optimal
         ? ((solution.Columns[`import_${index}`] as { Primal?: number } | undefined)?.Primal ?? 0)
         : 0;
-      if (projected <= EPS && (currentConsumed.get(good) ?? 0) <= EPS) return [];
-      return [
-        {
-          good,
-          kind: kindOf.get(good) ?? "item",
-          current: round(
-            Math.max(0, (currentConsumed.get(good) ?? 0) - (currentProduced.get(good) ?? 0)),
-          ),
-          projected: round(projected),
-        },
-      ];
+      const base = baseGoodName(good);
+      if (projected <= EPS && (currentConsumed.get(base) ?? 0) <= EPS) return;
+      const current = rawByGood.get(base) ?? {
+        kind: kindOf.get(good) ?? kindOf.get(base) ?? "item",
+        projected: 0,
+      };
+      current.projected += projected;
+      rawByGood.set(base, current);
     });
-    const surplus = [...goods].flatMap((good, index) => {
+    const rawImports = [...rawByGood].map(([good, flow]) => ({
+      good,
+      kind: flow.kind,
+      current: round(
+        Math.max(0, (currentConsumed.get(good) ?? 0) - (currentProduced.get(good) ?? 0)),
+      ),
+      projected: round(flow.projected),
+    }));
+    const surplusByGood = new Map<string, { kind: string; projected: number }>();
+    [...goods].forEach((good, index) => {
       const projected = optimal
         ? ((solution.Columns[`surplus_${index}`] as { Primal?: number } | undefined)?.Primal ?? 0)
         : 0;
-      if (projected <= 1e-4) return [];
-      return [
-        {
-          good,
-          kind: kindOf.get(good) ?? "item",
-          cls: "surplus" as const,
-          projected: round(projected),
-          absorb: null,
-        },
-      ];
+      if (projected <= 1e-4) return;
+      const base = baseGoodName(good);
+      const current = surplusByGood.get(base) ?? {
+        kind: kindOf.get(good) ?? kindOf.get(base) ?? "item",
+        projected: 0,
+      };
+      current.projected += projected;
+      surplusByGood.set(base, current);
     });
+    const surplus = [...surplusByGood].map(([good, flow]) => ({
+      good,
+      kind: flow.kind,
+      cls: "surplus" as const,
+      projected: round(flow.projected),
+      absorb: null,
+    }));
     const demands = pins
       .filter((pin) => pin.rate > 0)
       .map((pin) => ({
@@ -1124,8 +1353,9 @@ export async function solvePinnedFactory(
         const actualGross = new Map<string, number>();
         for (const entry of solved) {
           for (const flow of boundaryFlows(goalFlows(entry.doc), entry.result)) {
-            add(actualNet, flow.item, flow.rate * (flow.role === "import" ? -1 : 1));
-            add(actualGross, flow.item, flow.rate);
+            const key = qualifiedGoodKey(flow);
+            add(actualNet, key, flow.rate * (flow.role === "import" ? -1 : 1));
+            add(actualGross, key, flow.rate);
           }
         }
         for (const good of FREE_GOODS) {
@@ -1185,7 +1415,7 @@ export async function solvePinnedFactory(
           residual = Math.max(residual, relative);
           if (relative > VALIDATION_TOL)
             discrepancies.push({
-              good,
+              good: baseGoodName(good),
               expected: round(expected),
               actual: round(actual),
               relative: round(relative),
@@ -1377,8 +1607,9 @@ export async function applyPinnedFactory(
     const actualGross = new Map<string, number>();
     for (const entry of solved) {
       for (const flow of boundaryFlows(goalFlows(entry.doc), entry.result)) {
-        add(actualNet, flow.item, flow.rate * (flow.role === "import" ? -1 : 1));
-        add(actualGross, flow.item, flow.rate);
+        const key = qualifiedGoodKey(flow);
+        add(actualNet, key, flow.rate * (flow.role === "import" ? -1 : 1));
+        add(actualGross, key, flow.rate);
       }
     }
     const expectedNet = new Map(plan.projection.map((flow) => [flow.good, flow.net]));

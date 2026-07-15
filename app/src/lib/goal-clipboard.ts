@@ -28,6 +28,7 @@ function clipboardGoal(value: unknown): Goal | null {
   if (!optionalFinite(value.stock) || (value.stock !== undefined && value.stock <= 0)) return null;
   if (!optionalFinite(value.window) || (value.window !== undefined && value.window <= 0))
     return null;
+  if (!optionalFinite(value.temperature)) return null;
 
   return {
     name: value.name.trim(),
@@ -37,6 +38,7 @@ function clipboardGoal(value: unknown): Goal | null {
     ...(value.unit ? { unit: value.unit } : {}),
     ...(value.stock !== undefined ? { stock: value.stock } : {}),
     ...(value.window !== undefined ? { window: value.window } : {}),
+    ...(value.temperature !== undefined ? { temperature: value.temperature } : {}),
   };
 }
 

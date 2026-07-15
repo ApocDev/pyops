@@ -7,8 +7,8 @@
  * recipe set), a COMPOSED sub-block is a separately-solved module:
  *   1. its member recipes are solved with `solveBlockLp` exactly like a
  *      top-level block — internal goals size it, its intermediates stay hidden;
- *   2. the solve's net imports/exports (at the solved rates, temperatures folded
- *      away) become a synthetic "recipe" — ingredients = net imports, products =
+ *   2. the solve's net imports/exports (at the solved rates, with temperature
+ *      qualifiers retained) become a synthetic "recipe" — ingredients = net imports, products =
  *      net exports INCLUDING the module's goal output — with `energyRequired` =
  *      the module's total machine-seconds so the parent's objective weighs its
  *      real cost;
@@ -27,7 +27,8 @@
  * 2-level compose reproduces the equivalent flat block's boundary flows.
  */
 import { solveBlockLp, type Flow, type LpBlockResult, type Pin, type RecipeDef } from "./lp.ts";
-import { expandTemps, type TempFold } from "./temps.ts";
+import { expandTemps, type TempFold, type TempRecipeDef } from "./temps.ts";
+import type { TemperatureQualifier } from "./temperature-flow.ts";
 
 /** Flows below this are solver noise, not real boundary traffic. */
 const EPS = 1e-9;
@@ -55,8 +56,8 @@ export type ComposedGroup = {
   pins?: Pin[];
 };
 
-/** A solved composed sub-block: its nested solve, the boundary contract (folded
- * to bare fluid names), and the synthetic recipe the parent consumes. */
+/** A solved composed sub-block: its nested solve, the base-name boundary contract
+ * with structured temperature qualifiers, and the synthetic recipe the parent consumes. */
 export type SubBlockSolve = {
   id: number;
   name: string;
@@ -66,16 +67,16 @@ export type SubBlockSolve = {
    * selectors still present — fold via `.fold`) */
   result: LpBlockResult;
   fold: TempFold;
-  /** net imports of the module at the solved scale (bare names) */
-  imports: Flow[];
-  /** net exports — the module's goal output PLUS forced co-products (bare names) */
-  exports: Flow[];
+  /** net imports of the module at the solved scale (base names + qualifiers) */
+  imports: (Flow & TemperatureQualifier)[];
+  /** net exports — goal output PLUS forced co-products (base names + qualifiers) */
+  exports: (Flow & TemperatureQualifier)[];
   /** total machine-seconds/s at the solved scale — the synthetic recipe's cost */
   machineSeconds: number;
   /** module goals / made marks with no in-module producer (bare names) */
   unmade: string[];
   /** the parent-facing synthetic recipe (ingredients = imports, products = exports) */
-  synthetic: RecipeDef;
+  synthetic: TempRecipeDef;
 };
 
 const byName = (a: { name: string }, b: { name: string }) => (a.name < b.name ? -1 : 1);
@@ -93,7 +94,7 @@ export const producedGoods = (defs: RecipeDef[]): string[] => {
  * the caller). Pure aside from the shared HiGHS solve. */
 export async function solveSubBlock(
   group: ComposedGroup,
-  defs: RecipeDef[],
+  defs: TempRecipeDef[],
   defaultTemp: (fluid: string) => number | null,
 ): Promise<SubBlockSolve> {
   const made = group.made ?? producedGoods(defs);
@@ -112,10 +113,9 @@ export async function solveSubBlock(
   const rateOf = new Map(result.recipes.map((r) => [r.recipe, r.rate]));
   const net = new Map<string, { kind: string; rate: number }>();
   const add = (name: string, kind: string, delta: number) => {
-    const bare = fold.bare(name);
-    const cur = net.get(bare) ?? { kind, rate: 0 };
+    const cur = net.get(name) ?? { kind, rate: 0 };
     cur.rate += delta;
-    net.set(bare, cur);
+    net.set(name, cur);
   };
   for (const d of input.recipes) {
     const rate = rateOf.get(d.name) ?? 0;
@@ -123,21 +123,63 @@ export async function solveSubBlock(
     for (const ing of d.ingredients) add(ing.name, ing.kind, -ing.amount * rate);
     for (const p of d.products) add(p.name, p.kind, (p.amount ?? 0) * (p.probability ?? 1) * rate);
   }
-  const imports: Flow[] = [];
-  const exports: Flow[] = [];
-  for (const [name, e] of net) {
-    if (e.rate > EPS) exports.push({ name, kind: e.kind, rate: e.rate });
-    else if (e.rate < -EPS) imports.push({ name, kind: e.kind, rate: -e.rate });
+  const selectorInputs = new Map<string, { temperature: number; rate: number }[]>();
+  for (const row of result.recipes) {
+    const selector = fold.selectorOf(row.recipe);
+    if (!selector || row.rate <= EPS) continue;
+    const inputs = selectorInputs.get(selector.pool) ?? [];
+    inputs.push({ temperature: selector.temperature, rate: row.rate });
+    selectorInputs.set(selector.pool, inputs);
+  }
+  const imports: (Flow & TemperatureQualifier)[] = [];
+  const exports: (Flow & TemperatureQualifier)[] = [];
+  for (const [key, e] of net) {
+    const name = fold.bare(key);
+    const qualifier = fold.qualifierOf(key);
+    const temperature = qualifier
+      ? {
+          temperatureMode: qualifier.mode,
+          minTemp: qualifier.minTemp,
+          maxTemp: qualifier.maxTemp,
+        }
+      : {};
+    if (e.rate < -EPS) imports.push({ name, kind: e.kind, rate: -e.rate, ...temperature });
+    else if (e.rate > EPS && qualifier?.mode === "range") {
+      const inputs = selectorInputs.get(key) ?? [];
+      const total = inputs.reduce((sum, input) => sum + input.rate, 0);
+      if (total > EPS)
+        for (const input of inputs)
+          exports.push({
+            name,
+            kind: e.kind,
+            rate: (e.rate * input.rate) / total,
+            temperatureMode: "exact",
+            minTemp: input.temperature,
+            maxTemp: input.temperature,
+          });
+      else exports.push({ name, kind: e.kind, rate: e.rate, ...temperature });
+    } else if (e.rate > EPS) exports.push({ name, kind: e.kind, rate: e.rate, ...temperature });
   }
   imports.sort(byName);
   exports.sort(byName);
 
   const machineSeconds = result.recipes.reduce((s, r) => s + Math.max(0, r.machines1x), 0);
-  const synthetic: RecipeDef = {
+  const synthetic: TempRecipeDef = {
     name: syntheticRecipeName(group.id),
     energyRequired: machineSeconds,
-    ingredients: imports.map((f) => ({ kind: f.kind, name: f.name, amount: f.rate })),
-    products: exports.map((f) => ({ kind: f.kind, name: f.name, amount: f.rate })),
+    ingredients: imports.map((f) => ({
+      kind: f.kind,
+      name: f.name,
+      amount: f.rate,
+      minTemp: f.minTemp,
+      maxTemp: f.maxTemp,
+    })),
+    products: exports.map((f) => ({
+      kind: f.kind,
+      name: f.name,
+      amount: f.rate,
+      temperature: f.temperatureMode === "exact" ? f.minTemp : null,
+    })),
   };
   const unmade = [...new Set((result.unmade ?? []).map((u) => fold.bare(u)))];
   return {
@@ -161,12 +203,12 @@ export async function solveSubBlock(
  * caller needs to run the parent solve and then scale each module's member rows
  * by the parent's chosen run-rate of its synthetic. */
 export async function composeSubBlocks(args: {
-  defs: RecipeDef[];
+  defs: TempRecipeDef[];
   groups: ComposedGroup[];
   pins: Pin[];
   defaultTemp: (fluid: string) => number | null;
 }): Promise<{
-  parentDefs: RecipeDef[];
+  parentDefs: TempRecipeDef[];
   parentPins: Pin[];
   subs: SubBlockSolve[];
   /** live member recipe → its group id */

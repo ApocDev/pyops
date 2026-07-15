@@ -12,6 +12,7 @@ const seeded = () => {
       recipes: ["iron-plate", "copper-plate", "coke"],
       machines: { "iron-plate": "stone-furnace" },
       fuels: { "iron-plate": "coal" },
+      fluidTemperatures: { "iron-plate": { steam: 250 } },
       modules: { "iron-plate": ["speed-module"] },
       beacons: { "iron-plate": [{ beacon: "beacon", count: 2, modules: ["speed-module"] }] },
       disabledRecipes: ["coke"],
@@ -55,6 +56,18 @@ describe("goals", () => {
       "coke",
     ]);
     expect(doc.store.state.goals[2]).toEqual({ name: "coke", rate: 1 });
+  });
+
+  it("stores an exact fluid goal temperature and clears it when the good changes", () => {
+    const doc = seeded();
+    doc.addGoal("steam", 250);
+    expect(doc.store.state.goals.at(-1)).toEqual({ name: "steam", rate: 1, temperature: 250 });
+
+    doc.setGoalTemperature("steam", 500);
+    expect(doc.store.state.goals.at(-1)?.temperature).toBe(500);
+
+    doc.changeGoalItem("steam", "water");
+    expect(doc.store.state.goals.at(-1)).toEqual({ name: "water", rate: 1 });
   });
 
   it("makePrimary moves a goal to the front; changeGoalItem swaps in place and drops dupes", () => {
@@ -142,6 +155,7 @@ describe("recipes", () => {
     expect(s.recipes).toEqual(["copper-plate", "coke"]);
     expect(s.machines).toEqual({});
     expect(s.fuels).toEqual({});
+    expect(s.fluidTemperatures).toEqual({});
     expect(s.modules).toEqual({});
     expect(s.beacons).toEqual({});
     expect(s.recipeGroups).toEqual({ "copper-plate": 1 });
@@ -159,10 +173,30 @@ describe("recipes", () => {
 
   it("applyRecipeDefaults never overwrites an existing pick", () => {
     const doc = seeded();
-    doc.applyRecipeDefaults("iron-plate", { machine: "electric-furnace", fuel: "wood" });
+    doc.applyRecipeDefaults("iron-plate", {
+      machine: "electric-furnace",
+      fuel: "wood",
+      fluidTemperatures: { steam: 2000 },
+    });
     expect(doc.store.state.machines["iron-plate"]).toBe("stone-furnace"); // kept
-    doc.applyRecipeDefaults("coke", { machine: "coke-oven" });
+    expect(doc.store.state.fluidTemperatures["iron-plate"]).toEqual({ steam: 250 }); // kept
+    doc.applyRecipeDefaults("coke", {
+      machine: "coke-oven",
+      fluidTemperatures: { water: 15 },
+    });
     expect(doc.store.state.machines.coke).toBe("coke-oven"); // new row → applied
+    expect(doc.store.state.fluidTemperatures.coke).toEqual({ water: 15 });
+  });
+
+  it("stores an exact fluid ingredient temperature and clears back to Auto", () => {
+    const doc = seeded();
+    doc.pickFluidTemperature("copper-plate", "steam", 250);
+    expect(solveInputOf(doc.store.state).fluidTemperatures).toEqual({
+      "iron-plate": { steam: 250 },
+      "copper-plate": { steam: 250 },
+    });
+    doc.pickFluidTemperature("copper-plate", "steam", null);
+    expect(doc.store.state.fluidTemperatures).toEqual({ "iron-plate": { steam: 250 } });
   });
 
   it("applyRecipeDefaults bakes a default module template into a NEW row only (#99)", () => {

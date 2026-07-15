@@ -406,6 +406,9 @@ export type RateUnit = "s" | "min" | "h";
 export type Goal = {
   name: string;
   rate: number;
+  /** Exact produced temperature required for a fluid goal. Missing means the
+   * fluid's full real temperature range is acceptable. */
+  temperature?: number;
   /** Stable intent when rate is zero. Older documents infer this from the sign. */
   direction?: "produce" | "consume";
   unit?: RateUnit;
@@ -473,6 +476,10 @@ export type BlockData = {
   )[];
   machines?: Record<string, string>; // recipe → chosen machine
   fuels?: Record<string, string>; // recipe → chosen fuel
+  /** Per-recipe fluid routing intent. A selected temperature narrows that
+   * ingredient to an exact temperature; absence keeps the prototype's accepted
+   * range (Auto). Fluid prototypes themselves remain canonical. */
+  fluidTemperatures?: Record<string, Record<string, number>>;
   // Reactor farm layout per reactor recipe row (#94): the assumed x×y grid whose
   // neighbour bonus scales the row's heat output (absent = 1×1, no bonus).
   reactorLayouts?: Record<string, { x: number; y: number }>;
@@ -595,6 +602,12 @@ export const blockFlows = sqliteTable(
     kind: text().notNull(), // item | fluid
     role: text().notNull(), // primary | byproduct | import
     rate: real().notNull(),
+    /** Planner-only fluid identity at the block boundary. Exact producers have
+     * min=max; range consumers keep their accepted bounds. Null mode is a
+     * temperature-insensitive good or a legacy cache awaiting re-solve. */
+    temperatureMode: text("temperature_mode").$type<"exact" | "range">(),
+    minTemp: real("min_temp"),
+    maxTemp: real("max_temp"),
   },
   (t) => [index("bf_item_role_idx").on(t.item, t.role), index("bf_block_idx").on(t.blockId)],
 );

@@ -143,6 +143,11 @@ When several blocks can supply the same good, Scenario uses their supply priorit
 Set priority beside the **Goal** heading in a block. Priority chooses among competing
 suppliers; it does not scale a block solely to obtain an incidental byproduct.
 
+For fluids, Scenario first removes suppliers whose output temperature is outside the consuming
+recipe's accepted range or exact temperature choice. Supply priority then chooses among the
+remaining compatible blocks. A preferred 2000°C steam block therefore cannot satisfy a recipe
+pinned to 250°C; a compatible normal or fallback supplier is used instead.
+
 ::: info Scenario is not an optimizer for new designs
 Scenario balances the blocks and recipes already in the plan. It can start an idle configured
 producer, but it does not add recipes or blocks. A required good with no reached configured producer

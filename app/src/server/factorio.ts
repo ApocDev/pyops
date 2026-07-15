@@ -10,6 +10,7 @@ import {
   withPrimaryRate,
 } from "../lib/goals";
 import { extractRecipeToBlockDocs, withRecipeSet } from "../lib/block-doc";
+import type { FactoryFlowQualifier } from "../lib/factory-flow.ts";
 
 /**
  * Server functions exposing the query layer to the client. Server-only modules
@@ -453,7 +454,7 @@ export const recomputeAllBlocksFn = createServerFn({ method: "POST" }).handler(a
 
 /** Drill-down: blocks producing/consuming one good (for the factory resource view). */
 export const blocksForGoodFn = createServerFn({ method: "GET" })
-  .validator((good: string) => good)
+  .validator((good: string | FactoryFlowQualifier) => good)
   .handler(async ({ data }) => {
     await ensureSolvedProjections();
     return q.blocksForGood(data);
@@ -719,51 +720,91 @@ export const recipeDefaultsFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const favMachines = q.getFavoriteMachines();
     const favFuels = q.getFavoriteFuels();
+    const favFluidTemperatures = q.getFavoriteFluidTemperatures();
     const restrict = q.getResearchHorizon().mode !== "future";
+    const recipeDefs = new Map(
+      data.flatMap((name) => {
+        const recipe = q.getRecipe(name);
+        return recipe ? [[name, recipe] as const] : [];
+      }),
+    );
+    const producedFluidTemperatures = q.producedFluidTemperatures(
+      [...recipeDefs.values()].flatMap((recipe) =>
+        recipe.ingredients.flatMap((ingredient) =>
+          ingredient.kind === "fluid" ? [ingredient.name] : [],
+        ),
+      ),
+    );
     const out: Record<
       string,
-      { machine?: string; fuel?: string; modules?: string[]; beacons?: BeaconConfig[] }
+      {
+        machine?: string;
+        fuel?: string;
+        fluidTemperatures?: Record<string, number>;
+        modules?: string[];
+        beacons?: BeaconConfig[];
+      }
     > = {};
     for (const name of data) {
-      const r = q.getRecipe(name);
+      const r = recipeDefs.get(name);
       if (!r) continue;
+      const pick: (typeof out)[string] = {};
+      const fluidTemperatures = Object.fromEntries(
+        r.ingredients.flatMap((ingredient) => {
+          if (ingredient.kind !== "fluid") return [];
+          const favorite = favFluidTemperatures[ingredient.name];
+          if (favorite == null) return [];
+          const fluid = q.getFluid(ingredient.name);
+          const min = ingredient.minTemp ?? fluid?.defaultTemperature ?? null;
+          const max = ingredient.maxTemp;
+          const produced = producedFluidTemperatures.get(ingredient.name) ?? [];
+          return produced.includes(favorite) &&
+            (min == null || favorite >= min) &&
+            (max == null || favorite <= max)
+            ? [[ingredient.name, favorite] as const]
+            : [];
+        }),
+      );
+      if (Object.keys(fluidTemperatures).length) pick.fluidTemperatures = fluidTemperatures;
       const machines = q
         .machinesForRecipe(name)
         .slice()
         .sort((a, b) => (b.craftingSpeed ?? 0) - (a.craftingSpeed ?? 0));
-      if (!machines.length) continue;
-      const unlocked = restrict ? q.availableMachines(machines.map((m) => m.name)) : null;
-      const pool =
-        unlocked && machines.some((m) => unlocked.has(m.name))
-          ? machines.filter((m) => unlocked.has(m.name))
-          : machines;
-      const favMachine = r.category ? favMachines[r.category] : undefined;
-      const chosen =
-        (favMachine && pool.find((m) => m.name === favMachine)) || pickDefaultMachine(pool);
-      if (!chosen) continue;
-      const pick: (typeof out)[string] = { machine: chosen.name };
-      const preset = defaultPresetLoadout(name, chosen.name);
-      if (preset) {
-        pick.modules = preset.modules;
-        if (preset.beacons.length) pick.beacons = preset.beacons;
-      }
-      // Solid burners only: fluid burners have no per-row pick — unfiltered ones
-      // draw from the shared pyops-fluid-fuel pool, filtered ones are pinned to
-      // their energy source's filter fluid (#25).
-      if (chosen.energySource === "burner") {
-        const fuels = q.fuelsForCategories(chosen.fuelCategories);
-        let favFuel: string | undefined;
-        for (const cat of chosen.fuelCategories) {
-          const f = favFuels[cat];
-          if (f && fuels.some((x) => x.name === f)) {
-            favFuel = f;
-            break;
+      if (machines.length) {
+        const unlocked = restrict ? q.availableMachines(machines.map((m) => m.name)) : null;
+        const pool =
+          unlocked && machines.some((m) => unlocked.has(m.name))
+            ? machines.filter((m) => unlocked.has(m.name))
+            : machines;
+        const favMachine = r.category ? favMachines[r.category] : undefined;
+        const chosen =
+          (favMachine && pool.find((m) => m.name === favMachine)) || pickDefaultMachine(pool);
+        if (chosen) {
+          pick.machine = chosen.name;
+          const preset = defaultPresetLoadout(name, chosen.name);
+          if (preset) {
+            pick.modules = preset.modules;
+            if (preset.beacons.length) pick.beacons = preset.beacons;
+          }
+          // Solid burners only: fluid burners have no per-row pick — unfiltered ones
+          // draw from the shared pyops-fluid-fuel pool, filtered ones are pinned to
+          // their energy source's filter fluid (#25).
+          if (chosen.energySource === "burner") {
+            const fuels = q.fuelsForCategories(chosen.fuelCategories);
+            let favFuel: string | undefined;
+            for (const cat of chosen.fuelCategories) {
+              const f = favFuels[cat];
+              if (f && fuels.some((x) => x.name === f)) {
+                favFuel = f;
+                break;
+              }
+            }
+            const fuel = favFuel ?? defaultFuel(fuels)?.name;
+            if (fuel) pick.fuel = fuel;
           }
         }
-        const fuel = favFuel ?? defaultFuel(fuels)?.name;
-        if (fuel) pick.fuel = fuel;
       }
-      out[name] = pick;
+      if (Object.keys(pick).length) out[name] = pick;
     }
     return out;
   });
@@ -792,6 +833,35 @@ export const setFavoriteFuelFn = createServerFn({ method: "POST" })
       return { ok: true };
     }
     return { ok: false };
+  });
+
+/** Set/clear one fluid's preferred produced temperature. Reject stale or
+ * fabricated temperatures that the current reference data cannot produce. */
+export const setFavoriteFluidTemperatureFn = createServerFn({ method: "POST" })
+  .validator((d: { fluid: string; temperature: number | null }) => d)
+  .handler(async ({ data }) => {
+    if (data.temperature == null) {
+      q.setFavoriteFluidTemperature(data.fluid, null);
+      return { ok: true };
+    }
+    const produced = q.producedFluidTemperatures([data.fluid]).get(data.fluid) ?? [];
+    if (!produced.includes(data.temperature)) return { ok: false };
+    q.setFavoriteFluidTemperature(data.fluid, data.temperature);
+    return { ok: true };
+  });
+
+/** Favorite temperature to bake into a newly created fluid goal. A preference
+ * only applies while it is still a real produced variant; single-temperature
+ * fluids need no explicit goal qualifier. */
+export const fluidGoalDefaultFn = createServerFn({ method: "GET" })
+  .validator((fluid: string) => fluid)
+  .handler(async ({ data }) => {
+    const options = q.producedFluidTemperatures([data]).get(data) ?? [];
+    const favorite = q.getFavoriteFluidTemperatures()[data] ?? null;
+    return {
+      temperature:
+        options.length > 1 && favorite != null && options.includes(favorite) ? favorite : null,
+    };
   });
 
 /** Logistics throughput context for the block view (#21): the user's belt/mover

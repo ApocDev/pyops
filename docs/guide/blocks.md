@@ -96,9 +96,33 @@ Each recipe row shows its selected machine and required building count.
 - For a fuel-burning machine, select its fuel indicator to choose an allowed fuel.
 - Use the module control to fill module slots or override the block's preferred defaults.
 
-Global preferred machines, fuels, and module-fill behavior live under
+Global preferred machines, fuels, fluid temperatures, and module-fill behavior live under
 **Settings → Planning**. A choice made directly on a recipe row overrides the relevant
 default for that row.
+
+### Choose a fluid ingredient temperature
+
+A fluid ingredient with more than one known produced temperature shows its accepted range inside
+the ingredient chip, such as **≥15°**. Select that range to choose a concrete produced temperature,
+such as **250°**, when the recipe should connect to a specific factory-wide fluid line. Select
+**Recipe range** to restore range-based matching. Fluids with only one producible temperature do
+not show a temperature label or control.
+
+Select the star beside a produced temperature to make it that fluid's preferred default. A newly
+added compatible recipe row or fluid goal starts pinned to that temperature—for example, favorite
+**250°** Steam and **15°** Water for ordinary lines. The favorite does not rewrite existing rows or
+goals, and a recipe whose accepted range excludes it stays on the recipe range until you choose
+another temperature.
+
+A fluid goal with several producible temperatures has the same clickable temperature text beneath
+its rate. Choose an exact value to require that output variant, or choose **Goal range** to allow
+any temperature in the displayed range. Fluids with only one producible temperature need no goal
+control.
+
+The choice is stored on that recipe row; it does not change the Factorio recipe or create a new
+fluid prototype. PyOps treats the selected flow as an exact `(fluid, temperature)` identity when
+solving the block and matching it to supplier blocks. The block's **Imports** and **Exports** chips
+show the resulting exact temperature or accepted range as part of the boundary contract.
 
 Fractional building counts are exact capacity requirements. `0.5` means half of one
 machine's capacity; `5.2` means five machines are insufficient and six provide spare

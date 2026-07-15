@@ -33,6 +33,7 @@ import { PageHeader } from "#/components/page-header.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
 import { GoodsSection } from "#/components/goods-table.tsx";
 import { MachinesCard } from "#/components/factory/machines-card.tsx";
+import { factoryFlowKey, factoryFlowTemperature } from "../lib/factory-flow.ts";
 
 export const Route = createFileRoute("/factory")({
   component: () => (
@@ -56,7 +57,15 @@ const fmtW = (w: number) =>
 function FactoryPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<{ item: string; kind: string } | null>(null);
+  const [selected, setSelected] = useState<{
+    item: string;
+    kind: string;
+    flowKey: string;
+    temperatureMode?: "exact" | "range" | null;
+    minTemp?: number | null;
+    maxTemp?: number | null;
+    hasTemperatureVariants?: boolean;
+  } | null>(null);
   const [recomputing, setRecomputing] = useState(false);
   const [recomputed, setRecomputed] = useState<string | null>(null);
   const totals = useQuery({ queryKey: ["factoryTotals"], queryFn: () => factoryTotalsFn() });
@@ -111,8 +120,10 @@ function FactoryPage() {
   const byItem = new Map<
     string,
     {
+      item: string;
       kind: string;
       display: string | null;
+      temperature: string | null;
       produced: number;
       consumed: number;
       primary: boolean;
@@ -121,9 +132,16 @@ function FactoryPage() {
     }
   >();
   for (const f of totals.data ?? []) {
-    const e = byItem.get(f.item) ?? {
+    const flowKey = factoryFlowKey(f);
+    const e = byItem.get(flowKey) ?? {
+      item: f.item,
       kind: f.kind,
       display: f.display,
+      temperature: factoryFlowTemperature(f),
+      temperatureMode: f.temperatureMode,
+      minTemp: f.minTemp,
+      maxTemp: f.maxTemp,
+      hasTemperatureVariants: f.hasTemperatureVariants,
       produced: 0,
       consumed: 0,
       primary: false,
@@ -141,15 +159,24 @@ function FactoryPage() {
         e.otherProduced += f.rate;
       }
     }
-    byItem.set(f.item, e);
+    byItem.set(flowKey, e);
   }
-  const allRows = [...byItem.entries()].map(([item, e]) => ({
-    item,
+  const identitiesPerItem = new Map<string, number>();
+  for (const e of byItem.values()) {
+    identitiesPerItem.set(e.item, (identitiesPerItem.get(e.item) ?? 0) + 1);
+  }
+  const allRows = [...byItem.entries()].map(([flowKey, e]) => ({
+    flowKey,
     ...e,
+    display: [e.display ?? e.item, e.temperature].filter(Boolean).join(" "),
     net: e.produced - e.consumed,
     // the deficit list's severity axis: fraction of demand met (null = no demand)
     pctMet: e.consumed > 1e-9 ? e.produced / e.consumed : null,
-    actualProduced: actualByItem.get(item)?.produced ?? null,
+    // Factorio's live statistics are keyed by base fluid, not temperature. Do
+    // not repeat the same total on several qualified rows when it cannot be
+    // attributed accurately.
+    actualProduced:
+      identitiesPerItem.get(e.item) === 1 ? (actualByItem.get(e.item)?.produced ?? null) : null,
   }));
   const rows = useFilteredList(allRows, search, {
     display: (r) => r.display,
@@ -371,8 +398,8 @@ function FactoryPage() {
             { id: "consumed", desc: true },
           ]}
           showMet
-          selectedItem={selected?.item ?? null}
-          onSelect={(r) => setSelected({ item: r.item, kind: r.kind })}
+          selectedItem={selected?.flowKey ?? null}
+          onSelect={(r) => setSelected(r)}
         />
         <GoodsSection
           id="surpluses"
@@ -380,8 +407,8 @@ function FactoryPage() {
           hint="Net production available to new blocks"
           rows={surpluses}
           defaultSorting={[{ id: "net", desc: true }]}
-          selectedItem={selected?.item ?? null}
-          onSelect={(r) => setSelected({ item: r.item, kind: r.kind })}
+          selectedItem={selected?.flowKey ?? null}
+          onSelect={(r) => setSelected(r)}
         />
         <GoodsSection
           id="balanced"
@@ -389,8 +416,8 @@ function FactoryPage() {
           hint="Block-to-block flows that match exactly"
           rows={balanced}
           defaultSorting={[{ id: "item", desc: false }]}
-          selectedItem={selected?.item ?? null}
-          onSelect={(r) => setSelected({ item: r.item, kind: r.kind })}
+          selectedItem={selected?.flowKey ?? null}
+          onSelect={(r) => setSelected(r)}
         />
         {/* least actionable of the goods lists — a healthy mall parks here, so it
             takes the last cell rather than crowding the deficit/surplus work lists */}
@@ -400,8 +427,8 @@ function FactoryPage() {
           hint="Keep-on-hand goals — refill demand, not surplus to route"
           rows={stockBuffers}
           defaultSorting={[{ id: "item", desc: false }]}
-          selectedItem={selected?.item ?? null}
-          onSelect={(r) => setSelected({ item: r.item, kind: r.kind })}
+          selectedItem={selected?.flowKey ?? null}
+          onSelect={(r) => setSelected(r)}
         />
       </div>
 
@@ -416,13 +443,7 @@ function FactoryPage() {
       )}
       {machines.data && <MachinesCard data={machines.data} />}
 
-      {selected && (
-        <ResourceDrawer
-          item={selected.item}
-          kind={selected.kind}
-          onClose={() => setSelected(null)}
-        />
-      )}
+      {selected && <ResourceDrawer flow={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }
@@ -524,22 +545,31 @@ function ChangeReport({ data }: { data: ChangeReportData }) {
  * which consume it (import), each at its rate — plus a shortcut to draft a new block
  * that produces it. The reverse of the aggregate ledger: who's actually on each end. */
 function ResourceDrawer({
-  item,
-  kind,
+  flow,
   onClose,
 }: {
-  item: string;
-  kind: string;
+  flow: {
+    item: string;
+    kind: string;
+    flowKey: string;
+    temperatureMode?: "exact" | "range" | null;
+    minTemp?: number | null;
+    maxTemp?: number | null;
+    hasTemperatureVariants?: boolean;
+  };
   onClose: () => void;
 }) {
+  const { item, kind } = flow;
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
   const detail = useQuery({
-    queryKey: ["blocksForGood", item],
-    queryFn: () => blocksForGoodFn({ data: item }),
+    queryKey: ["blocksForGood", flow.flowKey],
+    queryFn: () => blocksForGoodFn({ data: flow }),
   });
-  const label = detail.data?.display ?? item;
+  const baseLabel = detail.data?.display ?? item;
+  const temperature = factoryFlowTemperature(flow);
+  const label = [baseLabel, temperature].filter(Boolean).join(" ");
 
   // Ask the game to find this good in the world (relays to the Factory Search mod).
   const locate = useMutation({
@@ -558,8 +588,25 @@ function ResourceDrawer({
 
   const createBlock = async () => {
     setCreating(true);
+    const goalTemperature =
+      flow.temperatureMode === "exact" ||
+      (flow.temperatureMode === "range" && flow.minTemp != null && flow.minTemp === flow.maxTemp)
+        ? flow.minTemp
+        : null;
     const res = await saveBlockFn({
-      data: { name: label, data: { goals: [{ name: item, rate: seedRate }], recipes: [] } },
+      data: {
+        name: label,
+        data: {
+          goals: [
+            {
+              name: item,
+              rate: seedRate,
+              ...(goalTemperature != null ? { temperature: goalTemperature } : {}),
+            },
+          ],
+          recipes: [],
+        },
+      },
     });
     void qc.invalidateQueries({ queryKey: ["blocks"] });
     void navigate({ to: "/block/$id", params: { id: String(res.id) } });

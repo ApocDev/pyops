@@ -135,21 +135,30 @@ block infeasible.
 
 ## Temperature-sensitive fluids
 
-The LP core treats names as opaque goods. `temps.ts` rewrites the input when an enabled
-consumer accepts a temperature range:
+The LP core treats names as opaque goods. `temps.ts` rewrites real fluid inputs and outputs before
+the solve:
 
 1. Each producer output becomes a `(fluid, temperature)` identity.
 2. Each consumer range becomes a pool identity.
 3. Zero-cost selector recipes convert every in-range temperature identity into the pool.
 4. Consumers draw from the pool, allowing any mixture of valid temperatures.
+5. A fluid goal uses an exact one-temperature pool when selected; an unselected goal uses its
+   full displayed range.
 
 This models range pooling rather than forcing one independent chain per exact temperature.
 A made rule expands to its variants and pools. If no in-range producer exists, the result
 can explain the required range, such as “nothing makes Water ≤101°”.
 
-Fluids with no range-sensitive consumer remain bare goods and incur no expansion cost.
-Boundary results are folded back to the localized base fluid, with temperature detail kept
-for diagnostics.
+The block document can narrow one recipe ingredient's range or fluid goal to an exact
+user-selected produced temperature. Producer-only blocks also expand, because their factory
+boundary must retain the exact output temperature even when no local consumer observes it.
+Synthetic PyOps energy goods remain bare.
+
+Persisted boundary flows keep the canonical base fluid name plus structured exact/range
+qualifier columns. Factory Overview presents those contracts as separate localized rows when the
+fluid has multiple producible temperatures, without inventing fluid prototypes. Its drill-down
+queries compare the same normalized qualifier key, so a one-point consumer range matches its exact
+producer but a wider range remains a different connection.
 
 ## Solve outcomes and diagnosis
 
@@ -354,7 +363,9 @@ If a goal is already covered by a sibling goal's coproduct, a small perturbation
 surplus while total output stays flat. Scenario searches outward past that plateau and measures the
 next locally scalable segment instead of treating the zero derivative as proof that the goal cannot
 scale. That breakpoint segment remains separate from the affine intercept because it is not active
-at the current goal vector.
+at the current goal vector. Temperature selector primals pass through HiGHS's limited-precision
+solution output, so plateau detection uses their physical rates only to classify the active basis;
+the configured goal rates still define response coefficients, projections, and validation.
 
 The factory model constructs a demand-reachability closure from positive pins. It follows imports
 from a selected production column to configured positive goals for those exact goods. A selected
@@ -374,6 +385,15 @@ fixed positive flows of the same good enter the same closed balance and must fee
 they do not make a consumer goal reachable by themselves. Imports carry the dominant objective
 penalty; activity cost and supply priority break ties between configured producers. A missing
 producer therefore becomes a raw import rather than making the model infeasible.
+
+A fluid byproduct with an explicit temperature is a distinct factory material. Range-qualified
+fluid demand receives selector variables from every exact supplied temperature inside that range.
+These selectors are the only conversion between temperature identities: they prevent an
+incompatible hot or cold line from balancing the demand, while still allowing Auto consumers to
+pool any compatible mix. Supplier priority is applied after this compatibility filter. After the
+factory LP solves, coproduct recovery follows the solved selector transfers back to the exact source
+temperature before crediting a block goal. It never strips the qualifier first, so output at one
+temperature cannot claim demand that accepted only another temperature.
 
 The actionable output is one change per goal—it never collapses a multi-goal block back to its
 first goal. Preview puts every proposed goal into memory, runs the full ordinary block solver for
@@ -421,10 +441,12 @@ a raw import.
 
 This preserves the same boundary semantics as a single block: incidental production can
 offset demand but cannot silently redefine the plan. After the factory LP solves, Scenario assigns
-the useful portion of same-block coproduct output back to that block's configured goal. The LP's
-marginal dedicated activity, total factory use, block output, and remaining surplus stay distinct.
-The subsequent full block solve verifies that retaining this minimum goal does not activate extra
-recipes before preview or apply can succeed.
+the useful portion of same-block coproduct output back to that block's configured goal. For fluids,
+that assignment is made per exact source temperature using the LP's solved range-transfer amounts;
+compatible source allocations are recombined only after routing, because the saved block still has
+one base-fluid goal. The LP's marginal dedicated activity, total factory use, block output, and
+remaining surplus stay distinct. The subsequent full block solve verifies that retaining this
+minimum goal does not activate extra recipes before preview or apply can succeed.
 
 ### Supply priority
 
@@ -437,13 +459,17 @@ a demand-reachable producer.
 
 ### Energy boundaries
 
-Electricity remains grid-distributed and heat remains block-local, so
-`pyops-electricity` and `pyops-heat` are free boundaries in Factory Scenario. Balancing
-electricity through the same dependency model would create a power-production feedback
-loop. Existing electricity and heat goals remain fixed instead of being zeroed as unreached
-material goals. Their configured production and material inputs still participate in the factory
-projection; after the real block re-solve, Scenario replaces the approximate energy projection with
-the actual net external need.
+Electricity is grid-distributed and participates in Factory Scenario like another factory material.
+A configured `pyops-electricity` goal is a scalable supplier: exact count pins retain fixed built
+generation while any unpinned generator chain in the same block supplies the remainder. Scaling
+power can increase fuel, water, and material production whose machines consume more electricity;
+the factory LP represents that feedback directly and the ordinary re-linearization passes update it
+until the real block solves converge. With no configured electricity supplier, the remaining grid
+demand stays a raw external import.
+
+Heat remains block-local, so `pyops-heat` is still a free Factory Scenario boundary. Existing heat
+goals remain fixed instead of being zeroed as unreached material goals, and the real block re-solve
+reports any external heat need.
 
 `pyops-fluid-fuel` is a normal matchable good. A block with a primary fluid-fuel energy goal
 can scale as a dedicated supplier; a byproduct energy export remains capped like any other

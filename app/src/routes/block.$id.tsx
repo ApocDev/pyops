@@ -7,6 +7,7 @@ import { createBlockDocStore, solveInputOf } from "../components/block/doc-store
 import {
   bridgeShowBlockFn,
   extractRecipeBlockFn,
+  fluidGoalDefaultFn,
   goodInfoFn,
   itemWeightsFn,
   loadBlockFn,
@@ -302,11 +303,17 @@ function Block({ blockId }: { blockId: number }) {
   // Swap a goal's item in place (keeps its position + rate); drop it if the new item
   // is already a goal.
   const changeGoalItem = doc.changeGoalItem;
+  const defaultGoalTemperature = async (name: string) =>
+    (await fluidGoalDefaultFn({ data: name })).temperature ?? undefined;
+  const addGoalWithDefault = async (name: string) =>
+    addGoal(name, await defaultGoalTemperature(name));
   // The goal-picker dialog routes to add / change depending on how it was opened.
-  const pickGoalItem = (name: string) => {
-    if (goalPicker?.replace) changeGoalItem(goalPicker.replace, name);
-    else addGoal(name);
+  const pickGoalItem = async (name: string) => {
+    const replace = goalPicker?.replace;
     setGoalPicker(null);
+    const temperature = await defaultGoalTemperature(name);
+    if (replace) changeGoalItem(replace, name, temperature);
+    else addGoal(name, temperature);
   };
   // Block icon (#40): pick an explicit item/fluid, or reset to follow the first goal.
   const pickIcon = (kind: string, name: string) => {
@@ -1099,7 +1106,7 @@ function Block({ blockId }: { blockId: number }) {
             !!res?.rows.some((r) => r.products.some((pr) => pr.name === ctxMenu.name))
           }
           spoilRate={spoilRates[ctxMenu.name] ?? null}
-          onAddGoal={() => addGoal(ctxMenu.name)}
+          onAddGoal={() => void addGoalWithDefault(ctxMenu.name)}
           onLock={(r) => {
             setLockedInput(ctxMenu.name);
             setLockedRate(r);
