@@ -205,7 +205,7 @@ export function DriftModal() {
           {(view === "running" || view === "done" || view === "error") && log.length > 0 && (
             <details className="text-xs">
               <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                raw log
+                Raw log
               </summary>
               <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap text-muted-foreground">
                 {log.join("\n")}
@@ -223,9 +223,9 @@ export function DriftModal() {
               <Button
                 onClick={() => start.mutate()}
                 disabled={start.isPending || gameUp}
-                title={gameUp ? "close Factorio first" : undefined}
+                title={gameUp ? "Close Factorio first" : undefined}
               >
-                {start.isPending ? "starting…" : hasDrift ? "Re-sync now" : "Sync now"}
+                {start.isPending ? "Starting…" : hasDrift ? "Re-sync now" : "Sync now"}
               </Button>
             </>
           )}
@@ -369,7 +369,7 @@ function Stepper({
                 {s.detail}
               </div>
             </div>
-            {active && <span className="mt-0.5 shrink-0 text-xs text-info">running…</span>}
+            {active && <span className="mt-0.5 shrink-0 text-xs text-info">Running…</span>}
           </li>
         );
       })}

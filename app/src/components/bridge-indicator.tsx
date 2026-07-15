@@ -26,30 +26,30 @@ export function BridgeIndicator() {
     if (s?.status === "error")
       return {
         color: "bg-destructive",
-        label: "bridge error",
+        label: "Bridge error",
         title: `In-game bridge couldn't bind UDP ${s.host}:${s.port} — ${s.error ?? "error"}. Click to troubleshoot.`,
       };
     if (versionMismatch)
       return {
         color: "bg-destructive",
-        label: "mod mismatch",
+        label: "Mod mismatch",
         title: `Mod connected but speaks protocol v${peer?.protocolVersion}; this app expects v${s?.appProtocolVersion}. Update whichever is older. Click for details.`,
       };
     if (connected)
       return {
         color: "bg-success",
-        label: "game linked",
+        label: "Game linked",
         title: `PyOps companion mod connected${peer?.player ? ` (${peer.player})` : ""}. Live research / TURD / machine sync is active. Click to manage.`,
       };
     if (s?.status === "listening")
       return {
         color: "bg-warning",
-        label: "no game",
+        label: "No game",
         title: `Listening on ${s.host}:${s.port} — no companion mod connected yet. Launch Factorio with the bridge enabled. Click to set it up.`,
       };
     return {
       color: "bg-muted-foreground",
-      label: "bridge",
+      label: "Bridge",
       title: "Starting the in-game bridge listener…",
     };
   })();

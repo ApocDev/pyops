@@ -70,7 +70,7 @@ export function ProjectSwitcher() {
             variant="ghost"
             disabled={busy}
             className="h-full gap-1.5 px-3 font-normal text-muted-foreground hover:bg-muted/50"
-            title={`project: ${active?.name ?? "…"} — click to switch`}
+            title={`Project: ${active?.name ?? "…"} — click to switch`}
           >
             <Database className="size-4" /> {active?.name ?? "…"}
             <ChevronDown className="size-3" />
@@ -98,7 +98,7 @@ export function ProjectSwitcher() {
                     setRemoving({ id: p.id, name: p.name });
                   }}
                   className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
-                  title="remove from list (db file kept)"
+                  title="Remove from list (db file kept)"
                 >
                   <X className="size-3.5" />
                 </span>
@@ -110,7 +110,7 @@ export function ProjectSwitcher() {
             onSelect={() => setCreating(true)}
             className="text-info focus:text-info data-highlighted:text-info"
           >
-            + new project…
+            + New project…
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

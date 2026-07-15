@@ -83,7 +83,7 @@ export function GroupHeaderRow({
               ref={setActivatorNodeRef}
               {...attributes}
               {...listeners}
-              title="drag to move this sub-block (its rows move with it)"
+              title="Drag to move this sub-block (its rows move with it)"
               className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground select-none hover:text-foreground active:cursor-grabbing"
             >
               <GripVertical className="size-4" />
@@ -92,7 +92,7 @@ export function GroupHeaderRow({
               variant="ghost"
               size="icon-xs"
               onClick={onToggleFold}
-              title={folded ? "expand this sub-block" : "collapse this sub-block to one line"}
+              title={folded ? "Expand this sub-block" : "Collapse this sub-block to one line"}
               className="text-muted-foreground"
             >
               {folded ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
@@ -121,7 +121,7 @@ export function GroupHeaderRow({
               <span
                 className="cursor-default font-semibold select-none"
                 onDoubleClick={() => onRenamingChange(true)}
-                title="double-click to rename"
+                title="Double-click to rename"
               >
                 {g.name}
               </span>
@@ -132,7 +132,7 @@ export function GroupHeaderRow({
             {composed && (
               <Badge variant="secondary" className="shrink-0 gap-1">
                 <Boxes className="size-3" />
-                module
+                Module
               </Badge>
             )}
             {badStatus && (
@@ -172,7 +172,7 @@ export function GroupHeaderRow({
                   size="icon-xs"
                   className="text-muted-foreground hover:text-foreground"
                   onClick={() => setEditingGoals(true)}
-                  title="edit this module's internal goals"
+                  title="Edit this module's internal goals"
                 >
                   <SlidersHorizontal className="size-3.5" />
                 </Button>
@@ -195,8 +195,8 @@ export function GroupHeaderRow({
                 }
                 title={
                   composed
-                    ? "revert to a display-only sub-block"
-                    : "compose — solve this sub-block as a real module"
+                    ? "Revert to a display-only sub-block"
+                    : "Compose — solve this sub-block as a real module"
                 }
               >
                 <Boxes className="size-3.5" />
@@ -206,7 +206,7 @@ export function GroupHeaderRow({
                 size="icon-xs"
                 className="text-muted-foreground hover:text-destructive"
                 onClick={() => doc.ungroupRows(g.id)}
-                title="ungroup — dissolve the sub-block, its rows stay"
+                title="Ungroup — dissolve the sub-block, its rows stay"
               >
                 <X className="size-3.5" />
               </Button>

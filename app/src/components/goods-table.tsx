@@ -42,14 +42,14 @@ const col = createColumnHelper<GoodsRow>();
 // Columns exist for their accessors/sorting semantics; rendering stays manual.
 // Nullable axes map null → undefined so sortUndefined can pin them last.
 const columns = [
-  col.accessor((r) => (r.display ?? r.item).toLowerCase(), { id: "item", header: "item" }),
-  col.accessor("produced", { id: "produced", header: "produced/s" }),
-  col.accessor("consumed", { id: "consumed", header: "consumed/s" }),
-  col.accessor("net", { id: "net", header: "net/s" }),
-  col.accessor((r) => r.pctMet ?? undefined, { id: "met", header: "met", sortUndefined: "last" }),
+  col.accessor((r) => (r.display ?? r.item).toLowerCase(), { id: "item", header: "Item" }),
+  col.accessor("produced", { id: "produced", header: "Produced/s" }),
+  col.accessor("consumed", { id: "consumed", header: "Consumed/s" }),
+  col.accessor("net", { id: "net", header: "Net/s" }),
+  col.accessor((r) => r.pctMet ?? undefined, { id: "met", header: "Met", sortUndefined: "last" }),
   col.accessor((r) => r.actualProduced ?? undefined, {
     id: "actual",
-    header: "actual/s",
+    header: "Actual/s",
     sortUndefined: "last",
   }),
 ];
@@ -81,7 +81,7 @@ function ActualCell({
   }
   return (
     <Tooltip
-      content={`making ${rateLabel(good, actual, { perSec: true })} · planned ${rateLabel(good, planned, { perSec: true })}`}
+      content={`Making ${rateLabel(good, actual, { perSec: true })} · planned ${rateLabel(good, planned, { perSec: true })}`}
     >
       <span className={color}>{rateLabel(good, actual)}</span>
     </Tooltip>
@@ -95,7 +95,7 @@ function MetCell({ pct }: { pct: number | null }) {
   const shown = Math.round(pct * 100);
   const color = pct < 0.25 ? "text-destructive" : pct < 0.75 ? "text-warning" : "text-success";
   return (
-    <Tooltip content="produced ÷ consumed across all blocks">
+    <Tooltip content="Produced ÷ consumed across all blocks">
       <span className={`font-semibold ${color}`}>{shown}%</span>
     </Tooltip>
   );
@@ -141,14 +141,14 @@ export function GoodsSection({
         <button
           onClick={toggleFold}
           className="flex items-center gap-1 text-left"
-          title={folded ? "expand" : "collapse"}
+          title={folded ? "Expand" : "Collapse"}
         >
           {folded ? (
             <ChevronRight className="size-4 text-muted-foreground" />
           ) : (
             <ChevronDown className="size-4 text-muted-foreground" />
           )}
-          <CardTitle className="normal-case">
+          <CardTitle>
             {title} ({rows.length})
           </CardTitle>
         </button>
@@ -177,22 +177,22 @@ export function GoodsSection({
                   {r.display ?? r.item}
                 </span>
                 {r.stock && (
-                  <Tooltip content="some of this production is a stock-refill demand (a 'keep N on hand' goal), not continuous throughput">
+                  <Tooltip content="Some of this production is a stock-refill demand (a 'keep N on hand' goal), not continuous throughput">
                     <Badge className="shrink-0 border-transparent bg-info/15 px-1 py-0 text-info">
-                      <RefreshCw className="size-3" /> stock
+                      <RefreshCw className="size-3" /> Stock
                     </Badge>
                   </Tooltip>
                 )}
               </span>
               <span className="grid grid-cols-2 gap-x-4 gap-y-0.5 pl-7 md:flex md:gap-2 md:pl-0">
-                <StatCell label="produced/s" layout="row" w="md:w-24" className="text-success">
+                <StatCell label="Produced/s" layout="row" w="md:w-24" className="text-success">
                   {rateLabel(r.item, r.produced)}
                 </StatCell>
-                <StatCell label="consumed/s" layout="row" w="md:w-24" className="text-warning">
+                <StatCell label="Consumed/s" layout="row" w="md:w-24" className="text-warning">
                   {rateLabel(r.item, r.consumed)}
                 </StatCell>
                 <StatCell
-                  label="net/s"
+                  label="Net/s"
                   layout="row"
                   w="md:w-24"
                   className={`font-semibold ${
@@ -206,11 +206,11 @@ export function GoodsSection({
                   {rateLabel(r.item, r.net, { sign: true })}
                 </StatCell>
                 {showMet && (
-                  <StatCell label="met" layout="row" w="md:w-14">
+                  <StatCell label="Met" layout="row" w="md:w-14">
                     <MetCell pct={r.pctMet} />
                   </StatCell>
                 )}
-                <StatCell label="actual/s" layout="row" w="md:w-24">
+                <StatCell label="Actual/s" layout="row" w="md:w-24">
                   <ActualCell good={r.item} planned={r.produced} actual={r.actualProduced} />
                 </StatCell>
               </span>

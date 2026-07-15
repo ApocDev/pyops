@@ -11,7 +11,7 @@ test("Alt+Click opens a focused recipe explorer without navigating away", async 
     },
     { timeout: 30_000 },
   );
-  await page.getByPlaceholder("search items & fluids…").fill("iron plate");
+  await page.getByPlaceholder("Search items & fluids…").fill("iron plate");
   const result = page.getByRole("button", { name: "Iron plate", exact: true }).first();
   await result.locator("[data-good-name='iron-plate']").click({ modifiers: ["Alt"] });
 

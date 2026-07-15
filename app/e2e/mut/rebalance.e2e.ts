@@ -18,7 +18,7 @@ test("factory pins can add and persist a consumption target", async ({ page }) =
 
   await page.getByRole("button", { name: "Pin good" }).click();
   const dialog = page.getByRole("dialog", { name: "Add factory pin" });
-  await dialog.getByPlaceholder("search an item or fluid…").fill("acetaldehyde");
+  await dialog.getByPlaceholder("Search an item or fluid…").fill("acetaldehyde");
   await dialog.getByRole("button", { name: "Acetaldehyde", exact: true }).click();
 
   const input = page.getByRole("spinbutton", { name: "Acetaldehyde factory pin" });
@@ -173,7 +173,7 @@ test("Scenario zeros an unpinned consume goal without saving the preview", async
     await goto(page, "/factory/scenario");
     const change = page.getByRole("link", { name: /^Acetaldehyde / });
     await expect(change).toContainText("-2");
-    await expect(change).toContainText("next goal/s0");
+    await expect(change).toContainText("Next goal/s0");
 
     const saved = new DatabaseSync(activeProjectDbFile(), { readOnly: true });
     try {
@@ -270,7 +270,7 @@ test("Scenario explains which proposed block goals failed validation", async ({ 
       timeout: 60_000,
     });
     await expect(diagnostic.getByRole("link", { name: "Coal gas" })).toBeVisible();
-    await expect(diagnostic.getByText("block solve: infeasible")).toBeVisible();
+    await expect(diagnostic.getByText("Block solve: infeasible")).toBeVisible();
     await expect(diagnostic.getByText("Proposed goals on validation pass")).toBeVisible();
     await expect(diagnostic.getByText("Coke")).toBeVisible();
   } finally {

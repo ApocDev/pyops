@@ -98,7 +98,7 @@ export function GroupComposeDialog({
           )}
           <div className="flex justify-end">
             <Button type="submit" variant="outline" size="sm">
-              save
+              Save
             </Button>
           </div>
         </form>

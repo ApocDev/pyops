@@ -82,8 +82,8 @@ export function BlockToolbar({
         label
         content={
           customIcon
-            ? "block icon (custom) — click to change or reset to auto"
-            : "block icon — follows the first goal; click to pick your own"
+            ? "Block icon (custom) — click to change or reset to auto"
+            : "Block icon — follows the first goal; click to pick your own"
         }
       >
         <Button
@@ -113,15 +113,15 @@ export function BlockToolbar({
           // typing a name pins it; clearing it resumes auto-naming from the goal
           onNamePinned(v.trim().length > 0);
         }}
-        placeholder="auto-named from goal…"
+        placeholder="Auto-named from goal…"
         className={`w-56 font-semibold ${titleHealthCls}`}
       />
       <span className="flex w-14 items-center gap-1 text-xs text-muted-foreground">
         {saveState === "saving" ? (
-          "saving…"
+          "Saving…"
         ) : saveState === "saved" ? (
           <>
-            saved <Check className="size-3" />
+            Saved <Check className="size-3" />
           </>
         ) : (
           ""
@@ -209,9 +209,9 @@ export function BlockToolbar({
         </Button>
       </Tooltip>
       {!blockEnabled && (
-        <Tooltip content="excluded from factory totals">
+        <Tooltip content="Excluded from factory totals">
           <Badge className="border-transparent bg-warning/15 font-semibold text-warning">
-            disabled
+            Disabled
           </Badge>
         </Tooltip>
       )}
@@ -269,19 +269,19 @@ export function BlockToolbar({
         </Sheet>
       )}
       {showInGame.sent === false && (
-        <span className="text-sm text-warning">game not connected</span>
+        <span className="text-sm text-warning">Game not connected</span>
       )}
       {showInGame.sent === true && (
         <span className="flex items-center gap-1 text-sm text-success">
-          opened in game <Check className="size-3" />
+          Opened in game <Check className="size-3" />
         </span>
       )}
       <span className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
-        <Legend cls={linkStyle.target} label="goal" />
-        <Legend cls={linkStyle.linked} label="linked" />
-        <Legend cls={linkStyle.import} label="raw in" />
-        <Legend cls={craftableStyle} label="craftable" />
-        <Legend cls={linkStyle.export} label="export" />
+        <Legend cls={linkStyle.target} label="Goal" />
+        <Legend cls={linkStyle.linked} label="Linked" />
+        <Legend cls={linkStyle.import} label="Raw in" />
+        <Legend cls={craftableStyle} label="Craftable" />
+        <Legend cls={linkStyle.export} label="Export" />
       </span>
       <HelpButton title="What is a block?">
         <BlockHelpContent />

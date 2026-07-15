@@ -5,12 +5,12 @@ test("extract a recipe row into a dedicated block from the row icon menu", async
   await createBlock(page);
   await addGoal(page, "iron plate", "Iron plate");
 
-  await page.locator('button[aria-label^="add a recipe that makes "]').click();
+  await page.locator('button[aria-label^="Add a recipe that makes "]').click();
   const platePicker = page.getByRole("dialog", { name: /Recipes that make/ });
   await platePicker.locator('[data-recipe-candidate="iron-plate"]').click();
   await expect(platePicker).toBeHidden();
 
-  await page.getByRole("button", { name: /^Iron ore.*(raw input|craftable)/ }).first().click();
+  await page.getByRole("button", { name: /^Iron ore.*(Raw input|Craftable)/ }).first().click();
   const orePicker = page.getByRole("dialog", { name: /Recipes that make/ });
   await orePicker.getByRole("button", { name: /Iron ore/ }).first().click();
   await expect(orePicker).toBeHidden();

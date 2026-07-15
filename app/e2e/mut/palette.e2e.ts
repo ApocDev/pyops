@@ -34,7 +34,7 @@ test("Ctrl+K opens from any page; Escape closes", async ({ page }) => {
 
 test("Ctrl+K opens even while typing in an input", async ({ page }) => {
   await goto(page, "/block");
-  const search = page.getByPlaceholder("search blocks…");
+  const search = page.getByPlaceholder("Search blocks…");
   await search.click();
   await search.pressSequentially("iro");
   await page.keyboard.press("Control+k");
@@ -45,7 +45,7 @@ test("'/' opens the palette only when NOT typing in a field", async ({ page }) =
   await goto(page, "/block");
 
   // focused in a text field: '/' must type a slash, not open the palette
-  const search = page.getByPlaceholder("search blocks…");
+  const search = page.getByPlaceholder("Search blocks…");
   await search.click();
   await search.press("/");
   await expect(palette(page)).toBeHidden();

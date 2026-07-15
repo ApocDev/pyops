@@ -120,7 +120,7 @@ export function GoodMenu({
       {producers.length > 0 && (
         <>
           <div className="my-1 border-t border-border" />
-          <FieldLabel className="px-3 pb-0.5 font-semibold">produced in</FieldLabel>
+          <FieldLabel className="px-3 pb-0.5 font-semibold">Produced in</FieldLabel>
           {producers.map((p) => (
             <ContextMenuItem
               key={p.blockId}

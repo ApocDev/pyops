@@ -46,7 +46,7 @@ test("a secondary goal accepts and persists a negative consume rate", async ({ p
   await expectUndoTop(page, /Set "Shale oil" rate/);
 
   const addConsumer = page.getByRole("button", {
-    name: "add a recipe that consumes Shale oil",
+    name: "Add a recipe that consumes Shale oil",
   });
   await expect(addConsumer).toBeVisible();
   await addConsumer.click();
@@ -84,9 +84,9 @@ test("a consume goal is not repeated in the Block balance imports", async ({ pag
 
   await goto(page, `/block/${id}`);
   await dismissDataDriftPrompt(page);
-  await expect(page.getByRole("button", { name: /^Kerosene 5\/s · target/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Kerosene 5\/s · Target/ })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /^Kerosene 5\/s · (craftable|raw input)/ }),
+    page.getByRole("button", { name: /^Kerosene 5\/s · (Craftable|Raw input)/ }),
   ).toBeHidden();
 });
 
@@ -114,7 +114,7 @@ test("goals can be reordered and the new primary order persists", async ({ page 
   await dismissDataDriftPrompt(page);
 
   const copper = page.locator('[data-goal="copper-plate"]');
-  const copperHandle = copper.locator('button[aria-label^="drag to reorder"]');
+  const copperHandle = copper.locator('button[aria-label^="Drag to reorder"]');
   const iron = page.locator('[data-goal="iron-plate"]');
   const goalWidths = await page.locator("[data-goal]").evaluateAll((goals) =>
     goals.map((goal) => goal.getBoundingClientRect().width),

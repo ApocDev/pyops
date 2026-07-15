@@ -33,8 +33,8 @@ export function BridgeCard() {
     onSuccess: (r) =>
       setPullMsg(
         r.sent
-          ? "asked the mod to push — research appears in Planning horizon"
-          : "no mod connected",
+          ? "Asked the mod to push — research appears in Planning horizon"
+          : "No mod connected",
       ),
   });
 
@@ -57,13 +57,13 @@ export function BridgeCard() {
           <span className={`inline-block size-2 rounded-full ${dotColor}`} />
           {s?.status === "listening"
             ? versionMismatch
-              ? "version mismatch"
+              ? "Version mismatch"
               : connected
-                ? "mod connected"
-                : "listening — no mod yet"
+                ? "Mod connected"
+                : "Listening — no mod yet"
             : s?.status === "error"
-              ? "error"
-              : "starting…"}
+              ? "Error"
+              : "Starting…"}
         </span>
       </CardHeader>
       <div className="space-y-2 px-3 pb-3 text-sm">
@@ -83,7 +83,7 @@ export function BridgeCard() {
 
         {connected && peer && (
           <div className="text-muted-foreground">
-            last packet from <span className="text-foreground">{peer.player ?? peer.address}</span>{" "}
+            Last packet from <span className="text-foreground">{peer.player ?? peer.address}</span>{" "}
             · {Math.max(0, Math.round((Date.now() - peer.lastSeenMs) / 1000))}s ago
             {peer.modVersion && <> · mod v{peer.modVersion}</>}
             {peer.protocolVersion != null && <> · protocol v{peer.protocolVersion}</>}
@@ -112,7 +112,7 @@ export function BridgeCard() {
             title="Ask the connected mod to push its current state now (research, …)"
           >
             <RefreshCw className={`size-3.5 ${pull.isPending ? "animate-spin" : ""}`} />
-            {pull.isPending ? "requesting…" : "pull from game"}
+            {pull.isPending ? "Requesting…" : "Pull from game"}
           </Button>
           <InfoHint content="Or hit Sync now in the in-game panel to push immediately — research only auto-syncs when a tech finishes." />
           {pullMsg && <span className="text-sm text-muted-foreground">{pullMsg}</span>}

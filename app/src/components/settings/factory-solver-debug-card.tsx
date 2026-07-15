@@ -63,7 +63,7 @@ export function FactorySolverDebugCard() {
             <span>
               Capture structured solver traces
               <span className="block text-sm text-muted-foreground">
-                records factory pins, normalized block columns, the LP model, and its result
+                Records factory pins, normalized block columns, the LP model, and its result
               </span>
             </span>
             <Switch

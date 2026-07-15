@@ -65,10 +65,14 @@ export function ItemChip({
   const craftableImport = link === "import" && craftable;
   const cls = craftableImport ? craftableStyle : linkStyle[link];
   const why = craftableImport
-    ? "craftable — click to add a producer"
+    ? "Craftable — click to add a producer"
     : link === "import"
-      ? "raw input — supply externally"
-      : link;
+      ? "Raw input — supply externally"
+      : link === "target"
+        ? "Target"
+        : link === "export"
+          ? "Export"
+          : "Linked";
   const spoilTime = spoilTicks != null ? fmtSpoilTime(spoilTicks) : null;
   const variableRate =
     rate != null &&
@@ -106,7 +110,7 @@ export function ItemChip({
             <Icon kind={kind as "item" | "fluid"} name={name} size="md" noHover />
             {fuel && (
               <Flame
-                aria-label="burned as fuel"
+                aria-label="Burned as fuel"
                 className="absolute -right-1 -bottom-1 size-3.5 rounded-full bg-background/90 p-px text-warning"
                 strokeWidth={2.5}
               />
@@ -122,7 +126,7 @@ export function ItemChip({
               aria-hidden
             >
               <span className="text-muted-foreground">·</span>
-              <Timer className="size-3.5" strokeWidth={2.5} /> incidental
+              <Timer className="size-3.5" strokeWidth={2.5} /> Incidental
             </span>
           )}
           {spoilTime && (

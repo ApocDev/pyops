@@ -6,7 +6,7 @@ import { addGoal, createBlock, uniqueName } from "./helpers";
  * star it as the DEFAULT template, and see a compatible new recipe row start
  * with that loadout baked in (instead of empty/auto-fill).
  *
- * Uses Py's distilator family: "Coal gas from coal" (coal-gas) and "Gravel
+ * Uses Py's distilator family: "Coal gas, tar" (coal-gas) and "Gravel
  * distillation" (stone-distilation) both run in a distilator (1 module slot,
  * allow_productivity on both recipes), so a productivity-module template is
  * compatible with each.
@@ -27,9 +27,9 @@ test("module template: save → set default → auto-applies to a new compatible
   // ── block 1: configure a loadout by hand and save it as a default template ──
   await createBlock(page);
   await addGoal(page, "coal gas", "Coal gas");
-  await page.locator('button[aria-label^="add a recipe that makes "]').click();
+  await page.locator('button[aria-label^="Add a recipe that makes "]').click();
   const picker = page.getByRole("dialog", { name: "Recipes that make Coal gas" });
-  await picker.getByRole("button", { name: "Coal gas from coal" }).click();
+  await picker.getByRole("button", { name: /^Coal gas, tar / }).click();
   await expect(picker).toBeHidden();
 
   // the fresh row has no loadout (auto-fill only SUGGESTS) — open the modules dialog
@@ -48,22 +48,22 @@ test("module template: save → set default → auto-applies to a new compatible
 
   // save the loadout as a preset (name comes from the window.prompt)
   page.once("dialog", (d) => void d.accept(presetName));
-  await modal.getByRole("button", { name: "+ save" }).click();
+  await modal.getByRole("button", { name: "+ Save" }).click();
   const chip = modal.getByRole("button", { name: presetName });
   await expect(chip).toBeVisible();
   // the chip carries the template icon (the module it applies)
   await expect(chip.locator("span[style]").first()).toBeVisible();
 
   // star it: default template for new rows
-  await chip.locator('span[title="make this the default template for new rows"]').click();
-  await expect(chip.locator('span[title^="default template"]')).toBeVisible();
+  await chip.locator('span[title="Make this the default template for new rows"]').click();
+  await expect(chip.locator('span[title^="Default template"]')).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(modal).toBeHidden();
 
   // ── block 2: a compatible new row starts with the template, not empty ──
   await createBlock(page);
   await addGoal(page, "coarse", "Coarse fraction");
-  await page.locator('button[aria-label^="add a recipe that makes "]').click();
+  await page.locator('button[aria-label^="Add a recipe that makes "]').click();
   const picker2 = page.getByRole("dialog", { name: "Recipes that make Coarse fraction" });
   await picker2.getByRole("button", { name: "Gravel distillation" }).click();
   await expect(picker2).toBeHidden();

@@ -41,7 +41,7 @@ export function FilterInput({
           variant="ghost"
           size="icon-xs"
           onClick={() => onValueChange("")}
-          title="clear"
+          title="Clear"
           className="absolute top-1/2 right-0.5 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         >
           <X />

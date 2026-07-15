@@ -55,7 +55,7 @@ export function LaunchFactorioButton({
       }
     >
       <Play className="size-3.5" />
-      {launch.isPending ? "launching…" : running ? "Factorio running" : "Launch Factorio"}
+      {launch.isPending ? "Launching…" : running ? "Factorio running" : "Launch Factorio"}
     </Button>
   );
 }

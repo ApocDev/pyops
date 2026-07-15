@@ -79,7 +79,7 @@ function Browse() {
             <FilterInput
               value={query}
               onValueChange={setQuery}
-              placeholder="search items & fluids…"
+              placeholder="Search items & fluids…"
               autoFocus
             />
             {stats.data && (
@@ -92,7 +92,7 @@ function Browse() {
           <div className="flex-1 overflow-auto p-1">
             {query.trim().length === 0 && (
               <div className="px-2 py-2 text-sm text-muted-foreground">
-                type to search — results are clickable, as is every icon in the detail pane
+                Type to search — results are clickable, as is every icon in the detail pane
               </div>
             )}
             {query.trim().length > 0 && results.isPending && (
@@ -104,7 +104,7 @@ function Browse() {
             )}
             {query.trim().length > 0 && results.isError && (
               <Callout tone="destructive" variant="strip">
-                search failed — try again
+                Search failed — try again
               </Callout>
             )}
             {results.data?.map((r) => (
@@ -123,7 +123,7 @@ function Browse() {
                 <Icon kind={r.kind as Kind} name={r.name} size="sm" noTitle />
                 <span className="min-w-0 flex-1 truncate text-left">{r.display ?? r.name}</span>
                 {r.kind === "fluid" && (
-                  <span className="text-info" title="fluid">
+                  <span className="text-info" title="Fluid">
                     <Droplet className="size-3.5" />
                   </span>
                 )}

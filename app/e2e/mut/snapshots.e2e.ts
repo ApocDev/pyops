@@ -34,7 +34,7 @@ test("snapshot → edit → diff → restore round-trip", async ({ page }) => {
   // take a manual labelled snapshot of the 1/s state
   const label = uniqueName("before rate bump");
   await openSheet(page);
-  await sheet(page).getByPlaceholder(/label \(optional\)/).fill(label);
+  await sheet(page).getByPlaceholder(/Label \(optional\)/).fill(label);
   await sheet(page).getByRole("button", { name: "Snapshot now" }).click();
   const row = sheet(page)
     .locator("div")
@@ -42,7 +42,7 @@ test("snapshot → edit → diff → restore round-trip", async ({ page }) => {
     .filter({ has: page.getByRole("button", { name: "Restore" }) })
     .last();
   await expect(row).toBeVisible();
-  await expect(row.getByText("manual", { exact: true })).toBeVisible();
+  await expect(row.getByText("Manual", { exact: true })).toBeVisible();
   await expect(row).toContainText("1 goal");
   await closeSheet(page);
 
@@ -61,7 +61,7 @@ test("snapshot → edit → diff → restore round-trip", async ({ page }) => {
   // restore: the open editor rehydrates to the snapshot state…
   await row.getByRole("button", { name: "Restore" }).click();
   // …and the restore auto-snapshotted the pre-restore state first
-  await expect(sheet(page).getByText(/auto · before restore/)).toBeVisible();
+  await expect(sheet(page).getByText(/Auto · before restore/)).toBeVisible();
   await closeSheet(page);
   await expect(goalRateButton(page)).toHaveText("1");
 });

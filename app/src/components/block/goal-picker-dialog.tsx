@@ -27,7 +27,7 @@ export function GoalPickerDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
-          <ItemSearchList prompt="type to search for a product…" onPick={(it) => onPick(it.name)} />
+          <ItemSearchList prompt="Type to search for a product…" onPick={(it) => onPick(it.name)} />
         </div>
       </DialogContent>
     </Dialog>

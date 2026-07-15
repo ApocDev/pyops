@@ -28,8 +28,8 @@ test("machines card sorts by column and collapses", async ({ page }) => {
 
   // the sortable header row (desktop viewport — the header is md+ only)
   const header = (label: string | RegExp) => card.getByRole("button", { name: label });
-  await expect(header(/machine · recipe/)).toBeVisible();
-  await expect(header(/^required/)).toBeVisible();
+  await expect(header(/Machine · recipe/)).toBeVisible();
+  await expect(header(/^Required/)).toBeVisible();
 
   const machineNames = async () => {
     const names = await card.getByTestId("machine-name").allInnerTexts();
@@ -39,7 +39,7 @@ test("machines card sorts by column and collapses", async ({ page }) => {
 
   // click the lead header → alphabetical ascending by display name
   // (numeric+case-insensitive collation ≈ TanStack's alphanumeric sort)
-  await header(/machine · recipe/).click();
+  await header(/Machine · recipe/).click();
   const asc = await machineNames();
   expect(asc.length).toBeGreaterThan(0);
   expect(asc).toEqual(
@@ -47,7 +47,7 @@ test("machines card sorts by column and collapses", async ({ page }) => {
   );
 
   // click again → descending
-  await header(/machine · recipe/).click();
+  await header(/Machine · recipe/).click();
   const desc = await machineNames();
   expect(desc).toEqual([...asc].reverse());
 
@@ -58,8 +58,8 @@ test("machines card sorts by column and collapses", async ({ page }) => {
 
   // collapse folds the rows away; expand brings them back (the fold button's
   // accessible name is the card title, so target its title attribute)
-  await card.locator('button[title="collapse"]').click();
+  await card.locator('button[title="Collapse"]').click();
   await expect(card.getByTestId("machine-group")).toHaveCount(0);
-  await card.locator('button[title="expand"]').click();
+  await card.locator('button[title="Expand"]').click();
   await expect(card.getByTestId("machine-group").first()).toBeVisible();
 });

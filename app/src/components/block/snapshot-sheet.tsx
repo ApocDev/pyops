@@ -117,7 +117,7 @@ export function SnapshotSheet({
               <InfoHint content="Automatic snapshots are taken before deletes, restores, resizes, and (at most every 10 minutes) ordinary edits; the newest 20 are kept per block. Manual snapshots stay until you delete them." />
             </SheetTitle>
             <div className="truncate text-sm text-muted-foreground">
-              {currentName || "this block"}
+              {currentName || "This block"}
             </div>
           </div>
         </SheetHeader>
@@ -128,7 +128,7 @@ export function SnapshotSheet({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !busy && void snapshotNow()}
-              placeholder="label (optional)"
+              placeholder="Label (optional)"
               className="min-w-0 flex-1"
             />
             <Button onClick={() => void snapshotNow()} disabled={busy} className="shrink-0 gap-1.5">
@@ -150,7 +150,7 @@ export function SnapshotSheet({
             </div>
           )}
           {list.isError && (
-            <Callout tone="destructive">couldn&apos;t load this block&apos;s snapshots.</Callout>
+            <Callout tone="destructive">Couldn&apos;t load this block&apos;s snapshots.</Callout>
           )}
           {list.data && list.data.length === 0 && (
             <EmptyState
@@ -174,7 +174,7 @@ export function SnapshotSheet({
                         : "border-transparent bg-muted text-muted-foreground"
                     }
                   >
-                    {s.kind === "manual" ? "manual" : `auto${s.label ? ` · ${s.label}` : ""}`}
+                    {s.kind === "manual" ? "Manual" : `Auto${s.label ? ` · ${s.label}` : ""}`}
                   </Badge>
                   <span className="text-xs text-muted-foreground tabular-nums">
                     {s.createdAt ? new Date(s.createdAt * 1000).toLocaleString() : ""}
@@ -211,7 +211,7 @@ export function SnapshotSheet({
                     onBlur={() => setConfirmDeleteId(null)}
                     onClick={() => void remove(s.id)}
                   >
-                    {confirmDeleteId === s.id ? "delete?" : "Delete"}
+                    {confirmDeleteId === s.id ? "Delete?" : "Delete"}
                   </Button>
                 </div>
                 {expandedId === s.id && (
@@ -251,9 +251,9 @@ function SnapshotRowDiff({
   return (
     <div className="mt-2 border-t border-border pt-1">
       {diff.isLoading && <Skeleton className="h-10 w-full" />}
-      {diff.isError && <Callout tone="destructive">couldn&apos;t compute the diff.</Callout>}
+      {diff.isError && <Callout tone="destructive">Couldn&apos;t compute the diff.</Callout>}
       {diff.data === null && (
-        <p className="py-1 text-sm text-muted-foreground italic">this snapshot no longer exists.</p>
+        <p className="py-1 text-sm text-muted-foreground italic">This snapshot no longer exists.</p>
       )}
       {diff.data && (
         <SnapshotDiffView

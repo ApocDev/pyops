@@ -78,7 +78,7 @@ export function HorizonPicker() {
     <IconProvider>
       <div className="space-y-4">
         <Segmented
-          aria-label="planning horizon mode"
+          aria-label="Planning horizon mode"
           value={d.mode}
           onValueChange={(m) => save.mutate({ mode: m })}
           options={MODE_OPTIONS}
@@ -86,7 +86,7 @@ export function HorizonPicker() {
 
         {d.syncedAt && (
           <div className="flex items-center gap-1.5 text-sm text-success">
-            <Check className="size-3.5 shrink-0" /> live · {d.syncedCount} techs synced
+            <Check className="size-3.5 shrink-0" /> Live · {d.syncedCount} techs synced
             {d.mode !== "now" && (
               <InfoHint content="Synced research only applies in Now mode." className="ml-0.5" />
             )}
@@ -97,7 +97,7 @@ export function HorizonPicker() {
           <>
             <section className="space-y-1.5 border-t border-border pt-3">
               <FieldLabel className="flex items-center gap-1.5">
-                science packs you produce
+                Science packs you produce
                 <InfoHint content="A recipe counts as available when every science pack its research needs is ticked here." />
               </FieldLabel>
               <div className="grid grid-cols-1 gap-x-3 gap-y-1.5 sm:grid-cols-2">
@@ -116,13 +116,13 @@ export function HorizonPicker() {
             />
             <section className="space-y-1.5 border-t border-border pt-3">
               <FieldLabel className="flex items-center gap-1.5">
-                mining productivity bonus
+                Mining productivity bonus
                 <InfoHint content="Flat percent bonus applied to mining recipes. Leave blank to derive it from researched techs." />
               </FieldLabel>
               <div className="flex items-center gap-2">
                 <Input
                   key={`mining-${d.miningProductivityBonus ?? "unset"}`}
-                  aria-label="mining productivity bonus percent"
+                  aria-label="Mining productivity bonus percent"
                   type="number"
                   min={0}
                   step={1}
@@ -131,7 +131,7 @@ export function HorizonPicker() {
                       ? ""
                       : formatPercent(d.miningProductivityBonus)
                   }
-                  placeholder="auto"
+                  placeholder="Auto"
                   onBlur={(e) => {
                     const raw = e.currentTarget.value.trim();
                     if (raw === "") {
@@ -156,13 +156,13 @@ export function HorizonPicker() {
                 <span className="text-sm text-muted-foreground">%</span>
               </div>
               <div className="text-sm text-muted-foreground">
-                mining{" "}
+                Mining:{" "}
                 {d.miningProductivityBonus == null
-                  ? "auto"
+                  ? "Auto"
                   : `+${formatPercent(d.miningProductivityBonus)}%`}{" "}
-                · recipe bonuses{" "}
+                · Recipe bonuses:{" "}
                 {d.recipeProductivityBonusCount == null
-                  ? "auto"
+                  ? "Auto"
                   : `${d.recipeProductivityBonusCount} synced`}
               </div>
             </section>
@@ -228,7 +228,7 @@ function TargetPicker({
               </div>
             </div>
             <div className="flex items-center gap-1.5 text-sm">
-              <span className="text-muted-foreground">unlocked by</span>
+              <span className="text-muted-foreground">Unlocked by</span>
               {targetTech ? (
                 <TechHover name={targetTech} className="flex items-center gap-1.5">
                   <Icon kind="technology" name={targetTech} size="sm" noHover />
@@ -238,13 +238,13 @@ function TargetPicker({
                 </TechHover>
               ) : (
                 <span className="text-warning">
-                  no unlocking tech — start-craftable or unreachable
+                  No unlocking tech — start-craftable or unreachable
                 </span>
               )}
             </div>
             {packs.length > 0 && (
               <div>
-                <FieldLabel>science packs allowed up to this tier ({packs.length})</FieldLabel>
+                <FieldLabel>Science packs allowed up to this tier ({packs.length})</FieldLabel>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   {packs.map((p) => (
                     <Badge key={p}>
@@ -262,7 +262,7 @@ function TargetPicker({
       )}
       <Input
         value={term}
-        placeholder="search a target item/fluid…"
+        placeholder="Search a target item/fluid…"
         onChange={(e) => setTerm(e.target.value)}
         className="w-72"
       />
@@ -280,8 +280,8 @@ function TargetPicker({
             >
               <Icon kind={g.kind === "fluid" ? "fluid" : "item"} name={g.name} size="md" />
               <span className="truncate">{g.display ?? g.name}</span>
-              <span className="ml-auto shrink-0 bg-muted px-1 text-xs text-muted-foreground uppercase">
-                {g.kind}
+              <span className="ml-auto shrink-0 bg-muted px-1 text-xs text-muted-foreground">
+                {g.kind === "fluid" ? "Fluid" : "Item"}
               </span>
             </Button>
           ))}
@@ -319,12 +319,12 @@ function ResearchedPicker({
   return (
     <section className="space-y-1.5 border-t border-border pt-3">
       <FieldLabel className="flex items-center gap-1.5">
-        completed research
+        Completed research
         <InfoHint content="Explicitly-marked techs, on top of what the science packs above already unlock." />
       </FieldLabel>
       <Input
         value={term}
-        placeholder="search a tech to mark researched…"
+        placeholder="Search a tech to mark researched…"
         onChange={(e) => setTerm(e.target.value)}
         className="w-72"
       />
@@ -367,7 +367,7 @@ function ResearchedPicker({
                   size="icon-xs"
                   onClick={() => toggle(n)}
                   className="size-5 text-muted-foreground hover:bg-transparent hover:text-destructive"
-                  title="remove"
+                  title="Remove"
                 >
                   ×
                 </Button>

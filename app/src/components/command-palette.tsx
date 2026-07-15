@@ -298,7 +298,7 @@ export function CommandPalette() {
                 // data-group: a stable per-group handle (a block and a good can
                 // share a visible name; tests and tools scope by group with it)
                 <div key={g.title} data-group={g.title} className="mb-2 last:mb-0">
-                  <div className="px-2 py-1 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                  <div className="px-2 py-1 text-sm font-semibold tracking-wide text-muted-foreground">
                     {g.title}
                   </div>
                   {g.items.map((item) => {

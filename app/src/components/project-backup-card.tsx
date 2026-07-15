@@ -74,7 +74,7 @@ export function ProjectBackupCard() {
               disabled={importDb.isPending}
             >
               <Upload className="size-4" />
-              {importDb.isPending ? "importing…" : "Import backup…"}
+              {importDb.isPending ? "Importing…" : "Import backup…"}
             </Button>
             <input
               ref={fileInput}
@@ -98,11 +98,11 @@ export function ProjectBackupCard() {
           </p>
         )}
         {importDb.isError && (
-          <p className="text-sm text-destructive">import failed: {importDb.error.message}</p>
+          <p className="text-sm text-destructive">Import failed: {importDb.error.message}</p>
         )}
         {imported && (
           <p className="flex flex-wrap items-center gap-2 text-sm text-success">
-            imported as project &ldquo;{imported.name}&rdquo;
+            Imported as project &ldquo;{imported.name}&rdquo;
             <Button variant="outline" size="sm" onClick={() => void switchTo(imported.id)}>
               Switch to it
             </Button>

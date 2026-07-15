@@ -63,7 +63,7 @@ describe("ItemChip spoil time", () => {
     expect(getByRole("button").getAttribute("aria-label")).toContain(
       "includes estimated incidental spoilage",
     );
-    expect(getByRole("button").textContent).toBe("0.01· incidental");
+    expect(getByRole("button").textContent).toBe("0.01· Incidental");
   });
 
   it("does not add spoilage text to ordinary item chips", () => {
@@ -96,7 +96,7 @@ describe("IncidentalSpoilageChip", () => {
 
     const chip = getByRole("button");
     expect(chip.getAttribute("aria-label")).toContain("Biocrud 0.01/s");
-    expect(chip.textContent).toBe("0.01· incidental");
+    expect(chip.textContent).toBe("0.01· Incidental");
     fireEvent.click(chip);
     expect(onEdit).toHaveBeenCalledOnce();
   });

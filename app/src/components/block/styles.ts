@@ -3,7 +3,7 @@
  * Button's fixed-height anatomy would fight them). */
 
 export const head =
-  "px-3 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground border-b border-border";
+  "px-3 py-2 text-sm font-semibold tracking-wide text-muted-foreground border-b border-border";
 
 // whole-row picker trigger — icon + truncating label
 export const rowBtn = "flex w-full items-center gap-1.5 px-2 py-1 text-left hover:bg-muted";

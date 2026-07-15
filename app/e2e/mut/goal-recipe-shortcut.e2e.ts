@@ -6,7 +6,7 @@ test("Ctrl+Click adds the picker's best currently unlocked goal recipe", async (
   await addGoal(page, "iron plate", "Iron plate");
   await expectUndoTop(page, /Undo: Edit block "Iron plate"/);
 
-  const goal = page.getByRole("button", { name: "add a recipe that makes Iron plate" });
+  const goal = page.getByRole("button", { name: "Add a recipe that makes Iron plate" });
   await goal.click();
   const picker = page.getByRole("dialog", { name: "Recipes that make Iron plate" });
   await expect(picker.getByText("Unlocked now", { exact: true })).toBeVisible();

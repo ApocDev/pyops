@@ -18,9 +18,9 @@ test("reactor row: picking a 2×2 farm scales heat ×3 and persists", async ({ p
   await createBlock(page);
 
   // goal: the pyops-heat pseudo-fluid at 6 GW (power goods edit in watt units)
-  await page.locator('button[title="add a goal product"]').click();
+  await page.locator('button[title="Add a goal product"]').click();
   const goalDialog = page.getByRole("dialog", { name: "Add a goal product" });
-  await goalDialog.getByPlaceholder("search an item or fluid…").fill("pyops heat");
+  await goalDialog.getByPlaceholder("Search an item or fluid…").fill("pyops heat");
   await goalDialog.getByRole("button", { name: "Heat (MJ)", exact: true }).click();
   await expect(goalDialog).toBeHidden();
   await expect(goalRateButton(page)).toHaveText("1 MW");
@@ -32,7 +32,7 @@ test("reactor row: picking a 2×2 farm scales heat ×3 and persists", async ({ p
 
   // click the goal icon to add a producer: one heat candidate auto-adds, several
   // open a picker — pick the breeder reactor either way
-  await page.locator('button[aria-label^="add a recipe that makes "]').click();
+  await page.locator('button[aria-label^="Add a recipe that makes "]').click();
   // the picker opens asynchronously (multi-candidate configs); give it a beat to
   // appear, then pick the breeder. A single-candidate config auto-adds — no dialog.
   const heatPicker = page.getByRole("dialog", { name: /Recipes that make/ });
@@ -46,11 +46,11 @@ test("reactor row: picking a 2×2 farm scales heat ×3 and persists", async ({ p
 
   // flat-rated (1×1): some whole+fraction of reactors, chip shows no bonus. The
   // building count is its own click-to-fix field (#121) beside the machine icon.
-  const machineChip = page.locator('button[title="click to fix the building count"]');
+  const machineChip = page.locator('button[title="Click to fix the building count"]');
   await expect(machineChip).toBeVisible();
   const baseCount = Number((await machineChip.textContent())?.trim());
   expect(baseCount).toBeGreaterThan(0);
-  const layoutChip = page.locator('button[title^="reactor farm"]');
+  const layoutChip = page.locator('button[title^="Reactor farm"]');
   await expect(layoutChip).toContainText("1×1");
   await expect(layoutChip).not.toContainText("heat");
 

@@ -38,7 +38,7 @@ it("shows the affected block, solver detail, and proposed goals", () => {
 
   expect(view.getByText("Scenario validation failed")).not.toBeNull();
   expect(view.getByRole("link", { name: "Coal gas" })).not.toBeNull();
-  expect(view.getByText("block solve: infeasible")).not.toBeNull();
+  expect(view.getByText("Block solve: infeasible")).not.toBeNull();
   expect(view.getByText("Solver detail: No rates satisfy the proposed goals.")).not.toBeNull();
   expect(view.getByText("11.18/s")).not.toBeNull();
 });

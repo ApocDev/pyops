@@ -107,14 +107,14 @@ function Deps() {
             <FilterInput
               value={query}
               onValueChange={setQuery}
-              placeholder="search goods & recipes…"
+              placeholder="Search goods & recipes…"
               autoFocus
             />
           </div>
           <div className="flex-1 overflow-auto p-1">
             {query.trim().length === 0 && (
               <div className="px-2 py-2 text-sm text-muted-foreground">
-                type to search — pick a good or recipe to explore its dependency tree
+                Type to search — pick a good or recipe to explore its dependency tree
               </div>
             )}
             {query.trim().length > 0 && results.isPending && (
@@ -126,7 +126,7 @@ function Deps() {
             )}
             {query.trim().length > 0 && results.isError && (
               <Callout tone="destructive" variant="strip">
-                search failed — try again
+                Search failed — try again
               </Callout>
             )}
             {results.data?.map((r) => (
@@ -152,12 +152,12 @@ function Deps() {
                 />
                 <span className="min-w-0 flex-1 truncate text-left">{r.display ?? r.name}</span>
                 {r.kind === "fluid" && (
-                  <span className="text-info" title="fluid">
+                  <span className="text-info" title="Fluid">
                     <Droplet className="size-3.5" />
                   </span>
                 )}
                 {r.kind === "recipe" && (
-                  <span className="text-muted-foreground" title="recipe">
+                  <span className="text-muted-foreground" title="Recipe">
                     <Hammer className="size-3.5" />
                   </span>
                 )}
@@ -198,7 +198,7 @@ function Deps() {
           </div>
         )}
         {sel && tree.isError && (
-          <Callout tone="destructive">failed to load the dependency tree — try again</Callout>
+          <Callout tone="destructive">Failed to load the dependency tree — try again</Callout>
         )}
         {sel && tree.data === null && (
           <EmptyState

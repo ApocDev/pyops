@@ -33,7 +33,7 @@ export function StatSortHeader<T>({
           <button
             key={h.id}
             onClick={h.column.getToggleSortingHandler()}
-            title="click to sort"
+            title="Click to sort"
             className={cn(
               "flex items-center gap-0.5 hover:text-foreground",
               widths[h.id],

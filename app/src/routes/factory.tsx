@@ -182,7 +182,7 @@ function FactoryPage() {
           <span className="flex flex-wrap items-center gap-1">
             {blocks.data?.length ?? 0} block(s) · <Zap className="size-3.5" /> {fmtW(totalPowerW)}
             {Math.abs(totalPollution) > 0.005 && (
-              <Tooltip content="net pollution per minute across all enabled blocks — negative means your forestry/plantations absorb more than the machines emit">
+              <Tooltip content="Net pollution per minute across all enabled blocks — negative means your forestry/plantations absorb more than the machines emit">
                 <span
                   className={`flex items-center gap-1 ${totalPollution < 0 ? "text-success" : ""}`}
                 >
@@ -198,19 +198,19 @@ function FactoryPage() {
             <FilterInput
               value={search}
               onValueChange={setSearch}
-              placeholder="filter items…"
+              placeholder="Filter items…"
               className="w-64"
             />
             {recomputed && <span className="text-sm text-muted-foreground">{recomputed}</span>}
             <span className="text-sm text-muted-foreground">
               {statsSyncedAt ? (
                 <span className="inline-flex items-center gap-1 text-success">
-                  <Check className="size-3.5" /> live · {production.data?.syncedCount ?? 0} goods ·{" "}
+                  <Check className="size-3.5" /> Live · {production.data?.syncedCount ?? 0} goods ·{" "}
                   {timeAgo(statsSyncedAt)}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5">
-                  no live stats
+                  No live stats
                   <InfoHint content="Sync from the in-game PyOps panel." />
                 </span>
               )}
@@ -304,14 +304,14 @@ function FactoryPage() {
                 <ul className="mt-1 list-disc space-y-1 pl-5">
                   <li>
                     <span className="inline-flex items-center gap-1 text-foreground">
-                      <RefreshCw className="size-3.5" /> recompute
+                      <RefreshCw className="size-3.5" /> Recompute
                     </span>{" "}
                     — re-solve every block and refresh its cached flows, after a solver change, TURD
                     pick, or data re-import.
                   </li>
                   <li>
                     <span className="inline-flex items-center gap-1 text-foreground">
-                      <AlertTriangle className="size-3.5" /> check for changes
+                      <AlertTriangle className="size-3.5" /> Check for changes
                     </span>{" "}
                     — a dry run of the above: list which blocks would change (or reference a
                     now-missing recipe) without saving anything.
@@ -351,7 +351,7 @@ function FactoryPage() {
           description="The factory overview sums every block's solved production and consumption per item — build a block to see it."
           action={
             <Button asChild size="sm" variant="outline">
-              <Link to="/block">build some blocks</Link>
+              <Link to="/block">Build some blocks</Link>
             </Button>
           }
         />
@@ -364,7 +364,7 @@ function FactoryPage() {
         <GoodsSection
           id="deficits"
           title="Deficits"
-          hint="consumed across blocks but not produced enough — build these next"
+          hint="Consumed across blocks but not produced enough — build these next"
           rows={deficits}
           defaultSorting={[
             { id: "met", desc: false },
@@ -377,7 +377,7 @@ function FactoryPage() {
         <GoodsSection
           id="surpluses"
           title="Surpluses"
-          hint="net production available to new blocks"
+          hint="Net production available to new blocks"
           rows={surpluses}
           defaultSorting={[{ id: "net", desc: true }]}
           selectedItem={selected?.item ?? null}
@@ -386,7 +386,7 @@ function FactoryPage() {
         <GoodsSection
           id="balanced"
           title="Balanced"
-          hint="block-to-block flows that match exactly"
+          hint="Block-to-block flows that match exactly"
           rows={balanced}
           defaultSorting={[{ id: "item", desc: false }]}
           selectedItem={selected?.item ?? null}
@@ -397,7 +397,7 @@ function FactoryPage() {
         <GoodsSection
           id="stock"
           title="Stock buffers"
-          hint="keep-on-hand goals — refill demand, not surplus to route"
+          hint="Keep-on-hand goals — refill demand, not surplus to route"
           rows={stockBuffers}
           defaultSorting={[{ id: "item", desc: false }]}
           selectedItem={selected?.item ?? null}
@@ -455,7 +455,7 @@ function ChangeReport({ data }: { data: ChangeReportData }) {
   if (data.affected === 0) {
     return (
       <Callout tone="success" className="mb-4">
-        all {data.total} block(s) up to date — no drift or missing recipes
+        All {data.total} block(s) up to date — no drift or missing recipes
       </Callout>
     );
   }
@@ -463,7 +463,7 @@ function ChangeReport({ data }: { data: ChangeReportData }) {
   return (
     <Card className="mb-4 border-warning/40">
       <CardHeader>
-        <CardTitle className="normal-case text-warning">
+        <CardTitle className="text-warning">
           {data.affected}/{data.total} blocks affected
         </CardTitle>
         <InfoHint content="Review the changes below, then “recompute all” (toolbar) to apply the fresh solves." />
@@ -486,21 +486,21 @@ function ChangeReport({ data }: { data: ChangeReportData }) {
                     : "border-transparent bg-warning/20 text-warning"
                 }
               >
-                {r.status}
+                {r.status === "broken" ? "Broken" : "Changed"}
               </Badge>
-              {r.stale && <span className="text-sm text-muted-foreground">stale data</span>}
+              {r.stale && <span className="text-sm text-muted-foreground">Stale data</span>}
             </div>
             {r.missingRecipes.length > 0 && (
               <div className="mt-0.5 text-destructive">
-                missing recipe: {r.missingRecipes.join(", ")}
+                Missing recipe: {r.missingRecipes.join(", ")}
               </div>
             )}
             {r.missingGoods.length > 0 && (
               <div className="mt-0.5 text-destructive">
-                missing good: {r.missingGoods.join(", ")}
+                Missing good: {r.missingGoods.join(", ")}
               </div>
             )}
-            {r.error && <div className="mt-0.5 text-destructive">solve error: {r.error}</div>}
+            {r.error && <div className="mt-0.5 text-destructive">Solve error: {r.error}</div>}
             {r.changes.length > 0 && (
               <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-muted-foreground">
                 {r.changes.map((c) => (
@@ -577,7 +577,7 @@ function ResourceDrawer({
     >
       <span className="min-w-0 flex-1 truncate">{b.blockName}</span>
       {b.role === "byproduct" && (
-        <Badge className="border-transparent bg-surplus/20 px-1 py-0 text-surplus">byproduct</Badge>
+        <Badge className="border-transparent bg-surplus/20 px-1 py-0 text-surplus">Byproduct</Badge>
       )}
       <span className="w-20 text-right text-muted-foreground">{num(b.rate)}/s</span>
     </Link>
@@ -629,10 +629,10 @@ function ResourceDrawer({
               size="sm"
               className="text-muted-foreground"
             >
-              <MapPin /> locate
+              <MapPin /> Locate
             </Button>
           </Tooltip>
-          <Tooltip label content="close">
+          <Tooltip label content="Close">
             <Button
               onClick={onClose}
               variant="ghost"
@@ -645,12 +645,12 @@ function ResourceDrawer({
         </div>
         {locate.data && !locate.data.sent && (
           <Callout tone="warning" variant="strip" className="border-b border-border">
-            game not connected — open Factorio with the PyOps bridge enabled
+            Game not connected — open Factorio with the PyOps bridge enabled
           </Callout>
         )}
         {locate.data?.sent && (
           <Callout tone="success" variant="strip" className="border-b border-border">
-            opened Factory Search in-game for {label}
+            Opened Factory Search in-game for {label}
           </Callout>
         )}
 
@@ -676,16 +676,16 @@ function ResourceDrawer({
           ) : (
             <>
               <List
-                title="produced by"
+                title="Produced by"
                 rows={detail.data?.producers ?? []}
                 emptyTitle="No producers"
-                empty="no block makes this — it's imported or a raw"
+                empty="No block makes this — it's imported or a raw"
               />
               <List
-                title="consumed by"
+                title="Consumed by"
                 rows={detail.data?.consumers ?? []}
                 emptyTitle="No consumers"
-                empty="no block imports this"
+                empty="No block imports this"
               />
             </>
           )}
@@ -697,19 +697,19 @@ function ResourceDrawer({
             disabled={creating}
             className="h-auto w-full py-2 font-semibold whitespace-normal"
           >
-            <Plus /> new block {sink ? "consuming" : "producing"} {label} @{" "}
+            <Plus /> New block {sink ? "consuming" : "producing"} {label} @{" "}
             {num(Math.abs(seedRate))}/s
           </Button>
           {sink ? (
             <div className="mt-1 text-center text-sm text-muted-foreground">
-              a sink for the {num(net)}/s surplus ({num(produced)} made − {num(consumed)} used) —
+              A sink for the {num(net)}/s surplus ({num(produced)} made − {num(consumed)} used) —
               opens consuming this good
             </div>
           ) : (
             net < -1e-6 &&
             produced > 1e-6 && (
               <div className="mt-1 text-center text-sm text-muted-foreground">
-                sized to the {num(-net)}/s shortfall ({num(consumed)} used − {num(produced)} made)
+                Sized to the {num(-net)}/s shortfall ({num(consumed)} used − {num(produced)} made)
               </div>
             )
           )}

@@ -38,17 +38,35 @@ appearance and interaction behavior.
 Geist Mono is the base application font. Manrope remains available through `font-sans`, but
 the product is deliberately monospace-forward.
 
-| Role                             | Classes                                                               | Rule                                                              |
-| -------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Page title                       | `text-lg font-semibold tracking-tight`                                | Exactly one, through `PageHeader`                                 |
-| Card or section title            | `text-sm font-semibold tracking-wide uppercase text-muted-foreground` | Prefer `CardTitle`                                                |
-| Body, controls, labels, and data | `text-sm`                                                             | Minimum readable size                                             |
-| Fine print                       | `text-xs`                                                             | Timestamps, units, key hints, and truly supplementary detail only |
+| Role                             | Classes                                                     | Rule                                                              |
+| -------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------- |
+| Page title                       | `text-lg font-semibold tracking-tight`                      | Exactly one, through `PageHeader`                                 |
+| Card or section title            | `text-sm font-semibold tracking-wide text-muted-foreground` | Sentence case, through `CardTitle`                                |
+| Body, controls, labels, and data | `text-sm`                                                   | Minimum readable size                                             |
+| Fine print                       | `text-xs`                                                   | Timestamps, units, key hints, and truly supplementary detail only |
 
 If removing a line would hide primary information, it is not fine print.
 
 Inputs and textareas render at `text-base` on narrow screens to prevent iOS focus zoom, then
 use `md:text-sm` at desktop widths.
+
+### Content and casing
+
+Author interface copy in sentence case. Page, card, dialog, and sheet titles; buttons;
+menu items; tabs; table headers; statuses; badges; placeholders; tooltips; and accessible
+names capitalize the first word without capitalizing every major word. For example, use
+`Copy blueprint`, `Data stale`, and `Produced/s`, not `Copy Blueprint`, `data stale`, or
+`produced/s`.
+
+`FieldLabel` is the deliberate exception: it renders a small structural eyebrow in all
+caps. Its source copy still uses sentence case. Conventional units and notation (`/s`,
+`MW`, `MJ`), acronyms and product names (`TURD`, `AI`, `OpenRouter`), localized Factorio
+names, internal-name fallbacks, and user-entered names keep their own casing.
+
+Do not use CSS `capitalize`, title-case helpers, or case transforms on dynamic content.
+They corrupt acronyms, localization, and user input. Choose the correct fixed copy at the
+call site, and keep working surfaces concise rather than adding labels solely to explain a
+control.
 
 ### Color
 

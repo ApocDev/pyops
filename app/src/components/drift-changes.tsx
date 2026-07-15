@@ -31,13 +31,13 @@ export function DriftChanges({ drift }: { drift: ModDrift | null }) {
   if (!drift) return null;
   const simple = [
     {
-      label: "added",
+      label: "Added",
       tone: "text-success",
       names: drift.added.map((m) => `${m.name} ${m.version ?? ""}`.trim()),
     },
-    { label: "removed", tone: "text-destructive", names: drift.removed.map((m) => m.name) },
-    { label: "enabled", tone: "text-success", names: drift.enabled },
-    { label: "disabled", tone: "text-warning", names: drift.disabled },
+    { label: "Removed", tone: "text-destructive", names: drift.removed.map((m) => m.name) },
+    { label: "Enabled", tone: "text-success", names: drift.enabled },
+    { label: "Disabled", tone: "text-warning", names: drift.disabled },
   ].filter((r) => r.names.length > 0);
 
   if (simple.length === 0 && drift.versionChanged.length === 0) return null;
@@ -54,12 +54,12 @@ export function DriftChanges({ drift }: { drift: ModDrift | null }) {
         </Row>
       ))}
       {drift.versionChanged.length > 0 && (
-        <Row label="updated" tone="text-info" count={drift.versionChanged.length}>
+        <Row label="Updated" tone="text-info" count={drift.versionChanged.length}>
           {drift.versionChanged.map((v) => (
             <span key={v.name} className={`inline-flex items-center gap-1 ${chip}`}>
               {v.name}
               <span className="text-muted-foreground">{v.from ?? "—"}</span>
-              <ArrowRight className="size-3 shrink-0 text-muted-foreground" aria-label="to" />
+              <ArrowRight className="size-3 shrink-0 text-muted-foreground" aria-label="To" />
               <span className="text-foreground">{v.to ?? "—"}</span>
             </span>
           ))}

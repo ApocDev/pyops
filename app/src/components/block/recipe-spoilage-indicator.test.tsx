@@ -14,7 +14,7 @@ describe("RecipeSpoilageIndicator", () => {
       />,
     );
 
-    const indicator = getByLabelText("has spoilable products");
+    const indicator = getByLabelText("Has spoilable products");
     expect(indicator.textContent).toBe("");
     expect(indicator.getAttribute("data-state")).toBeNull();
   });
@@ -31,7 +31,7 @@ describe("RecipeSpoilageIndicator", () => {
       />,
     );
 
-    const indicator = getByLabelText("has spoilable products");
+    const indicator = getByLabelText("Has spoilable products");
     expect(indicator.querySelectorAll("svg")).toHaveLength(1);
   });
 

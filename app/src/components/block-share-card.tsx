@@ -63,10 +63,10 @@ export function BlockShareCard() {
               variant="outline"
               onClick={() => exportPlan.mutate()}
               disabled={exportPlan.isPending || count === 0}
-              title={count === 0 ? "no blocks to export yet" : undefined}
+              title={count === 0 ? "No blocks to export yet" : undefined}
             >
               <Download className="size-4" />
-              {exportPlan.isPending ? "exporting…" : `Export all blocks (${count})`}
+              {exportPlan.isPending ? "Exporting…" : `Export all blocks (${count})`}
             </Button>
             <Button
               variant="outline"
@@ -74,7 +74,7 @@ export function BlockShareCard() {
               disabled={importFile.isPending}
             >
               <Upload className="size-4" />
-              {importFile.isPending ? "importing…" : "Import block/plan JSON…"}
+              {importFile.isPending ? "Importing…" : "Import block/plan JSON…"}
             </Button>
             <input
               ref={fileInput}
@@ -98,15 +98,15 @@ export function BlockShareCard() {
           </p>
         )}
         {exportPlan.isError && (
-          <p className="text-sm text-destructive">export failed: {exportPlan.error.message}</p>
+          <p className="text-sm text-destructive">Export failed: {exportPlan.error.message}</p>
         )}
         {importFile.isError && (
-          <p className="text-sm text-destructive">import failed: {importFile.error.message}</p>
+          <p className="text-sm text-destructive">Import failed: {importFile.error.message}</p>
         )}
         {result && (
           <div className="space-y-1 border border-border bg-muted/20 p-2 text-sm">
             <div className="text-success">
-              imported {result.blocks.length} block{result.blocks.length === 1 ? "" : "s"}
+              Imported {result.blocks.length} block{result.blocks.length === 1 ? "" : "s"}
               {result.groupsCreated > 0 &&
                 ` · ${result.groupsCreated} folder${result.groupsCreated === 1 ? "" : "s"}`}
             </div>
@@ -125,15 +125,15 @@ export function BlockShareCard() {
                       // missing refs have no display name here by definition —
                       // the internal name is all the target data knows
                       b.missing.recipes.length
-                        ? `missing recipes: ${b.missing.recipes.join(", ")}`
+                        ? `Missing recipes: ${b.missing.recipes.join(", ")}`
                         : "",
-                      b.missing.goods.length ? `missing goods: ${b.missing.goods.join(", ")}` : "",
+                      b.missing.goods.length ? `Missing goods: ${b.missing.goods.join(", ")}` : "",
                     ]
                       .filter(Boolean)
                       .join(" · ")}
                   >
                     <Badge variant="destructive">
-                      missing {b.missing.recipes.length + b.missing.goods.length} reference
+                      Missing {b.missing.recipes.length + b.missing.goods.length} reference
                       {b.missing.recipes.length + b.missing.goods.length === 1 ? "" : "s"}
                     </Badge>
                   </Tooltip>

@@ -82,18 +82,18 @@ export function BlockFlowView({
   return (
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
-        <span className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+        <span className="text-sm font-semibold tracking-wide text-muted-foreground">
           Material flow
         </span>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-          <LegendDot className="bg-warning" label="import" />
-          <LegendDot className="bg-info" label="output" />
-          <LegendDot className="bg-surplus" label="byproduct" />
+          <LegendDot className="bg-warning" label="Import" />
+          <LegendDot className="bg-info" label="Output" />
+          <LegendDot className="bg-surplus" label="Byproduct" />
           <span className="flex items-center gap-1">
             <svg width="22" height="8" aria-hidden className="text-muted-foreground/60">
               <path d="M0 4 H22" stroke="currentColor" strokeWidth="2" strokeDasharray="4 3" />
             </svg>
-            recycle loop
+            Recycle loop
           </span>
         </div>
       </div>

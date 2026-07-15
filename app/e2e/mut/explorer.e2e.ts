@@ -28,7 +28,7 @@ test("explorer ranks producers/consumers by availability and filters them", asyn
   // recompute — run it so the ranked annotations below are real
   const stale = page.getByText(/hasn't been computed/);
   if (await stale.isVisible()) {
-    await page.getByRole("button", { name: "compute now" }).click();
+    await page.getByRole("button", { name: "Compute now" }).click();
     await expect(stale).toBeHidden({ timeout: 200_000 });
   }
 
@@ -41,15 +41,15 @@ test("explorer ranks producers/consumers by availability and filters them", asyn
   const consumers = Number(/\((\d+)\)/.exec((await consumed.textContent()) ?? "")?.[1] ?? 0);
   if (consumers > 25) {
     const consumedCard = consumed.locator('xpath=ancestor::*[@data-slot="card"]');
-    await expect(consumedCard.getByRole("button", { name: /^show all \d+…$/ })).toBeVisible();
+    await expect(consumedCard.getByRole("button", { name: /^Show all \d+…$/ })).toBeVisible();
   }
 
   // the shared recipe filter (#87) narrows both lists and offers the standard
   // no-matches state per list
-  const input = page.getByPlaceholder("filter recipes…");
+  const input = page.getByPlaceholder("Filter recipes…");
   await input.fill(NONSENSE);
   await expect(page.getByText(`No matches for "${NONSENSE}"`).first()).toBeVisible();
-  await page.getByRole("button", { name: "clear filter" }).first().click();
+  await page.getByRole("button", { name: "Clear filter" }).first().click();
   await expect(input).toHaveValue("");
   await expect(page.getByText("Available now").first()).toBeVisible();
 });

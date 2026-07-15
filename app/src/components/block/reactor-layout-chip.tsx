@@ -31,7 +31,7 @@ export function ReactorLayoutChip({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          title={`reactor farm ${fmtReactorLayout(reactor.layout)} — each adjacent working reactor adds +${pct}% heat, so this layout averages ×${num(reactor.multiplier)} heat per reactor (fuel stays per-reactor) · click to change the layout`}
+          title={`Reactor farm ${fmtReactorLayout(reactor.layout)} — each adjacent working reactor adds +${pct}% heat, so this layout averages ×${num(reactor.multiplier)} heat per reactor (fuel stays per-reactor) · click to change the layout`}
           className={`${cellChip} text-warning`}
         >
           <LayoutGrid className="size-3.5" />

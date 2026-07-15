@@ -54,13 +54,13 @@ export function CompanionModCard() {
   const busy = install.isPending || remove.isPending;
 
   const badge = !s ? null : !s.installed ? (
-    <Badge variant="outline">not installed</Badge>
+    <Badge variant="outline">Not installed</Badge>
   ) : s.upToDate ? (
     <Badge className="border-transparent bg-success/15 text-success">
-      {s.method === "symlink" ? "linked" : "copied"}
+      {s.method === "symlink" ? "Linked" : "Copied"}
     </Badge>
   ) : (
-    <Badge variant="destructive">{s.method === "symlink" ? "broken link" : "out of date"}</Badge>
+    <Badge variant="destructive">{s.method === "symlink" ? "Broken link" : "Out of date"}</Badge>
   );
 
   const symlinkLabel = s?.installed && s.method === "symlink" ? "Re-link" : "Symlink";
@@ -106,7 +106,7 @@ export function CompanionModCard() {
 
         {s && (
           <div className="text-sm text-muted-foreground">
-            mods folder: <span className="font-mono text-foreground">{s.modsDir}</span>
+            Mods folder: <span className="font-mono text-foreground">{s.modsDir}</span>
           </div>
         )}
 
@@ -148,7 +148,7 @@ export function CompanionModCard() {
             }
           >
             {install.isPending && install.variables === "symlink"
-              ? "linking…"
+              ? "Linking…"
               : `${symlinkLabel} (recommended)`}
           </Button>
           <Button
@@ -157,7 +157,7 @@ export function CompanionModCard() {
             disabled={busy}
             title="Copy mod/ into the mods folder (a snapshot; re-copy after updates)"
           >
-            {install.isPending && install.variables === "copy" ? "copying…" : copyLabel}
+            {install.isPending && install.variables === "copy" ? "Copying…" : copyLabel}
           </Button>
           {s?.installed && (
             <Button
@@ -166,7 +166,7 @@ export function CompanionModCard() {
               disabled={busy}
               className="text-muted-foreground hover:text-destructive"
             >
-              {remove.isPending ? "removing…" : "Remove"}
+              {remove.isPending ? "Removing…" : "Remove"}
             </Button>
           )}
           <ConfirmDialog

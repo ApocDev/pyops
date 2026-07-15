@@ -162,12 +162,12 @@ export function GoalCard({
                         } ${isDragging ? "shadow-lg ring-2 ring-primary" : ""}`}
                       >
                         {/* drag · move-to-front (not on the first goal) · remove — on hover */}
-                        <Tooltip content="drag to reorder goals">
+                        <Tooltip content="Drag to reorder goals">
                           <button
                             ref={setActivatorNodeRef}
                             {...attributes}
                             {...listeners}
-                            aria-label={`drag to reorder ${res?.display?.[g] ?? g}`}
+                            aria-label={`Drag to reorder ${res?.display?.[g] ?? g}`}
                             className="absolute -top-2 -left-1.5 flex size-5 touch-none items-center justify-center bg-background text-muted-foreground opacity-0 shadow ring-1 ring-border group-hover:opacity-100 focus:opacity-100 active:cursor-grabbing"
                           >
                             <GripVertical className="size-3" />
@@ -177,7 +177,7 @@ export function GoalCard({
                           {!isFirst && (
                             <button
                               onClick={() => doc.makePrimary(g)}
-                              aria-label="move to front — name the block after this goal"
+                              aria-label="Move to front — name the block after this goal"
                               className="flex size-5 items-center justify-center bg-background text-info shadow ring-1 ring-border hover:brightness-125"
                             >
                               <Star className="size-3" />
@@ -189,7 +189,7 @@ export function GoalCard({
                               // label the save for the undo stack (#90)
                               doc.note(`Remove goal "${res?.display?.[g] ?? g}"`);
                             }}
-                            aria-label="remove this goal"
+                            aria-label="Remove this goal"
                             className="flex size-5 items-center justify-center bg-background text-muted-foreground shadow ring-1 ring-border hover:text-destructive"
                           >
                             <X className="size-3" />
@@ -204,13 +204,13 @@ export function GoalCard({
                             if (consumes) onUseFor(g);
                             else onMakeFor(g);
                           }}
-                          aria-label={`add a recipe that ${consumes ? "consumes" : "makes"} ${res?.display?.[g] ?? g}`}
+                          aria-label={`Add a recipe that ${consumes ? "consumes" : "makes"} ${res?.display?.[g] ?? g}`}
                         >
                           <Icon kind={kind} name={g} size="lg" extraText={extraText} />
                         </button>
                         {goalMissing ? (
                           <span className="flex items-center gap-0.5 text-sm font-semibold text-destructive">
-                            <AlertTriangle className="size-3" /> gone
+                            <AlertTriangle className="size-3" /> Gone
                           </span>
                         ) : goal.stock != null ? (
                           <span className="text-sm">
@@ -247,7 +247,7 @@ export function GoalCard({
                         )}
                         {goalUnmade && (
                           <span className="flex items-center gap-0.5 text-sm font-semibold text-warning">
-                            <AlertTriangle className="size-3" /> no recipe
+                            <AlertTriangle className="size-3" /> No recipe
                           </span>
                         )}
                         {/* Rates near the solver's noise floor (flows under 1e-6/s read as
@@ -257,9 +257,9 @@ export function GoalCard({
                           goal.stock == null &&
                           goal.rate !== 0 &&
                           Math.abs(goal.rate) < 1e-4 && (
-                            <Tooltip content="rates this small can fall below the solver's noise floor — flows may read as zero. If the intent is 'just make/keep some', a keep-in-stock goal (planned) will express that better than a tiny rate.">
+                            <Tooltip content="Rates this small can fall below the solver's noise floor — flows may read as zero. If the intent is 'just make/keep some', a keep-in-stock goal (planned) will express that better than a tiny rate.">
                               <span className="flex cursor-help items-center gap-0.5 text-sm font-semibold text-warning">
-                                <AlertTriangle className="size-3" /> very low rate
+                                <AlertTriangle className="size-3" /> Very low rate
                               </span>
                             </Tooltip>
                           )}
@@ -302,11 +302,11 @@ export function GoalCard({
             {/* add a goal */}
             <button
               onClick={onOpenGoalPicker}
-              title="add a goal product"
+              title="Add a goal product"
               className="flex min-w-16 flex-col items-center justify-center gap-0.5 border border-dashed border-border px-2 py-1 text-muted-foreground hover:text-foreground"
             >
               <Plus className="size-6" />
-              <span className="text-sm">goal</span>
+              <span className="text-sm">Goal</span>
             </button>
           </div>
         </DndContext>
@@ -316,9 +316,9 @@ export function GoalCard({
           </div>
         )}
         {lockedInput && (
-          <Tooltip content="edit the locked rate in Imports, or unlock it there">
+          <Tooltip content="Edit the locked rate in Imports, or unlock it there">
             <div className="flex items-center gap-1 text-sm text-info">
-              <Lock className="size-3 shrink-0" /> sized by input
+              <Lock className="size-3 shrink-0" /> Sized by input
             </div>
           </Tooltip>
         )}

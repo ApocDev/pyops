@@ -179,15 +179,15 @@ export function RecipeGrid({
         <span>Recipe ({recipes.length})</span>
         <span>Machines</span>
         <span className="flex items-center gap-1.5">
-          Ingredients ↓<InfoHint content="click an ingredient to add a producer" />
+          Ingredients ↓<InfoHint content="Click an ingredient to add a producer" />
         </span>
         <span className="flex items-center gap-1.5">
-          Products ↑<InfoHint content="click a product to add a consumer" />
+          Products ↑<InfoHint content="Click a product to add a consumer" />
         </span>
       </div>
       {recipes.length === 0 && (
         <div className="px-3 py-2 text-muted-foreground">
-          none — pick a recipe for the goal above
+          None — pick a recipe for the goal above
         </div>
       )}
       <DndContext

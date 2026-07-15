@@ -26,9 +26,9 @@ export function OutputPriorityOverride({
   return (
     <Tooltip content="Advanced per-output override. Clear it to inherit the block priority.">
       <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-        output
+        Output
         <Input
-          aria-label="output supply priority override"
+          aria-label="Output supply priority override"
           type="number"
           step="1"
           placeholder={String(inherited)}
@@ -40,7 +40,7 @@ export function OutputPriorityOverride({
         />
         {value != null && (
           <Button variant="ghost" size="xs" onClick={() => onChange(null)}>
-            inherit
+            Inherit
           </Button>
         )}
       </span>

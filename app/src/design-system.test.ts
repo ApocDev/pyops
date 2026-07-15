@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 
 /**
  * Mechanical enforcement of docs/development/design.md (issue #103): raw palette classes,
@@ -42,6 +43,142 @@ function violations(pattern: RegExp, opts?: { tsxOnly?: boolean; inStrings?: boo
   return out;
 }
 
+const CASED_ELEMENTS = new Set([
+  "AlertDialogTitle",
+  "Badge",
+  "Button",
+  "CardTitle",
+  "Callout",
+  "ContextMenuItem",
+  "DialogTitle",
+  "DropdownMenuItem",
+  "FieldLabel",
+  "SelectItem",
+  "SheetTitle",
+  "TabsTrigger",
+  "button",
+]);
+const CASED_ATTRIBUTES = new Set([
+  "aria-label",
+  "content",
+  "description",
+  "empty",
+  "emptyText",
+  "extraText",
+  "hint",
+  "label",
+  "placeholder",
+  "prompt",
+  "title",
+]);
+
+function startsLowercase(value: string): boolean {
+  const text = value.trim();
+  return /^[a-z]/.test(text) && !text.startsWith("e.g.");
+}
+
+function lowercaseStaticStarts(node: ts.Expression): { node: ts.Node; value: string }[] {
+  if (ts.isStringLiteralLike(node)) {
+    return startsLowercase(node.text) ? [{ node, value: node.text }] : [];
+  }
+  if (ts.isTemplateExpression(node)) {
+    return startsLowercase(node.head.text) ? [{ node, value: node.head.text }] : [];
+  }
+  if (ts.isParenthesizedExpression(node)) return lowercaseStaticStarts(node.expression);
+  if (ts.isConditionalExpression(node)) {
+    return [...lowercaseStaticStarts(node.whenTrue), ...lowercaseStaticStarts(node.whenFalse)];
+  }
+  return [];
+}
+
+/** High-signal static copy only. Dynamic/localized content and sentence fragments mixed
+ * with expressions are deliberately outside this guard. */
+function casingViolations(): string[] {
+  const out: string[] = [];
+  for (const f of files) {
+    if (!f.endsWith(".tsx") || f.endsWith(".test.tsx")) continue;
+    const sourceText = readFileSync(join(SRC, f), "utf8");
+    const source = ts.createSourceFile(
+      f,
+      sourceText,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX,
+    );
+    const report = (node: ts.Node, value: string) => {
+      const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+      out.push(`${f}:${line}:${value.trim()}`);
+    };
+    const visit = (node: ts.Node) => {
+      if (
+        ts.isJsxAttribute(node) &&
+        CASED_ATTRIBUTES.has(node.name.getText(source)) &&
+        node.initializer &&
+        ts.isStringLiteral(node.initializer) &&
+        startsLowercase(node.initializer.text)
+      ) {
+        report(node, node.initializer.text);
+      }
+      if (
+        ts.isJsxAttribute(node) &&
+        CASED_ATTRIBUTES.has(node.name.getText(source)) &&
+        node.initializer &&
+        ts.isJsxExpression(node.initializer) &&
+        node.initializer.expression
+      ) {
+        for (const hit of lowercaseStaticStarts(node.initializer.expression)) {
+          report(hit.node, hit.value);
+        }
+      }
+
+      if (
+        ts.isPropertyAssignment(node) &&
+        ts.isIdentifier(node.name) &&
+        [
+          "description",
+          "empty",
+          "header",
+          "hint",
+          "label",
+          "message",
+          "prompt",
+          "text",
+          "title",
+        ].includes(node.name.text) &&
+        ts.isStringLiteralLike(node.initializer) &&
+        startsLowercase(node.initializer.text)
+      ) {
+        report(node, node.initializer.text);
+      }
+
+      if (ts.isJsxElement(node)) {
+        const tag = node.openingElement.tagName.getText(source);
+        const meaningful = node.children.filter(
+          (child) => !ts.isJsxText(child) || child.text.trim().length > 0,
+        );
+        if (CASED_ELEMENTS.has(tag) && meaningful.length > 0 && meaningful.every(ts.isJsxText)) {
+          const text = meaningful.map((child) => child.text).join(" ");
+          if (startsLowercase(text)) report(node, text);
+        }
+        if (
+          CASED_ELEMENTS.has(tag) &&
+          meaningful[0] &&
+          ts.isJsxExpression(meaningful[0]) &&
+          meaningful[0].expression
+        ) {
+          for (const hit of lowercaseStaticStarts(meaningful[0].expression)) {
+            report(hit.node, hit.value);
+          }
+        }
+      }
+
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+  }
+  return out;
+}
+
 describe("design system (docs/development/design.md)", () => {
   it("uses semantic tokens, not raw Tailwind palette classes", () => {
     expect(
@@ -67,5 +204,21 @@ describe("design system (docs/development/design.md)", () => {
 
   it("stays on the type scale — no arbitrary text sizes", () => {
     expect(violations(/\btext-\[\d+(?:\.\d+)?(?:px|rem)\]/)).toEqual([]);
+  });
+
+  it("authors static interface copy in sentence case", () => {
+    expect(casingViolations()).toEqual([]);
+  });
+
+  it("keeps card titles sentence-cased without local transform overrides", () => {
+    expect(violations(/<CardTitle[^>]*\bnormal-case\b/, { tsxOnly: true })).toEqual([]);
+  });
+
+  it("keeps CSS casing transforms inside the FieldLabel primitive", () => {
+    expect(
+      violations(/\b(?:uppercase|lowercase|capitalize|normal-case)\b/, { inStrings: true }).filter(
+        (hit) => !hit.startsWith("components/ui/label.tsx:"),
+      ),
+    ).toEqual([]);
   });
 });

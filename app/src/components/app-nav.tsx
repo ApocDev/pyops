@@ -28,7 +28,7 @@ function DataDriftIndicator() {
         className="h-full gap-1.5 px-3 font-normal text-warning hover:bg-muted/50 hover:text-warning"
       >
         <span className="inline-block size-2 rounded-full bg-warning" />
-        <span className="hidden sm:inline">data stale</span>
+        <span className="hidden sm:inline">Data stale</span>
       </Button>
     </Tooltip>
   );
@@ -40,7 +40,7 @@ function RunIndicator() {
   const n = useSyncExternalStore(subscribeRuns, activeRunCount, () => 0);
   if (n === 0) return null;
   return (
-    <Tooltip content="assistant runs in progress">
+    <Tooltip content="Assistant runs in progress">
       <Link
         to="/assistant"
         className="flex items-center gap-1.5 px-3 text-sm text-primary hover:bg-muted/50"

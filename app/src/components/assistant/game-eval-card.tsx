@@ -38,10 +38,10 @@ export function GameEvalCard({
     setStatus("running");
     try {
       const r = await bridgeEvalFn({ data: { code: proposal.code } });
-      setOutput(r.ok ? (r.result ?? "(no result)") : (r.error ?? "eval failed"));
+      setOutput(r.ok ? (r.result ?? "(No result)") : (r.error ?? "Eval failed"));
       setStatus(r.ok ? "done" : "failed");
     } catch {
-      setOutput("bridge error");
+      setOutput("Bridge error");
       setStatus("failed");
     }
   };
@@ -81,16 +81,16 @@ export function GameEvalCard({
           )}
           {status === "running" && (
             <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Loader2 className="size-3.5 animate-spin" /> running…
+              <Loader2 className="size-3.5 animate-spin" /> Running…
             </span>
           )}
           {status === "done" && (
             <span className="inline-flex items-center gap-1 text-sm text-success">
-              <Check className="size-3.5" /> ran
+              <Check className="size-3.5" /> Ran
             </span>
           )}
           {status === "dismissed" && (
-            <span className="text-sm text-muted-foreground">dismissed</span>
+            <span className="text-sm text-muted-foreground">Dismissed</span>
           )}
         </div>
       </div>
@@ -103,11 +103,11 @@ export function GameEvalCard({
       {output != null && (
         <div className="mt-2">
           <div
-            className={`text-xs tracking-wide uppercase ${
+            className={`text-xs tracking-wide ${
               status === "failed" ? "text-destructive" : "text-muted-foreground"
             }`}
           >
-            {status === "failed" ? "error" : "result"}
+            {status === "failed" ? "Error" : "Result"}
           </div>
           <pre className="mt-1 max-h-60 overflow-auto bg-background p-2 text-sm leading-snug">
             {output}
@@ -123,7 +123,7 @@ export function GameEvalCard({
             >
               {shared ? (
                 <>
-                  <Check className="size-3.5" /> shared
+                  <Check className="size-3.5" /> Shared
                 </>
               ) : (
                 "Share result with assistant"

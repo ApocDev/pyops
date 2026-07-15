@@ -41,6 +41,11 @@ const ROLE_STYLE: Record<SushiPlannerFlow["role"], string> = {
   out: "bg-surplus/15 text-surplus",
   int: "bg-success/15 text-success",
 };
+const ROLE_LABEL: Record<SushiPlannerFlow["role"], string> = {
+  in: "IN",
+  out: "OUT",
+  int: "INT",
+};
 
 const TILES_KEY = "pyops.sushiTiles";
 const DEFAULT_TILES = 100;
@@ -49,19 +54,19 @@ const VERDICT_COPY: Record<
   NonNullable<ReturnType<typeof planSushi>>["verdict"],
   { tone: "success" | "info" | "warning" | "destructive"; text: string }
 > = {
-  comfortable: { tone: "success", text: "comfortable — one loop carries this with headroom" },
-  tight: { tone: "info", text: "workable — the loop runs busy; keep insertion circuit-limited" },
+  comfortable: { tone: "success", text: "Comfortable — one loop carries this with headroom" },
+  tight: { tone: "info", text: "Workable — the loop runs busy; keep insertion circuit-limited" },
   fragile: {
     tone: "warning",
-    text: "fragile — near belt capacity, little room for gaps; a faster belt or fewer items would help",
+    text: "Fragile — near belt capacity, little room for gaps; a faster belt or fewer items would help",
   },
   "over-capacity": {
     tone: "destructive",
-    text: "over capacity — the summed flow exceeds one belt; split items off or upgrade the belt",
+    text: "Over capacity — the summed flow exceeds one belt; split items off or upgrade the belt",
   },
   "loop-too-small": {
     tone: "destructive",
-    text: "loop too small — the per-item set-points don't physically fit; lengthen the loop",
+    text: "Loop too small — the per-item set-points don't physically fit; lengthen the loop",
   },
 };
 
@@ -179,7 +184,7 @@ export function SushiPlanner({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="xs" className="text-muted-foreground">
-          <Waves className="size-3.5" /> sushi
+          <Waves className="size-3.5" /> Sushi
         </Button>
       </DialogTrigger>
       <DialogContent className="md:max-w-[42rem]">
@@ -248,14 +253,14 @@ export function SushiPlanner({
         <DialogBody>
           <section className="flex flex-wrap items-end gap-x-4 gap-y-2">
             <div className="space-y-1.5">
-              <FieldLabel>loop length</FieldLabel>
+              <FieldLabel>Loop length</FieldLabel>
               <div className="flex items-center gap-2">
                 <Input
                   type="number"
                   min={1}
                   step={10}
                   value={tiles}
-                  aria-label="loop length in belt tiles"
+                  aria-label="Loop length in belt tiles"
                   onChange={(e) => {
                     const n = Number(e.target.value);
                     if (Number.isFinite(n) && n > 0) setTilesPersisted(n);
@@ -265,14 +270,14 @@ export function SushiPlanner({
                 <span className="text-sm text-muted-foreground">tiles</span>
                 {trace && trace.tiles !== tiles && (
                   <Tooltip
-                    content={`traced in-game (ALT+B): ${trace.tiles} tiles, ${trace.segments} segment(s)${trace.closed ? "" : " — not a closed loop"} — click to use`}
+                    content={`Traced in-game (ALT+B): ${trace.tiles} tiles, ${trace.segments} segment(s)${trace.closed ? "" : " — not a closed loop"} — click to use`}
                   >
                     <Button
                       variant="outline"
                       size="xs"
                       onClick={() => setTilesPersisted(trace.tiles)}
                     >
-                      <Gamepad2 className="size-3" /> measured {trace.tiles}
+                      <Gamepad2 className="size-3" /> Measured {trace.tiles}
                     </Button>
                   </Tooltip>
                 )}
@@ -280,7 +285,7 @@ export function SushiPlanner({
             </div>
             {plan && (
               <div className="pb-1 text-sm text-muted-foreground">
-                lap ≈ {fmtCount(plan.lapSeconds)} s · {plan.onBeltTotal}/{plan.slots} slots ·{" "}
+                Lap ≈ {fmtCount(plan.lapSeconds)} s · {plan.onBeltTotal}/{plan.slots} slots ·{" "}
                 <span className="inline-flex items-center gap-1 align-bottom">
                   <Icon kind="entity" name={resolved.belt?.name ?? ""} size="sm" noHover />
                   {Math.round(plan.utilization * 100)}%
@@ -303,12 +308,12 @@ export function SushiPlanner({
           {plan && (
             <section className="space-y-1">
               <StatTableHeader
-                lead="item (untick to keep off the loop)"
+                lead="Item (untick to keep off the loop)"
                 cols={[
                   { label: "/s", w: "w-16" },
-                  { label: "share", w: "w-14" },
-                  { label: "on belt", w: "w-16" },
-                  { label: "seen every", w: "w-20" },
+                  { label: "Share", w: "w-14" },
+                  { label: "On belt", w: "w-16" },
+                  { label: "Seen every", w: "w-20" },
                 ]}
                 className="px-0"
               />
@@ -326,17 +331,17 @@ export function SushiPlanner({
                       <span className="truncate text-sm" title={f.display ?? f.name}>
                         {f.display ?? f.name}
                       </span>
-                      <span className={`px-1 text-xs uppercase ${ROLE_STYLE[f.role]}`}>
-                        {f.role}
+                      <span className={`px-1 text-xs ${ROLE_STYLE[f.role]}`}>
+                        {ROLE_LABEL[f.role]}
                       </span>
                       {row?.dominant && (
-                        <Tooltip content="over half the loop — a dedicated belt or lane likely serves it better; untick it to see the loop without it">
+                        <Tooltip content="Over half the loop — a dedicated belt or lane likely serves it better; untick it to see the loop without it">
                           <Crown className="size-3.5 shrink-0 text-warning" />
                         </Tooltip>
                       )}
                       {row?.spoilRisk && (
                         <Tooltip
-                          content={`rides the loop ≈${fmtCount(row.dwellSeconds)} s of its ${fmtSpoilTime(spoilTicks[f.name])} spoil time — shorten the loop or keep it off`}
+                          content={`Rides the loop ≈${fmtCount(row.dwellSeconds)} s of its ${fmtSpoilTime(spoilTicks[f.name])} spoil time — shorten the loop or keep it off`}
                         >
                           <Timer className="size-3.5 shrink-0 text-destructive" />
                         </Tooltip>
@@ -350,7 +355,7 @@ export function SushiPlanner({
                       <span className="md:w-16">{row ? row.onBelt : "—"}</span>
                       <span
                         className={`md:w-20 ${row?.sparse ? "text-warning" : "text-muted-foreground"}`}
-                        title={row?.sparse ? "sparse — passes a consumer rarely" : undefined}
+                        title={row?.sparse ? "Sparse — passes a consumer rarely" : undefined}
                       >
                         {row ? `${fmtCount(row.seenEverySeconds)} s` : "—"}
                       </span>
@@ -366,8 +371,8 @@ export function SushiPlanner({
               <Tooltip
                 content={
                   connected
-                    ? "put the set-point combinator on your cursor in game"
-                    : "needs the companion mod connected (Live bridge)"
+                    ? "Put the set-point combinator on your cursor in game"
+                    : "Needs the companion mod connected (Live bridge)"
                 }
               >
                 <Button
@@ -376,17 +381,17 @@ export function SushiPlanner({
                   disabled={!connected || sendToGame.isPending}
                 >
                   <Gamepad2 className="size-3.5" />
-                  {sendToGame.isPending ? "sending…" : "to cursor in game"}
+                  {sendToGame.isPending ? "Sending…" : "To cursor in game"}
                 </Button>
               </Tooltip>
-              <Tooltip content="the same combinator as an importable blueprint string — no mod needed">
+              <Tooltip content="The same combinator as an importable blueprint string — no mod needed">
                 <Button variant="outline" size="sm" onClick={() => void copyBlueprint()}>
-                  <ClipboardCopy className="size-3.5" /> copy blueprint
+                  <ClipboardCopy className="size-3.5" /> Copy blueprint
                 </Button>
               </Tooltip>
-              <Tooltip content='plain text, one "item: count on loop" per line'>
+              <Tooltip content='Plain text, one "item: count on loop" per line'>
                 <Button variant="outline" size="sm" onClick={copySetPoints}>
-                  copy as text
+                  Copy as text
                 </Button>
               </Tooltip>
             </section>

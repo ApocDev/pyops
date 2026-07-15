@@ -6,7 +6,7 @@ test("recipe picker ranks unlocked recipes before cheaper future tiers", async (
   await addGoal(page, "seaweed", "Seaweed");
   await setPlanningHorizon(page, "Future");
 
-  await page.locator('button[aria-label^="add a recipe that makes "]').click();
+  await page.locator('button[aria-label^="Add a recipe that makes "]').click();
   const picker = page.getByRole("dialog", { name: "Recipes that make Seaweed" });
   const candidates = picker.locator("[data-recipe-candidate]");
 

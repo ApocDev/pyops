@@ -48,19 +48,19 @@ const openMenu = (trigger: Element) => fireEvent.pointerDown(trigger);
 describe("ProjectSwitcher", () => {
   it("labels the trigger with the active project", async () => {
     const { findByTitle } = render(<ProjectSwitcher />);
-    expect(await findByTitle(/project: Default/)).toBeTruthy();
+    expect(await findByTitle(/Project: Default/)).toBeTruthy();
   });
 
   it("opens a dropdown listing every project plus a create action", async () => {
     const { findByTitle, getByText } = render(<ProjectSwitcher />);
-    openMenu(await findByTitle(/project: Default/));
+    openMenu(await findByTitle(/Project: Default/));
     expect(getByText("Py Run")).toBeTruthy();
-    expect(getByText("+ new project…")).toBeTruthy();
+    expect(getByText("+ New project…")).toBeTruthy();
   });
 
   it("switches project then reloads (queries belong to the old db)", async () => {
     const { findByTitle, getByText } = render(<ProjectSwitcher />);
-    openMenu(await findByTitle(/project: Default/));
+    openMenu(await findByTitle(/Project: Default/));
     fireEvent.click(getByText("Py Run"));
     await waitFor(() => expect(setActive).toHaveBeenCalledWith({ data: "py" }));
     await waitFor(() => expect(location.reload).toHaveBeenCalled());
@@ -68,8 +68,8 @@ describe("ProjectSwitcher", () => {
 
   it("creates a project through the dialog and routes to the sync page", async () => {
     const { findByTitle, getByText, getByLabelText } = render(<ProjectSwitcher />);
-    openMenu(await findByTitle(/project: Default/));
-    fireEvent.click(getByText("+ new project…"));
+    openMenu(await findByTitle(/Project: Default/));
+    fireEvent.click(getByText("+ New project…"));
     // dialog is open: create is disabled until a name is typed (whitespace doesn't count)
     const createBtn = getByText("Create project").closest("button")!;
     expect(createBtn.disabled).toBe(true);
@@ -84,8 +84,8 @@ describe("ProjectSwitcher", () => {
 
   it("submits the create dialog on Enter (form submit)", async () => {
     const { findByTitle, getByText, getByLabelText } = render(<ProjectSwitcher />);
-    openMenu(await findByTitle(/project: Default/));
-    fireEvent.click(getByText("+ new project…"));
+    openMenu(await findByTitle(/Project: Default/));
+    fireEvent.click(getByText("+ New project…"));
     const input = getByLabelText("Name");
     fireEvent.change(input, { target: { value: "Enter Run" } });
     fireEvent.submit(input.closest("form")!);
@@ -95,8 +95,8 @@ describe("ProjectSwitcher", () => {
   it("surfaces a create failure in the dialog instead of navigating", async () => {
     createProject.mockRejectedValue(new Error("disk full"));
     const { findByTitle, getByText, getByLabelText, findByText } = render(<ProjectSwitcher />);
-    openMenu(await findByTitle(/project: Default/));
-    fireEvent.click(getByText("+ new project…"));
+    openMenu(await findByTitle(/Project: Default/));
+    fireEvent.click(getByText("+ New project…"));
     fireEvent.change(getByLabelText("Name"), { target: { value: "Doomed" } });
     fireEvent.click(getByText("Create project"));
     expect(await findByText("disk full")).toBeTruthy();
@@ -105,8 +105,8 @@ describe("ProjectSwitcher", () => {
 
   it("cancels the create dialog without creating anything", async () => {
     const { findByTitle, getByText, queryByText } = render(<ProjectSwitcher />);
-    openMenu(await findByTitle(/project: Default/));
-    fireEvent.click(getByText("+ new project…"));
+    openMenu(await findByTitle(/Project: Default/));
+    fireEvent.click(getByText("+ New project…"));
     fireEvent.click(getByText("Cancel"));
     await waitFor(() => expect(queryByText("Create project")).toBeNull());
     expect(createProject).not.toHaveBeenCalled();
@@ -114,8 +114,8 @@ describe("ProjectSwitcher", () => {
 
   it("offers remove only for non-default projects", async () => {
     const { findByTitle, getAllByTitle } = render(<ProjectSwitcher />);
-    openMenu(await findByTitle(/project: Default/));
+    openMenu(await findByTitle(/Project: Default/));
     // exactly one ✕ (Py Run); 'default' is protected
-    expect(getAllByTitle(/remove from list/)).toHaveLength(1);
+    expect(getAllByTitle(/Remove from list/)).toHaveLength(1);
   });
 });

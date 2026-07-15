@@ -63,7 +63,7 @@ export function RecipePickerDialog({
                 <div key={r.name}>
                   {beginsGroup && (
                     <div
-                      className={`px-3 pt-3 pb-1 text-sm font-semibold uppercase ${group === "locked" ? "text-destructive" : "text-success"}`}
+                      className={`px-3 pt-3 pb-1 text-sm font-semibold ${group === "locked" ? "text-destructive" : "text-success"}`}
                     >
                       {group === "now"
                         ? "Unlocked now"
@@ -95,7 +95,7 @@ export function RecipePickerDialog({
                         <span className="text-base">{r.display ?? r.name}</span>
                         <span className="ml-auto flex shrink-0 items-center gap-2">
                           {r.cost != null && (
-                            <Tooltip content="estimated cost per craft (cost analysis) — sorted cheapest first within each availability group">
+                            <Tooltip content="Estimated cost per craft (cost analysis) — sorted cheapest first within each availability group">
                               <span className="text-sm text-muted-foreground">
                                 ¥{fmtCost(r.cost)}
                               </span>
@@ -103,7 +103,7 @@ export function RecipePickerDialog({
                           )}
                           {isAdded && (
                             <span className="text-sm text-muted-foreground">
-                              added · select to link
+                              Added · select to link
                             </span>
                           )}
                         </span>
@@ -115,11 +115,11 @@ export function RecipePickerDialog({
                         research gate. */}
                       {r.superseded ? (
                         <Tooltip
-                          content={`your ${r.superseded.masterDisplay ?? "TURD"} choice "${r.superseded.subDisplay}" replaced this recipe with "${r.superseded.newDisplay}" — the base version no longer exists in-game`}
+                          content={`Your ${r.superseded.masterDisplay ?? "TURD"} choice "${r.superseded.subDisplay}" replaced this recipe with "${r.superseded.newDisplay}" — the base version no longer exists in-game`}
                         >
                           <span className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
                             <Icon kind="technology" name={r.superseded.subTech} size="sm" noTitle />
-                            <FlaskConical className="size-3.5" /> replaced by{" "}
+                            <FlaskConical className="size-3.5" /> Replaced by{" "}
                             {r.superseded.newDisplay}
                             <span className="text-muted-foreground/70">
                               ({r.superseded.masterDisplay ?? "TURD"} › {r.superseded.subDisplay})
@@ -130,8 +130,8 @@ export function RecipePickerDialog({
                         <Tooltip
                           content={
                             r.turd.turdSelected
-                              ? "granted by your selected TURD choice"
-                              : `requires the "${r.turd.display}" choice under "${r.turd.masterDisplay ?? "TURD"}" — pick it on the TURD page (or in-game TURD explorer)`
+                              ? "Granted by your selected TURD choice"
+                              : `Requires the "${r.turd.display}" choice under "${r.turd.masterDisplay ?? "TURD"}" — pick it on the TURD page (or in-game TURD explorer)`
                           }
                         >
                           <span
@@ -151,9 +151,9 @@ export function RecipePickerDialog({
                           researched={r.avail.research === "available"}
                         />
                       ) : !r.enabled ? (
-                        <Tooltip content="no technology unlocks this recipe">
+                        <Tooltip content="No technology unlocks this recipe">
                           <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Lock className="size-3.5" /> locked
+                            <Lock className="size-3.5" /> Locked
                           </span>
                         </Tooltip>
                       ) : null}
@@ -162,13 +162,13 @@ export function RecipePickerDialog({
                           content={`${lockedMachine.display ?? lockedMachine.name} is not unlocked under the current planning horizon${lockedMachine.unlockedBy.length ? `; requires ${lockedMachine.unlockedBy.map((unlock) => unlock.display ?? unlock.tech).join(" or ")}` : ""}`}
                         >
                           <span className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-destructive">
-                            <Lock className="size-3.5 shrink-0" /> building locked ·{" "}
+                            <Lock className="size-3.5 shrink-0" /> Building locked ·{" "}
                             {lockedMachine.display ?? lockedMachine.name}
                             {lockedMachine.unlockedBy.length > 0 && (
                               <>
                                 {" "}
                                 <span className="font-normal">
-                                  · needs{" "}
+                                  · Needs{" "}
                                   {lockedMachine.unlockedBy[0].display ??
                                     lockedMachine.unlockedBy[0].tech}
                                   {lockedMachine.unlockedBy.length > 1
@@ -184,10 +184,10 @@ export function RecipePickerDialog({
                         <span className="flex items-center gap-1 text-sm text-success">
                           <Check className="size-3.5 shrink-0" />
                           {r.unlockedNow
-                            ? "unlocked now"
+                            ? "Unlocked now"
                             : r.horizonMode === "now"
-                              ? "available with current science"
-                              : "available in horizon"}
+                              ? "Available with current science"
+                              : "Available in horizon"}
                           {availableMachine &&
                             ` · ${availableMachine.display ?? availableMachine.name}`}
                         </span>
@@ -200,8 +200,8 @@ export function RecipePickerDialog({
           ) : (
             <div className="px-2 py-1 text-sm text-muted-foreground">
               {mode === "consume"
-                ? "nothing consumes this in the data"
-                : "no recipes make this — it's a raw input"}
+                ? "Nothing consumes this in the data"
+                : "No recipes make this — it's a raw input"}
             </div>
           )}
         </div>

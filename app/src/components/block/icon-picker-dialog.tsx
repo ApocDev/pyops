@@ -42,12 +42,12 @@ export function IconPickerDialog({
               <Grid2x2 className="size-5 text-muted-foreground" />
             )}
             <span>
-              auto — follow the first goal
-              {!customIcon && <span className="ml-2 text-sm text-primary">current</span>}
+              Auto — follow the first goal
+              {!customIcon && <span className="ml-2 text-sm text-primary">Current</span>}
             </span>
           </button>
           <ItemSearchList
-            prompt="type to search for an item or fluid…"
+            prompt="Type to search for an item or fluid…"
             current={customIcon}
             onPick={(it) => onPick(it.kind, it.name)}
           />

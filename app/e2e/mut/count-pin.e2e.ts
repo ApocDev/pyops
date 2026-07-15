@@ -17,13 +17,13 @@ import {
 test("building count: click to fix, tint shows fixed, clear to unpin", async ({ page }) => {
   await createBlock(page);
   await addGoal(page, "iron plate", "Iron plate");
-  await page.locator('button[aria-label^="add a recipe that makes "]').click();
+  await page.locator('button[aria-label^="Add a recipe that makes "]').click();
   const picker = page.getByRole("dialog", { name: /Recipes that make/ });
   await picker.getByRole("button", { name: /Iron plate/ }).first().click();
   await expect(picker).toBeHidden();
 
   // the row's building count is unpinned → click-to-fix
-  const unpinned = page.locator('button[title="click to fix the building count"]');
+  const unpinned = page.locator('button[title="Click to fix the building count"]');
   await expect(unpinned).toBeVisible();
 
   // click → type 4 → the row is fixed at 4 (tinted, own tooltip; no =N badge)
@@ -31,7 +31,7 @@ test("building count: click to fix, tint shows fixed, clear to unpin", async ({ 
   const field = page.locator('input[inputmode="decimal"]');
   await field.fill("4");
   await field.press("Enter");
-  const fixed = page.locator('button[title^="fixed at 4 building"]');
+  const fixed = page.locator('button[title^="Fixed at 4 building"]');
   await expect(fixed).toBeVisible();
   await expect(fixed).toContainText("4");
   // the old =N badge is gone
@@ -42,8 +42,8 @@ test("building count: click to fix, tint shows fixed, clear to unpin", async ({ 
   const field2 = page.locator('input[inputmode="decimal"]');
   await field2.fill("");
   await field2.press("Enter");
-  await expect(page.locator('button[title="click to fix the building count"]')).toBeVisible();
-  await expect(page.locator('button[title^="fixed at"]')).toHaveCount(0);
+  await expect(page.locator('button[title="Click to fix the building count"]')).toBeVisible();
+  await expect(page.locator('button[title^="Fixed at"]')).toHaveCount(0);
 });
 
 test("an infeasible block keeps its burner row editable", async ({ page }) => {
@@ -65,12 +65,12 @@ test("an infeasible block keeps its burner row editable", async ({ page }) => {
 
   try {
     await goto(page, `/block/${id}`);
-    await expect(page.getByText(/infeasible/).first()).toBeVisible();
+    await expect(page.getByText(/Infeasible/).first()).toBeVisible();
 
     const row = page.locator('[data-recipe-row="boil-steam-250"]');
     await expect(row).toHaveClass(/bg-destructive\/10/);
-    await expect(row.getByText("solve failed", { exact: true })).toBeVisible();
-    await expect(row.getByLabel("change Boiler building")).toBeVisible();
+    await expect(row.getByText("Solve failed", { exact: true })).toBeVisible();
+    await expect(row.getByLabel("Change Boiler building")).toBeVisible();
     await expect(row.getByTitle(/Coal .* click to change fuel/)).toBeVisible();
     await expect(row.getByLabel(/^Water /)).toBeVisible();
     await expect(row.getByLabel(/^Steam /)).toBeVisible();
@@ -154,12 +154,12 @@ test("variable generator shows its average and min-max output", async ({ page })
 
 test("recipe picker groups unlocked choices and disables locked buildings", async ({ page }) => {
   await createBlock(page);
-  await page.locator('button[title="add a goal product"]').click();
+  await page.locator('button[title="Add a goal product"]').click();
   const goalDialog = page.getByRole("dialog", { name: "Add a goal product" });
-  await goalDialog.getByPlaceholder("search an item or fluid…").fill("pyops electricity");
+  await goalDialog.getByPlaceholder("Search an item or fluid…").fill("pyops electricity");
   await goalDialog.getByRole("button", { name: "Electricity (MJ)", exact: true }).click();
   await expect(goalDialog).toBeHidden();
-  await page.locator('button[aria-label^="add a recipe that makes "]').click();
+  await page.locator('button[aria-label^="Add a recipe that makes "]').click();
 
   const picker = page.getByRole("dialog", { name: "Recipes that make Electricity (MJ)" });
   const unlocked = picker.getByText("Unlocked now", { exact: true });
@@ -170,11 +170,11 @@ test("recipe picker groups unlocked choices and disables locked buildings", asyn
 
   const steam = picker.getByRole("button", { name: /Steam engine power \(150°\)/ });
   await expect(steam).toHaveAttribute("aria-disabled", "false");
-  await expect(steam).toContainText("unlocked now · Steam engine");
+  await expect(steam).toContainText("Unlocked now · Steam engine");
 
   const solar = picker.getByRole("button", { name: /Solar panel power \(peak\)/ });
   await expect(solar).toHaveAttribute("aria-disabled", "true");
-  await expect(solar).toContainText("building locked · Solar panel · needs Solar energy");
+  await expect(solar).toContainText("Building locked · Solar panel · Needs Solar energy");
   await solar.click({ force: true });
   await expect(picker).toBeVisible();
 

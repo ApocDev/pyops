@@ -8,7 +8,7 @@ import { addGoal, createBlock } from "./helpers";
  * toolbar's whole-block apply; clicking the hint bakes the suggestion into the
  * doc as ordinary stored picks, after which both affordances disappear.
  *
- * Uses "Coal gas from coal" (distilator, 1 slot, allow_productivity). The
+ * Uses "Coal gas, tar" (distilator, 1 slot, allow_productivity). The
  * suggestion pool only contains modules unlocked in the research horizon, so
  * the spec first pins the horizon to FUTURE — every producible module counts —
  * making the hint deterministic regardless of the seed's research state. The
@@ -25,14 +25,14 @@ test("module auto-fill: fresh row suggests, hint click applies, affordances clea
 
   await createBlock(page);
   await addGoal(page, "coal gas", "Coal gas");
-  await page.locator('button[aria-label^="add a recipe that makes "]').click();
+  await page.locator('button[aria-label^="Add a recipe that makes "]').click();
   const picker = page.getByRole("dialog", { name: "Recipes that make Coal gas" });
-  await picker.getByRole("button", { name: "Coal gas from coal" }).click();
+  await picker.getByRole("button", { name: /^Coal gas, tar / }).click();
   await expect(picker).toBeHidden();
 
   // fresh row: EMPTY chip (nothing auto-applied) + the suggestion affordances
   const emptyChip = page.locator('button[title*="click to configure"]');
-  const hint = page.locator('button[title^="better modules available"]');
+  const hint = page.locator('button[title^="Better modules available"]');
   const blockFill = page.getByRole("button", { name: /^Auto-fill modules/ });
   await expect(emptyChip).toHaveCount(1);
   await expect(hint).toHaveCount(1);
@@ -43,8 +43,8 @@ test("module auto-fill: fresh row suggests, hint click applies, affordances clea
   await emptyChip.click();
   const modal = page.getByRole("dialog", { name: /^Modules — / });
   await expect(modal).toBeVisible();
-  await expect(modal.getByText("suggested")).toBeVisible();
-  await expect(modal.getByRole("button", { name: "apply" })).toBeVisible();
+  await expect(modal.getByText("Suggested")).toBeVisible();
+  await expect(modal.getByRole("button", { name: "Apply" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(modal).toBeHidden();
 

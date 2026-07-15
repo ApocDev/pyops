@@ -25,9 +25,9 @@ export function MissingRecipeRow({
               <span className="block truncate font-mono" title={name}>
                 {name}
               </span>
-              <Tooltip content="this recipe isn't in the current data — re-enable its mod or re-import to restore it, or remove it">
+              <Tooltip content="This recipe isn't in the current data — re-enable its mod or re-import to restore it, or remove it">
                 <span className="flex items-center gap-1 text-sm font-semibold text-destructive">
-                  <AlertTriangle className="size-3" /> no longer exists
+                  <AlertTriangle className="size-3" /> No longer exists
                 </span>
               </Tooltip>
             </span>
@@ -36,7 +36,7 @@ export function MissingRecipeRow({
               size="icon-xs"
               className="text-muted-foreground hover:text-destructive"
               onClick={onDrop}
-              title="remove this missing recipe from the block"
+              title="Remove this missing recipe from the block"
             >
               <X className="size-3.5" />
             </Button>

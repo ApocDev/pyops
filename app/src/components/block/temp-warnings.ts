@@ -48,7 +48,7 @@ export function rowTempWarnings(
   }
   for (const [item, ws] of asProducer) {
     product.set(item, {
-      label: `needs ${uniq(ws.map((w) => w.needs)).join(", ")}`,
+      label: `Needs ${uniq(ws.map((w) => w.needs)).join(", ")}`,
       title: ws
         .map(
           (w) =>

@@ -91,12 +91,12 @@ export function RecipeRow({
         <Timer className="size-3.5" /> {num(card.energyRequired ?? 0.5)}s
       </span>
       {card.cost != null && (
-        <Tooltip content="estimated cost per craft (cost analysis)">
+        <Tooltip content="Estimated cost per craft (cost analysis)">
           <span className="text-sm text-muted-foreground">¥{fmtCost(card.cost)}</span>
         </Tooltip>
       )}
       {wastePct != null && wastePct >= 5 && (
-        <Tooltip content="share of the input + processing value this recipe destroys (cost analysis) — high waste means its products return far less than they cost">
+        <Tooltip content="Share of the input + processing value this recipe destroys (cost analysis) — high waste means its products return far less than they cost">
           <span
             className={`text-sm ${
               wastePct >= 90
@@ -128,9 +128,9 @@ export function RecipeRow({
         />
       )}
       {!card.enabled && !turd && card.unlocks.length === 0 && (
-        <Tooltip content="no technology unlocks this recipe">
+        <Tooltip content="No technology unlocks this recipe">
           <span className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Lock className="size-3.5" /> locked
+            <Lock className="size-3.5" /> Locked
           </span>
         </Tooltip>
       )}
@@ -159,17 +159,17 @@ export function RecipeRow({
 
           {card.superseded && (
             <Tooltip
-              content={`your ${card.superseded.masterDisplay ?? "TURD"} choice "${card.superseded.subDisplay}" replaced this recipe with "${card.superseded.newDisplay}" — the base version no longer exists in-game`}
+              content={`Your ${card.superseded.masterDisplay ?? "TURD"} choice "${card.superseded.subDisplay}" replaced this recipe with "${card.superseded.newDisplay}" — the base version no longer exists in-game`}
             >
               <div className="mt-1.5 flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
-                <FlaskConical className="size-3.5" /> replaced by {card.superseded.newDisplay}
+                <FlaskConical className="size-3.5" /> Replaced by {card.superseded.newDisplay}
               </div>
             </Tooltip>
           )}
 
           <div className="mt-2 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
             {card.flow != null && maxFlow > 0 && (
-              <Tooltip content="estimated economy activity relative to the busiest recipe in this list">
+              <Tooltip content="Estimated economy activity relative to the busiest recipe in this list">
                 <span className="block h-1.5 w-10 shrink-0 overflow-hidden bg-muted">
                   <span
                     className="block h-full bg-info"
@@ -240,7 +240,7 @@ export function RecipeRow({
         {availability}
         <span className="ml-auto flex shrink-0 items-center gap-1.5">
           {card.flow != null && maxFlow > 0 && (
-            <Tooltip content="estimated economy flow (relative to the busiest recipe here) — how much a sensible economy actually runs this recipe, per the cost analysis">
+            <Tooltip content="Estimated economy flow (relative to the busiest recipe here) — how much a sensible economy actually runs this recipe, per the cost analysis">
               <span className="block h-1.5 w-10 overflow-hidden bg-muted">
                 <span
                   className="block h-full bg-info"
@@ -263,10 +263,10 @@ export function RecipeRow({
       </div>
       {card.superseded && (
         <Tooltip
-          content={`your ${card.superseded.masterDisplay ?? "TURD"} choice "${card.superseded.subDisplay}" replaced this recipe with "${card.superseded.newDisplay}" — the base version no longer exists in-game`}
+          content={`Your ${card.superseded.masterDisplay ?? "TURD"} choice "${card.superseded.subDisplay}" replaced this recipe with "${card.superseded.newDisplay}" — the base version no longer exists in-game`}
         >
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-            <FlaskConical className="size-3.5" /> replaced by {card.superseded.newDisplay}
+            <FlaskConical className="size-3.5" /> Replaced by {card.superseded.newDisplay}
             <span className="text-muted-foreground/70">
               ({card.superseded.masterDisplay ?? "TURD"} › {card.superseded.subDisplay})
             </span>

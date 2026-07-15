@@ -33,13 +33,13 @@ describe("GameEvalCard", () => {
     fireEvent.click(getByText(/Run in game/));
     expect(bridgeEval).toHaveBeenCalledWith({ data: { code: "game.tick" } });
     expect(await findByText("123456")).toBeTruthy();
-    expect(getByText("ran")).toBeTruthy();
+    expect(getByText("Ran")).toBeTruthy();
   });
 
   it("Dismiss marks the proposal as not run", () => {
     const { getByText } = render(<GameEvalCard proposal={proposal} />);
     fireEvent.click(getByText("Dismiss"));
-    expect(getByText("dismissed")).toBeTruthy();
+    expect(getByText("Dismissed")).toBeTruthy();
     expect(bridgeEval).not.toHaveBeenCalled();
   });
 

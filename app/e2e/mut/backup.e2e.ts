@@ -59,7 +59,7 @@ test("a block's JSON export re-imports as a new ' (2)'-suffixed block", async ({
   // re-import it into the same project from Settings → Backup & share
   await goto(page, "/settings?tab=backup");
   await page.locator('input[type="file"][accept*="json"]').setInputFiles(file);
-  await expect(page.getByText("imported 1 block")).toBeVisible();
+  await expect(page.getByText("Imported 1 block")).toBeVisible();
   // the original still exists, so the copy gets the " (2)" suffix
   const imported = page.getByRole("link", { name: `${name} (2)`, exact: true });
   await expect(imported).toBeVisible();

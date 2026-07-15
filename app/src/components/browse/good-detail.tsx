@@ -79,7 +79,7 @@ export function GoodDetail({
         </div>
       )}
       {name && detail.isError && (
-        <Callout tone="destructive">failed to load this item — try again</Callout>
+        <Callout tone="destructive">Failed to load this item — try again</Callout>
       )}
       {data && (
         <>
@@ -109,7 +109,7 @@ export function GoodDetail({
                   className="h-auto gap-1 px-1 py-0 font-normal text-info hover:text-info"
                 >
                   <Link to="/explore/dependencies" search={{ sel: data.name }}>
-                    <Network className="size-3.5" /> dependencies
+                    <Network className="size-3.5" /> Dependencies
                   </Link>
                 </Button>
               </div>
@@ -135,7 +135,7 @@ export function GoodDetail({
             <FilterInput
               value={recipeQuery}
               onValueChange={setRecipeQuery}
-              placeholder="filter recipes…"
+              placeholder="Filter recipes…"
               className="mb-4 max-w-sm"
             />
           )}
@@ -145,7 +145,7 @@ export function GoodDetail({
                 title={`Recipes (${data.producedBy.length})`}
                 cards={data.producedBy}
                 focus={data.name}
-                emptyText="nothing makes this — a raw input"
+                emptyText="Nothing makes this — a raw input"
                 query={recipeQuery}
                 onClearQuery={() => setRecipeQuery("")}
                 onPick={onPick}
@@ -156,7 +156,7 @@ export function GoodDetail({
                 title={`Uses (${data.consumedBy.length})`}
                 cards={data.consumedBy}
                 focus={data.name}
-                emptyText="no consumers"
+                emptyText="No consumers"
                 query={recipeQuery}
                 onClearQuery={() => setRecipeQuery("")}
                 onPick={onPick}
@@ -169,7 +169,7 @@ export function GoodDetail({
                 title={`Produced by (${data.producedBy.length})`}
                 cards={data.producedBy}
                 focus={data.name}
-                emptyText="nothing makes this — a raw input"
+                emptyText="Nothing makes this — a raw input"
                 query={recipeQuery}
                 onClearQuery={() => setRecipeQuery("")}
                 onPick={onPick}
@@ -178,7 +178,7 @@ export function GoodDetail({
                 title={`Consumed by (${data.consumedBy.length})`}
                 cards={data.consumedBy}
                 focus={data.name}
-                emptyText="no consumers"
+                emptyText="No consumers"
                 query={recipeQuery}
                 onClearQuery={() => setRecipeQuery("")}
                 onPick={onPick}

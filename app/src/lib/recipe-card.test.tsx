@@ -58,7 +58,7 @@ describe("TechLine", () => {
     const reqSpan = within(req.container).getByText("Automation 2").parentElement!;
     expect(reqSpan.className).toContain("text-destructive/90");
     fireEvent.focus(reqSpan);
-    expect((await req.findByRole("tooltip")).textContent).toContain("requires research:");
+    expect((await req.findByRole("tooltip")).textContent).toContain("Requires research:");
 
     const done = withProviders(<TechLine unlock={unlock} researched />);
     const doneSpan = within(done.container).getByText("Automation 2").parentElement!;
@@ -66,7 +66,7 @@ describe("TechLine", () => {
     fireEvent.focus(doneSpan);
     // req's tooltip may still be open, so match across all shown tooltips
     const tips = await done.findAllByRole("tooltip");
-    expect(tips.some((t) => t.textContent?.includes("researched:"))).toBe(true);
+    expect(tips.some((t) => t.textContent?.includes("Researched:"))).toBe(true);
   });
 });
 

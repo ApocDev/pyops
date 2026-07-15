@@ -26,7 +26,7 @@ export function RecipeSpoilageIndicator({
       <span aria-hidden>·</span>
       <span
         role="img"
-        aria-label="has spoilable products"
+        aria-label="Has spoilable products"
         data-recipe-spoilage
         className="flex shrink-0 items-center text-warning"
       >

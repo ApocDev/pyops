@@ -152,9 +152,7 @@ function AssistantShell() {
       sidebar={(close) => (
         <>
           <div className="flex items-center justify-between px-3 py-2">
-            <span className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
-              Chats
-            </span>
+            <span className="text-sm font-semibold tracking-wide text-muted-foreground">Chats</span>
             <Button
               size="sm"
               onClick={() => {
@@ -177,7 +175,7 @@ function AssistantShell() {
                   className={`size-2 shrink-0 rounded-full ${
                     running.has(conv.id) ? "animate-pulse bg-primary" : "bg-transparent"
                   }`}
-                  title={running.has(conv.id) ? "running…" : undefined}
+                  title={running.has(conv.id) ? "Running…" : undefined}
                 />
                 <button
                   onClick={() => {
@@ -193,7 +191,7 @@ function AssistantShell() {
                   variant="ghost"
                   size="icon-xs"
                   onClick={() => void rename(conv.id, conv.title)}
-                  title="rename"
+                  title="Rename"
                   className="hidden text-muted-foreground group-hover:inline-flex hover:text-foreground"
                 >
                   <Pencil className="size-3.5" />
@@ -202,7 +200,7 @@ function AssistantShell() {
                   variant="ghost"
                   size="icon-xs"
                   onClick={() => setRemoving({ id: conv.id, title: conv.title })}
-                  title="delete"
+                  title="Delete"
                   className="hidden text-muted-foreground group-hover:inline-flex hover:text-destructive"
                 >
                   <X className="size-3.5" />
@@ -217,7 +215,7 @@ function AssistantShell() {
               </div>
             )}
             {!list.isLoading && (list.data?.length ?? 0) === 0 && (
-              <div className="px-2 py-2 text-sm text-muted-foreground">no saved chats yet</div>
+              <div className="px-2 py-2 text-sm text-muted-foreground">No saved chats yet</div>
             )}
           </div>
         </>
@@ -822,7 +820,7 @@ function ModelMenu({
       </Tooltip>
       <Popover.Portal>
         <Popover.Content side="top" align="start" sideOffset={6} className={`${popoverPanel} p-3`}>
-          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground">
             Model
           </div>
           <select
@@ -920,7 +918,7 @@ function ReasoningMenu({
     ? REASONING_LEVELS.filter((l) => model.reasoningEfforts.includes(l))
     : [...REASONING_LEVELS];
   const options = [
-    { value: "", label: "Auto", hint: "model default" },
+    { value: "", label: "Auto", hint: "Model default" },
     ...REASONING_LEVELS.map((l) => ({
       value: l,
       label: l[0].toUpperCase() + l.slice(1),
@@ -1023,16 +1021,16 @@ function Message({
         )}
         <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100">
           {onEdit && (
-            <IconButton title="edit and resend" disabled={busy} onClick={onEdit}>
+            <IconButton title="Edit and resend" disabled={busy} onClick={onEdit}>
               <Pencil className="size-3.5" />
             </IconButton>
           )}
           {onRetry && (
-            <IconButton title="retry this answer" disabled={busy} onClick={onRetry}>
+            <IconButton title="Retry this answer" disabled={busy} onClick={onRetry}>
               <RefreshCcw className="size-3.5" />
             </IconButton>
           )}
-          <IconButton title="branch from here" disabled={busy} onClick={onBranch}>
+          <IconButton title="Branch from here" disabled={busy} onClick={onBranch}>
             <GitBranch className="size-3.5" />
           </IconButton>
         </div>
@@ -1261,7 +1259,7 @@ function ReasoningBlock({ text, state }: { text: string; state?: string }) {
             <Check className="size-3.5" />
           )}
         </span>{" "}
-        reasoning
+        Reasoning
       </summary>
       <div className="whitespace-pre-wrap px-2 py-1 text-muted-foreground">{text}</div>
     </details>
@@ -1442,7 +1440,7 @@ function refRow(label: ReactNode, items: string[] | undefined, prefer?: "recipe"
   return items && items.length ? (
     <div className="mt-2.5">
       <div
-        className={`flex items-center gap-1 text-xs uppercase tracking-wide ${warn ? "text-destructive" : "text-muted-foreground"}`}
+        className={`flex items-center gap-1 text-xs tracking-wide ${warn ? "text-destructive" : "text-muted-foreground"}`}
       >
         {label}
       </div>
@@ -1459,7 +1457,7 @@ function refRow(label: ReactNode, items: string[] | undefined, prefer?: "recipe"
 function rateRow(label: ReactNode, entries: GoodRate[] | undefined) {
   return entries && entries.length ? (
     <div className="mt-2.5">
-      <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-muted-foreground">
+      <div className="flex items-center gap-1 text-xs tracking-wide text-muted-foreground">
         {label}
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1.5">
@@ -1485,7 +1483,7 @@ function goalsRow(goals: DraftGoal[] | undefined) {
   if (!goals || goals.length < 2) return null;
   return (
     <div className="mt-2.5">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">output goals</div>
+      <div className="text-xs tracking-wide text-muted-foreground">Output goals</div>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1.5">
         {goals.map((g) => (
           <span key={g.name} className="inline-flex items-center gap-1">
@@ -1516,9 +1514,7 @@ function DraftRows({ draft }: { draft: Draft }) {
       {rateRow("imports (external)", externalImports)}
       {draft.importsFromBlocks && draft.importsFromBlocks.length > 0 && (
         <div className="mt-2.5">
-          <div className="text-xs uppercase tracking-wide text-info/80">
-            reuse from existing blocks
-          </div>
+          <div className="text-xs tracking-wide text-info/80">Reuse from existing blocks</div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1.5">
             {draft.importsFromBlocks.map((i) => (
               <span key={i.good} className="inline-flex items-center gap-1">
@@ -1534,23 +1530,23 @@ function DraftRows({ draft }: { draft: Draft }) {
       )}
       {rateRow(
         <>
-          <Grid2x2 className="size-3.5" /> suggested sub-blocks to draft next{" "}
-          <InfoHint content="sized to demand" />
+          <Grid2x2 className="size-3.5" /> Suggested sub-blocks to draft next{" "}
+          <InfoHint content="Sized to demand" />
         </>,
         draft.subBlocksNeeded,
       )}
       {rateRow(
         <>
-          byproducts <InfoHint content="route to a consumer, or void" />
+          Byproducts <InfoHint content="Route to a consumer, or void" />
         </>,
         draft.byproducts,
       )}
 
       {draft.turd?.conflicts && draft.turd.conflicts.length > 0 && (
         <div className="mt-2.5">
-          <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-destructive">
+          <div className="flex items-center gap-1 text-xs tracking-wide text-destructive">
             <AlertTriangle className="size-3.5" /> TURD conflicts{" "}
-            <InfoHint content="infeasible — one choice per master" />
+            <InfoHint content="Infeasible — one choice per master" />
           </div>
           {draft.turd.conflicts.map((c) => (
             <div key={c.master} className="mt-1 text-sm">
@@ -1564,7 +1560,7 @@ function DraftRows({ draft }: { draft: Draft }) {
       )}
       {draft.turd?.selections && draft.turd.selections.length > 0 && (
         <div className="mt-2.5">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+          <div className="text-xs tracking-wide text-muted-foreground">
             TURD selections this block needs
           </div>
           <div className="mt-1 flex flex-wrap gap-1.5">
@@ -1585,7 +1581,7 @@ function DraftRows({ draft }: { draft: Draft }) {
                   <FlaskConical className="size-3.5" /> {sel.masterDisplay} › {sel.requiredChoice}
                   {sel.action === "switch" && (
                     <>
-                      <AlertTriangle className="size-3.5" /> switch
+                      <AlertTriangle className="size-3.5" /> Switch
                     </>
                   )}
                   {sel.action === "already-selected" && <Check className="size-3.5" />}
@@ -1597,7 +1593,7 @@ function DraftRows({ draft }: { draft: Draft }) {
       )}
       {refRow(
         <>
-          <AlertTriangle className="size-3.5" /> invalid recipe names
+          <AlertTriangle className="size-3.5" /> Invalid recipe names
         </>,
         draft.invalid,
         undefined,
@@ -1675,7 +1671,7 @@ function BlockDraft({
                 </span>
               )}
               {draft.heatW != null && draft.heatW > 0 && (
-                <Tooltip content="heat doesn't travel — needs a local heat source">
+                <Tooltip content="Heat doesn't travel — needs a local heat source">
                   <span className="inline-flex items-center gap-1 text-warning">
                     {" · "}
                     <Flame className="size-3.5" /> {Math.round(draft.heatW / 1000)} kW heat (local)
@@ -1819,8 +1815,8 @@ function BlockUpdate({
       {refRow("recipes removed", draft.recipesRemoved, "recipe")}
       {refRow(
         <>
-          <AlertTriangle className="size-3.5" /> new byproducts{" "}
-          <InfoHint content="this change introduces these — route or void them" />
+          <AlertTriangle className="size-3.5" /> New byproducts{" "}
+          <InfoHint content="This change introduces these — route or void them" />
         </>,
         draft.newByproducts,
         undefined,
@@ -1915,7 +1911,7 @@ function PlanDraft({
       {plan.notes && <p className="mt-2 text-sm text-muted-foreground">{plan.notes}</p>}
       <div className="mt-2 flex flex-wrap gap-2 text-sm text-muted-foreground">
         <span className="border border-border/60 px-1.5 py-0.5">
-          building materials {plan.buildingMaterialsIncluded ? "included" : "not included"}
+          Building materials {plan.buildingMaterialsIncluded ? "included" : "not included"}
         </span>
         {plan.invalid && plan.invalid.length > 0 && (
           <span className="border border-destructive/50 px-1.5 py-0.5 text-destructive">
@@ -1940,8 +1936,8 @@ function PlanDraft({
 
       {updates.length > 0 && (
         <div className="mt-3">
-          <div className="text-xs uppercase tracking-wide text-warning/80">
-            resize existing blocks to meet demand
+          <div className="text-xs tracking-wide text-warning/80">
+            Resize existing blocks to meet demand
           </div>
           <div className="mt-1 space-y-2">
             {updates.map((u, index) => (
@@ -2010,7 +2006,7 @@ function PlanBlockPreview({
       {draft.notes && <p className="text-muted-foreground">{draft.notes}</p>}
       {goalsRow(draft.goals)}
       <div>
-        <div className="text-xs uppercase tracking-wide text-muted-foreground">recipes</div>
+        <div className="text-xs tracking-wide text-muted-foreground">Recipes</div>
         <div className="mt-1 flex flex-wrap gap-1.5">
           {draft.recipes.map((r) => (
             <Ref key={r} name={r} prefer="recipe" />
@@ -2019,9 +2015,7 @@ function PlanBlockPreview({
       </div>
       {draft.importsExternal && draft.importsExternal.length > 0 && (
         <div>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-            external imports
-          </div>
+          <div className="text-xs tracking-wide text-muted-foreground">External imports</div>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {draft.importsExternal.map((g) => (
               <Ref key={g} name={g} />
@@ -2031,8 +2025,8 @@ function PlanBlockPreview({
       )}
       {draft.subBlocksNeeded && draft.subBlocksNeeded.length > 0 && (
         <div>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-            still suggested as sub-blocks
+          <div className="text-xs tracking-wide text-muted-foreground">
+            Still suggested as sub-blocks
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1.5">
             {draft.subBlocksNeeded.map((entry) => (

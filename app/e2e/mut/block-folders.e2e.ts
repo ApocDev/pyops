@@ -6,7 +6,7 @@ test("a folder context menu creates a block directly inside that folder", async 
   await goto(page, "/block");
   const folderName = uniqueName("Direct blocks");
   page.once("dialog", (dialog) => void dialog.accept(folderName));
-  await page.getByRole("button", { name: "new folder", exact: true }).click();
+  await page.getByRole("button", { name: "New folder", exact: true }).click();
 
   const folder = page.getByText(new RegExp(`^${folderName} \\(0\\)$`));
   await expect(folder).toBeVisible();

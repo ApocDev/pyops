@@ -59,7 +59,7 @@ export function RecipeList({
     >
       {variant === "dense" && (
         <CardHeader>
-          <CardTitle className="normal-case">{title}</CardTitle>
+          <CardTitle>{title}</CardTitle>
         </CardHeader>
       )}
       {cards.length === 0 && <div className="px-3 pb-3 text-muted-foreground">{emptyText}</div>}
@@ -101,7 +101,7 @@ export function RecipeList({
           onClick={() => setShowAll(true)}
           className="w-full justify-start border-t-border px-3 font-normal text-info hover:text-info"
         >
-          show all {filtered.length}…
+          Show all {filtered.length}…
         </Button>
       )}
     </Card>

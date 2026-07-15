@@ -87,7 +87,7 @@ export function RecipeCard({ name, extraText }: { name: string; extraText?: Reac
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className="mb-0.5 text-muted-foreground">in</div>
+              <div className="mb-0.5 text-muted-foreground">In</div>
               {r.ingredients.length ? (
                 r.ingredients.map((c, i) => <Comp key={i} {...c} />)
               ) : (
@@ -95,7 +95,7 @@ export function RecipeCard({ name, extraText }: { name: string; extraText?: Reac
               )}
             </div>
             <div>
-              <div className="mb-0.5 text-muted-foreground">out</div>
+              <div className="mb-0.5 text-muted-foreground">Out</div>
               {r.products.map((c, i) => (
                 <Comp key={i} {...c} />
               ))}
@@ -103,7 +103,7 @@ export function RecipeCard({ name, extraText }: { name: string; extraText?: Reac
           </div>
           {data!.machines.length > 0 && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="text-muted-foreground">made in</span>
+              <span className="text-muted-foreground">Made in</span>
               {data!.machines.slice(0, 8).map((m) => (
                 <Icon key={m.name} kind="item" name={m.name} size="sm" />
               ))}
@@ -113,7 +113,7 @@ export function RecipeCard({ name, extraText }: { name: string; extraText?: Reac
             <div className="mt-1.5 space-y-1">
               {data!.unlocks.map((u) => (
                 <div key={u.tech} className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-muted-foreground">unlock</span>
+                  <span className="text-muted-foreground">Unlock</span>
                   <span className="min-w-0 [overflow-wrap:anywhere]" title={u.tech}>
                     {u.display ?? u.tech}
                   </span>
@@ -158,7 +158,7 @@ export function TechCard({ name, extraText }: { name: string; extraText?: React.
         <>
           {data.science.length > 0 && (
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <span className="text-muted-foreground">cost</span>
+              <span className="text-muted-foreground">Cost</span>
               {data.science.map((s) => (
                 <span
                   key={s.name}
@@ -176,7 +176,7 @@ export function TechCard({ name, extraText }: { name: string; extraText?: React.
           )}
           {data.prereqs.length > 0 && (
             <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="text-muted-foreground">needs</span>
+              <span className="text-muted-foreground">Needs</span>
               {data.prereqs.map((p) => (
                 <span key={p.name} className="flex items-center gap-1">
                   <Icon kind="technology" name={p.name} size="sm" />
@@ -185,7 +185,7 @@ export function TechCard({ name, extraText }: { name: string; extraText?: React.
               ))}
             </div>
           )}
-          <div className="mt-2 mb-0.5 text-muted-foreground">unlocks ({data.unlocks.length})</div>
+          <div className="mt-2 mb-0.5 text-muted-foreground">Unlocks ({data.unlocks.length})</div>
           {data.unlocks.length ? (
             <div className="max-h-48 space-y-0.5 overflow-auto">
               {data.unlocks.map((u) => (
@@ -303,7 +303,7 @@ export function ItemCard({
         <Icon kind={kind} name={name} size="md" noTitle />
         <span className="truncate">{display}</span>
         {data?.cost != null && (
-          <span className="ml-auto font-normal text-muted-foreground" title="cost analysis">
+          <span className="ml-auto font-normal text-muted-foreground" title="Cost analysis">
             ¥{fmtCost(data.cost)}
           </span>
         )}
@@ -321,7 +321,7 @@ export function ItemCard({
         </div>
       ) : (
         <div className="mt-1.5 space-y-0.5 text-muted-foreground">
-          {data.item?.stackSize != null && <div>stack {data.item.stackSize}</div>}
+          {data.item?.stackSize != null && <div>Stack {data.item.stackSize}</div>}
           {data.item?.fuelValueJ != null && (
             <div className="flex items-center gap-1">
               <Flame className="size-3.5 shrink-0" /> {fmtJ(data.item.fuelValueJ)} (
@@ -334,22 +334,22 @@ export function ItemCard({
             </div>
           )}
           {data.fluid?.defaultTemperature != null && (
-            <div>default {data.fluid.defaultTemperature}°</div>
+            <div>Default {data.fluid.defaultTemperature}°</div>
           )}
           {data.item?.spoilResult && (
             <div className="flex items-center gap-1">
               <Timer className="size-3.5 text-warning" />
-              spoils
+              Spoils
               {data.item.spoilTicks != null ? ` in ${fmtSpoilTime(data.item.spoilTicks)}` : ""} →{" "}
               {data.spoilResultDisplay ?? data.item.spoilResult}
             </div>
           )}
           <RecipeList
-            label="produced by"
+            label="Produced by"
             recipes={data.producedBy}
-            empty="nothing makes this (raw)"
+            empty="Nothing makes this (raw)"
           />
-          <RecipeList label="used in" recipes={data.consumedBy} empty="nothing uses this" />
+          <RecipeList label="Used in" recipes={data.consumedBy} empty="Nothing uses this" />
         </div>
       )}
     </div>
@@ -602,13 +602,13 @@ export function RecipeDiffCard({ a, b, bonus }: { a: string; b: string; bonus?: 
                   <span className="text-muted-foreground">→</span>
                   <span className={tb < ta ? "text-success" : "text-destructive"}>{tb}s</span>
                   <span className="text-xs text-muted-foreground">
-                    ({tb < ta ? "faster" : "slower"})
+                    ({tb < ta ? "Faster" : "Slower"})
                   </span>
                 </div>
               )}
               <div className="mt-2 grid grid-cols-2 gap-3">
                 <DiffGroup
-                  label="in"
+                  label="In"
                   a={ra.ingredients}
                   b={rb.ingredients}
                   timeA={ta}
@@ -616,7 +616,7 @@ export function RecipeDiffCard({ a, b, bonus }: { a: string; b: string; bonus?: 
                   rate={false}
                 />
                 <DiffGroup
-                  label="out (/s per building)"
+                  label="Out (/s per building)"
                   a={ra.products}
                   b={rb.products}
                   timeA={ta}
@@ -627,7 +627,7 @@ export function RecipeDiffCard({ a, b, bonus }: { a: string; b: string; bonus?: 
               </div>
               {bonusParts.length > 0 && (
                 <div className="mt-1.5 text-sm text-muted-foreground">
-                  out /s includes this choice&apos;s module ({bonusParts.join(", ")}); productivity
+                  Out /s includes this choice&apos;s module ({bonusParts.join(", ")}); productivity
                   skips barrels &amp; catalysts
                 </div>
               )}
@@ -779,14 +779,14 @@ export function EntityCard({ name, extraText }: { name: string; extraText?: Reac
         {data.item.fuelCategory})
       </div>,
     );
-  if (data?.item?.stackSize != null) rows.push(<div key="stack">stack {data.item.stackSize}</div>);
+  if (data?.item?.stackSize != null) rows.push(<div key="stack">Stack {data.item.stackSize}</div>);
   return (
     <div className="w-80 border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
       <div className="flex items-center gap-2 text-base font-semibold">
         <Icon kind="entity" name={name} size="md" noTitle />
         <span className="truncate">{display}</span>
         {data?.cost != null && (
-          <span className="ml-auto font-normal text-muted-foreground" title="cost analysis">
+          <span className="ml-auto font-normal text-muted-foreground" title="Cost analysis">
             ¥{fmtCost(data.cost)}
           </span>
         )}
@@ -804,7 +804,7 @@ export function EntityCard({ name, extraText }: { name: string; extraText?: Reac
       ) : rows.length ? (
         <div className="mt-1.5 space-y-0.5 text-muted-foreground">{rows}</div>
       ) : (
-        <div className="mt-1.5 text-sm italic text-muted-foreground/60">no extra detail</div>
+        <div className="mt-1.5 text-sm italic text-muted-foreground/60">No extra detail</div>
       )}
     </div>
   );
@@ -894,7 +894,7 @@ export function TechLine({
   return (
     <Tooltip
       content={
-        (researched ? "researched: " : "requires research: ") +
+        (researched ? "Researched: " : "Requires research: ") +
         (unlock.display ?? unlock.tech) +
         (unlock.science.length
           ? ` (${unlock.science.map((s) => `${s.amount}× ${s.name}`).join(", ")})`

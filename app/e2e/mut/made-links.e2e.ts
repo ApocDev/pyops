@@ -13,18 +13,18 @@ test("marking an import made without a producer keeps it a silent import", async
   await createBlock(page);
 
   // goal: iron plate (a real Py chain); its recipe consumes iron ore, an import
-  await page.locator('button[title="add a goal product"]').click();
+  await page.locator('button[title="Add a goal product"]').click();
   const goalDialog = page.getByRole("dialog", { name: "Add a goal product" });
-  await goalDialog.getByPlaceholder("search an item or fluid…").fill("iron plate");
+  await goalDialog.getByPlaceholder("Search an item or fluid…").fill("iron plate");
   await goalDialog.getByRole("button", { name: "Iron plate", exact: true }).first().click();
   await expect(goalDialog).toBeHidden();
 
-  await page.locator('button[aria-label^="add a recipe that makes "]').click();
+  await page.locator('button[aria-label^="Add a recipe that makes "]').click();
   const platePicker = page.getByRole("dialog", { name: /Recipes that make/ });
   await platePicker.locator('[data-recipe-candidate="iron-plate"]').click();
   await expect(platePicker).toBeHidden();
 
-  const oreImport = page.getByRole("button", { name: /^Iron ore.*(raw input|craftable)/ }).first();
+  const oreImport = page.getByRole("button", { name: /^Iron ore.*(Raw input|Craftable)/ }).first();
   await expect(oreImport).toBeVisible();
 
   // right-click the import → the good menu offers the made gesture
@@ -37,18 +37,18 @@ test("marking an import made without a producer keeps it a silent import", async
 
   // no producer exists for it, so marking made is a non-event: NO "no recipe
   // yet" strip, and the good still shows as an import
-  await expect(page.getByText(/no recipe yet/)).toBeHidden();
+  await expect(page.getByText(/No recipe yet/)).toBeHidden();
   await expect(
-    page.getByRole("button", { name: /^Iron ore.*(raw input|craftable)/ }).first(),
+    page.getByRole("button", { name: /^Iron ore.*(Raw input|Craftable)/ }).first(),
   ).toBeVisible();
 
   // the menu now reads "made" — unmarking it back is available and harmless
   await page
-    .getByRole("button", { name: /^Iron ore.*(raw input|craftable)/ })
+    .getByRole("button", { name: /^Iron ore.*(Raw input|Craftable)/ })
     .first()
     .click({ button: "right" });
   await expect(
-    page.getByRole("menuitem", { name: /click to import instead/ }),
+    page.getByRole("menuitem", { name: /Click to import instead/ }),
   ).toBeVisible();
 });
 
@@ -106,7 +106,7 @@ test("adding a coke consumer drains exported pitch and keeps a solved building c
   }
 
   await goto(page, `/block/${id}`);
-  const pitch = page.getByRole("button", { name: /^Pitch 13\.4.*export/ }).first();
+  const pitch = page.getByRole("button", { name: /^Pitch 13\.4.*Export/ }).first();
   await expect(pitch).toBeVisible();
   await pitch.click();
 
@@ -116,11 +116,11 @@ test("adding a coke consumer drains exported pitch and keeps a solved building c
 
   // Pitch is fully consumed. The row shows a drain-routing marker—not the `%`
   // share marker—and its building count remains the ordinary solver result.
-  await expect(page.getByRole("button", { name: /^Pitch .*export/ }).first()).toBeHidden();
-  await expect(page.getByLabel("routes all surplus Pitch")).toBeVisible();
-  await expect(page.getByLabel("routes all surplus Pitch").locator("svg")).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Pitch .*Export/ }).first()).toBeHidden();
+  await expect(page.getByLabel("Routes all surplus Pitch")).toBeVisible();
+  await expect(page.getByLabel("Routes all surplus Pitch").locator("svg")).toBeVisible();
   await expect(
-    page.getByLabel("change Destructive distillation column MK 01 building").last(),
+    page.getByLabel("Change Destructive distillation column MK 01 building").last(),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "0.67", exact: true })).toBeVisible();
 });
@@ -157,7 +157,7 @@ test("adding a feedback recycler consumes the copper byproduct", async ({ page }
 
   await goto(page, `/block/${id}`);
   const grade1 = page
-    .getByRole("button", { name: /^Copper \(grade 1\).*export/ })
+    .getByRole("button", { name: /^Copper \(grade 1\).*Export/ })
     .first();
   await expect(grade1).toBeVisible();
   await grade1.click();
@@ -169,9 +169,9 @@ test("adding a feedback recycler consumes the copper byproduct", async ({ page }
   await expect(picker).toBeHidden();
 
   await expect(
-    page.getByRole("button", { name: /^Copper \(grade 1\).*export/ }).first(),
+    page.getByRole("button", { name: /^Copper \(grade 1\).*Export/ }).first(),
   ).toBeHidden();
-  const route = page.getByLabel("routes all surplus Copper (grade 1)");
+  const route = page.getByLabel("Routes all surplus Copper (grade 1)");
   await expect(route).toBeVisible();
   await expect(page.getByRole("button", { name: "11.82", exact: true })).toBeVisible();
 
@@ -180,7 +180,7 @@ test("adding a feedback recycler consumes the copper byproduct", async ({ page }
   // the recipe-row context menu.
   await route.click();
   const pins = page.getByRole("dialog", { name: /Pins — Copper \(grade 2\)/ });
-  await expect(pins.getByText("drains all surplus Copper (grade 1) (nothing exports)")).toBeVisible();
+  await expect(pins.getByText("Drains all surplus Copper (grade 1) (nothing exports)")).toBeVisible();
 });
 
 test("adding a cyclic consumer processes surplus that returns to the sink goal", async ({
@@ -209,7 +209,7 @@ test("adding a cyclic consumer processes surplus that returns to the sink goal",
   }
 
   await goto(page, `/block/${id}`);
-  const soot = page.getByRole("button", { name: /^Soot 4\.87.*export/ }).first();
+  const soot = page.getByRole("button", { name: /^Soot 4\.87.*Export/ }).first();
   await expect(soot).toBeVisible();
   await soot.click();
 
@@ -217,7 +217,7 @@ test("adding a cyclic consumer processes surplus that returns to the sink goal",
   await picker.getByRole("button", { name: /^Soot separation/ }).click();
   await expect(picker).toBeHidden();
 
-  await expect(page.getByRole("button", { name: /^Soot .*export/ }).first()).toBeHidden();
-  await expect(page.getByLabel("routes all surplus Soot")).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Soot .*Export/ }).first()).toBeHidden();
+  await expect(page.getByLabel("Routes all surplus Soot")).toBeVisible();
   await expect(page.getByRole("button", { name: "2.56", exact: true })).toBeVisible();
 });

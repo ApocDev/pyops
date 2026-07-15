@@ -34,14 +34,14 @@ export function EditableStock({
             setDraft(String(stock));
             setEditing(true);
           }}
-          title="keep this many on hand — click to edit"
+          title="Keep this many on hand — click to edit"
           className="whitespace-nowrap hover:text-info"
         >
-          keep {formatQty(stock)}
+          Keep {formatQty(stock)}
         </button>
         <button
           onClick={cycle}
-          title="refill window — machines are sized to rebuild the buffer within this time; click to cycle"
+          title="Refill window — machines are sized to rebuild the buffer within this time; click to cycle"
           className="flex items-center gap-0.5 whitespace-nowrap text-muted-foreground hover:text-info"
         >
           <RefreshCw className="size-3" />

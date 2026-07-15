@@ -14,12 +14,12 @@ test("Explore search shows the shared no-matches state and clears", async ({ pag
   // the stats line renders from a client query — once it's there, React has
   // hydrated and the controlled input actually receives the fill
   await expect(page.getByText(/recipes · /)).toBeVisible();
-  const input = page.getByPlaceholder("search items & fluids…");
+  const input = page.getByPlaceholder("Search items & fluids…");
   await input.fill(NONSENSE);
   await expect(page.getByText(`No matches for "${NONSENSE}"`)).toBeVisible();
-  await page.getByRole("button", { name: "clear filter" }).click();
+  await page.getByRole("button", { name: "Clear filter" }).click();
   await expect(input).toHaveValue("");
-  await expect(page.getByText("type to search", { exact: false })).toBeVisible();
+  await expect(page.getByText("Type to search", { exact: false })).toBeVisible();
 });
 
 test("turd filter offers clear-filter on no matches", async ({ page }) => {
@@ -31,10 +31,10 @@ test("turd filter offers clear-filter on no matches", async ({ page }) => {
     test.skip(true, "no TURD data in the active project DB");
   }
 
-  const input = page.getByPlaceholder("filter upgrades…");
+  const input = page.getByPlaceholder("Filter upgrades…");
   await input.fill(NONSENSE);
   await expect(page.getByText(`No matches for "${NONSENSE}"`)).toBeVisible();
-  await page.getByRole("button", { name: "clear filter" }).click();
+  await page.getByRole("button", { name: "Clear filter" }).click();
   await expect(input).toHaveValue("");
   await expect(page.getByText(`No matches for "${NONSENSE}"`)).toBeHidden();
 });
@@ -47,10 +47,10 @@ test("factory filter shows the shared no-matches state", async ({ page }) => {
   await expect(section.or(noFlows).first()).toBeVisible();
   if (await noFlows.isVisible()) test.skip(true, "no factory flows in the active project DB");
 
-  const input = page.getByPlaceholder("filter items…");
+  const input = page.getByPlaceholder("Filter items…");
   await input.fill(NONSENSE);
   await expect(page.getByText(`No matches for "${NONSENSE}"`)).toBeVisible();
   // the input's inline ✕ clears too (distinct from the empty state's button)
-  await page.getByRole("button", { name: "clear", exact: true }).click();
+  await page.getByRole("button", { name: "Clear", exact: true }).click();
   await expect(input).toHaveValue("");
 });

@@ -9,7 +9,7 @@ test("incidental spoilage joins an intentional goal without duplicating its expo
 
   // Intentional spoilage is ordinary goal-driven production through the real
   // synthetic recipe: one imported Agar per second becomes one Biocrud/s.
-  await page.locator('button[aria-label^="add a recipe that makes "]').click();
+  await page.locator('button[aria-label^="Add a recipe that makes "]').click();
   const picker = page.getByRole("dialog", { name: /Recipes that make/ });
   await picker.getByRole("button", { name: /Agar spoils/ }).click();
   await expect(picker).toBeHidden();
@@ -18,20 +18,20 @@ test("incidental spoilage joins an intentional goal without duplicating its expo
   // Add a separate operational estimate through the imported source item's
   // normal context menu. It must not resize the intentional recipe/import.
   const agarImport = page
-    .getByRole("button", { name: /^Agar .*(?:raw input|craftable)/ })
+    .getByRole("button", { name: /^Agar .*(?:Raw input|Craftable)/ })
     .first();
   await expect(agarImport).toBeVisible();
   await agarImport.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Estimate incidental spoilage…" }).click();
 
   const dialog = page.getByRole("dialog", { name: /Estimate incidental spoilage — Agar/ });
-  await dialog.getByLabel("expected amount spoiled per second").fill("0.01");
-  await dialog.getByRole("button", { name: "save estimate" }).click();
+  await dialog.getByLabel("Expected amount spoiled per second").fill("0.01");
+  await dialog.getByRole("button", { name: "Save estimate" }).click();
   await expect(dialog).toBeHidden();
 
   // The normal 1/s goal stays primary. Its incidental 0.01/s is shown beneath
   // it, while the duplicate display-only Exports column disappears.
-  const goalButton = page.getByRole("button", { name: "add a recipe that makes Biocrud" });
+  const goalButton = page.getByRole("button", { name: "Add a recipe that makes Biocrud" });
   const goalCell = goalButton.locator("..");
   await expect(goalCell.getByLabel("0.01/s estimated incidental spoilage")).toBeVisible();
   await expect(page.getByText("Exports", { exact: true })).toHaveCount(0);

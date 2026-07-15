@@ -54,12 +54,12 @@ function WhatIf() {
           <>
             {Object.keys(overrides).length > 0 && (
               <Button variant="outline" size="sm" onClick={() => setOverrides({})}>
-                reset to current
+                Reset to current
               </Button>
             )}
             {r && r.status !== "Optimal" && (
               <span className="text-sm text-warning">
-                solve: {r.status === "ValidationFailed" ? "validation failed" : r.status}
+                Solve: {r.status === "ValidationFailed" ? "Validation failed" : r.status}
               </span>
             )}
             <HelpButton title="What is Scenario?">
@@ -156,7 +156,7 @@ function WhatIf() {
         <Card>
           <CardHeader className="justify-between">
             <div className="flex items-center gap-2">
-              <CardTitle className="normal-case">Goal changes ({changed.length})</CardTitle>
+              <CardTitle>Goal changes ({changed.length})</CardTitle>
               <InfoHint content="Next goal is the useful demand assigned to this block. Block output includes coproduct made by its other recipes; factory surplus is what remains after every projected use." />
             </div>
             <div className="flex items-center gap-3">
@@ -169,14 +169,14 @@ function WhatIf() {
             </div>
           </CardHeader>
           <StatTableHeader
-            lead="good"
+            lead="Good"
             className="gap-x-4"
             cols={[
-              { label: "current goal/s", w: "w-28" },
-              { label: "next goal/s", w: "w-28" },
-              { label: "factory use/s", w: "w-28" },
-              { label: "block output/s", w: "w-28" },
-              { label: "surplus/s", w: "w-24" },
+              { label: "Current goal/s", w: "w-28" },
+              { label: "Next goal/s", w: "w-28" },
+              { label: "Factory use/s", w: "w-28" },
+              { label: "Block output/s", w: "w-28" },
+              { label: "Surplus/s", w: "w-24" },
             ]}
           />
           {wf.isLoading ? (
@@ -187,7 +187,7 @@ function WhatIf() {
             </div>
           ) : changed.length === 0 ? (
             <Callout tone="success" variant="strip">
-              already balanced for these demands — no goal changes needed
+              Already balanced for these demands — no goal changes needed
             </Callout>
           ) : (
             changed.map((b) => (
@@ -199,23 +199,23 @@ function WhatIf() {
               >
                 <span className="min-w-0 flex-1 truncate text-primary underline">{b.display}</span>
                 <span className="grid grid-cols-2 gap-x-4 gap-y-2 md:flex">
-                  <StatCell label="current goal/s" w="md:w-28" className="text-muted-foreground">
+                  <StatCell label="Current goal/s" w="md:w-28" className="text-muted-foreground">
                     {rateLabel(b.good ?? "", b.currentRate)}
                   </StatCell>
                   <StatCell
-                    label="next goal/s"
+                    label="Next goal/s"
                     w="md:w-28"
                     className={`font-semibold ${b.delta > 0 ? "text-warning" : "text-info"}`}
                   >
                     {rateLabel(b.good ?? "", b.requiredRate)}
                   </StatCell>
-                  <StatCell label="factory use/s" w="md:w-28" className="text-foreground">
+                  <StatCell label="Factory use/s" w="md:w-28" className="text-foreground">
                     {rateLabel(b.good ?? "", b.factoryNeed)}
                   </StatCell>
-                  <StatCell label="block output/s" w="md:w-28" className="text-foreground">
+                  <StatCell label="Block output/s" w="md:w-28" className="text-foreground">
                     {rateLabel(b.good ?? "", b.projectedOutput)}
                   </StatCell>
-                  <StatCell label="surplus/s" w="md:w-24" className="text-surplus">
+                  <StatCell label="Surplus/s" w="md:w-24" className="text-surplus">
                     {rateLabel(b.good ?? "", b.factorySurplus)}
                   </StatCell>
                 </span>
@@ -229,21 +229,19 @@ function WhatIf() {
         <SupplyAllocationCard rows={r?.supplyAllocations ?? []} />
         <GoodsCard
           title="Raw inputs needed"
-          hint="external supply — current vs. projected"
+          hint="External supply — current vs. projected"
           rows={(r?.raws ?? []).filter((x) => x.projected > 1e-3)}
           field="projected"
           color="text-warning"
         />
         <Card>
           <CardHeader>
-            <CardTitle className="normal-case">
-              Overproduced ({r?.overproduced?.length ?? 0})
-            </CardTitle>
-            <InfoHint content="byproduct surplus that needs a consumer — scale the suggested sink, or add one" />
+            <CardTitle>Overproduced ({r?.overproduced?.length ?? 0})</CardTitle>
+            <InfoHint content="Byproduct surplus that needs a consumer — scale the suggested sink, or add one" />
           </CardHeader>
           {(r?.overproduced ?? []).length === 0 ? (
             <Callout tone="success" variant="strip">
-              nothing piling up
+              Nothing piling up
             </Callout>
           ) : (
             <div className="divide-y divide-border">
@@ -260,8 +258,8 @@ function WhatIf() {
                   </span>
                   <span className="text-surplus">+{rateLabel(x.good, x.projected)}</span>
                   <span className="text-muted-foreground">/s</span>
-                  <Tooltip content="factory balance does not scale consumers to absorb surplus">
-                    <span className="ml-2 text-sm text-warning/80">surplus</span>
+                  <Tooltip content="Factory balance does not scale consumers to absorb surplus">
+                    <span className="ml-2 text-sm text-warning/80">Surplus</span>
                   </Tooltip>
                 </div>
               ))}
@@ -290,7 +288,7 @@ function GoodsCard({
   return (
     <Card>
       <CardHeader className="justify-between">
-        <CardTitle className="normal-case">
+        <CardTitle>
           {title} ({rows.length})
         </CardTitle>
         <span className="text-sm text-muted-foreground">{hint}</span>

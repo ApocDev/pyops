@@ -23,6 +23,11 @@ const HOST = "127.0.0.1";
 function fakeMod(fields: { protocol_version: number; player?: string; mod_version?: string }) {
   const sock = dgram.createSocket("udp4");
   sock.on("error", () => {}); // ignore ICMP port-unreachable before the app binds
+  let markReady: () => void;
+  const ready = new Promise<void>((resolve) => {
+    markReady = resolve;
+  });
+  sock.on("message", markReady!);
   const ping = () => {
     const msg = Buffer.from(
       JSON.stringify({ request_id: "e2e", type: "bridge.ping", ...fields }),
@@ -32,6 +37,7 @@ function fakeMod(fields: { protocol_version: number; player?: string; mod_versio
   ping();
   const timer = setInterval(ping, 1500);
   return {
+    ready,
     stop: () => {
       clearInterval(timer);
       sock.close();
@@ -41,11 +47,15 @@ function fakeMod(fields: { protocol_version: number; player?: string; mod_versio
 
 const label = (page: import("@playwright/test").Page) => page.locator("nav a[href*='tab=link']");
 
-test("shows 'game linked' for a fresh, protocol-matched peer", async ({ page }) => {
+test("shows 'Game linked' for a fresh, protocol-matched peer", async ({ page }) => {
   await page.goto("/");
   const mod = fakeMod({ protocol_version: PROTOCOL_VERSION, player: "jim", mod_version: APP_VERSION });
   try {
-    await expect(label(page)).toContainText("game linked");
+    // Wait for the real bridge to answer a heartbeat, then reload so the first
+    // status read cannot race the listener's asynchronous UDP bind.
+    await mod.ready;
+    await page.reload();
+    await expect(label(page)).toContainText("Game linked");
     // the peer detail now lives in the styled tooltip, shown on hover
     await label(page).hover();
     await expect(page.getByRole("tooltip")).toContainText("jim");
@@ -58,7 +68,9 @@ test("flags a protocol mismatch when the mod speaks a different version", async 
   await page.goto("/");
   const mod = fakeMod({ protocol_version: PROTOCOL_VERSION - 1, player: "jim" });
   try {
-    await expect(label(page)).toContainText("mod mismatch");
+    await mod.ready;
+    await page.reload();
+    await expect(label(page)).toContainText("Mod mismatch");
   } finally {
     mod.stop();
   }

@@ -206,7 +206,7 @@ export function LogisticsPicker() {
             >
               <Input
                 value={d.prefs.overrideStack ?? ""}
-                placeholder="auto"
+                placeholder="Auto"
                 inputMode="numeric"
                 onChange={(e) => {
                   const raw = e.target.value.trim();
@@ -220,7 +220,7 @@ export function LogisticsPicker() {
         </div>
 
         <div className="border border-border bg-muted/30 p-2 text-sm text-muted-foreground">
-          belt stack <b className="text-foreground">×{resolved.placedStack}</b>
+          Belt stack <b className="text-foreground">×{resolved.placedStack}</b>
           {d.prefs.overrideStack != null && <span> (override)</span>}
           {handStack != null && (
             <>
@@ -229,10 +229,10 @@ export function LogisticsPicker() {
           )}
           {" · "}
           {d.bonuses.belt === 0 && d.bonuses.inserter === 0 && d.bonuses.bulkInserter === 0 ? (
-            "no stacking research yet"
+            "No stacking research yet"
           ) : (
             <>
-              research belt +{d.bonuses.belt} · inserter +{d.bonuses.inserter} · bulk +
+              Research belt +{d.bonuses.belt} · inserter +{d.bonuses.inserter} · bulk +
               {d.bonuses.bulkInserter}
             </>
           )}

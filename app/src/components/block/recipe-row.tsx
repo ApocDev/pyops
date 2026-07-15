@@ -164,7 +164,7 @@ export function RecipeRow({
               ref={setActivatorNodeRef}
               {...attributes}
               {...listeners}
-              title="drag to reorder this recipe"
+              title="Drag to reorder this recipe"
               className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground select-none hover:text-foreground active:cursor-grabbing"
             >
               <GripVertical className="size-4" />
@@ -190,18 +190,18 @@ export function RecipeRow({
                 {display}
               </span>
               {off ? (
-                <Tooltip content="excluded from the solve">
-                  <span className="text-sm font-semibold text-muted-foreground">disabled</span>
+                <Tooltip content="Excluded from the solve">
+                  <span className="text-sm font-semibold text-muted-foreground">Disabled</span>
                 </Tooltip>
               ) : error ? (
-                <Tooltip content="the block solve failed — edit this row to repair it">
+                <Tooltip content="The block solve failed — edit this row to repair it">
                   <span className="flex items-center gap-1 text-sm font-semibold text-destructive">
-                    <AlertTriangle className="size-3" /> solve failed
+                    <AlertTriangle className="size-3" /> Solve failed
                   </span>
                 </Tooltip>
               ) : idle ? (
-                <Tooltip content="nothing in this block pulls it">
-                  <span className="text-sm font-semibold text-muted-foreground">idle</span>
+                <Tooltip content="Nothing in this block pulls it">
+                  <span className="text-sm font-semibold text-muted-foreground">Idle</span>
                 </Tooltip>
               ) : row ? (
                 <span className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -217,8 +217,8 @@ export function RecipeRow({
               onClick={() => doc.toggleDisabled(name)}
               title={
                 off
-                  ? "enable — include this recipe in the solve"
-                  : "disable — keep the recipe but exclude it from the solve"
+                  ? "Enable — include this recipe in the solve"
+                  : "Disable — keep the recipe but exclude it from the solve"
               }
             >
               <Power className="size-3.5" />
@@ -228,10 +228,10 @@ export function RecipeRow({
               size={confirmRemove ? "xs" : "icon-xs"}
               className={`shrink-0 hover:text-destructive ${confirmRemove ? "font-semibold text-destructive" : "text-muted-foreground"}`}
               onClick={onRequestRemove}
-              title={confirmRemove ? "click again to remove" : "remove"}
+              title={confirmRemove ? "Click again to remove" : "Remove"}
             >
               {confirmRemove ? (
-                <span className="whitespace-nowrap">remove?</span>
+                <span className="whitespace-nowrap">Remove?</span>
               ) : (
                 <X className="size-3.5" />
               )}
@@ -248,7 +248,7 @@ export function RecipeRow({
                 <span className="flex items-center gap-2 bg-muted/50 px-1.5 py-1 text-sm">
                   <button
                     onClick={() => open.machinePicker(name)}
-                    aria-label={`change ${row.machine.display ?? row.machine.name} building`}
+                    aria-label={`Change ${row.machine.display ?? row.machine.name} building`}
                     className="flex items-center hover:brightness-125"
                   >
                     <Icon
@@ -280,7 +280,7 @@ export function RecipeRow({
                           <Button
                             variant="ghost"
                             size="icon-xs"
-                            aria-label={`manage ${shareCount} routed input share${shareCount > 1 ? "s" : ""}`}
+                            aria-label={`Manage ${shareCount} routed input share${shareCount > 1 ? "s" : ""}`}
                             onClick={() => open.pinsFor(name)}
                             className="size-5 bg-info/20 text-sm text-info ring-1 ring-info/40 hover:bg-info/30 hover:text-info"
                           >
@@ -290,12 +290,12 @@ export function RecipeRow({
                       )}
                       {drainItems.length > 0 && (
                         <Tooltip
-                          content={`routes all surplus ${drainDisplay} into this recipe; click to manage`}
+                          content={`Routes all surplus ${drainDisplay} into this recipe; click to manage`}
                         >
                           <Button
                             variant="ghost"
                             size="icon-xs"
-                            aria-label={`routes all surplus ${drainDisplay}`}
+                            aria-label={`Routes all surplus ${drainDisplay}`}
                             onClick={() => open.pinsFor(name)}
                             className="size-5 bg-info/20 text-info ring-1 ring-info/40 hover:bg-info/30 hover:text-info"
                           >
@@ -318,14 +318,14 @@ export function RecipeRow({
                 {/* electricity, when the machine draws power */}
                 {row.machine.energySource === "electric" && (
                   <span
-                    title="electric power draw"
+                    title="Electric power draw"
                     className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-info"
                   >
                     <Zap className="size-3.5" /> {fmtW(row.machine.powerW)}
                   </span>
                 )}
                 {row.machine.energySource === "heat" && (
-                  <Tooltip content="heat draw — must be delivered by a reactor in this block (heat doesn't travel between blocks)">
+                  <Tooltip content="Heat draw — must be delivered by a reactor in this block (heat doesn't travel between blocks)">
                     <span className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-warning">
                       <Flame className="size-3.5" /> {fmtW(row.machine.powerW)}
                     </span>
@@ -404,7 +404,7 @@ export function RecipeRow({
                 {moduleHints && settledSuggestion && (
                   <button
                     onClick={() => open.applyModuleFill(name)}
-                    title="better modules available — click to apply the suggested fill (open the modules dialog to preview it)"
+                    title="Better modules available — click to apply the suggested fill (open the modules dialog to preview it)"
                     className="flex items-center px-1 py-1 text-info hover:bg-accent"
                   >
                     <Sparkles className="size-3.5" />
@@ -431,7 +431,7 @@ export function RecipeRow({
               // Spoil-buffer sizing (#19): no machine — the "cost" of a
               // spoiling step is the storage holding items mid-spoil.
               <Tooltip
-                content={`spoils in ${fmtSpoilTime(row.spoil.seconds * 60)} — at ${num(row.rate)}/s, ≈${num(row.spoil.buffer)} items sit in storage mid-spoil${row.spoil.stacks != null ? ` (≈${Math.ceil(row.spoil.stacks)} stacks @ ${row.spoil.stackSize}/stack)` : ""}`}
+                content={`Spoils in ${fmtSpoilTime(row.spoil.seconds * 60)} — at ${num(row.rate)}/s, ≈${num(row.spoil.buffer)} items sit in storage mid-spoil${row.spoil.stacks != null ? ` (≈${Math.ceil(row.spoil.stacks)} stacks @ ${row.spoil.stackSize}/stack)` : ""}`}
               >
                 <span className="flex items-center gap-1.5 bg-muted/50 px-1.5 py-1 text-sm text-warning">
                   <Timer className="size-3.5 shrink-0" />

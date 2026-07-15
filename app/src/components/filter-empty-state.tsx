@@ -21,7 +21,7 @@ export function FilterEmptyState({
       description="Try a different search term, or clear the filter."
       action={
         <Button variant="outline" size="sm" onClick={onClear}>
-          clear filter
+          Clear filter
         </Button>
       }
     />

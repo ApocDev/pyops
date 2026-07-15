@@ -59,7 +59,7 @@ export function SnapshotDiffView({
   if (diff.unchanged && !nameChange) {
     return (
       <p className="py-1 text-sm text-muted-foreground italic">
-        identical to the current state — restoring would change nothing.
+        Identical to the current state — restoring would change nothing.
       </p>
     );
   }
@@ -109,28 +109,28 @@ export function SnapshotDiffView({
             <Row
               key={`a-${r}`}
               left={<NameChip name={r} recipe />}
-              right={<span className="shrink-0 text-success">added</span>}
+              right={<span className="shrink-0 text-success">Added</span>}
             />
           ))}
           {diff.recipes.removed.map((r) => (
             <Row
               key={`r-${r}`}
               left={<NameChip name={r} recipe />}
-              right={<span className="shrink-0 text-destructive">removed</span>}
+              right={<span className="shrink-0 text-destructive">Removed</span>}
             />
           ))}
           {diff.recipes.enabled.map((r) => (
             <Row
               key={`e-${r}`}
               left={<NameChip name={r} recipe />}
-              right={<span className="shrink-0 text-success">re-enabled</span>}
+              right={<span className="shrink-0 text-success">Re-enabled</span>}
             />
           ))}
           {diff.recipes.disabled.map((r) => (
             <Row
               key={`d-${r}`}
               left={<NameChip name={r} recipe />}
-              right={<span className="shrink-0 text-warning">disabled</span>}
+              right={<span className="shrink-0 text-warning">Disabled</span>}
             />
           ))}
         </DiffSection>
@@ -146,7 +146,7 @@ export function SnapshotDiffView({
               <div className="space-y-0.5 pl-4">
                 {p.machine && (
                   <Row
-                    left={<span className="text-muted-foreground">machine</span>}
+                    left={<span className="text-muted-foreground">Machine</span>}
                     right={
                       <FromTo
                         from={p.machine.from ? display(p.machine.from) : "auto"}
@@ -157,7 +157,7 @@ export function SnapshotDiffView({
                 )}
                 {p.fuel && (
                   <Row
-                    left={<span className="text-muted-foreground">fuel</span>}
+                    left={<span className="text-muted-foreground">Fuel</span>}
                     right={
                       <FromTo
                         from={p.fuel.from ? display(p.fuel.from) : "auto"}
@@ -168,7 +168,7 @@ export function SnapshotDiffView({
                 )}
                 {p.modules && (
                   <Row
-                    left={<span className="text-muted-foreground">modules</span>}
+                    left={<span className="text-muted-foreground">Modules</span>}
                     right={
                       <FromTo from={moduleLabel(p.modules.from)} to={moduleLabel(p.modules.to)} />
                     }
@@ -176,7 +176,7 @@ export function SnapshotDiffView({
                 )}
                 {p.beacons && (
                   <Row
-                    left={<span className="text-muted-foreground">beacons</span>}
+                    left={<span className="text-muted-foreground">Beacons</span>}
                     right={
                       <FromTo from={beaconLabel(p.beacons.from)} to={beaconLabel(p.beacons.to)} />
                     }
@@ -184,7 +184,7 @@ export function SnapshotDiffView({
                 )}
                 {p.reactorLayout && (
                   <Row
-                    left={<span className="text-muted-foreground">reactor layout</span>}
+                    left={<span className="text-muted-foreground">Reactor layout</span>}
                     right={
                       <FromTo
                         from={layoutLabel(p.reactorLayout.from)}
@@ -218,7 +218,7 @@ export function SnapshotDiffView({
               key={c.name}
               left={<NameChip name={c.name} />}
               right={
-                <FromTo from={c.from ? "made here" : "free"} to={c.to ? "made here" : "free"} />
+                <FromTo from={c.from ? "Made here" : "Free"} to={c.to ? "Made here" : "Free"} />
               }
             />
           ))}

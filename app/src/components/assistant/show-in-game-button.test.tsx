@@ -20,14 +20,14 @@ describe("ShowInGameButton", () => {
     const { getByText, findByText } = render(<ShowInGameButton blockId={7} />);
     fireEvent.click(getByText("Show in game"));
     expect(showBlock).toHaveBeenCalledWith({ data: 7 });
-    expect(await findByText(/opened in game/)).toBeTruthy();
+    expect(await findByText(/Opened in game/)).toBeTruthy();
   });
 
   it("reports a disconnected game instead of pretending it opened", async () => {
     showBlock.mockResolvedValue({ sent: false, name: null });
     const { getByText, findByText } = render(<ShowInGameButton blockId={7} />);
     fireEvent.click(getByText("Show in game"));
-    expect(await findByText(/game not connected/)).toBeTruthy();
+    expect(await findByText(/Game not connected/)).toBeTruthy();
   });
 
   it("does nothing until clicked and supports a custom label", () => {

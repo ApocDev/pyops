@@ -65,7 +65,7 @@ export function ScenarioValidationCard({
   return (
     <Card className="mb-4 border-warning/40" data-testid="scenario-validation">
       <CardHeader>
-        <CardTitle className="normal-case text-warning">
+        <CardTitle className="text-warning">
           {validationFailed ? "Scenario validation failed" : `Scenario solve failed: ${status}`}
         </CardTitle>
       </CardHeader>
@@ -135,7 +135,7 @@ export function ScenarioValidationCard({
                 >
                   {block.name}
                 </Link>
-                <span className="text-warning">block solve: {block.status}</span>
+                <span className="text-warning">Block solve: {block.status}</span>
               </div>
               {block.message && (
                 <p className="text-muted-foreground">Solver detail: {block.message}</p>
@@ -171,7 +171,7 @@ export function ScenarioValidationCard({
                 >
                   <span className="truncate">{flow.display}</span>
                   <span className="text-muted-foreground">
-                    expected {rateLabel(flow.good, flow.expected, { perSec: true })}, got{" "}
+                    Expected {rateLabel(flow.good, flow.expected, { perSec: true })}, got{" "}
                     {rateLabel(flow.good, flow.actual, { perSec: true })} (
                     {Math.round(flow.relative * 1000) / 10}% mismatch)
                   </span>

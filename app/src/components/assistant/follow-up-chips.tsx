@@ -89,7 +89,7 @@ export function FollowUpChips({
   if (!onFollowUp || followUps.length === 0) return null;
   return (
     <div className="mt-2.5">
-      <div className="text-xs tracking-wide text-muted-foreground uppercase">next steps</div>
+      <div className="text-xs tracking-wide text-muted-foreground">Next steps</div>
       <div className="mt-1 flex flex-wrap gap-1.5">
         {followUps.map((f) => (
           <Chip key={`${f.kind}:${f.good}`} f={f} disabled={disabled} onFollowUp={onFollowUp} />

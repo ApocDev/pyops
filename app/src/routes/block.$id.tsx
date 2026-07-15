@@ -798,7 +798,7 @@ function Block({ blockId }: { blockId: number }) {
           </p>
           {res.missing.recipes.length > 0 && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="text-muted-foreground">missing recipe:</span>
+              <span className="text-muted-foreground">Missing recipe:</span>
               {res.missing.recipes.map((n) => (
                 <code key={n} className="bg-destructive/15 px-1.5 py-0.5 text-destructive">
                   {n}
@@ -808,7 +808,7 @@ function Block({ blockId }: { blockId: number }) {
           )}
           {res.missing.goods.length > 0 && (
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span className="text-muted-foreground">missing good:</span>
+              <span className="text-muted-foreground">Missing good:</span>
               {res.missing.goods.map((n) => (
                 <code key={n} className="bg-destructive/15 px-1.5 py-0.5 text-destructive">
                   {n}
@@ -859,7 +859,7 @@ function Block({ blockId }: { blockId: number }) {
           is a read-only alternative rendering of the same solve. */}
       <div className="mb-2">
         <Segmented
-          aria-label="recipe view"
+          aria-label="Recipe view"
           size="sm"
           value={view}
           onValueChange={setView}

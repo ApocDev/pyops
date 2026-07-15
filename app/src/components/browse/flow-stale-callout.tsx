@@ -23,7 +23,7 @@ export function FlowStaleCallout() {
           onClick={() => recompute.mutate()}
           disabled={recompute.isPending}
         >
-          {recompute.isPending ? "computing…" : "compute now"}
+          {recompute.isPending ? "Computing…" : "Compute now"}
         </Button>
       }
     >

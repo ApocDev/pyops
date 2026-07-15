@@ -136,7 +136,7 @@ export function BalanceCard({
               electricity/heat aren't shown here at all: both surface as their
               own import chips below (pyops-electricity / pyops-heat). */}
           {res && Math.abs(res.power.pollutionPerMin) > 0.005 && (
-            <Tooltip content="pollution per minute from this block's machines (base emissions × energy-consumption × pollution module effects; fuel-type multipliers not modelled). Negative = net absorption — some buildings (forestry, plantations) soak pollution like trees.">
+            <Tooltip content="Pollution per minute from this block's machines (base emissions × energy-consumption × pollution module effects; fuel-type multipliers not modelled). Negative = net absorption — some buildings (forestry, plantations) soak pollution like trees.">
               <span
                 className={`flex items-center gap-1 ${res.power.pollutionPerMin < 0 ? "text-success" : "text-warning/80"}`}
               >
@@ -146,7 +146,11 @@ export function BalanceCard({
           )}
           {res && (
             <span className={statusColor}>
-              {res.status}
+              {res.status === "solved"
+                ? "Solved"
+                : res.status === "infeasible"
+                  ? "Infeasible"
+                  : "Error"}
               {res.message ? ` — ${res.message}` : ""}
             </span>
           )}
@@ -168,12 +172,12 @@ export function BalanceCard({
                   <div className="flex flex-col gap-1">
                     {card.members.map((m, mi) => {
                       const prov = m.prov;
-                      const short = m.shortBy > 1e-6 ? ` — short ${num(m.shortBy)}/s` : "";
+                      const short = m.shortBy > 1e-6 ? ` — Short ${num(m.shortBy)}/s` : "";
                       if (prov.type === "goal")
                         return (
                           <div key={mi} className="flex flex-wrap items-center gap-1.5">
                             <span>
-                              goal: {res.display?.[prov.item] ?? prov.item}{" "}
+                              Goal: {res.display?.[prov.item] ?? prov.item}{" "}
                               {prov.rate < 0
                                 ? `consume ≥ ${num(-prov.rate)}/s`
                                 : `≥ ${num(prov.rate)}/s`}
@@ -185,7 +189,7 @@ export function BalanceCard({
                         return (
                           <div key={mi} className="flex flex-wrap items-center gap-1.5">
                             <span>
-                              made here: {res.display?.[prov.item] ?? prov.item}
+                              Made here: {res.display?.[prov.item] ?? prov.item}
                               {"qualifier" in m && typeof m.qualifier === "string"
                                 ? ` at ${m.qualifier}`
                                 : ""}
@@ -200,14 +204,14 @@ export function BalanceCard({
                               }}
                               className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
                             >
-                              import it instead
+                              Import it instead
                             </button>
                             {producible.has(prov.item) && (
                               <button
                                 onClick={() => onMakeFor(prov.item)}
                                 className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
                               >
-                                add a producer
+                                Add a producer
                               </button>
                             )}
                           </div>
@@ -216,7 +220,7 @@ export function BalanceCard({
                         return (
                           <div key={mi} className="flex flex-wrap items-center gap-1.5">
                             <span>
-                              surplus of {res.display?.[prov.item] ?? prov.item} must be consumed
+                              Surplus of {res.display?.[prov.item] ?? prov.item} must be consumed
                               here (drain)
                               {short}
                             </span>
@@ -229,15 +233,15 @@ export function BalanceCard({
                               }}
                               className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
                             >
-                              allow export instead
+                              Allow export instead
                             </button>
                           </div>
                         );
                       // pin members: name the recipe + offer one-click removal
                       const label =
                         prov.type === "pin-share"
-                          ? `share pin: ${Math.round(prov.share * 100)}% of ${res.display?.[prov.item] ?? prov.item} into ${res.recipeDisplay?.[prov.recipe] ?? prov.recipe}`
-                          : `${prov.type === "pin-rate" ? "fixed" : "built"} count on ${res.recipeDisplay?.[prov.recipe] ?? prov.recipe}`;
+                          ? `Share pin: ${Math.round(prov.share * 100)}% of ${res.display?.[prov.item] ?? prov.item} into ${res.recipeDisplay?.[prov.recipe] ?? prov.recipe}`
+                          : `${prov.type === "pin-rate" ? "Fixed" : "Built"} count on ${res.recipeDisplay?.[prov.recipe] ?? prov.recipe}`;
                       return (
                         <div key={mi} className="flex flex-wrap items-center gap-1.5">
                           <span>
@@ -256,7 +260,7 @@ export function BalanceCard({
                             }}
                             className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
                           >
-                            remove pin
+                            Remove pin
                           </button>
                         </div>
                       );
@@ -277,7 +281,7 @@ export function BalanceCard({
             <div className="border-b border-border px-3 py-2 text-sm text-warning">
               <div className="mb-1 flex items-center gap-1 font-semibold">
                 <AlertTriangle className="size-3.5 shrink-0" />
-                no recipe yet — add:
+                No recipe yet — add:
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-2">
                 {res.unmade.map((n) => (
@@ -303,7 +307,7 @@ export function BalanceCard({
               {res.tempWarnings.map((w) => (
                 <Tooltip
                   key={`${w.producer}-${w.consumer}-${w.item}-${w.temp}`}
-                  content="the solver links fluids by name and pools all temperatures — in-game this producer's output can't feed this consumer"
+                  content="The solver links fluids by name and pools all temperatures — in-game this producer's output can't feed this consumer"
                 >
                   <div className="flex items-center gap-1">
                     <AlertTriangle className="size-3.5 shrink-0" />{" "}
@@ -339,7 +343,7 @@ export function BalanceCard({
                             fuel={fuelSet.has(f.name)}
                             indicatorLabel={
                               producedImports.isSuccess && !producedElsewhere.has(f.name)
-                                ? "not produced by another enabled block"
+                                ? "Not produced by another enabled block"
                                 : undefined
                             }
                             indicator={
@@ -367,19 +371,19 @@ export function BalanceCard({
                             trap (block 27); one click claims it in-block */}
                           {res.importedProducible?.includes(f.name) && (
                             <button
-                              title="an enabled recipe in this block produces this good, but the plan imports it. Click to mark it made in-block (production must cover consumption)."
+                              title="An enabled recipe in this block produces this good, but the plan imports it. Click to mark it made in-block (production must cover consumption)."
                               onClick={() => {
                                 doc.markMade(f.name);
                                 doc.note(`Mark "${res.display?.[f.name] ?? f.name}" made in-block`);
                               }}
                               className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
                             >
-                              made here? · make in-block
+                              Made here? · Make in-block
                             </button>
                           )}
                           {lockedInput === f.name && (
                             <>
-                              <Tooltip content="locked rate — the block is sized to consume this much of this input">
+                              <Tooltip content="Locked rate — the block is sized to consume this much of this input">
                                 <Input
                                   type="number"
                                   value={lockedRate}
@@ -394,7 +398,7 @@ export function BalanceCard({
                                 variant="ghost"
                                 size="icon-xs"
                                 onClick={onUnlock}
-                                title="unlock — the Goal rate is editable again"
+                                title="Unlock — the Goal rate is editable again"
                                 className="text-info"
                               >
                                 <Lock className="size-3.5" />
@@ -415,7 +419,7 @@ export function BalanceCard({
                       </span>
                     ))
                   ) : (
-                    <span className="text-sm text-muted-foreground">none</span>
+                    <span className="text-sm text-muted-foreground">None</span>
                   )}
                 </div>
               </div>
@@ -461,7 +465,7 @@ export function BalanceCard({
                             under the chip so it doesn't widen the export grid */}
                         {spoilables[f.name] != null && (
                           <button
-                            aria-label={`estimate incidental spoilage for ${res.display?.[f.name] ?? f.name}`}
+                            aria-label={`Estimate incidental spoilage for ${res.display?.[f.name] ?? f.name}`}
                             onClick={() => onOpenSpoilDialog(f.name)}
                             className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
                           >

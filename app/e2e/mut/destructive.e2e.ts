@@ -28,7 +28,7 @@ test("block delete: confirm dialog with real copy, cancel keeps it, undo toast r
 
   const row = sidebarBlockRow(page, name);
   await row.hover();
-  await row.getByRole("button", { name: "delete", exact: true }).click();
+  await row.getByRole("button", { name: "Delete", exact: true }).click();
 
   // the AlertDialog names the block and states what's destroyed
   const dialog = page.getByRole("alertdialog");
@@ -43,7 +43,7 @@ test("block delete: confirm dialog with real copy, cancel keeps it, undo toast r
 
   // Confirm deletes it and toasts with an Undo shortcut
   await row.hover();
-  await row.getByRole("button", { name: "delete", exact: true }).click();
+  await row.getByRole("button", { name: "Delete", exact: true }).click();
   await dialog.getByRole("button", { name: "Delete block" }).click();
   const deleted = toast(page, `Deleted "${name}"`);
   await expect(deleted).toBeVisible();
@@ -66,7 +66,7 @@ test("task delete fires immediately — undo toast, no confirm dialog", async ({
   await titleInput.blur(); // saves on blur
   await expect(page.getByRole("complementary").getByRole("button", { name: title })).toBeVisible();
 
-  await page.getByRole("button", { name: "delete task (undoable)" }).click();
+  await page.getByRole("button", { name: "Delete task (undoable)" }).click();
   // no AlertDialog — the toast with Undo is the safety net
   await expect(page.getByRole("alertdialog")).toBeHidden();
   const deleted = toast(page, `Deleted "${title}"`);

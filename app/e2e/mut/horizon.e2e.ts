@@ -7,15 +7,15 @@ test("manual mining productivity bonus persists and can be cleared", async ({ pa
   await now.click();
   await expect(now).toHaveAttribute("aria-pressed", "true");
 
-  const mining = page.getByRole("spinbutton", { name: "mining productivity bonus percent" });
+  const mining = page.getByRole("spinbutton", { name: "Mining productivity bonus percent" });
   await mining.fill("120");
   await mining.press("Enter");
   await expect(mining).toHaveValue("120");
-  await expect(page.getByText(/mining \+120% · recipe bonuses/)).toBeVisible();
+  await expect(page.getByText(/Mining: \+120% · Recipe bonuses:/)).toBeVisible();
 
   await page.reload();
   await expect(mining).toHaveValue("120");
-  await expect(page.getByText(/mining \+120% · recipe bonuses/)).toBeVisible();
+  await expect(page.getByText(/Mining: \+120% · Recipe bonuses:/)).toBeVisible();
 
   await mining.fill("");
   await mining.press("Enter");

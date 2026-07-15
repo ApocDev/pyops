@@ -11,7 +11,7 @@ export const Route = createFileRoute("/block/")({
       description={
         <>
           Pick a block from the sidebar, or use the{" "}
-          <Plus className="inline size-3.5" aria-label="new block" /> button to create one.
+          <Plus className="inline size-3.5" aria-label="New block" /> button to create one.
         </>
       }
     />

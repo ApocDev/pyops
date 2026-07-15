@@ -35,7 +35,7 @@ async function renderIndicator() {
 const dot = (el: HTMLElement) => el.querySelector("span.rounded-full")!;
 
 describe("BridgeIndicator", () => {
-  it("shows 'game linked' (green) for a fresh peer on a matching protocol", async () => {
+  it("shows 'Game linked' (green) for a fresh peer on a matching protocol", async () => {
     bridgeStatus.mockResolvedValue({
       status: "listening",
       host: "127.0.0.1",
@@ -44,7 +44,7 @@ describe("BridgeIndicator", () => {
       lastPeer: { lastSeenMs: Date.now(), protocolVersion: 4, player: "jim" },
     });
     const { findByText, findByRole, getByTestId } = await renderIndicator();
-    expect(await findByText("game linked")).toBeTruthy();
+    expect(await findByText("Game linked")).toBeTruthy();
     expect(dot(getByTestId("bridge-link")).className).toContain("bg-success");
     fireEvent.focus(getByTestId("bridge-link"));
     expect((await findByRole("tooltip")).textContent).toContain("jim");
@@ -59,11 +59,11 @@ describe("BridgeIndicator", () => {
       lastPeer: { lastSeenMs: Date.now(), protocolVersion: 3, player: "jim" },
     });
     const { findByText, getByTestId } = await renderIndicator();
-    expect(await findByText("mod mismatch")).toBeTruthy();
+    expect(await findByText("Mod mismatch")).toBeTruthy();
     expect(dot(getByTestId("bridge-link")).className).toContain("bg-destructive");
   });
 
-  it("shows 'no game' (amber) while listening with no peer", async () => {
+  it("shows 'No game' (amber) while listening with no peer", async () => {
     bridgeStatus.mockResolvedValue({
       status: "listening",
       host: "127.0.0.1",
@@ -72,7 +72,7 @@ describe("BridgeIndicator", () => {
       lastPeer: null,
     });
     const { findByText, getByTestId } = await renderIndicator();
-    expect(await findByText("no game")).toBeTruthy();
+    expect(await findByText("No game")).toBeTruthy();
     expect(dot(getByTestId("bridge-link")).className).toContain("bg-warning");
   });
 
@@ -85,7 +85,7 @@ describe("BridgeIndicator", () => {
       lastPeer: { lastSeenMs: Date.now() - 60_000, protocolVersion: 4, player: "jim" },
     });
     const { findByText } = await renderIndicator();
-    expect(await findByText("no game")).toBeTruthy();
+    expect(await findByText("No game")).toBeTruthy();
   });
 
   it("surfaces a bind error", async () => {
@@ -98,7 +98,7 @@ describe("BridgeIndicator", () => {
       lastPeer: null,
     });
     const { findByText, findByRole, getByTestId } = await renderIndicator();
-    expect(await findByText("bridge error")).toBeTruthy();
+    expect(await findByText("Bridge error")).toBeTruthy();
     fireEvent.focus(getByTestId("bridge-link"));
     expect((await findByRole("tooltip")).textContent).toContain("EADDRINUSE");
   });

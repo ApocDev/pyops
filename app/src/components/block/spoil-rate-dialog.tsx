@@ -52,11 +52,11 @@ export function SpoilRateDialog({
           {spoilTicks != null && (
             <p className="text-muted-foreground">Spoils in {fmtSpoilTime(spoilTicks)}.</p>
           )}
-          <FieldLabel>expected incidental spoilage</FieldLabel>
+          <FieldLabel>Expected incidental spoilage</FieldLabel>
           <div className="flex items-center gap-2">
             <Input
               id="incidental-spoil-rate"
-              aria-label="expected amount spoiled per second"
+              aria-label="Expected amount spoiled per second"
               autoFocus
               type="text"
               inputMode="decimal"
@@ -67,7 +67,7 @@ export function SpoilRateDialog({
             />
             <span className="text-muted-foreground">/s</span>
             <Button type="submit" variant="outline" size="sm" className="ml-auto">
-              save estimate
+              Save estimate
             </Button>
             {current != null && (
               <Button
@@ -77,7 +77,7 @@ export function SpoilRateDialog({
                 onClick={() => onSave(null)}
                 className="text-muted-foreground"
               >
-                clear
+                Clear
               </Button>
             )}
           </div>

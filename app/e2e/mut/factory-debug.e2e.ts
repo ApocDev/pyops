@@ -21,9 +21,9 @@ test("Advanced settings captures a structured Scenario solver trace", async ({ p
     const workspace = await page.getByTestId("scenario-workspace").boundingBox();
     expect(workspace?.width).toBeLessThanOrEqual(1600);
     expect(workspace?.x).toBeGreaterThan(1_000);
-    await expect(page.getByText("factory use/s", { exact: true })).toBeVisible();
-    await expect(page.getByText("block output/s", { exact: true })).toBeVisible();
-    await expect(page.getByText("surplus/s", { exact: true })).toBeVisible();
+    await expect(page.getByText("Factory use/s", { exact: true })).toBeVisible();
+    await expect(page.getByText("Block output/s", { exact: true })).toBeVisible();
+    await expect(page.getByText("Surplus/s", { exact: true })).toBeVisible();
 
     await goto(page, "/settings?tab=advanced");
     await page.getByRole("button", { name: "Refresh" }).click();

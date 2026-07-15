@@ -32,7 +32,7 @@ export function ItemSearchList({
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         autoFocus
-        placeholder="search an item or fluid…"
+        placeholder="Search an item or fluid…"
       />
       <div className="max-h-[55vh] overflow-auto border border-border">
         {items.isLoading && (
@@ -55,13 +55,13 @@ export function ItemSearchList({
               <Icon kind={it.kind as "item" | "fluid"} name={it.name} size="md" noTitle />
               <span className="truncate">{it.display ?? it.name}</span>
               {current?.kind === it.kind && current?.name === it.name && (
-                <span className="text-sm text-primary">current</span>
+                <span className="text-sm text-primary">Current</span>
               )}
             </button>
           ))
         ) : (
           !items.isLoading && (
-            <div className="px-3 py-2 text-sm text-muted-foreground">no matches</div>
+            <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
           )
         )}
       </div>

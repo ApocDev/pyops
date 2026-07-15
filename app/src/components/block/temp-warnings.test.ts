@@ -54,7 +54,7 @@ describe("rowTempWarnings", () => {
     const { ingredient, product } = rowTempWarnings(WARNINGS, GOODS, RECIPES, "dt-he3");
     expect(ingredient.size).toBe(0);
     const w = product.get("neutron")!;
-    expect(w.label).toBe("needs 4k°");
+    expect(w.label).toBe("Needs 4k°");
     expect(w.title).toContain("Magnetohydrodynamic (MHD) generator power (4000°)");
     expect(w.title).toContain("3k°");
   });
@@ -73,7 +73,7 @@ describe("rowTempWarnings", () => {
     ];
     const { product } = rowTempWarnings(both, GOODS, RECIPES, "dt-he3");
     const w = product.get("neutron")!;
-    expect(w.label).toBe("needs 4k°, ≥3.5k°");
+    expect(w.label).toBe("Needs 4k°, ≥3.5k°");
     expect(w.title.split("\n")).toHaveLength(2);
   });
 

@@ -117,7 +117,7 @@ export function RebalanceAllButton({
 
   const button = (
     <Button size="sm" disabled={disabledReason != null || applying} onClick={() => setOpen(true)}>
-      {applying ? "applying…" : applyingScenario ? "Apply scenario" : "Balance factory"}
+      {applying ? "Applying…" : applyingScenario ? "Apply scenario" : "Balance factory"}
     </Button>
   );
 
@@ -183,7 +183,7 @@ export function RebalanceAllButton({
             </Button>
             <Button onClick={apply} disabled={applying}>
               {applying
-                ? "applying…"
+                ? "Applying…"
                 : `Apply ${changed.length} change${changed.length === 1 ? "" : "s"}`}
             </Button>
           </DialogFooter>

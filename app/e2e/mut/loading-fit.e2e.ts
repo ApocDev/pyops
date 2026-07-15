@@ -20,12 +20,12 @@ test("a throughput-heavy row warns when loading access needs more buildings", as
   await addGoal(page, "small parts", "Small parts");
 
   // Add the Small parts recipe, then make the machine/rate deterministic.
-  await page.locator('button[aria-label^="add a recipe that makes "]').click();
+  await page.locator('button[aria-label^="Add a recipe that makes "]').click();
   const recipes = page.getByRole("dialog", { name: /Recipes that make/ });
   await recipes.locator('[data-recipe-candidate="small-parts-01"]').click();
   await expect(recipes).toBeHidden();
 
-  await page.locator('button[aria-label^="change "][aria-label$=" building"]').click();
+  await page.locator('button[aria-label^="Change "][aria-label$=" building"]').click();
   const buildings = page.getByRole("dialog", { name: /Building for/ });
   await buildings.getByRole("button", { name: /^Burner assembling machine MK 01/ }).click();
   await expect(buildings).toBeHidden();
@@ -42,7 +42,7 @@ test("a throughput-heavy row warns when loading access needs more buildings", as
   await page.keyboard.press("Escape");
   await expect(logistics).toBeHidden();
 
-  const warning = page.getByLabel("suggested build count 4");
+  const warning = page.getByLabel("Suggested build count 4");
   await expect(warning).toBeVisible();
   await expect(warning).toHaveText("4");
   await warning.hover();

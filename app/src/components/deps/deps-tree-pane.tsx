@@ -54,8 +54,8 @@ export function DepsTreePane({
   const fetched = useMemo(() => Object.keys(tree.nodes).length, [tree.nodes]);
   const summary =
     dir === "requires"
-      ? `requires ${root.closure.goods} goods via ${root.closure.recipes} recipes`
-      : `required by ${root.closure.recipes} recipes touching ${root.closure.goods} goods`;
+      ? `Requires ${root.closure.goods} goods via ${root.closure.recipes} recipes`
+      : `Required by ${root.closure.recipes} recipes touching ${root.closure.goods} goods`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -84,7 +84,7 @@ export function DepsTreePane({
                 className="h-auto gap-1 px-1 py-0 font-normal text-info hover:text-info"
               >
                 <Link to="/explore" search={{ sel: root.name }}>
-                  <SquareArrowOutUpRight className="size-3.5" /> open in Search
+                  <SquareArrowOutUpRight className="size-3.5" /> Open in Search
                 </Link>
               </Button>
             )}
@@ -95,7 +95,7 @@ export function DepsTreePane({
       {/* toolbar: direction, depth, in-tree filter */}
       <div className="flex flex-wrap items-center gap-2">
         <Segmented
-          aria-label="dependency direction"
+          aria-label="Dependency direction"
           size="sm"
           value={dir}
           onValueChange={onDirChange}
@@ -105,13 +105,13 @@ export function DepsTreePane({
           ]}
         />
         <Select value={String(depth)} onValueChange={(v) => onDepthChange(Number(v))}>
-          <SelectTrigger className="h-8 w-32" aria-label="tree depth">
+          <SelectTrigger className="h-8 w-32" aria-label="Tree depth">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {[1, 2, 3, 4, 5, 6].map((d) => (
               <SelectItem key={d} value={String(d)}>
-                depth {d}
+                Depth {d}
               </SelectItem>
             ))}
           </SelectContent>
@@ -119,14 +119,14 @@ export function DepsTreePane({
         <FilterInput
           value={filter}
           onValueChange={onFilterChange}
-          placeholder="filter tree…"
+          placeholder="Filter tree…"
           className="min-w-40 grow sm:ml-auto sm:max-w-64 sm:grow-0"
         />
       </div>
 
       {tree.budgetHit && (
         <Callout tone="info" variant="strip">
-          large graph — the tree is capped at {fetched} nodes; use “explore from here” on a branch
+          Large graph — the tree is capped at {fetched} nodes; use “explore from here” on a branch
           to dig deeper
         </Callout>
       )}
@@ -161,11 +161,11 @@ export function DepsTreePane({
             <div className="border-t border-border px-2 py-2 text-muted-foreground">
               {dir === "requires"
                 ? root.type === "recipe"
-                  ? "no ingredients — free to run"
-                  : "nothing makes this — a raw input"
+                  ? "No ingredients — free to run"
+                  : "Nothing makes this — a raw input"
                 : root.type === "recipe"
-                  ? "makes nothing — a pure sink"
-                  : "nothing uses this"}
+                  ? "Makes nothing — a pure sink"
+                  : "Nothing uses this"}
             </div>
           )}
           {root.truncated && (

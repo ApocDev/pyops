@@ -151,8 +151,8 @@ function GameDataTab() {
         <CardHeader className="justify-between">
           <CardTitle>Reference data</CardTitle>
           {drift.data?.needsRedump && (
-            <Tooltip content="the game's enabled mods or their versions changed since the last sync">
-              <Badge variant="destructive">stale — mods changed</Badge>
+            <Tooltip content="The game's enabled mods or their versions changed since the last sync">
+              <Badge variant="destructive">Stale — mods changed</Badge>
             </Tooltip>
           )}
         </CardHeader>
@@ -165,13 +165,13 @@ function GameDataTab() {
                 · {status.data.stats.craftingMachines} machines
               </div>
               <div className="text-xs text-muted-foreground">
-                imported from {status.data.meta.imported_from ?? "—"}
+                Imported from {status.data.meta.imported_from ?? "—"}
               </div>
               <div className="text-xs text-muted-foreground">
-                synced {status.data.meta.synced_at ?? "manually (no sync recorded)"} · fingerprint{" "}
+                Synced {status.data.meta.synced_at ?? "manually (no sync recorded)"} · Fingerprint{" "}
                 {status.data.meta.data_fingerprint ?? "—"}
                 {status.data.currentFingerprint &&
-                  ` · current mod list ${status.data.currentFingerprint}`}
+                  ` · Current mod list ${status.data.currentFingerprint}`}
               </div>
             </>
           )}
@@ -301,7 +301,7 @@ function ModDriftCard({ data }: { data: Awaited<ReturnType<typeof modDriftFn>> |
         <CardHeader className="justify-between">
           <CardTitle>Mod drift</CardTitle>
           <Badge className="border-transparent bg-success/15 text-success">
-            <Check className="size-3.5" /> matches the game
+            <Check className="size-3.5" /> Matches the game
           </Badge>
         </CardHeader>
         <div className="px-3 pb-3 text-sm text-muted-foreground">
@@ -314,7 +314,7 @@ function ModDriftCard({ data }: { data: Awaited<ReturnType<typeof modDriftFn>> |
     <Card>
       <CardHeader className="justify-between">
         <CardTitle>Mod drift</CardTitle>
-        <Badge variant="destructive">re-dump needed</Badge>
+        <Badge variant="destructive">Re-dump needed</Badge>
       </CardHeader>
       <div className="space-y-2 px-3 pb-3 text-sm">
         <p className="text-muted-foreground">
@@ -369,7 +369,7 @@ function ModsCard({
           What this project&apos;s reference data was dumped from — its provenance. Recorded on each
           sync.
         </p>
-        <FilterInput value={filter} onValueChange={setFilter} placeholder="filter mods…" />
+        <FilterInput value={filter} onValueChange={setFilter} placeholder="Filter mods…" />
         <div className="max-h-80 overflow-auto border border-border">
           {shown.map((m) => (
             <div
@@ -384,7 +384,7 @@ function ModsCard({
               <span className="shrink-0 tabular-nums text-muted-foreground">
                 {m.version ?? "—"}
               </span>
-              {!m.enabled && <Badge className="shrink-0 px-1 py-0 text-xs">off</Badge>}
+              {!m.enabled && <Badge className="shrink-0 px-1 py-0 text-xs">Off</Badge>}
             </div>
           ))}
           {shown.length === 0 && (
@@ -416,7 +416,7 @@ function DisplayCard() {
           <span>
             Theme
             <span className="block text-sm text-muted-foreground">
-              light, dark, or follow your system setting
+              Light, dark, or follow your system setting
             </span>
           </span>
           <Select value={theme} onValueChange={(v) => setTheme(v as ThemePref)}>
@@ -436,10 +436,10 @@ function DisplayCard() {
             <span className="block text-sm text-muted-foreground">
               {compact ? (
                 <>
-                  showing {formatQty(200_000)} — toggle off for {(200_000).toLocaleString("en-US")}
+                  Showing {formatQty(200_000)} — toggle off for {(200_000).toLocaleString("en-US")}
                 </>
               ) : (
-                <>showing {(200_000).toLocaleString("en-US")} — toggle on for 200K</>
+                <>Showing {(200_000).toLocaleString("en-US")} — toggle on for 200K</>
               )}
             </span>
           </span>
@@ -449,7 +449,7 @@ function DisplayCard() {
           <span>
             Advanced supply priorities
             <span className="block text-sm text-muted-foreground">
-              enter numeric tiers instead of Preferred, Normal, and Fallback
+              Enter numeric tiers instead of Preferred, Normal, and Fallback
             </span>
           </span>
           <Switch checked={advancedPriorities} onCheckedChange={setAdvancedSupplyPriorities} />
@@ -519,7 +519,7 @@ function PlannerCard() {
               save.mutate({ autofill: checked === true, fillMiners: s.fillMiners })
             }
           />
-          show suggestion hints on recipe rows
+          Show suggestion hints on recipe rows
         </Label>
         <Label>
           <Checkbox
@@ -528,16 +528,16 @@ function PlannerCard() {
               save.mutate({ autofill: s.autofill, fillMiners: checked === true })
             }
           />
-          also suggest for mining drills
+          Also suggest for mining drills
         </Label>
         {save.isError && (
-          <p className="text-sm text-destructive">save failed: {save.error.message}</p>
+          <p className="text-sm text-destructive">Save failed: {save.error.message}</p>
         )}
 
         <div className="border-t border-border pt-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="flex items-center gap-1.5">
-              spoilage import cutoff
+              Spoilage import cutoff
               <InfoHint content="When the planner drafts, goods spoiling faster than this must be produced locally; slower ones may be imported between blocks." />
             </span>
             <Input
@@ -629,14 +629,16 @@ function AssistantCard() {
           <FieldLabel>OpenRouter API key</FieldLabel>
           {d.keyFromEnv ? (
             <div className="mt-1 flex items-center gap-1 text-sm text-success">
-              <Check className="size-3.5" /> set via OPENROUTER_API_KEY env (wins)
+              <Check className="size-3.5" /> Set via OPENROUTER_API_KEY env (wins)
             </div>
           ) : (
             <div className="mt-1 flex items-center gap-2">
               <Input
                 type="password"
                 value={key}
-                placeholder={d.keyStored ? "•••••••• (stored — type to replace)" : "sk-or-…"}
+                placeholder={
+                  d.keyStored ? "•••••••• (stored — type to replace)" : "OpenRouter key (sk-or-…)"
+                }
                 onChange={(e) => setKey(e.target.value)}
                 className="w-72"
               />
@@ -658,7 +660,7 @@ function AssistantCard() {
                   onClick={() => save.mutate({ openrouterApiKey: "" })}
                   className="text-muted-foreground hover:text-destructive"
                 >
-                  clear
+                  Clear
                 </Button>
               )}
             </div>
@@ -666,10 +668,10 @@ function AssistantCard() {
         </div>
 
         <div>
-          <FieldLabel>model</FieldLabel>
+          <FieldLabel>Model</FieldLabel>
           {d.modelFromEnv ? (
             <div className="mt-1 flex items-center gap-1 text-sm text-success">
-              <Check className="size-3.5" /> set via PYOPS_AGENT_MODEL env (wins): {d.resolvedModel}
+              <Check className="size-3.5" /> Set via PYOPS_AGENT_MODEL env (wins): {d.resolvedModel}
             </div>
           ) : (
             <div className="mt-1 flex items-center gap-2">
@@ -693,14 +695,14 @@ function AssistantCard() {
                 Save
               </Button>
               <span className="text-sm text-muted-foreground">
-                in use: {d.resolvedModel}
+                In use: {d.resolvedModel}
                 {!d.model && " (default)"}
               </span>
             </div>
           )}
         </div>
         {save.isError && (
-          <p className="text-sm text-destructive">save failed: {save.error.message}</p>
+          <p className="text-sm text-destructive">Save failed: {save.error.message}</p>
         )}
       </div>
     </Card>
@@ -786,7 +788,7 @@ function ExclusionsCard() {
                   size="icon-xs"
                   onClick={() => remove(g)}
                   className="size-4 text-muted-foreground hover:text-destructive"
-                  title="remove"
+                  title="Remove"
                 >
                   ×
                 </Button>
@@ -797,7 +799,7 @@ function ExclusionsCard() {
           <p className="text-sm text-muted-foreground">No custom exclusions.</p>
         )}
         {save.isError && (
-          <p className="text-sm text-destructive">save failed: {save.error.message}</p>
+          <p className="text-sm text-destructive">Save failed: {save.error.message}</p>
         )}
       </div>
     </Card>

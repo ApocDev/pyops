@@ -18,7 +18,7 @@ test("Explore dependencies walks requires / required-by for a good", async ({ pa
   });
 
   // pick a root from the sidebar search (iron plate exists in vanilla and Py alike)
-  const search = page.getByPlaceholder("search goods & recipes…");
+  const search = page.getByPlaceholder("Search goods & recipes…");
   await search.fill("iron plate");
   // Scope the click to the SIDEBAR results. A page-wide button match is a
   // booby trap on the read-only suite: the nav's Undo button embeds the last
@@ -35,22 +35,22 @@ test("Explore dependencies walks requires / required-by for a good", async ({ pa
   await first.click();
 
   // requires view: root summary + the OR group label, then expand one producer
-  await expect(page.getByText(/requires \d+ goods via \d+ recipes/)).toBeVisible();
-  const tree = page.locator("div.bg-card").filter({ hasText: /made by any of \d+ recipe/ });
+  await expect(page.getByText(/Requires \d+ goods via \d+ recipes/)).toBeVisible();
+  const tree = page.locator("div.bg-card").filter({ hasText: /Made by any of \d+ recipe/ });
   await expect(tree).toBeVisible();
   await tree.getByRole("button").first().click();
-  await expect(page.getByText(/needs all \d+ ingredient/).first()).toBeVisible();
+  await expect(page.getByText(/Needs all \d+ ingredient/).first()).toBeVisible();
 
   // flip direction — the URL carries it, the tree reloads as required-by
   await page.getByRole("button", { name: "Required by", exact: true }).click();
-  await expect(page.getByText(/required by \d+ recipes touching \d+ goods/)).toBeVisible();
-  await expect(page.getByText(/used by \d+ recipe/).first()).toBeVisible();
+  await expect(page.getByText(/Required by \d+ recipes touching \d+ goods/)).toBeVisible();
+  await expect(page.getByText(/Used by \d+ recipe/).first()).toBeVisible();
 
   // the in-tree filter uses the shared no-matches state and clears
-  const filter = page.getByPlaceholder("filter tree…");
+  const filter = page.getByPlaceholder("Filter tree…");
   await filter.fill(NONSENSE);
   await expect(page.getByText(`No matches for "${NONSENSE}"`)).toBeVisible();
-  await page.getByRole("button", { name: "clear filter" }).click();
+  await page.getByRole("button", { name: "Clear filter" }).click();
   await expect(filter).toHaveValue("");
-  await expect(page.getByText(/used by \d+ recipe/).first()).toBeVisible();
+  await expect(page.getByText(/Used by \d+ recipe/).first()).toBeVisible();
 });

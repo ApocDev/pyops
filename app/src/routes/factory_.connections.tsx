@@ -109,7 +109,7 @@ function CoherencePage() {
             <FilterInput
               value={search}
               onValueChange={setSearch}
-              placeholder="filter goods…"
+              placeholder="Filter goods…"
               className="w-64"
             />
             <Button
@@ -203,7 +203,7 @@ function CoherencePage() {
           description="Build some blocks that feed each other and their wiring appears here."
           action={
             <Button asChild variant="outline" size="sm">
-              <Link to="/block">build some blocks</Link>
+              <Link to="/block">Build some blocks</Link>
             </Button>
           }
         />
@@ -216,7 +216,7 @@ function CoherencePage() {
       {shortLinks.length > 0 && (
         <Section
           title={`Short (${shortLinks.length})`}
-          hint="a block isn't getting enough — scale its producer up"
+          hint="A block isn't getting enough — scale its producer up"
         >
           {shortLinks.map((l) => (
             <LinkRow key={l.good} l={l} onScale={() => setScaling(l)} />
@@ -226,7 +226,7 @@ function CoherencePage() {
       {surplusLinks.length > 0 && (
         <Section
           title={`Overproduced (${surplusLinks.length})`}
-          hint="more made than used internally — route the extra or it backs up"
+          hint="More made than used internally — route the extra or it backs up"
         >
           {surplusLinks.map((l) => (
             <LinkRow key={l.good} l={l} onScale={() => setScaling(l)} />
@@ -238,7 +238,7 @@ function CoherencePage() {
           <summary className="cursor-pointer border border-border bg-card px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
             Balanced ({balancedLinks.length})
             <InfoHint
-              content="producers meet consumers — nothing to do"
+              content="Producers meet consumers — nothing to do"
               className="ml-1.5 align-text-bottom"
             />
           </summary>
@@ -253,7 +253,7 @@ function CoherencePage() {
       {unsourced.length > 0 && (
         <Section
           title="Unsourced imports"
-          hint="consumed but no block produces them — a raw to supply, or a block to build"
+          hint="Consumed but no block produces them — a raw to supply, or a block to build"
         >
           {unsourced.map((l) => (
             <OrphanRow key={l.good} l={l} mode="unsourced" />
@@ -264,7 +264,7 @@ function CoherencePage() {
       {surplus.length > 0 && (
         <Section
           title="Surplus / outputs"
-          hint="produced but no block consumes them — a final product, or waste to route"
+          hint="Produced but no block consumes them — a final product, or waste to route"
         >
           {surplus.map((l) => (
             <OrphanRow key={l.good} l={l} mode="surplus" />
@@ -343,13 +343,13 @@ function Balance({ good, net }: { good: string; net: number }) {
   if (Math.abs(net) <= 1e-6)
     return (
       <span className={`${base} inline-flex items-center gap-1 bg-success/15 text-success`}>
-        <Check className="size-3.5" /> balanced
+        <Check className="size-3.5" /> Balanced
       </span>
     );
   if (net < 0)
     return (
       <span className={`${base} bg-destructive/20 text-destructive`}>
-        short {rateLabel(good, -net, { perSec: true })}
+        Short {rateLabel(good, -net, { perSec: true })}
       </span>
     );
   return (
@@ -403,7 +403,7 @@ function Ends({
           onClick={() => setOpen(false)}
           className="text-muted-foreground"
         >
-          less
+          Less
         </Button>
       )}
       <span className="text-sm text-muted-foreground">
@@ -428,9 +428,9 @@ function LinkRow({ l, onScale }: { l: Link; onScale: () => void }) {
       </div>
       {/* the wiring */}
       <div className="flex flex-1 flex-wrap items-center gap-x-1.5 gap-y-1">
-        <Ends good={l.good} ends={l.producers} total={l.produced} tone="make" label="made by" />
+        <Ends good={l.good} ends={l.producers} total={l.produced} tone="make" label="Made by" />
         <span className="px-1 text-border">·</span>
-        <Ends good={l.good} ends={l.consumers} total={l.consumed} tone="use" label="used by" />
+        <Ends good={l.good} ends={l.consumers} total={l.consumed} tone="use" label="Used by" />
       </div>
       {short && (
         <Button
@@ -459,13 +459,13 @@ function OrphanRow({ l, mode }: { l: Link; mode: "unsourced" | "surplus" }) {
       </span>
       {mode === "unsourced" &&
         (l.craftable ? (
-          <Tooltip content="unlocked at your horizon — make a block to supply it">
-            <Badge className="border-transparent bg-info/15 text-info">buildable</Badge>
+          <Tooltip content="Unlocked at your horizon — make a block to supply it">
+            <Badge className="border-transparent bg-info/15 text-info">Buildable</Badge>
           </Tooltip>
         ) : (
-          <Badge>raw / import</Badge>
+          <Badge>Raw / import</Badge>
         ))}
-      <span className="text-muted-foreground">{mode === "unsourced" ? "used by" : "made by"}</span>
+      <span className="text-muted-foreground">{mode === "unsourced" ? "Used by" : "Made by"}</span>
       {ends.map((b) => (
         <BlockEnd
           key={`${b.blockId}-${b.role}`}
@@ -567,7 +567,7 @@ function ScalePlanDrawer({
           <FieldLabel className="mb-1">Which block grows?</FieldLabel>
           {producers.length === 0 ? (
             <div className="text-sm text-muted-foreground/70 italic">
-              only byproduct sources make this — scale the block whose primary it is instead.
+              Only byproduct sources make this — scale the block whose primary it is instead.
             </div>
           ) : (
             <div className="flex flex-col gap-1">
@@ -612,7 +612,7 @@ function ScalePlanDrawer({
               )}
               {p && p.status !== "solved" && (
                 <Callout tone="destructive" className="mb-2">
-                  {p.message ?? "this rate doesn't solve cleanly"}
+                  {p.message ?? "This rate doesn't solve cleanly"}
                 </Callout>
               )}
 
@@ -623,7 +623,7 @@ function ScalePlanDrawer({
                     title="Buildings"
                     hint={
                       p.rows.some((r) => r.modules.length || r.beaconCount > 0)
-                        ? "modules/beacons per machine are unchanged — tune them in the block editor to cut building count"
+                        ? "Modules/beacons per machine are unchanged — tune them in the block editor to cut building count"
                         : undefined
                     }
                   >
@@ -649,7 +649,7 @@ function ScalePlanDrawer({
                         <FlowLine
                           label={
                             <span className="inline-flex items-center gap-1">
-                              <Zap className="size-3.5" /> electricity (MW)
+                              <Zap className="size-3.5" /> Electricity (MW)
                             </span>
                           }
                         >
@@ -660,7 +660,7 @@ function ScalePlanDrawer({
                         <FlowLine
                           label={
                             <span className="inline-flex items-center gap-1">
-                              <Flame className="size-3.5" /> heat (MW)
+                              <Flame className="size-3.5" /> Heat (MW)
                             </span>
                           }
                         >
@@ -701,7 +701,7 @@ function ScalePlanDrawer({
             onClick={apply}
             disabled={selId == null || applying || rate <= 0}
           >
-            {applying ? "applying…" : `Apply — set to ${num(rate)}/s`}
+            {applying ? "Applying…" : `Apply — set to ${num(rate)}/s`}
           </Button>
         </div>
       </SheetContent>

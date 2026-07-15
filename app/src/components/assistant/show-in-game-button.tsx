@@ -44,10 +44,10 @@ export function ShowInGameButton({ blockId, label }: { blockId: number; label?: 
       </Button>
       {status === "sent" && (
         <span className="inline-flex items-center gap-1 text-sm text-success">
-          <Check className="size-3.5" /> opened in game
+          <Check className="size-3.5" /> Opened in game
         </span>
       )}
-      {status === "offline" && <span className="text-sm text-warning">game not connected</span>}
+      {status === "offline" && <span className="text-sm text-warning">Game not connected</span>}
     </span>
   );
 }

@@ -82,7 +82,7 @@ export function BuildingPickerDialog({
                       )}
                       {m.energySource === "heat" && (
                         <span className="flex items-center gap-1 text-sm">
-                          <Flame className="size-3" /> heat
+                          <Flame className="size-3" /> Heat
                         </span>
                       )}
                       {m.moduleSlots > 0 && (
@@ -91,7 +91,7 @@ export function BuildingPickerDialog({
                           <Grid2x2 className="size-3" />
                         </span>
                       )}
-                      {cur && <span className="text-sm text-primary">· current</span>}
+                      {cur && <span className="text-sm text-primary">· Current</span>}
                       <span
                         role="button"
                         tabIndex={-1}
@@ -114,7 +114,7 @@ export function BuildingPickerDialog({
                         <span className="flex items-center gap-1 text-success/80">
                           <Check className="size-3 shrink-0" />
                           {m.startEnabled
-                            ? "available from start"
+                            ? "Available from start"
                             : `unlocked${
                                 m.unlockedBy.length
                                   ? ` · ${m.unlockedBy.map((u) => u.display ?? u.tech).join(", ")}`
@@ -123,7 +123,7 @@ export function BuildingPickerDialog({
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-warning/90">
-                          <Lock className="size-3 shrink-0" /> needs{" "}
+                          <Lock className="size-3 shrink-0" /> Needs{" "}
                           {m.unlockedBy.length
                             ? m.unlockedBy.map((u) => u.display ?? u.tech).join(", ")
                             : "research"}

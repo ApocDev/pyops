@@ -72,7 +72,7 @@ export async function expectUndoTop(page: Page, action: RegExp): Promise<void> {
 export async function createBlock(page: Page): Promise<number> {
   await goto(page, "/block");
   const previousUrl = page.url();
-  await page.getByRole("button", { name: "new block", exact: true }).click();
+  await page.getByRole("button", { name: "New block", exact: true }).click();
   await page.waitForURL((url) => url.href !== previousUrl && /\/block\/\d+$/.test(url.pathname));
   const id = Number(new URL(page.url()).pathname.split("/").pop());
   expect(id).toBeGreaterThan(0);
@@ -91,16 +91,16 @@ export async function createBlock(page: Page): Promise<number> {
 
 /** The block editor's name input (typing a name pins it as custom). */
 export function blockNameInput(page: Page) {
-  return page.getByPlaceholder("auto-named from goal…");
+  return page.getByPlaceholder("Auto-named from goal…");
 }
 
 /** Add a goal product to the open block editor via the goal picker.
  * Searches `query` and picks the result whose display name is `display`. */
 export async function addGoal(page: Page, query = "iron plate", display = "Iron plate") {
   // the "+ goal" cell: its visible text is just "goal", the title carries intent
-  await page.locator('button[title="add a goal product"]').click();
+  await page.locator('button[title="Add a goal product"]').click();
   const dialog = page.getByRole("dialog", { name: "Add a goal product" });
-  await dialog.getByPlaceholder("search an item or fluid…").fill(query);
+  await dialog.getByPlaceholder("Search an item or fluid…").fill(query);
   await dialog.getByRole("button", { name: display, exact: true }).click();
   await expect(dialog).toBeHidden();
   // the goal cell appears with the default pinned rate of 1/s
@@ -109,7 +109,7 @@ export async function addGoal(page: Page, query = "iron plate", display = "Iron 
 
 /** The goal cell's clickable rate (EditableRate's display state). */
 export function goalRateButton(page: Page) {
-  return page.locator('button[title^="click to edit the goal rate"]');
+  return page.locator('button[title^="Click to edit the goal rate"]');
 }
 
 /** Change the global planning horizon through the same header dialog a player

@@ -63,7 +63,7 @@ export function LoadingFitCount({
     return (
       <Tooltip content={content}>
         <span
-          aria-label="no adjacent loading fit"
+          aria-label="No adjacent loading fit"
           className="inline-flex items-center gap-1 px-1 text-sm font-semibold text-warning"
         >
           <Hammer className="size-3.5" />!
@@ -77,7 +77,7 @@ export function LoadingFitCount({
   return (
     <Tooltip content={content}>
       <span
-        aria-label={`suggested build count ${fit.recommendedBuildings}`}
+        aria-label={`Suggested build count ${fit.recommendedBuildings}`}
         className="inline-flex items-center gap-1 px-1 text-sm font-semibold text-warning tabular-nums"
       >
         <Hammer className="size-3.5" /> {fit.recommendedBuildings}

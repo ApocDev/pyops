@@ -284,7 +284,7 @@ function Home() {
                   {blockWarnings.length > 0 && (
                     <span className="text-warning">{blockWarnings.length} need attention</span>
                   )}
-                  {blockErrors.length === 0 && blockWarnings.length === 0 && "all healthy"}
+                  {blockErrors.length === 0 && blockWarnings.length === 0 && "All healthy"}
                 </div>
               </div>
             </Card>
@@ -295,7 +295,7 @@ function Home() {
               <div className="p-3">
                 <div className="text-2xl font-semibold">{deficits.length}</div>
                 <div className="truncate text-sm text-muted-foreground">
-                  {nextDeficit ? `most urgent: ${nextDeficit.display}` : "no actionable deficits"}
+                  {nextDeficit ? `Most urgent: ${nextDeficit.display}` : "No actionable deficits"}
                 </div>
               </div>
             </Card>
@@ -306,7 +306,7 @@ function Home() {
               <div className="p-3">
                 <div className="text-2xl font-semibold">{haveBuiltSync ? machineShort : "—"}</div>
                 <div className="text-sm text-muted-foreground">
-                  {haveBuiltSync ? "machines still to place" : "connect the game for built counts"}
+                  {haveBuiltSync ? "Machines still to place" : "Connect the game for built counts"}
                 </div>
               </div>
             </Card>
@@ -317,13 +317,13 @@ function Home() {
               <div className="space-y-1 p-3 text-sm">
                 <div className={drift.data?.needsRedump ? "text-warning" : "text-success"}>
                   <CircleDot className="mr-1.5 inline size-3" />
-                  {drift.data?.needsRedump ? "game data is stale" : "game data is current"}
+                  {drift.data?.needsRedump ? "Game data is stale" : "Game data is current"}
                 </div>
                 <div className={gameLinked ? "text-success" : "text-muted-foreground"}>
                   <CircleDot className="mr-1.5 inline size-3" />
                   {gameLinked
-                    ? `game linked${peer?.player ? ` · ${peer.player}` : ""}`
-                    : "no game linked"}
+                    ? `Game linked${peer?.player ? ` · ${peer.player}` : ""}`
+                    : "No game linked"}
                 </div>
               </div>
             </Card>

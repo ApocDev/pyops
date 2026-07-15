@@ -59,7 +59,7 @@ export function SupplyPriorityControl({
 
   return advanced ? (
     <Input
-      aria-label="block supply priority"
+      aria-label="Block supply priority"
       type="number"
       step="1"
       value={normalized}

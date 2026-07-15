@@ -11,7 +11,7 @@ import { MUT_DATA_DIR, goto, uniqueName } from "./helpers";
  * activates it (server-wide).
  */
 
-const switcher = (page: Page) => page.locator('nav button[title^="project:"]');
+const switcher = (page: Page) => page.locator('nav button[title^="Project:"]');
 const dialog = (page: Page) => page.getByRole("dialog", { name: "New project" });
 
 const openDialog = async (page: Page) => {
@@ -21,7 +21,7 @@ const openDialog = async (page: Page) => {
   await expect(async () => {
     if (!(await dialog(page).isVisible())) {
       await switcher(page).click();
-      await page.getByRole("menuitem", { name: "new project" }).click({ timeout: 2_000 });
+      await page.getByRole("menuitem", { name: "New project" }).click({ timeout: 2_000 });
     }
     await expect(dialog(page)).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 15_000 });

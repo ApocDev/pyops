@@ -58,10 +58,10 @@ export type MachineSufficiency = {
 const col = createColumnHelper<MachineRow>();
 // Columns exist for their accessors/sorting semantics; rendering stays manual.
 const columns = [
-  col.accessor((r) => r.display.toLowerCase(), { id: "machine", header: "machine · recipe" }),
-  col.accessor("builtTotal", { id: "built", header: "built" }),
-  col.accessor("requiredTotal", { id: "required", header: "required" }),
-  col.accessor("short", { id: "short", header: "short" }),
+  col.accessor((r) => r.display.toLowerCase(), { id: "machine", header: "Machine · recipe" }),
+  col.accessor("builtTotal", { id: "built", header: "Built" }),
+  col.accessor("requiredTotal", { id: "required", header: "Required" }),
+  col.accessor("short", { id: "short", header: "Short" }),
 ];
 
 // header/cell width per column id — must match the StatCell `w` in the rows
@@ -110,14 +110,14 @@ export function MachinesCard({ data }: { data: MachineSufficiency }) {
         <button
           onClick={toggleFold}
           className="flex items-center gap-1 text-left"
-          title={folded ? "expand" : "collapse"}
+          title={folded ? "Expand" : "Collapse"}
         >
           {folded ? (
             <ChevronRight className="size-4 text-muted-foreground" />
           ) : (
             <ChevronDown className="size-4 text-muted-foreground" />
           )}
-          <CardTitle className="normal-case">
+          <CardTitle>
             Machines ({rows.length})
             {shortCount > 0 && (
               <span className="ml-2 text-sm font-normal text-destructive">
@@ -134,7 +134,7 @@ export function MachinesCard({ data }: { data: MachineSufficiency }) {
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5">
-              not synced
+              Not synced
               <InfoHint content="Open the PyOps panel in-game and Sync." />
             </span>
           )}
@@ -145,7 +145,7 @@ export function MachinesCard({ data }: { data: MachineSufficiency }) {
           <EmptyState
             className="px-3 py-4"
             title="No machines yet"
-            description="no enabled block requires machines and none are placed in-game"
+            description="No enabled block requires machines and none are placed in-game"
           />
         ) : (
           // capped so a big factory scrolls internally instead of pushing the
@@ -172,14 +172,14 @@ export function MachinesCard({ data }: { data: MachineSufficiency }) {
                     </span>
                   </span>
                   <span className="grid grid-cols-3 gap-x-3 pl-7 md:flex md:gap-2 md:pl-0">
-                    <StatCell label="built" w="md:w-20" className="text-muted-foreground">
+                    <StatCell label="Built" w="md:w-20" className="text-muted-foreground">
                       {m.builtTotal}
                     </StatCell>
-                    <StatCell label="required" w="md:w-20" className="text-warning">
+                    <StatCell label="Required" w="md:w-20" className="text-warning">
                       <RequiredCount n={m.requiredTotal} />
                     </StatCell>
                     <StatCell
-                      label="short"
+                      label="Short"
                       w="md:w-24"
                       className={`font-semibold ${m.short > 0 ? "text-destructive" : "text-success"}`}
                     >
@@ -201,14 +201,14 @@ export function MachinesCard({ data }: { data: MachineSufficiency }) {
                         </span>
                       </span>
                       <span className="grid grid-cols-3 gap-x-3 pl-6 md:flex md:gap-2 md:pl-0">
-                        <StatCell label="built" w="md:w-20">
+                        <StatCell label="Built" w="md:w-20">
                           {r.built ?? "—"}
                         </StatCell>
-                        <StatCell label="required" w="md:w-20">
+                        <StatCell label="Required" w="md:w-20">
                           <RequiredCount n={r.required} />
                         </StatCell>
                         <StatCell
-                          label="short"
+                          label="Short"
                           w="md:w-24"
                           className={r.short > 0 ? "text-destructive" : "text-success/70"}
                         >

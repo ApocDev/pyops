@@ -76,10 +76,10 @@ export function EditableCount({
       }}
       title={
         fixed
-          ? `fixed at ${num(pin.count)} building${pin.count === 1 ? "" : "s"} — click to change (clear to unpin)`
+          ? `Fixed at ${num(pin.count)} building${pin.count === 1 ? "" : "s"} — click to change (clear to unpin)`
           : capped
-            ? `capped at ${num(pin.count)} building${pin.count === 1 ? "" : "s"} — click to edit in Pins`
-            : "click to fix the building count"
+            ? `Capped at ${num(pin.count)} building${pin.count === 1 ? "" : "s"} — click to edit in Pins`
+            : "Click to fix the building count"
       }
       className={`px-1 font-semibold tabular-nums ${tint}`}
     >

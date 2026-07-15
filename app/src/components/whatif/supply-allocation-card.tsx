@@ -21,14 +21,14 @@ const priorityIcon = (priority: number) =>
     ? { Icon: ArrowUp, className: "text-success", label: `priority ${priority}` }
     : priority < 0
       ? { Icon: ArrowDown, className: "text-warning", label: `priority ${priority}` }
-      : { Icon: Minus, className: "text-muted-foreground", label: "normal priority" };
+      : { Icon: Minus, className: "text-muted-foreground", label: "Normal priority" };
 
 export function SupplyAllocationCard({ rows }: { rows: SupplyAllocation[] }) {
   if (rows.length === 0) return null;
   return (
     <Card className="lg:col-span-2">
       <CardHeader>
-        <CardTitle className="normal-case">Recovered supply</CardTitle>
+        <CardTitle>Recovered supply</CardTitle>
         <InfoHint content="Demand covered by a coproduct from another recipe in the same block. The block keeps the useful goal, but does not run extra dedicated production for it." />
       </CardHeader>
       <div className="divide-y divide-border">
@@ -50,7 +50,7 @@ export function SupplyAllocationCard({ rows }: { rows: SupplyAllocation[] }) {
                 className={`size-4 shrink-0 ${priority.className}`}
                 aria-label={priority.label}
               />
-              {row.incidental && <span className="text-surplus">recovered</span>}
+              {row.incidental && <span className="text-surplus">Recovered</span>}
               <Link
                 to="/block/$id"
                 params={{ id: String(row.blockId) }}

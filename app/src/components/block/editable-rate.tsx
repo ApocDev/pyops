@@ -45,10 +45,10 @@ export function EditableRate({
           }}
           title={
             readOnly
-              ? "sized by a locked input"
+              ? "Sized by a locked input"
               : power
-                ? "click to edit the goal rate — accepts 500MW / 5GW / 5TW, or k/M/G/T"
-                : "click to edit the goal rate — accepts k/M/G/T suffixes"
+                ? "Click to edit the goal rate — accepts 500MW / 5GW / 5TW, or k/M/G/T"
+                : "Click to edit the goal rate — accepts k/M/G/T suffixes"
           }
           className={readOnly ? "text-muted-foreground" : "hover:text-info"}
         >
@@ -58,7 +58,7 @@ export function EditableRate({
         {!power && (
           <button
             onClick={cycleUnit}
-            title="rate window — click to cycle per second / minute / hour"
+            title="Rate window — click to cycle per second / minute / hour"
             className="text-muted-foreground hover:text-info"
           >
             /{unit}

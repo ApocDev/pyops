@@ -62,10 +62,13 @@ import type {
 
 /** Advisory-priority badge styling, lowest→highest. */
 const PRIORITY_META: Record<TaskPriority, { label: string; cls: string }> = {
-  low: { label: "low", cls: "border-border text-muted-foreground" },
-  medium: { label: "med", cls: "border-info/50 text-info" },
-  high: { label: "high", cls: "border-warning/50 text-warning" },
-  critical: { label: "crit", cls: "border-destructive/60 bg-destructive/10 text-destructive" },
+  low: { label: "Low", cls: "border-border text-muted-foreground" },
+  medium: { label: "Medium", cls: "border-info/50 text-info" },
+  high: { label: "High", cls: "border-warning/50 text-warning" },
+  critical: {
+    label: "Critical",
+    cls: "border-destructive/60 bg-destructive/10 text-destructive",
+  },
 };
 
 function PriorityBadge({ priority, reason }: { priority: TaskPriority; reason: string | null }) {
@@ -262,7 +265,7 @@ function TasksShell() {
                       size="xs"
                       aria-pressed={on}
                       onClick={() => toggleStatus(s)}
-                      title={on ? `hide ${STATUS_META[s].label}` : `show ${STATUS_META[s].label}`}
+                      title={on ? `Hide ${STATUS_META[s].label}` : `Show ${STATUS_META[s].label}`}
                     >
                       <span className={`size-1.5 rounded-full ${STATUS_META[s].dot}`} />
                       {STATUS_META[s].label}
@@ -423,7 +426,7 @@ function StatusPills({
 }) {
   return (
     <Segmented
-      aria-label="task status"
+      aria-label="Task status"
       size="sm"
       value={status}
       onValueChange={onChange}
@@ -501,7 +504,7 @@ function TaskTree({
                 })
               }
               className="shrink-0 text-muted-foreground hover:text-foreground"
-              title={isCollapsed ? "expand" : "collapse"}
+              title={isCollapsed ? "Expand" : "Collapse"}
             >
               {isCollapsed ? (
                 <ChevronRight className="size-3.5" />
@@ -685,7 +688,7 @@ function TaskDetail({
           variant="ghost"
           size="icon-sm"
           onClick={() => removeTask.mutate()}
-          title="delete task (undoable)"
+          title="Delete task (undoable)"
           className="shrink-0 text-muted-foreground hover:text-destructive"
         >
           <Trash2 />
@@ -769,7 +772,7 @@ function TaskDetail({
                 variant="ghost"
                 size="icon-xs"
                 onClick={() => removeChild.mutate({ id: c.id, title: c.title })}
-                title="delete subtask (undoable)"
+                title="Delete subtask (undoable)"
                 className="hidden shrink-0 text-muted-foreground group-hover:inline-flex hover:text-destructive"
               >
                 <Trash2 className="size-3.5" />
@@ -861,7 +864,7 @@ function CheckRow({
         variant="ghost"
         size="icon-xs"
         onClick={onDelete}
-        title="remove"
+        title="Remove"
         className="hidden shrink-0 text-muted-foreground group-hover:inline-flex hover:text-destructive"
       >
         <Trash2 className="size-3.5" />
@@ -904,7 +907,7 @@ function MarkdownField({
     <button
       onClick={() => setEditing(true)}
       className="w-full border border-transparent p-3 text-left hover:border-border"
-      title="click to edit"
+      title="Click to edit"
     >
       {value.trim() ? (
         <div className="prose prose-sm prose-invert max-w-none text-sm leading-relaxed">
@@ -989,7 +992,7 @@ function LinkChip({
         <button
           onClick={() => onOpenBlock(link.blockId!)}
           className="inline-flex items-center gap-1 hover:underline"
-          title={`open ${link.display}`}
+          title={`Open ${link.display}`}
         >
           {inner}
         </button>
@@ -1000,7 +1003,7 @@ function LinkChip({
         variant="ghost"
         size="icon-xs"
         onClick={onRemove}
-        title="remove link"
+        title="Remove link"
         className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
       >
         <X className="size-3" />
@@ -1042,7 +1045,7 @@ function LinkPicker({
         onClick={() => setOpen(true)}
         className="border-dashed font-normal text-muted-foreground hover:border-solid hover:text-foreground"
       >
-        <Link2 className="size-3.5" /> link
+        <Link2 className="size-3.5" /> Link
       </Button>
     );
 
@@ -1054,8 +1057,8 @@ function LinkPicker({
         onChange={(ev) => setQ(ev.target.value)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={(ev) => ev.key === "Escape" && setOpen(false)}
-        placeholder="search anything…"
-        title="items, recipes, techs, and blocks"
+        placeholder="Search anything…"
+        title="Items, recipes, techs, and blocks"
         className="w-64"
       />
       {(results.data?.length ?? 0) > 0 && (
@@ -1129,7 +1132,7 @@ function NoteDetail({
           variant="ghost"
           size="icon-sm"
           onClick={() => remove.mutate()}
-          title="delete note (undoable)"
+          title="Delete note (undoable)"
           className="shrink-0 text-muted-foreground hover:text-destructive"
         >
           <X />

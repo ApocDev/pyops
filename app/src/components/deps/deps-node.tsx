@@ -21,9 +21,9 @@ export function depsGroupLabel(node: DepsNode, dir: DepsDir): string {
   const s = n === 1 ? "" : "s";
   if (dir === "requires")
     return node.type === "good"
-      ? `made by any of ${n} recipe${s}`
-      : `needs all ${n} ingredient${s}`;
-  return node.type === "good" ? `used by ${n} recipe${s}` : `makes ${n} good${s}`;
+      ? `Made by any of ${n} recipe${s}`
+      : `Needs all ${n} ingredient${s}`;
+  return node.type === "good" ? `Used by ${n} recipe${s}` : `Makes ${n} good${s}`;
 }
 
 /** Compact closure summary for a collapsed branch ("12 goods · 4 recipes"). */
@@ -101,8 +101,8 @@ export function DepsNodeRow({
         <Tooltip
           content={
             blocked
-              ? `blocked: a different TURD choice on ${turd.masterDisplay ?? turd.master ?? "this master"} is selected`
-              : `requires the TURD choice ${turd.choice ?? ""} — pick it on the TURD page`
+              ? `Blocked: a different TURD choice on ${turd.masterDisplay ?? turd.master ?? "this master"} is selected`
+              : `Requires the TURD choice ${turd.choice ?? ""} — pick it on the TURD page`
           }
         >
           <span
@@ -117,7 +117,7 @@ export function DepsNodeRow({
     if (node.avail.research === "needs-research") {
       return (
         <Tooltip
-          content={`needs research: ${node.unlockedBy?.join(" / ") || "unknown tech"}${
+          content={`Needs research: ${node.unlockedBy?.join(" / ") || "unknown tech"}${
             node.avail.needs.length ? ` — gated on ${node.avail.needs.join(", ")}` : ""
           }`}
         >
@@ -159,19 +159,19 @@ export function DepsNodeRow({
           </span>
         )}
         {isCycle && (
-          <Tooltip content="already on this branch — a loop">
-            <span className="shrink-0 text-sm text-info">cycle</span>
+          <Tooltip content="Already on this branch — a loop">
+            <span className="shrink-0 text-sm text-info">Cycle</span>
           </Tooltip>
         )}
         {!isCycle && node.type === "good" && dir === "requires" && node.childCount === 0 && (
-          <Tooltip content="no recipe makes this">
-            <span className="shrink-0 text-sm text-info">raw</span>
+          <Tooltip content="No recipe makes this">
+            <span className="shrink-0 text-sm text-info">Raw</span>
           </Tooltip>
         )}
         {availBadge}
         {!isCycle && closure && (
           <Tooltip
-            content={`${dir === "requires" ? "requires" : "required by"} ${closure} in total`}
+            content={`${dir === "requires" ? "Requires" : "Required by"} ${closure} in total`}
           >
             <span className="hidden shrink-0 text-sm text-muted-foreground sm:inline">
               {closure}
@@ -182,7 +182,7 @@ export function DepsNodeRow({
           variant="ghost"
           size="icon-xs"
           onClick={() => onExplore(node)}
-          title="explore from here — make this the root"
+          title="Explore from here — make this the root"
           className="shrink-0 text-muted-foreground hover:text-foreground"
         >
           <Crosshair />
@@ -192,7 +192,7 @@ export function DepsNodeRow({
             asChild
             variant="ghost"
             size="icon-xs"
-            title="open in Explore search"
+            title="Open in Explore search"
             className="shrink-0 text-muted-foreground hover:text-foreground"
           >
             <Link to="/explore" search={{ sel: node.name }}>

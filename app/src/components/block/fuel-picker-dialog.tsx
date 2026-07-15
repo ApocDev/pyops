@@ -71,7 +71,7 @@ export function FuelPickerDialog({
                 <Icon kind={f.kind as "item" | "fluid"} name={f.name} size="md" noTitle />
                 <span className="truncate text-foreground">{f.display ?? f.name}</span>
                 {f.fuelValueJ != null && <Badge variant="secondary">{fmtJ(f.fuelValueJ)}</Badge>}
-                {cur && <span className="text-sm text-primary">current</span>}
+                {cur && <span className="text-sm text-primary">Current</span>}
                 {/* favorite per fuel category */}
                 <span
                   role="button"
@@ -94,7 +94,7 @@ export function FuelPickerDialog({
           })}
           {fuels.data?.length === 0 && (
             <div className="px-2 py-1 text-sm text-muted-foreground">
-              no fuels for this machine's categories
+              No fuels for this machine's categories
             </div>
           )}
         </div>

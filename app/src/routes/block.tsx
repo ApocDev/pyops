@@ -472,12 +472,12 @@ function Shell() {
     );
   const blockHealthTip = (b: Row) =>
     b.broken
-      ? "references a recipe/good that no longer exists — open to see what's missing"
+      ? "References a recipe/good that no longer exists — open to see what's missing"
       : b.health === "error"
-        ? "this block has no exact solution — open to fix"
+        ? "This block has no exact solution — open to fix"
         : b.unmadeGoals.length
           ? `${b.unmadeGoals.length} goal${b.unmadeGoals.length === 1 ? "" : "s"} with no recipe yet — open to add one`
-          : "this block needs attention — open to see";
+          : "This block needs attention — open to see";
   // worst health among every block in a folder subtree (errors dominate warnings),
   // so a problem nested anywhere bubbles up to the folder header.
   const groupHealth = (groupId: number): Health => {
@@ -523,7 +523,7 @@ function Shell() {
           {b.name}
         </span>
         {b.enabled === false && (
-          <Power className="size-3 shrink-0 text-warning" aria-label="disabled" />
+          <Power className="size-3 shrink-0 text-warning" aria-label="Disabled" />
         )}
         {healthBadge(b.health, blockHealthTip(b))}
       </button>
@@ -531,7 +531,7 @@ function Shell() {
           Button box would change the row's density/hit-testing. */}
       <button
         className="px-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
-        title="delete"
+        title="Delete"
         onClick={(e) => del(b.id, e)}
       >
         <X className="size-3.5" />
@@ -558,7 +558,7 @@ function Shell() {
             e.preventDefault();
             setFolderMenu({ x: e.clientX, y: e.clientY, id: group.id, name: group.name });
           }}
-          className={`group relative flex cursor-grab items-center gap-1 px-1 py-1 text-sm font-semibold tracking-wide text-muted-foreground uppercase select-none hover:bg-muted/50 active:cursor-grabbing ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
+          className={`group relative flex cursor-grab items-center gap-1 px-1 py-1 text-sm font-semibold tracking-wide text-muted-foreground select-none hover:bg-muted/50 active:cursor-grabbing ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
         >
           {showLine && (
             <div className="pointer-events-none absolute inset-x-1 -top-px z-10 h-0.5 bg-primary" />
@@ -575,12 +575,12 @@ function Shell() {
           {healthBadge(
             gHealth,
             gHealth === "error"
-              ? "a block in this folder has an error — expand to find it"
-              : "a block in this folder needs attention — expand to find it",
+              ? "A block in this folder has an error — expand to find it"
+              : "A block in this folder needs attention — expand to find it",
           )}
           <button
             className="px-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
-            title="delete folder"
+            title="Delete folder"
             onClick={() => void deleteFolder(group)}
           >
             <X className="size-3.5" />
@@ -606,7 +606,7 @@ function Shell() {
       <div key={key}>
         <DropZone
           id={key}
-          className={`group flex items-center gap-1 px-1 py-1 text-sm font-semibold tracking-wide text-muted-foreground uppercase hover:bg-muted/50 ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
+          className={`group flex items-center gap-1 px-1 py-1 text-sm font-semibold tracking-wide text-muted-foreground hover:bg-muted/50 ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
         >
           <button className="flex w-4 shrink-0 justify-center" onClick={() => toggle(key)}>
             {isCol ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
@@ -640,7 +640,7 @@ function Shell() {
     }
     const g = (groups.data ?? []).find((x) => `g${x.id}` === dragKey);
     return g ? (
-      <div className="border border-border bg-card px-2 py-1 text-sm font-semibold tracking-wide uppercase shadow-lg">
+      <div className="border border-border bg-card px-2 py-1 text-sm font-semibold tracking-wide shadow-lg">
         {g.name}
       </div>
     ) : null;
@@ -687,19 +687,19 @@ function Shell() {
                 variant="outline"
                 size="icon-sm"
                 onClick={newFolder}
-                title="new folder"
+                title="New folder"
                 className="ml-auto"
               >
                 <FolderPlus className="size-4" />
               </Button>
-              <Button size="icon-sm" onClick={() => void newBlock()} title="new block">
+              <Button size="icon-sm" onClick={() => void newBlock()} title="New block">
                 <Plus className="size-4" />
               </Button>
             </div>
             <FilterInput
               value={search}
               onValueChange={setSearch}
-              placeholder="search blocks…"
+              placeholder="Search blocks…"
               className="m-2"
             />
             <DndContext
@@ -726,7 +726,7 @@ function Shell() {
                     description={
                       <>
                         Create your first block with the{" "}
-                        <Plus className="inline size-3.5" aria-label="new block" /> button above.
+                        <Plus className="inline size-3.5" aria-label="New block" /> button above.
                       </>
                     }
                     action={
@@ -826,13 +826,13 @@ function Shell() {
           })}
           <button
             onClick={() => void newBlock()}
-            title="new block (or middle-click the empty tab strip)"
+            title="New block (or middle-click the empty tab strip)"
             className="flex shrink-0 items-center px-3 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <Plus className="size-4" />
           </button>
           {openTabs.length === 0 && (
-            <div className="px-3 py-1.5 text-sm text-muted-foreground">no open blocks</div>
+            <div className="px-3 py-1.5 text-sm text-muted-foreground">No open blocks</div>
           )}
         </div>
         <div className="min-h-0 flex-1 overflow-auto">

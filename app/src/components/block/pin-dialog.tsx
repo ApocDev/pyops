@@ -82,17 +82,17 @@ export function PinDialog({
                 variant={kind === "count" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setKind("count")}
-                title="always run exactly this many buildings — supply-push (surplus exports)"
+                title="Always run exactly this many buildings — supply-push (surplus exports)"
               >
-                exactly
+                Exactly
               </Button>
               <Button
                 variant={kind === "cap" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setKind("cap")}
-                title="at most this many buildings (what's physically built) — the solve fits inside and the diagnosis reports the shortfall when it can't"
+                title="At most this many buildings (what's physically built) — the solve fits inside and the diagnosis reports the shortfall when it can't"
               >
-                at most
+                At most
               </Button>
               <Input
                 type="number"
@@ -112,7 +112,7 @@ export function PinDialog({
                   onClose();
                 }}
               >
-                pin
+                Pin
               </Button>
               {rowPin && (
                 <Button
@@ -124,13 +124,13 @@ export function PinDialog({
                     onClose();
                   }}
                 >
-                  clear
+                  Clear
                 </Button>
               )}
             </div>
             {rowPin && (
               <div className="mt-1 text-muted-foreground">
-                currently {rowPin.kind === "count" ? "exactly" : "at most"} {rowPin.count}
+                Currently {rowPin.kind === "count" ? "exactly" : "at most"} {rowPin.count}
               </div>
             )}
           </div>
@@ -144,7 +144,7 @@ export function PinDialog({
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <Select value={shareItem} onValueChange={setShareItem}>
                   <SelectTrigger className="h-8 w-44">
-                    <SelectValue placeholder="input…" />
+                    <SelectValue placeholder="Input…" />
                   </SelectTrigger>
                   <SelectContent>
                     {shareable.map((c) => (
@@ -175,14 +175,14 @@ export function PinDialog({
                     onClose();
                   }}
                 >
-                  route
+                  Route
                 </Button>
               </div>
               {drainPins.length > 0 && (
                 <div className="mt-1 flex flex-col gap-1 text-muted-foreground">
                   {drainPins.map((p) => (
                     <span key={p.item} className="flex items-center gap-1.5">
-                      drains all surplus {label(p.item)} (nothing exports)
+                      Drains all surplus {label(p.item)} (nothing exports)
                       <button
                         onClick={() => {
                           doc.clearPin(recipe, { item: p.item });
@@ -191,7 +191,7 @@ export function PinDialog({
                         }}
                         className="text-muted-foreground underline hover:text-foreground"
                       >
-                        clear
+                        Clear
                       </button>
                     </span>
                   ))}
@@ -201,7 +201,7 @@ export function PinDialog({
                 <div className="mt-1 flex flex-col gap-1 text-muted-foreground">
                   {sharePins.map((p) => (
                     <span key={p.item} className="flex items-center gap-1.5">
-                      takes {Math.round(p.share * 100)}% of {label(p.item)}
+                      Takes {Math.round(p.share * 100)}% of {label(p.item)}
                       <button
                         onClick={() => {
                           doc.clearPin(recipe, { item: p.item });
@@ -210,7 +210,7 @@ export function PinDialog({
                         }}
                         className="text-muted-foreground underline hover:text-foreground"
                       >
-                        clear
+                        Clear
                       </button>
                     </span>
                   ))}

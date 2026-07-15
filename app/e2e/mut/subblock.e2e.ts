@@ -12,21 +12,21 @@ test("promote a sub-block to a composed module, edit its goal, and persist", asy
   await createBlock(page);
 
   // goal: iron plate (a real chain: iron-plate ← iron ore)
-  await page.locator('button[title="add a goal product"]').click();
+  await page.locator('button[title="Add a goal product"]').click();
   const goalDialog = page.getByRole("dialog", { name: "Add a goal product" });
-  await goalDialog.getByPlaceholder("search an item or fluid…").fill("iron plate");
+  await goalDialog.getByPlaceholder("Search an item or fluid…").fill("iron plate");
   await goalDialog.getByRole("button", { name: "Iron plate", exact: true }).first().click();
   await expect(goalDialog).toBeHidden();
 
   // add the plate producer (self-links the goal)
-  await page.locator('button[aria-label^="add a recipe that makes "]').click();
+  await page.locator('button[aria-label^="Add a recipe that makes "]').click();
   const platePicker = page.getByRole("dialog", { name: /Recipes that make/ });
   await platePicker.locator('[data-recipe-candidate="iron-plate"]').click();
   await expect(platePicker).toBeHidden();
 
   // add an iron-ore producer, so the block has a two-recipe chain to fold
   await page
-    .getByRole("button", { name: /^Iron ore.*(raw input|craftable)/ })
+    .getByRole("button", { name: /^Iron ore.*(Raw input|Craftable)/ })
     .first()
     .click();
   const orePicker = page.getByRole("dialog", { name: /Recipes that make/ });
@@ -51,7 +51,7 @@ test("promote a sub-block to a composed module, edit its goal, and persist", asy
   // the member is a deliberately generous target for joining the group, since the
   // short header is difficult for closest-center collision detection to select.
   const oreHandle = page.locator(
-    '[data-recipe-row="mine-iron-ore"] [title="drag to reorder this recipe"]',
+    '[data-recipe-row="mine-iron-ore"] [title="Drag to reorder this recipe"]',
   );
   const plateRow = page.locator('[data-recipe-row="iron-plate"]');
   const source = await oreHandle.boundingBox();
@@ -71,28 +71,28 @@ test("promote a sub-block to a composed module, edit its goal, and persist", asy
   await expect(header).toContainText("2 recipes");
 
   // compose it: the Boxes button promotes the display fold to a real module
-  await page.locator('button[title^="compose — solve this sub-block"]').click();
+  await page.locator('button[title^="Compose — solve this sub-block"]').click();
   await expect(
-    page.locator('button[title^="revert to a display-only sub-block"]'),
+    page.locator('button[title^="Revert to a display-only sub-block"]'),
   ).toBeVisible();
-  await expect(page.getByText("module", { exact: true })).toBeVisible();
+  await expect(page.getByText("Module", { exact: true })).toBeVisible();
   // the block still solves (no infeasible badge on the module)
-  await expect(header.getByText("infeasible")).toBeHidden();
+  await expect(header.getByText("Infeasible")).toBeHidden();
 
   // edit the module's internal goals via the sliders button
-  await page.locator('button[title="edit this module\'s internal goals"]').click();
+  await page.locator('button[title="Edit this module\'s internal goals"]').click();
   const goalsDialog = page.getByRole("dialog", { name: /Module goals/ });
   await expect(goalsDialog).toBeVisible();
-  await goalsDialog.getByRole("button", { name: "save" }).click();
+  await goalsDialog.getByRole("button", { name: "Save" }).click();
   await expect(goalsDialog).toBeHidden();
 
   // outlive the auto-save debounce, reload: the module promotion persisted
   await page.waitForTimeout(1200);
   await page.reload();
   await expect(page.getByText("Plate module")).toBeVisible();
-  await expect(page.getByText("module", { exact: true })).toBeVisible();
+  await expect(page.getByText("Module", { exact: true })).toBeVisible();
 
   // revert to a display-only fold: the module badge disappears
-  await page.locator('button[title^="revert to a display-only sub-block"]').click();
-  await expect(page.getByText("module", { exact: true })).toBeHidden();
+  await page.locator('button[title^="Revert to a display-only sub-block"]').click();
+  await expect(page.getByText("Module", { exact: true })).toBeHidden();
 });

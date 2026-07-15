@@ -52,7 +52,7 @@ export function FactoryPinsCard({
       <Card>
         <CardHeader className="justify-between">
           <div className="flex items-center gap-2">
-            <CardTitle className="normal-case">Factory pins</CardTitle>
+            <CardTitle>Factory pins</CardTitle>
             <InfoHint content="The only fixed whole-factory targets. Every other goal is solved from these demands." />
           </div>
           <Button variant="outline" size="sm" onClick={() => setPicking(true)}>

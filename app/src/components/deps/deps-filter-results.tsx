@@ -59,7 +59,7 @@ export function DepsFilterResults({
           </span>
           {n.closure.goods + n.closure.recipes > 0 && (
             <Tooltip
-              content={`${dir === "requires" ? "requires" : "required by"} ${n.closure.goods} goods · ${n.closure.recipes} recipes in total`}
+              content={`${dir === "requires" ? "Requires" : "Required by"} ${n.closure.goods} goods · ${n.closure.recipes} recipes in total`}
             >
               <span className="hidden shrink-0 text-sm text-muted-foreground sm:inline">
                 {n.closure.goods} goods · {n.closure.recipes} recipes
@@ -70,7 +70,7 @@ export function DepsFilterResults({
             variant="ghost"
             size="icon-xs"
             onClick={() => onExplore(n)}
-            title="explore from here — make this the root"
+            title="Explore from here — make this the root"
             className="shrink-0 text-muted-foreground hover:text-foreground"
           >
             <Crosshair />
@@ -80,7 +80,7 @@ export function DepsFilterResults({
               asChild
               variant="ghost"
               size="icon-xs"
-              title="open in Explore search"
+              title="Open in Explore search"
               className="shrink-0 text-muted-foreground hover:text-foreground"
             >
               <Link to="/explore" search={{ sel: n.name }}>

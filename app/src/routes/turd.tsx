@@ -101,7 +101,7 @@ function ChangeRow({ change: c, moduleBonus }: { change: TurdChange; moduleBonus
       <Plus className="size-3 shrink-0 text-success" />
       <Icon kind="recipe" name={c.to} size="sm" noHover />
       <span className="truncate">{c.toDisplay}</span>
-      <span className="shrink-0 text-xs text-muted-foreground">new</span>
+      <span className="shrink-0 text-xs text-muted-foreground">New</span>
     </RecipeHover>
   );
 }
@@ -216,19 +216,19 @@ function TurdPage() {
           <FilterInput
             value={search}
             onValueChange={setSearch}
-            placeholder="filter upgrades…"
+            placeholder="Filter upgrades…"
             className="w-64"
           />
-          {select.isPending && <span className="text-sm text-warning">re-solving blocks…</span>}
+          {select.isPending && <span className="text-sm text-warning">Re-solving blocks…</span>}
           {select.data && !select.isPending && (
             <span className="text-sm text-muted-foreground">
-              re-solved {select.data.resolved} block(s)
+              Re-solved {select.data.resolved} block(s)
             </span>
           )}
           {sync.data?.syncedAt && (
-            <Tooltip content={`pushed from the game ${timeAgo(sync.data.syncedAt)}`}>
+            <Tooltip content={`Pushed from the game ${timeAgo(sync.data.syncedAt)}`}>
               <span className="inline-flex items-center gap-1 text-sm text-success">
-                <Check className="size-3.5" /> live · {sync.data.syncedCount ?? 0} synced ·{" "}
+                <Check className="size-3.5" /> Live · {sync.data.syncedCount ?? 0} synced ·{" "}
                 {timeAgo(sync.data.syncedAt)}
                 {sync.data.unknown.length > 0 && (
                   <Tooltip
