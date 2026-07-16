@@ -1,0 +1,45 @@
+app/e2e/package.json
+  s_5d2ed5e1760b3f::t_ccd5ff01ef38cd 12
+app/e2e/README.md
+  s_5d2ed5e1760b3f::t_2393f3beffb411 80-81
+app/e2e/theme.e2e.ts
+  s_5d2ed5e1760b3f::t_077f615522b84c 1,7,32-95
+app/src/components/block/temporary-campaign-controls.tsx
+  s_5d2ed5e1760b3f::t_3e31a3035fe0b7 98
+app/src/components/ui/badge.tsx
+  s_5d2ed5e1760b3f::t_962d616dad9ad6 12
+app/src/components/ui/button.tsx
+  s_5d2ed5e1760b3f::t_0b2a862e62939c 12
+app/src/components/ui/checkbox.tsx
+  s_5d2ed5e1760b3f::t_80ce1d4e218338 16
+app/src/components/ui/segmented.tsx
+  s_5d2ed5e1760b3f::t_a814408b063a16 48
+app/src/components/ui/switch.tsx
+  s_5d2ed5e1760b3f::t_b227185add0a76 20,27
+app/src/lib/modules-modal.tsx
+  s_5d2ed5e1760b3f::t_a38963fcb96a43 442
+app/src/routes/assistant.tsx
+  s_5d2ed5e1760b3f::t_7c116d5cfd0a24 623
+app/src/routes/tasks.tsx
+  s_5d2ed5e1760b3f::t_9eabfb09a04751 673,828,859,1129
+app/src/styles.css
+  s_5d2ed5e1760b3f::t_1ccca9dd40e94f 26-27,38,41-43,58,74,115
+docs/development/design.md
+  s_5d2ed5e1760b3f::t_2dd66d76fa5ab2 80-81,92-98,310
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "a65de5ede82a200ebb5c342655e5f3d46dd5f26a",
+  "prompts": {},
+  "sessions": {
+    "s_5d2ed5e1760b3f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6808-f5bb-78e2-ac7d-311dd168a5c1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
