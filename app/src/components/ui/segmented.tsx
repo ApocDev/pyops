@@ -45,7 +45,7 @@ function Segmented<T extends string>({
             "flex items-center justify-center gap-1.5 text-sm font-medium whitespace-nowrap transition-colors outline-none select-none focus-visible:z-10 focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
             size === "sm" ? "h-7 px-2.5" : "h-8 px-3",
             value === o.value
-              ? "bg-primary text-primary-foreground"
+              ? "bg-primary-solid text-primary-foreground"
               : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >

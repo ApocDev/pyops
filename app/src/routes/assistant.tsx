@@ -620,7 +620,7 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
               }}
               rows={2}
               placeholder="Ask about a recipe or chain…"
-              className="max-h-48 min-h-[3.5rem] resize-none border-0 bg-transparent px-3 py-2.5 leading-relaxed focus-visible:ring-0 dark:bg-transparent"
+              className="max-h-48 min-h-[3.5rem] resize-none border-0 bg-transparent px-3 py-2.5 leading-relaxed focus-visible:ring-0"
             />
             <div className="flex flex-wrap items-center gap-1.5 px-2 pb-2">
               <ContextGauge

@@ -439,7 +439,7 @@ function BeaconMatrix({
                         locked
                           ? "cursor-not-allowed border border-destructive bg-destructive/20 font-semibold text-destructive ring-2 ring-destructive/70"
                           : cur
-                            ? "bg-primary text-primary-foreground"
+                            ? "bg-primary-solid text-primary-foreground"
                             : "bg-muted/40 hover:bg-accent"
                       }`}
                     >

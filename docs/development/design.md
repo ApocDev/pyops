@@ -77,7 +77,8 @@ forbidden because they drift between pages and do not adapt to light and dark th
 | --------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | `background` / `foreground`                                     | Page surface and ordinary text                                         |
 | `card`, `popover`, `muted`, `accent`, `border`, `input`, `ring` | Shared surface and chrome layers                                       |
-| `primary`                                                       | Brand accent, primary action, and selected navigation                  |
+| `primary`                                                       | Brand accent, links, borders, and selected navigation                  |
+| `primary-solid` / `primary-foreground`                          | Filled primary controls and their text or icon                         |
 | `destructive`                                                   | Failure, deficit, starvation, and destructive action                   |
 | `success`                                                       | Healthy, satisfied, produced, and live-connected                       |
 | `warning`                                                       | Attention, consumption, imports, stale state, and degraded behavior    |
@@ -87,6 +88,13 @@ forbidden because they drift between pages and do not adapt to light and dark th
 Tinted states pair one hue across text, border, and a low-opacity background, for example
 `text-warning border-warning/40 bg-warning/15`. Color is redundant: an icon, label, or
 value must still communicate the state.
+
+Normal-sized text must keep at least 4.5:1 contrast against its rendered surface in both
+themes; large text and meaningful non-text controls need at least 3:1. When tuning a
+semantic hue, check it against both the page surface and its own low-opacity tint — a value
+that passes on `background` can still fail on `bg-warning/10`. The representative rendered
+contrast guard lives in `app/e2e/theme.e2e.ts` and runs Axe against Home, Block, Factory,
+Assistant, and Settings in light and dark modes.
 
 Theme selection is a browser preference managed by `app/src/lib/theme.ts`. A pre-paint
 script applies it before React renders, avoiding a light/dark flash. New surfaces must work
@@ -299,5 +307,6 @@ exception must be narrowly documented in the test's exception list rather than h
 an evasive class construction.
 
 For a UI change, run `vp check`, the relevant component tests, and the main Playwright flow.
+Run `app/e2e/theme.e2e.ts` when changing tokens, shared primitives, or theme behavior.
 Inspect dark and light themes and at least one narrow viewport. When a new pattern appears
 twice, extract the shared component before it becomes a page convention.

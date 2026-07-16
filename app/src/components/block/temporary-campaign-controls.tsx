@@ -95,7 +95,7 @@ export function TemporaryCampaignControls({
             onKeyDown={(event) => {
               if (event.key === "Enter") event.currentTarget.blur();
             }}
-            className="h-6 w-11 border-0 bg-transparent px-1 text-right shadow-none focus-visible:ring-0 dark:bg-transparent"
+            className="h-6 w-11 border-0 bg-transparent px-1 text-right shadow-none focus-visible:ring-0"
           />
           <TimeUnitControl
             unit={unit}

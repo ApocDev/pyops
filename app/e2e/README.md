@@ -77,6 +77,8 @@ Read-only (this directory):
   those against a throwaway project rather than your live one.
 - **`responsive.e2e.ts`** — screenshots every route across a desktop/tablet/phone
   matrix and asserts no route scrolls sideways at tablet/phone widths.
+- **`theme.e2e.ts`** — verifies light/dark preference switching and persistence, then runs
+  Axe's rendered color-contrast rule across representative routes in both themes.
 
 Mutating (`mut/`, against the isolated server):
 

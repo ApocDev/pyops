@@ -670,7 +670,7 @@ function TaskDetail({
           onChange={(ev) => setTitle(ev.target.value)}
           onBlur={() => title !== (t.title ?? "") && save.mutate({ title })}
           placeholder="Task title"
-          className={`h-auto min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-lg font-semibold tracking-tight placeholder:text-muted-foreground/60 focus-visible:ring-0 md:text-lg dark:bg-transparent ${titleMuted(
+          className={`h-auto min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-lg font-semibold tracking-tight placeholder:text-muted-foreground/60 focus-visible:ring-0 md:text-lg ${titleMuted(
             t.status,
           )}`}
         />
@@ -825,7 +825,7 @@ function AddRow({
         }}
         onBlur={onSubmit}
         placeholder={placeholder}
-        className="h-auto min-w-0 flex-1 border-0 bg-transparent px-0 py-0 placeholder:text-muted-foreground/60 focus-visible:ring-0 dark:bg-transparent"
+        className="h-auto min-w-0 flex-1 border-0 bg-transparent px-0 py-0 placeholder:text-muted-foreground/60 focus-visible:ring-0"
       />
     </div>
   );
@@ -856,7 +856,7 @@ function CheckRow({
         value={value}
         onChange={(ev) => setValue(ev.target.value)}
         onBlur={() => value.trim() && value.trim() !== ref.current && onEdit(value.trim())}
-        className={`h-auto min-w-0 flex-1 border-0 bg-transparent px-0 py-0 focus-visible:ring-0 dark:bg-transparent ${
+        className={`h-auto min-w-0 flex-1 border-0 bg-transparent px-0 py-0 focus-visible:ring-0 ${
           done ? "text-muted-foreground line-through" : ""
         }`}
       />
@@ -1126,7 +1126,7 @@ function NoteDetail({
           onChange={(ev) => setTitle(ev.target.value)}
           onBlur={() => title !== (note.title ?? "") && save.mutate({ title })}
           placeholder="Note title"
-          className="h-auto min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-lg font-semibold tracking-tight placeholder:text-muted-foreground/60 focus-visible:ring-0 md:text-lg dark:bg-transparent"
+          className="h-auto min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-lg font-semibold tracking-tight placeholder:text-muted-foreground/60 focus-visible:ring-0 md:text-lg"
         />
         <Button
           variant="ghost"
