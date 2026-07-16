@@ -369,21 +369,6 @@ export function BalanceCard({
                           {/* Locked-as-block-driver state (set via right-click → "Size block by this
                             input"): edit its rate inline + an unlock control. The toggle itself
                             lives in the context menu, so non-locked rows stay uncluttered. */}
-                          {/* the block imports this while an in-block recipe
-                            produces it — usually the import-instead-of-make
-                            trap (block 27); one click claims it in-block */}
-                          {res.importedProducible?.includes(f.name) && (
-                            <button
-                              title="An enabled recipe in this block produces this good, but the plan imports it. Click to mark it made in-block (production must cover consumption)."
-                              onClick={() => {
-                                doc.markMade(f.name);
-                                doc.note(`Mark "${res.display?.[f.name] ?? f.name}" made in-block`);
-                              }}
-                              className="bg-warning/25 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
-                            >
-                              Made here? · Make in-block
-                            </button>
-                          )}
                           {lockedInput === f.name && (
                             <>
                               <Tooltip content="Locked rate — the block is sized to consume this much of this input">

@@ -1364,19 +1364,6 @@ export async function computeBlock(rawData: SolveInput) {
   const fuelItems = [...fuelTotals.keys()]; // for the 🔥 tag in the UI
   const burntItems = [...burntTotals.keys()]; // ash / depleted cells from burning
 
-  // Imports of a good some enabled recipe IN THIS BLOCK produces — the
-  // tell-tale of a plan importing instead of making (a free byproduct + a
-  // reprocessing recipe lets the LP import the byproduct and idle the real
-  // producers). The chip offers one click to mark the good made.
-  const inBlockProducerGoods = new Set(
-    compose.parentDefs.flatMap((d) =>
-      d.products.flatMap((p) => (p.amount > 0 ? [fold.bare(p.name)] : [])),
-    ),
-  );
-  const importedProducible = imports
-    .map((f) => f.name)
-    .filter((n) => inBlockProducerGoods.has(n) && !n.startsWith("pyops-"));
-
   // Which imports are craftable in-block (a recipe exists to make them) vs. true
   // raws (nothing produces them — you must supply them). Drives the import tint.
   const producible = imports
@@ -1531,8 +1518,6 @@ export async function computeBlock(rawData: SolveInput) {
     display,
     recipeDisplay,
     producible,
-    // imports the block could be making itself (see above) — chip warning + fix
-    importedProducible,
     // the block's effective made set (explicit or migrated) — the editor
     // hydrates this into legacy docs so the next save persists it
     made,
