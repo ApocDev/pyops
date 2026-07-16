@@ -2792,6 +2792,105 @@ export function blockBuildStatus(
   return limit != null ? worst.slice(0, limit) : worst;
 }
 
+export type HomeBlockBuildStatus = {
+  blockId: number;
+  block: string;
+  phase: "unbuilt" | "partial" | "scale" | "scaled";
+  requiredSteps: number;
+  coveredSteps: number;
+  requiredMachines: number;
+  missingMachines: number;
+};
+
+/** Progression-oriented build status for Home. Unlike blockBuildStatus's exact
+ * selected-machine audit, coverage answers the earlier-game question "does a
+ * trickle of every required recipe exist anywhere?" A recipe therefore counts
+ * as covered when ANY placed machine tier runs it. Once every recipe is covered,
+ * exact selected-machine counts still decide whether the block is fully scaled.
+ *
+ * The snapshot is force-wide, deliberately: physical block ownership is not
+ * available until blocks can be bound to map areas (#167). Recipe-blind machine
+ * kinds (boilers/generators/reactors/pumps) use exact machine presence as their
+ * coverage step instead. */
+export function homeBlockBuildStatus(): HomeBlockBuildStatus[] {
+  const required = db
+    .select({
+      blockId: blocks.id,
+      block: blocks.name,
+      sortOrder: blocks.sortOrder,
+      machine: blockMachines.machine,
+      machineKind: craftingMachines.kind,
+      recipe: blockMachines.recipe,
+      count: blockMachines.count,
+    })
+    .from(blockMachines)
+    .innerJoin(blocks, eq(blocks.id, blockMachines.blockId))
+    .leftJoin(craftingMachines, eq(craftingMachines.name, blockMachines.machine))
+    .where(eq(blocks.enabled, true))
+    .orderBy(blocks.sortOrder, blocks.name)
+    .all();
+  const built = db.select().from(builtMachines).all();
+  const builtByRecipe = new Map<string, number>();
+  const builtByMachine = new Map<string, number>();
+  const builtExact = new Map<string, number>();
+  for (const row of built) {
+    builtByMachine.set(row.name, (builtByMachine.get(row.name) ?? 0) + row.count);
+    builtExact.set(`${row.name}\0${row.recipe}`, row.count);
+    if (row.recipe) builtByRecipe.set(row.recipe, (builtByRecipe.get(row.recipe) ?? 0) + row.count);
+  }
+
+  const reportableKinds = new Set(["assembling-machine", "furnace", "rocket-silo", "mining-drill"]);
+  const byBlock = new Map<number, typeof required>();
+  for (const row of required) {
+    const rows = byBlock.get(row.blockId) ?? [];
+    rows.push(row);
+    byBlock.set(row.blockId, rows);
+  }
+
+  return [...byBlock.values()].map((rows) => {
+    const first = rows[0];
+    const coverage = new Map<string, boolean>();
+    let requiredMachines = 0;
+    let missingMachines = 0;
+    const fallbackRequired = new Map<string, number>();
+
+    for (const row of rows) {
+      const requiredCount = wholeMachines(row.count);
+      requiredMachines += requiredCount;
+      if (reportableKinds.has(row.machineKind ?? "")) {
+        coverage.set(`recipe:${row.recipe}`, (builtByRecipe.get(row.recipe) ?? 0) > 0);
+        const exact = builtExact.get(`${row.machine}\0${row.recipe}`) ?? 0;
+        missingMachines += Math.max(0, requiredCount - exact);
+      } else {
+        coverage.set(`machine:${row.machine}`, (builtByMachine.get(row.machine) ?? 0) > 0);
+        fallbackRequired.set(row.machine, (fallbackRequired.get(row.machine) ?? 0) + requiredCount);
+      }
+    }
+    for (const [machine, count] of fallbackRequired)
+      missingMachines += Math.max(0, count - (builtByMachine.get(machine) ?? 0));
+
+    const requiredSteps = coverage.size;
+    const coveredSteps = [...coverage.values()].filter(Boolean).length;
+    const phase =
+      coveredSteps === 0
+        ? "unbuilt"
+        : coveredSteps < requiredSteps
+          ? "partial"
+          : missingMachines > 0
+            ? "scale"
+            : "scaled";
+    return {
+      blockId: first.blockId,
+      block: first.block,
+      phase,
+      requiredSteps,
+      coveredSteps,
+      requiredMachines,
+      missingMachines,
+    };
+  });
+}
+
 /* ── Live production statistics (actual rates from the game) ──────────────────── */
 
 /** Replace the stored production stats with a fresh per-second snapshot from the
@@ -4960,6 +5059,39 @@ export function metaSet(key: string, value: string) {
 
 export function metaDelete(key: string) {
   db.delete(meta).where(eq(meta.key, key)).run();
+}
+
+const HOME_DISMISSED_ACTIONS_KEY = "home_dismissed_actions";
+
+export function homeDismissedActions(): string[] {
+  const raw = metaAll()[HOME_DISMISSED_ACTIONS_KEY];
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? [
+          ...new Set(
+            parsed.filter((key): key is string => typeof key === "string" && key.length <= 240),
+          ),
+        ]
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function setHomeActionDismissed(key: string, dismissed: boolean): string[] {
+  if (!key || key.length > 240) return homeDismissedActions();
+  const keys = new Set(homeDismissedActions());
+  if (dismissed) keys.add(key);
+  else keys.delete(key);
+  const result = [...keys].sort();
+  metaSet(HOME_DISMISSED_ACTIONS_KEY, JSON.stringify(result));
+  return result;
+}
+
+export function clearHomeDismissedActions(): void {
+  metaDelete(HOME_DISMISSED_ACTIONS_KEY);
 }
 
 /* ── Preferred defaults ("favorites") ────────────────────────────────────────

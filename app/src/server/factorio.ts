@@ -403,6 +403,57 @@ export const machineSufficiencyFn = createServerFn({ method: "GET" }).handler(as
   };
 });
 
+/** Compact, progression-oriented facts for Home's action priority. Keeps the
+ * heavy recipe-availability rows server-side and returns only whether each
+ * current deficit has a producer selectable under the active horizon. */
+export const homeActionContextFn = createServerFn({ method: "GET" }).handler(async () => {
+  await ensureSolvedProjections();
+  const totals = q.factoryTotals();
+  const byGood = new Map<string, { produced: number; consumed: number }>();
+  for (const flow of totals) {
+    const row = byGood.get(flow.item) ?? { produced: 0, consumed: 0 };
+    if (flow.role === "import") row.consumed += flow.rate;
+    else row.produced += flow.rate;
+    byGood.set(flow.item, row);
+  }
+  const deficitGoods = [...byGood]
+    .filter(([, row]) => {
+      const gap = row.consumed - row.produced;
+      return gap > Math.max(1e-6, 1e-2 * Math.max(row.produced, row.consumed));
+    })
+    .map(([good]) => good);
+  const candidates = q.recipeCandidatesBatch(deficitGoods, "produce");
+  const deficitAvailability = deficitGoods.map((item) => {
+    const rows = candidates.get(item) ?? [];
+    return {
+      item,
+      state: rows.some((row) => row.selectable)
+        ? ("actionable" as const)
+        : rows.length > 0
+          ? ("waiting" as const)
+          : ("external" as const),
+    };
+  });
+  const m = q.metaAll();
+  return {
+    build: q.homeBlockBuildStatus(),
+    production: q.factoryProductionComparison(),
+    statsSyncedAt: m.stats_synced_at ?? null,
+    builtSyncedAt: m.built_synced_at ?? null,
+    deficitAvailability,
+    dismissedActions: q.homeDismissedActions(),
+  };
+});
+
+export const dismissHomeActionFn = createServerFn({ method: "POST" })
+  .validator((key: string) => key)
+  .handler(async ({ data }) => ({ dismissedActions: q.setHomeActionDismissed(data, true) }));
+
+export const restoreHomeActionsFn = createServerFn({ method: "POST" }).handler(async () => {
+  q.clearHomeDismissedActions();
+  return { dismissedActions: [] as string[] };
+});
+
 /** Planned (from block flows) vs. actual (live from the game) production per item,
  * plus the stats sync status — drives the factory ledger's "actual/s" column. */
 export const productionComparisonFn = createServerFn({ method: "GET" }).handler(async () => {

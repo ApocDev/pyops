@@ -17,6 +17,9 @@ import {
   goodInfo,
   goodExists,
   goodGraphCounts,
+  clearHomeDismissedActions,
+  homeBlockBuildStatus,
+  homeDismissedActions,
   factoryBlocks,
   factoryTotals,
   listBlocks,
@@ -38,6 +41,7 @@ import {
   setFavoriteFluidTemperature,
   setGroupParent,
   setGroupOrder,
+  setHomeActionDismissed,
   setResearchHorizon,
   listTurdUpgrades,
   turdChoicesLookup,
@@ -1398,6 +1402,93 @@ describe("blockBuildStatus", () => {
 
   it("returns empty for an unknown block id", () => {
     expect(blockBuildStatus(999999)).toEqual([]);
+  });
+});
+
+describe("homeBlockBuildStatus", () => {
+  beforeEach(() => {
+    db.run(
+      sql`INSERT INTO crafting_machines (name, kind, crafting_speed) VALUES ('assembler','assembling-machine',1),('reactor','reactor',1)`,
+    );
+    db.run(sql`INSERT INTO blocks (id, name, data, enabled) VALUES (5,'coverage','{}',1)`);
+    db.run(sql`
+      INSERT INTO block_machines (block_id, machine, recipe, count) VALUES
+        (5,'furnace','smelt-plate',10),
+        (5,'assembler','make-gear',20)
+    `);
+    db.run(sql`INSERT INTO blocks (id, name, data, enabled) VALUES (6,'heat','{}',1)`);
+    db.run(
+      sql`INSERT INTO block_machines (block_id, machine, recipe, count) VALUES (6,'reactor','generate-heat-reactor',2)`,
+    );
+  });
+
+  it("calls a block unbuilt when none of its required recipes run", () => {
+    setBuiltMachines([]);
+    expect(homeBlockBuildStatus().find((row) => row.blockId === 5)).toMatchObject({
+      phase: "unbuilt",
+      requiredSteps: 2,
+      coveredSteps: 0,
+    });
+  });
+
+  it("counts any machine tier running the recipe as partial coverage", () => {
+    setBuiltMachines([{ machine: "stone-furnace", recipe: "smelt-plate", count: 1 }]);
+    expect(homeBlockBuildStatus().find((row) => row.blockId === 5)).toEqual({
+      blockId: 5,
+      block: "coverage",
+      phase: "partial",
+      requiredSteps: 2,
+      coveredSteps: 1,
+      requiredMachines: 30,
+      missingMachines: 30,
+    });
+  });
+
+  it("moves covered recipes to scaling without demanding the end-game count", () => {
+    setBuiltMachines([
+      { machine: "stone-furnace", recipe: "smelt-plate", count: 1 },
+      { machine: "burner-assembler", recipe: "make-gear", count: 1 },
+    ]);
+    expect(homeBlockBuildStatus().find((row) => row.blockId === 5)).toMatchObject({
+      phase: "scale",
+      requiredSteps: 2,
+      coveredSteps: 2,
+      missingMachines: 30,
+    });
+  });
+
+  it("reports scaled only when the selected machine totals are met", () => {
+    setBuiltMachines([
+      { machine: "furnace", recipe: "smelt-plate", count: 10 },
+      { machine: "assembler", recipe: "make-gear", count: 20 },
+    ]);
+    expect(homeBlockBuildStatus().find((row) => row.blockId === 5)).toMatchObject({
+      phase: "scaled",
+      missingMachines: 0,
+    });
+  });
+
+  it("uses machine presence for a recipe-blind machine", () => {
+    setBuiltMachines([{ machine: "reactor", recipe: "", count: 1 }]);
+    expect(homeBlockBuildStatus().find((row) => row.blockId === 6)).toMatchObject({
+      phase: "scale",
+      requiredSteps: 1,
+      coveredSteps: 1,
+      missingMachines: 1,
+    });
+  });
+});
+
+describe("Home dismissed actions", () => {
+  it("persists, deduplicates, removes, and clears action keys per project", () => {
+    expect(homeDismissedActions()).toEqual([]);
+    expect(setHomeActionDismissed("unbuilt:1", true)).toEqual(["unbuilt:1"]);
+    expect(setHomeActionDismissed("unbuilt:1", true)).toEqual(["unbuilt:1"]);
+    expect(setHomeActionDismissed("plan:fish:0:2", true)).toEqual(["plan:fish:0:2", "unbuilt:1"]);
+    expect(homeDismissedActions()).toEqual(["plan:fish:0:2", "unbuilt:1"]);
+    expect(setHomeActionDismissed("unbuilt:1", false)).toEqual(["plan:fish:0:2"]);
+    clearHomeDismissedActions();
+    expect(homeDismissedActions()).toEqual([]);
   });
 });
 
