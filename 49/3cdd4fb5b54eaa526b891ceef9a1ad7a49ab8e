@@ -1,0 +1,35 @@
+app/src/db/queries.server.ts
+  s_add2fb7ec3cc19::t_15356bca489f61 2795-2893,5064-5096
+app/src/db/queries.test.ts
+  s_add2fb7ec3cc19::t_6531efb89ec9f1 20-22,44,1408-1494
+app/src/server/factorio.ts
+  s_add2fb7ec3cc19::t_858bec2c58f318 406-456
+app/e2e/mut/home-actions.e2e.ts
+  s_add2fb7ec3cc19::t_8a28b37077ee9e 1-105
+app/src/components/home/next-action-card.tsx
+  s_add2fb7ec3cc19::t_58e6cc150697ef 1-167
+app/src/lib/home-actions.test.ts
+  s_add2fb7ec3cc19::t_6fbf88d64669bf 1-216
+app/src/lib/home-actions.ts
+  s_add2fb7ec3cc19::t_d240973d62ff34 1-210
+app/src/routes/index.tsx
+  s_add2fb7ec3cc19::t_dd96d89ab357c9 2,20,23,26,28,35-42,49,53-56,61-63,65,70-72,74-85,92-117,165,236-237,239-248,261-266,278-286,295-301,303-311,320-329
+docs/getting-started/index.md
+  s_add2fb7ec3cc19::t_1b3f56a82c3399 43,46-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "493cdd4fb5b54eaa526b891ceef9a1ad7a49ab8e",
+  "prompts": {},
+  "sessions": {
+    "s_add2fb7ec3cc19": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6c57-4ba8-73b0-9ec4-874826a3d779",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
