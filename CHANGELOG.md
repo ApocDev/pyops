@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.3.0](https://github.com/ApocDev/pyops/compare/v1.2.0...v1.3.0) (2026-07-16)
+
+
+### Features
+
+* **data:** detect stale imported reference data ([952ef36](https://github.com/ApocDev/pyops/commit/952ef360a1919a653fa34470659160a63e34d570))
+* **home:** prioritize actionable factory work ([493cdd4](https://github.com/ApocDev/pyops/commit/493cdd4fb5b54eaa526b891ceef9a1ad7a49ab8e))
+* **planner:** add temporary production campaigns ([4de0c03](https://github.com/ApocDev/pyops/commit/4de0c03e8c85a532c988770fef68f60df6f75956))
+* **scenario:** cache results and report solve progress ([0f4a1e7](https://github.com/ApocDev/pyops/commit/0f4a1e7bbdab65e2fad6c24badad0efe3fe9f5ff))
+* **solver:** balance temperature-qualified factory flows ([b5b1d2b](https://github.com/ApocDev/pyops/commit/b5b1d2b1efec19fba77816280eb33f7f97c85f1f)), closes [#158](https://github.com/ApocDev/pyops/issues/158) [#159](https://github.com/ApocDev/pyops/issues/159)
+
+
+### Bug Fixes
+
+* **app:** harden dual-theme contrast ([a65de5e](https://github.com/ApocDev/pyops/commit/a65de5ede82a200ebb5c342655e5f3d46dd5f26a)), closes [#107](https://github.com/ApocDev/pyops/issues/107)
+* **app:** restore home resource links ([44c5a11](https://github.com/ApocDev/pyops/commit/44c5a118a4dd70f3191e08cd2c7a4046fbf75799))
+* **app:** standardize display label casing ([3b299d0](https://github.com/ApocDev/pyops/commit/3b299d0b4a4cbb9d629bbfde93fe6ae583993062))
+* **block:** keep recipe controls available after solve errors ([49101e5](https://github.com/ApocDev/pyops/commit/49101e55dcea29842861a79c255ea12d47e7416e))
+* **block:** keep rows stable when favoriting fuel ([97e88cc](https://github.com/ApocDev/pyops/commit/97e88cc5833f073a666940dfcfbff3ef73dce529))
+* **data:** import Factorio product probabilities ([1964dfd](https://github.com/ApocDev/pyops/commit/1964dfdc9f60b2511b27758a6dd3d293bd1d80e9))
+
 ## [1.2.0](https://github.com/ApocDev/pyops/compare/v1.1.0...v1.2.0) (2026-07-14)
 
 
