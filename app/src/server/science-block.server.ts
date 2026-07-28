@@ -9,9 +9,9 @@
  * so it works for any mod that has labs. Pyanodons only shows up in that its
  * vatbrains happen to be a beacon.
  */
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db/index.server.ts";
-import { blocks, labs, technologies, techIngredients } from "../db/schema.ts";
+import { blocks, fluids, items, labs, technologies, techIngredients } from "../db/schema.ts";
 import type { ScienceBank } from "../db/schema.ts";
 import * as q from "../db/queries.server.ts";
 import {
@@ -27,7 +27,32 @@ import {
  * derive rates. */
 const DEFAULT_LAB_SECONDS_PER_PACK = 60;
 
-export type LabOption = LabProto & { display: string | null };
+export type LabOption = LabProto & {
+  display: string | null;
+  /** Localized names for the packs this lab accepts. User-facing text must never
+   * show an internal name. */
+  inputDisplays: Record<string, string | null>;
+};
+
+/** Localized names for goods, so no user-facing text shows an internal name. */
+function displaysFor(names: string[]): Record<string, string | null> {
+  const uniq = [...new Set(names)];
+  if (!uniq.length) return {};
+  const out: Record<string, string | null> = {};
+  for (const row of db
+    .select({ name: items.name, display: items.display })
+    .from(items)
+    .where(inArray(items.name, uniq))
+    .all())
+    out[row.name] = row.display;
+  for (const row of db
+    .select({ name: fluids.name, display: fluids.display })
+    .from(fluids)
+    .where(inArray(fluids.name, uniq))
+    .all())
+    out[row.name] ??= row.display;
+  return out;
+}
 
 /** Every lab a plan can choose, cheapest research speed first. */
 export function labOptions(): LabOption[] {
@@ -40,6 +65,7 @@ export function labOptions(): LabOption[] {
     .map((l) => ({
       name: l.name,
       display: l.display,
+      inputDisplays: displaysFor(l.inputs ?? []),
       researchingSpeed: l.researchingSpeed,
       moduleSlots: l.moduleSlots,
       energyUsageW: l.energyUsageW,

@@ -34,6 +34,7 @@ import { createCoalescedRunner } from "../lib/coalesced-runner";
 import { bestUnlockedNonBarrelingRecipe } from "../lib/recipe-shortcuts";
 import { IconProvider, useSpoilables } from "../lib/icons";
 import { ModulesModal } from "../lib/modules-modal";
+import { ScienceBlockView } from "../components/science/science-block-view";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Segmented } from "#/components/ui/segmented.tsx";
 import { Table2, Workflow } from "lucide-react";
@@ -197,6 +198,7 @@ function Block({ blockId }: { blockId: number }) {
     gcTime: 0,
     staleTime: 0,
   });
+  const isScienceBlock = !!(loaded.data?.data as { science?: unknown } | undefined)?.science;
   // Save-conflict baseline (#90): the `updatedAt` of the row this editor last
   // hydrated from / saved. Sent with every save so a stale editor (second tab,
   // or one that idled through an undo/external write) is rejected + reloaded
@@ -787,6 +789,10 @@ function Block({ blockId }: { blockId: number }) {
   // The block's face (#40): the explicit pick when set, else the first goal's icon.
   const blockIcon =
     customIcon ?? (target ? { kind: goalInfo.data?.[target]?.kind ?? "item", name: target } : null);
+
+  // A science block has a lab bank instead of recipe rows: one pool of labs with
+  // independent per-pack rates, which the recipe editor cannot express.
+  if (isScienceBlock) return <ScienceBlockView blockId={blockId} />;
 
   return (
     <div className="p-4 font-mono text-base text-foreground">

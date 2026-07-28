@@ -43,11 +43,13 @@ import {
   Boxes,
   ChevronDown,
   ChevronRight,
+  FlaskConical,
   FolderPlus,
   Plus,
   Power,
   X,
 } from "lucide-react";
+import { ensureScienceBlockFn, scienceBlockFn } from "../server/science";
 import { Icon, IconProvider } from "../lib/icons";
 import { blockDeleteDescription } from "../lib/delete-copy";
 import { deletedToast, undoToast } from "../lib/undo-client";
@@ -93,12 +95,16 @@ function DndRow({
   className,
   style,
   onContextMenu,
+  nodeRef,
+  dataBlockId,
   children,
 }: {
   id: string;
   className?: string;
   style?: CSSProperties;
   onContextMenu?: MouseEventHandler<HTMLDivElement>;
+  nodeRef?: (node: HTMLDivElement | null) => void;
+  dataBlockId?: number;
   children: ReactNode;
 }) {
   const drag = useDraggable({ id });
@@ -106,11 +112,13 @@ function DndRow({
   const setRef = (el: HTMLElement | null) => {
     drag.setNodeRef(el);
     drop.setNodeRef(el);
+    nodeRef?.(el as HTMLDivElement | null);
   };
   return (
     <div
       ref={setRef}
       style={style}
+      data-block-nav-id={dataBlockId}
       className={`${className ?? ""} ${drag.isDragging ? "opacity-40" : ""}`}
       onContextMenu={onContextMenu}
       {...drag.listeners}
@@ -162,6 +170,8 @@ function Shell() {
   // before it (insertion line). Block drags always nest (`into`).
   const [dropFolder, setDropFolder] = useState<{ key: string; into: boolean } | null>(null);
   const tabDragId = useRef<number | null>(null); // block id being dragged within the tab strip
+  const blockNavRows = useRef(new Map<number, HTMLDivElement>());
+  const pendingRevealBlockId = useRef<number | null>(null);
   const [tabDragOver, setTabDragOver] = useState<number | null>(null);
   const tabsHydrated = useRef(false); // gate persistence until the saved tabs are restored
   const activeEditorRef = useRef<ActiveEditorState | null>(null); // live state of the open editor
@@ -388,9 +398,39 @@ function Shell() {
             data: { name: "New block", data: { goals: [], recipes: [] } },
           })
         : await createBlockInGroupFn({ data: groupId });
+    pendingRevealBlockId.current = res.id;
+    setSearch("");
+    setCollapsed((current) => {
+      const key = groupId == null ? "ungrouped" : `g${groupId}`;
+      const next = { ...current, [key]: false };
+      localStorage.setItem(COLLAPSE_KEY, JSON.stringify(next));
+      return next;
+    });
     void qc.invalidateQueries({ queryKey: ["blocks"] });
     open(res.id);
   };
+
+  // One science block per project: a factory has a single research demand, so a
+  // second bank could not be told apart from the first counted twice.
+  const scienceBlock = useQuery({ queryKey: ["scienceBlock"], queryFn: () => scienceBlockFn() });
+  const hasScienceBlock = !!scienceBlock.data;
+  const newScienceBlock = async () => {
+    const res = await ensureScienceBlockFn();
+    pendingRevealBlockId.current = res.id;
+    setSearch("");
+    void qc.invalidateQueries({ queryKey: ["blocks"] });
+    void qc.invalidateQueries({ queryKey: ["scienceBlock"] });
+    open(res.id);
+  };
+
+  useEffect(() => {
+    const id = pendingRevealBlockId.current;
+    if (id == null) return;
+    const row = blockNavRows.current.get(id);
+    if (!row) return;
+    row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    pendingRevealBlockId.current = null;
+  }, [blocks.data, collapsed, search]);
   const closeTab = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
     // navigate OUTSIDE the state updater — updaters run during render, and
@@ -494,6 +534,11 @@ function Shell() {
     <DndRow
       key={b.id}
       id={`b${b.id}`}
+      dataBlockId={b.id}
+      nodeRef={(node) => {
+        if (node) blockNavRows.current.set(b.id, node);
+        else blockNavRows.current.delete(b.id);
+      }}
       style={{ marginLeft: 8 + depth * 12 }}
       className={`group relative flex cursor-grab items-center gap-2 px-2 py-1 select-none hover:bg-muted active:cursor-grabbing ${activeId === b.id ? "bg-accent" : ""}`}
     >
@@ -692,6 +737,19 @@ function Shell() {
               >
                 <FolderPlus className="size-4" />
               </Button>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                onClick={() => void newScienceBlock()}
+                disabled={hasScienceBlock}
+                title={
+                  hasScienceBlock
+                    ? "This project already has its science block"
+                    : "New science block — one lab bank for the whole factory"
+                }
+              >
+                <FlaskConical className="size-4" />
+              </Button>
               <Button size="icon-sm" onClick={() => void newBlock()} title="New block">
                 <Plus className="size-4" />
               </Button>
@@ -710,7 +768,7 @@ function Shell() {
               onDragEnd={onDragEnd}
               onDragCancel={endDrag}
             >
-              <div className="flex-1 overflow-auto px-1 pb-2">
+              <div data-block-nav-scroll className="flex-1 overflow-auto px-1 pb-2">
                 {blocks.isPending ? (
                   <div className="space-y-1.5 px-2 py-2">
                     <Skeleton className="h-6 w-full" />
