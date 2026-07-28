@@ -38,6 +38,13 @@ import { rateLabel } from "../lib/format";
  * whole-factory pins. */
 function WhatIf() {
   const qc = useQueryClient();
+  // How much bigger this goal gets. A ratio needs a non-zero base, so a goal
+  // starting from nothing reads "new" rather than as a divide-by-zero ∞.
+  const scaleLabel = (current: number, required: number) => {
+    if (Math.abs(current) < 1e-9) return required > 1e-9 ? "new" : "—";
+    const ratio = required / current;
+    return `×${ratio >= 100 ? Math.round(ratio) : ratio.toFixed(ratio >= 10 ? 1 : 3)}`;
+  };
   const [overrides, setOverrides] = useState<Record<string, number>>({});
   const [calculatedOverrideKey, setCalculatedOverrideKey] = useState("{}");
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
@@ -232,6 +239,7 @@ function WhatIf() {
             cols={[
               { label: "Current goal/s", w: "w-28" },
               { label: "Next goal/s", w: "w-28" },
+              { label: "×scale", w: "w-20" },
               { label: "Factory use/s", w: "w-28" },
               { label: "Block output/s", w: "w-28" },
               { label: "Surplus/s", w: "w-24" },
@@ -266,6 +274,11 @@ function WhatIf() {
                     className={`font-semibold ${b.delta > 0 ? "text-warning" : "text-info"}`}
                   >
                     {rateLabel(b.good ?? "", b.requiredRate)}
+                  </StatCell>
+                  {/* the absolute rates answer "what do I set it to"; the ratio
+                      answers "how much bigger does this get" at a glance */}
+                  <StatCell label="×scale" w="md:w-20" className="text-muted-foreground">
+                    {scaleLabel(b.currentRate, b.requiredRate)}
                   </StatCell>
                   <StatCell label="Factory use/s" w="md:w-28" className="text-foreground">
                     {rateLabel(b.good ?? "", b.factoryNeed)}
