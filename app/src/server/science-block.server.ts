@@ -135,7 +135,14 @@ export function ensureScienceBlock(name = "Science"): { id: number; created: boo
   if (!lab) throw new Error("No lab prototype found — sync the game data first.");
   const id = db
     .insert(blocks)
-    .values({ name, data: { goals: [], recipes: [], science: emptyBank(lab) } })
+    .values({
+      name,
+      data: { goals: [], recipes: [], science: emptyBank(lab) },
+      // an ordinary block takes its icon from its first goal; this one has none,
+      // so the lab it is built from is the honest stand-in
+      iconKind: "item",
+      iconName: lab,
+    })
     .returning({ id: blocks.id })
     .get().id;
   return { id, created: true };
@@ -147,7 +154,9 @@ export function saveScienceBank(id: number, bank: ScienceBank): void {
   if (!row) throw new Error(`No block ${id}`);
   const data = { ...(row.data as object), goals: [], recipes: [], science: bank };
   db.update(blocks)
-    .set({ data: data as never, updatedAt: new Date() })
+    // the icon follows the chosen lab, and backfills a block made before the
+    // block had one at all
+    .set({ data: data as never, iconKind: "item", iconName: bank.lab, updatedAt: new Date() })
     .where(eq(blocks.id, id))
     .run();
 }
