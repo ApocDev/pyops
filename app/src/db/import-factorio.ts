@@ -129,6 +129,14 @@ function inferredTurdMasters(technologies: Record<string, any>): Set<string> {
   return masters;
 }
 
+/** Reference tables the importer OWNS: cleared and rebuilt from the dump on every
+ * sync. `meta` is deliberately NOT here — it is a shared key/value store, and only
+ * a handful of its keys describe the dump. The rest is state the importer has no
+ * claim on: logistics and research-horizon preferences, the live research/built/
+ * stats/TURD state the mod bridge syncs in, factory pins, and the mod-rename
+ * baseline (clearing that one silently re-baselines renames, so a pending rename
+ * would never be applied). The importer upserts its own keys instead — see the
+ * `ins.meta` writes, which are INSERT OR REPLACE. */
 const TABLES = [
   "recipe_ingredients",
   "recipe_products",
@@ -155,7 +163,6 @@ const TABLES = [
   "tech_ingredients",
   "tech_prerequisites",
   "turd_replacements",
-  "meta",
 ];
 
 const COUNT_TABLES = [

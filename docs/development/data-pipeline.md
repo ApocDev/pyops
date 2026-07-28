@@ -85,6 +85,13 @@ project applies a branch selection.
 `*-locale.json` file. It replaces reference tables in the active SQLite database while
 leaving user-owned planning tables intact.
 
+Project metadata is not a reference table. Only a handful of its keys describe the dump, and
+the importer overwrites exactly those; everything else in it belongs to someone else and
+survives a sync untouched. That includes display preferences, the research horizon, factory
+pins, the live research, built-machine, production-stat, and branch-selection state the mod
+bridge syncs in, and the applied-rename baseline — clearing that last one would silently
+re-baseline mod renames, so a pending rename would never reach saved blocks.
+
 After both import passes complete, the importer writes `data_format_version` to project
 metadata. `REFERENCE_DATA_FORMAT_VERSION` in `app/src/lib/data-format.ts` describes the
 meaning of normalized reference rows, independently of the SQLite schema version. The shared

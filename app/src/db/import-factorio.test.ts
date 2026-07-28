@@ -537,3 +537,56 @@ describe("importFactorioDump — technology research cost", () => {
     db.close();
   });
 });
+
+describe("importFactorioDump — meta is not the importer's to clear", () => {
+  // A sync rebuilds reference data. It must not take user preferences or the live
+  // game state the mod bridge syncs in down with it.
+  const PRESERVED: Record<string, string> = {
+    logistics_stacking: "0",
+    logistics_belt: "fast-transport-belt",
+    logistics_mover_kind: "loader",
+    research_mode: "now",
+    researched_techs: '["automation","logistics"]',
+    research_mining_productivity_bonus: "0.4",
+    factory_pins_v1: '[{"good":"automation-science-pack","kind":"item","rate":0.5}]',
+    // clearing this silently re-baselines mod renames, so a pending rename is lost
+    migrations_applied: '["pyalienlife/1.2.3.json"]',
+    built_synced_count: "42",
+    turd_synced_at: "2026-07-28T00:00:00.000Z",
+  };
+
+  const seedAndImport = () => {
+    const seed = new Database(fx.file);
+    const stmt = seed.prepare(`INSERT OR REPLACE INTO meta (key,value) VALUES (?,?)`);
+    for (const [k, v] of Object.entries(PRESERVED)) stmt.run(k, v);
+    // a stale value for a key the importer DOES own
+    stmt.run("rocket_lift_weight", "1");
+    seed.close();
+    return runImport({
+      recipe: { "iron-plate": { results: [{ type: "item", name: "iron-plate", amount: 1 }] } },
+      "utility-constants": { default: { rocket_lift_weight: 999, default_item_weight: 100 } },
+    });
+  };
+
+  it("preserves preferences, live research state, pins and the rename baseline", () => {
+    const db = seedAndImport();
+    const rows = db.prepare(`SELECT key, value FROM meta`).all() as {
+      key: string;
+      value: string;
+    }[];
+    const got = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    for (const [k, v] of Object.entries(PRESERVED)) expect(got[k]).toBe(v);
+    db.close();
+  });
+
+  it("still overwrites the keys that describe the dump", () => {
+    const db = seedAndImport();
+    const get = (k: string) =>
+      (db.prepare(`SELECT value FROM meta WHERE key = ?`).get(k) as { value: string } | undefined)
+        ?.value;
+    expect(get("rocket_lift_weight")).toBe("999"); // stale seed replaced
+    expect(get(REFERENCE_DATA_FORMAT_META_KEY)).toBe(String(REFERENCE_DATA_FORMAT_VERSION));
+    expect(get("imported_from")).toBeTruthy();
+    db.close();
+  });
+});
