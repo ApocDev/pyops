@@ -1,15 +1,17 @@
 /**
  * Science-bank maths (pure — shared by the block compute path and its tests).
  *
- * A lab bank is one pool of machines with several independent input rates. The
- * labs consuming automation science are the SAME labs consuming py science 1, so
- * the pool is sized by whichever pack demands the most lab time, never by summing
- * per-pack machine counts.
+ * A lab bank is ONE pool of machines: the labs consuming automation science are
+ * the same labs consuming py science 1. The pool therefore follows the TOTAL pack
+ * rate, never the sum of per-pack pool sizes.
  *
- * Rates are entered POST-effects — the research you want to achieve. Lab
- * productivity stretches each pack, so the pack demand the factory must actually
- * supply is the entered rate divided by the productivity multiplier. That is the
- * whole point of the block: you name the outcome, it derives the supply.
+ * Pack rates are entered directly, so a hand-tuned or mixed-research plan needs
+ * nothing else. What they cannot supply is the pool size — 10/5/1 might be one
+ * technology's ratio or three mixed — so the bank also carries lab-seconds per
+ * pack, which a technology picker can compute.
+ *
+ * Productivity divides both sides: each lab earns more research per second, so
+ * fewer labs reach the target rate and fewer packs are consumed getting there.
  */
 import { computeEffects, type BeaconConfig, type BeaconEff, type ModuleEff } from "./effects.ts";
 
@@ -26,9 +28,10 @@ export type LabProto = {
 
 export type ScienceBankInput = {
   lab: LabProto;
-  /** pack → post-effects rate per second */
+  /** pack → packs per second, after effects (the block's goals) */
   packs: Record<string, number>;
-  secondsPerPack: number;
+  /** seconds of lab time per single pack at speed 1 */
+  labSecondsPerPack: number;
   modules: string[];
   beacons: BeaconConfig[];
   moduleDb: Map<string, ModuleEff>;
@@ -39,15 +42,15 @@ export type ScienceBankInput = {
 };
 
 export type ScienceBankResult = {
-  /** Fractional labs — the pool, sized by the binding pack. */
+  /** Fractional labs. ONE pool: the same labs consume every pack. */
   labs: number;
+  /** Total packs per second across every type, as entered. */
+  totalPerSec: number;
   /** Productivity multiplier applied by modules and beacons. */
   productivityMult: number;
   speedMult: number;
-  /** Pack → what the factory must supply per second (pre-effects). */
+  /** Pack → what the factory must supply per second. */
   packDemand: Record<string, number>;
-  /** The pack that sizes the pool; null when nothing is requested. */
-  bindingPack: string | null;
   /** Beacon buildings needed, whole (a fraction cannot be placed). */
   beaconBuildings: { beacon: string; count: number }[];
   /** Item → per-second drain from beacon upkeep. */
@@ -58,7 +61,7 @@ export type ScienceBankResult = {
 };
 
 export function computeScienceBank(input: ScienceBankInput): ScienceBankResult {
-  const { lab, secondsPerPack, moduleDb, beaconDb } = input;
+  const { lab, moduleDb, beaconDb } = input;
   const fx = computeEffects(true, input.modules, input.beacons, moduleDb, beaconDb);
 
   const accepted = lab.inputs?.length ? new Set(lab.inputs) : null;
@@ -66,24 +69,22 @@ export function computeScienceBank(input: ScienceBankInput): ScienceBankResult {
     .filter((p) => (input.packs[p] ?? 0) > 0 && accepted && !accepted.has(p))
     .sort();
 
-  // Productivity stretches each pack, so supplying LESS achieves the same
-  // research. Speed changes how fast one lab works, so it sizes the pool.
+  // ONE pool. Every pack is eaten by the same labs, so the pool follows the
+  // TOTAL pack rate, never the sum of per-pack pool sizes — that was the error
+  // that made 40/min plus 20/min read as 60 labs instead of 40.
+  //
+  // Productivity divides both sides: each lab earns more research per second, so
+  // fewer labs reach the target and fewer packs are consumed getting there.
   const packDemand: Record<string, number> = {};
-  let labs = 0;
-  let bindingPack: string | null = null;
-  const perLabPerSec = (lab.researchingSpeed * fx.speedMult) / Math.max(1e-9, secondsPerPack);
+  let totalPerSec = 0;
   for (const [pack, rate] of Object.entries(input.packs)) {
     if (!(rate > 0)) continue;
-    const demand = rate / fx.prodMult;
-    packDemand[pack] = demand;
-    // Labs needed if this pack alone had to be consumed at that rate. The pool
-    // is the max, not the sum: one lab eats every pack at once.
-    const needed = demand / perLabPerSec;
-    if (needed > labs) {
-      labs = needed;
-      bindingPack = pack;
-    }
+    packDemand[pack] = rate / fx.prodMult;
+    totalPerSec += rate;
   }
+  const labs =
+    (totalPerSec * input.labSecondsPerPack) /
+    Math.max(1e-9, lab.researchingSpeed * fx.speedMult * fx.prodMult);
 
   const beaconBuildings = input.beacons.map((cfg) => ({
     beacon: cfg.beacon,
@@ -110,13 +111,52 @@ export function computeScienceBank(input: ScienceBankInput): ScienceBankResult {
   const beaconPowerW = fx.beaconPowerPerMachineW * labs;
   return {
     labs,
+    totalPerSec,
     productivityMult: fx.prodMult,
     speedMult: fx.speedMult,
     packDemand,
-    bindingPack,
     beaconBuildings,
     upkeep,
     totalPowerW: labPowerW + beaconPowerW,
     unsupported,
+  };
+}
+
+/** One technology's research cost, as the picker needs it. */
+export type TechCost = {
+  /** pack → units per research unit */
+  ratio: Record<string, number>;
+  /** seconds of lab time per research unit at speed 1 */
+  unitTime: number;
+  /** research units in the whole technology */
+  unitCount: number;
+};
+
+/** Turn "research THIS technology in THIS long" into the rates to type into the
+ * bank, plus the lab-seconds-per-pack that sizes the pool.
+ *
+ * The helper only computes: its output is written into the bank as ordinary
+ * numbers and no technology is stored, so a plan never rots when one is renamed
+ * or researched. Effects are deliberately excluded — the bank applies
+ * productivity itself, and folding it in here would apply it twice.
+ */
+export function ratesForTech(
+  tech: TechCost,
+  seconds: number,
+): { packs: Record<string, number>; labSecondsPerPack: number; totalPerSec: number } {
+  const perUnit = Object.values(tech.ratio).reduce((sum, n) => sum + Math.max(0, n), 0);
+  const unitsPerSec = seconds > 0 ? tech.unitCount / seconds : 0;
+  const packs: Record<string, number> = {};
+  let totalPerSec = 0;
+  for (const [pack, amount] of Object.entries(tech.ratio)) {
+    if (!(amount > 0)) continue;
+    packs[pack] = unitsPerSec * amount;
+    totalPerSec += packs[pack]!;
+  }
+  return {
+    packs,
+    // unit time spread over the packs one unit consumes
+    labSecondsPerPack: perUnit > 0 ? tech.unitTime / perUnit : tech.unitTime,
+    totalPerSec,
   };
 }

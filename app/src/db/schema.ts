@@ -541,12 +541,21 @@ export type Goal = {
 export type ScienceBank = {
   /** Lab prototype (see the `labs` table). */
   lab: string;
-  /** Pack → rate consumed, per second, AFTER effects. Independent per pack: the
-   * same labs eat all of them, at whatever rates the research mix implies. */
+  /** Pack → packs per second, AFTER effects. These ARE the block's goals: typed
+   * directly, so a hand-tuned or mixed-research plan needs nothing else. The
+   * "derive from a technology" helper only computes them and writes them here;
+   * no technology is stored, so a plan cannot rot when one is renamed or
+   * researched. */
   packs: Record<string, number>;
-  /** Seconds one lab spends per unit of a single pack at speed 1. Factorio's
-   * `unit.time`, which the plan sets to match the tier being researched. */
-  secondsPerPack?: number;
+  /** Seconds of lab time per single science pack, at speed 1 — the one number
+   * pack rates alone cannot supply.
+   *
+   * Rates of 10/5/1 might be one technology's ratio or three mixed, and those
+   * need different pool sizes, so the bank carries the conversion explicitly:
+   * `unit.time / (sum of the unit's pack amounts)`. Pyanodons' `silver-mk01` is
+   * 60s over 3+1+2 packs = 10. The derive-from-technology helper sets it
+   * alongside the rates; it stays editable for a hand-built plan. */
+  labSecondsPerPack: number;
   /** Modules in each lab's own slots (Pyanodons' lab has none; others do). */
   modules?: string[];
   /** Beacons affecting each lab. `shared` carries how many labs one beacon
