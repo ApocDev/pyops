@@ -187,7 +187,7 @@ export const fuelPickerOptionsFn = createServerFn({ method: "GET" })
  * chosen machine's slots, eligible modules, and beacon variants with their
  * eligible modules. */
 export const modulePickerFn = createServerFn({ method: "GET" })
-  .validator((d: { recipe: string; machine: string }) => d)
+  .validator((d: { recipe: string | null; machine: string }) => d)
   .handler(async ({ data }) => q.modulePickerData(data.recipe, data.machine));
 
 /* Module/beacon presets — saved loadout templates (#99). Listed per recipe row
@@ -195,7 +195,7 @@ export const modulePickerFn = createServerFn({ method: "GET" })
  * machine's slots, allowed effects, module categories, and the recipe's
  * allow_productivity accept every module in it. */
 export const modulePresetsForFn = createServerFn({ method: "GET" })
-  .validator((d: { recipe: string; machine: string }) => d)
+  .validator((d: { recipe: string | null; machine: string }) => d)
   .handler(async ({ data }) => presetsForRow(data.recipe, data.machine));
 
 export const saveModulePresetFn = createServerFn({ method: "POST" })

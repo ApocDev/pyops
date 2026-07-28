@@ -497,6 +497,7 @@ function BeaconMatrix({
 export function ModulesModal({
   recipe,
   recipeDisplay,
+  title,
   machineName,
   modules,
   beacons,
@@ -505,8 +506,12 @@ export function ModulesModal({
   onChange,
   onClose,
 }: {
-  recipe: string;
+  /** Null when the loadout belongs to a machine rather than a recipe row — the
+   * science block's lab bank runs research, not a recipe. */
+  recipe: string | null;
   recipeDisplay: string;
+  /** Overrides the "Modules — <recipe>" heading for recipe-less loadouts. */
+  title?: string;
   machineName: string;
   modules: string[];
   beacons: BeaconConfig[];
@@ -580,7 +585,7 @@ export function ModulesModal({
     >
       <DialogContent className="md:max-w-[42rem]">
         <DialogHeader className="pr-10">
-          <DialogTitle className="truncate">Modules — {recipeDisplay}</DialogTitle>
+          <DialogTitle className="truncate">{title ?? `Modules — ${recipeDisplay}`}</DialogTitle>
         </DialogHeader>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
           {picker.isLoading && (

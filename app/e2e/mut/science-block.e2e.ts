@@ -77,6 +77,40 @@ test("creating a science block, typing rates, and deriving them from a technolog
     // the typed 60 was replaced by the derived figure
     await expect(auto).not.toHaveValue("60");
     await expect(auto).not.toHaveValue("0");
+
+    // ── the lab's own loadout: a recipe-less module/beacon picker ──
+    // A lab with no module slots can still be reached by a beacon, which is the
+    // only way Pyanodons' vatbrains apply. Put the rates back first so the pool
+    // is a known size.
+    // (deriving also set lab-seconds per pack from the technology, so put both
+    // back to the round numbers)
+    await page.getByRole("spinbutton", { name: "Lab-seconds per pack" }).fill("60");
+    await auto.fill("60");
+    await auto.blur();
+    await expect(page.getByTestId("science-stat-labs")).toContainText("60.00");
+
+    await page.getByRole("button", { name: /^No beacons|^No modules/ }).click();
+    const picker = page.getByRole("dialog");
+    await expect(picker.getByRole("heading")).toContainText("Modules —");
+
+    const addBeacon = picker.getByRole("button", { name: "+ Add" });
+    const noBeacons = (await addBeacon.getAttribute("aria-disabled")) === "true";
+    test.skip(noBeacons, "no beacon can reach this lab in this project's data");
+
+    await addBeacon.click();
+    // the first module the beacon can carry — whatever the mod set calls it
+    await picker.getByTitle(/click: add/).first().click();
+    await expect(picker.getByText(/%\s*(productivity|speed)/).first()).toBeVisible();
+
+    await picker.getByRole("spinbutton", { name: /^shared by/ }).fill("20");
+    await picker.getByRole("button", { name: "Close" }).click();
+    await expect(picker).toBeHidden();
+
+    // productivity now shrinks the pool and the imports, and beacon buildings
+    // appear — the whole reason the picker had to reach a zero-slot machine
+    await expect(page.getByTestId("science-stat-productivity")).not.toContainText("0%");
+    await expect(page.getByTestId("science-stat-labs")).not.toContainText("60.00");
+    await expect(page.getByText("Beacon buildings")).toBeVisible();
   } finally {
     clearScienceBlocks(file);
   }

@@ -4,7 +4,7 @@ import { Calculator, FlaskConical } from "lucide-react";
 import { labOptionsFn, saveScienceBankFn, scienceBlockFn } from "../../server/science";
 import type { ScienceBank } from "../../db/schema";
 import { Icon } from "../../lib/icons";
-import { ModulesChip } from "../../lib/modules-modal";
+import { ModulesChip, ModulesModal } from "../../lib/modules-modal";
 import { DeriveFromTechDialog } from "./derive-from-tech-dialog";
 import { Button } from "#/components/ui/button.tsx";
 import { Input } from "#/components/ui/input.tsx";
@@ -36,6 +36,7 @@ const fmtW = (w: number) =>
 export function ScienceBlockView({ blockId }: { blockId: number }) {
   const qc = useQueryClient();
   const [derive, setDerive] = useState(false);
+  const [editEffects, setEditEffects] = useState(false);
   const [draft, setDraft] = useState<ScienceBank | null>(null);
 
   const block = useQuery({ queryKey: ["scienceBlock"], queryFn: () => scienceBlockFn() });
@@ -131,9 +132,16 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
             beacons={draft.beacons ?? []}
             slots={lab?.moduleSlots ?? 0}
             effectsAllowed={(lab?.allowedEffects?.length ?? 1) > 0}
-            onClick={() => {
-              /* the shared modules dialog attaches in a follow-up */
-            }}
+            effects={
+              result
+                ? {
+                    speed: result.speedMult - 1,
+                    productivity: result.productivityMult - 1,
+                    consumption: 0,
+                  }
+                : undefined
+            }
+            onClick={() => setEditEffects(true)}
           />
         </div>
 
@@ -234,6 +242,31 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
             ))}
           </div>
         </div>
+      )}
+
+      {editEffects && (
+        <ModulesModal
+          // No recipe: the bank is a machine loadout. Only the lab's own
+          // restrictions apply — in Pyanodons that is the vatbrain category, so
+          // this is where a Vatbrain biocomputer gets attached.
+          recipe={null}
+          recipeDisplay={lab?.display ?? draft.lab}
+          title={`Modules — ${lab?.display ?? draft.lab}`}
+          machineName={draft.lab}
+          modules={draft.modules ?? []}
+          beacons={draft.beacons ?? []}
+          effects={
+            result
+              ? {
+                  speed: result.speedMult - 1,
+                  productivity: result.productivityMult - 1,
+                  consumption: 0,
+                }
+              : undefined
+          }
+          onChange={(modules, beacons) => commit({ ...draft, modules, beacons })}
+          onClose={() => setEditEffects(false)}
+        />
       )}
 
       <DeriveFromTechDialog

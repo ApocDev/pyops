@@ -101,7 +101,7 @@ function factsFor(presets: PresetLoadout[]): ModuleFacts {
 
 /** All saved presets, each annotated with its compatibility for one recipe row
  * (the modules dialog disables the incompatible ones, with the reason). */
-export function presetsForRow(recipe: string, machine: string) {
+export function presetsForRow(recipe: string | null, machine: string) {
   const presets = q.listModulePresets();
   const picker = q.modulePickerData(recipe, machine);
   if (!picker) {

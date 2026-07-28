@@ -19,7 +19,8 @@ unit.
 Use the folder button in the Blocks sidebar to group related production units. Drag an
 existing block onto a folder to move it. To start in the right place, right-click a folder
 and select **New block here**. The main **New block** button continues to create blocks under
-**Ungrouped**.
+**Ungrouped**. After creation, the sidebar clears its filter, expands that section, and scrolls
+the new block into view.
 
 ## Set goals and rates
 
@@ -195,6 +196,52 @@ A block can solve while importing ingredients. This is intentional: the block bo
 defines what another block or the existing factory must supply. Continue with
 [Block boundaries](./block-boundaries) to control that behavior.
 :::
+
+## Plan science consumption
+
+Research is a consumer, not a recipe: one bank of labs eats every science pack at once. Use
+the flask control beside **New block** to create the project's **science block**. There is
+one per project, so the button reports **This project already has its science block** once it
+exists.
+
+The block asks for three things:
+
+- **Lab** — which lab prototype the bank is built from. Its research speed and power draw
+  size the pool.
+- **Lab-seconds per pack** — how long one lab spends on a single pack. Pack rates alone
+  cannot size the bank, because `10 / 5 / 1` could be one technology's ratio or three
+  different ones running together.
+- **Science per minute** — the rate you want for each pack. These are the plan.
+
+The result reads back the pool size, the total science rate, power, and the productivity
+applied to it. **Imports the factory must supply** is what the rest of the factory has to
+deliver: your rates divided by productivity.
+
+Labs are one pool. Asking for 40 automation science and 20 logistic science per minute needs
+the labs for 60 packs a minute, not the two figures added as separate banks.
+
+### Derive rates from a technology
+
+Select **Derive from a technology** when you would rather describe the target as research
+than as rates. Pick a technology, set how many minutes it should take, and the dialog previews
+the per-pack rates and the lab-seconds that follow from its cost. **Use these rates** writes
+those numbers into the fields.
+
+This is a calculator. No technology is stored on the block, so the plan does not change when
+that research finishes—come back and derive again to move to the next target.
+
+### Apply modules and beacons to the bank
+
+Select the **Effects** control to open the same module and beacon picker recipe rows use. A
+lab with no module slots of its own can still be covered by a beacon, so the picker stays
+available; the palette is empty because nothing can be inserted directly.
+
+Set **shared by** to the number of labs each beacon building actually covers. Every lab still
+receives the full effect—the setting divides the buildings you place and their power, and it
+is what makes one beacon serving a whole lab row cost one building instead of dozens.
+
+Where a beacon has to be fed to run, its consumption appears as **Upkeep** in items per
+minute alongside the beacon buildings.
 
 ## Disable a block without deleting it
 

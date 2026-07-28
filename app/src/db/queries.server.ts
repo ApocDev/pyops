@@ -959,15 +959,21 @@ export function modulePlacementFilter(
     (mod.effProductivity <= 0 || recipe.allowProductivity);
 }
 
-export function modulePickerData(recipeName: string, machineName: string) {
-  const r = db
-    .select({
-      allowProductivity: recipes.allowProductivity,
-      allowedModuleCategories: recipes.allowedModuleCategories,
-    })
-    .from(recipes)
-    .where(eq(recipes.name, recipeName))
-    .get();
+export function modulePickerData(recipeName: string | null, machineName: string) {
+  // A null recipe means "this machine, no recipe" — the science block's lab bank,
+  // which runs research rather than a recipe. Only the machine's own restrictions
+  // apply then; there is no recipe to forbid productivity or narrow categories.
+  const r =
+    recipeName == null
+      ? { allowProductivity: true, allowedModuleCategories: null }
+      : db
+          .select({
+            allowProductivity: recipes.allowProductivity,
+            allowedModuleCategories: recipes.allowedModuleCategories,
+          })
+          .from(recipes)
+          .where(eq(recipes.name, recipeName))
+          .get();
   const m = db.select().from(craftingMachines).where(eq(craftingMachines.name, machineName)).get();
   if (!r || !m) return null;
 
