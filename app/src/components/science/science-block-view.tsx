@@ -181,18 +181,45 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
       </div>
 
       {/* what the bank costs */}
-      {result && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat label="Labs" value={fmt(result.labs)} hint="One pool — every pack shares them." />
-          <Stat label="Total science" value={`${fmt(perMin(result.totalPerSec))}/min`} />
-          <Stat label="Power" value={fmtW(result.totalPowerW)} />
-          <Stat
-            label="Productivity"
-            value={`${Math.round((result.productivityMult - 1) * 100)}%`}
-            hint="From modules and beacons. Pack demand is divided by it."
-          />
-        </div>
-      )}
+      {result &&
+        (() => {
+          // what the factory actually hands over, before productivity turns it into
+          // the total above
+          const drawnPerSec = Object.values(result.packDemand).reduce((sum, r) => sum + r, 0);
+          const pct = `${Math.round((result.productivityMult - 1) * 100)}%`;
+          return (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Stat
+                label="Labs"
+                value={fmt(result.labs)}
+                hint="One pool — every pack shares them."
+              />
+              <Stat
+                label="Total science"
+                value={`${fmt(perMin(result.totalPerSec))}/min`}
+                // The two figures differ only by productivity, and confusing them is
+                // the easy mistake: this is the research you get, not the packs you
+                // have to make.
+                note={
+                  result.productivityMult > 1
+                    ? `${fmt(perMin(drawnPerSec))}/min drawn · ${pct} productivity`
+                    : "no productivity — drawn as entered"
+                }
+              />
+              <Stat label="Power" value={fmtW(result.totalPowerW)} />
+              <Stat
+                label="Productivity"
+                value={pct}
+                note={
+                  result.productivityMult > 1
+                    ? `${fmt(perMin(result.totalPerSec - drawnPerSec))}/min of science for free`
+                    : undefined
+                }
+                hint="From modules and beacons. Pack demand is divided by it."
+              />
+            </div>
+          );
+        })()}
 
       {result && result.beaconBuildings.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -229,8 +256,8 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
       {result && Object.keys(result.packDemand).length > 0 && (
         <div>
           <FieldLabel className="mb-1 flex items-center gap-1">
-            Imports the factory must supply
-            <InfoHint content="Your rates after productivity — the packs actually drawn from the rest of the factory." />
+            Pinned on the factory
+            <InfoHint content="Your rates after productivity, pinned as whole-factory targets. The factory solve sizes producers against them; they can only be changed here." />
           </FieldLabel>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             {Object.entries(result.packDemand).map(([pack, perSec]) => (
@@ -280,7 +307,19 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
   );
 }
 
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Stat({
+  label,
+  value,
+  hint,
+  note,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  /** Secondary figure under the value — used to keep "what you get" and "what
+   * the factory hands over" visible together. */
+  note?: string;
+}) {
   return (
     <div
       className="border border-border bg-muted/20 p-2"
@@ -292,6 +331,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
         {hint && <InfoHint content={hint} />}
       </div>
       <div className="text-lg font-semibold">{value}</div>
+      {note && <div className="text-sm text-muted-foreground">{note}</div>}
     </div>
   );
 }

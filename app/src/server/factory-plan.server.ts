@@ -13,6 +13,7 @@ import {
   type FactorySolverTraceRecorder,
 } from "./factory-debug.server.ts";
 import type { FactorySolveProgressReporter } from "./factory-progress.server.ts";
+import { sciencePins } from "./science-block.server.ts";
 import {
   acceptsTemperature,
   baseGoodName,
@@ -36,7 +37,10 @@ export type FactoryPin = {
   good: string;
   kind: string;
   rate: number;
-  source?: "explicit" | "terminal" | "stock" | "temporary";
+  source?: "explicit" | "terminal" | "stock" | "temporary" | "science";
+  /** The block that owns a derived pin, so the UI can send the user to the one
+   * place its rate can be changed. Set for `science`. */
+  blockId?: number;
 };
 
 type Flow = {
@@ -238,13 +242,27 @@ function inferredPins(): FactoryPin[] {
       });
     }
   }
+  // Research demand comes from the science block, which is the only place its
+  // rates can be edited — so it arrives as a derived pin, like a stock target.
+  for (const pin of sciencePins())
+    pins.set(pin.good, {
+      good: pin.good,
+      kind: pin.kind,
+      rate: pin.rate,
+      source: "science",
+      blockId: pin.blockId,
+    });
   return [...pins.values()];
 }
+
+/** Pins the user cannot edit in the pins card, because something else owns the
+ * number. Editing them there would be silently overwritten on the next read. */
+const DERIVED_PIN_SOURCES = new Set(["stock", "temporary", "science"]);
 
 export function saveFactoryPins(pins: FactoryPin[]): void {
   const derivedGoods = new Set(
     inferredPins()
-      .filter((pin) => pin.source === "stock" || pin.source === "temporary")
+      .filter((pin) => DERIVED_PIN_SOURCES.has(pin.source ?? ""))
       .map((pin) => pin.good),
   );
   const clean = pins
@@ -266,15 +284,14 @@ export function saveFactoryPins(pins: FactoryPin[]): void {
 export function getFactoryPins(): FactoryPin[] {
   const saved = parsePins();
   const inferred = inferredPins();
-  const stock = inferred.filter((pin) => pin.source === "stock");
-  const temporary = inferred.filter((pin) => pin.source === "temporary");
-  const derivedGoods = new Set([...stock, ...temporary].map((pin) => pin.good));
+  const derived = inferred.filter((pin) => DERIVED_PIN_SOURCES.has(pin.source ?? ""));
+  const derivedGoods = new Set(derived.map((pin) => pin.good));
   const editable = saved
     ? saved
         .filter((pin) => !derivedGoods.has(pin.good))
         .map((pin) => ({ ...pin, source: "explicit" as const }))
     : inferred.filter((pin) => pin.source === "terminal" && !derivedGoods.has(pin.good));
-  return [...editable, ...stock, ...temporary].sort((a, b) => a.good.localeCompare(b.good));
+  return [...editable, ...derived].sort((a, b) => a.good.localeCompare(b.good));
 }
 
 function responseReferenceDoc(doc: SolveInput): SolveInput {

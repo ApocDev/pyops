@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pin, Plus, X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { FlaskConical, Pin, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { factoryPinsFn, setFactoryPinsFn } from "#/server/factorio.ts";
 import { Icon } from "#/lib/icons.tsx";
@@ -30,7 +31,7 @@ export function FactoryPinsCard({
         good: string;
         kind: string;
         rate: number;
-        source?: "explicit" | "terminal" | "stock" | "temporary";
+        source?: "explicit" | "terminal" | "stock" | "temporary" | "science";
       }[],
     ) => setFactoryPinsFn({ data: rows }),
     onSuccess: async () => {
@@ -91,28 +92,44 @@ export function FactoryPinsCard({
                     type="number"
                     step="0.01"
                     value={value}
-                    disabled={pin.source === "temporary"}
+                    disabled={pin.source === "temporary" || pin.source === "science"}
                     title={
                       pin.source === "temporary"
                         ? "Edit this temporary campaign's quantity or duration in its block"
-                        : undefined
+                        : pin.source === "science"
+                          ? "Research demand — set the pack rates in the science block"
+                          : undefined
                     }
                     onChange={(event) => onOverride(pin.good, Number(event.target.value) || 0)}
                     className="w-24 text-right"
                     aria-label={`${pin.display} factory pin`}
                   />
                   <span className="text-muted-foreground">/s</span>
-                  {pin.source !== "stock" && pin.source !== "temporary" && (
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label={`Remove ${pin.display} factory pin`}
-                      title="Remove factory pin"
-                      onClick={() => persist(rows.filter((row) => row.good !== pin.good))}
-                    >
-                      <X />
+                  {pin.source === "science" && pin.blockId != null && (
+                    <Button variant="ghost" size="icon-xs" asChild>
+                      <Link
+                        to="/block/$id"
+                        params={{ id: String(pin.blockId) }}
+                        aria-label={`Edit ${pin.display} in the science block`}
+                        title="Set by the science block — open it to change the rate"
+                      >
+                        <FlaskConical />
+                      </Link>
                     </Button>
                   )}
+                  {pin.source !== "stock" &&
+                    pin.source !== "temporary" &&
+                    pin.source !== "science" && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={`Remove ${pin.display} factory pin`}
+                        title="Remove factory pin"
+                        onClick={() => persist(rows.filter((row) => row.good !== pin.good))}
+                      >
+                        <X />
+                      </Button>
+                    )}
                 </div>
               );
             })}

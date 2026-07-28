@@ -87,6 +87,9 @@ vi.mock("../db/queries.server.ts", () => ({
   metaSet: vi.fn((key: string, value: string) => meta.set(key, value)),
   blocksWithFlows: vi.fn(() => blocks),
   getBlock: vi.fn((id: number) => docs.get(id) ?? null),
+  // no science block in these fixtures; stubbed so the pin pipeline stays
+  // hermetic instead of reading the active project's db
+  scienceBlockRow: vi.fn(() => null),
 }));
 
 vi.mock("./factory-debug.server.ts", () => ({

@@ -116,11 +116,8 @@ export function ratesForTechIn(techName: string, minutes: number) {
 
 /** The project's science block, if one exists. */
 export function scienceBlock(): { id: number; name: string; bank: ScienceBank } | null {
-  for (const row of db.select().from(blocks).all()) {
-    const bank = (row.data as { science?: ScienceBank })?.science;
-    if (bank) return { id: row.id, name: row.name, bank };
-  }
-  return null;
+  const row = q.scienceBlockRow();
+  return row?.data.science ? { id: row.id, name: row.name, bank: row.data.science } : null;
 }
 
 const emptyBank = (lab: string): ScienceBank => ({
@@ -153,6 +150,39 @@ export function saveScienceBank(id: number, bank: ScienceBank): void {
     .set({ data: data as never, updatedAt: new Date() })
     .where(eq(blocks.id, id))
     .run();
+}
+
+/** What the science block demands of the rest of the factory, as factory pins.
+ *
+ * Pins rather than block goals: the bank makes nothing, it consumes. A pin says
+ * "the factory must produce this much", which is exactly the contract here —
+ * and it puts research demand in the same place as every other whole-factory
+ * target instead of inventing a second mechanism.
+ *
+ * The rates are post-productivity (what a lab actually draws), and the beacon
+ * upkeep rides along: a vatbrain that is not fed stops applying its effect, so
+ * its cartridges are as required as the packs.
+ */
+export function sciencePins(): {
+  good: string;
+  kind: string;
+  rate: number;
+  blockId: number;
+}[] {
+  const block = scienceBlock();
+  if (!block) return [];
+  const result = solveScienceBank(block.bank);
+  if (!result) return [];
+  const pins = new Map<string, { good: string; kind: string; rate: number; blockId: number }>();
+  const add = (good: string, kind: string, rate: number) => {
+    if (!(rate > 0)) return;
+    const cur = pins.get(good);
+    if (cur) cur.rate += rate;
+    else pins.set(good, { good, kind, rate, blockId: block.id });
+  };
+  for (const [pack, perSec] of Object.entries(result.packDemand)) add(pack, "item", perSec);
+  for (const [item, up] of Object.entries(result.upkeep)) add(item, up.kind, up.perSec);
+  return [...pins.values()];
 }
 
 /** Solve the bank: labs, beacon buildings, pack demand, upkeep and power. */

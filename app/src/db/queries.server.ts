@@ -1831,7 +1831,11 @@ export function listBlocks() {
   }
   return rows.map(({ data: _data, dataFingerprint, solveStatus, ...b }, index) => {
     const d = documents[index];
-    const stale = !isSolveFingerprintForGeneration(dataFingerprint, solveGeneration);
+    // The science block is not solved as a recipe block — it has no recipes, and
+    // its bank is computed on demand — so it never carries a solve fingerprint.
+    // Judging it by one made it permanently amber for "never solved".
+    const isScience = !!(d as { science?: unknown }).science;
+    const stale = !isScience && !isSolveFingerprintForGeneration(dataFingerprint, solveGeneration);
     const blockRecipes = d.recipes ?? [];
     const broken =
       blockRecipes.some((r) => !recipeNames.has(r)) || goalNames(d).some((g) => !goodNames.has(g));
@@ -1959,6 +1963,17 @@ export function setGroupOrder(ids: number[]) {
     SET sort_order = CASE id ${cases} ELSE sort_order END
     WHERE id IN (${sql.join([...positions.keys()], sql`, `)})
   `);
+}
+
+/** The project's science block, if it has one. Lives here rather than in
+ * science-block.server so every consumer — including the factory pin pipeline —
+ * reaches it through the one db-access layer. */
+export function scienceBlockRow(): { id: number; name: string; data: BlockData } | null {
+  for (const row of db.select().from(blocks).all()) {
+    const data = row.data as BlockData;
+    if (data?.science) return { id: row.id, name: row.name, data };
+  }
+  return null;
 }
 
 export function getBlock(id: number) {
