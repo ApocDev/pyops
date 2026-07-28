@@ -524,7 +524,40 @@ export type Goal = {
   factoryRate?: number;
 };
 
+/** A lab bank, for a block that consumes science rather than crafting anything.
+ *
+ * Labs do not fit the recipe abstraction. A recipe is a fixed input bundle run by
+ * N machines, so inputs and machine count move together; a lab bank is ONE pool
+ * of machines with several INDEPENDENT input rates, because a factory researches
+ * a changing sequence of technologies rather than one forever. Modelling each
+ * pack as its own recipe made every pack imply its own labs and multiplied the
+ * building count; modelling each technology (or each distinct pack set) as a
+ * recipe forces a single tier to be researched exclusively. Neither is what a
+ * lab does, so the bank is described directly.
+ *
+ * Nothing here is mod-specific: the lab prototype supplies its own speed, slots,
+ * allowed effects and accepted pack list, and beacons/modules reuse the ordinary
+ * config — Pyanodons' vatbrains simply are a beacon. */
+export type ScienceBank = {
+  /** Lab prototype (see the `labs` table). */
+  lab: string;
+  /** Pack → rate consumed, per second, AFTER effects. Independent per pack: the
+   * same labs eat all of them, at whatever rates the research mix implies. */
+  packs: Record<string, number>;
+  /** Seconds one lab spends per unit of a single pack at speed 1. Factorio's
+   * `unit.time`, which the plan sets to match the tier being researched. */
+  secondsPerPack?: number;
+  /** Modules in each lab's own slots (Pyanodons' lab has none; others do). */
+  modules?: string[];
+  /** Beacons affecting each lab. `shared` carries how many labs one beacon
+   * building serves, which is what sizes a vatbrain bank. */
+  beacons?: BeaconConfig[];
+};
+
 export type BlockData = {
+  /** Present on a science-consumer block: it has a lab bank instead of recipe
+   * rows, and its pack demand reaches the factory as ordinary imports. */
+  science?: ScienceBank;
   // Output goals, each a solver target. goals[0] names the block and anchors the
   // rate-scaling tools; it's also the DEFAULT icon source. See lib/goals.ts for the
   // migration from the legacy { target, rate, extraGoals } shape.

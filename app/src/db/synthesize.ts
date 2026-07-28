@@ -39,19 +39,11 @@ export const FLUID_FUEL = "pyops-fluid-fuel";
  * category of their own (they are a separate prototype type), so one is invented
  * to join them to their recipes the way every other machine is matched. */
 export const RESEARCH_CATEGORY = "pyops-research";
-/** Reference craft time for a lab recipe, in seconds.
- *
- * A lab consumes one of each pack per research unit, so PACK RATES do not depend
- * on this number at all — only the building count does, which is why a single
- * generic recipe can model consumption exactly. Real `unit.time` spans 30s-1200s
- * across Py's tech tree (modal 60s), so no constant is right for every tech; 60
- * matches both the mode and the vanilla convention, and makes a row's lab count a
- * reference figure rather than an exact one. */
-export const RESEARCH_TIME = 60;
-/** Post-effects research delivered by one science pack. One good PER PACK, never
- * a shared research good: a single pool would let the solver satisfy a research
- * target with whichever pack is cheapest instead of the mix a lab actually eats. */
-export const researchGood = (pack: string) => `pyops-research-${pack}`;
+/** Default seconds a lab spends per unit of one science pack, at speed 1.
+ * Factorio's own convention and the mode of Py's `unit.time`, which spans
+ * 30s-1200s. The science block exposes it so a plan can match the tier actually
+ * being researched. */
+export const RESEARCH_SECONDS_PER_PACK = 60;
 
 type Raw = Record<string, Record<string, any>>;
 type Ctx = {
@@ -852,22 +844,6 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
         ins.beaconUpkeep.run(spec.machine, tier.module, tier.item, "item", perSec);
       }
       counts.effectBeacons++;
-    }
-
-    for (const pack of packs) {
-      const good = researchGood(pack);
-      ins.fluid.run(good, `Research (${display(pack)})`);
-      recipe({
-        name: `research-${pack}`,
-        display: `Research with ${display(pack)}`,
-        kind: "research",
-        category: RESEARCH_CATEGORY,
-        energy: RESEARCH_TIME,
-        source: pack,
-        ingredients: [{ kind: "item", name: pack, amount: 1 }],
-        products: [{ kind: "fluid", name: good, amount: 1 }],
-      });
-      counts.research++;
     }
   });
 
