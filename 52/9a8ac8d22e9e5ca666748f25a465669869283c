@@ -1,0 +1,29 @@
+app/e2e/mut/science-block.e2e.ts
+  s_89969b10cb4249::t_13d538057c823d 1-83
+app/src/components/science/science-block-view.tsx
+  s_89969b10cb4249::t_7238f1f6ed1027 1-264
+app/src/routes/block.$id.tsx
+  s_89969b10cb4249::t_821bf5b26812f7 37,201,793-796
+app/src/routes/block.tsx
+  s_89969b10cb4249::t_670212a54f9cad 46,52,98-99,106-107,115,121,173-174,401-408,412-433,537-541,740-752,771
+app/src/server/science-block.server.ts
+  s_89969b10cb4249::t_3b5e54c9e342da 12,14,30-55,68
+app/src/components/science/derive-from-tech-dialog.tsx
+  s_89969b10cb4249::t_f50a8d05902067 1-176
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "529a8ac8d22e9e5ca666748f25a465669869283c",
+  "prompts": {},
+  "sessions": {
+    "s_89969b10cb4249": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "43ac7a9c-8b7b-4293-8c25-486de85b300d",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
