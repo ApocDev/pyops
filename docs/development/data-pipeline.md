@@ -97,10 +97,26 @@ project remains in the normal first-sync flow.
 The importer converts Factorio's flexible prototype shapes into stable relational rows:
 
 - recipes, ingredients, products, categories, unlocks, and technologies;
-- items, fluids, machines, mining drills, modules, beacons, and fuels;
+- items, fluids, machines, mining drills, modules, beacons, labs, and fuels;
 - energy-source details, pollution, crafting categories, and allowed effects;
 - logistics prototypes and technology-driven stack bonuses;
 - productivity effects, TURD replacements, and rocket constants.
+
+Labs are normalized separately from crafting machines. A lab has no crafting category and
+runs no recipe: it consumes the science packs a technology names, at its researching speed,
+over that technology's unit time. The `labs` table therefore stores the researching speed and
+the ordered list of packs the lab accepts, which is the authoritative answer to what research
+consumes — science packs are also ordinary recipe ingredients, so lab demand and recipe demand
+are separate and additive. A lab's allowed module categories matter as much as a machine's:
+Pyanodons' lab has no module slots and disallows speed effects, and its only modifier is an
+external beacon driven by the Vatbrain biocomputer, whose module category no other prototype
+accepts.
+
+Technologies record both ways a research cost can be expressed. Lab-researched technologies
+carry a unit count and unit time, and unit count multiplied by unit time gives the total lab
+seconds. Trigger technologies are researched by performing an action instead, so they have no
+unit at all; the importer stores the raw trigger prototype for display, and the unit columns
+are null exactly when a trigger is present.
 
 Recipe products with ranges are represented by their expected amount for planning. Product
 probability, temperature, productivity exclusions, and the original range remain available

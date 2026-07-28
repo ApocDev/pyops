@@ -144,6 +144,7 @@ const TABLES = [
   "modules",
   "module_limitations",
   "beacons",
+  "labs",
   "belts",
   "loaders",
   "inserters",
@@ -170,6 +171,7 @@ const COUNT_TABLES = [
   "modules",
   "module_limitations",
   "beacons",
+  "labs",
   "belts",
   "loaders",
   "inserters",
@@ -258,8 +260,11 @@ export function importFactorioDump(
     beacon: db.prepare(
       `INSERT INTO beacons (name,display,distribution_effectivity,module_slots,energy_usage_w,hidden,allowed_effects,allowed_module_categories,profile) VALUES (@name,@display,@distribution_effectivity,@module_slots,@energy_usage_w,@hidden,@allowed_effects,@allowed_module_categories,@profile)`,
     ),
+    lab: db.prepare(
+      `INSERT INTO labs (name,display,researching_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,inputs,hidden,tile_width,tile_height) VALUES (@name,@display,@researching_speed,@module_slots,@energy_usage_w,@energy_source,@pollution_per_min,@allowed_effects,@allowed_module_categories,@inputs,@hidden,@tile_width,@tile_height)`,
+    ),
     tech: db.prepare(
-      `INSERT INTO technologies (name,display,description,"order",unit_count,enabled,is_turd) VALUES (@name,@display,@description,@order,@unit_count,@enabled,@is_turd)`,
+      `INSERT INTO technologies (name,display,description,"order",unit_count,unit_time,research_trigger,enabled,is_turd) VALUES (@name,@display,@description,@order,@unit_count,@unit_time,@research_trigger,@enabled,@is_turd)`,
     ),
     techPrereq: db.prepare(
       `INSERT OR IGNORE INTO tech_prerequisites (technology,prerequisite) VALUES (?,?)`,
@@ -513,6 +518,29 @@ export function importFactorioDump(
       });
     }
 
+    // labs — research machines. Not crafting machines (no categories, no recipe):
+    // they consume a technology's science packs over its unit.time. Hidden labs
+    // are recorded rather than skipped (like beacons) so the flag stays queryable.
+    for (const [name, l] of Object.entries(raw.lab ?? {})) {
+      const es = l.energy_source ?? {};
+      const placedBox = l.selection_box ?? l.collision_box;
+      ins.lab.run({
+        name,
+        display: localeByKind.entity?.names?.[name] ?? productDisplay[name] ?? null,
+        researching_speed: l.researching_speed ?? 1,
+        module_slots: l.module_slots ?? 0,
+        energy_usage_w: parseSI(l.energy_usage),
+        energy_source: es.type ?? null,
+        pollution_per_min: es.emissions_per_minute?.pollution ?? 0,
+        allowed_effects: jsonList(l.allowed_effects),
+        allowed_module_categories: jsonList(l.allowed_module_categories),
+        inputs: jsonList(l.inputs),
+        hidden: l.hidden === true || arr<string>(l.flags).includes("hidden") ? 1 : 0,
+        tile_width: boxTiles(placedBox, "x"),
+        tile_height: boxTiles(placedBox, "y"),
+      });
+    }
+
     // logistics prototypes (belts, loaders, inserters) — skip hidden ones (Py hides
     // the vanilla loaders in favour of the AAI ones; EE/test entities are hidden too).
     const isHidden = (e: any) => e?.hidden === true || arr<string>(e?.flags).includes("hidden");
@@ -573,6 +601,9 @@ export function importFactorioDump(
         description: localeByKind.technology?.descriptions?.[name] ?? null,
         order: t.order ?? null,
         unit_count: t.unit?.count ?? null,
+        unit_time: t.unit?.time ?? null,
+        // a trigger tech has no unit; the two are mutually exclusive in the dump
+        research_trigger: t.research_trigger ? JSON.stringify(t.research_trigger) : null,
         enabled: t.enabled === false ? 0 : 1,
         // Honor the legacy dump marker while supporting current planner dumps.
         is_turd: t.is_turd || turdMasters.has(name) ? 1 : 0,

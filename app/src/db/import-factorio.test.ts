@@ -402,3 +402,138 @@ describe("importFactorioDump — temperature-fed fluid energy sources (#114)", (
     db.close();
   });
 });
+
+describe("importFactorioDump — labs", () => {
+  // Shapes mirror Py's real prototypes: `lab` has no slots of its own and takes
+  // only vatbrain-category effects (delivered by the Vatbrain biocomputer's
+  // hidden beacon); `ee-super-lab` is a conventional modulable lab.
+  const raw = {
+    lab: {
+      lab: {
+        researching_speed: 1,
+        module_slots: 0,
+        energy_usage: "60kW",
+        energy_source: { type: "electric", emissions_per_minute: { pollution: 2 } },
+        allowed_effects: ["consumption", "productivity", "pollution"],
+        allowed_module_categories: ["vatbrain"],
+        inputs: ["automation-science-pack", "py-science-pack-1", "logistic-science-pack"],
+        selection_box: [
+          [-1.5, -1.5],
+          [1.5, 1.5],
+        ],
+      },
+      "ee-super-lab": {
+        researching_speed: 100,
+        module_slots: 10,
+        energy_usage: "1MW",
+        energy_source: { type: "electric" },
+        allowed_module_categories: ["productivity", "speed"],
+        inputs: ["automation-science-pack"],
+      },
+      "hidden-test-lab": { inputs: ["automation-science-pack"], hidden: true },
+    },
+  };
+
+  it("imports lab prototypes with speed, slots, power and pack inputs", () => {
+    const db = runImport(raw);
+    const row = db
+      .prepare(
+        `SELECT researching_speed rs, module_slots ms, energy_usage_w w, energy_source es,
+                pollution_per_min ppm, allowed_effects ae, allowed_module_categories amc,
+                inputs, tile_width tw, tile_height th
+         FROM labs WHERE name = 'lab'`,
+      )
+      .get() as Record<string, unknown>;
+    expect(row).toMatchObject({
+      rs: 1,
+      ms: 0,
+      w: 60_000,
+      es: "electric",
+      ppm: 2,
+      tw: 3,
+      th: 3,
+    });
+    expect(JSON.parse(row.ae as string)).toEqual(["consumption", "productivity", "pollution"]);
+    // the vatbrain restriction is the whole reason this column matters for labs
+    expect(JSON.parse(row.amc as string)).toEqual(["vatbrain"]);
+    expect(JSON.parse(row.inputs as string)).toEqual([
+      "automation-science-pack",
+      "py-science-pack-1",
+      "logistic-science-pack",
+    ]);
+    db.close();
+  });
+
+  it("defaults researching_speed and records hidden labs rather than skipping them", () => {
+    const db = runImport(raw);
+    const rows = db
+      .prepare(`SELECT name, researching_speed rs, hidden FROM labs ORDER BY name`)
+      .all() as { name: string; rs: number; hidden: number }[];
+    expect(rows).toEqual([
+      { name: "ee-super-lab", rs: 100, hidden: 0 },
+      { name: "hidden-test-lab", rs: 1, hidden: 1 },
+      { name: "lab", rs: 1, hidden: 0 },
+    ]);
+    db.close();
+  });
+
+  it("keeps labs out of crafting_machines", () => {
+    const db = runImport(raw);
+    const n = db.prepare(`SELECT count(*) c FROM crafting_machines`).get() as { c: number };
+    expect(n.c).toBe(0);
+    db.close();
+  });
+});
+
+describe("importFactorioDump — technology research cost", () => {
+  // A tech is either lab-researched (unit) or trigger-researched (research_trigger);
+  // Py's dump has no tech with both and none with neither.
+  const raw = {
+    technology: {
+      "silver-mk01": {
+        unit: {
+          count: 175,
+          time: 60,
+          ingredients: [
+            ["logistic-science-pack", 1],
+            ["py-science-pack-1", 2],
+          ],
+        },
+      },
+      "steam-power": {
+        research_trigger: { type: "craft-item", item: "iron-plate", count: 10 },
+      },
+      "no-unit": {},
+    },
+  };
+
+  it("stores unit.time alongside unit.count, defaulting to null", () => {
+    const db = runImport(raw);
+    const rows = db
+      .prepare(`SELECT name, unit_count uc, unit_time ut FROM technologies ORDER BY name`)
+      .all() as { name: string; uc: number | null; ut: number | null }[];
+    expect(rows).toEqual([
+      { name: "no-unit", uc: null, ut: null },
+      { name: "silver-mk01", uc: 175, ut: 60 },
+      { name: "steam-power", uc: null, ut: null },
+    ]);
+    db.close();
+  });
+
+  it("stores a trigger tech's research_trigger and leaves its unit columns null", () => {
+    const db = runImport(raw);
+    const rows = db
+      .prepare(
+        `SELECT name, research_trigger rt FROM technologies WHERE research_trigger IS NOT NULL`,
+      )
+      .all() as { name: string; rt: string }[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.name).toBe("steam-power");
+    expect(JSON.parse(rows[0]!.rt)).toEqual({
+      type: "craft-item",
+      item: "iron-plate",
+      count: 10,
+    });
+    db.close();
+  });
+});

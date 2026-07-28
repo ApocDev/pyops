@@ -242,6 +242,45 @@ export const beacons = sqliteTable("beacons", {
   profile: text({ mode: "json" }).$type<number[] | null>(),
 });
 
+/* ── Labs ─────────────────────────────────────────────────────────────────────
+ * Research machines. Modelled apart from `crafting_machines` because a lab has
+ * no crafting categories and consumes no recipe: it burns the science packs a
+ * technology's `unit.ingredients` names, at `researching_speed`, over the
+ * technology's `unit.time`. Pair with `technologies.unit_count`/`unit_time` to
+ * turn a research rate into per-pack demand.
+ *
+ * `inputs` is the ordered pack list the lab accepts — the authoritative answer
+ * to "which goods does research consume", rather than a name heuristic. Note
+ * that science packs are ALSO ordinary recipe ingredients in Py (57 recipes
+ * consume one), so lab demand and recipe demand are distinct and additive.
+ *
+ * Py's own `lab` has zero module slots and disallows speed effects, so its only
+ * modifier is an external beacon: the Vatbrain biocomputer is an assembling
+ * machine that consumes brain-food cartridges and, while working, drives a
+ * co-located hidden beacon holding one `vatbrain-N` productivity module. That
+ * module category is accepted ONLY by `lab` and the hidden beacons, so the
+ * effect lands on labs alone despite the beacon's 11-tile supply area. Which is
+ * why `allowed_module_categories` matters here and can't be assumed empty. */
+export const labs = sqliteTable("labs", {
+  name: text().primaryKey(),
+  display: text(),
+  // Research speed multiplier (LabPrototype.researching_speed, engine default 1).
+  researchingSpeed: real("researching_speed").notNull().default(1),
+  moduleSlots: integer("module_slots").notNull().default(0),
+  energyUsageW: real("energy_usage_w"),
+  energySource: text("energy_source"), // electric | burner | ...
+  pollutionPerMin: real("pollution_per_min"),
+  allowedEffects: text("allowed_effects", { mode: "json" }).$type<string[] | null>(),
+  allowedModuleCategories: text("allowed_module_categories", { mode: "json" }).$type<
+    string[] | null
+  >(),
+  /** Science packs this lab accepts, in prototype order. */
+  inputs: text({ mode: "json" }).$type<string[] | null>(),
+  hidden: bool("hidden").notNull().default(false),
+  tileWidth: integer("tile_width"),
+  tileHeight: integer("tile_height"),
+});
+
 /* ── Logistics prototypes (belts, loaders, inserters) ─────────────────────────
  * For the per-block logistics display (#21): how many belts carry an item in/out
  * of a row, and how many inserters/loaders feed each building at the planned rate.
@@ -315,6 +354,22 @@ export const technologies = sqliteTable("technologies", {
   description: text(), // localised description; Factorio rich-text markup — strip before display
   order: text(),
   unitCount: real("unit_count"), // research cost multiplier (unit.count)
+  // Seconds of lab time per unit (unit.time). unit_count × unit_time = total
+  // lab-seconds; each unit consumes one of every tech_ingredients amount. Null
+  // on pre-lab-import syncs — re-sync the game data to populate.
+  unitTime: real("unit_time"),
+  // Trigger technologies (Factorio 2.0) are researched by doing something rather
+  // than by feeding a lab, so they have no `unit` at all — unit_count/unit_time
+  // are null exactly when this is set. Stored as the raw prototype object (e.g.
+  // { type: "craft-item", item: "iron-plate", count: 10 }) because the trigger
+  // types carry different fields; it is display-only and never a solver input.
+  researchTrigger: text("research_trigger", { mode: "json" }).$type<{
+    type: string;
+    item?: string;
+    entity?: string;
+    fluid?: string;
+    count?: number;
+  } | null>(),
   enabled: bool("enabled").notNull().default(true),
   // Pyanodon TURD: the importer marks master techs from each selectable sub-tech's
   // planner prerequisites [master, turd-select-<name>] (and honors the legacy
