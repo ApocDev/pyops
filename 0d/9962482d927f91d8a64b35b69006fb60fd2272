@@ -1,0 +1,25 @@
+app/src/db/queries.test.ts
+  s_89969b10cb4249::t_110b117d1a1535 1572-1639
+app/src/db/synthesize.ts
+  s_89969b10cb4249::t_415cfccdd9aa6b 197-200,224,772
+docs/development/data-pipeline.md
+  s_89969b10cb4249::t_55d1f4cdd1c599 199-209
+app/src/db/queries.server.ts
+  s_89969b10cb4249::t_3445bce93b7f7a 952-996,3250-3253
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "0d9962482d927f91d8a64b35b69006fb60fd2272",
+  "prompts": {},
+  "sessions": {
+    "s_89969b10cb4249": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "43ac7a9c-8b7b-4293-8c25-486de85b300d",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

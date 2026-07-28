@@ -1,0 +1,45 @@
+app/src/components/sync-option.tsx
+  s_3944f9e5e728da::t_27e4aa6b47c712 1-46
+app/src/lib/sync-steps.test.ts
+  s_89969b10cb4249::t_5af664a08632b0 44-64
+app/src/server/dump.test.ts
+  s_89969b10cb4249::t_6f6000d21e7f59 2-9,117-178
+docs/development/data-pipeline.md
+  s_3944f9e5e728da::t_1afad7e1f68839 95-111
+app/e2e/mut/dump-reuse.e2e.ts
+  s_89969b10cb4249::t_6c69d1839c321b 1-57
+app/src/components/drift-modal.tsx
+  s_89969b10cb4249::t_938d2980754b2c 5-11,27-29,68,92-98,100,177,221-223,253-254,256-262,316-318,328-330,334,338,364-377,382-401
+app/src/lib/sync-steps.ts
+  s_89969b10cb4249::t_c261a701215e7b 4-13,18-35,41,56-59
+app/src/server/dump.server.ts
+  s_89969b10cb4249::t_0085d9be59eaaf 14,17-21,25,250-268,420-516,680-688,690,692,701-744,780-789,796-799
+app/src/server/factorio.ts
+  s_89969b10cb4249::t_97a9cfdb3e99f9 1110-1111,1113,1116-1121
+docs/getting-started/sync-game-data.md
+  s_89969b10cb4249::t_7603a9dc4fcd10 28-29,32-51,88-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "4c4855c8ab120dbc3af906d5d825c7841f93cbf3",
+  "prompts": {},
+  "sessions": {
+    "s_3944f9e5e728da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9f295075-7f8c-4627-8d30-038f1f4223b4",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_89969b10cb4249": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "43ac7a9c-8b7b-4293-8c25-486de85b300d",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

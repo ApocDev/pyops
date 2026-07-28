@@ -1,0 +1,19 @@
+app/src/routes/factory_.scenario.tsx
+  s_89969b10cb4249::t_c4af41d1731821 41-47,242,278-282
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "81f9923ee6fe0ae0329a0a36191b116c414b110f",
+  "prompts": {},
+  "sessions": {
+    "s_89969b10cb4249": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "43ac7a9c-8b7b-4293-8c25-486de85b300d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

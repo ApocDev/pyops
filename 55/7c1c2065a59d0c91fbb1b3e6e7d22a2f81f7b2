@@ -1,0 +1,19 @@
+app/src/server/science-block.server.ts
+  s_89969b10cb4249::t_265c749c647d2e 138-145,157-159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "557c1c2065a59d0c91fbb1b3e6e7d22a2f81f7b2",
+  "prompts": {},
+  "sessions": {
+    "s_89969b10cb4249": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "43ac7a9c-8b7b-4293-8c25-486de85b300d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
