@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
-import { type ModEntry, diffMods, modVersionsFromEntries, redumpNeeded } from "./dump.server.ts";
+import {
+  type ModEntry,
+  diffMods,
+  evaluateDumpReuse,
+  helperModFingerprint,
+  modVersionsFromEntries,
+  redumpNeeded,
+} from "./dump.server.ts";
 
 const mod = (name: string, version: string | null, enabled = true): ModEntry => ({
   name,
@@ -105,5 +112,67 @@ describe("redumpNeeded", () => {
   it("is true when an enabled mod is added", () => {
     const current = [...baseline, mod("new-mod", "0.1.0")];
     expect(redumpNeeded(baseline, current)).toBe(true);
+  });
+});
+
+describe("evaluateDumpReuse", () => {
+  const DUMP = { mtimeMs: 1_700_000_000_000, sizeBytes: 106_000_000 };
+  const base = {
+    dump: DUMP,
+    importedDumpMtimeMs: DUMP.mtimeMs,
+    helperFingerprint: "abc123",
+    recordedHelperFingerprint: "abc123",
+    modsChanged: false,
+  };
+
+  it("is safe when the dump matches the recorded helper and the mods held still", () => {
+    const r = evaluateDumpReuse(base);
+    expect(r).toMatchObject({ available: true, safe: true, reason: null });
+    expect(r.sizeBytes).toBe(106_000_000);
+    expect(new Date(r.dumpedAt!).getTime()).toBe(DUMP.mtimeMs);
+  });
+
+  it("refuses when no dump exists", () => {
+    const r = evaluateDumpReuse({ ...base, dump: null });
+    expect(r).toMatchObject({ available: false, safe: false, newerThanImport: false });
+    expect(r.reason).toMatch(/No dump found/);
+  });
+
+  // The helper patches prototypes during --dump-data, so an edit to it changes the
+  // dump's meaning even though the file on disk is untouched — mtime can't see this.
+  it("refuses when the dump helper changed since the dump was taken", () => {
+    const r = evaluateDumpReuse({ ...base, helperFingerprint: "def456" });
+    expect(r).toMatchObject({ helperChanged: true, safe: false });
+    expect(r.reason).toMatch(/dump helper changed/);
+  });
+
+  it("refuses when the enabled mod set changed, and says so before the helper", () => {
+    const r = evaluateDumpReuse({
+      ...base,
+      modsChanged: true,
+      helperFingerprint: "def456",
+    });
+    expect(r).toMatchObject({ modsChanged: true, helperChanged: true, safe: false });
+    expect(r.reason).toMatch(/enabled mods changed/);
+  });
+
+  it("treats a missing helper fingerprint as unknown rather than changed", () => {
+    const r = evaluateDumpReuse({ ...base, recordedHelperFingerprint: null });
+    expect(r).toMatchObject({ helperUnknown: true, helperChanged: false, safe: true });
+  });
+
+  it("flags a dump newer than the one this project imported", () => {
+    expect(
+      evaluateDumpReuse({ ...base, importedDumpMtimeMs: DUMP.mtimeMs - 1 }).newerThanImport,
+    ).toBe(true);
+    expect(evaluateDumpReuse({ ...base, importedDumpMtimeMs: null }).newerThanImport).toBe(true);
+    expect(evaluateDumpReuse(base).newerThanImport).toBe(false);
+  });
+});
+
+describe("helperModFingerprint", () => {
+  it("is stable across calls", () => {
+    expect(helperModFingerprint()).toBe(helperModFingerprint());
+    expect(helperModFingerprint()).toMatch(/^[0-9a-f]{16}$/);
   });
 });

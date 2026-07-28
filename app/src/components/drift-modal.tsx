@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Check, Loader2, RefreshCw, X, type LucideIcon } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { factorioRunningFn, modDriftFn, startDataSyncFn, syncStateFn } from "../server/factorio";
+import {
+  dumpReuseFn,
+  factorioRunningFn,
+  modDriftFn,
+  startDataSyncFn,
+  syncStateFn,
+} from "../server/factorio";
 import { bridgeStatusSubscription } from "../lib/live-query-options";
 import { driftModal, useDriftModalOpen } from "../lib/drift-store";
 import { type StepStatus, stepStatuses, stepsForRun } from "../lib/sync-steps";
@@ -18,7 +24,9 @@ import {
   DialogTitle,
 } from "#/components/ui/dialog.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
-import { InfoHint } from "#/components/info-hint.tsx";
+import { SyncOption } from "#/components/sync-option.tsx";
+import { Skeleton } from "#/components/ui/skeleton.tsx";
+import type { DumpReuse } from "../server/dump.server.ts";
 
 const TWO_HOURS = 2 * 60 * 60 * 1000;
 const BRIDGE_FRESH_MS = 6000;
@@ -57,6 +65,7 @@ export function DriftModal() {
   const qc = useQueryClient();
   const isOpen = useDriftModalOpen();
   const [icons, setIcons] = useState(false);
+  const [reuseDump, setReuseDump] = useState(false);
   const [initiated, setInitiated] = useState(false); // a sync was started from this session
 
   const drift = useQuery({
@@ -80,8 +89,15 @@ export function DriftModal() {
     refetchInterval: 3000,
   });
 
+  // What's already in script-output, and whether re-ingesting it is still sound.
+  const reuse = useQuery({
+    queryKey: ["dumpReuse"],
+    queryFn: () => dumpReuseFn(),
+    enabled: isOpen,
+  });
+
   const start = useMutation({
-    mutationFn: () => startDataSyncFn({ data: { icons } }),
+    mutationFn: () => startDataSyncFn({ data: { icons, reuseDump } }),
     onSuccess: () => {
       setInitiated(true);
       void qc.invalidateQueries({ queryKey: ["syncState"] });
@@ -158,7 +174,7 @@ export function DriftModal() {
       : TITLES[view];
   const TitleIcon = title.icon;
 
-  const steps = stepsForRun(icons);
+  const steps = stepsForRun(icons, reuseDump);
   const statuses = stepStatuses(steps, phase, sync.data?.failedAt ?? null);
   const log = sync.data?.log ?? [];
 
@@ -202,6 +218,9 @@ export function DriftModal() {
               icons={icons}
               setIcons={setIcons}
               gameUp={gameUp}
+              reuse={reuse.data ?? null}
+              reuseDump={reuseDump}
+              setReuseDump={setReuseDump}
             />
           )}
           {(view === "running" || view === "error") && (
@@ -231,10 +250,16 @@ export function DriftModal() {
               </Button>
               <Button
                 onClick={() => start.mutate()}
-                disabled={start.isPending || gameUp}
-                title={gameUp ? "Close Factorio first" : undefined}
+                disabled={start.isPending || (gameUp && !reuseDump)}
+                title={gameUp && !reuseDump ? "Close Factorio first" : undefined}
               >
-                {start.isPending ? "Starting…" : hasDrift ? "Re-sync now" : "Sync now"}
+                {start.isPending
+                  ? "Starting…"
+                  : reuseDump
+                    ? "Re-import now"
+                    : hasDrift
+                      ? "Re-sync now"
+                      : "Sync now"}
               </Button>
             </>
           )}
@@ -288,6 +313,9 @@ function PromptBody({
   icons,
   setIcons,
   gameUp,
+  reuse,
+  reuseDump,
+  setReuseDump,
 }: {
   hasDrift: boolean;
   hasModDrift: boolean;
@@ -297,13 +325,17 @@ function PromptBody({
   icons: boolean;
   setIcons: (v: boolean) => void;
   gameUp: boolean;
+  reuse: DumpReuse | null;
+  reuseDump: boolean;
+  setReuseDump: (v: boolean) => void;
 }) {
   return (
     <div className="space-y-3">
-      {gameUp && (
+      {gameUp && !reuseDump && (
         <Callout tone="warning">
           Factorio is running. Close the game first — PyOps launches its own headless copy to read
           the data, and the engine won&apos;t allow two instances at once.
+          {reuse?.safe && " Or reuse the dump already on disk, below — that doesn't need the game."}
         </Callout>
       )}
       <p className="text-sm text-muted-foreground">
@@ -329,19 +361,41 @@ function PromptBody({
           <DriftChanges drift={drift} />
         </div>
       )}
-      <label className="flex cursor-pointer items-start gap-2.5 border border-border bg-muted/30 p-2.5 text-sm hover:bg-muted/50">
-        <input
-          type="checkbox"
-          checked={icons}
-          onChange={(e) => setIcons(e.target.checked)}
-          className="mt-0.5"
-        />
-        <span className="flex items-center gap-1.5">
-          <span className="text-foreground">Also re-dump icon sprites</span>
-          <InfoHint content="Rebuilds the icon atlas — loads the full game, so it's much slower. Only needed when a mod's visuals changed." />
-        </span>
-      </label>
+      <SyncOption
+        checked={icons}
+        onCheckedChange={setIcons}
+        label="Also re-dump icon sprites"
+        hint="Rebuilds the icon atlas — loads the full game, so it's much slower. Only needed when a mod's visuals changed."
+      />
+      <SyncOption
+        checked={reuseDump}
+        onCheckedChange={setReuseDump}
+        disabled={!reuse?.available}
+        label="Reuse the dump already on disk"
+        hint="Imports the existing data-raw-dump.json instead of producing a new one. No headless Factorio, so it works while you're playing — right when only PyOps' reading of the dump changed, not the game."
+        status={<ReuseStatus reuse={reuse} />}
+      />
     </div>
+  );
+}
+
+/** State line for the reuse option: how old the dump is, and any reason it no
+ * longer describes the current game. */
+function ReuseStatus({ reuse }: { reuse: DumpReuse | null }) {
+  if (!reuse) return <Skeleton className="h-4 w-48" />;
+  if (!reuse.available) return <>No dump found — run a full sync once to produce one.</>;
+  const age = new Date(reuse.dumpedAt ?? 0).toLocaleString();
+  const size = `${Math.round((reuse.sizeBytes ?? 0) / 1e6)} MB`;
+  return (
+    <>
+      <span>
+        Dumped {age} · {size}
+      </span>
+      {reuse.reason && <span className="mt-1 block text-warning">{reuse.reason}</span>}
+      {!reuse.reason && reuse.newerThanImport && (
+        <span className="mt-1 block text-info">Newer than the data this project imported.</span>
+      )}
+    </>
   );
 }
 

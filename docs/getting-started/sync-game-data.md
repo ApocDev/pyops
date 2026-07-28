@@ -25,8 +25,29 @@ on this computer. Every project keeps its own imported reference data.
 
 ::: warning Factorio must be closed
 The sync starts Factorio in headless modes. Factorio's instance lock prevents that while a
-normal game instance is running.
+normal game instance is running. **Reuse the dump already on disk** is the exception — it
+imports an existing dump instead of producing one, so it works while you play.
 :::
+
+## Reuse the dump already on disk
+
+Factorio leaves each dump in its `script-output` folder, and PyOps never deletes it. When
+the game and its mods have not changed but PyOps has — after an update that reads more of
+the dump than the previous version did — select **Reuse the dump already on disk**. PyOps
+imports that file directly: no helper mod, no headless Factorio, and no need to close the
+game. The dialog shows when the dump was taken and how large it is, and the progress flow
+drops straight to **Import into database**.
+
+PyOps checks two things that a file's timestamp cannot show, and warns when either makes
+the existing dump untrustworthy:
+
+- **The enabled mod set changed.** The game would now dump different prototypes, so the
+  file no longer describes it.
+- **The dump helper changed.** PyOps' helper patches prototypes while the dump runs, so its
+  edits are baked into the file. A helper update means the dump was shaped by an older one.
+
+In both cases, run a normal sync instead. If the option is unavailable, no dump exists yet —
+run a full sync once to produce one.
 
 ## Choose whether to rebuild icons
 
@@ -64,7 +85,8 @@ background.
 | Apply mod renames     | Updates plans for prototype renames declared by mods.                          |
 
 When icon rebuilding is selected, **Dump icon sprites** and **Rebuild icon atlas** also
-appear.
+appear. When the existing dump is reused, every step that runs Factorio is skipped and the
+flow begins at **Import into database**.
 
 ## Confirm the result
 

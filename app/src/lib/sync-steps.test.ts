@@ -41,3 +41,24 @@ describe("stepStatuses", () => {
     expect(stepStatuses(steps, "idle", null)).toEqual(steps.map(() => "pending"));
   });
 });
+
+describe("stepsForRun — reusing the dump on disk", () => {
+  it("drops every stage that needs the game running", () => {
+    const steps = stepsForRun(false, true);
+    expect(steps.some((s) => s.dumpOnly)).toBe(false);
+    expect(steps.map((s) => s.phase)).toEqual(["import", "costs", "migrations"]);
+  });
+
+  it("keeps the atlas rebuild when icons are requested — the sprites are on disk too", () => {
+    expect(stepsForRun(true, true).map((s) => s.phase)).toEqual([
+      "import",
+      "atlas",
+      "costs",
+      "migrations",
+    ]);
+  });
+
+  it("is unchanged for a normal run", () => {
+    expect(stepsForRun(false, false)).toEqual(stepsForRun(false));
+  });
+});

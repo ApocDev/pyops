@@ -92,6 +92,23 @@ reference-data drift check compares the stored and current versions alongside mo
 non-empty project with a missing or different version gets the existing re-sync prompt; an empty
 project remains in the normal first-sync flow.
 
+### Reusing an existing dump
+
+Factorio writes each dump into `script-output` and nothing removes it, so the previous
+`data-raw-dump.json` is always still there. A sync can therefore skip the game entirely and
+re-import that file, which is the right move whenever the importer changed but the game did
+not — and it is the only path that works while Factorio is running, since producing a dump
+needs the engine's instance lock.
+
+Whether reuse is sound depends on two facts the file's timestamp cannot carry. The enabled
+mod set may have changed, in which case the game would now dump different prototypes; this
+reuses the existing mod-drift signal. The dump helper may also have changed, and because the
+helper patches prototypes during the dump, its edits are part of the file's meaning. Each
+sync therefore stamps the dump's modification time and a fingerprint of the helper's sources
+into `meta`, and the reuse check compares both against the current state. The decision is a
+pure function over those readings so it can be tested without a filesystem; a reuse run
+re-stamps the same provenance, since the dump is unchanged and only the reading advanced.
+
 ### Normalization
 
 The importer converts Factorio's flexible prototype shapes into stable relational rows:

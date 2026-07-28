@@ -1107,10 +1107,17 @@ export const factorioRunningFn = createServerFn({ method: "GET" }).handler(async
 }));
 
 /** Kick off the dump → import (→ atlas) pipeline. Icons are opt-in: that
- * stage loads the full game and Steam may prompt for launch confirmation. */
+ * stage loads the full game and Steam may prompt for launch confirmation.
+ * `reuseDump` skips the game entirely and re-imports the dump already on disk. */
 export const startDataSyncFn = createServerFn({ method: "POST" })
-  .validator((d: { icons?: boolean }) => d)
+  .validator((d: { icons?: boolean; reuseDump?: boolean }) => d)
   .handler(async ({ data }) => dump.startDataSync(data));
+
+/** Whether the dump already in script-output can be re-imported without running
+ * the game — and if not, why. Drives the "reuse existing dump" option. */
+export const dumpReuseFn = createServerFn({ method: "GET" }).handler(async () =>
+  dump.dumpReuseStatus(),
+);
 
 /** Data health: row counts, when/what we imported, and whether the current
  * mod list still matches the data fingerprint. */

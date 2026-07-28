@@ -11,13 +11,18 @@
  *   3. restore mod-list.json (the helper must NEVER stay enabled for play)
  *   4. import the dump into sqlite (importFactorioDump)
  *   5. rebuild the icon atlas (buildIconAtlas)
- *   6. stamp the mod-list fingerprint into meta
+ *   6. stamp the mod-list fingerprint + dump provenance into meta
  *
  * Long-running (~1-2 min): state is held in-module and polled by the UI.
+ *
+ * `reuseDump` runs steps 4-6 only, against the dump already in script-output.
+ * Factorio's dumps are never cleaned up, so when only PyOps' READING of the file
+ * changed there is nothing to re-dump — and no reason to make the user close the
+ * game. See `dumpReuseStatus` for when that is still sound.
  */
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -242,6 +247,25 @@ export async function writeHelperMod() {
   await writeFile(join(dir, "data-final-fixes.lua"), HELPER_FINAL_FIXES_LUA);
 }
 
+/** Fingerprint of the helper mod's sources. The helper patches prototypes during
+ * `--dump-data`, so its content is part of what a dump MEANS: editing it changes
+ * the resulting data-raw-dump.json even when the game and mods are untouched.
+ * Stamped alongside each dump so a reuse can tell whether the file on disk was
+ * produced by the helper we ship today. */
+export function helperModFingerprint(): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify([
+        HELPER_INFO,
+        HELPER_DATA_LUA,
+        HELPER_DATA_UPDATES_LUA,
+        HELPER_FINAL_FIXES_LUA,
+      ]),
+    )
+    .digest("hex")
+    .slice(0, 16);
+}
+
 type ModList = { mods: { name: string; enabled: boolean; version?: string }[] };
 
 async function readModList(): Promise<ModList> {
@@ -391,6 +415,103 @@ export function redumpNeeded(baseline: ModEntry[], current: ModEntry[]): boolean
         .sort((a, b) => a[0].localeCompare(b[0])),
     );
   return sig(baseline) !== sig(current);
+}
+
+/* ── reusing the dump already on disk ─────────────────────────────────────────
+ * Factorio's dumps are never cleaned up: data-raw-dump.json (~100MB) just sits in
+ * script-output until the next one overwrites it. Re-dumping needs a headless
+ * Factorio, which can't run while you're playing — but importing an existing file
+ * needs neither. When only PyOps' READING of the dump changed (a new column, a new
+ * prototype type), re-ingesting what's already there is the whole job.
+ *
+ * "Safe" means the file on disk still reflects the current game and the current
+ * helper mod. Two things can invalidate it, and neither is visible in the file's
+ * timestamp alone: the enabled mod set changing (the game would dump different
+ * prototypes) and the pyops-dump helper changing (it patches prototypes during the
+ * dump, so its edits are baked into the file). */
+
+export type DumpReuse = {
+  /** A dump file exists and can be imported. */
+  available: boolean;
+  dumpedAt: string | null;
+  sizeBytes: number | null;
+  /** The file is newer than the dump this project last imported — reusing it
+   * brings in game data the project has not seen, not just a re-read. */
+  newerThanImport: boolean;
+  /** The helper mod changed since the dump was taken, so the file was patched by
+   * a different version than the one we ship now. */
+  helperChanged: boolean;
+  /** No helper fingerprint was recorded for this dump (imported before this was
+   * tracked). Not blocking — just unattributable. */
+  helperUnknown: boolean;
+  /** The enabled mod set changed since the last sync (existing drift signal). */
+  modsChanged: boolean;
+  /** Safe to re-ingest without re-dumping. */
+  safe: boolean;
+  /** Why it is not safe, or null when it is. */
+  reason: string | null;
+};
+
+/** Pure core of the reuse check — the server supplies the filesystem and meta
+ * readings so the decision itself stays testable. */
+export function evaluateDumpReuse(input: {
+  dump: { mtimeMs: number; sizeBytes: number } | null;
+  importedDumpMtimeMs: number | null;
+  helperFingerprint: string;
+  recordedHelperFingerprint: string | null;
+  modsChanged: boolean;
+}): DumpReuse {
+  const { dump, helperFingerprint, recordedHelperFingerprint, modsChanged } = input;
+  const helperUnknown = dump != null && recordedHelperFingerprint == null;
+  const helperChanged =
+    recordedHelperFingerprint != null && recordedHelperFingerprint !== helperFingerprint;
+  const newerThanImport =
+    dump != null && (input.importedDumpMtimeMs == null || dump.mtimeMs > input.importedDumpMtimeMs);
+  const reason = !dump
+    ? "No dump found on disk — run a full sync once to produce one."
+    : modsChanged
+      ? "The game's enabled mods changed since this dump was taken, so it no longer describes the current game."
+      : helperChanged
+        ? "PyOps' dump helper changed since this dump was taken, so the file was patched by an older version."
+        : null;
+  return {
+    available: dump != null,
+    dumpedAt: dump ? new Date(dump.mtimeMs).toISOString() : null,
+    sizeBytes: dump?.sizeBytes ?? null,
+    newerThanImport,
+    helperChanged,
+    helperUnknown,
+    modsChanged,
+    safe: dump != null && !modsChanged && !helperChanged,
+    reason,
+  };
+}
+
+/** Whether the dump already on disk can be re-imported without re-running the game. */
+export async function dumpReuseStatus(): Promise<DumpReuse> {
+  let dump: { mtimeMs: number; sizeBytes: number } | null = null;
+  try {
+    const s = await stat(join(SCRIPT_OUTPUT, "data-raw-dump.json"));
+    dump = { mtimeMs: s.mtimeMs, sizeBytes: s.size };
+  } catch {
+    dump = null; // never dumped, or a different script-output dir
+  }
+  const metaMap = q.metaAll();
+  const recordedMtime = Number(metaMap.dump_mtime);
+  let modsChanged = false;
+  try {
+    const baseline = JSON.parse(metaMap.mod_list ?? "[]") as ModEntry[];
+    modsChanged = baseline.length > 0 && redumpNeeded(baseline, await readMods());
+  } catch {
+    modsChanged = false; // no baseline yet — the first sync establishes one
+  }
+  return evaluateDumpReuse({
+    dump,
+    importedDumpMtimeMs: Number.isFinite(recordedMtime) ? recordedMtime : null,
+    helperFingerprint: helperModFingerprint(),
+    recordedHelperFingerprint: metaMap.dump_helper_fingerprint ?? null,
+    modsChanged,
+  });
 }
 
 /** Apply newly-present mod migrations (#26) to saved blocks as part of the dump.
@@ -556,11 +677,19 @@ const step = (phase: SyncPhase, msg: string) => {
  * `icons: false` skips --dump-icon-sprites + atlas rebuild — that stage loads
  * the FULL game (renderer, GPU atlases) and Steam may ask for launch
  * confirmation; data + locale dump headlessly in seconds. Re-dump icons only
- * when the mod set's visuals changed. */
-export function startDataSync(opts: { icons?: boolean } = {}): SyncState {
+ * when the mod set's visuals changed.
+ *
+ * `reuseDump: true` imports the dump already sitting in script-output instead of
+ * producing a new one: no helper mod, no headless Factorio, and therefore no
+ * conflict with a running game. Use it when only PyOps' reading of the dump
+ * changed. `dumpReuseStatus()` says whether that's sound; this refuses only when
+ * no dump exists, and logs a warning for the softer reasons so an explicit
+ * override is recorded rather than silent. */
+export function startDataSync(opts: { icons?: boolean; reuseDump?: boolean } = {}): SyncState {
   const icons = opts.icons ?? false;
+  const reuseDump = opts.reuseDump ?? false;
   if (state.phase !== "idle" && state.phase !== "done" && state.phase !== "error") return state;
-  state.phase = "helper-mod";
+  state.phase = reuseDump ? "import" : "helper-mod";
   state.failedAt = null;
   state.startedAt = Date.now();
   state.finishedAt = null;
@@ -569,32 +698,51 @@ export function startDataSync(opts: { icons?: boolean } = {}): SyncState {
 
   void (async () => {
     try {
-      // Pre-flight: bail before touching mod-list.json if the game is already
-      // running (the dump launches its own headless instance and would just fail
-      // on the engine's exclusive lock).
-      if ((await factorioRunning()) === true) {
-        state.phase = "error";
-        state.error = GAME_RUNNING_MSG;
-        state.log.push(`ERROR: ${GAME_RUNNING_MSG}`);
-        state.finishedAt = Date.now();
-        return;
-      }
-      step("helper-mod", "writing pyops-dump helper mod + enabling it");
-      await writeHelperMod();
-      await setHelperEnabled(true);
-      try {
-        step("dump-data", "factorio --dump-data (with planner integration)");
-        await factorio("--dump-data");
-        step("dump-locale", "factorio --dump-prototype-locale");
-        await factorio("--dump-prototype-locale");
-        if (icons) {
-          step("dump-icons", "factorio --dump-icon-sprites (loads the full game)");
-          await factorio("--dump-icon-sprites");
+      if (reuseDump) {
+        // No game involved: nothing to lock, nothing to patch, nothing to restore.
+        const reuse = await dumpReuseStatus();
+        if (!reuse.available) {
+          state.phase = "error";
+          state.error = reuse.reason ?? "No dump found on disk.";
+          state.log.push(`ERROR: ${state.error}`);
+          state.finishedAt = Date.now();
+          return;
         }
-      } finally {
-        // never leave the dump helper enabled for normal play
-        await setHelperEnabled(false);
-        state.log.push("pyops-dump disabled again");
+        state.log.push(
+          `reusing existing dump from ${reuse.dumpedAt} (${Math.round((reuse.sizeBytes ?? 0) / 1e6)} MB)`,
+        );
+        // Never silent: an override is recorded in the log the user can expand.
+        if (reuse.reason) state.log.push(`WARNING: ${reuse.reason}`);
+        if (reuse.helperUnknown)
+          state.log.push("WARNING: no helper fingerprint recorded for this dump");
+      } else {
+        // Pre-flight: bail before touching mod-list.json if the game is already
+        // running (the dump launches its own headless instance and would just fail
+        // on the engine's exclusive lock).
+        if ((await factorioRunning()) === true) {
+          state.phase = "error";
+          state.error = GAME_RUNNING_MSG;
+          state.log.push(`ERROR: ${GAME_RUNNING_MSG}`);
+          state.finishedAt = Date.now();
+          return;
+        }
+        step("helper-mod", "writing pyops-dump helper mod + enabling it");
+        await writeHelperMod();
+        await setHelperEnabled(true);
+        try {
+          step("dump-data", "factorio --dump-data (with planner integration)");
+          await factorio("--dump-data");
+          step("dump-locale", "factorio --dump-prototype-locale");
+          await factorio("--dump-prototype-locale");
+          if (icons) {
+            step("dump-icons", "factorio --dump-icon-sprites (loads the full game)");
+            await factorio("--dump-icon-sprites");
+          }
+        } finally {
+          // never leave the dump helper enabled for normal play
+          await setHelperEnabled(false);
+          state.log.push("pyops-dump disabled again");
+        }
       }
       step("import", "importing dump into sqlite");
       const summary = importFactorioDump({ dbUrl: currentDatabaseFile() });
@@ -629,12 +777,26 @@ export function startDataSync(opts: { icons?: boolean } = {}): SyncState {
 
       const fp = await modListFingerprint();
       const mods = await readMods();
+      // Dump provenance: which file we read and which helper shaped it, so a later
+      // "reuse the dump on disk" can tell whether it still describes this game.
+      // On a reuse run these re-stamp the same values, which is what we want —
+      // the dump is unchanged, only our reading of it advanced.
+      let dumpMtimeMs: number | null = null;
+      try {
+        dumpMtimeMs = (await stat(join(SCRIPT_OUTPUT, "data-raw-dump.json"))).mtimeMs;
+      } catch {
+        dumpMtimeMs = null; // imported from an explicit path elsewhere
+      }
       db.insert(meta)
         .values([
           { key: "data_fingerprint", value: fp },
           // full provenance: name + version + enabled for every mod (see readMods)
           { key: "mod_list", value: JSON.stringify(mods) },
           { key: "synced_at", value: new Date().toISOString() },
+          { key: "dump_helper_fingerprint", value: helperModFingerprint() },
+          ...(dumpMtimeMs != null
+            ? [{ key: "dump_mtime", value: String(Math.round(dumpMtimeMs)) }]
+            : []),
         ])
         .onConflictDoUpdate({ target: meta.key, set: { value: sql`excluded.value` } })
         .run();
