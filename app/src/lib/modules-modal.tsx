@@ -13,9 +13,11 @@ import {
 import { Badge } from "#/components/ui/badge.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "#/components/ui/dialog.tsx";
+import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
 import { CursorHover } from "./hover";
 import { Icon } from "./icons";
 import { deletedToast } from "./undo-client";
@@ -845,6 +847,24 @@ export function ModulesModal({
                               <Plus className="size-3.5" />
                             </Button>
                           </span>
+                          {/* how many machines share one beacon building: changes
+                              the buildings and their power, never the effect */}
+                          <label className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <span>shared by</span>
+                            <Input
+                              type="number"
+                              min={1}
+                              value={cfg.shared ?? 1}
+                              onChange={(e) =>
+                                setBeaconAt(i, {
+                                  ...cfg,
+                                  shared: Math.max(1, Math.round(Number(e.target.value) || 1)),
+                                })
+                              }
+                              className="h-7 w-14 px-1 text-center"
+                            />
+                            <InfoHint content="Machines served by each beacon building. Every machine in range still gets the full effect — this divides the buildings you place, and their power. 1 = a private beacon per machine." />
+                          </label>
                           <Button
                             variant="ghost"
                             size="icon-xs"

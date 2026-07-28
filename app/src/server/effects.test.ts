@@ -177,3 +177,51 @@ describe("computeEffects — research productivity", () => {
     expect(b).toEqual(a);
   });
 });
+
+// A real build shares a beacon between neighbouring machines. Sharing is purely a
+// question of how many BUILDINGS exist: every machine in range still sits in the
+// full field, so only power moves.
+describe("computeEffects — beacon sharing", () => {
+  const cfg = (shared?: number) => [
+    { beacon: "beacon-AM3-FM2", modules: ["speed-module", "speed-module"], count: 1, shared },
+  ];
+
+  it("leaves every effect untouched — a shared beacon still fully affects each machine", () => {
+    const priv = computeEffects(true, [], cfg(), MODS, BEACONS);
+    const shared = computeEffects(true, [], cfg(8), MODS, BEACONS);
+    expect(shared.speedBonus).toBeCloseTo(priv.speedBonus);
+    expect(shared.prodBonus).toBeCloseTo(priv.prodBonus);
+    expect(shared.consBonus).toBeCloseTo(priv.consBonus);
+    expect(shared.pollutionMult).toBeCloseTo(priv.pollutionMult);
+  });
+
+  it("splits the building's power across the machines it serves", () => {
+    const priv = computeEffects(true, [], cfg(), MODS, BEACONS);
+    expect(priv.beaconPowerPerMachineW).toBeCloseTo(24_000_000);
+    // one 24 MW beacon serving 8 machines costs each of them an eighth
+    expect(computeEffects(true, [], cfg(8), MODS, BEACONS).beaconPowerPerMachineW).toBeCloseTo(
+      3_000_000,
+    );
+  });
+
+  it("treats absent, 1 and nonsense sharing as a private beacon", () => {
+    const w = (shared?: number) =>
+      computeEffects(true, [], cfg(shared), MODS, BEACONS).beaconPowerPerMachineW;
+    expect(w(undefined)).toBeCloseTo(24_000_000);
+    expect(w(1)).toBeCloseTo(24_000_000);
+    expect(w(0)).toBeCloseTo(24_000_000); // never divide by zero
+    expect(w(-4)).toBeCloseTo(24_000_000);
+  });
+
+  it("scales with beacons-per-machine independently of sharing", () => {
+    const fx = computeEffects(
+      true,
+      [],
+      [{ beacon: "beacon-AM3-FM2", modules: ["speed-module"], count: 3, shared: 2 }],
+      MODS,
+      BEACONS,
+    );
+    // 3 beacons each serving 2 machines → 1.5 buildings' worth of draw per machine
+    expect(fx.beaconPowerPerMachineW).toBeCloseTo(36_000_000);
+  });
+});

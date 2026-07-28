@@ -984,6 +984,14 @@ export async function computeBlock(rawData: SolveInput) {
     totalPollutionPerMin += pollutionPerMin;
     const beaconPowerW = fx.beaconPowerPerMachineW * count;
     if (count > 0) totalPowerW += beaconPowerW; // beacons are always electric
+    // Physical beacon buildings this row needs: beacons-per-machine × machines,
+    // divided by how many machines each building serves. Whole buildings, since
+    // you cannot place a fraction of one — this is the number to actually build,
+    // as distinct from `count`, which is beacons affecting each machine.
+    const beaconBuildings = beaconCfgs.map((cfg) => ({
+      beacon: cfg.beacon,
+      count: Math.ceil((cfg.count * count) / Math.max(1, cfg.shared ?? 1) - 1e-9),
+    }));
 
     let fuel: {
       name: string;
@@ -1148,6 +1156,7 @@ export async function computeBlock(rawData: SolveInput) {
       modules: machineModules,
       turdModules: turdModules.map((m) => ({ name: m.name, display: m.display })),
       beacons: beaconCfgs,
+      beaconBuildings,
       beaconPowerW,
       effects: { speed: fx.speedBonus, productivity: fx.prodBonus, consumption: fx.consBonus },
       ingredients: def.ingredients.map((c) => {

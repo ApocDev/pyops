@@ -447,7 +447,22 @@ export const todos = sqliteTable("todos", {
  */
 /** One beacon configuration on a recipe row: which beacon variant, the modules
  * inside it, and how many of that beacon affect each machine. */
-export type BeaconConfig = { beacon: string; modules: string[]; count: number };
+export type BeaconConfig = {
+  beacon: string;
+  modules: string[];
+  /** How many of this beacon affect EACH machine on the row. */
+  count: number;
+  /** How many machines each beacon building serves — a real build shares one
+   * beacon between several machines. Absent or 1 means a private beacon per
+   * machine, which is the pre-coverage behaviour.
+   *
+   * This never changes the EFFECT: every machine in range gets the full bonus
+   * however many neighbours share the beacon. It divides the physical building
+   * count, and so the power draw — charging every machine for its own copy
+   * overstates a shared bank by the sharing factor, which is severe when the
+   * beacon is expensive (Py's tiered beacons reach 625 MW each). */
+  shared?: number;
+};
 
 /** One output goal of a block: a good the block is sized to produce at `rate`
  * (a solver target). A good you don't target is a byproduct, not a goal.

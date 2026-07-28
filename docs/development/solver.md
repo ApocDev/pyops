@@ -256,6 +256,16 @@ planning derives bonuses from the allowed technology set. **Now** mode can use e
 and per-recipe values synchronized from the running save or entered through planning
 settings.
 
+A beacon configuration records both how many beacons affect each machine and how many
+machines each beacon building serves. Real builds share a beacon between neighbouring
+machines, and the two quantities are independent: sharing never changes the effect, because
+every machine in range sits in the full field regardless of how many neighbours join it. It
+divides the physical building count, and with it the power draw. Charging each machine for a
+private copy overstates a shared bank by the sharing factor, which matters most where
+beacons are expensive — Pyanodons' tiered beacons reach hundreds of megawatts each. A row
+therefore reports whole beacon buildings separately from beacons-per-machine, since a
+fraction of a building cannot be placed.
+
 ### Module suggestions
 
 Module auto-fill is a separate suggestion pass, never implicit solve input. The saved block

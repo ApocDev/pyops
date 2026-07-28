@@ -16,7 +16,14 @@
  * productivity routinely exceeds +300%).
  */
 
-export type BeaconConfig = { beacon: string; modules: string[]; count: number };
+export type BeaconConfig = {
+  beacon: string;
+  modules: string[];
+  /** beacons affecting each machine */
+  count: number;
+  /** machines each beacon building serves (absent/1 = one beacon per machine) */
+  shared?: number;
+};
 
 export type Effects = {
   speedBonus: number;
@@ -96,7 +103,12 @@ export function computeEffects(
     prod += inBeacon.prod * mult;
     cons += inBeacon.cons * mult;
     poll += inBeacon.poll * mult;
-    beaconPowerPerMachineW += (b.energyUsageW ?? 0) * cfg.count;
+    // Effects above are per-machine and unaffected by sharing: every machine in
+    // range gets the full bonus however many neighbours also sit in it. Power is
+    // a property of the BUILDING, so a shared beacon's draw splits across the
+    // machines it serves — charging each one a full copy overstates a shared bank
+    // by the sharing factor.
+    beaconPowerPerMachineW += ((b.energyUsageW ?? 0) * cfg.count) / Math.max(1, cfg.shared ?? 1);
   }
   if (!allowProductivity) prod = 0;
   // tech-granted recipe productivity applies even when modules can't (a base
