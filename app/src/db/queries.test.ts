@@ -1593,6 +1593,7 @@ describe("modulePickerData sole-carrier rescue", () => {
     db.run(sql`
       INSERT INTO modules (name, display, category, hidden, tier, eff_speed, eff_productivity, eff_consumption) VALUES
         ('prod-1','Productivity 1','productivity',0,1,0,0.1,0),
+        ('spd-1','Speed 1','speed',0,1,0.2,0,0),
         ('vatbrain-4','Vatbrain MK04','vatbrain',1,4,0,1,4)
     `);
     db.run(sql`
@@ -1632,6 +1633,16 @@ describe("modulePickerData sole-carrier rescue", () => {
     // could, Pyanodons' vatbrains would have no reason to exist
     const p = modulePickerData("research-pack", "lab")!;
     expect(p.beacons.find((b) => b.name === "hidden-beacon")?.modules).toEqual(["vatbrain-4"]);
+  });
+
+  it("offers no machine palette for a machine with no slots", () => {
+    seed();
+    // the vatbrains reach a lab only through a beacon; listing them under the
+    // machine reads as "put one in the lab", which is impossible
+    const p = modulePickerData("research-pack", "lab")!;
+    expect(p.modules).toEqual([]);
+    // …while an ordinary machine keeps its palette
+    expect(modulePickerData("plate-recipe", "assembler")!.modules.length).toBeGreaterThan(0);
   });
 
   it("treats a module no recipe can produce as ungated rather than unavailable", () => {

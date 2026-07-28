@@ -1041,7 +1041,13 @@ export function modulePickerData(recipeName: string, machineName: string) {
     unlocked: unlocked.has(row.name) || ungatedModules.has(row.name),
   });
   const prodOk = (mod: ModuleRow) => mod.effProductivity <= 0 || r.allowProductivity;
-  const machineModules = allModules.filter(modulePlacementFilter(m, r)).map(withUnlock);
+  // A machine with no slots can hold nothing, so its palette must be empty — the
+  // eligibility filter answers "may this module affect the machine", which is
+  // also true of modules that can only ever arrive by beacon. Offering those here
+  // reads as "put a vatbrain in the lab", which is not a thing you can do.
+  const machineModules = m.moduleSlots
+    ? allModules.filter(modulePlacementFilter(m, r)).map(withUnlock)
+    : [];
 
   const beaconList = beaconRows.map((b) => ({
     name: b.name,

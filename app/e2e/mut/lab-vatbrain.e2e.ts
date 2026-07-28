@@ -52,6 +52,9 @@ test("a lab row offers a vatbrain beacon despite having no module slots", async 
     const modal = page.getByRole("dialog", { name: /^Modules — / });
     await expect(modal).toBeVisible();
     await expect(modal).toContainText("No module slots");
+    // …and no palette under it: a lab holds no modules of its own, so offering
+    // vatbrains there would read as "put one in the lab".
+    await expect(modal.locator('button[title^="Vatbrain MK"]')).toHaveCount(0);
 
     // The whole feature hangs off this being live rather than greyed out.
     const add = modal.getByRole("button", { name: "+ Add" });
@@ -59,8 +62,8 @@ test("a lab row offers a vatbrain beacon despite having no module slots", async 
     await expect(add).not.toHaveAttribute("aria-disabled", "true");
     await add.click();
 
-    // A lab accepts only the vatbrain category, so that is what the beacon must
-    // offer — and a plain speed module must not be reachable through it.
+    // Only NOW do vatbrains appear — inside the beacon, the one place they can
+    // actually go. A lab accepts no other category, so no speed module either.
     await expect(modal.locator('button[title^="Vatbrain MK"]').first()).toBeVisible();
     await expect(modal.locator('button[title^="Speed module ·"]')).toHaveCount(0);
   } finally {
