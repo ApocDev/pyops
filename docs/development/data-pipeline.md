@@ -169,9 +169,37 @@ block solver:
 | Spoiling      | Passive item-to-result conversion without a machine         |
 | Planting      | Seed, growth time, agricultural tower, and harvest products |
 | Rocket launch | Rocket parts and payload converted into launch products     |
+| Research      | One science pack converted into research by a lab           |
 
 Every synthetic row records a `kind` and `source_entity`, allowing the UI and downstream
 logic to distinguish it from an ordinary craft without special name parsing.
+
+### Research
+
+A lab is its own prototype type with no crafting category, so the block solver cannot see
+it. Synthesis registers each lab as a crafting machine under an invented research category
+and gives that category one recipe per science pack the lab accepts: one pack becomes one
+unit of research.
+
+This makes a science consumer an ordinary block. Its rows are labs, so they take machines,
+modules and beacons through the normal path — which is how Pyanodons' vatbrains apply, since
+a vatbrain is a beacon broadcasting a productivity module that only labs accept. Because the
+recipes allow productivity, a row's goal is the post-effects research rate and the pack
+demand the solver derives from it is the pre-effects rate the factory must supply.
+
+Each pack gets its own research good rather than contributing to a shared pool. A single
+pool would let the solver satisfy a research target with whichever pack is cheapest instead
+of the mix a lab actually consumes.
+
+There is one recipe per pack, not one per technology. The pack mix is a property of what is
+being researched, which a planner expresses by setting each row's rate; per-technology
+recipes would add a row for every technology to say the same thing. Completion time is a
+calculation over technology unit counts and unit times rather than a recipe.
+
+A lab consumes one of each pack per unit of research, so pack rates do not depend on the
+recipe's craft time and are modelled exactly. Only the building count is time-sensitive:
+real unit times span half a minute to twenty minutes across the technology tree, so the
+recipe uses a representative craft time and a row's lab count is a reference figure.
 
 ## Modelling conventions created during import
 

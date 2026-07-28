@@ -477,10 +477,35 @@ describe("importFactorioDump — labs", () => {
     db.close();
   });
 
-  it("keeps labs out of crafting_machines", () => {
+  // Pass 1 records the lab prototype faithfully in its own table; pass 2 also
+  // registers it as a crafting machine under the synthetic research category, so
+  // the block solver can put labs on rows and give them modules and beacons.
+  // Neither is redundant: `labs.inputs` is the authoritative pack list, and no
+  // real crafting category exists to join a lab to a recipe.
+  it("adds no lab to crafting_machines from the prototype pass itself", () => {
     const db = runImport(raw);
-    const n = db.prepare(`SELECT count(*) c FROM crafting_machines`).get() as { c: number };
-    expect(n.c).toBe(0);
+    const rows = db.prepare(`SELECT name, kind FROM crafting_machines ORDER BY name`).all() as {
+      name: string;
+      kind: string;
+    }[];
+    // every crafting-machine row here came from synthesis, not the lab import
+    expect(rows.every((r) => r.kind === "lab")).toBe(true);
+    db.close();
+  });
+
+  it("registers labs as research-category machines so the solver can use them", () => {
+    const db = runImport(raw);
+    const rows = db
+      .prepare(
+        `SELECT m.name, m.crafting_speed speed, m.module_slots slots
+         FROM crafting_machines m JOIN machine_categories c ON c.machine = m.name
+         WHERE c.category = 'pyops-research' ORDER BY m.name`,
+      )
+      .all();
+    expect(rows).toEqual([
+      { name: "ee-super-lab", speed: 100, slots: 10 },
+      { name: "lab", speed: 1, slots: 0 },
+    ]);
     db.close();
   });
 });

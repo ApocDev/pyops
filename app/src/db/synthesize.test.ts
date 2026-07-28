@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
-import { ELECTRICITY, FLUID_FUEL, HEAT, synthesizePass2 } from "./synthesize.ts";
+import {
+  ELECTRICITY,
+  FLUID_FUEL,
+  HEAT,
+  RESEARCH_CATEGORY,
+  RESEARCH_TIME,
+  researchGood,
+  synthesizePass2,
+} from "./synthesize.ts";
 import { type TestDb, makeTestDb } from "./test-helpers.ts";
 
 let fx: TestDb;
@@ -545,5 +553,98 @@ describe("synthesizePass2 fluid fuel (#25)", () => {
     )!;
     expect(row).toMatchObject({ bf: 0, ff: "solar-concentration", ps: 60 });
     expect(row.ej).toBeCloseTo(3.2e8);
+  });
+});
+
+describe("synthesizePass2 research", () => {
+  // Shapes taken from Py's real prototypes: `lab` has no module slots of its own
+  // and accepts only the vatbrain category (delivered by the Vatbrain
+  // biocomputer's hidden beacon); ee-super-lab is a conventional modulable lab.
+  const labRaw = {
+    ...raw,
+    lab: {
+      lab: {
+        researching_speed: 1,
+        module_slots: 0,
+        energy_usage: 60_000,
+        energy_source: { type: "electric", emissions_per_minute: { pollution: 2 } },
+        allowed_module_categories: ["vatbrain"],
+        inputs: ["automation-science-pack", "py-science-pack-1"],
+      },
+      "ee-super-lab": {
+        researching_speed: 100,
+        module_slots: 10,
+        energy_usage: 1,
+        energy_source: { type: "electric" },
+        inputs: ["automation-science-pack"],
+      },
+      "hidden-lab": { inputs: ["nope-science-pack"], hidden: true },
+    },
+  };
+
+  it("registers each lab as a crafting machine in the research category", () => {
+    synthesizePass2(fx.db, labRaw, ctx);
+    const rows = fx.db
+      .prepare(
+        `SELECT m.name, m.kind, m.crafting_speed speed, m.module_slots slots, m.energy_usage_w w
+         FROM crafting_machines m JOIN machine_categories c ON c.machine = m.name
+         WHERE c.category = ? ORDER BY m.name`,
+      )
+      .all(RESEARCH_CATEGORY);
+    expect(rows).toEqual([
+      { name: "ee-super-lab", kind: "lab", speed: 100, slots: 10, w: 1 },
+      { name: "lab", kind: "lab", speed: 1, slots: 0, w: 60_000 },
+    ]);
+    // researching_speed becomes crafting speed; a hidden lab contributes nothing
+    expect(get(`SELECT name FROM crafting_machines WHERE name = 'hidden-lab'`)).toBeFalsy();
+  });
+
+  it("makes one recipe per accepted pack, converting 1 pack to 1 research unit", () => {
+    const counts = synthesizePass2(fx.db, labRaw, ctx);
+    // union of the non-hidden labs' inputs — not one per technology
+    expect(counts.research).toBe(2);
+    expect(
+      get(`SELECT kind, category, energy_required e FROM recipes WHERE name = ?`, [
+        "research-automation-science-pack",
+      ]),
+    ).toMatchObject({ kind: "research", category: RESEARCH_CATEGORY, e: RESEARCH_TIME });
+    expect(
+      get(
+        `SELECT amount FROM recipe_ingredients WHERE recipe = 'research-automation-science-pack'`,
+      ),
+    ).toMatchObject({ amount: 1 });
+    expect(
+      get(`SELECT amount FROM recipe_products WHERE recipe = 'research-automation-science-pack'`),
+    ).toMatchObject({ amount: 1 });
+  });
+
+  it("gives each pack its own research good so the solver cannot substitute packs", () => {
+    synthesizePass2(fx.db, labRaw, ctx);
+    const goods = fx.db
+      .prepare(`SELECT name FROM fluids WHERE name LIKE 'pyops-research-%' ORDER BY name`)
+      .all() as { name: string }[];
+    expect(goods.map((g) => g.name)).toEqual([
+      researchGood("automation-science-pack"),
+      researchGood("py-science-pack-1"),
+    ]);
+    // a shared pool would let cheap packs stand in for expensive ones
+    expect(
+      get(`SELECT name FROM recipe_products WHERE recipe = 'research-py-science-pack-1'`),
+    ).toMatchObject({ name: researchGood("py-science-pack-1") });
+  });
+
+  it("allows productivity, so a vatbrain beacon stretches each pack", () => {
+    synthesizePass2(fx.db, labRaw, ctx);
+    expect(
+      get(
+        `SELECT allow_productivity p FROM recipes WHERE name = 'research-automation-science-pack'`,
+      ),
+    ).toMatchObject({ p: 1 });
+  });
+
+  it("synthesizes nothing when the dump has no labs", () => {
+    const counts = synthesizePass2(fx.db, raw, ctx);
+    expect(counts.research).toBe(0);
+    expect(get(`SELECT name FROM recipes WHERE kind = 'research'`)).toBeFalsy();
   });
 });

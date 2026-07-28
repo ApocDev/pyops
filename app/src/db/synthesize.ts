@@ -35,6 +35,24 @@ export const HEAT = "pyops-heat";
  * per fuel-valued fluid feeds it. */
 export const FLUID_FUEL = "pyops-fluid-fuel";
 
+/** Crafting category for the synthetic lab recipes. Labs have no crafting
+ * category of their own (they are a separate prototype type), so one is invented
+ * to join them to their recipes the way every other machine is matched. */
+export const RESEARCH_CATEGORY = "pyops-research";
+/** Reference craft time for a lab recipe, in seconds.
+ *
+ * A lab consumes one of each pack per research unit, so PACK RATES do not depend
+ * on this number at all — only the building count does, which is why a single
+ * generic recipe can model consumption exactly. Real `unit.time` spans 30s-1200s
+ * across Py's tech tree (modal 60s), so no constant is right for every tech; 60
+ * matches both the mode and the vanilla convention, and makes a row's lab count a
+ * reference figure rather than an exact one. */
+export const RESEARCH_TIME = 60;
+/** Post-effects research delivered by one science pack. One good PER PACK, never
+ * a shared research good: a single pool would let the solver satisfy a research
+ * target with whichever pack is cheapest instead of the mix a lab actually eats. */
+export const researchGood = (pack: string) => `pyops-research-${pack}`;
+
 type Raw = Record<string, Record<string, any>>;
 type Ctx = {
   /** localized display for an entity/item/fluid name */
@@ -108,6 +126,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
     spoiling: 0,
     planting: 0,
     launching: 0,
+    research: 0,
   };
 
   const recipe = (r: {
@@ -141,7 +160,10 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       kind: r.kind,
       category: r.category,
       energy_required: r.energy,
-      allow_productivity: r.kind === "mining" ? 1 : 0,
+      // Research recipes take productivity because lab productivity is real and
+      // is the whole point of modelling labs as machines: a vatbrain beacon on
+      // the row must stretch each pack further.
+      allow_productivity: r.kind === "mining" || r.kind === "research" ? 1 : 0,
       main_product: r.mainProduct ?? r.products?.[0]?.name ?? null,
       source_entity: r.source,
     });
@@ -708,6 +730,61 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
         });
         counts.launching++;
       }
+    }
+
+    /* ── research: labs as machines + one lab recipe per science pack ─────────
+       A lab is its own prototype type with no crafting category, so the solver
+       cannot see it. Register each lab as a crafting machine in an invented
+       category and give that category one recipe per pack the lab accepts:
+       1 pack -> 1 post-effects research unit.
+
+       This makes a "science consumer" an ordinary block. Its rows are labs, so
+       they take modules and beacons through the normal path — which is how
+       Pyanodons' vatbrains apply, since they are a beacon broadcasting a
+       productivity module that only labs accept. A row's goal is then the
+       POST-effects research rate, and the pack demand the solver derives from it
+       is the pre-effects rate the factory actually has to supply.
+
+       One recipe per pack rather than one per technology: the pack mix is a
+       property of what you research, which the user expresses by setting each
+       row's rate. Per-tech recipes would add ~1300 rows to say the same thing,
+       and completion time is a calculation over unit_count/unit_time, not a
+       recipe. */
+    const labs = Object.entries<any>((raw as Record<string, any>).lab ?? {});
+    const packs = new Set<string>();
+    for (const [name, lab] of labs) {
+      if (lab?.hidden === true) continue;
+      const es = lab.energy_source ?? {};
+      machine({
+        name,
+        kind: "lab",
+        // A lab's researching_speed is its crafting speed: both scale how fast
+        // one machine consumes a recipe's inputs.
+        speed: lab.researching_speed ?? 1,
+        moduleSlots: lab.module_slots ?? 0,
+        energyUsageW: parseSI(lab.energy_usage),
+        energySource: es.type ?? null,
+        pollutionPerMin: es.emissions_per_minute?.pollution ?? 0,
+        allowedModuleCategories: lab.allowed_module_categories ?? null,
+        category: RESEARCH_CATEGORY,
+        fuelCategories: es.fuel_categories ?? [],
+      });
+      for (const pack of lab.inputs ?? []) packs.add(pack);
+    }
+    for (const pack of packs) {
+      const good = researchGood(pack);
+      ins.fluid.run(good, `Research (${display(pack)})`);
+      recipe({
+        name: `research-${pack}`,
+        display: `Research with ${display(pack)}`,
+        kind: "research",
+        category: RESEARCH_CATEGORY,
+        energy: RESEARCH_TIME,
+        source: pack,
+        ingredients: [{ kind: "item", name: pack, amount: 1 }],
+        products: [{ kind: "fluid", name: good, amount: 1 }],
+      });
+      counts.research++;
     }
   });
 
