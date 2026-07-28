@@ -1,0 +1,23 @@
+app/src/server/science-block.server.test.ts
+  s_89969b10cb4249::t_61f270b5db2330 1-104
+app/src/server/science-block.server.ts
+  s_89969b10cb4249::t_f807c2e06e6f88 1-154
+app/src/server/science.ts
+  s_89969b10cb4249::t_336419550b373b 1-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "a6b26671f322271869807ffa9400af87588b4493",
+  "prompts": {},
+  "sessions": {
+    "s_89969b10cb4249": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "43ac7a9c-8b7b-4293-8c25-486de85b300d",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
