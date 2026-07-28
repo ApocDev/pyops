@@ -994,13 +994,25 @@ export function modulePickerData(recipeName: string, machineName: string) {
         )
     : [];
   const allModules = [...visibleModules, ...soleModules];
+  // Availability is derived from the recipe graph: a good is obtainable when some
+  // recipe makes it. Nothing makes a script-placed module — no recipe produces a
+  // vatbrain — so the graph has no opinion and the module would read as
+  // permanently unavailable, even planning against the whole tech tree. Treat
+  // "nothing can produce this" as unknowable rather than locked. (Pyanodons gates
+  // the tiers through the biocomputer's cartridge recipes, which unlock normally
+  // and carry the real availability signal.)
+  const ungatedModules = new Set(
+    soleModules
+      .filter((mod) => !recipesProducingByGoods([mod.name]).get(mod.name)?.length)
+      .map((mod) => mod.name),
+  );
   const unlocked = unlockedItems([
     ...allModules.map((mod) => mod.name),
     ...beaconRows.map((b) => b.name),
   ]);
   const withUnlock = <T extends { name: string }>(row: T): T & { unlocked: boolean } => ({
     ...row,
-    unlocked: unlocked.has(row.name),
+    unlocked: unlocked.has(row.name) || ungatedModules.has(row.name),
   });
   const prodOk = (mod: ModuleRow) => mod.effProductivity <= 0 || r.allowProductivity;
   const machineModules = allModules.filter(modulePlacementFilter(m, r)).map(withUnlock);
@@ -1018,6 +1030,13 @@ export function modulePickerData(recipeName: string, machineName: string) {
       .filter(
         (mod) =>
           categoryAllowed(mod, b.allowedModuleCategories) &&
+          // A machine's (and recipe's) module-category restriction applies however
+          // the module is delivered — a beacon does not bypass it. Without this a
+          // plain productivity module in a beacon appeared to affect a lab, which
+          // would make Pyanodons' vatbrains pointless; the same restriction guards
+          // every creature building that accepts only its own module category.
+          categoryAllowed(mod, m.allowedModuleCategories) &&
+          categoryAllowed(mod, r.allowedModuleCategories) &&
           effectsAllowed(mod, b.allowedEffects) &&
           effectsAllowed(mod, m.allowedEffects) &&
           prodOk(mod),

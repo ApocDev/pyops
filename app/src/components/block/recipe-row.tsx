@@ -426,6 +426,7 @@ export function RecipeRow({
                   modules={row.modules}
                   beacons={row.beacons}
                   slots={row.machine.moduleSlots ?? 0}
+                  effectsAllowed={row.machine.effectsAllowed ?? true}
                   effects={row.effects}
                   onClick={() => open.modulesPicker(name)}
                 />

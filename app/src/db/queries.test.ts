@@ -1626,6 +1626,23 @@ describe("modulePickerData sole-carrier rescue", () => {
     expect(p.modules.map((m) => m.name)).not.toContain("vatbrain-4");
   });
 
+  it("does not transmit a module category the machine disallows", () => {
+    seed();
+    // a beacon must not smuggle a plain productivity module into a lab; if it
+    // could, Pyanodons' vatbrains would have no reason to exist
+    const p = modulePickerData("research-pack", "lab")!;
+    expect(p.beacons.find((b) => b.name === "hidden-beacon")?.modules).toEqual(["vatbrain-4"]);
+  });
+
+  it("treats a module no recipe can produce as ungated rather than unavailable", () => {
+    seed();
+    // nothing crafts a vatbrain — a script places it — so the recipe graph has no
+    // opinion and it must not read as permanently locked
+    setResearchHorizon({ mode: "future", packs: [], researched: [] });
+    const p = modulePickerData("research-pack", "lab")!;
+    expect(p.beaconModules.find((m) => m.name === "vatbrain-4")?.unlocked).toBe(true);
+  });
+
   it("does not transmit an effect the machine disallows", () => {
     seed();
     db.run(sql`

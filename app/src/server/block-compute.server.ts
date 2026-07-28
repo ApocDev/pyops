@@ -1137,6 +1137,12 @@ export async function computeBlock(rawData: SolveInput) {
         tileWidth: chosen.tileWidth,
         tileHeight: chosen.tileHeight,
         moduleSlots: chosen.moduleSlots,
+        // Whether ANY effect can reach this machine. Module slots only govern
+        // direct insertion — a beacon reaches a machine with none, which is the
+        // only way Pyanodons' lab (zero slots, vatbrain-only) can be modified at
+        // all. An explicitly empty allowed_effects means nothing applies; absent
+        // means unrestricted.
+        effectsAllowed: (chosen.allowedEffects?.length ?? 1) > 0,
       },
       fuel,
       modules: machineModules,

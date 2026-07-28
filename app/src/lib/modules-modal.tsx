@@ -78,16 +78,24 @@ export function ModulesChip({
   modules,
   beacons,
   slots,
+  effectsAllowed = true,
   effects,
   onClick,
 }: {
   modules: string[];
   beacons: BeaconConfig[];
   slots: number;
+  /** Whether any effect can reach this machine at all. */
+  effectsAllowed?: boolean;
   effects?: RowEffects;
   onClick: () => void;
 }) {
-  if (slots <= 0 && !beacons.length && !modules.length) return null;
+  // Module slots govern only DIRECT insertion; a beacon reaches a machine with
+  // none. Gating the chip on slots hid the picker entirely for Pyanodons' lab,
+  // whose zero slots and vatbrain-only category make an external beacon its one
+  // possible modifier. Hide only when nothing can affect the machine and nothing
+  // is already configured.
+  if (!effectsAllowed && !beacons.length && !modules.length) return null;
   const counts = new Map<string, number>();
   for (const n of modules) counts.set(n, (counts.get(n) ?? 0) + 1);
   const grouped = [...counts.entries()];
@@ -97,7 +105,15 @@ export function ModulesChip({
       onClick={onClick}
       // Empty state keeps a plain caption; a configured loadout shows the rich
       // ModuleLoadoutCard hover (below) instead of a flat "+X% speed" title.
-      title={empty ? "No modules — click to configure" : undefined}
+      title={
+        empty
+          ? slots > 0
+            ? "No modules — click to configure"
+            : // A zero-slot machine can still be beaconed; say so, rather than
+              // leaving an empty module grid looking like a dead end.
+              "No beacons — this machine takes no modules of its own, but a beacon can reach it"
+          : undefined
+      }
       // Raw button on purpose: a compact icon-tile chip living inside a dense
       // grid cell — the Button primitive's h-8 box would break the row density.
       className={`flex items-center gap-1 px-1.5 py-1 text-sm hover:bg-accent ${
