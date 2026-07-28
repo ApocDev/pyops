@@ -120,6 +120,13 @@
       "when": 1785257876133,
       "tag": "0016_add_tech_research_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1785265592690,
+      "tag": "0017_add_beacon_upkeep",
+      "breakpoints": true
     }
   ]
 }

@@ -105,6 +105,12 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
     machineCat: db.prepare(
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
     ),
+    beacon: db.prepare(
+      `INSERT OR REPLACE INTO beacons (name,display,distribution_effectivity,module_slots,energy_usage_w,hidden,allowed_effects,allowed_module_categories,profile) VALUES (?,?,?,?,?,0,?,?,?)`,
+    ),
+    beaconUpkeep: db.prepare(
+      `INSERT OR REPLACE INTO beacon_upkeep (beacon,module,item,kind,per_sec) VALUES (?,?,?,?,?)`,
+    ),
     machineFuel: db.prepare(
       `INSERT OR IGNORE INTO machine_fuel_categories (machine,fuel_category) VALUES (?,?)`,
     ),
@@ -127,6 +133,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
     planting: 0,
     launching: 0,
     research: 0,
+    effectBeacons: 0,
   };
 
   const recipe = (r: {
@@ -776,6 +783,77 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       });
       for (const pack of lab.inputs ?? []) packs.add(pack);
     }
+    /* ── effect beacons ────────────────────────────────────────────────────────
+       A machine that produces nothing and exists only to broadcast a module
+       effect through a script-spawned beacon. The dump helper reconstructs the
+       machine → beacon → tier mapping (it lives in control-stage Lua the data
+       stage cannot reach) and exports it as mod-data; here it becomes a REAL,
+       non-hidden beacon named for the building you actually place, carrying the
+       hidden carrier's distribution characteristics and the building's own power.
+
+       Two consequences fall out. The picker stops offering "Hidden beacon" and
+       offers the biocomputer instead, because the visible beacon now covers the
+       vatbrain category and the sole-carrier rescue no longer fires. And each
+       tier's cartridge becomes upkeep: the script enables the beacon only while
+       that craft runs, so the drain is a precondition for the effect, not an
+       optional cost. */
+    const carrierOf = (name: string) =>
+      db
+        .prepare(
+          `SELECT distribution_effectivity de, module_slots slots, allowed_effects ae,
+                  allowed_module_categories amc, profile FROM beacons WHERE name = ?`,
+        )
+        .get(name) as
+        | {
+            de: number | null;
+            slots: number;
+            ae: string | null;
+            amc: string | null;
+            profile: string | null;
+          }
+        | undefined;
+    for (const spec of arr<any>(
+      (raw as Record<string, any>)["mod-data"]?.["pyops-effect-beacons"]?.data?.beacons,
+    )) {
+      const carrier = spec?.beacon ? carrierOf(spec.beacon) : undefined;
+      if (!spec?.machine || !carrier) continue;
+      // Narrow to the categories this building actually broadcasts. The hidden
+      // carrier is a generic prototype accepting every category in the game, but
+      // the biocomputer only ever holds the module its selected recipe grants —
+      // inheriting the carrier's list would offer it as a home for any module.
+      const tierCategories = [
+        ...new Set(
+          arr<any>(spec.tiers)
+            .map(
+              (tier) =>
+                (
+                  db.prepare(`SELECT category FROM modules WHERE name = ?`).get(tier?.module) as
+                    | { category: string | null }
+                    | undefined
+                )?.category,
+            )
+            .filter((c): c is string => !!c),
+        ),
+      ];
+      ins.beacon.run(
+        spec.machine,
+        display(spec.machine),
+        carrier.de,
+        carrier.slots,
+        parseSI(spec.energy_usage),
+        carrier.ae,
+        tierCategories.length ? JSON.stringify(tierCategories) : carrier.amc,
+        carrier.profile,
+      );
+      for (const tier of arr<any>(spec.tiers)) {
+        if (!tier?.module || !tier.item) continue;
+        // one unit per craft: crafting speed ÷ craft time = units per second
+        const perSec = (spec.crafting_speed ?? 1) / (tier.energy || 1);
+        ins.beaconUpkeep.run(spec.machine, tier.module, tier.item, "item", perSec);
+      }
+      counts.effectBeacons++;
+    }
+
     for (const pack of packs) {
       const good = researchGood(pack);
       ins.fluid.run(good, `Research (${display(pack)})`);

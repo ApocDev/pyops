@@ -28,6 +28,7 @@ import {
   turdReplacements,
   modules,
   beacons,
+  beaconUpkeep,
   belts,
   loaders,
   inserters,
@@ -695,6 +696,27 @@ export function getBeacons(names: string[]): Map<string, BeaconRow> {
   );
 }
 
+/** Key for the upkeep map. Explicit separator: item and module names are free
+ * text, so a space or dash could collide. */
+export const upkeepKey = (beacon: string, module: string) => `${beacon}\u0000${module}`;
+
+export type BeaconUpkeepRow = typeof beaconUpkeep.$inferSelect;
+/** What each named beacon consumes to keep running, keyed `beacon\0module`.
+ * Empty for every vanilla beacon; Pyanodons' Vatbrain biocomputer burns a
+ * cartridge per craft and its script enables the beacon only while that craft
+ * runs, so the drain is a precondition for the effect. */
+export function getBeaconUpkeep(names: string[]): Map<string, BeaconUpkeepRow> {
+  if (!names.length) return new Map();
+  return new Map(
+    db
+      .select()
+      .from(beaconUpkeep)
+      .where(inArray(beaconUpkeep.beacon, Array.from(new Set(names))))
+      .all()
+      .map((u) => [upkeepKey(u.beacon, u.module), u]),
+  );
+}
+
 /** Module eligibility, two independent gates. The *category* gate is per host
  * slots: a Py creature building only takes its creature modules, a beacon has
  * its own category list. The *effect* gate is about who receives the effect —
@@ -1001,10 +1023,14 @@ export function modulePickerData(recipeName: string, machineName: string) {
   // "nothing can produce this" as unknowable rather than locked. (Pyanodons gates
   // the tiers through the biocomputer's cartridge recipes, which unlock normally
   // and carry the real availability signal.)
+  // Rescued carrier beacons need the same treatment: Py's hidden beacon has no
+  // recipe either, so it reported locked and left the picker with nothing
+  // addable at all — the "+ Add" button disables when every offered beacon is
+  // locked, which made the whole feature unreachable.
   const ungatedModules = new Set(
-    soleModules
-      .filter((mod) => !recipesProducingByGoods([mod.name]).get(mod.name)?.length)
-      .map((mod) => mod.name),
+    [...soleModules, ...soleCarriers]
+      .filter((row) => !recipesProducingByGoods([row.name]).get(row.name)?.length)
+      .map((row) => row.name),
   );
   const unlocked = unlockedItems([
     ...allModules.map((mod) => mod.name),
@@ -1024,7 +1050,7 @@ export function modulePickerData(recipeName: string, machineName: string) {
     moduleSlots: b.moduleSlots,
     energyUsageW: b.energyUsageW,
     profile: b.profile,
-    unlocked: unlocked.has(b.name),
+    unlocked: unlocked.has(b.name) || ungatedModules.has(b.name),
     // fits the beacon's slots, and its transmitted effects are usable by machine+recipe
     modules: allModules
       .filter(

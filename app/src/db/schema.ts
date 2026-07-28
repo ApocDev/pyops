@@ -242,6 +242,28 @@ export const beacons = sqliteTable("beacons", {
   profile: text({ mode: "json" }).$type<number[] | null>(),
 });
 
+/* ── Beacon upkeep ────────────────────────────────────────────────────────────
+ * What a beacon building consumes to keep running, per second, when it carries a
+ * given module. Vanilla beacons have no upkeep; Pyanodons' Vatbrain biocomputer
+ * does — it is an assembling machine burning brain cartridges whose script
+ * enables a hidden beacon ONLY while that craft is running, so the drain is a
+ * precondition for the effect rather than an optional cost. Keyed by module
+ * because the tier chosen (which cartridge recipe the biocomputer runs) selects
+ * both the effect and the cartridge. Populated from the dump helper's
+ * `pyops-effect-beacons` export, so no mod knowledge lives in the app. */
+export const beaconUpkeep = sqliteTable(
+  "beacon_upkeep",
+  {
+    beacon: text().notNull(),
+    module: text().notNull(),
+    item: text().notNull(),
+    kind: text().notNull().default("item"),
+    /** Units consumed per second by ONE beacon building running this tier. */
+    perSec: real("per_sec").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.beacon, t.module] })],
+);
+
 /* ── Labs ─────────────────────────────────────────────────────────────────────
  * Research machines. Modelled apart from `crafting_machines` because a lab has
  * no crafting categories and consumes no recipe: it burns the science packs a

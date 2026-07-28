@@ -152,6 +152,7 @@ const TABLES = [
   "modules",
   "module_limitations",
   "beacons",
+  "beacon_upkeep",
   "labs",
   "belts",
   "loaders",

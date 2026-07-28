@@ -236,6 +236,61 @@ if #turd_replacements > 0 then
     data:extend {{type = "mod-data", name = "pyops-turd-replacements", data = {replacements = turd_replacements}}}
     log("pyops-dump: exported " .. #turd_replacements .. " TURD recipe replacements")
 end
+
+-- Effect buildings: a machine that produces nothing and exists only to broadcast
+-- a module effect through a script-spawned beacon. Pyanodons' Vatbrain
+-- biocomputer is one: it runs a brain-food recipe that consumes a cartridge and
+-- yields no product, and while that craft runs a script enables a hidden beacon
+-- holding the matching vatbrain module. The machine->beacon->tier mapping lives
+-- in control-stage Lua that the data stage cannot require, so it is reconstructed
+-- here from prototypes and exported as mod-data. Everything downstream then reads
+-- plain data instead of knowing anything about Py.
+local effect_beacons = {}
+do
+    local host = data.raw["assembling-machine"]["vat-brain"]
+    local carrier = data.raw.beacon["hidden-beacon"]
+    if host and carrier then
+        -- recipes this machine can run that yield nothing: its "fuel" options
+        local cats = {}
+        for _, c in pairs(host.crafting_categories or {}) do cats[c] = true end
+        local tiers = {}
+        for rname, r in pairs(data.raw.recipe) do
+            local rcats = r.categories or {r.category or "crafting"}
+            local match = false
+            for _, c in pairs(rcats) do if cats[c] then match = true end end
+            if match and (not r.results or #r.results == 0) then
+                -- pair the recipe with the module sharing its numeric tier, so a
+                -- future MK05 is picked up without touching this file
+                local suffix = rname:match("(%d+)$")
+                local ingredient = (r.ingredients or {})[1]
+                for mname, m in pairs(data.raw.module) do
+                    if m.category == "vatbrain" and suffix and mname:match("(%d+)$") == suffix:gsub("^0+", "") then
+                        table.insert(tiers, {
+                            recipe = rname,
+                            module = mname,
+                            item = ingredient and (ingredient.name or ingredient[1]) or nil,
+                            -- seconds of machine time per unit consumed
+                            energy = r.energy_required or 0.5,
+                        })
+                    end
+                end
+            end
+        end
+        if #tiers > 0 then
+            table.insert(effect_beacons, {
+                machine = "vat-brain",
+                beacon = "hidden-beacon",
+                energy_usage = host.energy_usage,
+                crafting_speed = host.crafting_speed or 1,
+                tiers = tiers,
+            })
+        end
+    end
+end
+if #effect_beacons > 0 then
+    data:extend {{type = "mod-data", name = "pyops-effect-beacons", data = {beacons = effect_beacons}}}
+    log("pyops-dump: exported " .. #effect_beacons .. " effect beacon(s)")
+end
 `;
 
 export async function writeHelperMod() {

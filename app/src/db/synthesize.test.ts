@@ -648,3 +648,82 @@ describe("synthesizePass2 research", () => {
     expect(get(`SELECT name FROM recipes WHERE kind = 'research'`)).toBeFalsy();
   });
 });
+
+// The dump helper reconstructs the machine → beacon → tier mapping (it lives in
+// control-stage Lua the data stage cannot reach) and exports it as mod-data.
+// Shapes here mirror Pyanodons' Vatbrain biocomputer exactly.
+describe("synthesizePass2 effect beacons", () => {
+  const seedCarrier = () =>
+    fx.db.exec(`INSERT INTO beacons
+      (name, display, distribution_effectivity, module_slots, energy_usage_w, hidden,
+       allowed_effects, allowed_module_categories, profile)
+      VALUES ('hidden-beacon','Hidden beacon',1,1,1,1,NULL,'["vatbrain"]',NULL)`);
+
+  const withExport = {
+    ...raw,
+    "mod-data": {
+      "pyops-effect-beacons": {
+        data: {
+          beacons: [
+            {
+              machine: "vat-brain",
+              beacon: "hidden-beacon",
+              energy_usage: 900_000,
+              crafting_speed: 1,
+              tiers: [
+                {
+                  recipe: "brain-food-01",
+                  module: "vatbrain-1",
+                  item: "brain-cartridge-01",
+                  energy: 20,
+                },
+                {
+                  recipe: "brain-food-04",
+                  module: "vatbrain-4",
+                  item: "brain-cartridge-04",
+                  energy: 20,
+                },
+              ],
+            },
+          ],
+        },
+      },
+    },
+  };
+
+  it("promotes the effect machine to a real, visible beacon", () => {
+    seedCarrier();
+    const counts = synthesizePass2(fx.db, withExport, ctx);
+    expect(counts.effectBeacons).toBe(1);
+    // the building you actually place, carrying the hidden carrier's
+    // distribution characteristics but its own power draw
+    expect(
+      get(
+        `SELECT hidden, energy_usage_w w, module_slots slots, distribution_effectivity de,
+                allowed_module_categories amc
+         FROM beacons WHERE name = 'vat-brain'`,
+      ),
+    ).toMatchObject({ hidden: 0, w: 900_000, slots: 1, de: 1, amc: '["vatbrain"]' });
+  });
+
+  it("records each tier's cartridge as upkeep, per building per second", () => {
+    seedCarrier();
+    synthesizePass2(fx.db, withExport, ctx);
+    const rows = fx.db
+      .prepare(`SELECT module, item, per_sec perSec FROM beacon_upkeep ORDER BY module`)
+      .all() as { module: string; item: string; perSec: number }[];
+    // one cartridge per 20s craft at speed 1
+    expect(rows).toEqual([
+      { module: "vatbrain-1", item: "brain-cartridge-01", perSec: 0.05 },
+      { module: "vatbrain-4", item: "brain-cartridge-04", perSec: 0.05 },
+    ]);
+  });
+
+  it("does nothing when the dump carries no export or the carrier is missing", () => {
+    // no mod-data at all
+    expect(synthesizePass2(fx.db, raw, ctx).effectBeacons).toBe(0);
+    // export present but its carrier beacon was never imported
+    expect(synthesizePass2(fx.db, withExport, ctx).effectBeacons).toBe(0);
+    expect(get(`SELECT name FROM beacons WHERE name = 'vat-brain'`)).toBeFalsy();
+  });
+});

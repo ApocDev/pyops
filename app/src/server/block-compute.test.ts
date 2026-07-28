@@ -1238,3 +1238,89 @@ describe("count pins and produced goals (#121)", () => {
     expect(res.rows.find((r) => r.recipe === "mk-steel")?.rate).toBeCloseTo(1.5); // goal still drives
   });
 });
+
+// A beacon that must keep running to broadcast: Pyanodons' Vatbrain biocomputer
+// burns a cartridge per craft, and its script enables the beacon only while that
+// craft runs, so the drain is a precondition for the effect rather than an
+// optional cost. Values are the real ones — 900 kW, one cartridge per 20 s.
+describe("computeBlock beacon upkeep and sharing", () => {
+  let fx: TestDb;
+
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    fx.db.exec(`
+      INSERT INTO fluids (name, display) VALUES ('pyops-electricity','Electricity (MJ)');
+      INSERT INTO items (name, display) VALUES
+        ('pack','Science pack'),('cartridge','Brain cartridge');
+      INSERT INTO fluids (name, display) VALUES ('research','Research');
+
+      INSERT INTO crafting_machines
+        (name, display, kind, crafting_speed, module_slots, energy_usage_w, energy_source,
+         allowed_effects, allowed_module_categories)
+      VALUES ('lab','Lab','lab',1,0,60000,'electric',
+              '["consumption","productivity","pollution"]','["vatbrain"]');
+      INSERT INTO machine_categories (machine, category) VALUES ('lab','pyops-research');
+
+      INSERT INTO recipes (name, display, kind, category, energy_required, enabled, hidden, allow_productivity)
+      VALUES ('research-pack','Research with pack','research','pyops-research',60,1,0,1);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount)
+        VALUES ('research-pack',0,'item','pack',1);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount)
+        VALUES ('research-pack',0,'fluid','research',1);
+
+      INSERT INTO beacons (name, display, distribution_effectivity, module_slots, energy_usage_w,
+                           hidden, allowed_module_categories)
+      VALUES ('vat-brain','Vatbrain biocomputer',1,1,900000,0,'["vatbrain"]');
+      INSERT INTO modules (name, display, category, hidden, tier, eff_speed, eff_productivity, eff_consumption)
+      VALUES ('vatbrain-4','Vatbrain MK04','vatbrain',1,4,0,1,4);
+      INSERT INTO beacon_upkeep (beacon, module, item, kind, per_sec)
+      VALUES ('vat-brain','vatbrain-4','cartridge','item',0.05);
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+  afterEach(() => fx.cleanup());
+
+  // 40 research/min at +100% productivity ⇒ 20 packs/min ⇒ 20 labs at 60 s each
+  const solve = (shared?: number) =>
+    computeBlock({
+      goals: [{ name: "research", rate: 40 / 60 }],
+      recipes: ["research-pack"],
+      machines: { "research-pack": "lab" },
+      beacons: {
+        "research-pack": [{ beacon: "vat-brain", modules: ["vatbrain-4"], count: 1, shared }],
+      },
+    } as never);
+
+  const rateOf = (r: Awaited<ReturnType<typeof computeBlock>>, name: string) =>
+    (r.imports as { name: string; rate: number }[]).find((f) => f.name === name)?.rate ?? 0;
+
+  it("draws upkeep once per beacon building, not once per machine", async () => {
+    const priv = await solve(1);
+    // 20 buildings × 0.05/s
+    expect(rateOf(priv, "cartridge")).toBeCloseTo(1, 4);
+    const shared = await solve(28);
+    // 20/28 of a building × 0.05/s — the fractional count keeps the balance linear
+    expect(rateOf(shared, "cartridge")).toBeCloseTo((20 / 28) * 0.05, 4);
+  });
+
+  it("keeps the productivity effect identical however many machines share it", async () => {
+    for (const shared of [1, 28]) {
+      const r = await solve(shared);
+      expect(r.rows[0]!.effects.productivity).toBeCloseTo(1);
+      expect(rateOf(r, "pack")).toBeCloseTo(20 / 60, 4); // packs never change
+    }
+  });
+
+  it("reports whole beacon buildings, since a fraction cannot be placed", async () => {
+    expect((await solve(1)).rows[0]!.beaconBuildings).toEqual([{ beacon: "vat-brain", count: 20 }]);
+    expect((await solve(28)).rows[0]!.beaconBuildings).toEqual([{ beacon: "vat-brain", count: 1 }]);
+  });
+
+  it("splits the beacon's power across the machines it serves", async () => {
+    const priv = await solve(1);
+    const shared = await solve(28);
+    // labs draw the same in both; only the vatbrain's 900 kW share moves
+    expect(priv.power.totalW - shared.power.totalW).toBeCloseTo(900_000 * (20 - 20 / 28), -2);
+  });
+});

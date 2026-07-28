@@ -203,9 +203,18 @@ into a co-located hidden beacon. Both that beacon and its modules are hidden pro
 since a script rather than a player places them — so the picker surfaces a hidden beacon or
 module only when the machine accepts a category that nothing visible carries. Matching on
 categories rather than names keeps the rule free of mod knowledge, and a normally-moddable
-machine still sees only its normal options. The biocomputer's own cost is an ordinary row:
-its cartridge recipe and machine import like any other, so a block can carry the labs and
-the vatbrains feeding them side by side.
+machine still sees only its normal options. The dump helper reconstructs the machine, carrier and per-tier mapping — it lives in
+control-stage Lua the data stage cannot require — and exports it as mod-data, the same route
+already used for branch replacements. Synthesis turns that into a real, visible beacon named
+for the building actually placed, carrying the carrier's distribution characteristics, the
+building's own power, and only the module categories its tiers broadcast. The picker then
+offers the biocomputer rather than a hidden prototype, and the sole-carrier rescue stops
+firing because a visible beacon now covers the category.
+
+Each tier's cartridge becomes beacon upkeep. The script enables the beacon only while the
+craft runs, so the drain is a precondition for the effect rather than an optional cost: it
+joins the block balance per beacon building, exactly as burner fuel does, and the factory
+must source it.
 
 A lab consumes one of each pack per unit of research, so pack rates do not depend on the
 recipe's craft time and are modelled exactly. Only the building count is time-sensitive:

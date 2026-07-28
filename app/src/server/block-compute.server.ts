@@ -373,6 +373,11 @@ export async function computeBlock(rawData: SolveInput) {
       .flat()
       .map((b) => b.beacon),
   );
+  const upkeepDb = q.getBeaconUpkeep(
+    Object.values(data.beacons ?? {})
+      .flat()
+      .map((b) => b.beacon),
+  );
 
   // Py TURD: the selected upgrades insert hidden modules into their buildings
   // (via an internal 1:1 beacon — no slot cost). A module applies when the
@@ -957,6 +962,8 @@ export async function computeBlock(rawData: SolveInput) {
   // per-fuel emissions multiplier (a fuel-choice nuance we approximate as 1).
   let totalPollutionPerMin = 0;
   const fuelTotals = new Map<string, { display: string | null; kind: string; perSec: number }>();
+  /** Items consumed by beacon buildings just to keep running (see below). */
+  const upkeepTotals = new Map<string, { kind: string; perSec: number }>();
   const burntTotals = new Map<string, { display: string | null; perSec: number }>(); // burnt result (ash, …)
   // An infeasible/error solve has no usable rates, but the editor still needs
   // the selected machine, fuel, modules, and recipe I/O to remain reachable so
@@ -992,6 +999,23 @@ export async function computeBlock(rawData: SolveInput) {
       beacon: cfg.beacon,
       count: Math.ceil((cfg.count * count) / Math.max(1, cfg.shared ?? 1) - 1e-9),
     }));
+    // A beacon that must keep running to broadcast (Py's Vatbrain biocomputer
+    // burns a cartridge per craft, and its script enables the beacon only while
+    // that craft runs) drains its upkeep once per BUILDING. Uses the fractional
+    // building count so the balance stays linear; the ceil above is the number to
+    // build. Joins the flow net exactly like burner fuel — a consumption the
+    // recipes never see, which the factory then has to source.
+    for (const cfg of beaconCfgs) {
+      const buildings = (cfg.count * count) / Math.max(1, cfg.shared ?? 1);
+      if (!(buildings > 0)) continue;
+      for (const mod of cfg.modules) {
+        const up = upkeepDb.get(q.upkeepKey(cfg.beacon, mod));
+        if (!up) continue;
+        const t = upkeepTotals.get(up.item) ?? { kind: up.kind, perSec: 0 };
+        t.perSec += up.perSec * buildings;
+        upkeepTotals.set(up.item, t);
+      }
+    }
 
     let fuel: {
       name: string;
@@ -1243,6 +1267,11 @@ export async function computeBlock(rawData: SolveInput) {
   for (const f of result.imports) flowNet.set(f.name, { kind: f.kind, net: -f.rate });
   for (const f of result.exports) flowNet.set(f.name, { kind: f.kind, net: f.rate });
   for (const [name, t] of fuelTotals) {
+    const cur = flowNet.get(name) ?? { kind: t.kind, net: 0 };
+    cur.net -= t.perSec;
+    flowNet.set(name, cur);
+  }
+  for (const [name, t] of upkeepTotals) {
     const cur = flowNet.get(name) ?? { kind: t.kind, net: 0 };
     cur.net -= t.perSec;
     flowNet.set(name, cur);
