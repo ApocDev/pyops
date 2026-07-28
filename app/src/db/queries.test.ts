@@ -1569,3 +1569,71 @@ describe("logisticsForGood (#126): belts/inserters gated to unlocked tiers", () 
     expect(logisticsForGood("no-such-good", 5)).toEqual({ error: "no good 'no-such-good'" });
   });
 });
+
+// Pyanodons' vatbrains are a hidden module carried by a hidden beacon, because a
+// script — not the player — inserts them. The player really does build the
+// Vatbrain biocomputer that drives it, so for a machine that accepts nothing else
+// the effect is a genuine planning choice rather than an implementation detail.
+describe("modulePickerData sole-carrier rescue", () => {
+  const seed = () => {
+    db.run(sql`
+      INSERT INTO recipes (name, kind, category, energy_required, enabled, hidden, allow_productivity) VALUES
+        ('research-pack','research','pyops-research',60,1,0,1),
+        ('plate-recipe','real','crafting',1,1,0,0)
+    `);
+    db.run(sql`
+      INSERT INTO crafting_machines (name, kind, crafting_speed, module_slots, allowed_effects, allowed_module_categories) VALUES
+        ('lab','lab',1,0,'["consumption","productivity","pollution"]','["vatbrain"]'),
+        ('assembler','assembling-machine',1,2,NULL,NULL)
+    `);
+    db.run(sql`
+      INSERT INTO machine_categories (machine, category) VALUES
+        ('lab','pyops-research'),('assembler','crafting')
+    `);
+    db.run(sql`
+      INSERT INTO modules (name, display, category, hidden, tier, eff_speed, eff_productivity, eff_consumption) VALUES
+        ('prod-1','Productivity 1','productivity',0,1,0,0.1,0),
+        ('vatbrain-4','Vatbrain MK04','vatbrain',1,4,0,1,4)
+    `);
+    db.run(sql`
+      INSERT INTO beacons (name, display, distribution_effectivity, module_slots, hidden, allowed_module_categories) VALUES
+        ('beacon-1','Beacon 1',1,2,0,'["productivity"]'),
+        ('hidden-beacon','Hidden beacon',1,1,1,'["productivity","vatbrain"]'),
+        ('hidden-beacon-turd','T.U.R.D. beacon',1,1,1,'["productivity","vatbrain"]')
+    `);
+  };
+
+  it("offers the hidden beacon and its module when nothing visible carries the category", () => {
+    seed();
+    const p = modulePickerData("research-pack", "lab")!;
+    expect(p.beacons.map((b) => b.name)).toContain("hidden-beacon");
+    expect(p.beaconModules.map((m) => m.name)).toContain("vatbrain-4");
+    // the hidden beacon's slot really can take it
+    expect(p.beacons.find((b) => b.name === "hidden-beacon")?.modules).toContain("vatbrain-4");
+  });
+
+  it("still excludes the TURD carrier, whose effects are applied automatically", () => {
+    seed();
+    const p = modulePickerData("research-pack", "lab")!;
+    expect(p.beacons.map((b) => b.name)).not.toContain("hidden-beacon-turd");
+  });
+
+  it("leaves a normally-moddable machine seeing only its normal options", () => {
+    seed();
+    const p = modulePickerData("plate-recipe", "assembler")!;
+    expect(p.beacons.map((b) => b.name)).toEqual(["beacon-1"]);
+    expect(p.beaconModules.map((m) => m.name)).not.toContain("vatbrain-4");
+    expect(p.modules.map((m) => m.name)).not.toContain("vatbrain-4");
+  });
+
+  it("does not transmit an effect the machine disallows", () => {
+    seed();
+    db.run(sql`
+      INSERT INTO modules (name, display, category, hidden, tier, eff_speed, eff_productivity, eff_consumption)
+      VALUES ('vatspeed','Vat speed','vatbrain',1,1,0.5,0,0)
+    `);
+    // a lab allows consumption/productivity/pollution but NOT speed
+    const p = modulePickerData("research-pack", "lab")!;
+    expect(p.beacons.find((b) => b.name === "hidden-beacon")?.modules).not.toContain("vatspeed");
+  });
+});

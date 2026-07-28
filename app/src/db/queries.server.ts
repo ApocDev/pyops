@@ -949,14 +949,51 @@ export function modulePickerData(recipeName: string, machineName: string) {
   const m = db.select().from(craftingMachines).where(eq(craftingMachines.name, machineName)).get();
   if (!r || !m) return null;
 
-  const allModules = placeableModules();
-  const beaconRows = db
-    .select()
-    .from(beacons)
-    .where(eq(beacons.hidden, false))
-    .orderBy(beacons.name)
-    .all()
-    .filter((b) => !isExcluded(b.name));
+  const visibleModules = placeableModules();
+  const allBeacons = db.select().from(beacons).orderBy(beacons.name).all();
+  const visibleBeacons = allBeacons.filter((b) => !b.hidden);
+  // A hidden beacon is normally an implementation detail and never offered. The
+  // exception is a machine whose accepted module categories NO visible beacon can
+  // carry: then the hidden beacon is the only way that machine can be affected at
+  // all, and hiding it just makes the machine look unmoddable. Pyanodons' lab is
+  // exactly this — it has no module slots of its own and accepts only `vatbrain`,
+  // a category carried solely by the hidden beacon that the Vatbrain biocomputer
+  // drives. Matched on categories rather than names, so it needs no mod knowledge.
+  const machineCategories = new Set(m.allowedModuleCategories ?? []);
+  const coveredByVisible = new Set(visibleBeacons.flatMap((b) => b.allowedModuleCategories ?? []));
+  const soleCarriers = machineCategories.size
+    ? allBeacons.filter(
+        (b) =>
+          b.hidden &&
+          (b.allowedModuleCategories ?? []).some(
+            (c) => machineCategories.has(c) && !coveredByVisible.has(c),
+          ),
+      )
+    : [];
+  const beaconRows = [...visibleBeacons, ...soleCarriers].filter((b) => !isExcluded(b.name));
+  // Same rescue for modules. Py's vatbrains are hidden module prototypes because
+  // a script inserts them into the hidden beacon rather than a player doing it —
+  // but the player really does build a Vatbrain biocomputer and feed it
+  // cartridges, so the effect is a genuine planning choice. Surface hidden
+  // modules only in categories the machine accepts and no visible module covers,
+  // so a normally-moddable machine still sees only its normal modules.
+  const visibleCategories = new Set(visibleModules.map((mod) => mod.category));
+  const soleModules = machineCategories.size
+    ? db
+        .select()
+        .from(modules)
+        .where(eq(modules.hidden, true))
+        .orderBy(modules.category, modules.tier, modules.name)
+        .all()
+        .filter(
+          (mod) =>
+            mod.category != null &&
+            machineCategories.has(mod.category) &&
+            !visibleCategories.has(mod.category) &&
+            !isExcluded(mod.name, mod.category),
+        )
+    : [];
+  const allModules = [...visibleModules, ...soleModules];
   const unlocked = unlockedItems([
     ...allModules.map((mod) => mod.name),
     ...beaconRows.map((b) => b.name),
@@ -3210,7 +3247,10 @@ export function goodInfo(
 
 // Always-on: Editor-Extensions creative content (uncraftable — map-editor only).
 // Matches ee- names AND ee-* subgroups AND the ee-testing-tool recipe category.
-const DEFAULT_EXCLUDE_GLOBS = ["ee-*", "ee-testing-tool"];
+// Also the TURD effect carrier: it looks like the vatbrain's beacon in the data,
+// but a selected TURD upgrade already inserts its modules into the affected
+// buildings automatically, so offering it in the picker would double-count.
+const DEFAULT_EXCLUDE_GLOBS = ["ee-*", "ee-testing-tool", "hidden-beacon-turd"];
 
 function globToRegex(glob: string): RegExp {
   const esc = glob

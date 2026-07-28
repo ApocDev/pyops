@@ -194,6 +194,10 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
     energyUsageW?: number | null;
     energySource?: string | null;
     fuelCategories?: string[];
+    /** Effect kinds the machine accepts. Matters for labs, which take
+     * productivity/consumption/pollution but NOT speed — without it a speed
+     * beacon would look valid on a research row and the game would ignore it. */
+    allowedEffects?: string[] | null;
     allowedModuleCategories?: string[] | null;
     category: string;
     pollutionPerMin?: number | null;
@@ -217,7 +221,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       m.energyUsageW ?? null,
       m.energySource ?? null,
       m.pollutionPerMin ?? 0,
-      null,
+      m.allowedEffects?.length ? JSON.stringify(m.allowedEffects) : null,
       m.allowedModuleCategories?.length ? JSON.stringify(m.allowedModuleCategories) : null,
       m.neighbourBonus ?? null,
       m.burnsFluid ?? null,
@@ -765,6 +769,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
         energyUsageW: parseSI(lab.energy_usage),
         energySource: es.type ?? null,
         pollutionPerMin: es.emissions_per_minute?.pollution ?? 0,
+        allowedEffects: lab.allowed_effects ?? null,
         allowedModuleCategories: lab.allowed_module_categories ?? null,
         category: RESEARCH_CATEGORY,
         fuelCategories: es.fuel_categories ?? [],

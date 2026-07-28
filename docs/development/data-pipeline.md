@@ -196,6 +196,17 @@ being researched, which a planner expresses by setting each row's rate; per-tech
 recipes would add a row for every technology to say the same thing. Completion time is a
 calculation over technology unit counts and unit times rather than a recipe.
 
+A lab has no module slots of its own and does not accept speed effects, so its only modifier
+is an external beacon. Pyanodons delivers that through the Vatbrain biocomputer: a machine
+that consumes brain cartridges and, while it runs, has a script insert a productivity module
+into a co-located hidden beacon. Both that beacon and its modules are hidden prototypes,
+since a script rather than a player places them — so the picker surfaces a hidden beacon or
+module only when the machine accepts a category that nothing visible carries. Matching on
+categories rather than names keeps the rule free of mod knowledge, and a normally-moddable
+machine still sees only its normal options. The biocomputer's own cost is an ordinary row:
+its cartridge recipe and machine import like any other, so a block can carry the labs and
+the vatbrains feeding them side by side.
+
 A lab consumes one of each pack per unit of research, so pack rates do not depend on the
 recipe's craft time and are modelled exactly. Only the building count is time-sensitive:
 real unit times span half a minute to twenty minutes across the technology tree, so the
