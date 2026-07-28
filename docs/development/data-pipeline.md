@@ -289,6 +289,15 @@ are served through `app/src/routes/icons.$.ts`. Sheet URLs include the project's
 data fingerprint when the manifest is read, preventing reuse across different enabled mod
 sets.
 
+Synthetic rows have no sprite of their own, so they borrow their subject's: a mining recipe
+draws its resource, a fluid-burning conversion draws its fluid, and a research recipe and
+the research good it produces both draw their science pack. Where the borrowed sprite alone
+would be ambiguous, a small corner badge distinguishes it — a fuel glyph for fluid burning,
+a flask for research — following the same overlay convention as the spoilage stopwatch.
+Research badges every pack rather than substituting one generic glyph, because research
+goods are per-pack by design and the pack is the distinction that matters. The purely
+abstract pseudo-goods, which have no subject to borrow from, render as a glyph instead.
+
 ## Provenance and drift
 
 Each successful sync stores two related values in project metadata:

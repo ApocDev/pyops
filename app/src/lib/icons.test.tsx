@@ -12,6 +12,7 @@ const { manifest } = vi.hoisted(() => ({
       "item/iron-plate": { s: 0, x: 3072, y: 3008 },
       "module/speed-module": { s: 0, x: 10, y: 20 }, // item-kind in a non-"item" folder
       "fluid/kerosene": { s: 0, x: 64, y: 128 },
+      "tool/automation-science-pack": { s: 0, x: 128, y: 192 },
     },
   },
 }));
@@ -87,4 +88,43 @@ test("the default icon shows no internal-name title (a rich hover card replaces 
   ).toBeTruthy();
   // the sprite no longer leaks the internal name as a native tooltip
   expect(container.querySelector("[title='iron-plate']")).toBeNull();
+});
+
+// Research goods are deliberately one per pack (a shared pool would let the
+// solver swap a cheap pack for an expensive one), so both the recipe and the
+// good it makes must draw the PACK — a generic glyph would render all eleven
+// identically and hide the only distinction that matters.
+test("research recipes use the science pack icon with a research badge", async () => {
+  const { container } = render(
+    <IconProvider>
+      <Icon kind="recipe" name="research-automation-science-pack" size="md" noHover />
+    </IconProvider>,
+  );
+  await waitFor(() => {
+    const span = container.querySelector(
+      "span[title='research-automation-science-pack']",
+    ) as HTMLElement;
+    // the pack's own atlas slice: -(128,192)/64
+    expect(span.getAttribute("style")).toContain(
+      "calc(var(--icon-md) * -2) calc(var(--icon-md) * -3)",
+    );
+    expect(container.querySelector("[data-icon-badge='research'] svg")).toBeTruthy();
+  });
+});
+
+test("the synthetic research good falls back to its pack icon", async () => {
+  const { container } = render(
+    <IconProvider>
+      <Icon kind="fluid" name="pyops-research-automation-science-pack" size="md" noHover />
+    </IconProvider>,
+  );
+  await waitFor(() => {
+    const span = container.querySelector(
+      "span[title='pyops-research-automation-science-pack']",
+    ) as HTMLElement;
+    expect(span.getAttribute("style")).toContain(
+      "calc(var(--icon-md) * -2) calc(var(--icon-md) * -3)",
+    );
+    expect(container.querySelector("[data-icon-badge='research'] svg")).toBeTruthy();
+  });
 });

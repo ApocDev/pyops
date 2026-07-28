@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { Flame, Fuel, Timer, Zap } from "lucide-react";
+import { Flame, FlaskConical, Fuel, Timer, Zap } from "lucide-react";
 import { iconManifestFn, spoilablesFn, type IconManifest, type IconSlot } from "../server/factorio";
 import { GoodHover } from "./recipe-card";
 
@@ -231,13 +231,26 @@ export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: Ico
   // known to be a fluid (and `fluid-` is part of the recipe prefix, not its id).
   const synthetic = /^(mine|pump|spoil|boil|generate)-(.+?)(?:-\d+)?$/.exec(name);
   const burnedFluid = /^burn-fluid-(.+)$/.exec(name)?.[1];
-  const withFuelBadge = (el: React.ReactNode) =>
-    burnedFluid ? (
+  // Research borrows its subject's sprite too: a `research-<pack>` recipe and the
+  // `pyops-research-<pack>` good it makes both draw the PACK, badged. They are
+  // deliberately one good per pack (a shared research pool would let the solver
+  // swap a cheap pack for an expensive one), so the icon has to say which pack —
+  // a generic glyph would render all eleven identically and hide the only
+  // distinction that matters.
+  const researchPack =
+    kind === "recipe" ? /^research-(.+)$/.exec(name)?.[1] : /^pyops-research-(.+)$/.exec(name)?.[1];
+  const badge = burnedFluid
+    ? { key: "fluid-fuel", Glyph: Fuel, color: "var(--info)" }
+    : researchPack
+      ? { key: "research", Glyph: FlaskConical, color: "var(--info)" }
+      : null;
+  const withBadge = (el: React.ReactNode) =>
+    badge ? (
       <span style={{ ...base, position: "relative" }}>
         {el}
         <span
           aria-hidden
-          data-icon-badge="fluid-fuel"
+          data-icon-badge={badge.key}
           style={{
             position: "absolute",
             right: "-3px",
@@ -249,8 +262,8 @@ export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: Ico
             pointerEvents: "none",
           }}
         >
-          <Fuel
-            color="var(--info)"
+          <badge.Glyph
+            color={badge.color}
             strokeWidth={2.75}
             style={{ width: `calc(${v} * 0.5)`, height: `calc(${v} * 0.5)` }}
           />
@@ -268,14 +281,18 @@ export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: Ico
         ? (m.icons[`recipe/${name}`] ??
           (burnedFluid
             ? m.icons[`fluid/${burnedFluid}`]
-            : subject
-              ? (itemIdx[subject] ??
-                m.icons[`entity/${subject}`] ??
-                m.icons[`fluid/${subject}`] ??
-                m.icons[`resource/${subject}`])
-              : undefined))
+            : researchPack
+              ? (itemIdx[researchPack] ?? m.icons[`item/${researchPack}`])
+              : subject
+                ? (itemIdx[subject] ??
+                  m.icons[`entity/${subject}`] ??
+                  m.icons[`fluid/${subject}`] ??
+                  m.icons[`resource/${subject}`])
+                : undefined))
         : kind === "fluid"
-          ? m.icons[`fluid/${name}`]
+          ? // the research goods are synthetic fluids with no sprite of their own
+            (m.icons[`fluid/${name}`] ??
+            (researchPack ? (itemIdx[researchPack] ?? m.icons[`item/${researchPack}`]) : undefined))
           : kind === "entity"
             ? (m.icons[`entity/${name}`] ?? itemIdx[name])
             : kind === "technology"
@@ -294,7 +311,7 @@ export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: Ico
   // the CSS var so the sprite tracks whatever --icon-* resolves to.
   const cells = m.atlasSize / m.cell;
   return withSpoil(
-    withFuelBadge(
+    withBadge(
       <span
         title={noTitle ? undefined : `${title ?? name}${spoilSuffix}`}
         style={{
