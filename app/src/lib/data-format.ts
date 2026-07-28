@@ -6,7 +6,7 @@
  * separate from SQLite migrations: migrations describe storage shape, while
  * this version describes the meaning of imported rows.
  */
-export const REFERENCE_DATA_FORMAT_VERSION = 3;
+export const REFERENCE_DATA_FORMAT_VERSION = 4;
 export const REFERENCE_DATA_FORMAT_META_KEY = "data_format_version";
 
 export type ReferenceDataFormatStatus = {

@@ -365,7 +365,16 @@ export const factoryScenarioProgressFn = createServerFn({ method: "GET" })
 
 export const factoryPinsFn = createServerFn({ method: "GET" }).handler(async () => {
   const display = (name: string) => pseudoDisplay(name) ?? q.classifyRef(name)?.display ?? name;
-  return getFactoryPins().map((pin) => ({ ...pin, display: display(pin.good) }));
+  // game sort order, matching the Scenario page's lists (getFactoryPins sorts by
+  // internal name, which scatters related goods)
+  const rank = q.goodOrderRank();
+  return getFactoryPins()
+    .map((pin) => ({ ...pin, display: display(pin.good) }))
+    .sort(
+      (a, b) =>
+        (rank.get(a.good) ?? Number.MAX_SAFE_INTEGER) -
+          (rank.get(b.good) ?? Number.MAX_SAFE_INTEGER) || a.good.localeCompare(b.good),
+    );
 });
 
 export const setFactoryPinsFn = createServerFn({ method: "POST" })

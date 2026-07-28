@@ -15,6 +15,7 @@ import {
   getResearchHorizon,
   getFavoriteFluidTemperatures,
   goodInfo,
+  goodOrderRank,
   goodExists,
   goodGraphCounts,
   clearHomeDismissedActions,
@@ -1663,5 +1664,43 @@ describe("modulePickerData sole-carrier rescue", () => {
     // a lab allows consumption/productivity/pollution but NOT speed
     const p = modulePickerData("research-pack", "lab")!;
     expect(p.beacons.find((b) => b.name === "hidden-beacon")?.modules).not.toContain("vatspeed");
+  });
+});
+
+describe("goodOrderRank", () => {
+  it("sorts goods by group, then subgroup, then the good's own order", () => {
+    // `order` alone is meaningless across subgroups: 'a' in the logistics group
+    // must not outrank 'a' in the production group. Only the full chain does
+    // what the crafting menu does.
+    db.run(sql`
+      INSERT INTO item_groups (name, "order") VALUES ('logistics','a'), ('production','b')
+    `);
+    db.run(sql`
+      INSERT INTO item_subgroups (name, "group", "order") VALUES
+        ('belt','logistics','b'), ('storage','logistics','a'), ('smelting','production','a')
+    `);
+    db.run(sql`
+      INSERT INTO items (name, subgroup, "order") VALUES
+        ('furnace','smelting','a'), ('chest','storage','a'),
+        ('fast-belt','belt','b'), ('slow-belt','belt','a')
+    `);
+    db.run(sql`INSERT INTO fluids (name, subgroup, "order") VALUES ('lava','smelting','b')`);
+    const rank = goodOrderRank();
+    const sorted = ["lava", "fast-belt", "furnace", "chest", "slow-belt"].sort(
+      (a, b) => rank.get(a)! - rank.get(b)!,
+    );
+    expect(sorted).toEqual(["chest", "slow-belt", "fast-belt", "furnace", "lava"]);
+  });
+
+  it("keeps related goods together when a project predates the group tables", () => {
+    // an older import has items and their subgroup NAME but no group rows; the
+    // fallback must still cluster a subgroup rather than scatter it
+    db.run(sql`
+      INSERT INTO items (name, subgroup, "order") VALUES
+        ('ingot-b','smelting','b'), ('cog','intermediate','a'), ('ingot-a','smelting','a')
+    `);
+    const rank = goodOrderRank();
+    const sorted = ["ingot-b", "cog", "ingot-a"].sort((a, b) => rank.get(a)! - rank.get(b)!);
+    expect(sorted).toEqual(["cog", "ingot-a", "ingot-b"]);
   });
 });

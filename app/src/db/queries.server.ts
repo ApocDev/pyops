@@ -15,6 +15,8 @@ import {
   recipeIngredients,
   recipeProducts,
   items,
+  itemGroups,
+  itemSubgroups,
   fluids,
   craftingMachines,
   machineCategories,
@@ -3264,6 +3266,63 @@ export function spoilables(): Record<string, number> {
  * caller KNOWS the name is a recipe ref (#113 — Py names recipes after their main
  * product, so recipe `coal-gas` would otherwise resolve to the fluid's display).
  * Returns null for unknown names. */
+/** Rank every good by Factorio's own sort key, so lists of goods read the way
+ * the player's inventory and crafting menus do instead of in solver order.
+ *
+ * The full chain, exactly as the game does it: group order → subgroup order →
+ * the good's own `order` → name. A good's `order` is only meaningful WITHIN its
+ * subgroup, so sorting on it alone interleaves unrelated goods. Projects
+ * imported before the group tables existed have no group/subgroup rows and fall
+ * back to the subgroup NAME, which still keeps related goods adjacent; a data
+ * re-sync restores true game order.
+ */
+export function goodOrderRank(): Map<string, number> {
+  const groupOrder = new Map(
+    db
+      .select()
+      .from(itemGroups)
+      .all()
+      .map((g) => [g.name, g.order ?? g.name]),
+  );
+  const subgroups = new Map(
+    db
+      .select()
+      .from(itemSubgroups)
+      .all()
+      .map((s) => [s.name, s]),
+  );
+  const key = (subgroup: string | null) => {
+    const sg = subgroup ? subgroups.get(subgroup) : undefined;
+    if (!sg) return { group: "￿", sub: subgroup ?? "￿" };
+    return {
+      group: (sg.group && groupOrder.get(sg.group)) || sg.group || "￿",
+      sub: sg.order ?? sg.name,
+    };
+  };
+  const rows = [
+    ...db
+      .select({ name: items.name, subgroup: items.subgroup, order: items.order })
+      .from(items)
+      .all()
+      .map((r) => ({ ...r, kind: 0 })),
+    ...db
+      .select({ name: fluids.name, subgroup: fluids.subgroup, order: fluids.order })
+      .from(fluids)
+      .all()
+      .map((r) => ({ ...r, kind: 1 })),
+  ]
+    .map((r) => ({ ...r, ...key(r.subgroup) }))
+    .sort(
+      (a, b) =>
+        a.group.localeCompare(b.group) ||
+        a.sub.localeCompare(b.sub) ||
+        (a.order ?? "").localeCompare(b.order ?? "") ||
+        a.kind - b.kind ||
+        a.name.localeCompare(b.name),
+    );
+  return new Map(rows.map((row, index) => [row.name, index]));
+}
+
 export function classifyRef(
   name: string,
   prefer?: "recipe",

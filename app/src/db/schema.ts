@@ -30,9 +30,25 @@ export const items = sqliteTable(
   (t) => [index("items_subgroup_idx").on(t.subgroup)],
 );
 
+/* Prototype sort order. Factorio orders a list of goods by their group's order,
+ * then their subgroup's order, then the good's own `order` string — an item's
+ * `order` is only meaningful WITHIN its subgroup, so these two tables are what
+ * make a list read the way the crafting menu does. */
+export const itemGroups = sqliteTable("item_groups", {
+  name: text().primaryKey(),
+  order: text(),
+});
+
+export const itemSubgroups = sqliteTable("item_subgroups", {
+  name: text().primaryKey(),
+  group: text(),
+  order: text(),
+});
+
 export const fluids = sqliteTable("fluids", {
   name: text().primaryKey(),
   display: text(),
+  subgroup: text(),
   order: text(),
   defaultTemperature: real("default_temperature"),
   maxTemperature: real("max_temperature"),

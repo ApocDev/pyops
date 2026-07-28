@@ -92,11 +92,21 @@ function pseudoDisplay(name: string) {
 function presentResult(result: PinnedFactoryResult) {
   const { allGoalChanges: _allGoalChanges, ...visibleResult } = result;
   const display = (name: string) => pseudoDisplay(name) ?? q.classifyRef(name)?.display ?? name;
+  // Every list on the Scenario page is a list of goods, and the solver emits them
+  // in whatever order it touched them — which reads as random. Sort them the way
+  // the game does, once, here: this is the single place they are all decorated.
+  const rank = q.goodOrderRank();
+  const byGood = <T extends { good: string }>(rows: T[]): T[] =>
+    [...rows].sort(
+      (a, b) =>
+        (rank.get(a.good) ?? Number.MAX_SAFE_INTEGER) -
+          (rank.get(b.good) ?? Number.MAX_SAFE_INTEGER) || a.good.localeCompare(b.good),
+    );
   return {
     ...visibleResult,
-    demands: result.demands.map((good) => ({ ...good, display: display(good.good) })),
-    raws: result.raws.map((good) => ({ ...good, display: display(good.good) })),
-    overproduced: result.overproduced.map((good) => ({
+    demands: byGood(result.demands).map((good) => ({ ...good, display: display(good.good) })),
+    raws: byGood(result.raws).map((good) => ({ ...good, display: display(good.good) })),
+    overproduced: byGood(result.overproduced).map((good) => ({
       ...good,
       display: display(good.good),
     })),
@@ -120,14 +130,14 @@ function presentResult(result: PinnedFactoryResult) {
         display: display(goal.good),
       })),
     },
-    goalChanges: result.goalChanges.map((change) => ({
+    goalChanges: byGood(result.goalChanges).map((change) => ({
       ...change,
       display:
         change.temperature == null
           ? display(change.good)
           : `${display(change.good)} ${fmtTemp(change.temperature)}`,
     })),
-    supplyAllocations: result.supplyAllocations.map((allocation) => ({
+    supplyAllocations: byGood(result.supplyAllocations).map((allocation) => ({
       ...allocation,
       display: display(allocation.good),
     })),

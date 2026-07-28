@@ -143,6 +143,8 @@ const TABLES = [
   "recipes",
   "items",
   "fluids",
+  "item_groups",
+  "item_subgroups",
   "recipe_categories",
   "crafting_machines",
   "machine_categories",
@@ -243,7 +245,11 @@ export function importFactorioDump(
       `INSERT OR IGNORE INTO items (name,display,subgroup,"order",stack_size,weight,fuel_value_j,fuel_category,spoil_result,spoil_ticks,burnt_result,plant_result) VALUES (@name,@display,@subgroup,@order,@stack_size,@weight,@fuel_value_j,@fuel_category,@spoil_result,@spoil_ticks,@burnt_result,@plant_result)`,
     ),
     fluid: db.prepare(
-      `INSERT INTO fluids (name,display,"order",default_temperature,max_temperature,fuel_value_j,heat_capacity_j) VALUES (@name,@display,@order,@default_temperature,@max_temperature,@fuel_value_j,@heat_capacity_j)`,
+      `INSERT INTO fluids (name,display,subgroup,"order",default_temperature,max_temperature,fuel_value_j,heat_capacity_j) VALUES (@name,@display,@subgroup,@order,@default_temperature,@max_temperature,@fuel_value_j,@heat_capacity_j)`,
+    ),
+    itemGroup: db.prepare(`INSERT OR IGNORE INTO item_groups (name,"order") VALUES (@name,@order)`),
+    itemSubgroup: db.prepare(
+      `INSERT OR IGNORE INTO item_subgroups (name,"group","order") VALUES (@name,@group,@order)`,
     ),
     recipeCat: db.prepare(`INSERT OR IGNORE INTO recipe_categories (name) VALUES (?)`),
     machine: db.prepare(
@@ -399,6 +405,7 @@ export function importFactorioDump(
       ins.fluid.run({
         name,
         display: localeByKind.fluid?.names?.[name] ?? null,
+        subgroup: f.subgroup ?? null,
         order: f.order ?? null,
         default_temperature: f.default_temperature ?? null,
         max_temperature: f.max_temperature ?? null,
@@ -406,6 +413,14 @@ export function importFactorioDump(
         heat_capacity_j: parseSI(f.heat_capacity),
       });
     }
+
+    // prototype sort order: a good's own `order` only sorts it within its
+    // subgroup, so the group/subgroup order is what makes a list of goods read
+    // the way the game's crafting menu does
+    for (const [name, g] of Object.entries(raw["item-group"] ?? {}))
+      ins.itemGroup.run({ name, order: g.order ?? null });
+    for (const [name, sg] of Object.entries(raw["item-subgroup"] ?? {}))
+      ins.itemSubgroup.run({ name, group: sg.group ?? null, order: sg.order ?? null });
 
     // recipe categories
     for (const name of Object.keys(raw["recipe-category"] ?? {})) ins.recipeCat.run(name);
