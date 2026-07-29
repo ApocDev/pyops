@@ -244,14 +244,25 @@ function inferredPins(): FactoryPin[] {
   }
   // Research demand comes from the science block, which is the only place its
   // rates can be edited — so it arrives as a derived pin, like a stock target.
-  for (const pin of sciencePins())
+  //
+  // How it combines with an existing pin depends on what that pin means. A stock
+  // or campaign target is genuinely separate demand — a pack you want banked is
+  // wanted ON TOP of the packs research eats — so those add. A `terminal` pin is
+  // different: it exists only because nothing was seen consuming the good, and
+  // the science block consumes without producing a flow, so the pack looked
+  // terminal precisely BECAUSE research is what eats it. Adding there would
+  // count the same demand twice, so research supersedes it.
+  for (const pin of sciencePins()) {
+    const existing = pins.get(pin.good);
+    const carried = existing && existing.source !== "terminal" ? existing.rate : 0;
     pins.set(pin.good, {
       good: pin.good,
       kind: pin.kind,
-      rate: pin.rate,
+      rate: carried + pin.rate,
       source: "science",
       blockId: pin.blockId,
     });
+  }
   return [...pins.values()];
 }
 

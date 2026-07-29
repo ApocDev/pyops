@@ -59,7 +59,14 @@ const docs = new Map<
     name: string;
     updatedAt: Date;
     data: {
-      goals: { name: string; rate: number; temperature?: number }[];
+      // stock/window make a goal a keep-in-stock target, which derives a pin
+      goals: {
+        name: string;
+        rate: number;
+        temperature?: number;
+        stock?: number;
+        window?: number;
+      }[];
       recipes: string[];
       supplyPriority?: number;
       fluidTemperatures?: Record<string, Record<string, number>>;
@@ -90,6 +97,13 @@ vi.mock("../db/queries.server.ts", () => ({
   // no science block in these fixtures; stubbed so the pin pipeline stays
   // hermetic instead of reading the active project's db
   scienceBlockRow: vi.fn(() => null),
+}));
+
+// Research demand, injected per test. The real one solves a lab bank against the
+// reference tables; the merge rule in inferredPins is what these tests exercise.
+const scienceDemand: { good: string; kind: string; rate: number; blockId: number }[] = [];
+vi.mock("./science-block.server.ts", () => ({
+  sciencePins: vi.fn(() => scienceDemand),
 }));
 
 vi.mock("./factory-debug.server.ts", () => ({
@@ -399,9 +413,16 @@ beforeEach(() => {
   for (const doc of docs.values()) {
     doc.updatedAt = new Date(++solveVersion * 1000);
     delete doc.data.campaign;
+    // stock/window turn a goal into a derived pin, which changes what the solve
+    // is even asked for — leaking one into the next test moves unrelated numbers
+    for (const goal of doc.data.goals) {
+      delete goal.stock;
+      delete goal.window;
+    }
   }
   blocks.splice(4);
   docs.delete(5);
+  scienceDemand.length = 0;
 });
 
 describe("pinned factory solve", () => {
@@ -430,6 +451,34 @@ describe("pinned factory solve", () => {
 
     expect(plan.getFactoryPins()).toContainEqual(
       expect.objectContaining({ good: "science", rate: 2, source: "explicit" }),
+    );
+  });
+
+  it("supersedes a terminal pin with research demand instead of double-counting", () => {
+    // `science` reads as terminal only because nothing was seen consuming it —
+    // and the science block consumes without producing a flow, so research is
+    // exactly what made it look terminal. Summing would count it twice.
+    expect(plan.getFactoryPins()).toContainEqual(
+      expect.objectContaining({ good: "science", source: "terminal" }),
+    );
+    scienceDemand.push({ good: "science", kind: "item", rate: 0.25, blockId: 122 });
+
+    expect(plan.getFactoryPins()).toContainEqual(
+      expect.objectContaining({ good: "science", rate: 0.25, source: "science", blockId: 122 }),
+    );
+  });
+
+  it("adds research demand on top of a stock target for the same good", () => {
+    // a pack you want banked is wanted ON TOP of the packs research eats
+    docs.get(1)!.data.goals[0].stock = 600;
+    docs.get(1)!.data.goals[0].window = 600;
+    expect(plan.getFactoryPins()).toContainEqual(
+      expect.objectContaining({ good: "science", rate: 1, source: "stock" }),
+    );
+
+    scienceDemand.push({ good: "science", kind: "item", rate: 0.25, blockId: 122 });
+    expect(plan.getFactoryPins()).toContainEqual(
+      expect.objectContaining({ good: "science", rate: 1.25, source: "science" }),
     );
   });
 
