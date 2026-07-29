@@ -6,9 +6,10 @@ import { activeProjectDbFile, goto } from "./helpers";
  * The science-consumer block, driven through the UI.
  *
  * Everything here is reachable only through real interaction: the singleton
- * button that disables itself, the per-pack rate inputs, and the technology
- * helper that writes into them. Server-level tests cover the arithmetic and can
- * see none of it.
+ * button that disables itself, the per-pack rate inputs, the technology helper
+ * that writes into them, and the module picker on a machine with no module slots
+ * of its own. Server-level tests cover the arithmetic and can see none of it,
+ * which is how a dead button shipped.
  *
  * Skips when the project has no labs, since they arrive only with a data sync on
  * a build that imports them.
@@ -93,12 +94,21 @@ test("creating a science block, typing rates, and deriving them from a technolog
     const picker = page.getByRole("dialog");
     await expect(picker.getByRole("heading")).toContainText("Modules —");
 
+    // A lab with no slots holds nothing itself, so there must be no palette under
+    // it: offering beacon-only modules there would read as "put one in the lab".
+    // The chip is reachable anyway, because a beacon is such a lab's ONE possible
+    // modifier — a slots-based gate closed that path and shipped a dead button.
+    const slotless = await picker.getByText("No module slots").isVisible();
+    if (slotless) await expect(picker.getByTitle(/click: add/)).toHaveCount(0);
+
     const addBeacon = picker.getByRole("button", { name: "+ Add" });
     const noBeacons = (await addBeacon.getAttribute("aria-disabled")) === "true";
     test.skip(noBeacons, "no beacon can reach this lab in this project's data");
 
     await addBeacon.click();
-    // the first module the beacon can carry — whatever the mod set calls it
+    // Only NOW can a module appear — inside the beacon, the one place it can go.
+    // Whatever the mod set calls it: the lab's allowed categories decide.
+    await expect(picker.getByTitle(/click: add/).first()).toBeVisible();
     await picker.getByTitle(/click: add/).first().click();
     await expect(picker.getByText(/%\s*(productivity|speed)/).first()).toBeVisible();
 
