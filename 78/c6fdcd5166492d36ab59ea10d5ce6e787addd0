@@ -1,0 +1,21 @@
+app/src/server/factory-plan.test.ts
+  s_89969b10cb4249::t_57b66c3e9d44b9 62-69,102-108,416-421,425,457-484
+app/src/server/factory-plan.server.ts
+  s_89969b10cb4249::t_d0f5b8148acadc 247-257,261,265
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "78c6fdcd5166492d36ab59ea10d5ce6e787addd0",
+  "prompts": {},
+  "sessions": {
+    "s_89969b10cb4249": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "43ac7a9c-8b7b-4293-8c25-486de85b300d",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
