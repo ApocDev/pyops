@@ -1,0 +1,57 @@
+app/src/components/settings/factorio-paths-card.tsx
+  s_987fb282dc7279::t_29bb7dbdf160be 1-176
+app/src/routes/settings.tsx
+  s_756098896277d4::t_d8cc1bb4225c6d 24,201-202
+app/src/server/dump.server.ts
+  s_756098896277d4::t_a7f6e5e11be8f5 38,291,321,369,409,543,581,711,797-800,807,838
+app/src/server/factorio-paths.server.test.ts
+  s_756098896277d4::t_db6943b2ad3348 1-108
+app/src/server/factorio-paths.server.ts
+  s_756098896277d4::t_728f8230d0d2a1 1-150
+app/src/server/factorio.ts
+  s_756098896277d4::t_2ba348f76e53f1 45-46,1485-1549
+app/src/server/storage-paths.server.ts
+  s_756098896277d4::t_4db07ec127773d 1-6,9
+docs/development/configuration.md
+  s_756098896277d4::t_5efba5450f5731 18-25
+docs/reference/advanced-configuration.md
+  s_756098896277d4::t_c2e9d9bc576d52 20-22,29-34
+docs/reference/settings-and-storage.md
+  s_756098896277d4::t_4b3bf1ce0230a5 17,54-75
+app/e2e/mut/factorio-paths.e2e.ts
+  s_756098896277d4::t_b75665051efd7f 1-49
+app/src/db/import-factorio.ts
+  s_756098896277d4::t_2fa9d481fce800 21,203
+app/src/server/agent-tools.server.ts
+  s_756098896277d4::t_cd77c597c10a4e 1613,1616-1619
+app/src/server/app-config.server.ts
+  s_756098896277d4::t_ad81bd8f39dc7a 26-30
+app/src/server/companion-mod.server.ts
+  s_756098896277d4::t_ab93b08158dc5a 18,21,27-29,73,107,122,146,150,152
+app/src/server/factorio-launch.server.ts
+  s_756098896277d4::t_a4cd8d8f2567a1 18-19,38,45,163,171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "d284074bbcce7b1a5d762d8be0a434184f6066bd",
+  "prompts": {},
+  "sessions": {
+    "s_756098896277d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4743fe7c-34fb-43ba-8515-d36b8d4af828",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_987fb282dc7279": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cad1f8bc-3580-45c5-9e45-9645b0220476",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
