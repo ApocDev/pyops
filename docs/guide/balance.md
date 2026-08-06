@@ -29,7 +29,9 @@ Connections groups goods as:
 
 - **Short**: linked consumers require more than their producer blocks provide.
 - **Overproduced**: linked producers make more than their internal consumers use.
-- **Balanced**: the producer and consumer rates agree; collapsed by default.
+- **Balanced**: the producer and consumer rates agree; collapsed by default. Residuals under
+  1% of a good's throughput count as balanced — they are rounding noise from hand-typed
+  goal rates, the same rule the Overview applies.
 - **Unsourced imports**: blocks consume the good, but no enabled block supplies it.
 - **Surplus / outputs**: blocks produce the good, but no enabled block consumes it.
 

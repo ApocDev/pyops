@@ -25,6 +25,7 @@ import { InfoHint } from "#/components/info-hint.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
+import { meaningfulImbalance } from "../lib/factory-flow.ts";
 
 export const Route = createFileRoute("/factory_/connections")({
   component: () => (
@@ -89,9 +90,12 @@ function CoherencePage() {
     links.length === 0 &&
     unsourced.length === 0 &&
     surplus.length === 0;
-  const shortLinks = links.filter((l) => l.net < -1e-6).sort((a, b) => a.net - b.net);
-  const surplusLinks = links.filter((l) => l.net > 1e-6);
-  const balancedLinks = links.filter((l) => Math.abs(l.net) <= 1e-6);
+  // Same relative floor as the Factory Overview: a sub-1% residual on a bulk
+  // flow is rounding noise and belongs under Balanced, not Short.
+  const meaningful = (l: Link) => meaningfulImbalance(l.net, l.produced, l.consumed);
+  const shortLinks = links.filter((l) => l.net < 0 && meaningful(l)).sort((a, b) => a.net - b.net);
+  const surplusLinks = links.filter((l) => l.net > 0 && meaningful(l));
+  const balancedLinks = links.filter((l) => !meaningful(l));
   const shorts = shortLinks.length;
 
   return (
@@ -148,7 +152,8 @@ function CoherencePage() {
                   </li>
                   <li>
                     <span className="text-success">Balanced</span> — producers meet consumers;
-                    nothing to do (collapsed by default).
+                    nothing to do (collapsed by default). Residuals under 1% of a good&apos;s
+                    throughput are rounding noise and count as balanced.
                   </li>
                   <li>
                     <span className="text-foreground">Unsourced imports</span> — consumed but
@@ -338,11 +343,18 @@ function BlockEnd({ good, b, tone }: { good: string; b: End; tone: "make" | "use
   );
 }
 
-function Balance({ good, net }: { good: string; net: number }) {
+function Balance({ good, net, noise }: { good: string; net: number; noise: boolean }) {
   const base = "shrink-0 px-1.5 py-0.5 whitespace-nowrap";
-  if (Math.abs(net) <= 1e-6)
+  if (Math.abs(net) <= 1e-6 || noise)
     return (
-      <span className={`${base} inline-flex items-center gap-1 bg-success/15 text-success`}>
+      <span
+        className={`${base} inline-flex items-center gap-1 bg-success/15 text-success`}
+        title={
+          noise && Math.abs(net) > 1e-6
+            ? "Residual under 1% of throughput — rounding noise"
+            : undefined
+        }
+      >
         <Check className="size-3.5" /> Balanced
       </span>
     );
@@ -416,7 +428,8 @@ function Ends({
 /** The good (anchor) + its balance, then the wiring read tight left→right beside
  * it: `made by [blocks] = N/s · used by [blocks] = M/s`. No center gap. */
 function LinkRow({ l, onScale }: { l: Link; onScale: () => void }) {
-  const short = l.net < -1e-6;
+  const noise = !meaningfulImbalance(l.net, l.produced, l.consumed);
+  const short = l.net < 0 && !noise;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-3 py-2 text-sm">
       {/* anchor: what this row is ABOUT (fixed width so goods/balances align) */}
@@ -424,7 +437,7 @@ function LinkRow({ l, onScale }: { l: Link; onScale: () => void }) {
         <div className="min-w-0 flex-1">
           <Good good={l.good} display={l.display} kind={l.kind} />
         </div>
-        <Balance good={l.good} net={l.net} />
+        <Balance good={l.good} net={l.net} noise={noise} />
       </div>
       {/* the wiring */}
       <div className="flex flex-1 flex-wrap items-center gap-x-1.5 gap-y-1">

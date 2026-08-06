@@ -33,7 +33,11 @@ import { PageHeader } from "#/components/page-header.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
 import { GoodsSection } from "#/components/goods-table.tsx";
 import { MachinesCard } from "#/components/factory/machines-card.tsx";
-import { factoryFlowKey, factoryFlowTemperature } from "../lib/factory-flow.ts";
+import {
+  factoryFlowKey,
+  factoryFlowTemperature,
+  meaningfulImbalance,
+} from "../lib/factory-flow.ts";
 
 export const Route = createFileRoute("/factory")({
   component: () => (
@@ -189,13 +193,10 @@ function FactoryPage() {
   // of stock goals would otherwise flood the surplus list. Own section below.
   // (A stock good that's also genuinely consumed can still show as a deficit.)
   const stockOnly = (r: (typeof rows)[number]) => r.stock && r.otherProduced <= 1e-9;
-  // Classify by a RELATIVE floor, not an absolute epsilon: a producer block
-  // sized to a hand-typed goal rate (0.083/s) against a consumer's exact need
-  // (0.0833/s) nets a constant sub-percent residual across the factory. Under 1%
-  // of the good's throughput that's rounding noise, not an actionable imbalance —
-  // it belongs in "balanced", not "build these next".
+  // Relative floor, not an absolute epsilon — sub-1% residuals are rounding
+  // noise, not "build these next" (see meaningfulImbalance).
   const meaningful = (r: (typeof rows)[number]) =>
-    Math.abs(r.net) > Math.max(1e-6, 1e-2 * Math.max(r.produced, r.consumed));
+    meaningfulImbalance(r.net, r.produced, r.consumed);
   const deficits = rows.filter((r) => r.net < 0 && meaningful(r));
   const surpluses = rows.filter((r) => r.net > 0 && meaningful(r) && !stockOnly(r));
   const stockBuffers = rows.filter((r) => stockOnly(r) && !(r.net < 0 && meaningful(r)));
