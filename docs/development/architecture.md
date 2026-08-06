@@ -79,7 +79,9 @@ The planning path is deliberately layered:
    blocks for cross-block analysis. The Connections Board renders that wiring with React Flow
    (`@xyflow/react`): `components/factory/board/board-graph.ts` derives nodes and aggregated
    edges (pure, tested), block positions persist as `board_x`/`board_y` on the blocks table,
-   and position writes deliberately bypass the undo log.
+   and position writes deliberately bypass the undo log. The block page's Flow view shares the
+   same React Flow viewport, keeping `components/block/flow-graph.ts`/`flow-layout.ts` as its
+   pure layout engine — precomputed link paths render verbatim through a custom edge.
 
 See [Block solver](./solver) for the constraint model and [Data pipeline](./data-pipeline)
 for the reference-data boundary.

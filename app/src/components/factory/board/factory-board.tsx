@@ -24,7 +24,7 @@ import { QueryError } from "#/components/query-error.tsx";
 import { autoPositions, buildBoardGraph, type BoardGraph } from "./board-graph.ts";
 import { BlockNode, type BlockFlowNode } from "./block-node.tsx";
 import { BoardFlowEdge, type BoardFlowEdgeType } from "./board-flow-edge.tsx";
-import { EdgeTooltip } from "./edge-tooltip.tsx";
+import { EdgeTooltip } from "#/components/edge-tooltip.tsx";
 
 const nodeTypes = { block: BlockNode };
 const edgeTypes = { flow: BoardFlowEdge };

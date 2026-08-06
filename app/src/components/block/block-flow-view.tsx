@@ -1,30 +1,42 @@
-import { useMemo, useState } from "react";
-import { Boxes, Workflow } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Maximize, Workflow } from "lucide-react";
+import {
+  Background,
+  BackgroundVariant,
+  Panel,
+  ReactFlow,
+  ReactFlowProvider,
+  useReactFlow,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import { Card } from "#/components/ui/card.tsx";
+import { Button } from "#/components/ui/button.tsx";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
-import { Icon, RawIcon } from "../../lib/icons";
-import { ItemHover, RecipeHover } from "../../lib/recipe-card";
-import { ENERGY_PSEUDO, rateLabel } from "./format.ts";
+import { EdgeTooltip } from "#/components/edge-tooltip.tsx";
 import { buildFlowGraph } from "./flow-graph.ts";
-import { layoutFlow, type PlacedNode } from "./flow-layout.ts";
+import { layoutFlow, type FlowLayout } from "./flow-layout.ts";
+import { FlowRecipeNode, type RecipeFlowNodeType } from "./flow-recipe-node.tsx";
+import { FlowBoundaryNode, type BoundaryFlowNodeType } from "./flow-boundary-node.tsx";
+import { FlowLinkEdge, type FlowLinkEdgeType } from "./flow-link-edge.tsx";
 import type { SolveResult } from "./solve-view.ts";
 
-/** Boundary-node tint by role — mirrors the item-chip link palette (import =
- * warning, byproduct export = surplus, goal output = info/target). */
-const BOUNDARY_TINT: Record<string, string> = {
-  import: "border-warning/50 bg-warning/10 text-warning",
-  export: "border-surplus/50 bg-surplus/10 text-surplus",
-  output: "border-info/50 bg-info/10 text-info",
-};
+const nodeTypes = { recipe: FlowRecipeNode, boundary: FlowBoundaryNode };
+const edgeTypes = { flowlink: FlowLinkEdge };
+
+type FlowNodeType = RecipeFlowNodeType | BoundaryFlowNodeType;
 
 /**
- * The block's material flow as a layered node-link diagram (#101): recipe rows
- * are nodes (icon + building count), imports enter at the left, byproducts and
- * the goal output leave at the right, and every item flow is a link whose width
- * is proportional to its solved rate. Cycles (Py recycle loops) are drawn as
- * dashed back-edges rather than assumed away. An alternative view to the recipe
- * table; clicking a recipe node jumps back to that row in the table.
+ * The block's material flow as a layered node-link diagram (#101) on a
+ * zoomable React Flow viewport (same interaction model as the factory board):
+ * recipe rows are nodes, imports enter at the left, byproducts and the goal
+ * output leave at the right, and every item flow is a link whose width is
+ * proportional to its solved rate. Cycles (Py recycle loops) are drawn as
+ * dashed back-edges. Layout stays the pure flow-graph/flow-layout pipeline —
+ * React Flow only supplies the viewport, so nodes aren't draggable; scroll to
+ * zoom, drag the background to pan, click a recipe node to jump to its table
+ * row.
  */
 export function BlockFlowView({
   res,
@@ -53,13 +65,11 @@ export function BlockFlowView({
     [res, goalKey],
   );
   const layout = useMemo(() => (graph ? layoutFlow(graph) : null), [graph]);
+  // React Flow measures the DOM — render it only on the client, after mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  // A link is emphasized when hovered directly or when either of its nodes is.
-  const [hoverLink, setHoverLink] = useState<string | null>(null);
-  const [hoverNode, setHoverNode] = useState<string | null>(null);
-  const anyHover = hoverLink != null || hoverNode != null;
-
-  if (!res)
+  if (!res || !mounted)
     return (
       <Card className="p-4">
         <Skeleton className="h-64 w-full" />
@@ -75,9 +85,6 @@ export function BlockFlowView({
         />
       </Card>
     );
-
-  const isActive = (source: string, target: string, id: string) =>
-    hoverLink === id || hoverNode === source || hoverNode === target;
 
   return (
     <Card className="overflow-hidden">
@@ -97,72 +104,126 @@ export function BlockFlowView({
           </span>
         </div>
       </div>
-
-      <div className="overflow-x-auto">
-        <div
-          className="relative"
-          style={{ width: layout.width, height: layout.height, minWidth: "100%" }}
-        >
-          <svg
-            width={layout.width}
-            height={layout.height}
-            className="absolute inset-0"
-            style={{ pointerEvents: "none" }}
-          >
-            {layout.links.map((l) => {
-              const active = isActive(l.source, l.target, l.id);
-              const stroke = active
-                ? "stroke-primary"
-                : l.goodKind === "fluid"
-                  ? "stroke-info"
-                  : "stroke-foreground";
-              const opacity = active ? 0.9 : anyHover ? 0.08 : l.goodKind === "fluid" ? 0.4 : 0.28;
-              return (
-                <g key={l.id}>
-                  <path
-                    d={l.path}
-                    fill="none"
-                    className={stroke}
-                    strokeWidth={l.width}
-                    strokeOpacity={opacity}
-                    strokeLinecap="round"
-                    strokeDasharray={l.back ? "5 4" : undefined}
-                  />
-                  {/* wide invisible hit target so thin links are still hoverable */}
-                  <path
-                    d={l.path}
-                    fill="none"
-                    stroke="transparent"
-                    strokeWidth={Math.max(l.width, 14)}
-                    style={{ pointerEvents: "stroke" }}
-                    onMouseEnter={() => setHoverLink(l.id)}
-                    onMouseLeave={() => setHoverLink((cur) => (cur === l.id ? null : cur))}
-                  >
-                    <title>{`${l.display} · ${rateLabel(l.good, l.rate, { perSec: true })}`}</title>
-                  </path>
-                </g>
-              );
-            })}
-          </svg>
-
-          {layout.nodes.map((n) => (
-            <div
-              key={n.id}
-              className="absolute"
-              style={{ left: n.x, top: n.y, width: n.w, height: n.h }}
-              onMouseEnter={() => setHoverNode(n.id)}
-              onMouseLeave={() => setHoverNode((cur) => (cur === n.id ? null : cur))}
-            >
-              {n.kind === "recipe" ? (
-                <RecipeNode node={n} onSelect={() => onSelectRecipe(n.ref)} />
-              ) : (
-                <BoundaryNode node={n} />
-              )}
-            </div>
-          ))}
-        </div>
+      <div className="h-[max(24rem,calc(100dvh-20rem))]">
+        <ReactFlowProvider>
+          <FlowCanvas layout={layout} onSelectRecipe={onSelectRecipe} />
+        </ReactFlowProvider>
       </div>
     </Card>
+  );
+}
+
+/** Inner canvas: derives React Flow nodes/edges from the placed layout and
+ * carries the hover-focus + cursor-tooltip state. */
+function FlowCanvas({
+  layout,
+  onSelectRecipe,
+}: {
+  layout: FlowLayout;
+  onSelectRecipe: (recipe: string) => void;
+}) {
+  const { fitView } = useReactFlow();
+  const [hoverLink, setHoverLink] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [hoverNode, setHoverNode] = useState<string | null>(null);
+
+  const nodes = useMemo<FlowNodeType[]>(
+    () =>
+      layout.nodes.map((n) =>
+        n.kind === "recipe"
+          ? {
+              id: n.id,
+              type: "recipe" as const,
+              position: { x: n.x, y: n.y },
+              draggable: false,
+              data: { node: n, onSelect: () => onSelectRecipe(n.ref) },
+            }
+          : {
+              id: n.id,
+              type: "boundary" as const,
+              position: { x: n.x, y: n.y },
+              draggable: false,
+              data: { node: n },
+            },
+      ),
+    [layout, onSelectRecipe],
+  );
+
+  // A link is emphasized when hovered directly or when either of its nodes is.
+  const edges = useMemo<FlowLinkEdgeType[]>(() => {
+    const anyHover = hoverLink != null || hoverNode != null;
+    return layout.links.map((l) => {
+      const active = hoverLink?.id === l.id || hoverNode === l.source || hoverNode === l.target;
+      return {
+        id: l.id,
+        type: "flowlink" as const,
+        source: l.source,
+        target: l.target,
+        data: {
+          path: l.path,
+          width: l.width,
+          back: l.back,
+          goodKind: l.goodKind,
+          emphasis: active
+            ? ("active" as const)
+            : anyHover
+              ? ("dimmed" as const)
+              : ("normal" as const),
+        },
+      };
+    });
+  }, [layout, hoverLink, hoverNode]);
+
+  const hovered = hoverLink ? layout.links.find((l) => l.id === hoverLink.id) : null;
+
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      onNodeMouseEnter={(_e, node) => setHoverNode(node.id)}
+      onNodeMouseLeave={() => setHoverNode(null)}
+      onEdgeMouseEnter={(e, edge) => setHoverLink({ id: edge.id, x: e.clientX, y: e.clientY })}
+      onEdgeMouseMove={(e, edge) => setHoverLink({ id: edge.id, x: e.clientX, y: e.clientY })}
+      onEdgeMouseLeave={() => setHoverLink(null)}
+      fitView
+      fitViewOptions={{ padding: 0.1 }}
+      minZoom={0.1}
+      maxZoom={2}
+      nodesDraggable={false}
+      nodesConnectable={false}
+      elementsSelectable={false}
+      deleteKeyCode={null}
+      className="bg-background"
+    >
+      <Background variant={BackgroundVariant.Dots} gap={28} size={1.5} color="var(--border)" />
+      <Panel position="top-right">
+        <Tooltip label content="Fit the whole flow in view">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={() => fitView({ padding: 0.1, duration: 300 })}
+            className="bg-card text-muted-foreground"
+          >
+            <Maximize />
+          </Button>
+        </Tooltip>
+      </Panel>
+      {hovered && hoverLink && (
+        <EdgeTooltip
+          goods={[
+            {
+              good: hovered.good,
+              display: hovered.display,
+              kind: hovered.goodKind,
+              rate: hovered.rate,
+            },
+          ]}
+          x={hoverLink.x}
+          y={hoverLink.y}
+        />
+      )}
+    </ReactFlow>
   );
 }
 
@@ -172,58 +233,5 @@ function LegendDot({ className, label }: { className: string; label: string }) {
       <span className={`inline-block size-2.5 ${className}`} aria-hidden />
       {label}
     </span>
-  );
-}
-
-/** A recipe node: icon + localized name + building count, clickable to focus the
- * table row and hoverable for the rich recipe card. */
-function RecipeNode({ node, onSelect }: { node: PlacedNode; onSelect: () => void }) {
-  return (
-    <RecipeHover name={node.ref} className="h-full w-full">
-      <button
-        type="button"
-        onClick={onSelect}
-        title={`${node.display} — click to open in the table`}
-        className="flex h-full w-full items-center gap-2 border border-border bg-card px-2 text-left transition-colors hover:border-primary focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:outline-none"
-      >
-        <Icon kind="recipe" name={node.ref} size="md" noHover />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm">{node.display}</span>
-          {node.machineCount != null && (
-            <span className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Boxes className="size-3.5 shrink-0" aria-hidden />
-              {node.machineCount}×
-            </span>
-          )}
-        </span>
-      </button>
-    </RecipeHover>
-  );
-}
-
-/** An import / export / goal-output node: a tinted good chip with its rate. */
-function BoundaryNode({ node }: { node: PlacedNode }) {
-  const tint = BOUNDARY_TINT[node.kind] ?? BOUNDARY_TINT.import;
-  const kind = node.goodKind ?? "item";
-  const pseudo = ENERGY_PSEUDO.has(node.ref);
-  const body = (
-    <div className={`flex h-full w-full items-center gap-2 border px-2 ${tint}`}>
-      <RawIcon kind={kind} name={node.ref} size="md" />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm" title={node.display}>
-          {node.display}
-        </span>
-        <span className="block truncate text-sm opacity-80">
-          {rateLabel(node.ref, node.throughput, { perSec: true })}
-        </span>
-      </span>
-    </div>
-  );
-  // pseudo-goods (electricity/heat/fluid-fuel) have no prototype to card
-  if (pseudo) return body;
-  return (
-    <ItemHover kind={kind} name={node.ref} className="block h-full w-full">
-      {body}
-    </ItemHover>
   );
 }

@@ -185,7 +185,11 @@ selected consumer runs as part of the chain, including when one of its products 
 into another recipe in the block.
 
 The recipe table explains how that result was produced. **Table** is the editing view;
-**Flow** is a read-only diagram of the same solved recipes and goods.
+**Flow** is a read-only diagram of the same solved recipes and goods: imports enter on the
+left, the goal output and byproducts leave on the right, link thickness tracks each flow's
+rate, and recycle loops draw as dashed back-edges. Scroll to zoom and drag the background to
+pan — **Fit** (⛶) frames the whole chain. Hover a link for the good and rate under the
+cursor, and select a recipe node to jump back to its table row.
 
 Variable generators show their average planned output and their minimum–maximum range on
 the electricity product chip. Building counts and block balances use the displayed average;
