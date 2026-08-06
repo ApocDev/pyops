@@ -23,6 +23,11 @@ export type AppConfig = {
   openrouterApiKey?: string;
   model?: string;
   factorySolverDebug?: boolean;
+  // Factorio install paths (Settings → Game data). Env vars still win; see
+  // factorio-paths.server.ts for the resolution order.
+  factorioBin?: string;
+  factorioDataDir?: string;
+  factorioModsDir?: string;
 };
 
 export function readAppConfig(): AppConfig {

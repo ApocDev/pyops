@@ -15,7 +15,8 @@
  */
 import { spawn } from "node:child_process";
 import dgram from "node:dgram";
-import { FACTORIO_BIN, factorioRunning } from "./dump.server.ts";
+import { factorioRunning } from "./dump.server.ts";
+import { factorioBin } from "./factorio-paths.server.ts";
 
 const STEAM_APP_ID = "427520";
 
@@ -34,14 +35,14 @@ export type LaunchResult = {
 };
 
 function isSteamInstall(): boolean {
-  return /steamapps[/\\]/i.test(FACTORIO_BIN);
+  return /steamapps[/\\]/i.test(factorioBin());
 }
 
 /** State the launch button needs: where the binary is, whether it's a Steam copy,
  * and whether a game is already running (button disabled in that case). */
 export async function factorioLaunchInfo(): Promise<LaunchInfo> {
   return {
-    binPath: FACTORIO_BIN,
+    binPath: factorioBin(),
     isSteam: isSteamInstall(),
     running: await factorioRunning(),
   };
@@ -159,7 +160,7 @@ export async function launchFactorio(appPort: number): Promise<LaunchResult> {
 
     // Steam not on PATH / not running — fall back to a direct launch so the button
     // still works (with SteamAppId set, as the data-dump does).
-    const direct = await spawnDetached(FACTORIO_BIN, args, {
+    const direct = await spawnDetached(factorioBin(), args, {
       SteamAppId: STEAM_APP_ID,
       SteamGameId: STEAM_APP_ID,
     });
@@ -167,7 +168,7 @@ export async function launchFactorio(appPort: number): Promise<LaunchResult> {
     return { ok: false, via: "direct", isSteam, port, error: direct.error ?? viaSteam.error };
   }
 
-  const direct = await spawnDetached(FACTORIO_BIN, args);
+  const direct = await spawnDetached(factorioBin(), args);
   if (direct.ok) return { ok: true, via: "direct", isSteam, port };
   return { ok: false, via: "direct", isSteam, port, error: direct.error };
 }

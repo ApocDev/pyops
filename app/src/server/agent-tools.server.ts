@@ -1610,24 +1610,13 @@ export const gameScreenshot = tool({
   }),
   execute: async ({ panel, crop, scale }) => {
     try {
-      const { homedir, tmpdir } = await import("node:os");
+      const { tmpdir } = await import("node:os");
       const path = await import("node:path");
       const { stat } = await import("node:fs/promises");
-
-      // Where Factorio writes script-output, per OS (overridable for odd installs).
-      const scriptOutput = () => {
-        if (process.env.FACTORIO_SCRIPT_OUTPUT) return process.env.FACTORIO_SCRIPT_OUTPUT;
-        const home = homedir();
-        if (process.platform === "win32") {
-          const appdata = process.env.APPDATA ?? path.join(home, "AppData", "Roaming");
-          return path.join(appdata, "Factorio", "script-output");
-        }
-        if (process.platform === "darwin") {
-          return path.join(home, "Library", "Application Support", "factorio", "script-output");
-        }
-        return path.join(home, ".factorio", "script-output");
-      };
-      const raw = path.join(scriptOutput(), "pyops-shot.png");
+      // Where Factorio writes script-output — shared resolver (env → Settings →
+      // per-OS default), same as the data sync.
+      const { factorioScriptOutputDir } = await import("./factorio-paths.server.ts");
+      const raw = path.join(factorioScriptOutputDir(), "pyops-shot.png");
       const statRaw = () => stat(raw).catch(() => null);
       const before = await statRaw().then((s) => s?.mtimeMs ?? 0);
 

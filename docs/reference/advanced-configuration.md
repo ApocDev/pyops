@@ -17,13 +17,20 @@ Set variables in the environment that launches PyOps. Source runs can also use
 
 | Variable                   | Default                                      | Purpose                                                                        |
 | -------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------ |
-| `FACTORIO_BIN`             | Standard Steam path on Linux                 | Factorio executable used by game-data sync and **Launch Factorio**             |
-| `FACTORIO_DATA_DIR`        | `~/.factorio`                                | Factorio user-data folder containing `mods` and `script-output`                |
+| `FACTORIO_BIN`             | Settings value, then per-OS detection        | Factorio executable used by game-data sync and **Launch Factorio**             |
+| `FACTORIO_DATA_DIR`        | Settings value, then the platform folder     | Factorio user-data folder containing `mods` and `script-output`                |
+| `FACTORIO_MODS_DIR`        | Settings value, then `<user-data>/mods`      | Factorio mods folder that directly contains `mod-list.json`                    |
 | `PYOPS_DATA_DIR`           | Platform app-data folder in a packaged build | Root for project databases, icon data, and app configuration                   |
 | `PYOPS_HIDE_STORAGE_PATHS` | Unset                                        | Set to `true` to prevent absolute storage paths from being sent to the browser |
 | `PYOPS_BRIDGE_PORT`        | `37657`                                      | UDP port on which PyOps listens for the Companion mod                          |
 | `OPENROUTER_API_KEY`       | Stored Settings value                        | OpenRouter key; an environment value takes priority over Settings              |
 | `PYOPS_AGENT_MODEL`        | Stored model, then PyOps default             | OpenRouter model ID; an environment value forces every conversation to use it  |
+
+The three Factorio paths are normally set under
+[**Settings → Game data → Factorio paths**](settings-and-storage#point-pyops-at-your-factorio-installation);
+the environment variables are hard overrides for managed or scripted launches. Each path
+resolves as environment variable, then stored Settings value, then platform default — the
+executable default probes the usual Steam and standalone install locations for the OS.
 
 `FACTORIO_DATA_DIR` must be the user-data folder, not the installation folder. For a Steam
 installation, `FACTORIO_BIN` points to the game executable while `FACTORIO_DATA_DIR` points

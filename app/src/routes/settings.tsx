@@ -21,6 +21,7 @@ import { BlockShareCard } from "../components/block-share-card.tsx";
 import { ProjectBackupCard } from "../components/project-backup-card.tsx";
 import { HorizonPicker } from "../components/horizon-picker";
 import { CompanionModCard } from "../components/companion-mod-card";
+import { FactorioPathsCard } from "../components/settings/factorio-paths-card.tsx";
 import { FactorySolverDebugCard } from "../components/settings/factory-solver-debug-card.tsx";
 import { DriftChanges } from "../components/drift-changes";
 import { driftModal } from "../lib/drift-store";
@@ -196,6 +197,8 @@ function GameDataTab() {
           </p>
         </div>
       </Card>
+
+      <FactorioPathsCard />
 
       <ModDriftCard data={drift.data} />
 

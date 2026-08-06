@@ -11,7 +11,6 @@
  */
 import Database from "better-sqlite3";
 import { readdirSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { synthesizePass2 } from "./synthesize.ts";
 import { temperatureFedDrain, type TempFedFluid } from "./fluid-energy.ts";
@@ -19,10 +18,9 @@ import {
   REFERENCE_DATA_FORMAT_META_KEY,
   REFERENCE_DATA_FORMAT_VERSION,
 } from "../lib/data-format.ts";
+import { factorioScriptOutputDir } from "../server/factorio-paths.server.ts";
 import { PROJECTS_DIR } from "../server/paths.server.ts";
 import { configureSqliteConnection } from "../server/provision.ts";
-
-const DEFAULT_DUMP = join(homedir(), ".factorio", "script-output", "data-raw-dump.json");
 
 // All prototype types that are "items" (can be inventory contents / recipe components).
 const ITEM_TYPES = [
@@ -202,7 +200,7 @@ export type ImportSummary = {
 export function importFactorioDump(
   opts: { dumpPath?: string; dbUrl?: string } = {},
 ): ImportSummary {
-  const DUMP = opts.dumpPath ?? DEFAULT_DUMP;
+  const DUMP = opts.dumpPath ?? join(factorioScriptOutputDir(), "data-raw-dump.json");
   const DB_URL = opts.dbUrl ?? process.env.DATABASE_URL ?? join(PROJECTS_DIR, "default.db");
 
   const raw = JSON.parse(readFileSync(DUMP, "utf8")) as Record<string, Record<string, any>>;

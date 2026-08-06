@@ -23,7 +23,6 @@
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { eq, sql } from "drizzle-orm";
@@ -36,15 +35,10 @@ import { bumpSolveGeneration } from "../db/solve-generation.server.ts";
 import { resolveAllBlocks } from "./block-compute.server.ts";
 import { computeCostAnalysis } from "./cost-analysis.server.ts";
 import { buildIconAtlas } from "./icon-atlas.ts";
+import { factorioBin, factorioModsDir, factorioScriptOutputDir } from "./factorio-paths.server.ts";
 import { applyRenames, readModMigrations } from "./migrations.ts";
 import { ICON_DATA_DIR } from "./paths.server.ts";
 
-export const FACTORIO_BIN =
-  process.env.FACTORIO_BIN ??
-  join(homedir(), ".local/share/Steam/steamapps/common/Factorio/bin/x64/factorio");
-const FACTORIO_DATA = process.env.FACTORIO_DATA_DIR ?? join(homedir(), ".factorio");
-const MODS_DIR = join(FACTORIO_DATA, "mods");
-const SCRIPT_OUTPUT = join(FACTORIO_DATA, "script-output");
 const APP_DIR = process.cwd();
 
 const execFileAsync = promisify(execFile);
@@ -294,7 +288,7 @@ end
 `;
 
 export async function writeHelperMod() {
-  const dir = join(MODS_DIR, "pyops-dump");
+  const dir = join(factorioModsDir(), "pyops-dump");
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, "info.json"), JSON.stringify(HELPER_INFO, null, 2));
   await writeFile(join(dir, "data.lua"), HELPER_DATA_LUA);
@@ -324,7 +318,7 @@ export function helperModFingerprint(): string {
 type ModList = { mods: { name: string; enabled: boolean; version?: string }[] };
 
 async function readModList(): Promise<ModList> {
-  return JSON.parse(await readFile(join(MODS_DIR, "mod-list.json"), "utf8")) as ModList;
+  return JSON.parse(await readFile(join(factorioModsDir(), "mod-list.json"), "utf8")) as ModList;
 }
 
 /** Shown when a dump can't run because the game already holds its instance lock. */
@@ -372,7 +366,7 @@ async function setHelperEnabled(enabled: boolean) {
   const entry = ml.mods.find((m) => m.name === "pyops-dump");
   if (entry) entry.enabled = enabled;
   else ml.mods.push({ name: "pyops-dump", enabled });
-  await writeFile(join(MODS_DIR, "mod-list.json"), JSON.stringify(ml, null, 2));
+  await writeFile(join(factorioModsDir(), "mod-list.json"), JSON.stringify(ml, null, 2));
 }
 
 /** Fingerprint of the enabled mod set (sans the dump helper) — the version of
@@ -412,7 +406,7 @@ export async function readMods(): Promise<ModEntry[]> {
   const ml = await readModList();
   let versions = new Map<string, string>();
   try {
-    versions = modVersionsFromEntries(await readdir(MODS_DIR));
+    versions = modVersionsFromEntries(await readdir(factorioModsDir()));
   } catch {
     /* mods dir missing — versions stay null */
   }
@@ -546,7 +540,7 @@ export function evaluateDumpReuse(input: {
 export async function dumpReuseStatus(): Promise<DumpReuse> {
   let dump: { mtimeMs: number; sizeBytes: number } | null = null;
   try {
-    const s = await stat(join(SCRIPT_OUTPUT, "data-raw-dump.json"));
+    const s = await stat(join(factorioScriptOutputDir(), "data-raw-dump.json"));
     dump = { mtimeMs: s.mtimeMs, sizeBytes: s.size };
   } catch {
     dump = null; // never dumped, or a different script-output dir
@@ -584,7 +578,7 @@ async function applyModMigrations(): Promise<{
   renames: number;
 }> {
   const mods = await readMods();
-  const files = await readModMigrations(MODS_DIR, mods);
+  const files = await readModMigrations(factorioModsDir(), mods);
   const allKeys = files.map((f) => f.key);
 
   const writeApplied = (keys: string[]) =>
@@ -714,7 +708,7 @@ function run(
 const factorioEnv = { SteamAppId: "427520", SteamGameId: "427520" }; // lets the Steam build run headless
 
 async function factorio(flag: string) {
-  const out = await run(FACTORIO_BIN, [flag], { env: factorioEnv });
+  const out = await run(factorioBin(), [flag], { env: factorioEnv });
   // factorio exits 0 even when the data stage failed — check for its error banner
   if (/^-+ Error -+$/m.test(out)) {
     const m = /Error[^\n]*\n([^\n]+)/.exec(out);
@@ -800,14 +794,17 @@ export function startDataSync(opts: { icons?: boolean; reuseDump?: boolean } = {
         }
       }
       step("import", "importing dump into sqlite");
-      const summary = importFactorioDump({ dbUrl: currentDatabaseFile() });
+      const summary = importFactorioDump({
+        dumpPath: join(factorioScriptOutputDir(), "data-raw-dump.json"),
+        dbUrl: currentDatabaseFile(),
+      });
       state.log.push(
         `imported ${summary.counts.recipes} recipes / ${summary.counts.items} items with data reader v${summary.dataFormatVersion} in ${summary.ms}ms`,
       );
       if (icons) {
         step("atlas", "rebuilding icon atlas");
         const atlas = await buildIconAtlas({
-          src: SCRIPT_OUTPUT,
+          src: factorioScriptOutputDir(),
           out: ICON_DATA_DIR,
           onLog: (m) => state.log.push(m),
         });
@@ -838,7 +835,7 @@ export function startDataSync(opts: { icons?: boolean; reuseDump?: boolean } = {
       // the dump is unchanged, only our reading of it advanced.
       let dumpMtimeMs: number | null = null;
       try {
-        dumpMtimeMs = (await stat(join(SCRIPT_OUTPUT, "data-raw-dump.json"))).mtimeMs;
+        dumpMtimeMs = (await stat(join(factorioScriptOutputDir(), "data-raw-dump.json"))).mtimeMs;
       } catch {
         dumpMtimeMs = null; // imported from an explicit path elsewhere
       }

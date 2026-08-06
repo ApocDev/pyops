@@ -42,7 +42,8 @@ import { APP_CONFIG_FILE, DATA_DIR, ICON_DATA_DIR, PROJECTS_DIR } from "./paths.
 import { withUndoAction } from "./undo-action.server.ts";
 import { captureSnapshot } from "./snapshots.server.ts";
 import { defaultPresetLoadout, presetsForRow } from "./module-presets.server.ts";
-import { storagePathsResponse } from "./storage-paths.server.ts";
+import { storagePathsHidden, storagePathsResponse } from "./storage-paths.server.ts";
+import { factorioPathDefaults, factorioPaths } from "./factorio-paths.server.ts";
 import {
   blockSaveConflict,
   blockUpdatedAt,
@@ -1481,3 +1482,68 @@ export const dataPathsFn = createServerFn({ method: "GET" }).handler(
     });
   },
 );
+
+/** One Factorio path as the Settings card needs it: what's in effect, where it
+ * came from, whether it exists on disk, and the raw stored value for the input. */
+export type FactorioPathField = {
+  effective: string;
+  source: "env" | "settings" | "default";
+  exists: boolean;
+  stored: string;
+  /** What this field falls back to when left blank (the input placeholder). */
+  fallback: string;
+};
+
+export type FactorioPathsInfo =
+  | { hidden: true }
+  | {
+      hidden: false;
+      bin: FactorioPathField;
+      dataDir: FactorioPathField;
+      modsDir: FactorioPathField;
+    };
+
+/** Where Factorio lives (executable / user-data / mods), for Settings → Game
+ * data. Follows the same hide flag as the storage card — an instance exposed
+ * beyond the local machine shouldn't leak absolute server paths. */
+export const factorioPathsFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<FactorioPathsInfo> => {
+    if (storagePathsHidden()) return { hidden: true };
+    const p = factorioPaths();
+    const defaults = factorioPathDefaults();
+    const stored = cfg.readAppConfig();
+    const field = (
+      r: { value: string; source: "env" | "settings" | "default"; exists: boolean },
+      storedValue: string | undefined,
+      fallback: string,
+    ): FactorioPathField => ({
+      effective: r.value,
+      source: r.source,
+      exists: r.exists,
+      stored: storedValue ?? "",
+      fallback,
+    });
+    return {
+      hidden: false,
+      bin: field(p.bin, stored.factorioBin, defaults.bin),
+      dataDir: field(p.dataDir, stored.factorioDataDir, defaults.dataDir),
+      modsDir: field(p.modsDir, stored.factorioModsDir, defaults.modsDir),
+    };
+  },
+);
+
+/** Persist the Factorio paths (Settings → Game data). Pass a field to set it
+ * ("" clears it back to env/platform default); omit a field to leave it alone.
+ * Refused on an instance that hides server paths — remote viewers of a shared
+ * instance must not repoint its filesystem access. */
+export const setFactorioPathsFn = createServerFn({ method: "POST" })
+  .validator((d: { bin?: string | null; dataDir?: string | null; modsDir?: string | null }) => d)
+  .handler(async ({ data }) => {
+    if (storagePathsHidden()) throw new Error("Path settings are disabled for this instance.");
+    const patch: { factorioBin?: string; factorioDataDir?: string; factorioModsDir?: string } = {};
+    if (data.bin !== undefined) patch.factorioBin = data.bin?.trim() ?? "";
+    if (data.dataDir !== undefined) patch.factorioDataDir = data.dataDir?.trim() ?? "";
+    if (data.modsDir !== undefined) patch.factorioModsDir = data.modsDir?.trim() ?? "";
+    cfg.writeAppConfig(patch);
+    return { ok: true };
+  });

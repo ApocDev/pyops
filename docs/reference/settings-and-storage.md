@@ -14,7 +14,7 @@ desktop navigation or from the navigation drawer on a narrower window.
 | Settings tab       | What it controls                                                                               |
 | ------------------ | ---------------------------------------------------------------------------------------------- |
 | **Planning**       | Solver preferences, display options, Assistant access, planning horizon, and recipe exclusions |
-| **Game data**      | Reference-data sync, detected mod and reader versions, data drift, and local storage paths     |
+| **Game data**      | Reference-data sync, Factorio install paths, mod and reader versions, drift, and storage paths |
 | **In-game link**   | Companion mod installation, Factorio launch, UDP bridge status, and live-state sync            |
 | **Backup & share** | Complete project backups and portable block JSON files                                         |
 | **Advanced**       | Opt-in diagnostic tools for investigating planner behavior                                     |
@@ -50,6 +50,28 @@ Only the latest trace is kept in memory, and it disappears when PyOps exits or y
 **Clear**. Traces include planner names, internal prototype IDs, and rates, so review them before
 sharing. They do not include API keys or unrelated app configuration. Leave tracing disabled
 during ordinary use.
+
+## Point PyOps at your Factorio installation
+
+Open **Settings → Game data → Factorio paths**. Three paths control how PyOps finds the
+game:
+
+- **Factorio executable** — the game binary used by game-data sync and **Launch Factorio**;
+- **Factorio user-data folder** — the profile containing configuration, saves, `mods`, and
+  `script-output` (not the installation folder);
+- **Factorio mods folder** — the folder that directly contains `mod-list.json`; when left
+  blank it is `mods` inside the user-data folder.
+
+Leave a field blank to use the platform default, shown as the field's placeholder. PyOps
+detects standard Steam and standalone install locations on Windows, macOS, and Linux. For
+a nonstandard install, enter the path and select **Save paths**; the change applies
+immediately, without a restart. **Use platform defaults** clears all three fields.
+
+A **Not found on disk** warning under a field means the path in effect does not exist;
+game-data sync, **Launch Factorio**, and the Companion-mod installer need it fixed before
+they can work. A field controlled by an
+[environment override](advanced-configuration#user-facing-overrides) shows the winning
+value instead of an input; remove the variable and restart PyOps to manage it here again.
 
 ## Find the data folder
 

@@ -15,17 +15,18 @@
  */
 import { cp, lstat, mkdir, readFile, realpath, rm, symlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { homedir, platform } from "node:os";
+import { platform } from "node:os";
 import { join } from "node:path";
 
+import { factorioModsDir } from "./factorio-paths.server.ts";
 import { MOD_SOURCE_DIR } from "./paths.server.ts";
 
-const FACTORIO_DATA = process.env.FACTORIO_DATA_DIR ?? join(homedir(), ".factorio");
-const MODS_DIR = join(FACTORIO_DATA, "mods");
 // the bundled mod source (sibling mod/ dir in the source tree; overridable for a
 // packaged build via PYOPS_MOD_DIR — see server/paths.ts)
 const SOURCE_DIR = MOD_SOURCE_DIR;
-const TARGET = join(MODS_DIR, "pyops");
+// resolved per call (Settings can change it at runtime): the mods folder and the
+// install target <mods>/pyops (the folder name must equal the mod's info.json name)
+const target = () => join(factorioModsDir(), "pyops");
 
 export type CompanionPlatform = "linux" | "mac" | "windows" | "other";
 export type InstallMethod = "symlink" | "copy";
@@ -69,6 +70,7 @@ export type CompanionStatus = {
 };
 
 export async function companionStatus(): Promise<CompanionStatus> {
+  const TARGET = target();
   const platformName = detectPlatform();
   const sourceVersion = await readVersion(SOURCE_DIR);
 
@@ -102,7 +104,7 @@ export async function companionStatus(): Promise<CompanionStatus> {
 
   return {
     platform: platformName,
-    modsDir: MODS_DIR,
+    modsDir: factorioModsDir(),
     sourceDir: SOURCE_DIR,
     symlinkIsJunction: platformName === "windows",
     installed,
@@ -117,6 +119,7 @@ export async function companionStatus(): Promise<CompanionStatus> {
 /** Remove an existing <mods>/pyops only if we can prove it's ours — a symlink, or
  * a directory whose info.json declares name "pyops". Refuses anything else. */
 async function removeExisting(): Promise<void> {
+  const TARGET = target();
   if (!existsSync(TARGET)) return;
   const st = await lstat(TARGET);
   if (st.isSymbolicLink()) {
@@ -140,13 +143,13 @@ async function removeExisting(): Promise<void> {
 
 export async function installCompanion(method: InstallMethod): Promise<CompanionStatus> {
   if (!existsSync(SOURCE_DIR)) throw new Error(`mod source not found at ${SOURCE_DIR}`);
-  await mkdir(MODS_DIR, { recursive: true });
+  await mkdir(factorioModsDir(), { recursive: true });
   await removeExisting();
   if (method === "symlink") {
     // junction on Windows (no admin/Developer Mode needed); dir symlink elsewhere
-    await symlink(SOURCE_DIR, TARGET, platform() === "win32" ? "junction" : "dir");
+    await symlink(SOURCE_DIR, target(), platform() === "win32" ? "junction" : "dir");
   } else {
-    await cp(SOURCE_DIR, TARGET, { recursive: true });
+    await cp(SOURCE_DIR, target(), { recursive: true });
   }
   return companionStatus();
 }
