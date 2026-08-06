@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Flame, Recycle, RefreshCw, Zap } from "lucide-react";
 import { useState } from "react";
@@ -24,10 +24,14 @@ import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { InfoHint } from "#/components/info-hint.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
+import { Segmented } from "#/components/ui/segmented.tsx";
+import { FactoryBoard } from "#/components/factory/board/factory-board.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
 import { meaningfulImbalance } from "../lib/factory-flow.ts";
 
 export const Route = createFileRoute("/factory_/connections")({
+  validateSearch: (s: Record<string, unknown>): { view?: "board" } =>
+    s.view === "board" ? { view: "board" } : {},
   component: () => (
     <IconProvider>
       <CoherencePage />
@@ -63,10 +67,18 @@ const goodKeys = {
  * the actual edge. Plus unsourced imports and dangling surplus. */
 function CoherencePage() {
   const qc = useQueryClient();
+  const { view = "list" } = Route.useSearch();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [recomputing, setRecomputing] = useState(false);
   const [scaling, setScaling] = useState<Link | null>(null);
   const data = useQuery({ queryKey: ["coherence"], queryFn: () => factoryCoherenceFn() });
+  const setView = (v: "list" | "board") =>
+    void navigate({
+      to: "/factory/connections",
+      search: v === "board" ? { view: "board" } : {},
+      replace: true,
+    });
 
   const recomputeAll = async () => {
     setRecomputing(true);
@@ -99,7 +111,9 @@ function CoherencePage() {
   const shorts = shortLinks.length;
 
   return (
-    <div className="p-4 font-mono text-foreground">
+    <div
+      className={`p-4 font-mono text-foreground ${view === "board" ? "flex h-full min-h-0 flex-col" : ""}`}
+    >
       <PageHeader
         title="Connections"
         description={
@@ -110,12 +124,24 @@ function CoherencePage() {
         }
         actions={
           <>
-            <FilterInput
-              value={search}
-              onValueChange={setSearch}
-              placeholder="Filter goods…"
-              className="w-64"
+            <Segmented
+              aria-label="Connections view"
+              value={view}
+              onValueChange={setView}
+              options={[
+                { value: "list", label: "List" },
+                { value: "board", label: "Board" },
+              ]}
+              size="sm"
             />
+            {view === "list" && (
+              <FilterInput
+                value={search}
+                onValueChange={setSearch}
+                placeholder="Filter goods…"
+                className="w-64"
+              />
+            )}
             <Button
               variant="outline"
               size="icon-sm"
@@ -130,6 +156,14 @@ function CoherencePage() {
                 Connections shows your factory as{" "}
                 <span className="text-foreground">block-to-block wiring</span> — every good one
                 block makes and another block consumes, on the actual edge between them.
+              </p>
+              <p>
+                <span className="text-foreground">List vs Board.</span> List groups the wiring by
+                good, problem-first. Board draws it as a map: blocks are draggable nodes, the goods
+                flowing between them are edges — <span className="text-destructive">red</span> where
+                a good runs short. Drag blocks to arrange your map (positions are saved), scroll to
+                zoom, double-click a block to open it, and hover an edge to see what flows on it.
+                Auto-arrange (⊞) relayouts everything.
               </p>
               <p>
                 <span className="text-foreground">Why it differs from Overview.</span> The Overview
@@ -194,87 +228,95 @@ function CoherencePage() {
         }
       />
 
-      {data.isLoading && (
-        <div className="space-y-4">
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
+      {view === "board" ? (
+        <div className="min-h-0 flex-1 border border-border">
+          <FactoryBoard />
         </div>
-      )}
+      ) : (
+        <>
+          {data.isLoading && (
+            <div className="space-y-4">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+          )}
 
-      {(data.data?.links.length ?? 0) === 0 && !data.isLoading && (
-        <EmptyState
-          title="No block-to-block links yet"
-          description="Build some blocks that feed each other and their wiring appears here."
-          action={
-            <Button asChild variant="outline" size="sm">
-              <Link to="/block">Build some blocks</Link>
-            </Button>
-          }
-        />
-      )}
-
-      {/* A filter that matches nothing must say so, not render a blank page. */}
-      {noMatches && <FilterEmptyState query={search} onClear={() => setSearch("")} />}
-
-      {/* Problem-first: shorts (the point of the view) on top, balanced last. */}
-      {shortLinks.length > 0 && (
-        <Section
-          title={`Short (${shortLinks.length})`}
-          hint="A block isn't getting enough — scale its producer up"
-        >
-          {shortLinks.map((l) => (
-            <LinkRow key={l.good} l={l} onScale={() => setScaling(l)} />
-          ))}
-        </Section>
-      )}
-      {surplusLinks.length > 0 && (
-        <Section
-          title={`Overproduced (${surplusLinks.length})`}
-          hint="More made than used internally — route the extra or it backs up"
-        >
-          {surplusLinks.map((l) => (
-            <LinkRow key={l.good} l={l} onScale={() => setScaling(l)} />
-          ))}
-        </Section>
-      )}
-      {balancedLinks.length > 0 && (
-        <details className="mb-5">
-          <summary className="cursor-pointer border border-border bg-card px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
-            Balanced ({balancedLinks.length})
-            <InfoHint
-              content="Producers meet consumers — nothing to do"
-              className="ml-1.5 align-text-bottom"
+          {(data.data?.links.length ?? 0) === 0 && !data.isLoading && (
+            <EmptyState
+              title="No block-to-block links yet"
+              description="Build some blocks that feed each other and their wiring appears here."
+              action={
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/block">Build some blocks</Link>
+                </Button>
+              }
             />
-          </summary>
-          <div className="mt-2 divide-y divide-border border border-border">
-            {balancedLinks.map((l) => (
-              <LinkRow key={l.good} l={l} onScale={() => setScaling(l)} />
-            ))}
-          </div>
-        </details>
-      )}
+          )}
 
-      {unsourced.length > 0 && (
-        <Section
-          title="Unsourced imports"
-          hint="Consumed but no block produces them — a raw to supply, or a block to build"
-        >
-          {unsourced.map((l) => (
-            <OrphanRow key={l.good} l={l} mode="unsourced" />
-          ))}
-        </Section>
-      )}
+          {/* A filter that matches nothing must say so, not render a blank page. */}
+          {noMatches && <FilterEmptyState query={search} onClear={() => setSearch("")} />}
 
-      {surplus.length > 0 && (
-        <Section
-          title="Surplus / outputs"
-          hint="Produced but no block consumes them — a final product, or waste to route"
-        >
-          {surplus.map((l) => (
-            <OrphanRow key={l.good} l={l} mode="surplus" />
-          ))}
-        </Section>
+          {/* Problem-first: shorts (the point of the view) on top, balanced last. */}
+          {shortLinks.length > 0 && (
+            <Section
+              title={`Short (${shortLinks.length})`}
+              hint="A block isn't getting enough — scale its producer up"
+            >
+              {shortLinks.map((l) => (
+                <LinkRow key={l.good} l={l} onScale={() => setScaling(l)} />
+              ))}
+            </Section>
+          )}
+          {surplusLinks.length > 0 && (
+            <Section
+              title={`Overproduced (${surplusLinks.length})`}
+              hint="More made than used internally — route the extra or it backs up"
+            >
+              {surplusLinks.map((l) => (
+                <LinkRow key={l.good} l={l} onScale={() => setScaling(l)} />
+              ))}
+            </Section>
+          )}
+          {balancedLinks.length > 0 && (
+            <details className="mb-5">
+              <summary className="cursor-pointer border border-border bg-card px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
+                Balanced ({balancedLinks.length})
+                <InfoHint
+                  content="Producers meet consumers — nothing to do"
+                  className="ml-1.5 align-text-bottom"
+                />
+              </summary>
+              <div className="mt-2 divide-y divide-border border border-border">
+                {balancedLinks.map((l) => (
+                  <LinkRow key={l.good} l={l} onScale={() => setScaling(l)} />
+                ))}
+              </div>
+            </details>
+          )}
+
+          {unsourced.length > 0 && (
+            <Section
+              title="Unsourced imports"
+              hint="Consumed but no block produces them — a raw to supply, or a block to build"
+            >
+              {unsourced.map((l) => (
+                <OrphanRow key={l.good} l={l} mode="unsourced" />
+              ))}
+            </Section>
+          )}
+
+          {surplus.length > 0 && (
+            <Section
+              title="Surplus / outputs"
+              hint="Produced but no block consumes them — a final product, or waste to route"
+            >
+              {surplus.map((l) => (
+                <OrphanRow key={l.good} l={l} mode="surplus" />
+              ))}
+            </Section>
+          )}
+        </>
       )}
 
       {scaling && (

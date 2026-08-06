@@ -50,6 +50,27 @@ Use **Recompute all blocks** when the page reports stale results after a data sy
 change, or solver update. This re-solves saved blocks; it does not invent new recipes.
 :::
 
+## Arrange the factory on the Board
+
+Select **Board** at the top of Connections to see the same wiring as a map. Every enabled
+block is a node showing its icon, name, and power draw; every good flowing between two
+blocks rides an edge between them. Edge color carries the diagnosis — red where a good runs
+short, the surplus tint where more is made than used, and faint gray where producers and
+consumers agree — and edge thickness tracks how much flows.
+
+- **Drag** a block to place it; positions are saved per block and restored on the next
+  visit. Dragging a selection moves the whole group.
+- **Scroll** to zoom and drag the background to pan; the minimap in the corner shows where
+  you are. **Fit** (⛶) frames the whole factory.
+- **Hover** an edge to list the goods it carries with their rates; a short good shows the
+  missing rate beside it.
+- **Double-click** a block to open it in the block editor.
+- **Auto-arrange** (⊞) recomputes the layered layout — suppliers left of the blocks they
+  feed — and clears every hand-placed position.
+
+Blocks you have never dragged are auto-placed by the same layout, so the board is useful
+immediately and only becomes more yours as you arrange it.
+
 ## Preview a target with Scenario
 
 Select **Scenario** in the Factory workspace. It previews the enabled blocks as one speculative

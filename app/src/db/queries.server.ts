@@ -1758,6 +1758,8 @@ export function listBlocks() {
       groupId: blocks.groupId,
       updatedAt: blocks.updatedAt,
       data: blocks.data,
+      boardX: blocks.boardX, // hand-placed factory-board position (null = auto)
+      boardY: blocks.boardY,
     })
     .from(blocks)
     .orderBy(blocks.sortOrder, blocks.name)

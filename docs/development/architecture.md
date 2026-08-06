@@ -76,7 +76,10 @@ The planning path is deliberately layered:
 3. `solver/` owns the mathematical model and infeasibility diagnosis without UI or database
    dependencies.
 4. Factory Overview, Connections, cost, and Scenario modules aggregate cached block flows and solved
-   blocks for cross-block analysis.
+   blocks for cross-block analysis. The Connections Board renders that wiring with React Flow
+   (`@xyflow/react`): `components/factory/board/board-graph.ts` derives nodes and aggregated
+   edges (pure, tested), block positions persist as `board_x`/`board_y` on the blocks table,
+   and position writes deliberately bypass the undo log.
 
 See [Block solver](./solver) for the constraint model and [Data pipeline](./data-pipeline)
 for the reference-data boundary.

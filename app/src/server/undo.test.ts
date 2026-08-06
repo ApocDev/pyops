@@ -304,6 +304,12 @@ describe("trigger coverage (migration drift guard)", () => {
     "notes",
   ];
 
+  // Columns deliberately OUTSIDE the undo system: factory-board positions are
+  // cosmetic layout state written without an undo action (factory-board.server.ts),
+  // and an undo of a planning edit must not teleport blocks around the board —
+  // so the triggers intentionally never mention them.
+  const UNDO_EXEMPT = new Set(["board_x", "board_y"]);
+
   it("every tracked table has all three triggers covering all current columns", () => {
     for (const t of TRACKED) {
       const cols = db.all<{ name: string }>(sql.raw(`PRAGMA table_info(${t})`)).map((c) => c.name);
@@ -316,6 +322,7 @@ describe("trigger coverage (migration drift guard)", () => {
         if (kind === "insert") continue;
         for (const col of cols) {
           if (kind === "update" && col === "id") continue; // pk is the WHERE key
+          if (UNDO_EXEMPT.has(col)) continue; // cosmetic, non-undoable by design
           expect(trigger!.sql, `undo_${t}_${kind} misses column ${col}`).toContain(`\`${col}\``);
         }
       }

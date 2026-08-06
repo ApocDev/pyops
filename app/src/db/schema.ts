@@ -685,6 +685,11 @@ export const blocks = sqliteTable("blocks", {
   dataFingerprint: text("data_fingerprint"), // reference-data version the cache was solved against
   sortOrder: integer("sort_order"),
   groupId: integer("group_id"),
+  // Hand-placed position on the factory board (Connections → Board). Null =
+  // never dragged, the board auto-lays it out. Cosmetic layout state, not a
+  // planning edit — writes don't touch updated_at and aren't undoable.
+  boardX: real("board_x"),
+  boardY: real("board_y"),
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });
