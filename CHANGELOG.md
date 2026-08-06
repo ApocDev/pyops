@@ -1,5 +1,42 @@
 # Changelog
 
+## [1.4.0](https://github.com/ApocDev/pyops/compare/v1.3.0...v1.4.0) (2026-08-06)
+
+
+### Features
+
+* **app:** attach the module picker to the science block ([1138f71](https://github.com/ApocDev/pyops/commit/1138f71cc676e9f2888cab60cb35673c5fbeb162))
+* **app:** give research recipes and goods a badged pack icon ([96d24cc](https://github.com/ApocDev/pyops/commit/96d24cc798294aabdbe0fa69b1a6a80948e10a9b))
+* **app:** give the science block an icon ([557c1c2](https://github.com/ApocDev/pyops/commit/557c1c2065a59d0c91fbb1b3e6e7d22a2f81f7b2))
+* **app:** put the block flow view on the React Flow viewport ([5a6c8c5](https://github.com/ApocDev/pyops/commit/5a6c8c5aac087d288607c08a0f5a843ba76ddae0)), closes [#172](https://github.com/ApocDev/pyops/issues/172)
+* **app:** science block UI with a technology helper ([09c45f9](https://github.com/ApocDev/pyops/commit/09c45f9514cfc7ba84b3217077ad5ba2fe740596))
+* **data:** allow re-importing the dump already on disk ([4c4855c](https://github.com/ApocDev/pyops/commit/4c4855c8ab120dbc3af906d5d825c7841f93cbf3))
+* **data:** import lab prototypes and technology research cost ([56fe3df](https://github.com/ApocDev/pyops/commit/56fe3df977d89ccfa8416056e05a73126c98ed25))
+* **data:** model labs as machines and science as a recipe ([94f45d4](https://github.com/ApocDev/pyops/commit/94f45d45be1f31bd0fc976709e8a6d7ce23de031))
+* **data:** model the vatbrain as the building it is, with its upkeep ([475730a](https://github.com/ApocDev/pyops/commit/475730a4bf1ecc0b741c7e499d99b4aaae26194f))
+* **data:** sort goods by their prototype order ([2b5da3b](https://github.com/ApocDev/pyops/commit/2b5da3b9f42e579d5b5b359cf637cc6fe388b0ee))
+* **factory:** add a draggable board view to Connections ([7daff76](https://github.com/ApocDev/pyops/commit/7daff76e49f6d47fc208be8c816fb688ddaab08e))
+* **settings:** hide absolute storage paths behind PYOPS_HIDE_STORAGE_PATHS ([c066faa](https://github.com/ApocDev/pyops/commit/c066faaabfd73a91afcc45521269569b73f282f3))
+* **settings:** make Factorio paths configurable in Settings ([d284074](https://github.com/ApocDev/pyops/commit/d284074bbcce7b1a5d762d8be0a434184f6066bd))
+* **solver:** model a science consumer as a lab bank, not recipes ([77a10e2](https://github.com/ApocDev/pyops/commit/77a10e2d7925b46d6e7464f7d0ae3c307ae074ac))
+* **solver:** pin the science block's demand on the factory ([489ec69](https://github.com/ApocDev/pyops/commit/489ec6916ccd9189b60723de0a9ede525433193c))
+* **solver:** science bank takes per-pack rates, with a tech helper ([c855eb3](https://github.com/ApocDev/pyops/commit/c855eb3c3e5d6272ec0da32578429ae60b362237))
+* **solver:** singleton science block with a technology helper ([63f8a5b](https://github.com/ApocDev/pyops/commit/63f8a5bccb90e1e5a8e64ed51192c47961133067))
+
+
+### Bug Fixes
+
+* **app:** hide the module palette for a machine with no slots ([d11c836](https://github.com/ApocDev/pyops/commit/d11c8360934ce757e88f8a14aeccbbbf52f1fd05))
+* **app:** let vatbrains reach labs in the module picker ([0d99624](https://github.com/ApocDev/pyops/commit/0d9962482d927f91d8a64b35b69006fb60fd2272))
+* **app:** make beacon-only machines configurable and correctly gated ([a18b0a4](https://github.com/ApocDev/pyops/commit/a18b0a4d21d71f5ad21ce8d296b62da9b6c014ed))
+* **app:** serve dev icons from PYOPS_DATA_DIR ([675dca9](https://github.com/ApocDev/pyops/commit/675dca90fbc6c7452252f843802d52abd452635b))
+* **bridge:** stop pinning mining productivity when the game reports zero ([e7d62c2](https://github.com/ApocDev/pyops/commit/e7d62c2c0d4ef04389dffc3c561811a34ff1602d))
+* **data:** stop the importer wiping project metadata on every sync ([dac5da7](https://github.com/ApocDev/pyops/commit/dac5da70cc52e1dbb0e9f0dfb903e51505e26e13))
+* **factory:** classify sub-1% imbalances as balanced, not short ([4255e8a](https://github.com/ApocDev/pyops/commit/4255e8ab4a45c1e967bf20dc70c4eef40874e468))
+* **scenario:** restore the ×scale column on goal changes ([81f9923](https://github.com/ApocDev/pyops/commit/81f9923ee6fe0ae0329a0a36191b116c414b110f))
+* **solver:** charge shared beacons once instead of once per machine ([4d545df](https://github.com/ApocDev/pyops/commit/4d545dfd99be2294a0128b1e0c5f0768d665ffb7))
+* **solver:** merge research demand with other pins instead of replacing ([78c6fdc](https://github.com/ApocDev/pyops/commit/78c6fdcd5166492d36ab59ea10d5ce6e787addd0))
+
 ## [1.3.0](https://github.com/ApocDev/pyops/compare/v1.2.0...v1.3.0) (2026-07-16)
 
 
