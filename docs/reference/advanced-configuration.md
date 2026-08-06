@@ -15,14 +15,15 @@ Set variables in the environment that launches PyOps. Source runs can also use
 
 ## User-facing overrides
 
-| Variable             | Default                                      | Purpose                                                                       |
-| -------------------- | -------------------------------------------- | ----------------------------------------------------------------------------- |
-| `FACTORIO_BIN`       | Standard Steam path on Linux                 | Factorio executable used by game-data sync and **Launch Factorio**            |
-| `FACTORIO_DATA_DIR`  | `~/.factorio`                                | Factorio user-data folder containing `mods` and `script-output`               |
-| `PYOPS_DATA_DIR`     | Platform app-data folder in a packaged build | Root for project databases, icon data, and app configuration                  |
-| `PYOPS_BRIDGE_PORT`  | `37657`                                      | UDP port on which PyOps listens for the Companion mod                         |
-| `OPENROUTER_API_KEY` | Stored Settings value                        | OpenRouter key; an environment value takes priority over Settings             |
-| `PYOPS_AGENT_MODEL`  | Stored model, then PyOps default             | OpenRouter model ID; an environment value forces every conversation to use it |
+| Variable                   | Default                                      | Purpose                                                                        |
+| -------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------ |
+| `FACTORIO_BIN`             | Standard Steam path on Linux                 | Factorio executable used by game-data sync and **Launch Factorio**             |
+| `FACTORIO_DATA_DIR`        | `~/.factorio`                                | Factorio user-data folder containing `mods` and `script-output`                |
+| `PYOPS_DATA_DIR`           | Platform app-data folder in a packaged build | Root for project databases, icon data, and app configuration                   |
+| `PYOPS_HIDE_STORAGE_PATHS` | Unset                                        | Set to `true` to prevent absolute storage paths from being sent to the browser |
+| `PYOPS_BRIDGE_PORT`        | `37657`                                      | UDP port on which PyOps listens for the Companion mod                          |
+| `OPENROUTER_API_KEY`       | Stored Settings value                        | OpenRouter key; an environment value takes priority over Settings              |
+| `PYOPS_AGENT_MODEL`        | Stored model, then PyOps default             | OpenRouter model ID; an environment value forces every conversation to use it  |
 
 `FACTORIO_DATA_DIR` must be the user-data folder, not the installation folder. For a Steam
 installation, `FACTORIO_BIN` points to the game executable while `FACTORIO_DATA_DIR` points

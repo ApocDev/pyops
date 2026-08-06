@@ -60,6 +60,10 @@ Open **Settings → Game data → Storage location**. PyOps shows copyable paths
 - **Icon atlas** — generated sprites and their manifest;
 - **App config** — active-project and Assistant account settings.
 
+For an instance exposed beyond the local machine, launch with
+`PYOPS_HIDE_STORAGE_PATHS=true` to prevent these absolute paths from being sent to the
+browser. The card then reports that storage paths are hidden.
+
 Packaged builds normally use these platform data folders:
 
 | Platform | Default folder                                       |

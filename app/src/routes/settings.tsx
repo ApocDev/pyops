@@ -217,14 +217,15 @@ function StorageCard() {
     setTimeout(() => setCopied((c) => (c === value ? null : c)), 1200);
   };
 
-  const rows: { label: string; value: string }[] = paths.data
-    ? [
-        { label: "Data folder", value: paths.data.dataDir },
-        { label: "Projects (databases)", value: paths.data.projectsDir },
-        { label: "Icon atlas", value: paths.data.iconDataDir },
-        { label: "App config", value: paths.data.appConfig },
-      ]
-    : [];
+  const rows: { label: string; value: string }[] =
+    paths.data && !paths.data.hidden
+      ? [
+          { label: "Data folder", value: paths.data.dataDir },
+          { label: "Projects (databases)", value: paths.data.projectsDir },
+          { label: "Icon atlas", value: paths.data.iconDataDir },
+          { label: "App config", value: paths.data.appConfig },
+        ]
+      : [];
 
   return (
     <Card>
@@ -239,6 +240,10 @@ function StorageCard() {
               <Skeleton key={label} className="h-10 w-full" />
             ))}
           </div>
+        ) : paths.data?.hidden ? (
+          <p className="text-sm text-muted-foreground">
+            Storage paths are hidden for this instance.
+          </p>
         ) : (
           <div className="space-y-1.5">
             {rows.map((r) => (

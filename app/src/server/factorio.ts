@@ -42,6 +42,7 @@ import { APP_CONFIG_FILE, DATA_DIR, ICON_DATA_DIR, PROJECTS_DIR } from "./paths.
 import { withUndoAction } from "./undo-action.server.ts";
 import { captureSnapshot } from "./snapshots.server.ts";
 import { defaultPresetLoadout, presetsForRow } from "./module-presets.server.ts";
+import { storagePathsResponse } from "./storage-paths.server.ts";
 import {
   blockSaveConflict,
   blockUpdatedAt,
@@ -1450,28 +1451,33 @@ export const iconManifestFn = createServerFn({ method: "GET" }).handler(
     // dump does and differs per project, so it's the right version token. The /icons
     // handler ignores the query string and still serves the file.
     const fp = q.metaAll().data_fingerprint;
-    if (fp) manifest.sheets = manifest.sheets.map((s) => `${s}?v=${fp}`);
+    if (fp) manifest.sheets = manifest.sheets.map((s) => `${s}?v=2-${fp}`);
     return manifest;
   },
 );
 
-export type DataPaths = {
-  dataDir: string;
-  projectsDir: string;
-  iconDataDir: string;
-  appConfig: string;
-};
+export type DataPaths =
+  | {
+      hidden: false;
+      dataDir: string;
+      projectsDir: string;
+      iconDataDir: string;
+      appConfig: string;
+    }
+  | {
+      hidden: true;
+    };
 
 // Where the app keeps its on-disk state. Surfaced in Settings so a user (or a bug
 // report) can find the project dbs / atlas / config — handy since the location is
 // per-OS for a packaged build but the working dir in dev.
 export const dataPathsFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<DataPaths> => {
-    return {
+    return storagePathsResponse({
       dataDir: DATA_DIR,
       projectsDir: PROJECTS_DIR,
       iconDataDir: ICON_DATA_DIR,
       appConfig: APP_CONFIG_FILE,
-    };
+    });
   },
 );
