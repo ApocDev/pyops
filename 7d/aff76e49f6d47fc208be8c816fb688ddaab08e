@@ -1,0 +1,73 @@
+app/drizzle/0019_factory-board-positions.sql
+  s_756098896277d4::t_61a891dc933af6 1-2
+app/drizzle/meta/0019_snapshot.json
+  s_756098896277d4::t_b1c42a0a936ef7 1-2900
+app/drizzle/meta/_journal.json
+  s_756098896277d4::t_f6d2cab6843c54 137-143
+app/e2e/mut/factory-board.e2e.ts
+  s_987fb282dc7279::t_7531336f0ee17d 1-58
+app/package.json
+  s_756098896277d4::t_9327e4cface3ad 40
+app/pnpm-lock.yaml
+  s_756098896277d4::t_094239314ca6d5 71-73,2917-2934,3144-3159,3352-3354,3467-3504,5689-5703,8109-8129,8290-8314,8498-8499,8597-8632,11029-11035
+app/src/components/factory/board/board-graph.ts
+  s_f8a48b46fe93bb::t_fc49feafe35e36 1-352
+app/src/components/factory/board/edge-tooltip.tsx
+  s_756098896277d4::t_1b947fefb2af07 1-43
+app/src/components/factory/board/factory-board.tsx
+  s_756098896277d4::t_a53ef8188866df 1-243
+app/src/db/queries.server.ts
+  s_987fb282dc7279::t_3397235fd9b5f9 1761-1762
+app/src/routes/factory_.connections.tsx
+  s_756098896277d4::t_00d81d5d6e1cdd 1,27-28,33-34,70-71,76-81,114-116,127-135,137-144,160-167,231-233,235-243,245-255,257-258,260-296,298-307,309-319
+app/src/server/factory-board.server.ts
+  s_987fb282dc7279::t_a257b085fb0955 1-23
+docs/guide/balance.md
+  s_756098896277d4::t_62491077f754f3 53-73
+app/src/components/factory/board/block-node.tsx
+  s_756098896277d4::t_58b8920c91a7c7 1-64
+app/src/components/factory/board/board-flow-edge.tsx
+  s_756098896277d4::t_a528050cbb8f7c 1-70
+app/src/components/factory/board/board-graph.test.ts
+  s_756098896277d4::t_332ae2a99dd8a7 1-137
+app/src/db/schema.ts
+  s_756098896277d4::t_1c5d3502ebb06d 688-692
+app/src/server/board-fns.ts
+  s_756098896277d4::t_5319265b7d14f3 1-21
+app/src/server/undo.test.ts
+  s_756098896277d4::t_56eb8f71754d2f 307-312,325
+docs/development/architecture.md
+  s_756098896277d4::t_16b7b228c0ff81 79-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "7daff76e49f6d47fc208be8c816fb688ddaab08e",
+  "prompts": {},
+  "sessions": {
+    "s_756098896277d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4743fe7c-34fb-43ba-8515-d36b8d4af828",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_987fb282dc7279": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cad1f8bc-3580-45c5-9e45-9645b0220476",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f8a48b46fe93bb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a672b9b-d95c-4027-9371-99c3e5b7cf66",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
