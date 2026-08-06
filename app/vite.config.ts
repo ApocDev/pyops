@@ -58,7 +58,7 @@ function serveIconsDev() {
         ) => void;
       };
     }) {
-      const dir = join(process.cwd(), "icon-data");
+      const dir = join(process.env.PYOPS_DATA_DIR ?? process.cwd(), "icon-data");
       server.middlewares.use("/icons", (req, res, next) => {
         const rel = decodeURIComponent((req.url ?? "/").split("?")[0]);
         if (rel.includes("..")) return next();
