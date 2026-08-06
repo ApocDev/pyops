@@ -1,0 +1,29 @@
+app/src/server/bridge/handlers/handlers.test.ts
+  s_89969b10cb4249::t_295f9af7e4445f 86-96
+app/src/server/bridge/handlers/research.ts
+  s_ce69a9d13cb989::t_1031c6d1967eef 22-27,30-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "e7d62c2c0d4ef04389dffc3c561811a34ff1602d",
+  "prompts": {},
+  "sessions": {
+    "s_89969b10cb4249": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "43ac7a9c-8b7b-4293-8c25-486de85b300d",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_ce69a9d13cb989": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "88b287ba-f351-455b-83ac-9f44c9139833",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
