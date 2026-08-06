@@ -1,0 +1,41 @@
+app/src/components/block/block-flow-view.tsx
+  s_756098896277d4::t_920f162aae675b 1-11,13-14,17,19-22,25-28,31-39,68-70,72,107-110,116-148,151-177,179-226,230,232-235
+app/src/components/block/flow-boundary-node.tsx
+  s_d7d9cea501a710::t_0beea6d4d145e9 1-53
+app/src/components/block/flow-link-edge.tsx
+  s_d7d9cea501a710::t_561de232ed76da 1-49
+app/src/components/block/flow-recipe-node.tsx
+  s_d7d9cea501a710::t_6cd1995201d210 1-55
+app/src/components/edge-tooltip.tsx
+  s_756098896277d4::t_8bdb2ff1559592 1-2,4-19,41
+app/src/components/factory/board/factory-board.tsx
+  s_d7d9cea501a710::t_3cdacc08c20ccf 27
+docs/development/architecture.md
+  s_756098896277d4::t_d47df44eff2237 82-84
+docs/guide/blocks.md
+  s_756098896277d4::t_e205a71c83046b 188-192
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "5a6c8c5aac087d288607c08a0f5a843ba76ddae0",
+  "prompts": {},
+  "sessions": {
+    "s_756098896277d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4743fe7c-34fb-43ba-8515-d36b8d4af828",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_d7d9cea501a710": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f85b710d-9940-4494-9520-50f1e53fb274",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
