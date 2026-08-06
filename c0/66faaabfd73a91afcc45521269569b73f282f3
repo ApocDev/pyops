@@ -1,0 +1,45 @@
+app/src/server/storage-paths.server.test.ts
+  s_add2fb7ec3cc19::t_910d4b29a14f96 1-14
+app/src/server/storage-paths.server.ts
+  s_987fb282dc7279::t_8a655b27bc9343 1-7
+docs/reference/settings-and-storage.md
+  s_756098896277d4::t_fac99151988d7e 63-66
+app/src/routes/settings.tsx
+  s_756098896277d4::t_7840ec815f4ffa 220-228,243-246
+app/src/server/factorio.ts
+  s_756098896277d4::t_5dbf5890de38ce 45,1454,1459-1469,1476,1481
+docs/reference/advanced-configuration.md
+  s_756098896277d4::t_b8c0f1ce921eff 18-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "c066faaabfd73a91afcc45521269569b73f282f3",
+  "prompts": {},
+  "sessions": {
+    "s_756098896277d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4743fe7c-34fb-43ba-8515-d36b8d4af828",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_987fb282dc7279": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cad1f8bc-3580-45c5-9e45-9645b0220476",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_add2fb7ec3cc19": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6c57-4ba8-73b0-9ec4-874826a3d779",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
