@@ -1,0 +1,33 @@
+app/src/lib/factory-flow.ts
+  s_f8a48b46fe93bb::t_b79b788c266432 31-40
+app/src/routes/factory.tsx
+  s_756098896277d4::t_b76e3215aaf6e6 36-40,196-197,199
+app/src/routes/factory_.connections.tsx
+  s_756098896277d4::t_4967cd1523079e 28,93-98,155-156,346,348,350-357,431-432,440
+docs/guide/balance.md
+  s_756098896277d4::t_cc1632b6ef60fd 32-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "4255e8ab4a45c1e967bf20dc70c4eef40874e468",
+  "prompts": {},
+  "sessions": {
+    "s_756098896277d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4743fe7c-34fb-43ba-8515-d36b8d4af828",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f8a48b46fe93bb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a672b9b-d95c-4027-9371-99c3e5b7cf66",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
