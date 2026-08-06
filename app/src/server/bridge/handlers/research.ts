@@ -19,9 +19,16 @@ export async function handleResearch(req: BridgeRequest): Promise<BridgeResponse
     ? payload.researched.filter((t): t is string => typeof t === "string")
     : [];
   const hasMiningBonus = Object.prototype.hasOwnProperty.call(payload, "mining_productivity_bonus");
+  // A stored bonus PINS mining productivity and skips the tech-derived sum
+  // (productivityBonuses), so a synced zero silently overrides the bonus the
+  // researched set implies — and it comes back on every sync, defeating a manual
+  // reset to Auto. Zero is exactly what "nothing researched" looks like, and Auto
+  // derives zero from that same set, so the two agree wherever the game is right
+  // and Auto wins where they disagree. Only a positive bonus is worth pinning.
   const miningBonus =
     typeof payload.mining_productivity_bonus === "number" &&
-    Number.isFinite(payload.mining_productivity_bonus)
+    Number.isFinite(payload.mining_productivity_bonus) &&
+    payload.mining_productivity_bonus > 0
       ? payload.mining_productivity_bonus
       : null;
   const hasRecipeBonuses = Object.prototype.hasOwnProperty.call(

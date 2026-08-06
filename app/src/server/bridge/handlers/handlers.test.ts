@@ -83,6 +83,17 @@ describe("handleResearch", () => {
     });
   });
 
+  it("leaves the mining bonus on Auto when the game reports no bonus", async () => {
+    // A stored 0 pins the bonus and suppresses the tech-derived sum, and it
+    // returns on every sync — so blanking the field to Auto never sticks. Auto
+    // derives 0 from an empty researched set anyway, so nothing is lost.
+    await handleResearch(req({ researched: ["a"], mining_productivity_bonus: 0 }));
+    expect(q.setResearchHorizon).toHaveBeenCalledWith({
+      researched: ["a"],
+      miningProductivityBonus: null,
+    });
+  });
+
   it("re-solves blocks only when the canonical research context changed", async () => {
     vi.mocked(q.setResearchHorizon).mockReturnValueOnce(true);
     await handleResearch(req({ researched: ["automation"] }));
