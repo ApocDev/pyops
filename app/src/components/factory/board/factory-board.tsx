@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -82,6 +82,8 @@ function BoardCanvas({ graph }: { graph: BoardGraph }) {
   // edge hover carries the cursor position so the goods tooltip can track it
   const [hoveredEdge, setHoveredEdge] = useState<{ id: string; x: number; y: number } | null>(null);
   const [hoveredNode, setHoveredNode] = useState<number | null>(null);
+  // positions at drag start, so drag-stop can persist only what really moved
+  const dragStart = useRef<Map<string, { x: number; y: number }> | null>(null);
 
   const save = useMutation({
     mutationFn: (positions: { id: number; x: number | null; y: number | null }[]) =>
@@ -171,8 +173,23 @@ function BoardCanvas({ graph }: { graph: BoardGraph }) {
       onNodesChange={(changes: NodeChange<BlockFlowNode>[]) =>
         setNodes((ns) => applyNodeChanges(changes, ns))
       }
+      onNodeDragStart={(_e, node, dragged) => {
+        const start = new Map<string, { x: number; y: number }>();
+        for (const n of dragged.length > 0 ? dragged : [node]) start.set(n.id, { ...n.position });
+        dragStart.current = start;
+      }}
       onNodeDragStop={(_e, node, dragged) => {
-        const moved = dragged.length > 0 ? dragged : [node];
+        // Persist only what actually MOVED: React Flow reports a drag for a
+        // plain click too, and writing an unchanged position would pin an
+        // auto-laid-out block for no reason.
+        const moved = (dragged.length > 0 ? dragged : [node]).filter((n) => {
+          const from = dragStart.current?.get(n.id);
+          return (
+            !from || Math.abs(from.x - n.position.x) > 0.5 || Math.abs(from.y - n.position.y) > 0.5
+          );
+        });
+        dragStart.current = null;
+        if (moved.length === 0) return;
         save.mutate(moved.map((n) => ({ id: Number(n.id), x: n.position.x, y: n.position.y })));
       }}
       onNodeDoubleClick={(_e, node) => void navigate({ to: "/block/$id", params: { id: node.id } })}

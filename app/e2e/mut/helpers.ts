@@ -143,6 +143,58 @@ export function toast(page: Page, text: string | RegExp) {
   return page.getByRole("status").filter({ hasText: text });
 }
 
+/**
+ * Drag a React Flow node (factory board or block flow view) by `dx`/`dy` and
+ * return its transform before/after. Dispatches the mouse events d3-drag — the
+ * engine React Flow drives its nodes with — actually listens for: Playwright's
+ * `dragTo` does not reliably start a d3 drag on these nodes, and a drag that
+ * never moves the node is silently a no-op (the app only persists real moves).
+ */
+export async function dragFlowNode(
+  page: Page,
+  nodeId: string,
+  dx: number,
+  dy: number,
+): Promise<{ before: string; after: string }> {
+  await page.locator(`.react-flow__node[data-id="${nodeId}"]`).scrollIntoViewIfNeeded();
+  return page.evaluate(
+    ([id, ddx, ddy]) =>
+      new Promise<{ before: string; after: string }>((resolve) => {
+        const el = document.querySelector(`.react-flow__node[data-id="${id as string}"]`);
+        if (!el) throw new Error(`no flow node ${String(id)}`);
+        const before = (el as HTMLElement).style.transform;
+        const r = el.getBoundingClientRect();
+        const cx = r.x + r.width / 2;
+        const cy = r.y + r.height / 2;
+        const mk = (type: string, x: number, y: number, buttons: number) =>
+          new MouseEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            button: 0,
+            buttons,
+            clientX: x,
+            clientY: y,
+          });
+        el.dispatchEvent(mk("mousedown", cx, cy, 1));
+        let i = 0;
+        const step = () => {
+          i++;
+          window.dispatchEvent(
+            mk("mousemove", cx + ((ddx as number) * i) / 8, cy + ((ddy as number) * i) / 8, 1),
+          );
+          if (i < 8) requestAnimationFrame(step);
+          else {
+            window.dispatchEvent(mk("mouseup", cx + (ddx as number), cy + (ddy as number), 0));
+            setTimeout(() => resolve({ before, after: (el as HTMLElement).style.transform }), 300);
+          }
+        };
+        requestAnimationFrame(step);
+      }),
+    [nodeId, dx, dy] as const,
+  );
+}
+
 /** A block's row in the /block sidebar tree (the row div that carries both the
  * open button and the hover-revealed delete ×). */
 export function sidebarBlockRow(page: Page, name: string) {

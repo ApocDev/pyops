@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import { expect, test } from "@playwright/test";
-import { activeProjectDbFile, goto } from "./helpers";
+import { activeProjectDbFile, dragFlowNode, goto } from "./helpers";
 
 const boardPositions = (): { id: number; x: number; y: number }[] => {
   const db = new DatabaseSync(activeProjectDbFile());
@@ -35,8 +35,8 @@ test("factory board drag persists and auto-arrange resets", async ({ page }) => 
     await expect(node).toBeVisible({ timeout: 15_000 });
     const nodeId = Number(await node.getAttribute("data-id"));
 
-    // drag the node onto the minimap corner — any distinct spot will do
-    await node.dragTo(page.locator(".react-flow__minimap"));
+    const moved = await dragFlowNode(page, String(nodeId), -180, 140);
+    expect(moved.after, "the node should move on screen").not.toBe(moved.before);
     await expect.poll(() => boardPositions().length, { timeout: 10_000 }).toBe(1);
     const saved = boardPositions()[0];
     expect(saved.id).toBe(nodeId);
