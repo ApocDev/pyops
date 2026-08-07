@@ -1,9 +1,7 @@
-import { BaseEdge, type Edge, type EdgeProps } from "@xyflow/react";
+import { BaseEdge, getBezierPath, type Edge, type EdgeProps } from "@xyflow/react";
 
 export type FlowLinkEdgeData = {
-  /** the exact SVG path from flow-layout's port distribution — used verbatim,
-   * ignoring React Flow's own handle-to-handle geometry */
-  path: string;
+  /** stroke width ∝ the link's solved rate */
   width: number;
   /** a recycle loop (cycle back-edge), drawn dashed */
   back: boolean;
@@ -13,17 +11,34 @@ export type FlowLinkEdgeData = {
 
 export type FlowLinkEdgeType = Edge<FlowLinkEdgeData, "flowlink">;
 
-/** One item/fluid flow between two nodes of the block diagram. The path is
- * precomputed (ports fanned along node edges, back-edges arcing left), so this
- * component only styles it: width ∝ rate, fluids tinted info, recycle loops
- * dashed, and the board-style focus emphasis. Inline styles because React
- * Flow's stylesheet outranks stroke-* utilities. */
-export function FlowLinkEdge({ data }: EdgeProps<FlowLinkEdgeType>) {
+/** One item/fluid flow between two nodes of the block diagram. Geometry comes
+ * from React Flow's live handle positions (same as the factory board), so a
+ * link follows its nodes when they're dragged. Styling carries the meaning:
+ * width ∝ rate, fluids tinted info, recycle loops dashed, board-style focus
+ * emphasis. Inline styles because React Flow's stylesheet outranks stroke-*
+ * utilities. */
+export function FlowLinkEdge({
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  data,
+}: EdgeProps<FlowLinkEdgeType>) {
+  const [path] = getBezierPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+  });
   if (!data) return null;
   const active = data.emphasis === "active";
   return (
     <BaseEdge
-      path={data.path}
+      path={path}
       interactionWidth={14}
       style={{
         stroke: active

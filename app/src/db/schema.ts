@@ -690,6 +690,13 @@ export const blocks = sqliteTable("blocks", {
   // planning edit — writes don't touch updated_at and aren't undoable.
   boardX: real("board_x"),
   boardY: real("board_y"),
+  // Hand-placed node positions in this block's Flow view, keyed by the flow
+  // graph's node id (`r:<recipe>`, `i:<good>`, `e:<good>`, `o:<good>`). Same
+  // cosmetic, non-undoable contract as the board columns. Ids that no longer
+  // appear in the solve are ignored on read and pruned on the next save.
+  flowPositions: text("flow_positions", { mode: "json" }).$type<
+    Record<string, { x: number; y: number }>
+  >(),
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });

@@ -1,14 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
-import { Maximize, Workflow } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { LayoutGrid, Maximize, Workflow } from "lucide-react";
 import {
   Background,
   BackgroundVariant,
+  MiniMap,
   Panel,
   ReactFlow,
   ReactFlowProvider,
+  applyNodeChanges,
   useReactFlow,
+  type NodeChange,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { setFlowPositionsFn } from "../../server/board-fns";
 import { Card } from "#/components/ui/card.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
@@ -33,18 +38,24 @@ type FlowNodeType = RecipeFlowNodeType | BoundaryFlowNodeType;
  * recipe rows are nodes, imports enter at the left, byproducts and the goal
  * output leave at the right, and every item flow is a link whose width is
  * proportional to its solved rate. Cycles (Py recycle loops) are drawn as
- * dashed back-edges. Layout stays the pure flow-graph/flow-layout pipeline —
- * React Flow only supplies the viewport, so nodes aren't draggable; scroll to
- * zoom, drag the background to pan, click a recipe node to jump to its table
- * row.
+ * dashed back-edges. Layout stays the pure flow-graph/flow-layout pipeline,
+ * which places every node the user has not moved; hand-dragged nodes keep
+ * their saved spot (per block, keyed by node id, pruned when a recipe leaves
+ * the block). Scroll to zoom, drag the background to pan, drag a node to
+ * arrange, click a recipe node to jump to its table row.
  */
 export function BlockFlowView({
+  blockId,
   res,
   goalNames,
+  storedPositions,
   onSelectRecipe,
 }: {
+  blockId: number;
   res: SolveResult | undefined;
   goalNames: string[];
+  /** hand-placed node positions saved for this block (id → {x,y}) */
+  storedPositions?: Record<string, { x: number; y: number }> | null;
   /** focus the matching recipe row back in the table view */
   onSelectRecipe: (recipe: string) => void;
 }) {
@@ -106,47 +117,89 @@ export function BlockFlowView({
       </div>
       <div className="h-[max(24rem,calc(100dvh-20rem))]">
         <ReactFlowProvider>
-          <FlowCanvas layout={layout} onSelectRecipe={onSelectRecipe} />
+          <FlowCanvas
+            blockId={blockId}
+            layout={layout}
+            storedPositions={storedPositions}
+            onSelectRecipe={onSelectRecipe}
+          />
         </ReactFlowProvider>
       </div>
     </Card>
   );
 }
 
-/** Inner canvas: derives React Flow nodes/edges from the placed layout and
- * carries the hover-focus + cursor-tooltip state. */
+/** Inner canvas: derives React Flow nodes/edges from the placed layout, applies
+ * saved hand positions, and carries the hover-focus + cursor-tooltip state. */
 function FlowCanvas({
+  blockId,
   layout,
+  storedPositions,
   onSelectRecipe,
 }: {
+  blockId: number;
   layout: FlowLayout;
+  storedPositions?: Record<string, { x: number; y: number }> | null;
   onSelectRecipe: (recipe: string) => void;
 }) {
+  const qc = useQueryClient();
   const { fitView } = useReactFlow();
   const [hoverLink, setHoverLink] = useState<{ id: string; x: number; y: number } | null>(null);
   const [hoverNode, setHoverNode] = useState<string | null>(null);
+  // positions at drag start, so drag-stop can persist only what really moved
+  const dragStart = useRef<Map<string, { x: number; y: number }> | null>(null);
 
-  const nodes = useMemo<FlowNodeType[]>(
-    () =>
-      layout.nodes.map((n) =>
-        n.kind === "recipe"
+  const save = useMutation({
+    mutationFn: (d: {
+      positions: Record<string, { x: number; y: number }>;
+      liveIds?: string[];
+      reset?: boolean;
+    }) => setFlowPositionsFn({ data: { blockId, ...d } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["block", blockId] }),
+  });
+
+  // Keep the click-through callback in a ref: the parent re-creates it on every
+  // render, and rebuilding nodes for that would snap a node being dragged back
+  // to its laid-out position mid-drag.
+  const selectRef = useRef(onSelectRecipe);
+  useEffect(() => {
+    selectRef.current = onSelectRecipe;
+  }, [onSelectRecipe]);
+
+  // Auto-layout places every node; a saved position overrides it for that node.
+  const [nodes, setNodes] = useState<FlowNodeType[]>([]);
+  useEffect(() => {
+    setNodes(
+      layout.nodes.map((n) => {
+        const at = storedPositions?.[n.id] ?? { x: n.x, y: n.y };
+        return n.kind === "recipe"
           ? {
               id: n.id,
               type: "recipe" as const,
-              position: { x: n.x, y: n.y },
-              draggable: false,
-              data: { node: n, onSelect: () => onSelectRecipe(n.ref) },
+              position: at,
+              data: { node: n, onSelect: () => selectRef.current(n.ref) },
             }
           : {
               id: n.id,
               type: "boundary" as const,
-              position: { x: n.x, y: n.y },
-              draggable: false,
+              position: at,
               data: { node: n },
-            },
-      ),
-    [layout, onSelectRecipe],
-  );
+            };
+      }),
+    );
+  }, [layout, storedPositions]);
+
+  const relayout = () => {
+    setNodes((ns) =>
+      ns.map((n) => {
+        const placed = layout.nodes.find((l) => l.id === n.id);
+        return placed ? { ...n, position: { x: placed.x, y: placed.y } } : n;
+      }),
+    );
+    save.mutate({ positions: {}, reset: true });
+    requestAnimationFrame(() => fitView({ padding: 0.1, duration: 300 }));
+  };
+  const hasCustom = storedPositions != null && Object.keys(storedPositions).length > 0;
 
   // A link is emphasized when hovered directly or when either of its nodes is.
   const edges = useMemo<FlowLinkEdgeType[]>(() => {
@@ -159,7 +212,6 @@ function FlowCanvas({
         source: l.source,
         target: l.target,
         data: {
-          path: l.path,
           width: l.width,
           back: l.back,
           goodKind: l.goodKind,
@@ -181,6 +233,29 @@ function FlowCanvas({
       edges={edges}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
+      onNodesChange={(changes: NodeChange<FlowNodeType>[]) =>
+        setNodes((ns) => applyNodeChanges(changes, ns))
+      }
+      onNodeDragStart={(_e, node, dragged) => {
+        const start = new Map<string, { x: number; y: number }>();
+        for (const n of dragged.length > 0 ? dragged : [node]) start.set(n.id, { ...n.position });
+        dragStart.current = start;
+      }}
+      onNodeDragStop={(_e, node, dragged) => {
+        // Persist only what actually MOVED: React Flow reports a drag for a
+        // plain click too, and writing an unchanged position would churn the
+        // block row (and pin an auto-laid-out node for no reason).
+        const moved = (dragged.length > 0 ? dragged : [node]).filter((n) => {
+          const from = dragStart.current?.get(n.id);
+          return (
+            !from || Math.abs(from.x - n.position.x) > 0.5 || Math.abs(from.y - n.position.y) > 0.5
+          );
+        });
+        dragStart.current = null;
+        if (moved.length === 0) return;
+        const positions = Object.fromEntries(moved.map((n) => [n.id, n.position]));
+        save.mutate({ positions, liveIds: layout.nodes.map((n) => n.id) });
+      }}
       onNodeMouseEnter={(_e, node) => setHoverNode(node.id)}
       onNodeMouseLeave={() => setHoverNode(null)}
       onEdgeMouseEnter={(e, edge) => setHoverLink({ id: edge.id, x: e.clientX, y: e.clientY })}
@@ -190,14 +265,21 @@ function FlowCanvas({
       fitViewOptions={{ padding: 0.1 }}
       minZoom={0.1}
       maxZoom={2}
-      nodesDraggable={false}
       nodesConnectable={false}
-      elementsSelectable={false}
       deleteKeyCode={null}
       className="bg-background"
     >
       <Background variant={BackgroundVariant.Dots} gap={28} size={1.5} color="var(--border)" />
-      <Panel position="top-right">
+      <MiniMap
+        position="bottom-left"
+        pannable
+        zoomable
+        nodeColor="var(--muted)"
+        nodeStrokeColor="var(--border)"
+        maskColor="color-mix(in oklab, var(--background) 75%, transparent)"
+        style={{ backgroundColor: "var(--card)", border: "1px solid var(--border)" }}
+      />
+      <Panel position="top-right" className="flex gap-1.5">
         <Tooltip label content="Fit the whole flow in view">
           <Button
             variant="outline"
@@ -206,6 +288,17 @@ function FlowCanvas({
             className="bg-card text-muted-foreground"
           >
             <Maximize />
+          </Button>
+        </Tooltip>
+        <Tooltip label content="Auto-arrange — relayout every node (clears hand-placed positions)">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={relayout}
+            disabled={!hasCustom}
+            className="bg-card text-muted-foreground"
+          >
+            <LayoutGrid />
           </Button>
         </Tooltip>
       </Panel>

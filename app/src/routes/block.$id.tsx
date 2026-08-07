@@ -928,7 +928,13 @@ function Block({ blockId }: { blockId: number }) {
       </div>
 
       {view === "flow" ? (
-        <BlockFlowView res={res} goalNames={goalNames} onSelectRecipe={focusRow} />
+        <BlockFlowView
+          blockId={blockId}
+          res={res}
+          goalNames={goalNames}
+          storedPositions={loaded.data?.flowPositions ?? null}
+          onSelectRecipe={focusRow}
+        />
       ) : (
         <RecipeGrid
           doc={doc}

@@ -185,11 +185,21 @@ selected consumer runs as part of the chain, including when one of its products 
 into another recipe in the block.
 
 The recipe table explains how that result was produced. **Table** is the editing view;
-**Flow** is a read-only diagram of the same solved recipes and goods: imports enter on the
-left, the goal output and byproducts leave on the right, link thickness tracks each flow's
-rate, and recycle loops draw as dashed back-edges. Scroll to zoom and drag the background to
-pan — **Fit** (⛶) frames the whole chain. Hover a link for the good and rate under the
-cursor, and select a recipe node to jump back to its table row.
+**Flow** is a diagram of the same solved recipes and goods: imports enter on the left, the
+goal output and byproducts leave on the right, link thickness tracks each flow's rate, and
+recycle loops draw as dashed back-edges. It behaves like the
+[factory board](./balance#arrange-the-factory-on-the-board):
+
+- **Drag** a node to arrange the chain; positions are saved per block and restored on the
+  next visit. **Auto-arrange** (⊞) recomputes the layout and clears them.
+- **Scroll** to zoom, drag the background to pan, and use **Fit** (⛶) to frame everything;
+  the minimap shows where you are in a large chain.
+- **Hover** a node to light up only its links, or a link for the good and rate under the
+  cursor.
+- **Select** a recipe node to jump back to its row in the table.
+
+Nodes you have not moved are placed by the layered layout, and a recipe you remove drops its
+saved position with it.
 
 Variable generators show their average planned output and their minimum–maximum range on
 the electricity product chip. Building counts and block balances use the displayed average;

@@ -304,11 +304,11 @@ describe("trigger coverage (migration drift guard)", () => {
     "notes",
   ];
 
-  // Columns deliberately OUTSIDE the undo system: factory-board positions are
-  // cosmetic layout state written without an undo action (factory-board.server.ts),
-  // and an undo of a planning edit must not teleport blocks around the board —
-  // so the triggers intentionally never mention them.
-  const UNDO_EXEMPT = new Set(["board_x", "board_y"]);
+  // Columns deliberately OUTSIDE the undo system: factory-board positions and
+  // block flow-view node positions are cosmetic layout state written without an
+  // undo action (factory-board.server.ts), and an undo of a planning edit must
+  // not teleport nodes around — so the triggers never mention them.
+  const UNDO_EXEMPT = new Set(["board_x", "board_y", "flow_positions"]);
 
   it("every tracked table has all three triggers covering all current columns", () => {
     for (const t of TRACKED) {

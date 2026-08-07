@@ -1,0 +1,1 @@
+ALTER TABLE `blocks` ADD `flow_positions` text;
