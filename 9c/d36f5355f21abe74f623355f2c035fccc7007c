@@ -1,0 +1,23 @@
+app/e2e/mut/factory-board.e2e.ts
+  s_a999c5f6debe64::t_2defccba1648eb 3,38-39
+app/e2e/mut/helpers.ts
+  s_a999c5f6debe64::t_b6698172065c83 146-197
+app/src/components/factory/board/factory-board.tsx
+  s_a999c5f6debe64::t_d8339f4cd3489b 1,85-86,176-180,182-192
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "9cd36f5355f21abe74f623355f2c035fccc7007c",
+  "prompts": {},
+  "sessions": {
+    "s_a999c5f6debe64": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5961ea07-527e-4373-8896-0179936ec073",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

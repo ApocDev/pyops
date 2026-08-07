@@ -1,0 +1,67 @@
+app/drizzle/0020_block-flow-positions.sql
+  s_756098896277d4::t_6d3b521b1c303b 1
+app/drizzle/meta/0020_snapshot.json
+  s_756098896277d4::t_cd9ce5991b4208 1-2907
+app/drizzle/meta/_journal.json
+  s_756098896277d4::t_4d13c5cdd9cdb9 144-150
+app/e2e/mut/flow-view.e2e.ts
+  s_756098896277d4::t_aff632bd2951ff 1,3-15,52-96
+app/src/components/block/block-flow-view.tsx
+  s_0d25bfd8268e6c::t_258f696f652651 1-3,7,11,13,16,41-45,48,51,54,57-58,120-125,132-133,135,137,140,142,145,149-150,152-175,179-180,185,187-202,236-258,273-282,293-303
+app/src/components/block/flow-link-edge.tsx
+  s_a999c5f6debe64::t_a502f207803373 1,4,14-36,41
+app/src/db/schema.ts
+  s_a999c5f6debe64::t_50a8a14fd883cf 693-699
+app/src/routes/block.$id.tsx
+  s_ff7bc1f2776d52::t_6b6bdef49146d1 931-937
+app/src/server/board-fns.ts
+  s_756098896277d4::t_fccb44f473ec3b 7-12,27-47
+app/src/server/factory-board.server.ts
+  s_756098896277d4::t_75b7bb14021c62 2-6,25-55
+docs/development/architecture.md
+  s_a999c5f6debe64::t_cbcc35cd9e81b4 83-86
+docs/guide/blocks.md
+  s_a999c5f6debe64::t_9316ef988fbc9f 188-202
+app/src/server/undo.test.ts
+  s_756098896277d4::t_f841f65df2b82a 307-311
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "e38132440f8bde9d92096339767f891589a9c953",
+  "prompts": {},
+  "sessions": {
+    "s_0d25bfd8268e6c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fd717-6643-71f3-8b1b-e8083c03f14c",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_756098896277d4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4743fe7c-34fb-43ba-8515-d36b8d4af828",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_a999c5f6debe64": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5961ea07-527e-4373-8896-0179936ec073",
+        "model": "claude-opus-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_ff7bc1f2776d52": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fd9e7-8fec-7882-a3fa-ac86d496cad8",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
