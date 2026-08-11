@@ -47,11 +47,39 @@ PYOPS_MIGRATIONS_DIR=<bundled drizzle directory>
 PYOPS_MOD_DIR=<bundled mod directory>
 ```
 
-The shell drains the child-process output channel and retains its handle so shutdown can
-terminate the server cleanly.
+The shell retains the child-process handle so shutdown can terminate the server cleanly,
+and passes each path through `dunce` so Windows sidecars receive plain `C:\…` paths rather
+than `\\?\`-prefixed extended-length paths.
 
 This split is why server path code must use `app/src/server/paths.server.ts`. The current
 working directory is not a reliable resource or data root in a packaged application.
+
+### Server log
+
+In a packaged build, everything the server prints — stdout and stderr — is written to
+`server.log` in the app-data directory, interleaved with launcher lifecycle lines that are
+stamped with seconds since launch (`[launcher +0.2s] server ready, opening the app`). Each
+launch starts a fresh log; the previous launch's log is kept as `server.log.old`.
+
+This file is the primary diagnostic for startup failures on user machines: it records the
+resolved server entry path, the data directory, spawn errors, server crashes with their
+exit code, and the server's own output. Ask a user to attach it before anything else.
+Logging must never take the app down: if the file cannot be created, logging is silently
+disabled and startup proceeds.
+
+Development builds do not write it — the server runs in the developer's terminal.
+
+### Startup failure page
+
+The shell waits up to 90 seconds for the server port, and bails out immediately if the
+server process exits or fails to spawn. If the server is not reachable, the window opens
+with a built-in diagnostic page instead of the webview's network-error page: it explains
+that the local server has not come up, shows the `server.log` path to attach to a bug
+report, and offers a retry button.
+
+The page is not a dead end. The launcher keeps polling the port behind it and swaps in the
+application the moment the server becomes reachable, which absorbs slow first launches
+(for example, antivirus software scanning a fresh install).
 
 ### Fixed port and single instance
 

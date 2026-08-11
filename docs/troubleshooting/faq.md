@@ -32,6 +32,24 @@ Yes. Create a separate project and sync it from the appropriate Factorio mod set
 project keeps its own reference data and plan. Confirm the active project before syncing,
 because the sync updates that project.
 
+### The app says it couldn't reach its local server. What now?
+
+The desktop app runs a local server in the background, and that page means the server has
+not come up yet. The window keeps checking and loads the app by itself as soon as the
+server is reachable — a first launch can take a while, for example while antivirus
+software scans the new installation. If nothing happens for a few minutes, close the app
+and start it again.
+
+If it keeps failing, attach `server.log` to a bug report. The page shows its full path;
+it lives in the app's data directory:
+
+- Windows: `%APPDATA%\com.apocdev.pyops\server.log`
+- macOS: `~/Library/Application Support/com.apocdev.pyops/server.log`
+- Linux: `~/.local/share/com.apocdev.pyops/server.log`
+
+The log records what the server printed while starting, so it usually identifies the
+failure directly.
+
 ## Planning behavior
 
 ### Why does PyOps leave ingredients as imports?
