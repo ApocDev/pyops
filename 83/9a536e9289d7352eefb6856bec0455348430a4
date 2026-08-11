@@ -1,0 +1,21 @@
+docs/development/desktop.md
+  s_c48ff3597ec177::t_186c6fe98d91af 50-52,57-83
+docs/troubleshooting/faq.md
+  s_c48ff3597ec177::t_872043a264652e 35-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "839a536e9289d7352eefb6856bec0455348430a4",
+  "prompts": {},
+  "sessions": {
+    "s_c48ff3597ec177": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5595d7f3-fa85-4bba-8d11-7a1b73168d70",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
