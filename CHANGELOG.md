@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.5.0](https://github.com/ApocDev/pyops/compare/v1.4.0...v1.5.0) (2026-08-11)
+
+
+### Features
+
+* **app:** let block flow nodes be dragged and remember where you put them ([e381324](https://github.com/ApocDev/pyops/commit/e38132440f8bde9d92096339767f891589a9c953))
+* **desktop:** log server output and show a diagnostic page on startup failure ([f558364](https://github.com/ApocDev/pyops/commit/f55836485ce2c3a98e200e2494e442265d260b28)), closes [#174](https://github.com/ApocDev/pyops/issues/174)
+
+
+### Bug Fixes
+
+* **factory:** persist board positions only for nodes that actually moved ([9cd36f5](https://github.com/ApocDev/pyops/commit/9cd36f5355f21abe74f623355f2c035fccc7007c))
+
 ## [1.4.0](https://github.com/ApocDev/pyops/compare/v1.3.0...v1.4.0) (2026-08-06)
 
 
