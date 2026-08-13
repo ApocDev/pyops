@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/ApocDev/pyops/compare/v1.5.0...v1.5.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* **solver:** ship the HiGHS package intact so packaged builds can solve ([443f395](https://github.com/ApocDev/pyops/commit/443f3959751f02c95881cf28f09c6c3655f10619)), closes [#174](https://github.com/ApocDev/pyops/issues/174)
+
 ## [1.5.0](https://github.com/ApocDev/pyops/compare/v1.4.0...v1.5.0) (2026-08-11)
 
 
