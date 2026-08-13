@@ -283,8 +283,9 @@ For a PyOps desktop change:
 3. Use the mock update query for updater UI changes.
 4. Build a native bundle after changing resource paths, capabilities, sidecar handling, or
    updater configuration.
-5. Confirm the bundle contains the Nitro server, migrations, mod source, and correct Node
-   architecture.
+5. Confirm the bundle contains the Nitro server, migrations, mod source, correct Node
+   architecture, and the traced solver package
+   (`output/server/node_modules/highs/build/highs.wasm`).
 6. Use a build-only manual workflow dispatch after changing the release matrix or manifest
    assembly.
 
