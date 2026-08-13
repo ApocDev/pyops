@@ -1,0 +1,19 @@
+app/vite.config.ts
+  s_7242edcbc5bbd1::t_c83a42e55303a3 180-184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "443f3959751f02c95881cf28f09c6c3655f10619",
+  "prompts": {},
+  "sessions": {
+    "s_7242edcbc5bbd1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019feba8-9d7e-7433-9a7e-5dc22ed56110",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
