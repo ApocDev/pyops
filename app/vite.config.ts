@@ -177,6 +177,11 @@ const config = defineConfig({
           nitro({
             ...(nitroBuildDir ? { buildDir: nitroBuildDir } : {}),
             rollupConfig: { external: [/^@sentry\//] },
+            // highs is CommonJS emscripten glue that reads __dirname and loads
+            // highs.wasm from its own directory at runtime — bundling it into an
+            // ESM lib breaks both, so ship the whole package under
+            // .output/server/node_modules instead ("pkg*" = full package trace).
+            traceDeps: ["highs*"],
           }),
           ignoreAbortedRequestResets(),
           tailwindcss(),
