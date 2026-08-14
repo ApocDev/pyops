@@ -182,6 +182,8 @@ const config = defineConfig({
             // ESM lib breaks both, so ship the whole package under
             // .output/server/node_modules instead ("pkg*" = full package trace).
             traceDeps: ["highs*"],
+            // desktop-shell watchdog: exit the server when the launcher dies
+            plugins: ["./src/server/exit-when-orphaned.ts"],
           }),
           ignoreAbortedRequestResets(),
           tailwindcss(),

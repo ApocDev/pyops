@@ -259,6 +259,11 @@ pub fn run() {
                     cmd.arg(server_entry.to_string_lossy().to_string())
                         .env("PORT", PORT.to_string())
                         .env("HOST", "127.0.0.1")
+                        // The server watches its piped stdin and exits on EOF, so it
+                        // dies with this process even on paths that skip RunEvent::Exit
+                        // (the updater's install step kills the app without it, which
+                        // left an orphaned node.exe locking files mid-update).
+                        .env("PYOPS_EXIT_ON_STDIN_CLOSE", "1")
                         .env("PYOPS_DATA_DIR", data_dir.to_string_lossy().to_string())
                         .env(
                             "PYOPS_MIGRATIONS_DIR",
