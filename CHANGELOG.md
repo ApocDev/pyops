@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.2](https://github.com/ApocDev/pyops/compare/v1.5.1...v1.5.2) (2026-08-14)
+
+
+### Bug Fixes
+
+* **data:** keep minable fluid-result temperatures on synthesized recipes ([5dd5090](https://github.com/ApocDev/pyops/commit/5dd5090f805bff313782d3cc213463d74411623a))
+
 ## [1.5.1](https://github.com/ApocDev/pyops/compare/v1.5.0...v1.5.1) (2026-08-13)
 
 
