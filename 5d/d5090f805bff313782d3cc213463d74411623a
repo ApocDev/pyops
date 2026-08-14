@@ -1,0 +1,21 @@
+app/src/db/synthesize.test.ts
+  s_c48ff3597ec177::t_676fbf90793978 34-45,137,161-176
+app/src/db/synthesize.ts
+  s_c48ff3597ec177::t_0cea39a16512f9 57-63,66-68,78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "5dd5090f805bff313782d3cc213463d74411623a",
+  "prompts": {},
+  "sessions": {
+    "s_c48ff3597ec177": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5595d7f3-fa85-4bba-8d11-7a1b73168d70",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
