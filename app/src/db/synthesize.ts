@@ -54,10 +54,18 @@ type Ctx = {
 
 const arr = <T = any>(x: unknown): T[] => (Array.isArray(x) ? (x as T[]) : []);
 
-type NormResult = { kind: string; name: string; amount: number; probability: number };
+type NormResult = {
+  kind: string;
+  name: string;
+  amount: number;
+  probability: number;
+  temperature?: number | null;
+};
 /** Normalize a minable/recipe result list: `results` (object or legacy
  * `[name, amount]` form, `amount_min`/`amount_max` averaged) or the legacy
- * `result`/`count` pair. */
+ * `result`/`count` pair. Fluid results keep their explicit temperature (e.g.
+ * Py's geothermal crack mines 3000° water); consumers fall back to the
+ * fluid's default temperature when it is null. */
 const normResults = (src: { results?: unknown; result?: string; count?: number }): NormResult[] => {
   if (src.results) {
     return arr<any>(src.results)
@@ -67,6 +75,7 @@ const normResults = (src: { results?: unknown; result?: string; count?: number }
         amount:
           c.amount ?? (c.amount_min != null ? (c.amount_min + c.amount_max) / 2 : (c[1] ?? 1)),
         probability: c.probability ?? 1,
+        temperature: c.temperature ?? null,
       }))
       .filter((c) => c.name);
   }

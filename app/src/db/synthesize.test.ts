@@ -31,6 +31,18 @@ const raw = {
       category: "hard-solid",
       minable: { mining_time: 2, result: "uranium-ore" },
     },
+    // Py's geothermal crack, exactly as data-raw dumps it: the fluid result
+    // carries an explicit temperature (3000°, vs the fluid's 10° default) and
+    // mining needs an input fluid. Category simplified so the test drill reaches it.
+    "geothermal-crack": {
+      category: "basic-solid",
+      minable: {
+        mining_time: 1,
+        results: [{ type: "fluid", name: "geothermal-water", amount: 100, temperature: 3000 }],
+        required_fluid: "pressured-water",
+        fluid_amount: 100,
+      },
+    },
   },
   "offshore-pump": {
     "offshore-pump": { pumping_speed: 20 },
@@ -122,7 +134,7 @@ describe("synthesizePass2", () => {
 
   it("creates a mining recipe per minable resource a drill can reach", () => {
     const counts = synthesizePass2(fx.db, raw, ctx);
-    expect(counts.mining).toBe(2); // iron + copper; uranium unreachable
+    expect(counts.mining).toBe(3); // iron + copper + geothermal; uranium unreachable
 
     const iron = get<{ kind: string; category: string; energy: number; src: string }>(
       `SELECT kind, category, energy_required energy, source_entity src FROM recipes WHERE name = 'mine-iron-ore'`,
@@ -144,6 +156,22 @@ describe("synthesizePass2", () => {
       get<{ ap: number }>(`SELECT allow_productivity ap FROM recipes WHERE name = 'mine-iron-ore'`)!
         .ap,
     ).toBe(1);
+  });
+
+  it("keeps an explicit fluid-result temperature on the mining product", () => {
+    synthesizePass2(fx.db, raw, ctx);
+    // geothermal water must land at its mined 3000°, not the fluid default
+    expect(
+      get(`SELECT amount, temperature FROM recipe_products WHERE recipe = 'mine-geothermal-crack'`),
+    ).toMatchObject({ amount: 100, temperature: 3000 });
+    // item results carry no temperature
+    expect(
+      get(`SELECT temperature FROM recipe_products WHERE recipe = 'mine-iron-ore'`),
+    ).toMatchObject({ temperature: null });
+    // required_fluid becomes the recipe's input at fluid_amount / 10
+    expect(
+      get(`SELECT name, amount FROM recipe_ingredients WHERE recipe = 'mine-geothermal-crack'`),
+    ).toMatchObject({ name: "pressured-water", amount: 10 });
   });
 
   it("skips resources no drill category can mine", () => {
