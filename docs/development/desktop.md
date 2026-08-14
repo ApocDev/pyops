@@ -45,11 +45,21 @@ PORT=34115
 PYOPS_DATA_DIR=<Tauri app-data directory>
 PYOPS_MIGRATIONS_DIR=<bundled drizzle directory>
 PYOPS_MOD_DIR=<bundled mod directory>
+PYOPS_EXIT_ON_STDIN_CLOSE=1
 ```
 
 The shell retains the child-process handle so shutdown can terminate the server cleanly,
 and passes each path through `dunce` so Windows sidecars receive plain `C:\…` paths rather
 than `\\?\`-prefixed extended-length paths.
+
+The explicit kill only covers exits that dispatch `RunEvent::Exit`. Some paths skip it —
+the updater's install step ends the process without it, and so does any hard kill — which
+would orphan the server: on Windows the leftover `node.exe` locks files the installer
+needs to replace, and it keeps answering on the port so a relaunch would serve the old
+version. `PYOPS_EXIT_ON_STDIN_CLOSE` closes that gap: the server watches its piped stdin
+(`src/server/exit-when-orphaned.ts`, a Nitro plugin) and exits on EOF, which the OS
+delivers whenever the launcher process dies, however it dies. The flag is unset in dev
+and manual `node index.mjs` runs, where closed stdin is normal.
 
 This split is why server path code must use `app/src/server/paths.server.ts`. The current
 working directory is not a reliable resource or data root in a packaged application.
