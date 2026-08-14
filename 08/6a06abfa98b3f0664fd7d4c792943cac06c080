@@ -1,0 +1,31 @@
+app/src-tauri/src/lib.rs
+  s_decd7e8afcc2cb::t_c8793320488028 262-266
+app/vite.config.ts
+  s_decd7e8afcc2cb::t_82d59348255053 185-186
+app/src/server/exit-when-orphaned.ts
+  s_c48ff3597ec177::t_25c6cf2badd1a8 1-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "086a06abfa98b3f0664fd7d4c792943cac06c080",
+  "prompts": {},
+  "sessions": {
+    "s_c48ff3597ec177": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5595d7f3-fa85-4bba-8d11-7a1b73168d70",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_decd7e8afcc2cb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8684ac69-1400-409f-bb74-61ba578339d6",
+        "model": "claude-fable-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
