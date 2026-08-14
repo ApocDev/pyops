@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.3](https://github.com/ApocDev/pyops/compare/v1.5.2...v1.5.3) (2026-08-14)
+
+
+### Bug Fixes
+
+* **desktop:** exit the server when the launcher dies without cleanup ([992aab2](https://github.com/ApocDev/pyops/commit/992aab23b2059f8b63e21e23e8d1f7912f9b99b9))
+
 ## [1.5.2](https://github.com/ApocDev/pyops/compare/v1.5.1...v1.5.2) (2026-08-14)
 
 
