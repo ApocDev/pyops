@@ -1,0 +1,19 @@
+docs/development/desktop.md
+  s_c48ff3597ec177::t_29ff09c07f3dd1 48,55-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "0cb0c29a29d59932f5eca7a4ecfccaac86d2b607",
+  "prompts": {},
+  "sessions": {
+    "s_c48ff3597ec177": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5595d7f3-fa85-4bba-8d11-7a1b73168d70",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
