@@ -22,7 +22,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@fontsource-variable/geist-mono": "^5.2.8",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "@openrouter/ai-sdk-provider": "^2.10.0",
     "@tailwindcss/vite": "^4.3.2",
     "@tanstack/react-devtools": "^0.10.8",
