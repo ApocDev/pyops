@@ -79,7 +79,7 @@
     "tsx": "^4.23.0",
     "typescript": "^6.0.3",
     "vite": "npm:@voidzero-dev/vite-plus-core@0.2.2",
-    "vite-plus": "^0.2.2"
+    "vite-plus": "^1.1.0"
   },
   "packageManager": "pnpm@11.5.3"
 }
