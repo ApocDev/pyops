@@ -1,0 +1,35 @@
+app/src/components/block/goal-card.tsx
+  s_71fed34410c3f1::t_599b9fb9fc4ea5 168
+app/src/components/block/item-chip.tsx
+  s_71fed34410c3f1::t_47f4d8aa0d378f 136
+app/src/components/block/recipe-row.tsx
+  s_71fed34410c3f1::t_b65a9b2a9777b3 182,192
+app/src/components/context-menu.tsx
+  s_71fed34410c3f1::t_90bb4dae4d6ca9 17-18
+app/src/lib/hover.test.tsx
+  s_71fed34410c3f1::t_86312cee2e4da1 18,21-27,61,71-72,85-103
+app/src/lib/hover.tsx
+  s_71fed34410c3f1::t_d1fac95b8f4c34 77-79,137
+app/src/routes/block.tsx
+  s_71fed34410c3f1::t_30a2e8fef4f74d 123
+docs/development/design.md
+  s_71fed34410c3f1::t_0fc2c921570b86 196-198
+docs/reference/keyboard-and-navigation.md
+  s_71fed34410c3f1::t_8d43e7927307ea 60-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "71383b63f4e98ef0ffa24ce1172f2b9377943864",
+  "prompts": {},
+  "sessions": {
+    "s_71fed34410c3f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90e2feea-580a-4bff-bd27-dbb7dda6051f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
