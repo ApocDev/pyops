@@ -13,12 +13,7 @@
  * per-recipe rows travel with their machine (worst-short recipe first, as the
  * server orders them).
  */
-import {
-  createColumnHelper,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { createColumnHelper, useTable } from "@tanstack/react-table";
 import { Check, ChevronDown, ChevronRight } from "lucide-react";
 
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
@@ -31,6 +26,7 @@ import { Icon } from "../../lib/icons";
 import { timeAgo } from "../../lib/format";
 import { fmtMachineCount, isWholeCount, wholeMachines } from "../../lib/machine-count";
 import { usePersistedFold, usePersistedSorting } from "../../lib/use-table-prefs";
+import { statTableFeatures, type StatTableFeatures } from "../../lib/stat-table";
 
 export type MachineRow = {
   machine: string;
@@ -55,14 +51,14 @@ export type MachineSufficiency = {
   syncedCount: number | null;
 };
 
-const col = createColumnHelper<MachineRow>();
+const col = createColumnHelper<StatTableFeatures, MachineRow>();
 // Columns exist for their accessors/sorting semantics; rendering stays manual.
-const columns = [
+const columns = col.columns([
   col.accessor((r) => r.display.toLowerCase(), { id: "machine", header: "Machine · recipe" }),
   col.accessor("builtTotal", { id: "built", header: "Built" }),
   col.accessor("requiredTotal", { id: "required", header: "Required" }),
   col.accessor("short", { id: "short", header: "Short" }),
-];
+]);
 
 // header/cell width per column id — must match the StatCell `w` in the rows
 const HEAD_W: Record<string, string> = {
@@ -92,13 +88,12 @@ export function MachinesCard({ data }: { data: MachineSufficiency }) {
   ]);
   const [folded, toggleFold] = usePersistedFold("pyops.factoryFold.machines");
   const rows = data.machines;
-  const table = useReactTable({
+  const table = useTable({
+    features: statTableFeatures,
     data: rows,
     columns,
     state: { sorting },
     onSortingChange,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
 
   if (rows.length === 0 && !data.syncedAt) return null;

@@ -6,13 +6,7 @@
  * localStorage. Short goods sort by "% of demand met" by default, so a fully
  * starved 0.3/s intermediate outranks a half-fed 500/s bulk fluid.
  */
-import {
-  createColumnHelper,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type SortingState,
-} from "@tanstack/react-table";
+import { createColumnHelper, useTable, type SortingState } from "@tanstack/react-table";
 import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
@@ -23,6 +17,7 @@ import { StatSortHeader } from "#/components/stat-sort-header.tsx";
 import { Icon } from "../lib/icons";
 import { rateLabel } from "../lib/format";
 import { usePersistedFold, usePersistedSorting } from "../lib/use-table-prefs";
+import { statTableFeatures, type StatTableFeatures } from "../lib/stat-table";
 
 export type GoodsRow = {
   /** Temperature-qualified row identity; item remains the real prototype name. */
@@ -44,10 +39,10 @@ export type GoodsRow = {
   actualProduced: number | null;
 };
 
-const col = createColumnHelper<GoodsRow>();
+const col = createColumnHelper<StatTableFeatures, GoodsRow>();
 // Columns exist for their accessors/sorting semantics; rendering stays manual.
 // Nullable axes map null → undefined so sortUndefined can pin them last.
-const columns = [
+const columns = col.columns([
   col.accessor((r) => (r.display ?? r.item).toLowerCase(), { id: "item", header: "Item" }),
   col.accessor("produced", { id: "produced", header: "Produced/s" }),
   col.accessor("consumed", { id: "consumed", header: "Consumed/s" }),
@@ -58,7 +53,7 @@ const columns = [
     header: "Actual/s",
     sortUndefined: "last",
   }),
-];
+]);
 
 // header/cell width per column id — the same flex layout the sections always had
 const HEAD_W: Record<string, string> = {
@@ -131,13 +126,12 @@ export function GoodsSection({
   const [sorting, onSortingChange] = usePersistedSorting(`pyops.factorySort.${id}`, defaultSorting);
   const [folded, toggleFold] = usePersistedFold(`pyops.factoryFold.${id}`);
 
-  const table = useReactTable({
+  const table = useTable({
+    features: statTableFeatures,
     data: rows,
     columns,
     state: { sorting, columnVisibility: { met: showMet } },
     onSortingChange,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
 
   if (rows.length === 0) return null;
