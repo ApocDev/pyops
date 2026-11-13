@@ -162,6 +162,7 @@ miss.
 | Titled panel                       | `Card`, `CardHeader`, `CardTitle`, `CardContent` |
 | Persistent state message           | `Callout`; use `variant="strip"` inside a card   |
 | Compact state or count             | `Badge` with semantic token classes              |
+| Key hint                           | `Kbd`                                            |
 | Completed-action feedback          | `toast()` rendered by the root `Toaster`         |
 | Focused edit or choice             | responsive `Dialog` with `DialogBody`            |
 | Long side panel                    | `Sheet`                                          |
@@ -218,6 +219,9 @@ an app-global chord explicitly opts into `allowInInputs`.
 
 Every registration includes a description so the `?` shortcut-help sheet can discover it.
 Do not add route-level `window.addEventListener("keydown", …)` handlers.
+
+Show a chord to the user with `formatCombo`, or `useFormattedCombo` in anything rendered on
+the server, so macOS gets `⌘K` without a hydration mismatch.
 
 ## Page anatomy
 
