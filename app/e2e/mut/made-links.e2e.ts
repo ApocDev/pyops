@@ -111,7 +111,7 @@ test("adding a coke consumer drains exported pitch and keeps a solved building c
   await pitch.click();
 
   const picker = page.getByRole("dialog", { name: /Recipes that consume Pitch/ });
-  await picker.getByRole("button", { name: /^Coke/ }).click();
+  await picker.getByRole("button", { name: /^Pitch refining - coke/ }).click();
   await expect(picker).toBeHidden();
 
   // Pitch is fully consumed. The row shows a drain-routing marker—not the `%`
