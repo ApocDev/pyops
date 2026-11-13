@@ -250,6 +250,8 @@ describe("withGoalChanges", () => {
       expect(rates([{ name: "steam", temperature: 500, index: 1, rate: 45 }], reordered)).toEqual([
         45, 60,
       ]);
+      // ...and so does a stale position for the goal with no temperature
+      expect(rates([{ name: "steam", index: 0, rate: 90 }], reordered)).toEqual([20, 90]);
     });
   });
 

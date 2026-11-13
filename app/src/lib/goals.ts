@@ -130,9 +130,10 @@ export function withPrimaryRate<T extends { goals?: Goal[] }>(d: T, rate: number
 export type GoalChange = {
   name: string;
   temperature?: number;
-  /** Prefer the goal at this position while it still has this name (and
-   * temperature): the top-level `rate` shorthand's first goal, or the goal a
-   * proposal previewed. Otherwise the change matches by name as usual. */
+  /** Prefer the goal at this position while it still has this name and exactly
+   * this temperature (absent = a goal with none): the top-level `rate`
+   * shorthand's first goal, or the goal a proposal previewed. Otherwise the
+   * change matches by name and temperature as usual. */
   index?: number;
   rate?: number;
   stock?: number;
@@ -148,7 +149,12 @@ export function requestedGoalChanges(
   goals: GoalChange[] = [],
 ): GoalChange[] {
   const first = primaryGoal(d);
-  return [...(rate != null && first ? [{ name: first.name, index: 0, rate }] : []), ...goals];
+  const byPosition = first && {
+    name: first.name,
+    ...(first.temperature != null ? { temperature: first.temperature } : {}),
+    index: 0,
+  };
+  return [...(rate != null && byPosition ? [{ ...byPosition, rate }] : []), ...goals];
 }
 
 /** A goal as errors name it: "steam at 500°", or just "steam" with no temperature. */
@@ -210,9 +216,10 @@ export function withGoalChanges<T extends { goals?: Goal[] }>(
     const named = goals.flatMap((g, i) => (g.name === c.name ? [i] : []));
     // no temperature: a unique name, else the one goal whose temperature is unset
     const unqualified = named.filter((i) => goals[i].temperature == null);
-    // a position is a hint: used while that goal still has the name (and temperature)
+    // a position is a hint: used while that goal still has the same name and
+    // temperature (no temperature counts as a value, not a wildcard)
     const atIndex = named.filter(
-      (i) => i === c.index && (c.temperature == null || goals[i].temperature === c.temperature),
+      (i) => i === c.index && (goals[i].temperature ?? null) === (c.temperature ?? null),
     );
     const matches =
       atIndex.length > 0
