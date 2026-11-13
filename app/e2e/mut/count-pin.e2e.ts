@@ -1,11 +1,13 @@
 import { DatabaseSync } from "node:sqlite";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import {
   activeProjectDbFile,
   addGoal,
   createBlock,
   goto,
+  setPlanningHorizon,
   uniqueName,
+  withDb,
 } from "./helpers";
 
 /**
@@ -217,6 +219,17 @@ test("variable generator shows its average and min-max output", async ({ page })
 
 test("recipe picker groups unlocked choices and disables locked buildings", async ({ page }) => {
   await createBlock(page);
+  // "Locked" only exists in the Now horizon; the fixture plans in Future.
+  await setPlanningHorizon(page, "Now");
+  try {
+    await expectLockedPicker(page);
+  } finally {
+    // back to the fixture's horizon for later specs, even if a dialog is still open
+    withDb((db) => db.exec("UPDATE meta SET value = 'future' WHERE key = 'research_mode'"));
+  }
+});
+
+async function expectLockedPicker(page: Page) {
   await page.locator('button[title="Add a goal product"]').click();
   const goalDialog = page.getByRole("dialog", { name: "Add a goal product" });
   await goalDialog.getByPlaceholder("Search an item or fluid…").fill("pyops electricity");
@@ -244,6 +257,6 @@ test("recipe picker groups unlocked choices and disables locked buildings", asyn
   // Py's `-blank` runtime entity uses the same localized name and output. It is
   // an alternate state of this building, not a second recipe choice.
   await expect(
-    picker.getByText('Multiblade "fish" turbine power (average)', { exact: true }),
+    picker.getByText('Multiblade "fish" wind turbine power (average)', { exact: true }),
   ).toHaveCount(1);
-});
+}

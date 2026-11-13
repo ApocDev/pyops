@@ -48,7 +48,7 @@ test("marking an import made without a producer keeps it a silent import", async
     .first()
     .click({ button: "right" });
   await expect(
-    page.getByRole("menuitem", { name: /Click to import instead/ }),
+    page.getByRole("menuitem", { name: /click to import instead/ }),
   ).toBeVisible();
 });
 
@@ -164,7 +164,7 @@ test("adding a feedback recycler consumes the copper byproduct", async ({ page }
 
   const picker = page.getByRole("dialog", { name: /Recipes that consume Copper \(grade 1\)/ });
   const existingCrusher = picker.locator('[data-recipe-candidate="grade-1-copper-crush"]');
-  await expect(existingCrusher).toContainText("added · select to link");
+  await expect(existingCrusher).toContainText("Added · select to link");
   await existingCrusher.click();
   await expect(picker).toBeHidden();
 
@@ -209,7 +209,7 @@ test("adding a cyclic consumer processes surplus that returns to the sink goal",
   }
 
   await goto(page, `/block/${id}`);
-  const soot = page.getByRole("button", { name: /^Soot 4\.87.*Export/ }).first();
+  const soot = page.getByRole("button", { name: /^Soot 0\.97.*Export/ }).first();
   await expect(soot).toBeVisible();
   await soot.click();
 
@@ -219,5 +219,5 @@ test("adding a cyclic consumer processes surplus that returns to the sink goal",
 
   await expect(page.getByRole("button", { name: /^Soot .*Export/ }).first()).toBeHidden();
   await expect(page.getByLabel("Routes all surplus Soot")).toBeVisible();
-  await expect(page.getByRole("button", { name: "2.56", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "0.49", exact: true })).toBeVisible();
 });

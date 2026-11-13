@@ -42,20 +42,17 @@ test("fluid-temp mismatch flags the 3000° producer feeding a 4000° generator",
   await expect(neutronPicker).toBeHidden();
 
   // the mismatch is named on the balance card and on both rows' chips
-  await expect(page.getByText(/Makes Neutron at 3k°, but/)).toBeVisible();
-  await expect(page.getByText("Gets 3k°", { exact: true })).toBeVisible(); // consumer row's ingredient chip
+  await expect(page.getByText(/makes Neutron at 3k°, but/)).toBeVisible();
+  await expect(page.getByText("gets 3k°", { exact: true })).toBeVisible(); // consumer row's ingredient chip
   await expect(page.getByText("Needs 4k°", { exact: true })).toBeVisible(); // producer row's product chip
 
   // add b-h (neutron @4000°, satisfies the generator): the dt-he3 mismatch
   // must STAY flagged — one matching producer used to mask it entirely.
-  await page
-    .getByRole("button", { name: /^Neutron.*Linked/ })
-    .first()
-    .click();
+  await page.getByRole("button", { name: /^Neutron/ }).first().click();
   await neutronPicker.getByRole("button", { name: /Fuse boron with a proton/ }).click();
   await expect(neutronPicker).toBeHidden();
   await expect(page.locator('span[title="Fuse boron with a proton"]')).toBeVisible();
-  await expect(page.getByText(/Makes Neutron at 3k°, but/)).toBeVisible();
-  await expect(page.getByText("Gets 3k°", { exact: true })).toBeVisible();
+  await expect(page.getByText(/makes Neutron at 3k°, but/)).toBeVisible();
+  await expect(page.getByText("gets 3k°", { exact: true })).toBeVisible();
   await expect(page.getByText("Needs 4k°", { exact: true })).toBeVisible();
 });

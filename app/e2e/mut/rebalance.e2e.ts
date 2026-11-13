@@ -1,6 +1,22 @@
 import { DatabaseSync } from "node:sqlite";
 import { expect, type Page, test } from "@playwright/test";
-import { activeProjectDbFile, goto, toast, undoButton, uniqueName } from "./helpers";
+import {
+  activeProjectDbFile,
+  type BlockDoc,
+  clearFactory,
+  goto,
+  toast,
+  undoButton,
+  withDb,
+} from "./helpers";
+import { type ScenarioFactory, seedScenarioFactory } from "./scenario-factory";
+
+// Every test starts from the same small factory (or clears it), so no test
+// depends on the order they run in or on what an earlier test applied.
+let factory: ScenarioFactory;
+test.beforeEach(() => {
+  factory = seedScenarioFactory();
+});
 
 async function dismissDataDriftPrompt(page: Page) {
   const ignore = page.getByRole("button", { name: "Ignore for now" });
@@ -22,20 +38,6 @@ async function recalculateScenario(page: Page) {
   if (state === "stale")
     await status.getByRole("button", { name: "Recalculate" }).click();
   await expect(status).toHaveAttribute("data-state", "current", { timeout: 90_000 });
-}
-
-function hydrocarbonScenarioBlock(db: DatabaseSync): {
-  id: number;
-  name: string;
-  data: string;
-} {
-  const row = db
-    .prepare(
-      "SELECT id, name, data FROM blocks WHERE data LIKE '%\"distilled-raw-coal\"%' LIMIT 1",
-    )
-    .get() as { id: number; name: string; data: string } | undefined;
-  if (!row) throw new Error("seed is missing the Hydrocarbons Scenario fixture");
-  return row;
 }
 
 test("factory pins can add and persist a consumption target", async ({ page }) => {
@@ -84,7 +86,6 @@ test("Scenario target waits for explicit recalculation and reports progress", as
 
   const firstDemand = page.getByRole("spinbutton").first();
   await expect(firstDemand).toBeVisible();
-  const originalTarget = await firstDemand.inputValue();
   await firstDemand.selectText();
   await firstDemand.pressSequentially("12.34", { delay: 100 });
 
@@ -105,13 +106,6 @@ test("Scenario target waits for explicit recalculation and reports progress", as
   await expect(status).toContainText(/Preparing|response models|Solving factory|Validating blocks/);
   await expect(status).toHaveAttribute("data-state", "current", { timeout: 90_000 });
   await expect(status).toContainText("Scenario is up to date");
-
-  // Restore the shared scratch project's target and its cached result for the
-  // remaining tests in this serial mutating suite.
-  await firstDemand.fill(originalTarget);
-  await expect(status).toHaveAttribute("data-state", "stale");
-  await status.getByRole("button", { name: "Recalculate" }).click();
-  await expect(status).toHaveAttribute("data-state", "current", { timeout: 90_000 });
 });
 
 test("revisiting Scenario reuses the current persisted result", async ({ page }) => {
@@ -134,13 +128,12 @@ test("revisiting Scenario reuses the current persisted result", async ({ page })
 /**
  * Applying a Scenario target: overriding a final product's target surfaces the
  * per-block changes, and Apply scenario commits every one of them
- * in a single undoable step. Drives the real flow end-to-end against the isolated
- * mut server, then undoes the factory-wide change so the shared scratch db is left
- * as it was.
+ * in a single undoable step that one undo reverts. Drives the real flow end-to-end
+ * against the isolated mut server.
  *
  * A change only shows when a block's scale is off by more than the ~1% "balanced"
  * floor (rounding), so the test forces a genuine change by DOUBLING a demand — far
- * above the floor — rather than depending on the seed happening to be imbalanced.
+ * above the floor — rather than depending on the fixture happening to be imbalanced.
  */
 test("applying a scenario re-balances the factory in one undoable step", async ({ page }) => {
   // applying + undoing a whole-factory re-balance re-solves every touched block, so
@@ -185,10 +178,8 @@ test("applying a scenario re-balances the factory in one undoable step", async (
     timeout: 30_000,
   });
 
-  // one undo reverts this whole batch, leaving the shared scratch db as it was.
-  // Assert the undo RAN via its toast rather than that the label clears — the seed
-  // is a copy of the live project and may already carry an unrelated
-  // earlier factory action, so the label needn't return to something else.
+  // one undo reverts this whole batch. Assert the undo RAN via its toast rather
+  // than that the label clears — earlier specs leave their own undo entries.
   await expect(undoButton(page)).toBeEnabled();
   await undoButton(page).click();
   await expect(toast(page, /Undid: Balance pinned factory/)).toBeVisible({ timeout: 30_000 });
@@ -196,151 +187,97 @@ test("applying a scenario re-balances the factory in one undoable step", async (
 
 test("Scenario zeros an unpinned consume goal without saving the preview", async ({ page }) => {
   test.setTimeout(120_000);
-  // Resolve the copied project's existing projections before inserting the two
-  // self-contained test blocks and their cached factory boundary flows.
-  await goto(page, "/factory/scenario");
-  await dismissDataDriftPrompt(page);
-
-  const sourceName = uniqueName("Acetaldehyde surplus");
-  const sinkName = uniqueName("Secondary sink");
-  const db = new DatabaseSync(activeProjectDbFile());
-  let sourceId: number;
-  let sinkId: number;
-  try {
-    db.exec("PRAGMA busy_timeout = 5000");
-    sourceId = Number(
-      db
-        .prepare("INSERT INTO blocks (name, data, solve_status) VALUES (?, ?, 'solved')")
-        .run(
-          sourceName,
-          JSON.stringify({ goals: [{ name: "water", rate: 1 }], recipes: [] }),
-        ).lastInsertRowid,
+  // Only the two blocks below: an acetaldehyde surplus and a sink that consumes
+  // it, with their cached factory boundary flows.
+  clearFactory();
+  const { sinkId } = withDb((db) => {
+    const insert = db.prepare(
+      "INSERT INTO blocks (name, data, solve_status) VALUES (?, ?, 'solved')",
     );
-    sinkId = Number(
-      db
-        .prepare("INSERT INTO blocks (name, data, solve_status) VALUES (?, ?, 'solved')")
-        .run(
-          sinkName,
-          JSON.stringify({
-            goals: [
-              { name: "water", rate: -1 },
-              { name: "acetaldehyde", rate: -2 },
-            ],
-            recipes: ["spoil-acetaldehyde"],
-          }),
-        ).lastInsertRowid,
+    const sourceId = Number(
+      insert.run(
+        "Acetaldehyde surplus",
+        JSON.stringify({ goals: [{ name: "water", rate: 1 }], recipes: [] }),
+      ).lastInsertRowid,
+    );
+    const sinkId = Number(
+      insert.run(
+        "Secondary sink",
+        JSON.stringify({
+          goals: [
+            { name: "water", rate: -1 },
+            { name: "acetaldehyde", rate: -2 },
+          ],
+          recipes: ["spoil-acetaldehyde"],
+        }),
+      ).lastInsertRowid,
     );
     const insertFlow = db.prepare(
       "INSERT INTO block_flows (block_id, item, kind, role, rate) VALUES (?, ?, ?, ?, ?)",
     );
     insertFlow.run(sourceId, "acetaldehyde", "item", "byproduct", 10);
     insertFlow.run(sinkId, "acetaldehyde", "item", "import", 2);
-  } finally {
-    db.close();
-  }
+    return { sinkId };
+  });
 
-  try {
-    await goto(page, "/factory/scenario");
-    await recalculateScenario(page);
-    const change = page.getByRole("link", { name: /^Acetaldehyde / });
-    await expect(change).toContainText("-2");
-    await expect(change).toContainText("Next goal/s0");
+  await goto(page, "/factory/scenario");
+  await dismissDataDriftPrompt(page);
+  await recalculateScenario(page);
+  const change = page.getByRole("link", { name: /^Acetaldehyde / });
+  await expect(change).toContainText("-2");
+  await expect(change).toContainText("Next goal/s0");
 
-    const saved = new DatabaseSync(activeProjectDbFile(), { readOnly: true });
-    try {
-      const row = saved.prepare("SELECT data FROM blocks WHERE id = ?").get(sinkId) as {
-        data: string;
-      };
-      const doc = JSON.parse(row.data) as { goals: { name: string; rate: number }[] };
-      expect(doc.goals.find((goal) => goal.name === "acetaldehyde")?.rate).toBe(-2);
-      expect(doc.goals.find((goal) => goal.name === "water")?.rate).toBe(-1);
-    } finally {
-      saved.close();
-    }
-  } finally {
-    const cleanup = new DatabaseSync(activeProjectDbFile());
-    try {
-      cleanup.exec("PRAGMA busy_timeout = 5000");
-      cleanup.prepare("DELETE FROM block_flows WHERE block_id IN (?, ?)").run(sourceId, sinkId);
-      cleanup.prepare("DELETE FROM block_machines WHERE block_id IN (?, ?)").run(sourceId, sinkId);
-      cleanup.prepare("DELETE FROM blocks WHERE id IN (?, ?)").run(sourceId, sinkId);
-    } finally {
-      cleanup.close();
-    }
-  }
+  const doc = withDb(
+    (db) =>
+      JSON.parse(
+        (db.prepare("SELECT data FROM blocks WHERE id = ?").get(sinkId) as { data: string }).data,
+      ) as { goals: { name: string; rate: number }[] },
+    { readOnly: true },
+  );
+  expect(doc.goals.find((goal) => goal.name === "acetaldehyde")?.rate).toBe(-2);
+  expect(doc.goals.find((goal) => goal.name === "water")?.rate).toBe(-1);
 });
 
 test("Scenario converges with temperature-qualified coproduct and grid power", async ({ page }) => {
   test.setTimeout(120_000);
-  const db = new DatabaseSync(activeProjectDbFile());
-  const pins = db.prepare("SELECT value FROM meta WHERE key = 'factory_pins_v1'").get() as
-    | { value: string }
-    | undefined;
-  hydrocarbonScenarioBlock(db);
-  db.prepare(
-    "INSERT INTO meta (key, value) VALUES ('factory_pins_v1', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-  ).run(
-    JSON.stringify([
-      { good: "automation-science-pack", kind: "item", rate: 1.5 },
-      { good: "py-science-pack-1", kind: "item", rate: 1 },
-    ]),
-  );
-  db.close();
+  await goto(page, "/factory/scenario");
+  await dismissDataDriftPrompt(page);
+  await recalculateScenario(page);
 
-  try {
-    await goto(page, "/factory/scenario");
-    await dismissDataDriftPrompt(page);
-    await recalculateScenario(page);
-
-    await expect(page.getByRole("link", { name: /^Steam 250° / })).toBeVisible({
-      timeout: 60_000,
-    });
-    await expect(page.getByRole("link", { name: /^Electricity / })).toBeVisible();
-    await expect(page.getByRole("link", { name: /^Coal gas / })).toBeVisible();
-    await expect(page.getByTestId("scenario-validation")).toBeHidden();
-    await expect(page.getByRole("button", { name: "Balance factory" })).toBeEnabled();
-  } finally {
-    const cleanup = new DatabaseSync(activeProjectDbFile());
-    if (pins)
-      cleanup
-        .prepare("UPDATE meta SET value = ? WHERE key = 'factory_pins_v1'")
-        .run(pins.value);
-    else cleanup.prepare("DELETE FROM meta WHERE key = 'factory_pins_v1'").run();
-    cleanup.close();
-  }
+  await expect(page.getByRole("link", { name: /^Steam 250° / })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page.getByRole("link", { name: /^Electricity / })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Coal gas / })).toBeVisible();
+  await expect(page.getByTestId("scenario-validation")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Balance factory" })).toBeEnabled();
 });
 
 test("Scenario explains which proposed block goals failed validation", async ({ page }) => {
   test.setTimeout(120_000);
-  const db = new DatabaseSync(activeProjectDbFile());
-  const row = hydrocarbonScenarioBlock(db);
-  const original = row.data;
-  const doc = JSON.parse(original) as {
-    pins?: { kind: string; recipe: string; count?: number }[];
-  };
-  doc.pins = [
-    ...(doc.pins ?? []).filter((pin) => pin.recipe !== "distilled-raw-coal"),
-    { kind: "cap", recipe: "distilled-raw-coal", count: 1 },
-  ];
-  db.prepare("UPDATE blocks SET data = ? WHERE id = ?").run(JSON.stringify(doc), row.id);
-  db.close();
+  // cap Hydrocarbons' raw-coal distillation at one building, far below what the
+  // pinned demand needs, so the proposed goals can't validate
+  const { id, name } = factory.hydrocarbons;
+  withDb((db) => {
+    const row = db.prepare("SELECT data FROM blocks WHERE id = ?").get(id) as { data: string };
+    const doc = JSON.parse(row.data) as BlockDoc;
+    doc.pins = [
+      ...(doc.pins ?? []).filter((pin) => pin.recipe !== "distilled-raw-coal"),
+      { kind: "cap", recipe: "distilled-raw-coal", count: 1 },
+    ];
+    db.prepare("UPDATE blocks SET data = ? WHERE id = ?").run(JSON.stringify(doc), id);
+  });
 
-  try {
-    await goto(page, "/factory/scenario");
-    await dismissDataDriftPrompt(page);
-    await recalculateScenario(page);
+  await goto(page, "/factory/scenario");
+  await dismissDataDriftPrompt(page);
+  await recalculateScenario(page);
 
-    const diagnostic = page.getByTestId("scenario-validation");
-    await expect(diagnostic.getByText("Scenario validation failed")).toBeVisible({
-      timeout: 60_000,
-    });
-    await expect(diagnostic.getByRole("link", { name: row.name })).toBeVisible();
-    await expect(diagnostic.getByText("Block solve: infeasible")).toBeVisible();
-    await expect(diagnostic.getByText("Proposed goals on validation pass")).toBeVisible();
-    await expect(diagnostic.getByText("Coke")).toBeVisible();
-  } finally {
-    const cleanup = new DatabaseSync(activeProjectDbFile());
-    cleanup.prepare("UPDATE blocks SET data = ? WHERE id = ?").run(original, row.id);
-    cleanup.close();
-  }
+  const diagnostic = page.getByTestId("scenario-validation");
+  await expect(diagnostic.getByText("Scenario validation failed")).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(diagnostic.getByRole("link", { name })).toBeVisible();
+  await expect(diagnostic.getByText("Block solve: infeasible")).toBeVisible();
+  await expect(diagnostic.getByText("Proposed goals on validation pass")).toBeVisible();
+  await expect(diagnostic.getByText("Aromatics")).toBeVisible();
 });

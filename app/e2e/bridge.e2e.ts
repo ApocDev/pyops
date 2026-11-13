@@ -1,5 +1,6 @@
 import dgram from "node:dgram";
 import { expect, test } from "@playwright/test";
+import { BRIDGE_PORT } from "./ports";
 import { APP_VERSION, PROTOCOL_VERSION } from "./versions";
 
 /**
@@ -12,10 +13,9 @@ import { APP_VERSION, PROTOCOL_VERSION } from "./versions";
  *
  * This exercises the whole real stack (no mocked responses) and carries no
  * dependency on TanStack Start's wire format, so it won't break on their releases.
- * The dev server's bridge port is pinned via PYOPS_BRIDGE_PORT (see config).
+ * The dev server's bridge port is E2E_BRIDGE_PORT (see ports.ts).
  */
 
-const BRIDGE_PORT = 37659;
 const HOST = "127.0.0.1";
 
 /** A stand-in for the companion mod: heartbeats the app's bridge on an interval
