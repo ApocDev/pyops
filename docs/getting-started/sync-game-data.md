@@ -98,6 +98,6 @@ After a later mod change—or a PyOps update that reads additional or changed du
 shows **Data stale** and opens the same re-sync prompt. The dialog identifies whether the mods,
 the PyOps data reader, or both changed. Use **Re-sync now** to refresh the project. **Ignore for
 now** leaves the existing data and plans unchanged, with **Data stale** kept in the navigation as
-a way back.
+a way back. A narrower desktop window shows it as a warning-colored dot.
 
 Continue to [Build your first block](./first-block).

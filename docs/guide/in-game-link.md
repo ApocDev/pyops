@@ -61,7 +61,8 @@ Under **Live bridge**, select **Launch Factorio**. PyOps supplies the required
 `--enable-lua-udp` launch option and chooses the game-side UDP port. The Companion mod then
 connects automatically; there is no in-game enable toggle.
 
-The navigation status indicates the result:
+The navigation status indicates the result. A narrower desktop window shows only its colored
+dot; hover the dot to read the status.
 
 - **no game**: PyOps is listening, but no Companion mod is connected;
 - **game linked**: recent packets are arriving from the mod;

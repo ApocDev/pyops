@@ -10,8 +10,9 @@ The planning horizon controls what PyOps is allowed to use in blocks, recipe pic
 Assistant proposals. Set it before making detailed recipe choices so the plan does not
 quietly depend on technology you did not intend to use.
 
-On a wide screen, open **Horizon: _current mode_** near the top-right of the navigation
-bar. On a narrow screen, open the navigation menu first. The same controls are also under
+On a wide screen, open the clock control near the top-right of the navigation bar. It shows
+the current mode, with a **Horizon:** prefix when the window has room. On a narrow screen,
+open the navigation menu first. The same controls are also under
 **Settings → Planning**.
 
 <AppScreenshot
