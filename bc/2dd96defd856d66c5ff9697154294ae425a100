@@ -1,0 +1,35 @@
+app/e2e/mut/palette.e2e.ts
+  s_59e17dac495ccf::t_a1ca96cfc82fc7 8-9,158-192
+app/src/components/app-nav.tsx
+  s_59e17dac495ccf::t_fdb4c6803dc889 9,76,90-95
+app/src/components/command-palette.tsx
+  s_59e17dac495ccf::t_079f0fe1e5bb6d 55-63,87-92
+app/src/components/nav-links.ts
+  s_59e17dac495ccf::t_6add08af18d977 3,51
+app/src/components/nav-mobile.tsx
+  s_59e17dac495ccf::t_fea4abc0b29f56 1,4,7-10,17,25,27-29,36-45,48-56,68-75,95-109
+app/src/components/search-button.tsx
+  s_59e17dac495ccf::t_d93a7378b0bb26 1-49
+app/src/components/shortcut-help-sheet.tsx
+  s_59e17dac495ccf::t_71d91991b86e72 5,63
+app/src/components/ui/kbd.tsx
+  s_59e17dac495ccf::t_675e8193de720f 1-19
+app/src/lib/hotkeys.ts
+  s_59e17dac495ccf::t_8efec7bcb81da6 1,200-211
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bc2dd96defd856d66c5ff9697154294ae425a100",
+  "prompts": {},
+  "sessions": {
+    "s_59e17dac495ccf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7281372d-016c-4683-931f-899afd840e0c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
