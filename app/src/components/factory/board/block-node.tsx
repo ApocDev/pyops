@@ -1,6 +1,7 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { Boxes, Zap } from "lucide-react";
 import { Icon } from "../../../lib/icons";
+import { formatPower } from "../../../lib/format";
 import { BOARD_DIM } from "./board-graph.ts";
 
 export type BlockNodeData = {
@@ -13,13 +14,6 @@ export type BlockNodeData = {
 };
 
 export type BlockFlowNode = Node<BlockNodeData, "block">;
-
-const fmtW = (w: number) =>
-  w >= 1e9
-    ? `${(w / 1e9).toFixed(1)} GW`
-    : w >= 1e6
-      ? `${(w / 1e6).toFixed(1)} MW`
-      : `${(w / 1e3).toFixed(0)} kW`;
 
 /** A block on the factory board: icon + name + power draw. Drag to place,
  * double-click to open the block editor (wired at the board level). The
@@ -54,7 +48,7 @@ export function BlockNode({ data, selected }: NodeProps<BlockFlowNode>) {
         {data.electricityW != null && data.electricityW > 1 && (
           <span className="flex items-center gap-1 text-sm text-muted-foreground">
             <Zap className="size-3.5 shrink-0" aria-hidden />
-            {fmtW(data.electricityW)}
+            {formatPower(data.electricityW)}
           </span>
         )}
       </span>

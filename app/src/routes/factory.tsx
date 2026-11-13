@@ -48,14 +48,7 @@ export const Route = createFileRoute("/factory")({
   ),
 });
 
-import { formatQty as num, timeAgo } from "../lib/format";
-const fmtW = (w: number) =>
-  w >= 1e9
-    ? `${(w / 1e9).toFixed(2)} GW`
-    : w >= 1e6
-      ? `${(w / 1e6).toFixed(2)} MW`
-      : `${(w / 1e3).toFixed(0)} kW`;
-
+import { formatPower, formatQty as num, rateLabel, timeAgo } from "../lib/format";
 /** Factory overview — the whole point of caching block flows: every block's
  * solved I/O aggregated per item with zero solving. Short goods (consumed more
  * than produced across blocks) are what you build next. */
@@ -210,7 +203,7 @@ function FactoryPage() {
         description={
           <span className="flex flex-wrap items-center gap-1">
             {countNoun(blocks.data?.length ?? 0, "block")} · <Zap className="size-3.5" />{" "}
-            {fmtW(totalPowerW)}
+            {formatPower(totalPowerW)}
             {Math.abs(totalPollution) > 0.005 && (
               <Tooltip content="Net pollution per minute across all enabled blocks — negative means your forestry/plantations absorb more than the machines emit">
                 <span
@@ -629,7 +622,9 @@ function ResourceDrawer({
       {b.role === "byproduct" && (
         <Badge className="border-transparent bg-surplus/20 px-1 py-0 text-surplus">Byproduct</Badge>
       )}
-      <span className="w-20 text-right text-muted-foreground">{num(b.rate)}/s</span>
+      <span className="w-20 text-right text-muted-foreground">
+        {rateLabel(item, b.rate, { perSec: true })}
+      </span>
     </Link>
   );
   const List = ({

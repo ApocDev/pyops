@@ -20,7 +20,7 @@ import { SortableRow } from "./sortable-row.tsx";
 import { GroupComposeDialog, type GoalCandidate } from "./group-compose-dialog.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { SolveResult } from "./solve-view.ts";
-import { fmtW, num, rateLabel } from "./format.ts";
+import { formatPower, num, rateLabel } from "./format.ts";
 
 /** A sub-block's header row: fold chevron, rename-in-place name, and the chain's
  * net I/O ("ore in → plates out"), machines and power. A group can be a display
@@ -162,7 +162,9 @@ export function GroupHeaderRow({
                     · {num(net.machines)} machines
                   </span>
                 )}
-                {net.powerW > 0 && <span className="text-sm text-info">{fmtW(net.powerW)}</span>}
+                {net.powerW > 0 && (
+                  <span className="text-sm text-info">{formatPower(net.powerW)}</span>
+                )}
               </span>
             )}
             <span className="ml-auto flex shrink-0 items-center gap-1">

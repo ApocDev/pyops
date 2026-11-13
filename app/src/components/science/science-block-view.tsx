@@ -4,6 +4,7 @@ import { Calculator, FlaskConical } from "lucide-react";
 import { labOptionsFn, saveScienceBankFn, scienceBlockFn } from "../../server/science";
 import type { ScienceBank } from "../../db/schema";
 import { Icon } from "../../lib/icons";
+import { formatPower, formatQty } from "../../lib/format";
 import { ModulesChip, ModulesModal } from "../../lib/modules-modal";
 import { DeriveFromTechDialog } from "./derive-from-tech-dialog";
 import { Button } from "#/components/ui/button.tsx";
@@ -21,9 +22,6 @@ import {
 import { InfoHint } from "#/components/info-hint.tsx";
 
 const perMin = (perSec: number) => perSec * 60;
-const fmt = (n: number) => (n >= 100 ? Math.round(n).toLocaleString() : n.toFixed(2));
-const fmtW = (w: number) =>
-  w >= 1e6 ? `${(w / 1e6).toFixed(2)} MW` : w >= 1e3 ? `${(w / 1e3).toFixed(0)} kW` : `${w} W`;
 
 /** The science-consumer block: one lab bank for the whole factory.
  *
@@ -191,28 +189,28 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Stat
                 label="Labs"
-                value={fmt(result.labs)}
+                value={formatQty(result.labs)}
                 hint="One pool — every pack shares them."
               />
               <Stat
                 label="Total science"
-                value={`${fmt(perMin(result.totalPerSec))}/min`}
+                value={`${formatQty(perMin(result.totalPerSec))}/min`}
                 // The two figures differ only by productivity, and confusing them is
                 // the easy mistake: this is the research you get, not the packs you
                 // have to make.
                 note={
                   result.productivityMult > 1
-                    ? `${fmt(perMin(drawnPerSec))}/min drawn · ${pct} productivity`
+                    ? `${formatQty(perMin(drawnPerSec))}/min drawn · ${pct} productivity`
                     : "no productivity — drawn as entered"
                 }
               />
-              <Stat label="Power" value={fmtW(result.totalPowerW)} />
+              <Stat label="Power" value={formatPower(result.totalPowerW)} />
               <Stat
                 label="Productivity"
                 value={pct}
                 note={
                   result.productivityMult > 1
-                    ? `${fmt(perMin(result.totalPerSec - drawnPerSec))}/min of science for free`
+                    ? `${formatQty(perMin(result.totalPerSec - drawnPerSec))}/min of science for free`
                     : undefined
                 }
                 hint="From modules and beacons. Pack demand is divided by it."
@@ -242,7 +240,7 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
           {Object.entries(result.upkeep).map(([item, u]) => (
             <span key={item} className="flex items-center gap-1">
               <Icon kind={u.kind as "item" | "fluid"} name={item} size="sm" />
-              <span className="font-semibold">{fmt(perMin(u.perSec))}</span>
+              <span className="font-semibold">{formatQty(perMin(u.perSec))}</span>
               <span className="text-muted-foreground">/min</span>
             </span>
           ))}
@@ -263,7 +261,7 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
             {Object.entries(result.packDemand).map(([pack, perSec]) => (
               <span key={pack} className="flex items-center gap-1">
                 <Icon kind="item" name={pack} size="sm" />
-                <span className="font-semibold">{fmt(perMin(perSec))}</span>
+                <span className="font-semibold">{formatQty(perMin(perSec))}</span>
                 <span className="text-muted-foreground">/min</span>
               </span>
             ))}

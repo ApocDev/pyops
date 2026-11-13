@@ -59,7 +59,7 @@ export function SupplyAllocationCard({ rows }: { rows: SupplyAllocation[] }) {
                 {row.blockName}
               </Link>
               <span className="w-24 text-right tabular-nums">
-                {rateLabel(row.good, row.rate)}/s
+                {rateLabel(row.good, row.rate, { perSec: true })}
               </span>
             </div>
           );

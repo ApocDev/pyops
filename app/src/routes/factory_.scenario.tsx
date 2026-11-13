@@ -324,8 +324,9 @@ function WhatIf() {
                   <span className="min-w-0 flex-1 truncate" title={x.display}>
                     {x.display}
                   </span>
-                  <span className="text-surplus">+{rateLabel(x.good, x.projected)}</span>
-                  <span className="text-muted-foreground">/s</span>
+                  <span className="text-surplus">
+                    {rateLabel(x.good, x.projected, { sign: true, perSec: true })}
+                  </span>
                 </div>
               ))}
             </div>
@@ -393,8 +394,7 @@ function GoodsCard({
           >
             <Icon kind={x.kind as "item" | "fluid"} name={x.good} size="sm" noHover />
             <span>{x.display}</span>
-            <span className={color}>{rateLabel(x.good, x[field])}</span>
-            <span className="text-muted-foreground">/s</span>
+            <span className={color}>{rateLabel(x.good, x[field], { perSec: true })}</span>
           </ItemHover>
         ))}
       </div>

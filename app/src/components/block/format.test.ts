@@ -1,14 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import {
-  fmtAmt,
-  fmtCost,
-  fmtCount,
-  fmtJ,
-  fmtPower,
-  fmtRate,
-  fmtW,
-  parseRateInput,
-} from "./format.ts";
+import { fmtAmt, fmtCost, fmtCount, fmtJ, fmtRate, parseRateInput } from "./format.ts";
 
 describe("fmtRate", () => {
   it("never trims INTEGER trailing zeros on large rates (the 5000 → '5' bug)", () => {
@@ -34,12 +25,6 @@ describe("fmtRate", () => {
 });
 
 describe("compaction helpers", () => {
-  it("fmtW picks sensible units", () => {
-    expect(fmtW(1500)).toBe("2 kW");
-    expect(fmtW(2_500_000)).toBe("2.50 MW");
-    expect(fmtW(3_000_000_000)).toBe("3.00 GW");
-  });
-
   it("fmtJ picks sensible units", () => {
     expect(fmtJ(8_000_000)).toBe("8.0 MJ");
     expect(fmtJ(500)).toBe("500 J");
@@ -93,22 +78,6 @@ describe("parseRateInput", () => {
     // empty input keeps its legacy meaning: commit 0 (matches the old Number("") path)
     expect(parseRateInput("", true)).toEqual({ value: 0, perSecond: false });
     expect(parseRateInput("watts", true)).toBeNull();
-  });
-});
-
-describe("fmtPower", () => {
-  it("picks the largest sensible unit with trimmed decimals", () => {
-    expect(fmtPower(5_000_000)).toBe("5 TW");
-    expect(fmtPower(5000)).toBe("5 GW");
-    expect(fmtPower(500)).toBe("500 MW");
-    expect(fmtPower(2.5)).toBe("2.5 MW");
-    expect(fmtPower(0.25)).toBe("250 kW");
-    expect(fmtPower(0.0000005)).toBe("0.5 W");
-  });
-
-  it("handles zero and negatives (SINK goals)", () => {
-    expect(fmtPower(0)).toBe("0 W");
-    expect(fmtPower(-5000)).toBe("-5 GW");
   });
 });
 
