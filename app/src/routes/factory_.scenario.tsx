@@ -33,6 +33,11 @@ export const Route = createFileRoute("/factory_/scenario")({
 
 import { rateLabel } from "../lib/format";
 
+/** Order-independent key for a set of draft target overrides, compared with the
+ * key of the last calculated set to tell whether the shown result is stale. */
+const overrideKey = (values: Record<string, number>) =>
+  JSON.stringify(Object.entries(values).sort(([a], [b]) => a.localeCompare(b)));
+
 /** Factory what-if: solve every enabled block goal from a small set of signed
  * whole-factory pins. */
 function WhatIf() {
@@ -45,11 +50,9 @@ function WhatIf() {
     return `×${ratio >= 100 ? Math.round(ratio) : ratio.toFixed(ratio >= 10 ? 1 : 3)}`;
   };
   const [overrides, setOverrides] = useState<Record<string, number>>({});
-  const [calculatedOverrideKey, setCalculatedOverrideKey] = useState("{}");
+  const [calculatedOverrideKey, setCalculatedOverrideKey] = useState(() => overrideKey({}));
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const autoCalculateStarted = useRef(false);
-  const overrideKey = (values: Record<string, number>) =>
-    JSON.stringify(Object.entries(values).sort(([a], [b]) => a.localeCompare(b)));
   const draftOverrideKey = useMemo(() => overrideKey(overrides), [overrides]);
   const snapshot = useQuery({
     queryKey: ["factoryScenarioSnapshot"],
