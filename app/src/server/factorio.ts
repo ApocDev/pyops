@@ -884,18 +884,15 @@ export const setFavoriteMachineFn = createServerFn({ method: "POST" })
   });
 
 /** Set/clear the preferred fuel (the "favorite" star in the fuel picker). A solid
- * fuel sets the favorite for its fuel category. Fluids have no pick to favorite:
+ * fuel sets the favorite for each of its fuel categories. Fluids have no pick to favorite:
  * unfiltered fluid burners draw from the shared pyops-fluid-fuel pool and
  * filtered ones are pinned to one fluid (#25). `clear: true` removes it. */
 export const setFavoriteFuelFn = createServerFn({ method: "POST" })
   .validator((d: { fuel: string; clear?: boolean }) => d)
   .handler(async ({ data }) => {
-    const category = q.getItem(data.fuel)?.fuelCategory;
-    if (category) {
-      q.setFavoriteFuel(category, data.clear ? null : data.fuel);
-      return { ok: true };
-    }
-    return { ok: false };
+    const categories = q.getItem(data.fuel)?.fuelCategories ?? [];
+    for (const category of categories) q.setFavoriteFuel(category, data.clear ? null : data.fuel);
+    return { ok: categories.length > 0 };
   });
 
 /** Set/clear one fluid's preferred produced temperature. Reject stale or

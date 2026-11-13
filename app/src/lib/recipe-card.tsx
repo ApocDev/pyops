@@ -325,7 +325,8 @@ export function ItemCard({
           {data.item?.fuelValueJ != null && (
             <div className="flex items-center gap-1">
               <Flame className="size-3.5 shrink-0" /> {fmtJ(data.item.fuelValueJ)} (
-              {data.item.fuelCategory}){data.item.burntResult && ` → ${data.item.burntResult}`}
+              {data.item.fuelCategories?.join(", ")})
+              {data.item.burntResult && ` → ${data.item.burntResult}`}
             </div>
           )}
           {data.fluid?.fuelValueJ != null && (
@@ -776,7 +777,7 @@ export function EntityCard({ name, extraText }: { name: string; extraText?: Reac
     rows.push(
       <div key="fuel" className="flex items-center gap-1">
         <Flame className="size-3.5 shrink-0" /> {fmtJ(data.item.fuelValueJ)} (
-        {data.item.fuelCategory})
+        {data.item.fuelCategories?.join(", ")})
       </div>,
     );
   if (data?.item?.stackSize != null) rows.push(<div key="stack">Stack {data.item.stackSize}</div>);

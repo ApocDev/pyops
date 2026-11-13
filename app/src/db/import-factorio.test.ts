@@ -53,6 +53,27 @@ describe("importFactorioDump — recipe categories", () => {
   });
 });
 
+describe("importFactorioDump — fuel categories", () => {
+  it("stores Factorio 2.1 fuel_categories and wraps a 2.0 fuel_category in a list", () => {
+    const db = runImport({
+      item: {
+        "raw-coal": { fuel_value: "3MJ", fuel_categories: ["chemical"], burnt_result: "ash" },
+        both: { fuel_value: "1MJ", fuel_categories: ["chemical", "biomass"] },
+        legacy: { fuel_value: "2MJ", fuel_category: "biomass" },
+        plate: {},
+      },
+    });
+    const rows = db.prepare(`SELECT name, fuel_categories FROM items ORDER BY name`).all();
+    expect(rows).toEqual([
+      { name: "both", fuel_categories: '["chemical","biomass"]' },
+      { name: "legacy", fuel_categories: '["biomass"]' },
+      { name: "plate", fuel_categories: null },
+      { name: "raw-coal", fuel_categories: '["chemical"]' },
+    ]);
+    db.close();
+  });
+});
+
 describe("importFactorioDump — Factorio 2.1 product probability", () => {
   it("combines independent and shared rolls with legacy and default fallbacks", () => {
     const db = runImport({

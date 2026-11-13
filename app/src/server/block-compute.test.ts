@@ -505,8 +505,8 @@ describe("computeBlock reactor neighbour bonus (#94)", () => {
         ('generate-heat-nuclear-reactor',0,'fluid','pyops-heat',2000);
 
       -- the fuel it burns (Py values: 4GJ per cell, 1:1 depleted cell)
-      INSERT INTO items (name, display, fuel_value_j, fuel_category, burnt_result) VALUES
-        ('uranium-fuel-cell','Uranium fuel cell MK 01',4000000000,'nuclear','depleted-uranium-fuel-cell');
+      INSERT INTO items (name, display, fuel_value_j, fuel_categories, burnt_result) VALUES
+        ('uranium-fuel-cell','Uranium fuel cell MK 01',4000000000,'["nuclear"]','depleted-uranium-fuel-cell');
       INSERT INTO items (name, display) VALUES
         ('depleted-uranium-fuel-cell','Depleted uranium fuel cell');
     `);

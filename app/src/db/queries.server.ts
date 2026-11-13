@@ -466,7 +466,15 @@ export function fuelsForCategories(categories: string[]) {
       burntResult: items.burntResult,
     })
     .from(items)
-    .where(and(isNotNull(items.fuelValueJ), inArray(items.fuelCategory, categories)))
+    .where(
+      and(
+        isNotNull(items.fuelValueJ),
+        sql`EXISTS (SELECT 1 FROM json_each(${items.fuelCategories}) WHERE value IN (${sql.join(
+          categories.map((c) => sql`${c}`),
+          sql`, `,
+        )}))`,
+      ),
+    )
     .orderBy(items.fuelValueJ)
     .all()
     .filter((f) => !isExcluded(f.name)); // EE / user-excluded fuels
@@ -3242,7 +3250,7 @@ export function entityDetail(name: string) {
       ? {
           stackSize: item.stackSize,
           fuelValueJ: item.fuelValueJ,
-          fuelCategory: item.fuelCategory,
+          fuelCategories: item.fuelCategories,
         }
       : null,
     cost: goodCosts([name]).get(name) ?? null,

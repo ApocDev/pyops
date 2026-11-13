@@ -20,7 +20,9 @@ export const items = sqliteTable(
     stackSize: integer("stack_size"),
     weight: real("weight"), // rocket-lift weight (null = not set in data → default_item_weight)
     fuelValueJ: real("fuel_value_j"),
-    fuelCategory: text("fuel_category"),
+    // Factorio 2.1 dumps list several; an older dump's single `fuel_category`
+    // is stored as a one-item list. Null when the item is not a fuel.
+    fuelCategories: text("fuel_categories", { mode: "json" }).$type<string[] | null>(),
     // normalization sources for pass-2 synthetic recipes
     spoilResult: text("spoil_result"),
     spoilTicks: integer("spoil_ticks"),
