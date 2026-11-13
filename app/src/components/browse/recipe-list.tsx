@@ -22,8 +22,8 @@ const RECYCLED_GROUP = {
  * filtered by the shared query and grouped by research-horizon availability.
  * Consumers rank by estimated economy flow (busiest first). With `price`
  * (a producer list), rows rank by ¥ per unit of the good, cheapest first, and
- * draw a price ladder on one scale. The dense variant hides recycling and void
- * recipes behind a header toggle, off by default. */
+ * draw a price ladder on one scale. Recycling and void recipes hide behind a
+ * header toggle, off by default. */
 export function RecipeList({
   title,
   cards,
@@ -32,7 +32,6 @@ export function RecipeList({
   query,
   onClearQuery,
   onPick,
-  variant = "dense",
   price,
   className,
 }: {
@@ -45,22 +44,20 @@ export function RecipeList({
   query: string;
   onClearQuery: () => void;
   onPick: (name: string) => void;
-  variant?: "dense" | "comfortable";
-  /** dense producer lists: the focus good's price — turns on the price ladder */
+  /** producer lists: the focus good's price — turns on the price ladder */
   price?: number | null;
   className?: string;
 }) {
   const [showAll, setShowAll] = useState(false);
   const [showRecycled, setShowRecycled] = useState(false);
-  const ladder = variant === "dense" && price !== undefined;
+  const ladder = price !== undefined;
 
   const { main, recycled } = useMemo(() => {
-    if (variant === "comfortable") return { main: cards, recycled: [] };
     const main: BrowseCard[] = [];
     const recycled: BrowseCard[] = [];
     for (const c of cards) (isRecyclingOrVoid(c) ? recycled : main).push(c);
     return { main, recycled };
-  }, [cards, variant]);
+  }, [cards]);
   // a good only recycling/voids produce shows them outright, with no toggle
   const recycledOn = showRecycled || main.length === 0;
   const listed = useMemo(
@@ -103,39 +100,25 @@ export function RecipeList({
   const maxUnit = listed.reduce((m, c) => Math.max(m, Math.min(c.unitCost ?? 0, cap)), 0);
 
   return (
-    <Card
-      className={cn(
-        variant === "comfortable" ? "self-start border-0 bg-transparent" : "self-start",
-        className,
-      )}
-    >
-      {variant === "dense" && (
-        <CardHeader className="border-b-0">
-          <CardTitle>{title}</CardTitle>
-          <span className="text-sm text-muted-foreground">{main.length || cards.length}</span>
-          {main.length > 0 && recycled.length > 0 && (
-            <Button
-              variant="toggle"
-              size="sm"
-              aria-pressed={showRecycled}
-              onClick={() => setShowRecycled((on) => !on)}
-              className="ml-auto"
-            >
-              Recycling &amp; void <span className="tabular-nums">{recycled.length}</span>
-            </Button>
-          )}
-        </CardHeader>
-      )}
+    <Card className={cn("self-start", className)}>
+      <CardHeader className="border-b-0">
+        <CardTitle>{title}</CardTitle>
+        <span className="text-sm text-muted-foreground">{main.length || cards.length}</span>
+        {main.length > 0 && recycled.length > 0 && (
+          <Button
+            variant="toggle"
+            size="sm"
+            aria-pressed={showRecycled}
+            onClick={() => setShowRecycled((on) => !on)}
+            className="ml-auto"
+          >
+            Recycling &amp; void <span className="tabular-nums">{recycled.length}</span>
+          </Button>
+        )}
+      </CardHeader>
       {cards.length === 0 && <div className="px-3 pb-3 text-muted-foreground">{emptyText}</div>}
       {listed.length > 0 && filtered.length === 0 && (
         <FilterEmptyState className="px-3 pb-3" query={query} onClear={onClearQuery} />
-      )}
-      {variant === "comfortable" && filtered.length > 0 && (
-        <div className="hidden grid-cols-[minmax(13rem,0.8fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 border border-border bg-muted/40 px-3 py-2 text-sm font-medium text-muted-foreground md:grid">
-          <span>Recipe</span>
-          <span>Inputs</span>
-          <span>Outputs</span>
-        </div>
       )}
       {visible.map((g) => (
         <div key={g.id}>
@@ -154,7 +137,6 @@ export function RecipeList({
               focus={focus}
               maxFlow={maxFlow}
               onPick={onPick}
-              variant={variant}
               ladder={ladder ? { price: price ?? null, max: maxUnit } : undefined}
             />
           ))}

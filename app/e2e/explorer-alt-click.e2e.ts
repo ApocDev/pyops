@@ -17,17 +17,34 @@ test("Alt+Click opens a focused recipe explorer without navigating away", async 
 
   const dialog = page.getByRole("dialog", { name: "Recipe explorer" });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("button", { name: /^Recipes \(\d+\)$/ })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
   await expect(dialog.locator("span[style*='background-image']").first()).toBeVisible({
     timeout: 30_000,
   });
-  await expect(dialog.getByText("Recipe", { exact: true })).toBeVisible();
-  await expect(dialog.getByText("Inputs", { exact: true }).first()).toBeVisible();
-  await expect(dialog.getByText("Outputs", { exact: true }).first()).toBeVisible();
-  await dialog.getByRole("button", { name: /^Uses \(\d+\)$/ }).click();
-  await expect(dialog.getByText(/^Uses \(\d+\)$/).last()).toBeVisible();
+
+  // producers sit on the price ladder, cheapest ¥ per unit first
+  const produced = dialog
+    .locator('[data-slot="card"]')
+    .filter({ has: page.locator('[data-slot="card-title"]', { hasText: /^Produced by$/ }) });
+  const group = (label: string) =>
+    produced.locator(":scope > div").filter({ hasText: new RegExp(`^${label}`) });
+  const ladders = group("Available now").getByTestId("price-ladder");
+  await expect(ladders.first()).toBeVisible();
+  const prices = (await ladders.allInnerTexts())
+    .map((t) => /^¥([\d.]+)$/m.exec(t)?.[1])
+    .filter((v): v is string => v != null)
+    .map(Number);
+  expect(prices.length).toBeGreaterThan(0);
+  expect(prices).toEqual([...prices].sort((a, b) => a - b));
+
+  // recycling & void recipes stay hidden until the list's toggle shows them
+  const toggle = produced.getByRole("button", { name: /^Recycling & void \d+$/ });
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(group("Recycling & void")).toHaveCount(0);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(group("Recycling & void").getByTestId("price-ladder").first()).toBeVisible();
+  await toggle.click();
+  await expect(group("Recycling & void")).toHaveCount(0);
+
   await expect(page).toHaveURL(/\/explore$/);
 });

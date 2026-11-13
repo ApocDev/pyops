@@ -28,7 +28,6 @@ export function RecipeRow({
   focus,
   maxFlow,
   onPick,
-  variant = "dense",
   ladder,
 }: {
   card: BrowseCard;
@@ -36,11 +35,9 @@ export function RecipeRow({
   /** largest economy flow in the surrounding list — this row's meter is relative to it */
   maxFlow: number;
   onPick: (name: string) => void;
-  variant?: "dense" | "comfortable";
-  /** dense only: the focus good's price and the list's largest ¥ per unit */
+  /** producer lists: the focus good's price and the list's largest ¥ per unit */
   ladder?: { price: number | null; max: number };
 }) {
-  const comfortable = variant === "comfortable";
   const turd = card.unlocks.find((u) => u.isTurdSub);
   const lock = card.enabled
     ? null
@@ -73,18 +70,12 @@ export function RecipeRow({
       variant="ghost"
       onClick={() => onPick(c.name)}
       title={`${c.display ?? c.name} ×${num(c.amount)}`}
-      className={`h-auto font-normal hover:bg-accent ${
-        comfortable
-          ? "min-w-0 justify-start gap-1.5 border border-border bg-background px-1.5 py-0.5"
-          : "gap-0.5 px-0.5 py-0"
-      } ${c.name === focus ? "ring-1 ring-primary/60" : ""} ${dim ? "opacity-80" : ""}`}
+      className={`h-auto gap-0.5 px-0.5 py-0 font-normal hover:bg-accent ${
+        c.name === focus ? "ring-1 ring-primary/60" : ""
+      } ${dim ? "opacity-80" : ""}`}
     >
       <Icon kind={c.kind as Kind} name={c.name} size="sm" noTitle />
-      {comfortable && <span className="min-w-0 truncate">{c.display ?? c.name}</span>}
-      <span className={comfortable ? "ml-auto text-sm text-muted-foreground" : "text-sm"}>
-        {comfortable ? "×" : ""}
-        {num(c.amount)}
-      </span>
+      <span className="text-sm">{num(c.amount)}</span>
     </Button>
   );
 
@@ -141,93 +132,6 @@ export function RecipeRow({
       )}
     </>
   );
-
-  if (comfortable) {
-    return (
-      <article className="grid gap-3 border-x border-b border-border bg-card px-3 py-3 md:grid-cols-[minmax(13rem,0.8fr)_minmax(0,1fr)_minmax(0,1fr)]">
-        <section className="min-w-0">
-          <div className="flex min-w-0 items-start gap-2">
-            <Icon kind="recipe" name={card.name} size="md" noHover />
-            <div className="min-w-0 flex-1">
-              <RecipeHover name={card.name} className="w-fit max-w-full">
-                <h3 className="truncate text-base font-semibold" title={card.display ?? card.name}>
-                  {card.display ?? card.name}
-                </h3>
-              </RecipeHover>
-              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                {timingAndCost}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">{availability}</div>
-
-          {card.superseded && (
-            <Tooltip
-              content={`Your ${card.superseded.masterDisplay ?? "TURD"} choice "${card.superseded.subDisplay}" replaced this recipe with "${card.superseded.newDisplay}" — the base version no longer exists in-game`}
-            >
-              <div className="mt-1.5 flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
-                <FlaskConical className="size-3.5" /> Replaced by {card.superseded.newDisplay}
-              </div>
-            </Tooltip>
-          )}
-
-          <div className="mt-2 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
-            {card.flow != null && maxFlow > 0 && (
-              <Tooltip content="Estimated economy activity relative to the busiest recipe in this list">
-                <span className="block h-1.5 w-10 shrink-0 overflow-hidden bg-muted">
-                  <span
-                    className="block h-full bg-info"
-                    style={{
-                      width: `${Math.round((Math.min(card.flow, maxFlow) / maxFlow) * 100)}%`,
-                    }}
-                  />
-                </span>
-              </Tooltip>
-            )}
-            {card.machines.length > 0 && (
-              <>
-                <Icon kind="item" name={card.machines[0].name} size="sm" noTitle />
-                <span className="truncate">
-                  {card.machines[0].display ?? card.machines[0].name}
-                </span>
-                {card.machines.length > 1 && (
-                  <Tooltip
-                    content={card.machines
-                      .slice(1)
-                      .map((machine) => machine.display ?? machine.name)
-                      .join(", ")}
-                  >
-                    <span className="shrink-0">+{card.machines.length - 1}</span>
-                  </Tooltip>
-                )}
-              </>
-            )}
-          </div>
-        </section>
-
-        <section className="min-w-0">
-          <div className="mb-1 text-sm font-medium text-muted-foreground md:sr-only">Inputs</div>
-          <div className="flex flex-wrap gap-1.5">
-            {card.ingredients.length ? (
-              card.ingredients.map((c, i) => <Comp key={`i${i}`} c={c} />)
-            ) : (
-              <span className="text-sm text-muted-foreground">None</span>
-            )}
-          </div>
-        </section>
-
-        <section className="min-w-0">
-          <div className="mb-1 text-sm font-medium text-muted-foreground md:sr-only">Outputs</div>
-          <div className="flex flex-wrap gap-1.5">
-            {card.products.map((c, i) => (
-              <Comp key={`p${i}`} c={c} dim={(c.probability ?? 1) < 1} />
-            ))}
-          </div>
-        </section>
-      </article>
-    );
-  }
 
   return (
     <div className="border-t border-border px-3 py-2">

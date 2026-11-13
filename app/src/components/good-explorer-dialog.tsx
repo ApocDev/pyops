@@ -39,7 +39,7 @@ export function GoodExplorerDialog() {
         </DialogHeader>
         <DialogBody className="font-mono text-sm text-foreground">
           <IconProvider>
-            <GoodDetail name={name ?? undefined} onPick={setName} variant="dialog" />
+            <GoodDetail name={name ?? undefined} onPick={setName} />
           </IconProvider>
         </DialogBody>
       </DialogContent>
