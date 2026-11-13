@@ -1,0 +1,21 @@
+app/e2e/responsive.e2e.ts
+  s_bc5957867684b5::t_8bd909843741d8 109-123
+app/src/components/workspace-nav.tsx
+  s_bc5957867684b5::t_a37ea0b0c08fb7 36,45,51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3f0cb049df10f20da12207e14dd92bd6881e3f1c",
+  "prompts": {},
+  "sessions": {
+    "s_bc5957867684b5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "67ef0cac-a0ac-475d-b7c2-58695facfc77",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
