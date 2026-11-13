@@ -34,6 +34,13 @@ import type { LogiView, SolveResult } from "./solve-view.ts";
 import { formatPower, num } from "./format.ts";
 import { cellChip } from "./styles.ts";
 
+// Large blocks (#154): the browser skips layout and paint for rows outside the
+// viewport. The intrinsic size is a placeholder height for a row that hasn't
+// rendered yet (median row height per layout); `auto` keeps the real height
+// once it has. The row stays mounted, so dnd-kit, focus and dialogs still work.
+const OFFSCREEN =
+  "[content-visibility:auto] [contain-intrinsic-size:auto_470px] md:[contain-intrinsic-size:auto_190px]";
+
 /** Callbacks that open the block editor's overlays from a row: pickers get the
  * recipe name, item clicks route to the recipe picker (produce/consume), and
  * the two context menus carry the click position. */
@@ -164,7 +171,7 @@ export function RecipeRow({
         <div
           ref={rowRef}
           data-recipe-row={name}
-          className={`${gridClass} relative border-t border-border ${grouped ? "border-l-2 border-l-primary/50" : ""} ${surface(isDragging)} ${highlight ? "ring-2 ring-primary ring-inset" : ""}`}
+          className={`${gridClass} ${OFFSCREEN} relative border-t border-border ${grouped ? "border-l-2 border-l-primary/50" : ""} ${surface(isDragging)} ${highlight ? "ring-2 ring-primary ring-inset" : ""}`}
         >
           <RecipeHover
             name={name}

@@ -219,6 +219,14 @@ The lead cell owns the flexible width and truncation. Numeric/stat columns remai
 right-aligned on desktop. Do not preserve a wide desktop row by forcing horizontal scroll
 on mobile.
 
+The block editor's recipe grid renders lazily so large blocks open fast. Its rows mount
+once the grid comes within 1000px of the block's scroll viewport (`data-block-scroll`),
+and each row uses `content-visibility: auto`, so the browser skips layout and paint for
+rows off screen. Two rules follow. To scroll to a row, set the editor's `focusRecipe`
+rather than querying `[data-recipe-row]`: it mounts the rows and lays them all out so
+the scroll lands on the target. Content inside a row is clipped to the row, so popovers,
+menus, and hover cards opened from a row must portal out (the shared primitives do).
+
 ### Keyboard shortcuts
 
 Register shortcuts through `useHotkey` in `app/src/lib/hotkeys.ts`. `mod+` resolves to

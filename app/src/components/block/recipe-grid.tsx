@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { useStore } from "@tanstack/react-store";
 import {
   DndContext,
@@ -34,6 +34,15 @@ import { head } from "./styles.ts";
 const TPL = "md:[grid-template-columns:minmax(200px,1.6fr)_minmax(240px,1fr)_1.3fr_1.3fr]";
 const GRID = `flex flex-col gap-2.5 px-3 py-3 md:grid md:items-center md:gap-4 md:py-3.5 ${TPL}`;
 const HEAD = `${head} hidden md:grid md:items-center md:gap-4 ${TPL}`;
+// Large blocks (#154): the rows mount once the grid comes within this distance of
+// the block's scroll viewport. Until then a spacer stands in at about the rows'
+// median height (stacked on mobile, one line per row on md+).
+const MOUNT_PX = 1000;
+const SPACER = "h-[calc(var(--rows)*470px)] md:h-[calc(var(--rows)*190px)]";
+// Rows skip off-screen rendering (see recipe-row.tsx), so a row that hasn't
+// rendered yet has only a placeholder height. While a focus request scrolls to a
+// row, lay every row out for real so the scroll lands on the target.
+const FOCUSING = "[&_[data-recipe-row]]:[content-visibility:visible]";
 
 /** The recipe grid: each row's I/O at the solved rate, with drag-reorder,
  * sub-block headers (#7), disable toggles (#73) and click-to-confirm removal.
@@ -71,6 +80,39 @@ export function RecipeGrid({
   const recipeGroups = useStore(doc.store, (s) => s.recipeGroups);
   const disabled = useStore(doc.store, (s) => s.disabled);
   const solveFailed = res?.status === "infeasible" || res?.status === "error";
+
+  // Mount the rows lazily: a big block's goals can push the grid thousands of
+  // pixels down, and mounting ~60 rows up front dominates opening the block. Once
+  // mounted the rows stay mounted (the editor remounts per block), and a focus
+  // request mounts them at once so the target row can scroll into view.
+  const [nearView, setNearView] = useState(false);
+  const mounted = nearView || !!focusRecipe;
+  const spacerRef = useRef<HTMLDivElement>(null);
+  const hasRecipes = recipes.length > 0; // the spacer only renders with rows to stand in for
+  useLayoutEffect(() => {
+    if (nearView) return;
+    const el = spacerRef.current;
+    if (focusRecipe || !el) {
+      if (focusRecipe) setNearView(true);
+      return;
+    }
+    const root = el.closest<HTMLElement>("[data-block-scroll]");
+    // Already near the viewport (e.g. a small block): mount before the first
+    // paint rather than flashing the spacer for a frame.
+    const bottom = root ? root.getBoundingClientRect().bottom : window.innerHeight;
+    if (el.getBoundingClientRect().top < bottom + MOUNT_PX) {
+      setNearView(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setNearView(true);
+      },
+      { root, rootMargin: `${MOUNT_PX}px 0px` },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [nearView, focusRecipe, hasRecipes]);
 
   // Sub-block fold state is a view preference — localStorage, not the doc, so
   // folding doesn't churn auto-save.
@@ -154,10 +196,10 @@ export function RecipeGrid({
   // Sub-blocks (#7): flatten recipes+groups into the render sequence. A group
   // renders a header at its first member's position; members follow (contiguous
   // by invariant) unless the group is folded, in which case they're skipped and
-  // the header shows the chain's net flows instead.
+  // the header shows the chain's net flows instead. Empty until the rows mount.
   type RowEntry = { type: "group"; group: RowGroup } | { type: "recipe"; name: string };
   const rowSeq: RowEntry[] = [];
-  {
+  if (mounted) {
     const byId = new Map(rowGroups.map((g) => [g.id, g]));
     const seen = new Set<number>();
     for (const name of recipes) {
@@ -174,7 +216,7 @@ export function RecipeGrid({
   const sortableIds = rowSeq.map((e) => (e.type === "group" ? `grp:${e.group.id}` : e.name));
 
   return (
-    <Card>
+    <Card className={focusRecipe ? FOCUSING : undefined}>
       <div className={HEAD}>
         <span>Recipe ({recipes.length})</span>
         <span>Machines</span>
@@ -189,6 +231,13 @@ export function RecipeGrid({
         <div className="px-3 py-2 text-muted-foreground">
           None — pick a recipe for the goal above
         </div>
+      )}
+      {!mounted && hasRecipes && (
+        <div
+          ref={spacerRef}
+          className={SPACER}
+          style={{ "--rows": recipes.length } as CSSProperties}
+        />
       )}
       <DndContext
         sensors={recipeSensors}

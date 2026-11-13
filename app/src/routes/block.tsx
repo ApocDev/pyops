@@ -919,7 +919,7 @@ function Shell() {
             <div className="px-3 py-1.5 text-sm text-muted-foreground">No open blocks</div>
           )}
         </div>
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div data-block-scroll className="min-h-0 flex-1 overflow-auto">
           <ActiveEditorRefContext.Provider value={activeEditorRef}>
             <Outlet />
           </ActiveEditorRefContext.Provider>
