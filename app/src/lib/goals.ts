@@ -130,24 +130,24 @@ export function withPrimaryRate<T extends { goals?: Goal[] }>(d: T, rate: number
 export type GoalChange = {
   name: string;
   temperature?: number;
+  /** Target the goal at this position instead of matching by name (the
+   * top-level `rate` shorthand: the first goal). */
+  index?: number;
   rate?: number;
   stock?: number;
   window?: number;
 };
 
 /** The changes a resize request means: a top-level `rate` re-rates the FIRST
- * goal (with its temperature, so it stays unambiguous when the block makes that
- * fluid at several temperatures), then the named `goals`. */
+ * goal by position (so it never depends on name matching), then the named
+ * `goals`. */
 export function requestedGoalChanges(
   d: { goals?: Goal[] },
   rate: number | undefined,
   goals: GoalChange[] = [],
 ): GoalChange[] {
   const first = primaryGoal(d);
-  return [
-    ...(rate != null && first ? [{ name: first.name, temperature: first.temperature, rate }] : []),
-    ...goals,
-  ];
+  return [...(rate != null && first ? [{ name: first.name, index: 0, rate }] : []), ...goals];
 }
 
 /** A goal as errors name it: "steam at 500°", or just "steam" with no temperature. */
@@ -184,8 +184,10 @@ export const goalChangeRequest = ({ name, temperature, after }: GoalChangeDiff):
  * aren't named keep their values. A `rate` on a stock goal scales its buffer
  * like `withPrimaryRate`; a `stock`/`window` change re-derives the rate as
  * stock/window. Returns an error naming the problem instead of guessing when a
- * change is unknown, ambiguous (one fluid at several temperatures, no
- * `temperature` given), repeated, or contradictory. `indexes` gives each
+ * change is unknown, ambiguous, repeated, or contradictory. A change without
+ * `temperature` matches a unique name, or else the one same-name goal with no
+ * temperature; it is ambiguous when several goals share the name and none or
+ * several of them lack a temperature. `indexes` gives each
  * change's goal position, in order. */
 export function withGoalChanges<T extends { goals?: Goal[] }>(
   d: T,
@@ -196,8 +198,16 @@ export function withGoalChanges<T extends { goals?: Goal[] }>(
   const allGoals = goals.map(goalLabel).join(", ") || "none";
   for (const c of changes) {
     const named = goals.flatMap((g, i) => (g.name === c.name ? [i] : []));
+    // no temperature: a unique name, else the one goal whose temperature is unset
+    const unqualified = named.filter((i) => goals[i].temperature == null);
     const matches =
-      c.temperature == null ? named : named.filter((i) => goals[i].temperature === c.temperature);
+      c.index != null
+        ? named.filter((i) => i === c.index)
+        : c.temperature != null
+          ? named.filter((i) => goals[i].temperature === c.temperature)
+          : named.length > 1 && unqualified.length === 1
+            ? unqualified
+            : named;
     if (matches.length === 0) {
       return { error: `"${goalLabel(c)}" is not a goal of this block (its goals: ${allGoals})` };
     }

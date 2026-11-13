@@ -1080,7 +1080,7 @@ const goalChangeInput = z.object({
     .number()
     .optional()
     .describe(
-      "The goal's `temperature` from factoryBlocks — required only when the block has this fluid as a goal at several temperatures",
+      "The goal's `temperature` from factoryBlocks — needed only to pick a temperature-specific goal when the block has this fluid as a goal more than once; omit it for the goal with no temperature",
     ),
   rate: z.number().positive().optional().describe("New throughput target, per second"),
   stock: z

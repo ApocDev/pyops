@@ -22,6 +22,14 @@ const BOILERS = {
   recipes: ["steam-165", "steam-500"],
 };
 
+const MIXED_STEAM = {
+  goals: [
+    { name: "steam", rate: 60 },
+    { name: "steam", rate: 20, temperature: 500 },
+  ],
+  recipes: ["steam-165", "steam-500"],
+};
+
 const MALL = {
   goals: [
     { name: "plate", rate: 1 },
@@ -68,6 +76,9 @@ beforeEach(async () => {
   fx.db
     .prepare("INSERT INTO blocks (id, name, data, enabled) VALUES (2, 'Boilers', ?, 1)")
     .run(JSON.stringify(BOILERS));
+  fx.db
+    .prepare("INSERT INTO blocks (id, name, data, enabled) VALUES (3, 'Mixed steam', ?, 1)")
+    .run(JSON.stringify(MIXED_STEAM));
   fx.db.close();
   switchDatabase(fx.file);
 });
@@ -108,6 +119,14 @@ describe("applyBlockUpdate", () => {
     expect(await applyBlockUpdate({ blockId: 2, rate: 90 })).toEqual({ ok: true });
     expect(getBlock(2)!.data.goals).toEqual([
       { name: "steam", rate: 90, temperature: 165 },
+      { name: "steam", rate: 20, temperature: 500 },
+    ]);
+  });
+
+  it("applies a legacy rate-only update to a first goal with no temperature", async () => {
+    expect(await applyBlockUpdate({ blockId: 3, rate: 90 })).toEqual({ ok: true });
+    expect(getBlock(3)!.data.goals).toEqual([
+      { name: "steam", rate: 90 },
       { name: "steam", rate: 20, temperature: 500 },
     ]);
   });

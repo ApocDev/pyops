@@ -4,6 +4,7 @@ import {
   normalizeBlockData,
   primaryGoal,
   primaryRate,
+  requestedGoalChanges,
   withGoalChanges,
   withPrimaryRate,
 } from "./goals.ts";
@@ -196,6 +197,43 @@ describe("withGoalChanges", () => {
       expect(withGoalChanges(boilers, [{ name: "steam", temperature: 250, rate: 1 }])).toEqual({
         error:
           '"steam at 250°" is not a goal of this block (its goals: steam at 165°, steam at 500°, water)',
+      });
+    });
+  });
+
+  describe("one fluid with and without a temperature", () => {
+    const block = {
+      goals: [
+        { name: "steam", rate: 60 },
+        { name: "steam", rate: 20, temperature: 500 },
+      ],
+    };
+    const rates = (changes: Parameters<typeof withGoalChanges>[1], d = block) => {
+      const out = withGoalChanges(d, changes);
+      if ("error" in out) throw new Error(out.error);
+      return out.data.goals.map((g) => g.rate);
+    };
+
+    it("a bare name edits the goal with no temperature", () => {
+      expect(rates([{ name: "steam", rate: 90 }])).toEqual([90, 20]);
+    });
+
+    it("a temperature edits the qualified goal", () => {
+      expect(rates([{ name: "steam", temperature: 500, rate: 45 }])).toEqual([60, 45]);
+    });
+
+    it("the top-level rate edits the first goal by position", () => {
+      expect(rates(requestedGoalChanges(block, 90))).toEqual([90, 20]);
+      // even when name matching alone couldn't tell the goals apart
+      const twins = {
+        goals: [
+          { name: "steam", rate: 60 },
+          { name: "steam", rate: 20 },
+        ],
+      };
+      expect(rates(requestedGoalChanges(twins, 90), twins)).toEqual([90, 20]);
+      expect(withGoalChanges(twins, [{ name: "steam", rate: 90 }])).toEqual({
+        error: expect.stringMatching(/matches several goals/),
       });
     });
   });
