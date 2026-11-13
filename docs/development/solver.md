@@ -154,15 +154,25 @@ the solve:
 4. Consumers draw from the pool, allowing any mixture of valid temperatures.
 5. A fluid goal uses an exact one-temperature pool when selected; an unselected goal uses its
    full displayed range.
-6. A consume goal gets its own good that only the block boundary feeds. It feeds every consumer
-   pool whose range accepts the goal's temperature. Those pools are drained, and so is every
-   in-range temperature they accept, so that production feeds them instead of exporting. The
-   goal's import is then the block's net consumption, as for an item. Production no goal-fed
-   consumer accepts can still export and never counts toward the goal. At the block boundary the
-   goal's import splits by the consumer pools it fed. Each part carries the goal's own range
-   narrowed to what those consumers accept, so the factory planner only matches compatible
-   suppliers to it. The block keeps its imports and exports of one fluid apart, so a cold import
-   and a hot export of the same fluid both reach the factory.
+6. A consume goal is one net-balance row. It sums the net flow of every temperature identity
+   inside the goal's range: each produced temperature in that range, and each consumer pool
+   whose accepted range overlaps it. Production minus consumption across that set must be at
+   most the (negative) goal rate. For an item goal the row is the item's own net, so a fluid
+   consume goal means the same thing: net consumption of that fluid at the goal's temperatures.
+   - Produced temperatures outside the goal's range are not in the row, so they can't count
+     toward it. Consumption they feed into an overlapping pool cancels out of the row, because
+     their selector adds to the pool as much as the consumer takes from it.
+   - Every boundary flow stays free. The row constrains only the net, so pins and other goals
+     decide how it is met. In-block production does not feed a compatible consumer unless the
+     fluid is marked made, the same as for any other fluid.
+   - The goal subsumes made marks on the goods in its row, as an item goal subsumes a made mark
+     on its own item. Otherwise a made consumer pool could never import what the goal needs.
+   - Each consumer pool's import carries the pool's range intersected with the goal's range. A
+     165° goal feeding a ≥100° consumer imports 165°, and the factory planner only matches
+     compatible suppliers to it.
+
+The block keeps its imports and exports of one fluid apart, so a cold import and a hot export of
+the same fluid both reach the factory.
 
 This models range pooling rather than forcing one independent chain per exact temperature.
 A made rule expands to its variants and pools. If no in-range producer exists, the result
