@@ -144,12 +144,12 @@ function CoherencePage() {
             )}
             <Button
               variant="outline"
-              size="icon-sm"
+              size="sm"
               onClick={recomputeAll}
               disabled={recomputing}
-              title="Recompute all blocks — re-solve every block and refresh its cached flows"
+              title="Re-solve every block and refresh its cached flows"
             >
-              <RefreshCw className={recomputing ? "animate-spin" : ""} />
+              <RefreshCw className={recomputing ? "animate-spin" : ""} /> Recompute all
             </Button>
             <HelpButton title="What are Factory connections?">
               <p>

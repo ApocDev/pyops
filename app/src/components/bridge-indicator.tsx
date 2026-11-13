@@ -1,11 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { bridgeStatusSubscription } from "../lib/live-query-options";
+import { BRIDGE_FRESH_MS } from "../lib/use-game-linked";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
-
-/** Treat the mod as connected if we've heard from it within this window (its
- * heartbeat pings ~every 2s) — matches BridgeCard. */
-const FRESH_MS = 6000;
 
 /** At-a-glance in-game link status for the global nav: a colored dot + label,
  * tooltip-explained, linking to Settings › In-game link. Shares the
@@ -15,7 +12,7 @@ export function BridgeIndicator() {
   const status = useQuery(bridgeStatusSubscription);
   const s = status.data;
   const peer = s?.lastPeer ?? null;
-  const connected = peer != null && Date.now() - peer.lastSeenMs < FRESH_MS;
+  const connected = peer != null && Date.now() - peer.lastSeenMs < BRIDGE_FRESH_MS;
   const versionMismatch =
     connected &&
     peer?.protocolVersion != null &&

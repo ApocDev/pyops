@@ -38,8 +38,9 @@ or when its unlocking technology is in the completed-research list. When the com
 is linked, completed technologies sync from the game and **Now** follows the save.
 
 ::: tip Research sync and mode are separate
-The green **live · _n_ techs synced** status can appear in every mode. Synced research only
-limits recipe availability while **Now** is selected.
+The research sync status can appear in every mode. It reads **Live · _n_ techs synced** in
+green while the game is linked, and **Last synced _age_ · _n_ techs synced** in amber when
+it is not. Synced research only limits recipe availability while **Now** is selected.
 :::
 
 ### Future

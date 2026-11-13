@@ -15,7 +15,7 @@ import { InfoHint } from "#/components/info-hint.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
 import { StatSortHeader } from "#/components/stat-sort-header.tsx";
 import { Icon } from "../lib/icons";
-import { rateLabel, snapResidue } from "../lib/format";
+import { rateLabel, snapResidue, timeAgo } from "../lib/format";
 import { meaningfulImbalance } from "../lib/factory-flow";
 import { usePersistedFold, usePersistedSorting } from "../lib/use-table-prefs";
 import { statTableFeatures, type StatTableFeatures } from "../lib/stat-table";
@@ -70,20 +70,30 @@ function ActualCell({
   good,
   planned,
   actual,
+  staleSince,
 }: {
   good: string;
   planned: number;
   actual: number | null;
+  /** sync time of an old snapshot (game not linked): dim, drop the
+   * on-target colors, and say how old it is */
+  staleSince: string | null;
 }) {
   if (actual == null) return <span className="text-muted-foreground/50">—</span>;
   let color = "text-muted-foreground";
-  if (planned > 1e-6) {
+  if (staleSince) color = "text-muted-foreground/60";
+  else if (planned > 1e-6) {
     const ratio = actual / planned;
     color = ratio < 0.5 ? "text-destructive" : ratio < 0.9 ? "text-warning" : "text-success";
   }
+  const rates = `${rateLabel(good, actual, { perSec: true })} · planned ${rateLabel(good, planned, { perSec: true })}`;
   return (
     <Tooltip
-      content={`Making ${rateLabel(good, actual, { perSec: true })} · planned ${rateLabel(good, planned, { perSec: true })}`}
+      content={
+        staleSince
+          ? `Was making ${rates} when last synced ${timeAgo(staleSince)}. Link the game for live rates.`
+          : `Making ${rates}`
+      }
     >
       <span className={color}>{rateLabel(good, actual)}</span>
     </Tooltip>
@@ -122,6 +132,7 @@ export function GoodsSection({
   rows,
   defaultSorting,
   showMet = false,
+  staleActualSince = null,
   selectedItem,
   onSelect,
 }: {
@@ -133,6 +144,8 @@ export function GoodsSection({
   defaultSorting: SortingState;
   /** show the %-met column (the deficit list's severity axis) */
   showMet?: boolean;
+  /** when set, Actual/s comes from a sync at this time and the game isn't linked */
+  staleActualSince?: string | null;
   selectedItem: string | null;
   onSelect: (r: GoodsRow) => void;
 }) {
@@ -213,7 +226,12 @@ export function GoodsSection({
                   </StatCell>
                 )}
                 <StatCell label="Actual/s" w="md:w-24">
-                  <ActualCell good={r.item} planned={r.produced} actual={r.actualProduced} />
+                  <ActualCell
+                    good={r.item}
+                    planned={r.produced}
+                    actual={r.actualProduced}
+                    staleSince={staleActualSince}
+                  />
                 </StatCell>
               </span>
             </button>

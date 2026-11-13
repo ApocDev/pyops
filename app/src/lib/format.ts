@@ -80,12 +80,15 @@ export function formatQty(n: number): string {
 /** A per-second rate: adaptive quantity + "/s". */
 export const formatRate = (n: number): string => `${formatQty(n)}/s`;
 
-/** Coarse "how stale is this sync" text: "12s ago", "3m ago", "2h ago". */
+/** Coarse "how stale is this sync" text: "12s ago", "3m ago", "2h ago",
+ * "107 days ago". */
 export function timeAgo(iso: string): string {
   const sec = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
   if (sec < 60) return `${sec}s ago`;
   if (sec < 3600) return `${Math.round(sec / 60)}m ago`;
-  return `${Math.round(sec / 3600)}h ago`;
+  if (sec < 86400) return `${Math.round(sec / 3600)}h ago`;
+  const days = Math.round(sec / 86400);
+  return `${days} ${days === 1 ? "day" : "days"} ago`;
 }
 
 /** Energy pseudo-fluids (1 unit = 1 MJ, so 1 unit/s = 1 MW): rates for these

@@ -22,8 +22,8 @@ import { EmptyState } from "#/components/empty-state.tsx";
 import { InfoHint } from "#/components/info-hint.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
 import { StatSortHeader } from "#/components/stat-sort-header.tsx";
+import { SyncStatus } from "#/components/sync-status.tsx";
 import { Icon } from "../../lib/icons";
-import { timeAgo } from "../../lib/format";
 import { fmtMachineCount, isWholeCount, wholeMachines } from "../../lib/machine-count";
 import { usePersistedFold, usePersistedSorting } from "../../lib/use-table-prefs";
 import { statTableFeatures, type StatTableFeatures } from "../../lib/stat-table";
@@ -123,10 +123,7 @@ export function MachinesCard({ data }: { data: MachineSufficiency }) {
         </button>
         <span className="text-sm text-muted-foreground">
           {data.syncedAt ? (
-            <span className="inline-flex items-center gap-1 text-success">
-              <Check className="size-3.5" /> live: {data.syncedCount ?? 0} placed (
-              {timeAgo(data.syncedAt)})
-            </span>
+            <SyncStatus syncedAt={data.syncedAt}> · {data.syncedCount ?? 0} placed</SyncStatus>
           ) : (
             <span className="inline-flex items-center gap-1.5">
               Not synced

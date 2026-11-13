@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Check, Cloud, MapPin, Plus, RefreshCw, X, Zap } from "lucide-react";
+import { AlertTriangle, Cloud, MapPin, Plus, RefreshCw, X, Zap } from "lucide-react";
 import { useState } from "react";
 import {
   blockChangeReportFn,
@@ -33,6 +33,7 @@ import { PageHeader } from "#/components/page-header.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
 import { countNoun } from "../lib/delete-copy";
 import { GoodsSection } from "#/components/goods-table.tsx";
+import { SyncStatus } from "#/components/sync-status.tsx";
 import { MachinesCard } from "#/components/factory/machines-card.tsx";
 import {
   factoryFlowKey,
@@ -49,6 +50,7 @@ export const Route = createFileRoute("/factory")({
 });
 
 import { formatPower, formatQty as num, rateLabel, timeAgo } from "../lib/format";
+import { useGameLinked } from "../lib/use-game-linked";
 /** Factory overview — the whole point of caching block flows: every block's
  * solved I/O aggregated per item with zero solving. Short goods (consumed more
  * than produced across blocks) are what you build next. */
@@ -86,6 +88,8 @@ function FactoryPage() {
     ]),
   );
   const statsSyncedAt = production.data?.syncedAt ?? null;
+  // with the game unlinked, Actual/s is an old snapshot: the table dims it
+  const staleActualSince = useGameLinked() ? null : statsSyncedAt;
 
   // Re-solve every block and refresh its cached flows — fixes stale factory totals
   // after a solver change (e.g. self-fueling, heat) without editing each block.
@@ -225,19 +229,17 @@ function FactoryPage() {
               className="w-64"
             />
             {recomputed && <span className="text-sm text-muted-foreground">{recomputed}</span>}
-            <span className="text-sm text-muted-foreground">
-              {statsSyncedAt ? (
-                <span className="inline-flex items-center gap-1 text-success">
-                  <Check className="size-3.5" /> Live · {production.data?.syncedCount ?? 0} goods ·{" "}
-                  {timeAgo(statsSyncedAt)}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5">
-                  No live stats
-                  <InfoHint content="Sync from the in-game PyOps panel." />
-                </span>
-              )}
-            </span>
+            {statsSyncedAt ? (
+              <SyncStatus syncedAt={statsSyncedAt}>
+                {" "}
+                · {production.data?.syncedCount ?? 0} goods
+              </SyncStatus>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                No live stats
+                <InfoHint content="Sync from the in-game PyOps panel." />
+              </span>
+            )}
             <Tooltip
               label
               content="Recompute all blocks — re-solve every block (after a solver change, TURD pick, or data re-import)"
@@ -245,11 +247,11 @@ function FactoryPage() {
               <Button
                 onClick={recomputeAll}
                 disabled={recomputing}
-                size="icon-sm"
+                size="sm"
                 variant="outline"
                 className="text-muted-foreground"
               >
-                <RefreshCw className={recomputing ? "animate-spin" : ""} />
+                <RefreshCw className={recomputing ? "animate-spin" : ""} /> Recompute all
               </Button>
             </Tooltip>
             <Tooltip
@@ -394,6 +396,7 @@ function FactoryPage() {
             { id: "consumed", desc: true },
           ]}
           showMet
+          staleActualSince={staleActualSince}
           selectedItem={selected?.flowKey ?? null}
           onSelect={(r) => setSelected(r)}
         />
@@ -403,6 +406,7 @@ function FactoryPage() {
           hint="Net production available to new blocks. Includes final outputs no block consumes, which Connections lists separately. Goods made only for keep-in-stock goals go under Stock buffers instead."
           rows={surpluses}
           defaultSorting={[{ id: "net", desc: true }]}
+          staleActualSince={staleActualSince}
           selectedItem={selected?.flowKey ?? null}
           onSelect={(r) => setSelected(r)}
         />
@@ -412,6 +416,7 @@ function FactoryPage() {
           hint="Block-to-block flows that match exactly"
           rows={balanced}
           defaultSorting={[{ id: "item", desc: false }]}
+          staleActualSince={staleActualSince}
           selectedItem={selected?.flowKey ?? null}
           onSelect={(r) => setSelected(r)}
         />
@@ -423,6 +428,7 @@ function FactoryPage() {
           hint="Keep-on-hand goals — refill demand, not surplus to route"
           rows={stockBuffers}
           defaultSorting={[{ id: "item", desc: false }]}
+          staleActualSince={staleActualSince}
           selectedItem={selected?.flowKey ?? null}
           onSelect={(r) => setSelected(r)}
         />

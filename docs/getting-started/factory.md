@@ -58,9 +58,12 @@ hand-entered rates such as `0.083/s` from appearing as actionable shortages agai
 
 ## Planned totals and live statistics
 
-Factory totals come from your solved PyOps blocks. The **live** indicator is separate: it
-shows recent production statistics sent from the game through the companion mod. Seeing
-**no live stats** does not stop planning and does not mean the block solve failed.
+Factory totals come from your solved PyOps blocks. The sync status beside the filter is
+separate: it shows production statistics sent from the game through the companion mod.
+It reads **Live** while the game is linked. When the game is not linked it reads **Last
+synced** with the snapshot's age, and the **Actual/s** column dims because those rates are
+old. Seeing **No live stats** does not stop planning and does not mean the block solve
+failed.
 
 ## Overview and Connections
 

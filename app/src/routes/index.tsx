@@ -25,6 +25,7 @@ import {
   restoreHomeActionsFn,
 } from "../server/factorio";
 import { NextActionCard } from "#/components/home/next-action-card.tsx";
+import { SyncStatus } from "#/components/sync-status.tsx";
 import { LaunchFactorioButton } from "#/components/launch-factorio-button.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { QueryError } from "#/components/query-error.tsx";
@@ -91,7 +92,8 @@ function Home() {
     actionContext.data?.production ?? [],
     actionContext.data?.statsSyncedAt ?? null,
   );
-  const haveBuiltSync = actionContext.data?.builtSyncedAt != null;
+  const builtSyncedAt = actionContext.data?.builtSyncedAt ?? null;
+  const haveBuiltSync = builtSyncedAt != null;
   const buildRows = haveBuiltSync ? (actionContext.data?.build ?? []) : [];
   const unbuiltCount = buildRows.filter((block) => block.phase === "unbuilt").length;
   const partialCount = buildRows.filter((block) => block.phase === "partial").length;
@@ -123,6 +125,13 @@ function Home() {
   };
   const nextAction = chooseHomeAction(actionInput);
   const nextActionKey = homeActionKey(nextAction);
+  // the game snapshot an action was derived from, so its card can show its age
+  const nextActionSyncedAt =
+    nextAction.kind === "drain"
+      ? (actionContext.data?.statsSyncedAt ?? null)
+      : "build" in nextAction
+        ? builtSyncedAt
+        : null;
   const activeKeys = new Set(activeHomeActionKeys(actionInput));
   const dismissedCount = (actionContext.data?.dismissedActions ?? []).filter((key) =>
     activeKeys.has(key),
@@ -258,6 +267,7 @@ function Home() {
       ) : (
         <NextActionCard
           action={nextAction}
+          syncedAt={nextActionSyncedAt}
           canDismiss={nextActionKey != null}
           dismissedCount={dismissedCount}
           pending={dismissAction.isPending || restoreActions.isPending}
@@ -342,6 +352,7 @@ function Home() {
                           ? `${scaleCount} built · scaling optional`
                           : "All planned blocks operational"}
                 </div>
+                {builtSyncedAt && <SyncStatus syncedAt={builtSyncedAt} />}
               </div>
             </Link>
             <Link
