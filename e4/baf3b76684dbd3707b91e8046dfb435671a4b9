@@ -1,0 +1,19 @@
+.node-version
+  s_831e8c0c645f77::t_fd6ce1c1460cef 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e4baf3b76684dbd3707b91e8046dfb435671a4b9",
+  "prompts": {},
+  "sessions": {
+    "s_831e8c0c645f77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92b0e243-936b-46c8-807b-c4c86041ee0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
