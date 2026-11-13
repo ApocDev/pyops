@@ -12,7 +12,7 @@
 import type { FlowGraph, FlowLink, FlowNode } from "./flow-graph.ts";
 
 export const DIM = {
-  nodeW: 180,
+  nodeW: 216,
   recipeH: 48,
   boundaryH: 40,
   colGap: 96,

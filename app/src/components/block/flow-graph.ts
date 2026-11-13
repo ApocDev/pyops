@@ -19,10 +19,58 @@ export type FlowInputRow = {
   recipe: string;
   display: string;
   rate: number;
-  machine?: { count: number } | null;
+  machine?: { count: number; energySource?: string | null; powerW?: number } | null;
+  /** electric draw of the row's beacons, in W */
+  beaconPowerW?: number;
+  /** what the row's machines burn or drain to run, and the burnt result it leaves */
+  fuel?: {
+    name: string;
+    kind: string;
+    perSec: number;
+    burnt: { name: string; perSec: number } | null;
+  } | null;
   ingredients: { name: string; kind: string; rate: number }[];
   products: { name: string; kind: string; rate: number }[];
 };
+
+type Flow = { name: string; kind: string; rate: number };
+
+/**
+ * The flows a row's buildings need just to run: electricity (machine + beacons),
+ * heat, and fuel in, burnt result out. `computeBlock` keeps these off the
+ * recipe's ingredient/product lists, so without them the power, fuel and ash
+ * boundaries would have nothing to link to. Energy pseudo-goods are in MJ/s
+ * (= MW), matching how the solve reports them.
+ */
+function runningFlows(r: FlowInputRow): { ingredients: Flow[]; products: Flow[] } {
+  const powerW = r.machine?.powerW ?? 0;
+  const electricW = (r.machine?.energySource === "electric" ? powerW : 0) + (r.beaconPowerW ?? 0);
+  const ingredients: Flow[] = [];
+  const products: Flow[] = [];
+  if (electricW > 0)
+    ingredients.push({ name: "pyops-electricity", kind: "fluid", rate: electricW / 1e6 });
+  if (r.machine?.energySource === "heat" && powerW > 0)
+    ingredients.push({ name: "pyops-heat", kind: "fluid", rate: powerW / 1e6 });
+  if (r.fuel) {
+    ingredients.push({ name: r.fuel.name, kind: r.fuel.kind, rate: r.fuel.perSec });
+    if (r.fuel.burnt)
+      products.push({ name: r.fuel.burnt.name, kind: "item", rate: r.fuel.burnt.perSec });
+  }
+  return { ingredients, products };
+}
+
+/** Sum a row's flows per good, so a fuel that is also a recipe ingredient (or a
+ * burnt result that is also a product) becomes one endpoint, not two links
+ * with the same id. */
+function byGood(flows: Flow[]): Flow[] {
+  const merged = new Map<string, Flow>();
+  for (const f of flows) {
+    const seen = merged.get(f.name);
+    if (seen) seen.rate += f.rate;
+    else merged.set(f.name, { ...f });
+  }
+  return [...merged.values()];
+}
 
 /** The slice of a solve result the flow graph needs. */
 export type FlowInput = {
@@ -51,7 +99,8 @@ export type FlowNode = {
   layer: number;
   /** position within the layer (0 = top), after crossing-reduction */
   order: number;
-  /** max(total in, total out) — the flow through the node, for scaling */
+  /** recipe nodes: max(total in, total out) of their links; boundary nodes:
+   * the solved import/export/output rate */
   throughput: number;
 };
 
@@ -109,12 +158,13 @@ export function buildFlowGraph(input: FlowInput): FlowGraph {
   };
 
   for (const r of rows) {
-    for (const p of r.products) {
+    const running = runningFlows(r);
+    for (const p of byGood([...r.products, ...running.products])) {
       if (p.rate <= EPS) continue;
       noteKind(p.name, p.kind);
       push(producers, p.name, recipeId(r.recipe), p.rate);
     }
-    for (const c of r.ingredients) {
+    for (const c of byGood([...r.ingredients, ...running.ingredients])) {
       if (c.rate <= EPS) continue;
       noteKind(c.name, c.kind);
       push(consumers, c.name, recipeId(r.recipe), c.rate);
@@ -141,7 +191,7 @@ export function buildFlowGraph(input: FlowInput): FlowGraph {
 
   // ── nodes ────────────────────────────────────────────────────────────────
   const nodes = new Map<string, FlowNode>();
-  const ensureBoundary = (id: string, kind: FlowNodeKind, good: string) => {
+  const ensureBoundary = (id: string, kind: FlowNodeKind, good: string, rate: number) => {
     if (nodes.has(id)) return;
     nodes.set(id, {
       id,
@@ -151,7 +201,7 @@ export function buildFlowGraph(input: FlowInput): FlowGraph {
       goodKind: goodKind.get(good) ?? "item",
       layer: 0,
       order: 0,
-      throughput: 0,
+      throughput: rate,
     });
   };
   for (const r of rows)
@@ -166,11 +216,12 @@ export function buildFlowGraph(input: FlowInput): FlowGraph {
       throughput: 0,
     });
   for (const [good, list] of producers)
-    for (const e of list) if (e.node.startsWith("i:")) ensureBoundary(e.node, "import", good);
+    for (const e of list)
+      if (e.node.startsWith("i:")) ensureBoundary(e.node, "import", good, e.rate);
   for (const [good, list] of consumers)
     for (const e of list) {
-      if (e.node.startsWith("e:")) ensureBoundary(e.node, "export", good);
-      else if (e.node.startsWith("o:")) ensureBoundary(e.node, "output", good);
+      if (e.node.startsWith("e:")) ensureBoundary(e.node, "export", good, e.rate);
+      else if (e.node.startsWith("o:")) ensureBoundary(e.node, "output", good, e.rate);
     }
 
   // ── links (proportional bipartite split per good) ──────────────────────────
@@ -205,7 +256,7 @@ export function buildFlowGraph(input: FlowInput): FlowGraph {
     }
   }
   for (const n of nodes.values())
-    n.throughput = Math.max(inFlow.get(n.id) ?? 0, outFlow.get(n.id) ?? 0);
+    if (n.kind === "recipe") n.throughput = Math.max(inFlow.get(n.id) ?? 0, outFlow.get(n.id) ?? 0);
 
   // ── layering (cycle-tolerant) ──────────────────────────────────────────────
   const nodeIds = [...nodes.keys()];
@@ -247,6 +298,16 @@ export function buildFlowGraph(input: FlowInput): FlowGraph {
       if ((indeg.get(v) ?? 0) === 0) queue.push(v);
     }
   }
+  // Pull each import right to the column just before its first consumer, so a
+  // fuel feeding a late recipe (coal into the smelters) links straight to it
+  // instead of running behind the recipes in between. Then drop any leading
+  // column this empties.
+  for (const n of nodes.values()) {
+    const targets = n.kind === "import" ? fwd.get(n.id)! : [];
+    if (targets.length) layer.set(n.id, Math.min(...targets.map((t) => layer.get(t) ?? 0)) - 1);
+  }
+  const minLayer = Math.min(...nodeIds.map((id) => layer.get(id) ?? 0));
+  for (const id of nodeIds) layer.set(id, (layer.get(id) ?? 0) - minLayer);
   // Right-align the boundary outputs: exports and goal sinks sit one column past
   // the furthest recipe/import, so everything leaving the block lines up.
   let nonOutMax = 0;
