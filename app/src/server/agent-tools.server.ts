@@ -1042,6 +1042,7 @@ async function buildBlockUpdate({
     return {
       name,
       ...(temperature != null ? { temperature } : {}),
+      index: i,
       display: q.getItem(name)?.display ?? q.getFluid(name)?.display ?? name,
       before: valueOf(data.goals[i]),
       after: valueOf(changed.data.goals[i]),

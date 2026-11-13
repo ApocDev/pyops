@@ -168,15 +168,24 @@ export function formatGoalValue({ rate, stock, window }: GoalValue): string {
 export type GoalChangeDiff = {
   name: string;
   temperature?: number;
+  /** The goal's position, so Apply hits the goal the preview changed even when
+   * two goals share a name and temperature. Absent in older saved drafts. */
+  index?: number;
   display: string;
   before: GoalValue;
   after: GoalValue;
 };
 
 /** The change that applies a proposal's final value for one goal. */
-export const goalChangeRequest = ({ name, temperature, after }: GoalChangeDiff): GoalChange => ({
+export const goalChangeRequest = ({
+  name,
+  temperature,
+  index,
+  after,
+}: GoalChangeDiff): GoalChange => ({
   name,
   ...(temperature != null ? { temperature } : {}),
+  ...(index != null ? { index } : {}),
   ...(after.stock != null ? { stock: after.stock, window: after.window } : { rate: after.rate }),
 });
 

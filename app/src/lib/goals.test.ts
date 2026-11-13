@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
+  goalChangeRequest,
   goalNames,
   normalizeBlockData,
   primaryGoal,
@@ -235,6 +236,15 @@ describe("withGoalChanges", () => {
       expect(withGoalChanges(twins, [{ name: "steam", rate: 90 }])).toEqual({
         error: expect.stringMatching(/matches several goals/),
       });
+      // the proposal card's Apply keeps the position the preview changed
+      const diff = {
+        name: "steam",
+        index: 0,
+        display: "Steam",
+        before: { rate: 60 },
+        after: { rate: 90 },
+      };
+      expect(rates([goalChangeRequest(diff)], twins)).toEqual([90, 20]);
     });
   });
 
