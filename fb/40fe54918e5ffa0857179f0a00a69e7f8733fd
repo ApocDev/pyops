@@ -1,0 +1,23 @@
+docs/getting-started/sync-game-data.md
+  s_14060bfdc31396::t_75508c0b6eef10 101
+docs/guide/in-game-link.md
+  s_14060bfdc31396::t_3fb93674800ad5 64-65
+docs/guide/planning-horizon.md
+  s_14060bfdc31396::t_0eba085ee28dd9 13-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fb40fe54918e5ffa0857179f0a00a69e7f8733fd",
+  "prompts": {},
+  "sessions": {
+    "s_14060bfdc31396": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a7536c5-8f37-40d8-b94e-380936ee07e0",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
