@@ -1,0 +1,21 @@
+docs/development/architecture.md
+  s_d1edb5d12c47f1::t_015094d91ce8d5 164-166
+docs/guide/turd.md
+  s_d1edb5d12c47f1::t_4d09c593c09e90 21-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aa6d9845dd968f67a28c116858aff7656b0beb79",
+  "prompts": {},
+  "sessions": {
+    "s_d1edb5d12c47f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92c00483-7bd7-4446-bace-ac4fa886fd2d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
