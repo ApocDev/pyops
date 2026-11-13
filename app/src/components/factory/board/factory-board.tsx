@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -13,7 +13,7 @@ import {
   type NodeChange,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { LayoutGrid, Maximize } from "lucide-react";
+import { LayoutGrid, Maximize, X } from "lucide-react";
 import { factoryCoherenceFn, listBlocksFn } from "../../../server/factorio";
 import { setBoardPositionsFn } from "../../../server/board-fns";
 import { Button } from "#/components/ui/button.tsx";
@@ -21,7 +21,15 @@ import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { QueryError } from "#/components/query-error.tsx";
-import { autoPositions, buildBoardGraph, type BoardGraph } from "./board-graph.ts";
+import { ENERGY_PSEUDO, autoPositions, buildBoardGraph, type BoardGraph } from "./board-graph.ts";
+import { buildFocusGraph, shortfallGoods, type FocusTarget } from "./focus-graph.ts";
+import { FocusCanvas } from "./focus-canvas.tsx";
+import { FocusList } from "./focus-list.tsx";
+import { ShortfallRail } from "./shortfall-rail.tsx";
+import { BoardSearch, type SearchEntry } from "./board-search.tsx";
+import { Segmented } from "#/components/ui/segmented.tsx";
+import { RawIcon } from "../../../lib/icons";
+import { loadRecents } from "../../../lib/recents";
 import { BlockNode, type BlockFlowNode } from "./block-node.tsx";
 import { BoardFlowEdge, type BoardFlowEdgeType } from "./board-flow-edge.tsx";
 import { EdgeTooltip } from "#/components/edge-tooltip.tsx";
@@ -29,20 +37,76 @@ import { EdgeTooltip } from "#/components/edge-tooltip.tsx";
 const nodeTypes = { block: BlockNode };
 const edgeTypes = { flow: BoardFlowEdge };
 
-/** The factory as a spatial board: enabled blocks are draggable nodes, supply
- * links are edges tinted by their goods' factory-wide balance. Positions
- * persist per block; auto-layout places anything never dragged. */
+const WIDE_QUERY = "(min-width: 768px)";
+const subscribeWide = (onChange: () => void) => {
+  const mq = matchMedia(WIDE_QUERY);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+};
+const isWide = () => matchMedia(WIDE_QUERY).matches;
+
+type BoardTarget = FocusTarget | { kind: "all" };
+
+const targetKey = (t: BoardTarget) =>
+  t.kind === "good" ? `good:${t.good}` : t.kind === "block" ? `block:${t.id}` : t.kind;
+
+/** The factory as a board. It opens on what needs fixing: the goods that run
+ * short, with their makers and users. Search or a click focuses one block or
+ * good with its direct neighbors; "All blocks" is the full hand-arranged map
+ * (enabled blocks as draggable nodes, supply links tinted by balance). With
+ * nothing short it opens on the last block the player viewed. */
 export function FactoryBoard() {
+  const navigate = useNavigate();
   const blocks = useQuery({ queryKey: ["blocks"], queryFn: () => listBlocksFn() });
   const coherence = useQuery({ queryKey: ["coherence"], queryFn: () => factoryCoherenceFn() });
   // React Flow measures the DOM — render it only on the client, after mount.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const wide = useSyncExternalStore(subscribeWide, isWide, () => true);
+  // null = the default view, resolved below once the data is in
+  const [picked, setPicked] = useState<BoardTarget | null>(null);
 
   const enabled = useMemo(() => (blocks.data ?? []).filter((b) => b.enabled), [blocks.data]);
+  const links = coherence.data?.links;
+  const shorts = useMemo(() => (links ? shortfallGoods(links) : []), [links]);
+  const target = useMemo<BoardTarget>(() => {
+    if (picked) return picked;
+    if (shorts.length > 0) return { kind: "shortfalls" };
+    // loadRecents reads localStorage, so this waits for mount
+    const enabledIds = new Set(enabled.map((b) => b.id));
+    const last = mounted
+      ? loadRecents().find((r) => r.type === "block" && enabledIds.has(r.id))
+      : undefined;
+    return last?.type === "block" ? { kind: "block", id: last.id } : { kind: "all" };
+  }, [picked, shorts, enabled, mounted]);
+
   const graph = useMemo(
-    () => (blocks.data && coherence.data ? buildBoardGraph(enabled, coherence.data.links) : null),
-    [blocks.data, coherence.data, enabled],
+    () => (blocks.data && links && target.kind === "all" ? buildBoardGraph(enabled, links) : null),
+    [blocks.data, links, enabled, target.kind],
+  );
+  const focus = useMemo(
+    () => (links && target.kind !== "all" ? buildFocusGraph(enabled, links, target) : null),
+    [links, enabled, target],
+  );
+  const searchEntries = useMemo<SearchEntry[]>(
+    () => [
+      ...(links ?? [])
+        .filter((l) => !ENERGY_PSEUDO.has(l.good))
+        .map((l) => ({
+          type: "good" as const,
+          good: l.good,
+          display: l.display ?? l.good,
+          kind: l.kind === "fluid" ? ("fluid" as const) : ("item" as const),
+        })),
+      ...enabled.map((b) => ({
+        type: "block" as const,
+        id: b.id,
+        name: b.name,
+        iconKind: b.iconKind,
+        iconName: b.iconName,
+      })),
+    ],
+    [links, enabled],
   );
 
   if (blocks.isError || coherence.isError) {
@@ -58,8 +122,8 @@ export function FactoryBoard() {
       />
     );
   }
-  if (!mounted || !graph) return <Skeleton className="h-full min-h-96 w-full" />;
-  if (graph.nodes.length === 0) {
+  if (!mounted || !blocks.data || !links) return <Skeleton className="h-full min-h-96 w-full" />;
+  if (enabled.length === 0) {
     return (
       <EmptyState
         title="No blocks on the board yet"
@@ -67,10 +131,112 @@ export function FactoryBoard() {
       />
     );
   }
+
+  const openBlock = (id: number) => void navigate({ to: "/block/$id", params: { id: String(id) } });
+  const focusedBlock =
+    target.kind === "block" ? enabled.find((b) => b.id === target.id) : undefined;
+  const focusedGood =
+    target.kind === "good" ? links.find((l) => l.good === target.good) : undefined;
+  // Wide: rail beside the canvas. Narrow: the canvas would shrink past reading
+  // size, so shortfalls show as the rail alone and a focus as stacked lists.
+  const showRail =
+    shorts.length > 0 && (wide ? target.kind !== "all" : target.kind === "shortfalls");
+  const clearFocus = () => setPicked(shorts.length > 0 ? { kind: "shortfalls" } : { kind: "all" });
+
   return (
-    <ReactFlowProvider>
-      <BoardCanvas graph={graph} />
-    </ReactFlowProvider>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border p-2">
+        <BoardSearch entries={searchEntries} onPick={setPicked} className="w-full sm:w-64" />
+        {(focusedBlock || focusedGood) && (
+          <div className="flex h-8 min-w-0 items-center gap-1.5 border border-primary/60 pl-2 text-sm">
+            {focusedGood ? (
+              <RawIcon
+                kind={focusedGood.kind === "fluid" ? "fluid" : "item"}
+                name={focusedGood.good}
+                size="sm"
+                noTitle
+              />
+            ) : focusedBlock?.iconKind && focusedBlock.iconName ? (
+              <RawIcon
+                kind={focusedBlock.iconKind as "item" | "fluid" | "recipe"}
+                name={focusedBlock.iconName}
+                size="sm"
+                noTitle
+              />
+            ) : null}
+            <span className="truncate">
+              {focusedGood ? (focusedGood.display ?? focusedGood.good) : focusedBlock?.name}
+            </span>
+            {focusedBlock && (
+              <Button variant="ghost" size="sm" onClick={() => openBlock(focusedBlock.id)}>
+                Open
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              title="Clear focus"
+              onClick={clearFocus}
+              className="text-muted-foreground"
+            >
+              <X />
+            </Button>
+          </div>
+        )}
+        <Segmented<"shortfalls" | "all" | "focus">
+          aria-label="Board view"
+          className="ml-auto"
+          size="sm"
+          value={target.kind === "shortfalls" || target.kind === "all" ? target.kind : "focus"}
+          onValueChange={(v) => v !== "focus" && setPicked({ kind: v })}
+          options={[
+            { value: "shortfalls", label: "Shortfalls" },
+            { value: "all", label: `All blocks · ${enabled.length}` },
+          ]}
+        />
+      </div>
+      <div className="flex min-h-0 flex-1">
+        {showRail && (
+          <ShortfallRail
+            goods={shorts}
+            active={target.kind === "good" ? target.good : null}
+            onPick={(good) => setPicked({ kind: "good", good })}
+            className={wide ? "w-64 shrink-0 border-r border-border" : "flex-1"}
+          />
+        )}
+        {(wide || !showRail) && (
+          <div className="relative min-w-0 flex-1">
+            {graph ? (
+              <ReactFlowProvider>
+                <BoardCanvas graph={graph} />
+              </ReactFlowProvider>
+            ) : focus && focus.nodes.length > 0 ? (
+              wide ? (
+                <ReactFlowProvider key={targetKey(target)}>
+                  <FocusCanvas graph={focus} onFocus={setPicked} onOpenBlock={openBlock} />
+                </ReactFlowProvider>
+              ) : (
+                <FocusList graph={focus} onFocus={setPicked} />
+              )
+            ) : (
+              <EmptyState
+                title={target.kind === "shortfalls" ? "Nothing is short" : "Nothing connects here"}
+                description={
+                  target.kind === "shortfalls"
+                    ? "Every good one block makes for another is covered."
+                    : "No other enabled block makes or uses this."
+                }
+                action={
+                  <Button variant="outline" size="sm" onClick={() => setPicked({ kind: "all" })}>
+                    All blocks
+                  </Button>
+                }
+              />
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

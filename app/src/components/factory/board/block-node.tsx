@@ -11,20 +11,32 @@ export type BlockNodeData = {
   electricityW: number | null;
   /** primary producer of a good that runs short — the block to scale up */
   shortOutput: boolean;
+  /** the block a focused board view is centered on */
+  center?: boolean;
 };
 
 export type BlockFlowNode = Node<BlockNodeData, "block">;
+
+/** Invisible edge anchors shared by the board's node types — connections
+ * aren't user-editable, so the handles only position edge ends. */
+export const hiddenHandle = {
+  opacity: 0,
+  width: 1,
+  height: 1,
+  minWidth: 0,
+  minHeight: 0,
+  border: 0,
+} as const;
 
 /** A block on the factory board: icon + name + power draw. Drag to place,
  * double-click to open the block editor (wired at the board level). The
  * handles exist only to anchor edges — connections aren't user-editable. */
 export function BlockNode({ data, selected }: NodeProps<BlockFlowNode>) {
-  const hiddenHandle = { opacity: 0, width: 1, height: 1, minWidth: 0, minHeight: 0, border: 0 };
   return (
     <div
       title={`${data.name}${data.shortOutput ? " — its output runs short, scale it up" : ""} — double-click to open`}
       className={`flex items-center gap-2 border bg-card px-2 text-left transition-colors ${
-        selected
+        selected || data.center
           ? "border-primary"
           : data.shortOutput
             ? "border-destructive hover:border-primary/60"

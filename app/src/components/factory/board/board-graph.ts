@@ -18,7 +18,7 @@ const EPS = 1e-6;
  * every block — drawing the power grid as edges buries the material flows and
  * a factory-wide power shortfall would tint the whole board red. Each node
  * already shows its power draw; the Overview/List views carry the balance. */
-const ENERGY_PSEUDO = new Set(["pyops-electricity", "pyops-heat", "pyops-fluid-fuel"]);
+export const ENERGY_PSEUDO = new Set(["pyops-electricity", "pyops-heat", "pyops-fluid-fuel"]);
 
 export type BoardBlockInput = {
   id: number;
@@ -56,10 +56,10 @@ export type BoardEdgeGood = {
   net: number;
 };
 
-export type BoardEdge = {
+export type BoardEdge<Id = number> = {
   id: string;
-  source: number;
-  target: number;
+  source: Id;
+  target: Id;
   goods: BoardEdgeGood[];
   /** worst status across goods: short > surplus > balanced */
   status: EdgeStatus;
@@ -100,70 +100,59 @@ const statusRank: Record<EdgeStatus, number> = { balanced: 0, surplus: 1, short:
 
 /** Status under the shared relative floor — a sub-1% residual on a bulk flow
  * is rounding noise, not a red edge (see meaningfulImbalance). */
-const linkStatus = (l: BoardLinkInput): EdgeStatus =>
+export const linkStatus = (l: BoardLinkInput): EdgeStatus =>
   !meaningfulImbalance(l.net, l.produced, l.consumed)
     ? "balanced"
     : l.net < 0
       ? "short"
       : "surplus";
 
-export function buildBoardGraph(blocksIn: BoardBlockInput[], links: BoardLinkInput[]): BoardGraph {
-  const blockIds = new Set(blocksIn.map((b) => b.id));
+/** Edges under construction, keyed `source->target`, goods merged per pair. */
+export type EdgePairs<Id> = Map<
+  string,
+  { source: Id; target: Id; goods: Map<string, BoardEdgeGood> }
+>;
 
-  // ── aggregate block→block edges (proportional split per good) ─────────────
-  const pairs = new Map<
-    string,
-    { source: number; target: number; goods: Map<string, BoardEdgeGood> }
-  >();
-  for (const l of links) {
-    if (ENERGY_PSEUDO.has(l.good)) continue;
-    const producedTotal = l.producers.reduce((s, p) => s + p.rate, 0);
-    if (producedTotal <= EPS) continue;
-    const status = linkStatus(l);
-    const kind = l.kind === "fluid" ? "fluid" : "item";
-    for (const p of l.producers) {
-      if (!blockIds.has(p.blockId)) continue;
-      for (const c of l.consumers) {
-        if (!blockIds.has(c.blockId) || p.blockId === c.blockId) continue;
-        const rate = (p.rate * c.rate) / producedTotal;
-        if (rate <= EPS) continue;
-        const key = `${p.blockId}->${c.blockId}`;
-        const pair =
-          pairs.get(key) ??
-          (() => {
-            const created = {
-              source: p.blockId,
-              target: c.blockId,
-              goods: new Map<string, BoardEdgeGood>(),
-            };
-            pairs.set(key, created);
-            return created;
-          })();
-        const g = pair.goods.get(l.good);
-        if (g) g.rate += rate;
-        else
-          pair.goods.set(l.good, {
-            good: l.good,
-            display: l.display ?? l.good,
-            kind,
-            rate,
-            status,
-            net: l.net,
-          });
-      }
-    }
+/** Add `rate` of link `l`'s good to the source→target edge (created on first use). */
+export function addFlow<Id>(
+  pairs: EdgePairs<Id>,
+  source: Id,
+  target: Id,
+  l: BoardLinkInput,
+  rate: number,
+): void {
+  if (rate <= EPS) return;
+  const key = `${String(source)}->${String(target)}`;
+  let pair = pairs.get(key);
+  if (!pair) {
+    pair = { source, target, goods: new Map() };
+    pairs.set(key, pair);
   }
+  const g = pair.goods.get(l.good);
+  if (g) g.rate += rate;
+  else
+    pair.goods.set(l.good, {
+      good: l.good,
+      display: l.display ?? l.good,
+      kind: l.kind === "fluid" ? "fluid" : "item",
+      rate,
+      status: linkStatus(l),
+      net: l.net,
+    });
+}
 
-  // Log-normalize widths: fluids flow at 100× item rates, so a linear scale
-  // would flatten every item belt to the minimum.
+/** Turn accumulated pairs into edges: goods sorted worst-first, status = worst
+ * good, width log-normalized across the set (fluids flow at 100× item rates,
+ * so a linear scale would flatten every item belt to the minimum). Calm edges
+ * come first and short edges last — SVG paints in order, so the red problem
+ * edges sit on top of the balanced web. */
+export function finishEdges<Id>(pairs: EdgePairs<Id>): BoardEdge<Id>[] {
   const weight = (goods: BoardEdgeGood[]) => goods.reduce((s, g) => s + Math.log1p(g.rate), 0);
   const maxWeight = Math.max(
     1e-9,
     ...[...pairs.values()].map((p) => weight([...p.goods.values()])),
   );
-  // Calm edges first, short edges last — SVG paints in order, so the red
-  // problem edges always sit on top of the balanced web.
-  const edges: BoardEdge[] = [...pairs.entries()].map(([id, p]) => {
+  const edges = [...pairs.entries()].map(([id, p]) => {
     const goods = [...p.goods.values()].sort(
       (a, b) => statusRank[b.status] - statusRank[a.status] || b.rate - a.rate,
     );
@@ -181,7 +170,27 @@ export function buildBoardGraph(blocksIn: BoardBlockInput[], links: BoardLinkInp
         (BOARD_DIM.maxStroke - BOARD_DIM.minStroke) * (weight(goods) / maxWeight),
     };
   });
-  edges.sort((a, b) => statusRank[a.status] - statusRank[b.status]);
+  return edges.sort((a, b) => statusRank[a.status] - statusRank[b.status]);
+}
+
+export function buildBoardGraph(blocksIn: BoardBlockInput[], links: BoardLinkInput[]): BoardGraph {
+  const blockIds = new Set(blocksIn.map((b) => b.id));
+
+  // ── aggregate block→block edges (proportional split per good) ─────────────
+  const pairs: EdgePairs<number> = new Map();
+  for (const l of links) {
+    if (ENERGY_PSEUDO.has(l.good)) continue;
+    const producedTotal = l.producers.reduce((s, p) => s + p.rate, 0);
+    if (producedTotal <= EPS) continue;
+    for (const p of l.producers) {
+      if (!blockIds.has(p.blockId)) continue;
+      for (const c of l.consumers) {
+        if (!blockIds.has(c.blockId) || p.blockId === c.blockId) continue;
+        addFlow(pairs, p.blockId, c.blockId, l, (p.rate * c.rate) / producedTotal);
+      }
+    }
+  }
+  const edges = finishEdges(pairs);
 
   // The blocks to scale up: primary/stock producers of any short good. Energy
   // pseudo-goods count here even though they draw no edges — a starved power
