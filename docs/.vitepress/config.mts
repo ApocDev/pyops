@@ -10,7 +10,7 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
   markdown: {
-    image: { lazyLoading: true },
+    image: { lazyLoad: true },
   },
   themeConfig: {
     logo: "/logo.svg",
