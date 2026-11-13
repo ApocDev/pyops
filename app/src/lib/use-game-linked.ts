@@ -17,8 +17,8 @@ export function useGameLinked(): boolean {
   const [, setExpired] = useState(0);
   useEffect(() => {
     if (lastSeenMs == null) return;
-    const remaining = lastSeenMs + BRIDGE_FRESH_MS - Date.now();
-    if (remaining <= 0) return;
+    // clamp, don't skip: the window may have closed between render and effect
+    const remaining = Math.max(0, lastSeenMs + BRIDGE_FRESH_MS - Date.now());
     const timer = setTimeout(() => setExpired((n) => n + 1), remaining);
     return () => clearTimeout(timer);
   }, [lastSeenMs]);
