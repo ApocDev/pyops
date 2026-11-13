@@ -52,6 +52,7 @@ The global shortcuts are:
 | ----------------------------------------------- | --------------------------------------------------------- |
 | <kbd>Ctrl</kbd>/<kbd>Command</kbd>+<kbd>K</kbd> | Open or close the command palette, including while typing |
 | <kbd>/</kbd>                                    | Open the command palette outside a text field             |
+| <kbd>Ctrl</kbd>/<kbd>Command</kbd>+<kbd>.</kbd> | Open or close the Assistant panel, including while typing |
 | <kbd>Ctrl</kbd>/<kbd>Command</kbd>+<kbd>Z</kbd> | Undo the most recent reversible project action            |
 | <kbd>?</kbd>                                    | Show active keyboard shortcuts outside a text field       |
 

@@ -109,6 +109,33 @@ Select the collapsed **tool calls** row when you want to inspect how the answer 
 grounded. Item, fluid, and recipe references render as localized icon chips; hover them for
 details.
 
+## Ask from any page
+
+Select **Ask** in the top bar, or press <kbd>Ctrl</kbd>+<kbd>.</kbd> (<kbd>Command</kbd>+<kbd>.</kbd>
+on macOS), to open the Assistant in a panel on the right. The page narrows to make room
+and stays usable, so you can keep editing a block while you ask about it. On a phone the
+panel fills the screen. Press the same key again, or select the close button, to hide it.
+
+The panel shows the same conversations as the **Assistant** page:
+
+- the chat title opens a list of saved chats;
+- **+** starts a new chat;
+- the expand button opens the current chat on the full **Assistant** page.
+
+When the page is focused on something, a chip above the input names it, and your question
+is sent with it. Then "why does this need so much power?" needs no restating:
+
+| Page           | Context                         |
+| -------------- | ------------------------------- |
+| A block        | That block                      |
+| Explore search | The selected item or fluid      |
+| TURD           | The most recently expanded TURD |
+| Tasks          | The selected task               |
+
+Select the chip's **×** to ask without it. The context is a hint, not a limit: you can
+still ask about anything. Each message sent from the panel shows the page it was asked
+from above it.
+
 ## Review proposals before applying them
 
 The Assistant does not silently edit the project. Write operations appear as proposal

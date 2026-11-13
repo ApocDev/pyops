@@ -27,6 +27,7 @@ import {
   stopAssistantRun,
 } from "#/server/assistant-run-store.ts";
 import { compactMessagesForContext } from "#/server/conversation-compaction.ts";
+import { pageContextNote } from "#/server/page-context-note.ts";
 
 const toStored = (messages: UIMessage[]) =>
   messages.map((m) => ({ id: m.id, role: m.role, parts: JSON.stringify(m.parts) }));
@@ -99,7 +100,7 @@ export const Route = createFileRoute("/api/chat")({
             conversation?.model,
             conversation?.reasoningEffort,
           ),
-          instructions: AGENT_SYSTEM + horizonNote,
+          instructions: AGENT_SYSTEM + horizonNote + pageContextNote(messages),
           messages: await convertToModelMessages(messages),
           // A compacted conversation starts with a server-written system message
           // holding the summary (see conversation-compaction.ts).

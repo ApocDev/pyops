@@ -13,6 +13,8 @@
 import { Chat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 
+import { notifyRuns, setRunning } from "#/lib/chat-runs.ts";
+import { PAGE_CONTEXT_PART, type PageContextRecord } from "#/lib/page-context.ts";
 import {
   compactConversationFn,
   getConversationFn,
@@ -23,33 +25,9 @@ export type ChatInstance = Chat<UIMessage>;
 
 const chats = new Map<string, ChatInstance>();
 const building = new Map<string, Promise<ChatInstance>>();
-const listeners = new Set<() => void>();
-
-const notify = () => listeners.forEach((l) => l());
-
-/** Subscribe to run/persistence changes (for the nav indicator + sidebar refresh). */
-export function subscribeRuns(cb: () => void): () => void {
-  listeners.add(cb);
-  return () => void listeners.delete(cb);
-}
 
 const isGenerating = (chat: ChatInstance) =>
   chat.status === "submitted" || chat.status === "streaming";
-
-/** How many conversations are generating right now. */
-export function activeRunCount(): number {
-  let n = 0;
-  for (const chat of chats.values()) if (isGenerating(chat)) n += 1;
-  return n;
-}
-
-/** A stable snapshot (sorted, comma-joined ids) of conversations generating right
- * now — safe for useSyncExternalStore (string identity), parse with .split(","). */
-export function runningKey(): string {
-  const ids: string[] = [];
-  for (const [id, chat] of chats) if (isGenerating(chat)) ids.push(id);
-  return ids.sort().join(",");
-}
 
 const messagesToStored = (messages: UIMessage[]) =>
   messages.map((m) => ({ id: m.id, role: m.role, parts: JSON.stringify(m.parts) }));
@@ -68,7 +46,7 @@ async function build(id: string): Promise<ChatInstance> {
       api: "/api/chat",
       fetch: async (input, init) => {
         const response = await fetch(input, init);
-        notify();
+        notifyRuns();
         return response;
       },
       prepareReconnectToStreamRequest: ({ id }) => ({
@@ -77,7 +55,7 @@ async function build(id: string): Promise<ChatInstance> {
     }),
   });
   // status changes drive the nav run-indicator + sidebar refresh
-  chat["~registerStatusCallback"](() => notify());
+  chat["~registerStatusCallback"](() => setRunning(id, isGenerating(chat)));
   chats.set(id, chat);
   return chat;
 }
@@ -101,10 +79,22 @@ export function peekChat(id: string): ChatInstance | null {
 }
 
 /** Send a message. The API persists the submitted history before returning the
- * stream response; the transport-level notification then refreshes the sidebar. */
-export async function sendInChat(id: string, text: string, messageId?: string) {
+ * stream response; the transport-level notification then refreshes the sidebar.
+ * A dock send carries the page it was asked from as a data part. */
+export async function sendInChat(
+  id: string,
+  text: string,
+  messageId?: string,
+  page?: PageContextRecord,
+) {
   const chat = await getChat(id);
-  void chat.sendMessage({ text, messageId });
+  void chat.sendMessage({
+    parts: [
+      { type: "text", text },
+      ...(page ? [{ type: PAGE_CONTEXT_PART, data: page } as const] : []),
+    ],
+    messageId,
+  });
 }
 
 export async function retryInChat(id: string, messageId?: string) {
@@ -125,7 +115,7 @@ export async function stopInChat(id: string) {
     }),
   });
   await chat.stop();
-  notify();
+  setRunning(id, isGenerating(chat));
 }
 
 export async function branchChat(id: string, throughMessageId: string) {
@@ -154,9 +144,25 @@ export async function compactChat(id: string): Promise<{ compacted: boolean }> {
     chat.messages = res.messages.map(
       (m) => ({ id: m.id, role: m.role, parts: JSON.parse(m.parts) }) as UIMessage,
     );
-    notify();
+    notifyRuns();
   }
   return { compacted: res.compacted };
+}
+
+/** An unsent composer draft: the text, and the earlier message being edited. */
+export type ChatDraft = { input: string; editingId: string | null };
+
+const drafts = new Map<string, ChatDraft>();
+
+/** The conversation's unsent draft, kept outside the view so closing the dock
+ * or opening the chat on the full page doesn't lose it. */
+export function chatDraft(id: string): ChatDraft {
+  return drafts.get(id) ?? { input: "", editingId: null };
+}
+
+export function saveChatDraft(id: string, draft: ChatDraft): void {
+  if (draft.input || draft.editingId) drafts.set(id, draft);
+  else drafts.delete(id);
 }
 
 /** Forget a conversation's live chat (on delete): stop it and drop it. */
@@ -164,5 +170,6 @@ export function dropChat(id: string) {
   const chat = chats.get(id);
   if (chat) void chat.stop();
   chats.delete(id);
-  notify();
+  drafts.delete(id);
+  setRunning(id, false);
 }

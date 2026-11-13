@@ -33,7 +33,8 @@ For API-key setup, model selection, privacy, cost expectations, and end-user wor
 3. Load the per-conversation model, reasoning effort, usage, and stored transcript.
 4. Compact older context when required.
 5. Start a process-owned replayable run with an abort signal.
-6. Inject the active planning horizon into the system prompt.
+6. Inject the active planning horizon, and the page the message was sent from, into the
+   system prompt.
 7. Call `streamText()` with `agentTools` and a bounded step count.
 8. Stream UI-message events to the client and replay buffer.
 9. Record the final turn's real token usage and concrete model ID.
@@ -59,8 +60,17 @@ the app default without modifying its parent.
 ### Client ownership
 
 AI SDK `Chat` instances live in `app/src/lib/chat-store.ts`, outside the Assistant route
-component. Navigating to Factory or another page does not unmount the active client run. A
-global run count and per-conversation indicators subscribe to that store.
+component. Navigating to Factory or another page does not unmount the active client run.
+The store reports each conversation's generating state to `app/src/lib/chat-runs.ts`, which
+the global run count and per-conversation indicators read. Global chrome imports only
+`chat-runs.ts`, so the AI SDK and the transcript UI load with the Assistant page or the
+dock, not with every page.
+
+The transcript, composer, and proposal cards are one component,
+`app/src/components/assistant/chat-view.tsx`. The Assistant page and the dock both render
+its `ChatPane`. An unsent draft (the input text and any message being edited) is kept per
+conversation in the chat store, so closing the dock or opening the chat on the full page
+keeps it.
 
 Editing a user message truncates and retries from that point. Retrying an assistant message
 reuses the preceding transcript. Branching copies the selected prefix into a new persisted
@@ -139,6 +149,41 @@ mode-specific contract to the system prompt:
 This prompt context guides tool use, but availability fields returned by recipe tools remain
 the authoritative evidence. Tool results distinguish research reachability, buildability,
 active/pickable/blocked TURD state, and machine availability.
+
+## Assistant dock and page context
+
+The dock is the same chat beside any page. `AssistantDockHost`, mounted in the root layout,
+owns the <kbd>Ctrl</kbd>/<kbd>Command</kbd>+<kbd>.</kbd> hotkey and the frame: a 440px
+column from the `lg` breakpoint up, and below that a modal sheet: a
+right-hand panel on tablets, full screen on phones. The sheet holds focus while open and
+returns it to the Ask button on close, since it covers the page. It lazy-loads `components/assistant/assistant-dock.tsx` on first open. Open state
+and the shown conversation live in `app/src/lib/assistant-dock.ts`.
+
+Pages offer their focused entity through `usePageEntity()` in `app/src/lib/page-context.ts`:
+the block editor, the Explore selection, the most recently expanded TURD master, and the
+selected task. The entity's `id` is what the tools take: a block or task ID, or a good's or
+tech's internal name.
+
+A dock send adds a `data-page-context` part to the user message holding the route, the page
+name, and the entity unless the user removed its chip. The part is stored with the
+transcript and renders as the "asked from" tag. Model-message conversion drops data parts,
+so the record never appears as user text. Instead, `pageContextNote()` in
+`app/src/server/page-context-note.ts` reads the latest user message's part, and the chat
+route appends it to the system prompt after the planning-horizon note. The note says the
+context is advisory. Messages sent from the full Assistant page carry no part and get no
+note.
+
+The part comes from the client, and block and task names can come from someone else's
+shared block or backup. So `pageContextNote()` validates it first: a known entity kind, a
+numeric or internal-name ID, and a route on the app's own list. It names the page from that
+list and the entity by kind and ID. The label goes in only as single-line, length-capped
+data in «…» quotes. A malformed part adds no note.
+
+The dock can sit beside the block a proposal changes, and navigating to an open block
+doesn't remount its editor. Applying a block revision or plan therefore calls
+`syncChangedBlocks()` from `app/src/lib/undo-client.ts`, the same path undo uses: it
+hydrates each changed block's open editor with the saved doc, so the editor's auto-save
+can't write the old doc back, and refreshes the planning queries.
 
 ## Context measurement and compaction
 

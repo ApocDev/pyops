@@ -58,6 +58,7 @@ import { BalanceCard } from "../components/block/balance-card.tsx";
 import { RecipeGrid } from "../components/block/recipe-grid.tsx";
 import { BlockFlowView } from "../components/block/block-flow-view.tsx";
 import type { LogiView } from "../components/block/solve-view.ts";
+import { usePageEntity } from "../lib/page-context.ts";
 
 export const Route = createFileRoute("/block/$id")({ component: BlockRoute });
 
@@ -789,6 +790,15 @@ function Block({ blockId }: { blockId: number }) {
   // The block's face (#40): the explicit pick when set, else the first goal's icon.
   const blockIcon =
     customIcon ?? (target ? { kind: goalInfo.data?.[target]?.kind ?? "item", name: target } : null);
+
+  usePageEntity({
+    kind: "block",
+    id: String(blockId),
+    label: blockName.trim() || "Untitled block",
+    ...(blockIcon
+      ? { icon: { kind: blockIcon.kind as "item" | "fluid", name: blockIcon.name } }
+      : {}),
+  });
 
   // A science block has a lab bank instead of recipe rows: one pool of labs with
   // independent per-pack rates, which the recipe editor cannot express.

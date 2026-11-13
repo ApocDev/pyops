@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Droplet } from "lucide-react";
-import { searchAllFn, statsFn } from "../server/factorio";
+import { browseDetailFn, searchAllFn, statsFn } from "../server/factorio";
+import { usePageEntity } from "../lib/page-context.ts";
 import { IconProvider, Icon } from "../lib/icons";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
@@ -41,6 +42,23 @@ function Browse() {
     placeholderData: keepPreviousData,
   });
   const open = (name: string) => void navigate({ search: { sel: name } });
+  // shares GoodDetail's query, for the assistant dock's context chip
+  const detail = useQuery({
+    queryKey: ["browseDetail", sel],
+    queryFn: () => browseDetailFn({ data: sel! }),
+    enabled: !!sel,
+  });
+  const good = detail.data?.name === sel ? detail.data : undefined;
+  usePageEntity(
+    good
+      ? {
+          kind: "good",
+          id: good.name,
+          label: good.display ?? good.name,
+          icon: { kind: good.kind as Kind, name: good.name },
+        }
+      : null,
+  );
 
   return (
     <SidebarShell

@@ -33,30 +33,37 @@ const step = (parts: StreamPart[]) => ({
   }),
 });
 
-const model = new MockLanguageModelV4({
-  doStream: [
-    step([
-      { type: "tool-call", toolCallId: "call-1", toolName: "listNotes", input: "{}" },
-      {
-        type: "finish",
-        usage: usage(1000, 20),
-        finishReason: { unified: "tool-calls", raw: undefined },
-      },
-    ]),
-    step([
-      { type: "text-start", id: "t1" },
-      { type: "text-delta", id: "t1", delta: "No notes yet." },
-      { type: "text-end", id: "t1" },
-      { type: "finish", usage: usage(1200, 30), finishReason: { unified: "stop", raw: "stop" } },
-    ]),
-  ],
-  doGenerate: {
-    content: [{ type: "text", text: "Notes check" }],
-    finishReason: { unified: "stop", raw: "stop" },
-    usage: usage(10, 3),
-    warnings: [],
-  },
-});
+// Title generation runs after a first exchange; it uses doGenerate.
+const titleReply = {
+  content: [{ type: "text" as const, text: "Notes check" }],
+  finishReason: { unified: "stop" as const, raw: "stop" },
+  usage: usage(10, 3),
+  warnings: [],
+};
+
+const toolLoopModel = () =>
+  new MockLanguageModelV4({
+    doStream: [
+      step([
+        { type: "tool-call", toolCallId: "call-1", toolName: "listNotes", input: "{}" },
+        {
+          type: "finish",
+          usage: usage(1000, 20),
+          finishReason: { unified: "tool-calls", raw: undefined },
+        },
+      ]),
+      step([
+        { type: "text-start", id: "t1" },
+        { type: "text-delta", id: "t1", delta: "No notes yet." },
+        { type: "text-end", id: "t1" },
+        { type: "finish", usage: usage(1200, 30), finishReason: { unified: "stop", raw: "stop" } },
+      ]),
+    ],
+    doGenerate: titleReply,
+  });
+
+// Each test swaps in a fresh model; the mocked getModel reads this binding per call.
+let model = toolLoopModel();
 
 vi.mock("#/server/agent.ts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("#/server/agent.ts")>()),
@@ -85,11 +92,13 @@ afterEach(() => {
   fx.cleanup();
 });
 
+const { POST: post } = Route.options.server!.handlers as {
+  POST: (ctx: { request: Request }) => Promise<Response>;
+};
+
 describe("/api/chat", () => {
   it("streams a tool loop for a compacted conversation and persists the result", async () => {
-    const { POST: post } = Route.options.server!.handlers as {
-      POST: (ctx: { request: Request }) => Promise<Response>;
-    };
+    model = toolLoopModel();
     const request = new Request("http://test/api/chat", {
       method: "POST",
       body: JSON.stringify({
@@ -126,5 +135,57 @@ describe("/api/chat", () => {
     );
     // The final step carried the whole context, so it is the recorded usage.
     expect(saved?.usage).toMatchObject({ totalTokens: 1230, modelId: "mock/model" });
+  });
+
+  it("names the page a dock message was sent from in the system prompt", async () => {
+    model = new MockLanguageModelV4({
+      doStream: [
+        step([
+          { type: "text-start", id: "t1" },
+          { type: "text-delta", id: "t1", delta: "The crushers." },
+          { type: "text-end", id: "t1" },
+          { type: "finish", usage: usage(900, 5), finishReason: { unified: "stop", raw: "stop" } },
+        ]),
+      ],
+      doGenerate: titleReply,
+    });
+    const request = new Request("http://test/api/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        id: "dock-chat",
+        messages: [
+          {
+            id: "u1",
+            role: "user",
+            parts: [
+              { type: "text", text: "Why does this need so much power?" },
+              {
+                type: "data-page-context",
+                data: {
+                  path: "/block/12",
+                  page: "Blocks",
+                  entity: { kind: "block", id: "12", label: "Iron plate" },
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    const response = await post({ request });
+    await response.text();
+
+    const prompt = model.doStreamCalls[0].prompt;
+    expect(prompt[0]).toMatchObject({
+      role: "system",
+      content: expect.stringContaining(
+        "sent from the Blocks page (`/block`), focused on block id 12, which the app labels «Iron plate».",
+      ),
+    });
+    // the record itself stays out of the user turn
+    expect(prompt.find((m) => m.role === "user")?.content).toEqual([
+      { type: "text", text: "Why does this need so much power?" },
+    ]);
   });
 });

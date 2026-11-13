@@ -32,6 +32,7 @@ import { Textarea } from "#/components/ui/textarea.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { Icon, IconProvider } from "#/lib/icons";
 import { deletedToast, undoToast } from "#/lib/undo-client";
+import { usePageEntity } from "#/lib/page-context.ts";
 import {
   addLinkFn,
   addStepFn,
@@ -176,6 +177,11 @@ function TasksShell() {
 
   const nodes = tasks.data ?? [];
   const currentTask = nodes.find((t) => t.id === search.t) ?? null;
+  usePageEntity(
+    tab === "tasks" && currentTask
+      ? { kind: "task", id: String(currentTask.id), label: currentTask.title || "Untitled task" }
+      : null,
+  );
   const currentNote = (noteList.data ?? []).find((n) => n.id === search.n) ?? null;
 
   return (
