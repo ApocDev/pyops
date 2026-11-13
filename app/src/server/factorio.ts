@@ -891,7 +891,7 @@ export const setFavoriteFuelFn = createServerFn({ method: "POST" })
   .validator((d: { fuel: string; clear?: boolean }) => d)
   .handler(async ({ data }) => {
     const categories = q.getItem(data.fuel)?.fuelCategories ?? [];
-    for (const category of categories) q.setFavoriteFuel(category, data.clear ? null : data.fuel);
+    q.setFavoriteFuel(data.fuel, categories, !data.clear);
     return { ok: categories.length > 0 };
   });
 

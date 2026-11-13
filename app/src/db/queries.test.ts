@@ -14,6 +14,7 @@ import {
   deleteGroup,
   getResearchHorizon,
   getFavoriteFluidTemperatures,
+  getFavoriteFuels,
   goodInfo,
   goodOrderRank,
   goodExists,
@@ -40,6 +41,7 @@ import {
   setBlockGroup,
   setBuiltMachines,
   setFavoriteFluidTemperature,
+  setFavoriteFuel,
   setGroupParent,
   setGroupOrder,
   setHomeActionDismissed,
@@ -166,6 +168,17 @@ describe("favorite fluid temperatures", () => {
 
     setFavoriteFluidTemperature("steam", null);
     expect(getFavoriteFluidTemperatures()).toEqual({ water: 15 });
+  });
+});
+
+describe("favorite fuels", () => {
+  it("unstarring a multi-category fuel keeps another fuel's preference", () => {
+    setFavoriteFuel("wood", ["chemical", "biomass"], true);
+    setFavoriteFuel("seeds", ["biomass"], true);
+    expect(getFavoriteFuels()).toEqual({ chemical: "wood", biomass: "seeds" });
+
+    setFavoriteFuel("wood", ["chemical", "biomass"], false);
+    expect(getFavoriteFuels()).toEqual({ biomass: "seeds" });
   });
 });
 
