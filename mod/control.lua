@@ -733,8 +733,8 @@ local function update_tab_captions(player)
 end
 
 -- What an open build sheet depends on: the per-row built counts (`rows`, which
--- catch a machine moving between two of the block's recipes) and the block's
--- last edit (`rev`, a goal or recipe change).
+-- catch a machine moving between two of the block's recipes) and `rev`, which
+-- moves on a block edit and on any re-solve (research or TURD changes).
 local function sheet_key(b)
   return b and (tostring(b.rows) .. "|" .. tostring(b.rev)) or nil
 end

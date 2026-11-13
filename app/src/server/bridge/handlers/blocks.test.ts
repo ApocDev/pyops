@@ -8,10 +8,14 @@ vi.mock("../../../db/queries.server.ts", () => ({
   blockBuildTotals: vi.fn(() => new Map()),
   getFluid: vi.fn(() => null),
 }));
+vi.mock("../../../db/solve-generation.server.ts", () => ({
+  currentSolveGeneration: vi.fn(() => 1),
+}));
 vi.mock("../../block-compute.server.ts", () => ({ showBlockInGame: vi.fn() }));
 vi.mock("../server.ts", () => ({ sendToPeer: vi.fn(() => true) }));
 
 const q = await import("../../../db/queries.server.ts");
+const generation = await import("../../../db/solve-generation.server.ts");
 const compute = await import("../../block-compute.server.ts");
 const server = await import("../server.ts");
 const blocks = await import("./blocks.ts");
@@ -55,7 +59,7 @@ describe("groupBlocks", () => {
     have: 0,
     need: 0,
     rows: "",
-    rev: 0,
+    rev: "0.1",
   });
 
   it("orders folders depth-first with path labels, ungrouped last, empty rows dropped", () => {
@@ -111,7 +115,7 @@ describe("block.list", () => {
               have: 6,
               need: 10,
               rows: "6,0",
-              rev: 1_700_000_000,
+              rev: "1700000000.1",
             },
             {
               id: 3,
@@ -123,7 +127,7 @@ describe("block.list", () => {
               have: 0,
               need: 0,
               rows: "",
-              rev: 1_700_000_000,
+              rev: "1700000000.1",
             },
           ],
         },
@@ -175,7 +179,22 @@ describe("block.list", () => {
     ]);
     blocks.pushBlockListIfChanged();
     const sent = vi.mocked(server.sendToPeer).mock.calls[0][0].payload as BlockListPayload;
-    expect(sent.groups[0].blocks[0]).toMatchObject({ rows: "5,0", rev: 1_700_000_060 });
+    expect(sent.groups[0].blocks[0]).toMatchObject({ rows: "5,0", rev: "1700000060.1" });
+  });
+
+  it("pushes after a re-solve (research/TURD) that kept the edit time and counts", () => {
+    vi.mocked(q.blockBuildTotals).mockReturnValue(
+      new Map([[1, { need: 10, missing: 5, rows: "5,0" }]]),
+    );
+    vi.mocked(q.listBlocks).mockReturnValue([listed({ id: 1, name: "Iron" })]);
+    vi.mocked(generation.currentSolveGeneration).mockReturnValueOnce(4);
+    blocks.handleBlockList(req("block.list"));
+
+    vi.mocked(generation.currentSolveGeneration).mockReturnValueOnce(5);
+    blocks.pushBlockListIfChanged();
+    expect(server.sendToPeer).toHaveBeenCalledTimes(1);
+    const sent = vi.mocked(server.sendToPeer).mock.calls[0][0].payload as BlockListPayload;
+    expect(sent.groups[0].blocks[0]).toMatchObject({ rows: "5,0", rev: "1700000000.5" });
   });
 });
 

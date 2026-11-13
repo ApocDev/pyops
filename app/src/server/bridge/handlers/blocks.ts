@@ -15,6 +15,7 @@
  * navigate to that block.
  */
 import * as q from "../../../db/queries.server.ts";
+import { currentSolveGeneration } from "../../../db/solve-generation.server.ts";
 import { showBlockInGame } from "../../block-compute.server.ts";
 import type { BridgeRequest, BridgeResponse } from "../protocol.ts";
 import { sendToPeer } from "../server.ts";
@@ -24,10 +25,11 @@ type Group = ReturnType<typeof q.listGroups>[number];
 
 /** One slot on the board. `goal.rate` is per second; `unit` is the block's
  * display unit, which the mod applies. `have`/`need` are whole machines.
- * `rows` is the per-row built counts ("5,0") and `rev` the block's last edit
- * (epoch seconds): the mod re-requests an open build sheet when either changes,
- * since a machine can move between two of the block's recipes without changing
- * `have`, and an edit can change the plan without changing any count. */
+ * `rows` is the per-row built counts ("5,0"). `rev` is "<last edit>.<solve
+ * generation>": the edit time (epoch seconds) moves on a block edit, and the
+ * generation moves when research or TURD changes re-solve blocks without
+ * touching their edit time. The mod re-requests an open build sheet when `rows`
+ * or `rev` changes. */
 export type WireBlock = {
   id: number;
   name: string;
@@ -38,7 +40,7 @@ export type WireBlock = {
   have: number;
   need: number;
   rows: string;
-  rev: number;
+  rev: string;
 };
 
 export type BlockListPayload = { groups: { name: string; blocks: WireBlock[] }[] };
@@ -87,6 +89,7 @@ export function groupBlocks(
 /** Build the `block.list` payload from the active project. */
 export function blockListPayload(): BlockListPayload {
   const totals = q.blockBuildTotals();
+  const generation = currentSolveGeneration();
   const groupOf = new Map<number, number | null>();
   const blocks: WireBlock[] = [];
   for (const b of q.listBlocks()) {
@@ -111,7 +114,7 @@ export function blockListPayload(): BlockListPayload {
       have: t.need - t.missing,
       need: t.need,
       rows: t.rows,
-      rev: b.updatedAt ? Math.floor(b.updatedAt.getTime() / 1000) : 0,
+      rev: `${b.updatedAt ? Math.floor(b.updatedAt.getTime() / 1000) : 0}.${generation}`,
     });
   }
   return groupBlocks(blocks, groupOf, q.listGroups());

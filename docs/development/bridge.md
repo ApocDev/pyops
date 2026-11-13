@@ -231,7 +231,7 @@ type BlockListPayload = {
       have: number; // whole machines built, same rule as blockBuildStatus
       need: number; // whole machines the block requires
       rows: string; // per-row built counts in a stable order, e.g. "4,1"
-      rev: number; // the block's last edit, epoch seconds
+      rev: string; // "<last edit, epoch seconds>.<solve generation>"
     }[];
   }[];
 };
@@ -252,7 +252,8 @@ button sends. That payload carries the block `id`, icon, goal, and a `built` cou
 recipe row for the sheet's **Built** column. When a new `block.list` changes the open
 block's `rows` or `rev`, the mod asks for the sheet again so it stays current. `rows`
 catches a machine switching between two of the block's recipes, which leaves `have`
-unchanged. `rev` catches an edit to the block's plan.
+unchanged. `rev` catches an edit to the block's plan, and through the solve generation, a
+research or TURD change that re-solved blocks without touching their edit time.
 
 `block.open` (shift-click, or the sheet's title-bar button) is stored in app memory and
 returned as `openBlock` from the bridge status server function. The web UI's
