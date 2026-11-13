@@ -1,0 +1,23 @@
+app/drizzle/0024_conversation-turn-cost.sql
+  s_a01b7d11c9c230::t_cb9fa46586aca1 1
+app/drizzle/meta/0024_snapshot.json
+  s_a01b7d11c9c230::t_916b16ef34b683 1-2921
+app/drizzle/meta/_journal.json
+  s_a01b7d11c9c230::t_687d003aa4e8dd 172-178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e8d4353f71404d8736dcaa8fbe5d69b44db55ffd",
+  "prompts": {},
+  "sessions": {
+    "s_a01b7d11c9c230": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7bc5ac73-d070-49dd-9f5b-fbbef357e3a8",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
