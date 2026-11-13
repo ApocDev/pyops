@@ -1,12 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check, Plus } from "lucide-react";
-import { listTurdUpgradesFn, setTurdSelectionFn, turdSyncStatusFn } from "../server/factorio";
+import {
+  listBlocksFn,
+  listTurdUpgradesFn,
+  setTurdSelectionFn,
+  turdSyncStatusFn,
+} from "../server/factorio";
 import { Icon, IconProvider } from "../lib/icons";
 import { RecipeDiffHover, RecipeHover } from "../lib/recipe-card";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Card } from "#/components/ui/card.tsx";
+import { ConfirmDialog } from "#/components/confirm-dialog.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
@@ -16,6 +22,7 @@ import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
 import { timeAgo } from "../lib/format";
+import { countNoun } from "../lib/delete-copy";
 import { useState } from "react";
 
 export const Route = createFileRoute("/turd")({
@@ -132,8 +139,16 @@ function ChoiceDetails({ s }: { s: SubTech }) {
   );
 }
 
-/** Pyanodon TURD board: one selectable sub-tech per master upgrade. Click a
- * choice to select it (re-solves every cached block); click again to clear. */
+/** A TURD pick waiting on the confirm dialog. `sub` null = clear the master's choice. */
+type PendingChoice = {
+  master: { name: string; display: string };
+  sub: { name: string; display: string } | null;
+  /** Display name of the master's current choice, if any. */
+  current: string | null;
+};
+
+/** Pyanodon TURD board: one selectable sub-tech per master upgrade. Choose or
+ * Clear opens a confirm naming the blocks that re-solve; the write is one undo step. */
 function TurdPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -143,6 +158,10 @@ function TurdPage() {
     queryFn: () => turdSyncStatusFn(),
     refetchInterval: 4000,
   });
+  // every block that isn't broken re-solves after a pick (resolveAllBlocks)
+  const blocks = useQuery({ queryKey: ["blocks"], queryFn: () => listBlocksFn() });
+  const resolving = (blocks.data ?? []).filter((b) => !b.broken);
+  const [pending, setPending] = useState<PendingChoice | null>(null);
   const select = useMutation({
     mutationFn: (d: { masterTech: string; subTech: string | null }) =>
       setTurdSelectionFn({ data: d }),
@@ -150,6 +169,7 @@ function TurdPage() {
       void qc.invalidateQueries({ queryKey: ["turd"] });
       void qc.invalidateQueries({ queryKey: ["solve"] });
       void qc.invalidateQueries({ queryKey: ["blocks"] });
+      void qc.invalidateQueries({ queryKey: ["undoStatus"] }); // the pick is the new top undo step
     },
   });
 
@@ -163,6 +183,55 @@ function TurdPage() {
 
   return (
     <div className="p-4 font-mono text-foreground">
+      <ConfirmDialog
+        open={pending != null}
+        onOpenChange={(open) => {
+          if (!open) setPending(null);
+        }}
+        title={pending?.sub ? "Choose TURD upgrade" : "Clear TURD choice"}
+        description={
+          pending && (
+            <>
+              <span className="block">
+                {pending.sub ? (
+                  <>
+                    Choose <span className="text-foreground">{pending.sub.display}</span> for{" "}
+                    <span className="text-foreground">{pending.master.display}</span>?
+                    {pending.current && ` This replaces ${pending.current}.`}
+                  </>
+                ) : (
+                  <>
+                    Clear <span className="text-foreground">{pending.current}</span> from{" "}
+                    <span className="text-foreground">{pending.master.display}</span>?
+                  </>
+                )}
+              </span>
+              <span className="mt-2 block">
+                {blocks.isPending
+                  ? "Loading blocks…"
+                  : resolving.length === 0
+                    ? "No blocks to re-solve."
+                    : `This re-solves ${countNoun(resolving.length, "block")}:`}
+              </span>
+              {resolving.length > 0 && (
+                <span className="mt-1 block max-h-48 overflow-y-auto border border-border/50 px-2 py-1">
+                  {resolving.map((b) => (
+                    <span key={b.id} className="block truncate text-foreground">
+                      {b.name}
+                    </span>
+                  ))}
+                </span>
+              )}
+              <span className="mt-2 block">You can undo this afterwards.</span>
+            </>
+          )
+        }
+        confirmLabel={pending?.sub ? "Choose upgrade" : "Clear choice"}
+        onConfirm={() => {
+          if (pending)
+            select.mutate({ masterTech: pending.master.name, subTech: pending.sub?.name ?? null });
+        }}
+      />
       <PageHeader
         title="TURD upgrades"
         description={`${chosen}/${upgrades.data?.length ?? 0} chosen`}
@@ -282,6 +351,7 @@ function TurdPage() {
             <div className="space-y-1.5">
               {u.subTechs.map((s) => {
                 const sel = u.selected === s.name;
+                const current = u.subTechs.find((x) => x.name === u.selected)?.display ?? null;
                 return (
                   <div
                     key={s.name}
@@ -289,25 +359,8 @@ function TurdPage() {
                       sel ? "border-success/60 bg-success/10" : "border-border"
                     }`}
                   >
-                    <Button
-                      variant="ghost"
-                      disabled={select.isPending}
-                      aria-pressed={sel}
-                      onClick={() =>
-                        select.mutate({ masterTech: u.name, subTech: sel ? null : s.name })
-                      }
-                      className={`h-auto w-full justify-start gap-2 px-2 py-1.5 text-left font-normal whitespace-normal ${
-                        sel ? "hover:bg-transparent" : ""
-                      }`}
-                    >
-                      <Icon
-                        kind="technology"
-                        name={s.name}
-                        size="md"
-                        extraText={
-                          sel ? "Selected · click to clear." : "Click to select this upgrade path."
-                        }
-                      />
+                    <div className="flex items-start gap-2 px-2 py-1.5">
+                      <Icon kind="technology" name={s.name} size="md" />
                       <span className="min-w-0 flex-1">
                         <span className={`block truncate ${sel ? "text-success" : ""}`}>
                           {s.display}
@@ -325,8 +378,32 @@ function TurdPage() {
                           ))}
                         </span>
                       </span>
-                      {sel && <Check className="size-4 shrink-0 text-success" />}
-                    </Button>
+                      {sel ? (
+                        <span className="flex shrink-0 items-center gap-1">
+                          <span className="inline-flex items-center gap-1 text-sm text-success">
+                            <Check className="size-4" /> Chosen
+                          </span>
+                          <Button
+                            variant="ghost"
+                            aria-label={`Clear ${s.display}`}
+                            disabled={select.isPending}
+                            onClick={() => setPending({ master: u, sub: null, current: s.display })}
+                          >
+                            Clear
+                          </Button>
+                        </span>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          aria-label={`Choose ${s.display}`}
+                          className="shrink-0"
+                          disabled={select.isPending}
+                          onClick={() => setPending({ master: u, sub: s, current })}
+                        >
+                          Choose
+                        </Button>
+                      )}
+                    </div>
                     <ChoiceDetails s={s} />
                   </div>
                 );
