@@ -1,0 +1,33 @@
+app/src/components/assistant/chat-view.tsx
+  s_190e8316c9ba79::t_a4c1ee45873056 41,1621-1622
+app/src/components/assistant/goal-change-list.tsx
+  s_190e8316c9ba79::t_82d761b7c1caa2 2,5-7,13,15-18
+app/src/db/queries.server.ts
+  s_190e8316c9ba79::t_40c796d830ff25 2284-2292
+app/src/db/queries.test.ts
+  s_190e8316c9ba79::t_54465da928649e 1137,1174
+app/src/lib/goals.test.ts
+  s_190e8316c9ba79::t_9c7fb6d2cfee06 161-199
+app/src/lib/goals.ts
+  s_190e8316c9ba79::t_b9c108ae0768f7 127-140,155,162-166,172-174,178,180-181,183-189,191,194-198,225
+app/src/server/agent-tools.server.ts
+  s_190e8316c9ba79::t_84ce8aff559c3b 77,995-997,1023-1024,1027-1036,1066-1071,1119
+docs/development/ai-assistant.md
+  s_190e8316c9ba79::t_c62dba0cb8a671 335-340
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4cc05756397f7a5f35f0bc9e60b9191cc1eea1f8",
+  "prompts": {},
+  "sessions": {
+    "s_190e8316c9ba79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "655bd363-6e02-4af1-93b7-246f73900d00",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
