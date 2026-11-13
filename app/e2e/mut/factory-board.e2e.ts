@@ -37,9 +37,10 @@ const firstEnabledBlock = (): { id: number; name: string } => {
   }
 };
 
-/** The Board opens on shortfalls (the seeded project has short goods), and
- * search focuses a block with its direct neighbors. */
-test("factory board opens on shortfalls and search focuses a block", async ({ page }) => {
+/** The Board opens on shortfalls (the seeded project has short goods), search
+ * focuses a block with its direct neighbors, a click on a block refocuses on
+ * it, and a double-click opens it. */
+test("factory board opens on shortfalls; search and clicks focus, double-click opens", async ({ page }) => {
   await goto(page, "/factory/connections?view=board");
   const views = page.getByRole("group", { name: "Board view" });
   await expect(views.getByRole("button", { name: "Shortfalls" })).toHaveAttribute(
@@ -65,6 +66,17 @@ test("factory board opens on shortfalls and search focuses a block", async ({ pa
     "aria-pressed",
     "true",
   );
+
+  // a click on a maker or user block refocuses on it (after the double-click window)
+  const sideBlock = page.locator(".react-flow__node-block").first();
+  const sideId = (await sideBlock.getAttribute("data-id"))!.split(":")[1];
+  await sideBlock.click();
+  await expect(page.locator(`.react-flow__node[data-id="b:${sideId}"]`)).toBeVisible();
+
+  // a double-click opens the block instead of refocusing
+  await page.getByRole("button", { name: "Clear focus" }).click();
+  await page.locator(`.react-flow__node[data-id$=":${sideId}"]`).first().dblclick();
+  await expect(page).toHaveURL(new RegExp(`/block/${sideId}`));
 });
 
 /** Connections → Board: dragging a block persists its position (and only its

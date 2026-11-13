@@ -4,9 +4,10 @@
  * its direct suppliers and customers. Each is three columns (left → center →
  * right) instead of the whole-factory map, so nodes render at full size.
  *
- * Many small flows of one good fold into a single "N more" node per good:
- * byproducts like Ash come from dozens of blocks, and one edge per trickle
- * buries the flows that matter.
+ * In the shortfall and block views, many small flows of one good fold into a
+ * single "N more" node per good: byproducts like Ash come from dozens of
+ * blocks, and one edge per trickle buries the flows that matter. Focusing that
+ * good is how you see them all, so the single-good view never folds.
  */
 
 import {
@@ -87,11 +88,13 @@ export function buildFocusGraph(
   const blocks = new Map(blocksIn.map((b) => [b.id, b]));
   const material = links.filter((l) => !ENERGY_PSEUDO.has(l.good));
   if (target.kind === "block") return blockView(blocks, material, target.id);
-  const goods =
-    target.kind === "good"
-      ? material.filter((l) => l.good === target.good)
-      : shortfallGoods(material);
-  return goodsView(blocks, goods);
+  return target.kind === "good"
+    ? goodsView(
+        blocks,
+        material.filter((l) => l.good === target.good),
+        false,
+      )
+    : goodsView(blocks, shortfallGoods(material), true);
 }
 
 type Contrib = { blockId: number; rate: number };
@@ -106,8 +109,8 @@ function splitFold(contribs: Contrib[]): { kept: Contrib[]; folded: Contrib[] } 
 }
 
 /** Builder for the three columns and the edges between them. Nodes are added
- * once per id, in order. */
-function builder(blocks: Map<number, BoardBlockInput>) {
+ * once per id, in order. With `fold` off, every contributor is its own node. */
+function builder(blocks: Map<number, BoardBlockInput>, fold: boolean) {
   const cols: [FocusNode[], FocusNode[], FocusNode[]] = [[], [], []];
   const seen = new Set<string>();
   const pairs: EdgePairs<string> = new Map();
@@ -117,16 +120,15 @@ function builder(blocks: Map<number, BoardBlockInput>) {
     cols[col].push(node);
   };
   /** Draw one side of center node `centerId` for link `l`: the top contributors
-   * as block nodes, the rest as one fold node. */
+   * as block nodes, the rest as one fold node (when folding). */
   const placeSide = (
     l: BoardLinkInput,
     side: "makers" | "users",
     contribs: Contrib[],
     centerId: string,
   ) => {
-    const { kept, folded } = splitFold(
-      contribs.filter((c) => blocks.has(c.blockId) && c.rate > EPS),
-    );
+    const drawn = contribs.filter((c) => blocks.has(c.blockId) && c.rate > EPS);
+    const { kept, folded } = fold ? splitFold(drawn) : { kept: drawn, folded: [] };
     const prefix = side === "makers" ? "m" : "u";
     const wire = (id: string, rate: number) =>
       side === "makers"
@@ -173,8 +175,12 @@ const foldNode = (l: BoardLinkInput, side: "makers" | "users", folded: Contrib[]
 });
 
 /** Makers on the left, the goods in the middle, users on the right. */
-function goodsView(blocks: Map<number, BoardBlockInput>, goods: BoardLinkInput[]): FocusGraph {
-  const g = builder(blocks);
+function goodsView(
+  blocks: Map<number, BoardBlockInput>,
+  goods: BoardLinkInput[],
+  fold: boolean,
+): FocusGraph {
+  const g = builder(blocks, fold);
   for (const l of goods) {
     const gid = `g:${l.good}`;
     g.add(1, {
@@ -205,7 +211,7 @@ function blockView(
 ): FocusGraph {
   const center = blocks.get(centerId);
   if (!center) return { nodes: [], edges: [] };
-  const g = builder(blocks);
+  const g = builder(blocks, true);
   const cid = `b:${centerId}`;
   g.add(1, blockNode(center, cid, true));
   const others = (ends: Contrib[]) => ends.filter((e) => e.blockId !== centerId);
@@ -240,6 +246,8 @@ export const GOOD_NODE_W = 280;
 const COL_GAP = 160;
 const ROW_GAP = 12;
 const COL_X = [0, BOARD_DIM.nodeW + COL_GAP, BOARD_DIM.nodeW + GOOD_NODE_W + 2 * COL_GAP];
+/** Full width of a three-column focus graph at 1:1 zoom. */
+export const FOCUS_GRAPH_W = COL_X[2] + BOARD_DIM.nodeW;
 
 /** Stack each column centered on y = 0. The center column keeps its given
  * order; side nodes sort by the average row of the center nodes they touch,

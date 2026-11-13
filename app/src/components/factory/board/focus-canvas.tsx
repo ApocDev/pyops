@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Background, BackgroundVariant, Panel, ReactFlow, useReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Maximize } from "lucide-react";
@@ -13,7 +13,16 @@ import type { FocusGraph, FocusNode, FocusTarget } from "./focus-graph.ts";
 
 const nodeTypes = { block: BlockNode, good: GoodNode, fold: FoldNode };
 const edgeTypes = { flow: BoardFlowEdge };
-const FIT = { padding: 0.15, maxZoom: 1 };
+/** Fit padding, as a fraction of the canvas. With the readable zoom floor
+ * below, the board sizes its list/canvas switch from these (factory-board.tsx). */
+export const FOCUS_FIT_PADDING = 0.05;
+/** Smallest zoom at which node labels stay readable. A graph too tall to fit
+ * at this zoom opens centered and scrolls instead of shrinking. */
+export const MIN_FOCUS_ZOOM = 0.8;
+const FIT = { padding: FOCUS_FIT_PADDING, minZoom: MIN_FOCUS_ZOOM, maxZoom: 1 };
+/** How long a block click waits for a second click before refocusing. Focusing
+ * remounts the canvas, so an immediate refocus would swallow the double-click. */
+const DOUBLE_CLICK_MS = 250;
 
 type FocusFlowNode = BlockFlowNode | GoodFlowNode | FoldFlowNode;
 
@@ -58,6 +67,8 @@ export function FocusCanvas({
   const { fitView } = useReactFlow();
   const [hoveredEdge, setHoveredEdge] = useState<{ id: string; x: number; y: number } | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const pendingFocus = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(pendingFocus.current), []);
   const byId = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph]);
   const nodes = useMemo(() => graph.nodes.map(toFlowNode), [graph]);
   const edges = useMemo<BoardFlowEdgeType[]>(
@@ -91,12 +102,19 @@ export function FocusCanvas({
       edges={edges}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
-      onNodeClick={(_e, node) => {
+      onNodeClick={(e, node) => {
         const n = byId.get(node.id);
         const t = n && targetFor(n);
-        if (t) onFocus(t);
+        if (!t) return;
+        // goods have no double-click action, so they refocus right away
+        if (n.type !== "block") return onFocus(t);
+        window.clearTimeout(pendingFocus.current);
+        // the second click of a double-click: leave it to onNodeDoubleClick
+        if (e.detail > 1) return;
+        pendingFocus.current = window.setTimeout(() => onFocus(t), DOUBLE_CLICK_MS);
       }}
       onNodeDoubleClick={(_e, node) => {
+        window.clearTimeout(pendingFocus.current);
         const n = byId.get(node.id);
         if (n?.type === "block") onOpenBlock(n.blockId);
       }}
@@ -110,6 +128,11 @@ export function FocusCanvas({
       minZoom={0.05}
       maxZoom={2}
       nodesDraggable={false}
+      // d3-zoom's double-click zoom swallows the dblclick on non-draggable
+      // nodes, so onNodeDoubleClick would never fire
+      zoomOnDoubleClick={false}
+      // the wheel scrolls a tall column; Ctrl + wheel (or pinch) still zooms
+      panOnScroll
       nodesConnectable={false}
       deleteKeyCode={null}
       className="bg-background"

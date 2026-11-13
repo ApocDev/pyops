@@ -63,17 +63,22 @@ describe("buildFocusGraph", () => {
     expect(g.edges.every((e) => e.status === "short")).toBe(true);
   });
 
-  it("folds a good's smallest makers into one node", () => {
-    const makers = Array.from({ length: 10 }, (_, i) => ({ blockId: i + 1, rate: 10 - i }));
-    const g = buildFocusGraph(blocks, [link("ash", makers, [{ blockId: 12, rate: 100 }])], {
-      kind: "good",
-      good: "ash",
-    });
+  const manyMakers = Array.from({ length: 10 }, (_, i) => ({ blockId: i + 1, rate: 10 - i }));
+  const ash = link("ash", manyMakers, [{ blockId: 12, rate: 100 }]);
+
+  it("shortfalls fold a good's smallest makers into one node", () => {
+    const g = buildFocusGraph(blocks, [ash], { kind: "shortfalls" });
     const blockMakers = g.nodes.filter((n) => n.type === "block" && n.id.startsWith("m:"));
     expect(blockMakers.map((n) => n.id)).toEqual(["m:1", "m:2", "m:3", "m:4"]);
     const fold = g.nodes.find((n) => n.type === "fold");
     expect(fold).toMatchObject({ id: "mf:ash", side: "makers", count: 6, rate: 21 });
     expect(g.edges.find((e) => e.id === "mf:ash->g:ash")?.goods[0].rate).toBe(21);
+  });
+
+  it("focusing a good shows every maker, so a fold node always leads somewhere", () => {
+    const g = buildFocusGraph(blocks, [ash], { kind: "good", good: "ash" });
+    expect(g.nodes.some((n) => n.type === "fold")).toBe(false);
+    expect(g.nodes.filter((n) => n.id.startsWith("m:"))).toHaveLength(10);
   });
 
   it("block: direct suppliers and customers only, with the board's proportional split", () => {

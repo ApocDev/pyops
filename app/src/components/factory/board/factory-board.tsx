@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -22,8 +22,8 @@ import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
 import { QueryError } from "#/components/query-error.tsx";
 import { ENERGY_PSEUDO, autoPositions, buildBoardGraph, type BoardGraph } from "./board-graph.ts";
-import { buildFocusGraph, shortfallGoods, type FocusTarget } from "./focus-graph.ts";
-import { FocusCanvas } from "./focus-canvas.tsx";
+import { FOCUS_GRAPH_W, buildFocusGraph, shortfallGoods, type FocusTarget } from "./focus-graph.ts";
+import { FOCUS_FIT_PADDING, FocusCanvas, MIN_FOCUS_ZOOM } from "./focus-canvas.tsx";
 import { FocusList } from "./focus-list.tsx";
 import { ShortfallRail } from "./shortfall-rail.tsx";
 import { BoardSearch, type SearchEntry } from "./board-search.tsx";
@@ -37,13 +37,29 @@ import { EdgeTooltip } from "#/components/edge-tooltip.tsx";
 const nodeTypes = { block: BlockNode };
 const edgeTypes = { flow: BoardFlowEdge };
 
-const WIDE_QUERY = "(min-width: 768px)";
-const subscribeWide = (onChange: () => void) => {
-  const mq = matchMedia(WIDE_QUERY);
-  mq.addEventListener("change", onChange);
-  return () => mq.removeEventListener("change", onChange);
-};
-const isWide = () => matchMedia(WIDE_QUERY).matches;
+/** Narrowest canvas that fits the three-column focus graph at MIN_FOCUS_ZOOM. */
+const MIN_CANVAS_W = Math.ceil(FOCUS_GRAPH_W * MIN_FOCUS_ZOOM * (1 + 2 * FOCUS_FIT_PADDING));
+/** Page padding plus the board border around the canvas. */
+const CHROME_W = 40;
+/** The shortfall rail beside the canvas (`w-64`). */
+const RAIL_W = 256;
+
+/** Live `matchMedia` result; true on the server (the board renders after mount). */
+function useMediaQuery(query: string): boolean {
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      const mq = matchMedia(query);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    [query],
+  );
+  return useSyncExternalStore(
+    subscribe,
+    () => matchMedia(query).matches,
+    () => true,
+  );
+}
 
 type BoardTarget = FocusTarget | { kind: "all" };
 
@@ -62,13 +78,17 @@ export function FactoryBoard() {
   // React Flow measures the DOM — render it only on the client, after mount.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const wide = useSyncExternalStore(subscribeWide, isWide, () => true);
   // null = the default view, resolved below once the data is in
   const [picked, setPicked] = useState<BoardTarget | null>(null);
 
   const enabled = useMemo(() => (blocks.data ?? []).filter((b) => b.enabled), [blocks.data]);
   const links = coherence.data?.links;
   const shorts = useMemo(() => (links ? shortfallGoods(links) : []), [links]);
+  // Room for a readable three-column canvas, after the rail takes its width?
+  // Otherwise focused views render as lists.
+  const wide = useMediaQuery(
+    `(min-width: ${MIN_CANVAS_W + CHROME_W + (shorts.length > 0 ? RAIL_W : 0)}px)`,
+  );
   const target = useMemo<BoardTarget>(() => {
     if (picked) return picked;
     if (shorts.length > 0) return { kind: "shortfalls" };

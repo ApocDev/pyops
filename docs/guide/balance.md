@@ -73,13 +73,16 @@ edge thickness tracks how much flows.
   focus it.
 - When many blocks make or use one good, the smaller ones fold into a single **N more makers**
   or **N more users** node. Click it to focus that good and see them all.
+- **Scroll** to move through a column too tall for the window; hold Ctrl while scrolling to
+  zoom.
 - **Hover** an edge to list the goods it carries with their rates.
 - The **×** in the focus bar returns to Shortfalls.
 
 When nothing is short, the Board opens on the last block you viewed.
 
-On a phone, Shortfalls is the list alone, and a focused good or block shows as **Made by** and
-**Used by** lists instead of a map.
+In a window too narrow to draw the map at a readable size (phones and most tablets),
+Shortfalls is the list alone, and a focused good or block shows as **Made by** and **Used by**
+lists instead.
 
 ## Arrange the factory on the Board
 
