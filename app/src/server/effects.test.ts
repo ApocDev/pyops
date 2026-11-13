@@ -279,13 +279,36 @@ describe("computeEffects — machine effect receiver", () => {
     expect(fx.consMult).toBeCloseTo(10);
   });
 
-  it("adds base productivity only where the recipe allows productivity", () => {
-    // furnace.compost-plant-mk01-turd.effect_receiver.base_effect.productivity = 0.05
+  it("keeps base productivity on a recipe that disallows productivity", () => {
+    // In game: furnace.compost-plant-mk01-turd (base_effect.productivity = 0.05)
+    // running biomass-guar-seeds (allowed_effects.productivity = false) showed
+    // productivity_bonus 0.05 and bonus_progress 0.0664 after 1.328 crafts.
     const compost = receiver({ base_effect: { productivity: 0.05 } });
-    expect(
-      computeEffects(true, [], [], MODS, BEACONS, [], undefined, compost).prodMult,
-    ).toBeCloseTo(1.05);
-    expect(computeEffects(false, [], [], MODS, BEACONS, [], undefined, compost).prodMult).toBe(1);
+    const fx = computeEffects(false, [], [], MODS, BEACONS, [], undefined, compost);
+    expect(fx.prodBonus).toBeCloseTo(0.05);
+    expect(fx.prodMult).toBeCloseTo(1.05);
+  });
+
+  it("still blocks module and beacon productivity next to the base", () => {
+    const compost = receiver({ base_effect: { productivity: 0.05 } });
+    const prodBeacon = [{ beacon: "beacon-AM3-FM2", modules: ["productivity-module"], count: 1 }];
+    const fx = computeEffects(
+      false,
+      ["productivity-module"],
+      prodBeacon,
+      MODS,
+      BEACONS,
+      [{ effSpeed: 0, effProductivity: 0.3, effConsumption: 0 }],
+      undefined,
+      compost,
+    );
+    expect(fx.prodBonus).toBeCloseTo(0.05); // only the base survives
+  });
+
+  it("clamps base productivity to the recipe's maximum_productivity", () => {
+    const strong = receiver({ base_effect: { productivity: 5 } });
+    const research = { recipeProd: 0, miningProd: 0, maxProductivity: 3 };
+    expect(computeEffects(false, [], [], MODS, BEACONS, [], research, strong).prodBonus).toBe(3);
   });
 
   it("ignores modules, beacons and the TURD beacon on a machine that doesn't use them", () => {

@@ -12,7 +12,9 @@
  * low -0.8, so the 0.2× floor on speed/consumption/pollution). Py's farms and
  * creature buildings use `base_effect.speed = -1` with `speed_limits.low =
  * -0.9999`: unmoduled they barely run, and each +1 speed module adds 1× (10
- * fawogae modules = 10×, not 11×). Productivity clamps to its limits before
+ * fawogae modules = 10×, not 11×). Base productivity applies even on a
+ * recipe that disallows productivity (only module, beacon and TURD productivity
+ * are blocked there). Productivity clamps to its limits before
  * research is added, then to [0, recipe maximum_productivity] (+300% by
  * default; Py raises it to 1e6 on nearly every recipe).
  *
@@ -122,7 +124,6 @@ export function computeEffects(
   const own = sumEffects(rx.usesModuleEffects ? machineModules : [], moduleDb);
   let { speed, prod, cons, poll } = own;
   speed += rx.baseEffect.speed;
-  prod += rx.baseEffect.productivity;
   cons += rx.baseEffect.consumption;
   poll += rx.baseEffect.pollution;
   // the TURD bonus arrives through a hidden beacon
@@ -151,7 +152,12 @@ export function computeEffects(
     // by the sharing factor.
     beaconPowerPerMachineW += ((b.energyUsageW ?? 0) * cfg.count) / Math.max(1, cfg.shared ?? 1);
   }
+  // a recipe that disallows productivity blocks module, beacon and TURD
+  // productivity, but not the machine's base productivity: measured in game, a
+  // compost-plant-mk01-turd (+0.05) on biomass-guar-seeds (productivity not
+  // allowed) gained bonus_progress 0.0664 over 1.328 crafts (= 1.328 × 0.05)
   if (!allowProductivity) prod = 0;
+  prod += rx.baseEffect.productivity;
   const clamp = (v: number, k: EffectKind) =>
     Math.min(rx.limits[k].high, Math.max(rx.limits[k].low, v));
   // the receiver's limit applies before research; tech-granted recipe

@@ -288,11 +288,11 @@ Pyanodons' farms and creature buildings use this. They have `base_effect.speed =
 creature module adds `1×`: ten fawogae modules give `10×`, not `11×`. Pyanodons' salt and
 sulfur mines and antimony drills have `+9` consumption.
 
-A recipe that disallows productivity drops the base productivity along with module
-productivity. The prototype docs say `ignored_by_productivity` "is ignored when
-allow_productivity is false", so no productivity reaches such a recipe. Pyanodons' TURD
-compost plants carry `+5%` to `+20%` base productivity, but every composting recipe
-disallows productivity, so the bonus never applies to them.
+A recipe that disallows productivity blocks module, beacon, and TURD productivity, but not
+the machine's base productivity. In game, a `compost-plant-mk01-turd` (`+5%` base
+productivity) running `biomass-guar-seeds`, a recipe that disallows productivity, gains
+productivity bonus progress at exactly `5%` per craft. Pyanodons' TURD compost plants
+therefore add `+5%` to `+20%` to composting recipes.
 
 Productivity clamps to its limits before research productivity is added, then to zero and
 the recipe's maximum. `ignored_by_productivity` is an amount of output
