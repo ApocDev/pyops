@@ -1,0 +1,21 @@
+docs/guide/blocks.md
+  s_831e8c0c645f77::t_55524f9460a43a 126-131
+app/src/components/block/recipe-row.tsx
+  s_831e8c0c645f77::t_7cb5134d446a1c 477-480
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6c839948a298fd87be2310e85283b3a2fd0f50da",
+  "prompts": {},
+  "sessions": {
+    "s_831e8c0c645f77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92b0e243-936b-46c8-807b-c4c86041ee0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
