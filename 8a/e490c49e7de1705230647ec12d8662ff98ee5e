@@ -1,0 +1,29 @@
+app/src/routes/index.tsx
+  s_831e8c0c645f77::t_086b4fea1e5a87 32,148
+app/src/components/github-icon.tsx
+  s_2e2dcdef8cc0f3::t_6673e0132bc55b 1-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8ae490c49e7de1705230647ec12d8662ff98ee5e",
+  "prompts": {},
+  "sessions": {
+    "s_2e2dcdef8cc0f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cc91899-9788-4780-ad00-00102e37aed5",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_831e8c0c645f77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92b0e243-936b-46c8-807b-c4c86041ee0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
