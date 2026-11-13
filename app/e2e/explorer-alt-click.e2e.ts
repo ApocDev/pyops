@@ -48,3 +48,24 @@ test("Alt+Click opens a focused recipe explorer without navigating away", async 
 
   await expect(page).toHaveURL(/\/explore$/);
 });
+
+for (const width of [390, 1440]) {
+  test(`the explorer opens with no tooltip showing at ${width}px`, async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.setViewportSize({ width, height: 844 });
+    // the selected good's detail is already loaded, so the dialog opens on a
+    // full header (with its price InfoHint) rather than a skeleton
+    await page.goto("/explore?sel=iron-plate");
+    await expect(page.getByRole("heading", { name: "Iron plate" })).toBeVisible({
+      timeout: 30_000,
+    });
+    await page
+      .locator("[data-good-name='iron-plate']:visible")
+      .first()
+      .click({ modifiers: ["Alt"] });
+
+    const dialog = page.getByRole("dialog", { name: "Recipe explorer" });
+    await expect(dialog.getByTestId("price-ladder").first()).toBeVisible();
+    await expect(page.locator('[data-slot="tooltip"]')).toHaveCount(0);
+  });
+}
