@@ -341,7 +341,9 @@ export function ItemCard({
             <div className="flex items-center gap-1">
               <Timer className="size-3.5 text-warning" />
               Spoils
-              {data.item.spoilTicks != null ? ` in ${fmtSpoilTime(data.item.spoilTicks)}` : ""} →{" "}
+              {data.item.spoilTicks != null
+                ? ` in ${fmtSpoilTime(data.item.spoilTicks)}`
+                : ""} →{" "}
               {data.spoilResultDisplay ?? data.item.spoilResult}
             </div>
           )}

@@ -48,7 +48,7 @@ export function buildPlanExport(groupId?: number): PlanEnvelope {
   if (groupId != null) {
     included = new Set([groupId]);
     // walk the (parent_id) tree — children of included groups join the set
-    for (let grew = true; grew; ) {
+    for (let grew = true; grew;) {
       grew = false;
       for (const g of allGroups) {
         if (g.parentId != null && included.has(g.parentId) && !included.has(g.id)) {
