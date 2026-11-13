@@ -8,6 +8,7 @@ import { Kbd } from "./ui/kbd";
 import { openCommandPalette } from "./command-palette";
 import { openShortcutHelp } from "./shortcut-help-sheet";
 import { SearchButton } from "./search-button";
+import { AskButton } from "./ask-button";
 import { navLinkActive, SETTINGS_LINK, visibleNavLinks } from "./nav-links";
 import { UndoButton } from "./undo-button";
 import { HorizonMenu } from "./horizon-menu";
@@ -56,6 +57,7 @@ export function NavMobile() {
       <span className="ml-auto flex md:hidden">
         <SearchButton size="icon" />
       </span>
+      <AskButton size="icon" />
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
           <Button

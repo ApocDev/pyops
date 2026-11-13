@@ -7,9 +7,10 @@ import { HorizonMenu } from "./horizon-menu";
 import { LogisticsMenu } from "./logistics-menu";
 import { NavMobile } from "./nav-mobile";
 import { SearchButton } from "./search-button";
+import { AskButton } from "./ask-button";
 import { navLinkActive, SETTINGS_LINK, TOPBAR_LABEL, visibleNavLinks } from "./nav-links";
 import { UndoButton } from "./undo-button";
-import { activeRunCount, subscribeRuns } from "../lib/chat-store";
+import { activeRunCount, subscribeRuns } from "../lib/chat-runs";
 import { dataCapabilitiesFn, modDriftFn } from "../server/factorio";
 import { driftModal } from "../lib/drift-store";
 import { Button } from "#/components/ui/button.tsx";
@@ -96,6 +97,7 @@ export function AppNav() {
         <span className="ml-auto flex min-w-21 items-center px-2">
           <SearchButton size="short" />
         </span>
+        <AskButton size="label" />
         <span className="flex min-w-0 items-stretch whitespace-nowrap">
           <UndoButton />
           <DataDriftIndicator />

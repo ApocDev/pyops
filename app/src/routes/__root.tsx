@@ -6,6 +6,7 @@ import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 
 import { AppLiveQueries } from "../components/app-live-queries";
 import { AppNav } from "../components/app-nav";
+import { AssistantDockHost } from "../components/assistant-dock-host";
 import { CommandPalette } from "../components/command-palette";
 import { DbMigrationsBanner } from "../components/db-migrations-banner";
 import { DriftModal } from "../components/drift-modal";
@@ -87,8 +88,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <AppNav />
           <WorkspaceNav />
           <DbMigrationsBanner />
-          <div data-app-content className="min-h-0 flex-1 overflow-auto">
-            {children}
+          <div className="flex min-h-0 flex-1">
+            <div data-app-content className="min-h-0 min-w-0 flex-1 overflow-auto">
+              {children}
+            </div>
+            <AssistantDockHost />
           </div>
         </div>
         <CommandPalette />

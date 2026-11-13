@@ -23,6 +23,7 @@ import { QueryError } from "#/components/query-error.tsx";
 import { TurdGroupRow, groupBlockCount } from "#/components/turd/turd-group-row.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
 import { countNoun } from "../lib/delete-copy";
+import { usePageEntity } from "../lib/page-context";
 import { useState } from "react";
 
 export const Route = createFileRoute("/turd")({
@@ -95,6 +96,19 @@ function TurdPage() {
     )
     // a search keeps its relevance order inside each tier
     .sort((a, b) => tier(b) - tier(a) || (search ? 0 : a.display.localeCompare(b.display)));
+  // the most recently expanded group is the dock's page context
+  const focusedName = [...open].at(-1);
+  const focused = all.find((u) => u.name === focusedName);
+  usePageEntity(
+    focused
+      ? {
+          kind: "turd",
+          id: focused.name,
+          label: focused.display,
+          icon: { kind: "technology", name: focused.name },
+        }
+      : null,
+  );
   const toggle = (name: string) =>
     setOpen((cur) => {
       const next = new Set(cur);
