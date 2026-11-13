@@ -1,0 +1,23 @@
+app/e2e/README.md
+  s_1ae7a8c97d56af::t_eebac63860bce5 86-91
+app/e2e/mut/factory-board.e2e.ts
+  s_1ae7a8c97d56af::t_f9787db2e6ed90 4-10,47,51
+app/e2e/mut/scenario-factory.ts
+  s_1ae7a8c97d56af::t_a8add4d97296e9 11-12,94-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4987054011a092acb4da36c5019dd0a1778b5f25",
+  "prompts": {},
+  "sessions": {
+    "s_1ae7a8c97d56af": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0e760880-1e9c-4b0b-865c-7cf6100fa651",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
