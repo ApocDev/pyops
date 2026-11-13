@@ -1,0 +1,39 @@
+app/drizzle/meta/0021_snapshot.json
+  s_831e8c0c645f77::t_ec49e3a5d1a41a 1-2907
+app/drizzle/meta/_journal.json
+  s_831e8c0c645f77::t_7880acdc7333e3 151-157
+app/src/components/browse/good-detail.tsx
+  s_831e8c0c645f77::t_a366ec60d0f030 96
+app/src/db/import-factorio.test.ts
+  s_831e8c0c645f77::t_0c53b45b1e68b4 56-76
+app/src/db/import-factorio.ts
+  s_831e8c0c645f77::t_b175f7fd11786e 244,393-396
+app/src/db/queries.server.ts
+  s_831e8c0c645f77::t_fdbe5daae9446c 469-477,3253
+app/src/lib/data-format.ts
+  s_831e8c0c645f77::t_7a45d6c918317c 9
+app/src/lib/recipe-card.tsx
+  s_831e8c0c645f77::t_e24eaf3a86fc1e 328-329,780
+app/src/server/factorio.ts
+  s_831e8c0c645f77::t_4d37e1c72e3a6e 887,893-895
+app/drizzle/0021_item-fuel-categories.sql
+  s_831e8c0c645f77::t_95428f89d335b3 1-4
+app/src/db/schema.ts
+  s_831e8c0c645f77::t_983d296d41ae50 23-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3c89ea502dfc452883ed881ac539fe42571a34a8",
+  "prompts": {},
+  "sessions": {
+    "s_831e8c0c645f77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92b0e243-936b-46c8-807b-c4c86041ee0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
