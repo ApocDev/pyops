@@ -32,6 +32,9 @@ const RATE_CHANGE_REL_TOL = 0.01;
 const MAX_LINEARIZATION_PASSES = 8;
 const FREE_GOODS = new Set(["pyops-heat"]);
 const round = (value: number) => +value.toFixed(4);
+// Full-precision rates keep real small differences but drop LP float noise
+// (3.999999999999993 → 4), so a proposed goal rate saves as a clean number.
+const clean = (value: number) => +value.toPrecision(12);
 
 export type FactoryPin = {
   good: string;
@@ -1028,8 +1031,9 @@ export async function solvePinnedFactory(
       const amount = columnAmounts[index] ?? 0;
       targetByGoal.set(`${column.blockId}\u0000${column.good}`, {
         // Keep solver precision for apply/validation. Four-decimal goal
-        // rounding can amplify into whole units on high-throughput recipes.
-        rate: column.sign * amount,
+        // rounding can amplify into whole units on high-throughput recipes;
+        // `clean` only drops LP float noise past 12 significant digits.
+        rate: clean(column.sign * amount),
         kind: column.kind,
       });
     });
@@ -1131,7 +1135,7 @@ export async function solvePinnedFactory(
       const retainedGoal = Math.max(dedicated, supplied);
       const target = targetByGoal.get(key);
       if (target && retainedGoal > target.rate + EPS)
-        targetByGoal.set(key, { ...target, rate: retainedGoal });
+        targetByGoal.set(key, { ...target, rate: clean(retainedGoal) });
 
       const separator = key.indexOf("\u0000");
       const blockId = Number(key.slice(0, separator));
@@ -1184,7 +1188,7 @@ export async function solvePinnedFactory(
             kind: target?.kind ?? kindOf.get(goal.name) ?? "item",
             currentRate: round(current),
             requiredRate,
-            dedicatedRate: dedicatedRateByGoal.get(key) ?? 0,
+            dedicatedRate: clean(dedicatedRateByGoal.get(key) ?? 0),
             factoryNeed: round(
               [...factoryNeedByGood].reduce(
                 (sum, [good, rate]) => (baseGoodName(good) === goal.name ? sum + rate : sum),

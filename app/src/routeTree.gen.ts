@@ -9,81 +9,31 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WhatifRouteImport } from './routes/whatif'
-import { Route as TurdRouteImport } from './routes/turd'
-import { Route as TasksRouteImport } from './routes/tasks'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as McpRouteImport } from './routes/mcp'
-import { Route as FactoryRouteImport } from './routes/factory'
-import { Route as ExploreRouteImport } from './routes/explore'
-import { Route as DepsRouteImport } from './routes/deps'
-import { Route as CoherenceRouteImport } from './routes/coherence'
-import { Route as BrowseRouteImport } from './routes/browse'
-import { Route as BlockRouteImport } from './routes/block'
-import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as BlockIndexRouteImport } from './routes/block.index'
-import { Route as IconsSplatRouteImport } from './routes/icons.$'
-import { Route as FactoryScenarioRouteImport } from './routes/factory_.scenario'
-import { Route as FactoryConnectionsRouteImport } from './routes/factory_.connections'
-import { Route as ExploreDependenciesRouteImport } from './routes/explore_.dependencies'
-import { Route as BlockIdRouteImport } from './routes/block.$id'
-import { Route as ApiChatRouteImport } from './routes/api.chat'
+import { Route as AssistantRouteImport } from './routes/assistant'
+import { Route as BlockRouteImport } from './routes/block'
+import { Route as BrowseRouteImport } from './routes/browse'
+import { Route as CoherenceRouteImport } from './routes/coherence'
+import { Route as DepsRouteImport } from './routes/deps'
+import { Route as ExploreRouteImport } from './routes/explore'
+import { Route as FactoryRouteImport } from './routes/factory'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as TurdRouteImport } from './routes/turd'
+import { Route as WhatifRouteImport } from './routes/whatif'
 import { Route as ApiBackupRouteImport } from './routes/api.backup'
+import { Route as ApiChatRouteImport } from './routes/api.chat'
+import { Route as BlockIndexRouteImport } from './routes/block.index'
+import { Route as BlockIdRouteImport } from './routes/block.$id'
+import { Route as ExploreDependenciesRouteImport } from './routes/explore_.dependencies'
+import { Route as FactoryConnectionsRouteImport } from './routes/factory_.connections'
+import { Route as FactoryScenarioRouteImport } from './routes/factory_.scenario'
+import { Route as IconsSplatRouteImport } from './routes/icons.$'
 
-const WhatifRoute = WhatifRouteImport.update({
-  id: '/whatif',
-  path: '/whatif',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TurdRoute = TurdRouteImport.update({
-  id: '/turd',
-  path: '/turd',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TasksRoute = TasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FactoryRoute = FactoryRouteImport.update({
-  id: '/factory',
-  path: '/factory',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExploreRoute = ExploreRouteImport.update({
-  id: '/explore',
-  path: '/explore',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DepsRoute = DepsRouteImport.update({
-  id: '/deps',
-  path: '/deps',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CoherenceRoute = CoherenceRouteImport.update({
-  id: '/coherence',
-  path: '/coherence',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BrowseRoute = BrowseRouteImport.update({
-  id: '/browse',
-  path: '/browse',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BlockRoute = BlockRouteImport.update({
-  id: '/block',
-  path: '/block',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssistantRoute = AssistantRouteImport.update({
@@ -91,9 +41,69 @@ const AssistantRoute = AssistantRouteImport.update({
   path: '/assistant',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const BlockRoute = BlockRouteImport.update({
+  id: '/block',
+  path: '/block',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BrowseRoute = BrowseRouteImport.update({
+  id: '/browse',
+  path: '/browse',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CoherenceRoute = CoherenceRouteImport.update({
+  id: '/coherence',
+  path: '/coherence',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DepsRoute = DepsRouteImport.update({
+  id: '/deps',
+  path: '/deps',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExploreRoute = ExploreRouteImport.update({
+  id: '/explore',
+  path: '/explore',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FactoryRoute = FactoryRouteImport.update({
+  id: '/factory',
+  path: '/factory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TurdRoute = TurdRouteImport.update({
+  id: '/turd',
+  path: '/turd',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WhatifRoute = WhatifRouteImport.update({
+  id: '/whatif',
+  path: '/whatif',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBackupRoute = ApiBackupRouteImport.update({
+  id: '/api/backup',
+  path: '/api/backup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BlockIndexRoute = BlockIndexRouteImport.update({
@@ -101,14 +111,14 @@ const BlockIndexRoute = BlockIndexRouteImport.update({
   path: '/',
   getParentRoute: () => BlockRoute,
 } as any)
-const IconsSplatRoute = IconsSplatRouteImport.update({
-  id: '/icons/$',
-  path: '/icons/$',
-  getParentRoute: () => rootRouteImport,
+const BlockIdRoute = BlockIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => BlockRoute,
 } as any)
-const FactoryScenarioRoute = FactoryScenarioRouteImport.update({
-  id: '/factory_/scenario',
-  path: '/factory/scenario',
+const ExploreDependenciesRoute = ExploreDependenciesRouteImport.update({
+  id: '/explore_/dependencies',
+  path: '/explore/dependencies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FactoryConnectionsRoute = FactoryConnectionsRouteImport.update({
@@ -116,24 +126,14 @@ const FactoryConnectionsRoute = FactoryConnectionsRouteImport.update({
   path: '/factory/connections',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ExploreDependenciesRoute = ExploreDependenciesRouteImport.update({
-  id: '/explore_/dependencies',
-  path: '/explore/dependencies',
+const FactoryScenarioRoute = FactoryScenarioRouteImport.update({
+  id: '/factory_/scenario',
+  path: '/factory/scenario',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BlockIdRoute = BlockIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => BlockRoute,
-} as any)
-const ApiChatRoute = ApiChatRouteImport.update({
-  id: '/api/chat',
-  path: '/api/chat',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiBackupRoute = ApiBackupRouteImport.update({
-  id: '/api/backup',
-  path: '/api/backup',
+const IconsSplatRoute = IconsSplatRouteImport.update({
+  id: '/icons/$',
+  path: '/icons/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -301,81 +301,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/whatif': {
-      id: '/whatif'
-      path: '/whatif'
-      fullPath: '/whatif'
-      preLoaderRoute: typeof WhatifRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/turd': {
-      id: '/turd'
-      path: '/turd'
-      fullPath: '/turd'
-      preLoaderRoute: typeof TurdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tasks': {
-      id: '/tasks'
-      path: '/tasks'
-      fullPath: '/tasks'
-      preLoaderRoute: typeof TasksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/factory': {
-      id: '/factory'
-      path: '/factory'
-      fullPath: '/factory'
-      preLoaderRoute: typeof FactoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/explore': {
-      id: '/explore'
-      path: '/explore'
-      fullPath: '/explore'
-      preLoaderRoute: typeof ExploreRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/deps': {
-      id: '/deps'
-      path: '/deps'
-      fullPath: '/deps'
-      preLoaderRoute: typeof DepsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/coherence': {
-      id: '/coherence'
-      path: '/coherence'
-      fullPath: '/coherence'
-      preLoaderRoute: typeof CoherenceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/browse': {
-      id: '/browse'
-      path: '/browse'
-      fullPath: '/browse'
-      preLoaderRoute: typeof BrowseRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/block': {
-      id: '/block'
-      path: '/block'
-      fullPath: '/block'
-      preLoaderRoute: typeof BlockRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assistant': {
@@ -385,11 +315,95 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssistantRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/block': {
+      id: '/block'
+      path: '/block'
+      fullPath: '/block'
+      preLoaderRoute: typeof BlockRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/browse': {
+      id: '/browse'
+      path: '/browse'
+      fullPath: '/browse'
+      preLoaderRoute: typeof BrowseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/coherence': {
+      id: '/coherence'
+      path: '/coherence'
+      fullPath: '/coherence'
+      preLoaderRoute: typeof CoherenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/deps': {
+      id: '/deps'
+      path: '/deps'
+      fullPath: '/deps'
+      preLoaderRoute: typeof DepsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/explore': {
+      id: '/explore'
+      path: '/explore'
+      fullPath: '/explore'
+      preLoaderRoute: typeof ExploreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/factory': {
+      id: '/factory'
+      path: '/factory'
+      fullPath: '/factory'
+      preLoaderRoute: typeof FactoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/turd': {
+      id: '/turd'
+      path: '/turd'
+      fullPath: '/turd'
+      preLoaderRoute: typeof TurdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/whatif': {
+      id: '/whatif'
+      path: '/whatif'
+      fullPath: '/whatif'
+      preLoaderRoute: typeof WhatifRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/backup': {
+      id: '/api/backup'
+      path: '/api/backup'
+      fullPath: '/api/backup'
+      preLoaderRoute: typeof ApiBackupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/block/': {
@@ -399,18 +413,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BlockIndexRouteImport
       parentRoute: typeof BlockRoute
     }
-    '/icons/$': {
-      id: '/icons/$'
-      path: '/icons/$'
-      fullPath: '/icons/$'
-      preLoaderRoute: typeof IconsSplatRouteImport
-      parentRoute: typeof rootRouteImport
+    '/block/$id': {
+      id: '/block/$id'
+      path: '/$id'
+      fullPath: '/block/$id'
+      preLoaderRoute: typeof BlockIdRouteImport
+      parentRoute: typeof BlockRoute
     }
-    '/factory_/scenario': {
-      id: '/factory_/scenario'
-      path: '/factory/scenario'
-      fullPath: '/factory/scenario'
-      preLoaderRoute: typeof FactoryScenarioRouteImport
+    '/explore_/dependencies': {
+      id: '/explore_/dependencies'
+      path: '/explore/dependencies'
+      fullPath: '/explore/dependencies'
+      preLoaderRoute: typeof ExploreDependenciesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/factory_/connections': {
@@ -420,32 +434,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FactoryConnectionsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/explore_/dependencies': {
-      id: '/explore_/dependencies'
-      path: '/explore/dependencies'
-      fullPath: '/explore/dependencies'
-      preLoaderRoute: typeof ExploreDependenciesRouteImport
+    '/factory_/scenario': {
+      id: '/factory_/scenario'
+      path: '/factory/scenario'
+      fullPath: '/factory/scenario'
+      preLoaderRoute: typeof FactoryScenarioRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/block/$id': {
-      id: '/block/$id'
-      path: '/$id'
-      fullPath: '/block/$id'
-      preLoaderRoute: typeof BlockIdRouteImport
-      parentRoute: typeof BlockRoute
-    }
-    '/api/chat': {
-      id: '/api/chat'
-      path: '/api/chat'
-      fullPath: '/api/chat'
-      preLoaderRoute: typeof ApiChatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/backup': {
-      id: '/api/backup'
-      path: '/api/backup'
-      fullPath: '/api/backup'
-      preLoaderRoute: typeof ApiBackupRouteImport
+    '/icons/$': {
+      id: '/icons/$'
+      path: '/icons/$'
+      fullPath: '/icons/$'
+      preLoaderRoute: typeof IconsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
