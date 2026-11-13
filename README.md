@@ -41,16 +41,16 @@ parts fit into a complete workflow.
 **Factory ledger** — the balance across every production block, including
 deficits, surpluses, and machine requirements.
 
-![Factory ledger showing whole-factory balance](docs/images/factory.png)
+![Factory ledger showing whole-factory balance](docs/public/images/factory.png)
 
 **Block editor** — goals in, solved rates and building counts out.
 
-![Block editor showing a solved production chain](docs/images/block-editor.png)
+![Block editor showing a solved production chain](docs/public/images/block-editor.png)
 
 **Assistant** — project-aware help for investigating recipes, upgrades, and production
 plans.
 
-![Assistant comparing a project-specific TURD upgrade choice](docs/images/assistant.png)
+![Assistant comparing a project-specific TURD upgrade choice](docs/public/images/assistant.png)
 
 ## Developing PyOps
 
