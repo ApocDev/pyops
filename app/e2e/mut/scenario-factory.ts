@@ -8,7 +8,8 @@
  * `seedScenarioFactory` clears the factory first, so a Scenario solve only sees
  * these blocks.
  */
-import { type BlockDoc, clearFactory, insertBlock, setFactoryPins } from "./helpers";
+import { expect, type Page } from "@playwright/test";
+import { type BlockDoc, clearFactory, goto, insertBlock, setFactoryPins } from "./helpers";
 
 const hydrocarbons: BlockDoc = {
   recipes: [
@@ -89,6 +90,15 @@ const coalGas: BlockDoc = {
 };
 
 export type ScenarioFactory = { hydrocarbons: { id: number; name: string } };
+
+/** Solve and persist every block through Connections › Recompute all. Views
+ * built from saved block flows (Connections, the board's shortfalls) see
+ * nothing for inserted blocks until they are solved. */
+export async function solveFactory(page: Page): Promise<void> {
+  await goto(page, "/factory/connections");
+  await page.getByRole("button", { name: "Recompute all" }).click();
+  await expect(page.getByText(/^[1-9]\d* links?\b/)).toBeVisible({ timeout: 60_000 });
+}
 
 /** Replace the scratch factory with the fixture blocks and demand pins. */
 export function seedScenarioFactory(): ScenarioFactory {

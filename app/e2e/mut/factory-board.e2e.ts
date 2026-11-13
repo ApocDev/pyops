@@ -1,6 +1,13 @@
 import { DatabaseSync } from "node:sqlite";
 import { expect, test, type Page } from "@playwright/test";
 import { activeProjectDbFile, dragFlowNode, goto } from "./helpers";
+import { seedScenarioFactory, solveFactory } from "./scenario-factory";
+
+// The board shows every block in the project, so each test starts from the
+// same small factory: it has shortfalls, and its block names are unique.
+test.beforeEach(() => {
+  seedScenarioFactory();
+});
 
 const boardPositions = (): { id: number; x: number; y: number }[] => {
   const db = new DatabaseSync(activeProjectDbFile());
@@ -37,10 +44,11 @@ const firstEnabledBlock = (): { id: number; name: string } => {
   }
 };
 
-/** The Board opens on shortfalls (the seeded project has short goods), search
+/** The Board opens on shortfalls (the seeded factory has short goods), search
  * focuses a block with its direct neighbors, a click on a block refocuses on
  * it, and a double-click opens it. */
 test("factory board opens on shortfalls; search and clicks focus, double-click opens", async ({ page }) => {
+  await solveFactory(page);
   await goto(page, "/factory/connections?view=board");
   const views = page.getByRole("group", { name: "Board view" });
   await expect(views.getByRole("button", { name: "Shortfalls" })).toHaveAttribute(
