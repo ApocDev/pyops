@@ -172,9 +172,11 @@ the solve:
 Production that already runs feeds compatible consumers before anything crosses the block
 boundary, as it does for an item. Because selectors cost an epsilon and boundary flows are free,
 the first solve can export a pump's water and import the same water for a compatible consumer.
-When it does, a second pass keeps every real recipe at its solved rate and re-solves only the
-selectors, minimizing the boundary flow of every produced temperature and consumer pool. That
-routes the pump's water into the consumer. Nothing is started or scaled to avoid an import, and
+Whenever one fluid both exports and imports, a second pass keeps every real recipe at its solved
+rate and re-solves only the selectors, minimizing the boundary flow of every produced temperature
+and consumer pool. That routes the pump's water into the consumer, including when it takes a chain
+of swaps: 15° water takes over a pool that accepts any temperature, freeing the 125° water that
+fed it for a ≥90° consumer. Nothing is started or scaled to avoid an import, and
 temperature compatibility is unchanged: 125° water still can't feed a ≤101° consumer.
 
 The block keeps its imports and exports of one fluid apart, so a cold import and a hot export of

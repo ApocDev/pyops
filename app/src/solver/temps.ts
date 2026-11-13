@@ -285,10 +285,10 @@ export function expandTemps(
       drains: [...new Set(outDrains)].filter((m) => !rowMembers.has(m)),
       routing: {
         recipes: [...selNames],
-        sources: [...variants].flatMap(([fluid, temps]) =>
-          [...temps].map((t) => variantKey(fluid, t)),
-        ),
-        sinks: [...pools.keys()],
+        fluids: [...ranged].map((fluid) => ({
+          sources: [...(variants.get(fluid) ?? [])].map((t) => variantKey(fluid, t)),
+          sinks: [...pools].filter(([, p]) => p.fluid === fluid).map(([pKey]) => pKey),
+        })),
       },
     },
     fold: {

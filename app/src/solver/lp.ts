@@ -71,12 +71,12 @@ export type LpBlockInput = {
    * absorbs exactly the surplus, existing consumers unaffected. A produce-goal
    * item is never drained (the goal's ≥ takes precedence). */
   drains?: string[];
-  /** Pure identity conversions (the temperature expansion's selectors) and the
-   * goods they connect: `sources` are produced identities, `sinks` the
-   * identities consumers draw from. After the solve, the selectors are
-   * re-routed with every other recipe fixed, so production that already runs
-   * feeds compatible consumers before anything crosses the boundary. */
-  routing?: { recipes: string[]; sources: string[]; sinks: string[] };
+  /** Pure identity conversions (the temperature expansion's selectors) and,
+   * per split fluid, the goods they connect: `sources` are produced identities,
+   * `sinks` the identities consumers draw from. After the solve, the selectors
+   * are re-routed with every other recipe fixed, so production that already
+   * runs feeds compatible consumers before anything crosses the boundary. */
+  routing?: { recipes: string[]; fluids: { sources: string[]; sinks: string[] }[] };
 };
 
 /** The user gesture a constraint came from — the unit of diagnosis. */
@@ -349,18 +349,18 @@ async function rerouteInBlock(
 ): Promise<LpSolution | null> {
   const { recipes, constraints, coeff } = model;
   const routers = new Set(routing.recipes);
-  const sources = new Set(routing.sources);
-  const sinks = new Set(routing.sinks);
+  const sources = new Set(routing.fluids.flatMap((fluid) => fluid.sources));
+  const sinks = new Set(routing.fluids.flatMap((fluid) => fluid.sinks));
   const net = (good: string) =>
     (coeff[good] ?? []).reduce((total, c, i) => total + c * sol.primal(`x${i}`), 0);
-  // only worth a solve when a selector could take an exported source into an
-  // imported sink
-  const reroutable = recipes.some(
-    (r) =>
-      routers.has(r.name) &&
-      r.ingredients.some((c) => sources.has(c.name) && net(c.name) > FLOW_EPS) &&
-      r.products.some((c) => sinks.has(c.name) && net(c.name) < -FLOW_EPS),
-  );
+  // Only worth a solve when one split fluid both exports and imports. A direct
+  // exported-source → imported-sink selector isn't required: freeing a source
+  // can take a chain of swaps through pools that are already balanced (15°
+  // water takes over a broad pool so the 125° it fed can serve a ≥100° one).
+  const reroutable = routing.fluids.some((fluid) => {
+    const nets = [...fluid.sources, ...fluid.sinks].map(net);
+    return nets.some((n) => n > FLOW_EPS) && nets.some((n) => n < -FLOW_EPS);
+  });
   if (!reroutable) return null;
 
   const goods = [...sources, ...sinks].filter((good) => coeff[good]);

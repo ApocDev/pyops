@@ -78,7 +78,7 @@ describe("fluid ingredient temperature selections", () => {
       INSERT INTO items (name, display) VALUES
         ('tin','Tin'),('formic-product','Formic product'),('random-result','Random result'),
         ('gel','Gel'),('warm-gel','Warm gel'),('power-a','Power A'),('power-b','Power B'),
-        ('heat','Heat');
+        ('heat','Heat'),('any-gel','Any gel');
       INSERT INTO fluids (name, display, default_temperature, max_temperature) VALUES
         ('steam','Steam',15,5000),
         ('formic-acid','Formic acid',15,NULL),
@@ -99,7 +99,9 @@ describe("fluid ingredient temperature selections", () => {
         ('coolant-165','Coolant 165C','real',1,1,0),
         ('turbine-cold','Cold turbine','real',1,1,0),
         ('turbine-hot','Hot turbine','real',0.5,1,0),
-        ('sink-kerosene','Kerosene sink','real',1,1,0);
+        ('sink-kerosene','Kerosene sink','real',1,1,0),
+        ('any-gel','Any gel','real',1,1,0),
+        ('spring-water','Spring water','real',1,1,0);
       INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
         ('tin-steam',0,'fluid','steam',10),
         ('use-formic',0,'fluid','formic-acid',5);
@@ -108,7 +110,8 @@ describe("fluid ingredient temperature selections", () => {
         ('warm-gel',0,'fluid','water',1,90,NULL),
         ('turbine-cold',0,'fluid','coolant',1,100,NULL),
         ('turbine-hot',0,'fluid','coolant',1,500,NULL),
-        ('sink-kerosene',0,'fluid','kerosene',1,10,NULL);
+        ('sink-kerosene',0,'fluid','kerosene',1,10,NULL),
+        ('any-gel',0,'fluid','water',1,NULL,NULL);
       INSERT INTO recipe_products (recipe, idx, kind, name, amount, temperature) VALUES
         ('steam-250',0,'fluid','steam',10,250),
         ('steam-2000',0,'fluid','steam',10,2000),
@@ -122,7 +125,9 @@ describe("fluid ingredient temperature selections", () => {
         ('coolant-165',0,'fluid','coolant',10,165),
         ('turbine-cold',0,'item','power-a',1,NULL),
         ('turbine-hot',0,'item','power-b',1,NULL),
-        ('sink-kerosene',0,'item','heat',1,NULL);
+        ('sink-kerosene',0,'item','heat',1,NULL),
+        ('any-gel',0,'item','any-gel',1,NULL),
+        ('spring-water',0,'fluid','water',10,NULL);
       INSERT INTO recipe_products
         (recipe, idx, kind, name, amount_min, amount_max, probability) VALUES
         ('random-output',0,'item','random-result',1,3,0.25);
@@ -335,6 +340,35 @@ describe("fluid ingredient temperature selections", () => {
         }),
       ],
     );
+  });
+
+  it("re-routes through a balanced pool so in-block fluid covers every consumer", async () => {
+    // 10/s each of pinned 125° and 15° water. A water goal (any temperature)
+    // must be covered in-block, and a consumer needs ≥90°. If the 125° fills
+    // the goal, the 15° exports and the ≥90° consumer imports, and no selector
+    // joins those two directly. Swapping the two supplies removes both flows.
+    // The idle spring keeps the goal binding: with every producer count-pinned
+    // the goal would be superseded.
+    const input = {
+      goals: [
+        { name: "water", rate: 10 },
+        { name: "warm-gel", rate: 10 },
+      ],
+      recipes: ["hot-water", "pump-water", "spring-water", "warm-gel"],
+      made: [],
+      pins: [
+        { kind: "count" as const, recipe: "hot-water", count: 1 },
+        { kind: "count" as const, recipe: "pump-water", count: 1 },
+      ],
+    };
+    const solved = await computeBlock(input);
+
+    expect(solved.status).toBe("solved");
+    expect(
+      boundaryFlows(goalFlows(input), solved)
+        .filter((flow) => flow.item === "water")
+        .map(({ role, rate }) => [role, Number(rate.toFixed(2))]),
+    ).toEqual([["primary", 10]]);
   });
 
   it("meets a sink's net balance under pins without forcing made water into one consumer", async () => {
