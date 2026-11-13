@@ -22,9 +22,9 @@ import type { LpBlockInput, Pin, RecipeDef } from "./lp.ts";
  *     full-range pool when no exact temperature is selected;
  *     share pins follow their consumer onto its pool.
  *   - a consume goal gets its own good that only the boundary feeds. It feeds
- *     every consumer pool that accepts its temperature, and those pools are
- *     drained, so their intake is in-range variants plus what arrives through
- *     the goal, and the goal sizes the consumers
+ *     every consumer pool that accepts its temperature; those pools and the
+ *     in-range variants they accept are drained, so the goal's import is the
+ *     block's net consumption, as for an item
  *
  * `fold` maps the solve's synthetic goods/recipes back for display: selector
  * rows vanish, variant/pool flows collapse onto the bare fluid name with a
@@ -78,6 +78,10 @@ export type TempFold = {
   /** Selector provenance used to turn an exported pool back into the exact
    * temperatures that physically entered it. */
   selectorOf: (recipe: string) => { fluid: string; temperature: number; pool: string } | null;
+  /** A consume goal's feed into one consumer pool. Its import splits across
+   * these, so the boundary carries the ranges the consumers accept rather than
+   * the goal's own range. */
+  goalFeedOf: (recipe: string) => { goal: string; pool: string } | null;
 };
 
 export function expandTemps(
@@ -130,6 +134,7 @@ export function expandTemps(
         tempOf: () => null,
         qualifierOf: () => null,
         selectorOf: () => null,
+        goalFeedOf: () => null,
       },
     };
   }
@@ -205,17 +210,24 @@ export function expandTemps(
   }
 
   // consume goals: the goal's good → each consumer pool whose range overlaps
-  // it. Draining those pools (net = 0) stops them importing on their own, so
-  // the goal's `net ≤ -rate` constrains what the consumers take in from the
-  // boundary. In-block variants still reach them only through the
-  // temperature-checked selectors above.
-  const goalFedPools: string[] = [];
+  // it. Draining those pools (net = 0) stops them importing on their own, and
+  // draining every in-range variant they accept stops that production
+  // exporting instead of feeding them. The goal's import is then the block's
+  // net consumption, so its `net ≤ -rate` means what it means for an item. In-block
+  // variants still reach consumers only through the temperature-checked
+  // selectors above; one no goal-fed consumer accepts stays free to export
+  // and never counts.
+  const consumeGoalDrains: string[] = [];
+  const goalFeeds = new Map<string, { goal: string; pool: string }>();
   for (const goal of consumeGoals) {
+    const fed: { lo: number; hi: number }[] = [];
     for (const [pKey, p] of pools) {
       if (p.fluid !== goal.fluid || p.hi < goal.lo || p.lo > goal.hi) continue;
       const name = `${SEL}${goal.key}${SEP}${pKey}`;
       selNames.add(name);
-      goalFedPools.push(pKey);
+      goalFeeds.set(name, { goal: goal.key, pool: pKey });
+      consumeGoalDrains.push(pKey);
+      fed.push(p);
       outDefs.push({
         name,
         energyRequired: 0,
@@ -223,6 +235,9 @@ export function expandTemps(
         products: [{ kind: "fluid", name: pKey, amount: 1 }],
       });
     }
+    for (const t of variants.get(goal.fluid) ?? [])
+      if (t >= goal.lo && t <= goal.hi && fed.some((p) => t >= p.lo && t <= p.hi))
+        consumeGoalDrains.push(variantKey(goal.fluid, t));
   }
 
   // made(F) → every variant + every pool of F (goal-pools are covered by the
@@ -246,7 +261,7 @@ export function expandTemps(
       for (const t of variants.get(g.name) ?? []) outMade.push(variantKey(g.name, t));
 
   // a drained fluid's surplus must vanish per-variant AND per-pool
-  const outDrains: string[] = [...goalFedPools];
+  const outDrains: string[] = [...consumeGoalDrains];
   for (const m of drains) {
     if (!ranged.has(m)) {
       outDrains.push(m);
@@ -322,6 +337,7 @@ export function expandTemps(
         };
       },
       selectorOf: (recipe) => selectors.get(recipe) ?? null,
+      goalFeedOf: (recipe) => goalFeeds.get(recipe) ?? null,
     },
   };
 }

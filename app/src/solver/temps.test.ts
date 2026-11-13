@@ -330,3 +330,38 @@ test("a consume goal can't route an out-of-range producer into a narrower consum
   expect(water(r.imports)).toEqual(["any 15.00"]);
   expect(water(r.exports)).toEqual(["125° 10.00"]);
 });
+
+test("a consume goal counts in-block production the consumer accepts, like an item goal", async () => {
+  // 10/s of 15° water made in-block, which the ≤101° consumer accepts. A
+  // `water -5/s` goal is net consumption: the consumer takes 15/s, 5/s of it
+  // imported, and none of the made water may export instead
+  const pump: TempRecipeDef = {
+    name: "pump",
+    energyRequired: 1,
+    ingredients: [],
+    products: [{ kind: "fluid", name: "water", amount: 10, temperature: 15 }],
+  };
+  const cold: TempRecipeDef = {
+    name: "cold-process",
+    energyRequired: 1,
+    ingredients: [{ kind: "fluid", name: "water", amount: 1, maxTemp: 101 }],
+    products: [{ kind: "item", name: "gel", amount: 1 }],
+  };
+  const { input, fold } = expandTemps(
+    {
+      goals: [{ name: "water", rate: -5, direction: "consume" }],
+      recipes: [pump, cold],
+      made: [],
+      pins: [{ kind: "rate", recipe: "pump", rate: 1 }],
+    },
+    (f) => (f === "water" ? 15 : null),
+  );
+  const r = await solveBlockLp(input);
+  expect(r.status).toBe("solved");
+  const rates = Object.fromEntries(r.recipes.map((x) => [x.recipe, x.rate]));
+  expect(rates["cold-process"]).toBeCloseTo(15);
+  const water = (flows: typeof r.imports) =>
+    flows.filter((f) => fold.bare(f.name) === "water").map((f) => f.rate.toFixed(2));
+  expect(water(r.imports)).toEqual(["5.00"]);
+  expect(water(r.exports)).toEqual([]);
+});

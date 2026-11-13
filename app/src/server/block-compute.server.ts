@@ -823,6 +823,16 @@ export async function computeBlock(rawData: SolveInput) {
     list.push({ fluid: selector.fluid, temperature: selector.temperature, rate: row.rate });
     selectorInputs.set(selector.pool, list);
   }
+  // a consume goal's boundary intake, per consumer pool it actually fed
+  const goalFeeds = new Map<string, { pool: string; rate: number }[]>();
+  for (const row of rawResult.recipes) {
+    const feed = fold.goalFeedOf(row.recipe);
+    if (!feed || row.rate <= 1e-9) continue;
+    goalFeeds.set(feed.goal, [
+      ...(goalFeeds.get(feed.goal) ?? []),
+      { pool: feed.pool, rate: row.rate },
+    ]);
+  }
   const mergeQualified = (flows: QualifiedResultFlow[]) => {
     const merged = new Map<string, QualifiedResultFlow>();
     for (const flow of flows) {
@@ -838,7 +848,20 @@ export async function computeBlock(rawData: SolveInput) {
     direction: "import" | "export",
   ): QualifiedResultFlow[] =>
     mergeQualified(
-      flows.flatMap((flow) => {
+      flows.flatMap((flow): QualifiedResultFlow[] => {
+        // A consume goal's import is what its consumers took in: split it by
+        // the pool each part fed, so it keeps the ranges they accept.
+        const feeds = direction === "import" ? goalFeeds.get(flow.name) : undefined;
+        const fed = feeds?.reduce((sum, feed) => sum + feed.rate, 0) ?? 0;
+        if (feeds && fed > 1e-9)
+          return qualifyFlows(
+            feeds.map((feed) => ({
+              ...flow,
+              name: feed.pool,
+              rate: (flow.rate * feed.rate) / fed,
+            })),
+            direction,
+          );
         const name = fold.bare(flow.name);
         const qualifier = fold.qualifierOf(flow.name);
         if (qualifier?.mode === "exact")

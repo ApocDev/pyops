@@ -72,7 +72,8 @@ describe("fluid ingredient temperature selections", () => {
     fx = await makeTestDb();
     fx.db.exec(`
       INSERT INTO items (name, display) VALUES
-        ('tin','Tin'),('formic-product','Formic product'),('random-result','Random result');
+        ('tin','Tin'),('formic-product','Formic product'),('random-result','Random result'),
+        ('gel','Gel'),('warm-gel','Warm gel');
       INSERT INTO fluids (name, display, default_temperature, max_temperature) VALUES
         ('steam','Steam',15,5000),
         ('formic-acid','Formic acid',15,NULL),
@@ -85,10 +86,15 @@ describe("fluid ingredient temperature selections", () => {
         ('use-formic','Use formic acid','real',1,1,0),
         ('pump-water','Pump water','real',1,1,0),
         ('hot-water','Hot water','real',1,1,0),
-        ('random-output','Random output','real',1,1,0);
+        ('random-output','Random output','real',1,1,0),
+        ('cold-gel','Cold gel','real',1,1,0),
+        ('warm-gel','Warm gel','real',1,1,0);
       INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
         ('tin-steam',0,'fluid','steam',10),
         ('use-formic',0,'fluid','formic-acid',5);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount, min_temp, max_temp) VALUES
+        ('cold-gel',0,'fluid','water',1,NULL,101),
+        ('warm-gel',0,'fluid','water',1,90,NULL);
       INSERT INTO recipe_products (recipe, idx, kind, name, amount, temperature) VALUES
         ('steam-250',0,'fluid','steam',10,250),
         ('steam-2000',0,'fluid','steam',10,2000),
@@ -96,7 +102,9 @@ describe("fluid ingredient temperature selections", () => {
         ('make-formic',0,'fluid','formic-acid',5,NULL),
         ('use-formic',0,'item','formic-product',1,NULL),
         ('pump-water',0,'fluid','water',10,NULL),
-        ('hot-water',0,'fluid','water',10,125);
+        ('hot-water',0,'fluid','water',10,125),
+        ('cold-gel',0,'item','gel',1,NULL),
+        ('warm-gel',0,'item','warm-gel',1,NULL);
       INSERT INTO recipe_products
         (recipe, idx, kind, name, amount_min, amount_max, probability) VALUES
         ('random-output',0,'item','random-result',1,3,0.25);
@@ -158,6 +166,60 @@ describe("fluid ingredient temperature selections", () => {
       minTemp: 2000,
       maxTemp: 2000,
     });
+  });
+
+  it("keeps the consumer's range on an unqualified fluid sink's import", async () => {
+    // The factory planner matches this import against other blocks' exports by
+    // range, so it must say ≤101° — a full-range import would accept a 125°
+    // producer elsewhere that this consumer can't use.
+    const input = { goals: [{ name: "water", rate: -5 }], recipes: ["cold-gel"] };
+    const solved = await computeBlock(input);
+
+    expect(solved.rows.find((row) => row.recipe === "cold-gel")?.rate).toBeCloseTo(5);
+    expect(boundaryFlows(goalFlows(input), solved).filter((flow) => flow.item === "water")).toEqual(
+      [
+        {
+          item: "water",
+          kind: "fluid",
+          role: "import",
+          rate: expect.closeTo(5),
+          temperatureMode: "range",
+          minTemp: 15, // the fluid's default fills an open lower bound
+          maxTemp: 101,
+        },
+      ],
+    );
+  });
+
+  it("splits a fluid sink's import by the ranges its consumers accept", async () => {
+    const input = {
+      goals: [
+        { name: "gel", rate: 3 },
+        { name: "warm-gel", rate: 7 },
+        { name: "water", rate: -10 },
+      ],
+      recipes: ["cold-gel", "warm-gel"],
+    };
+    const solved = await computeBlock(input);
+
+    const water = boundaryFlows(goalFlows(input), solved).filter((flow) => flow.item === "water");
+    expect(water).toHaveLength(2);
+    expect(water).toContainEqual(
+      expect.objectContaining({
+        role: "import",
+        rate: expect.closeTo(3),
+        minTemp: 15,
+        maxTemp: 101,
+      }),
+    );
+    expect(water).toContainEqual(
+      expect.objectContaining({
+        role: "import",
+        rate: expect.closeTo(7),
+        minTemp: 90,
+        maxTemp: null,
+      }),
+    );
   });
 
   it("pins a fluid goal to one produced temperature and exposes the goal control", async () => {

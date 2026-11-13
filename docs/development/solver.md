@@ -155,9 +155,12 @@ the solve:
 5. A fluid goal uses an exact one-temperature pool when selected; an unselected goal uses its
    full displayed range.
 6. A consume goal gets its own good that only the block boundary feeds. It feeds every consumer
-   pool whose range accepts the goal's temperature, and those pools are drained. Their intake is
-   then in-range block production plus what arrives through the goal, so the goal sizes the
-   consumers the same way it does for an item, and an out-of-range producer can't count toward it.
+   pool whose range accepts the goal's temperature. Those pools are drained, and so is every
+   in-range temperature they accept, so that production feeds them instead of exporting. The
+   goal's import is then the block's net consumption, as for an item. Production no goal-fed
+   consumer accepts can still export and never counts toward the goal. At the block boundary the
+   goal's import splits by the consumer pools it fed, so each part carries the range those
+   consumers accept and the factory planner only matches compatible suppliers to it.
 
 This models range pooling rather than forcing one independent chain per exact temperature.
 A made rule expands to its variants and pools. If no in-range producer exists, the result
