@@ -181,8 +181,8 @@ function CoherencePage() {
                     enough of this good. Scale its producer up.
                   </li>
                   <li>
-                    <span className="text-surplus">Overproduced</span> — more is made than used
-                    internally. Route the extra or it backs up.
+                    <span className="text-surplus">Surplus</span> — more is made than other blocks
+                    use. Route the extra or it backs up.
                   </li>
                   <li>
                     <span className="text-success">Balanced</span> — producers meet consumers;
@@ -190,11 +190,11 @@ function CoherencePage() {
                     throughput are rounding noise and count as balanced.
                   </li>
                   <li>
-                    <span className="text-foreground">Unsourced imports</span> — consumed but
+                    <span className="text-foreground">Short, no producer</span> — consumed but
                     nothing makes them: supply a raw, or build a block.
                   </li>
                   <li>
-                    <span className="text-foreground">Surplus / outputs</span> — produced but
+                    <span className="text-foreground">Surplus, no consumer</span> — produced but
                     nothing consumes them: a final product, or waste to route.
                   </li>
                 </ul>
@@ -261,7 +261,7 @@ function CoherencePage() {
           {shortLinks.length > 0 && (
             <Section
               title={`Short (${shortLinks.length})`}
-              hint="A block isn't getting enough — scale its producer up"
+              hint="A block isn't getting enough — scale its producer up. Counts only goods one block makes and another uses, so Overview's Short count also includes Short, no producer."
             >
               {shortLinks.map((l) => (
                 <LinkRow key={l.good} l={l} onScale={() => setScaling(l)} />
@@ -270,8 +270,8 @@ function CoherencePage() {
           )}
           {surplusLinks.length > 0 && (
             <Section
-              title={`Overproduced (${surplusLinks.length})`}
-              hint="More made than used internally — route the extra or it backs up"
+              title={`Surplus (${surplusLinks.length})`}
+              hint="More made than other blocks use — route the extra or it backs up. Overview's Surplus count also includes Surplus, no consumer, minus stock buffers."
             >
               {surplusLinks.map((l) => (
                 <LinkRow key={l.good} l={l} onScale={() => setScaling(l)} />
@@ -297,7 +297,7 @@ function CoherencePage() {
 
           {unsourced.length > 0 && (
             <Section
-              title="Unsourced imports"
+              title={`Short, no producer (${unsourced.length})`}
               hint="Consumed but no block produces them — a raw to supply, or a block to build"
             >
               {unsourced.map((l) => (
@@ -308,7 +308,7 @@ function CoherencePage() {
 
           {surplus.length > 0 && (
             <Section
-              title="Surplus / outputs"
+              title={`Surplus, no consumer (${surplus.length})`}
               hint="Produced but no block consumes them — a final product, or waste to route"
             >
               {surplus.map((l) => (

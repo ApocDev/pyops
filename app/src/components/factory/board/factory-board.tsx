@@ -249,7 +249,7 @@ function BoardCanvas({ graph }: { graph: BoardGraph }) {
           <span className="inline-block h-0.5 w-4 bg-destructive" aria-hidden /> Short
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block h-0.5 w-4 bg-surplus" aria-hidden /> Overproduced
+          <span className="inline-block h-0.5 w-4 bg-surplus" aria-hidden /> Surplus
         </span>
         <span className="flex items-center gap-1">
           <span className="inline-block h-0.5 w-4 bg-muted-foreground" aria-hidden /> Balanced

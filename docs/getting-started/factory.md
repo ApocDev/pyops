@@ -1,6 +1,6 @@
 ---
 title: Read the Factory view
-description: Use whole-plan deficits, surpluses, balanced flows, and stock buffers to choose what to build next.
+description: Use whole-plan short goods, surplus, balanced flows, and stock buffers to choose what to build next.
 outline: [2, 3]
 ---
 
@@ -16,18 +16,22 @@ flows from all enabled blocks. It answers a different question from the block ed
 
 | Group         | Meaning                                                     | What to do                                               |
 | ------------- | ----------------------------------------------------------- | -------------------------------------------------------- |
-| Deficits      | Enabled blocks consume more of the item than they produce.  | Build or scale an upstream block.                        |
-| Surpluses     | Enabled blocks produce more than they consume.              | Route it, use it in another block, or reduce production. |
+| Short         | Enabled blocks consume more of the item than they produce.  | Build or scale an upstream block.                        |
+| Surplus       | Enabled blocks produce more than they consume.              | Route it, use it in another block, or reduce production. |
 | Balanced      | Planned production and consumption are effectively equal.   | No immediate planning action.                            |
 | Stock buffers | Production exists only to satisfy a **keep in stock** goal. | Treat it as replenishment, not continuous surplus.       |
+
+**Short** includes goods that no block makes, and **Surplus** includes final outputs that no
+block consumes. Connections lists those goods in their own groups, so its **Short** and
+**Surplus** counts are smaller.
 
 An active temporary campaign contributes its derived rate to these same totals until you select
 **Complete** on its block. Completion disables the block but keeps the campaign definition, so
 Factory immediately stops counting its finite build without losing the plan.
 
-The first automation-science block creates deficits for every ingredient left as an
-import. Pick one of those deficits and make it the goal of your next block. As you add
-producer blocks, return to Factory to see which deficits remain.
+The first automation-science block makes every ingredient left as an import show as
+**Short**. Pick one of those goods and make it the goal of your next block. As you add
+producer blocks, return to Factory to see which short goods remain.
 
 Temperature-sensitive fluids retain their boundary contract here. A pinned steam import appears
 as **Steam 250°**, and it balances with steam produced at exactly 250°. Other exact temperatures
@@ -42,13 +46,13 @@ also carries that temperature into the new fluid goal.
 
 <AppScreenshot
   src="/images/first-factory-view.png"
-  alt="The Factory page for a five-block Automation science plan, showing deficits, a final-product surplus, balanced intermediates, and live machine sufficiency"
-  caption="After adding four supplier blocks, Native flora, Planter boxes, and Small parts are balanced. The remaining deficits identify the next upstream blocks to plan."
+  alt="The Factory page for a five-block Automation science plan, showing short goods, a final-product surplus, balanced intermediates, and live machine sufficiency"
+  caption="After adding four supplier blocks, Native flora, Planter boxes, and Small parts are balanced. The remaining short goods identify the next upstream blocks to plan."
 />
 
 ::: tip Small residuals are treated as balanced
 Factory ignores differences below roughly one percent of an item's throughput. This keeps
-hand-entered rates such as `0.083/s` from appearing as actionable deficits against an exact
+hand-entered rates such as `0.083/s` from appearing as actionable shortages against an exact
 `0.0833/s` demand.
 :::
 
@@ -70,4 +74,4 @@ You now have the core planning loop:
 1. Set a goal in a block.
 2. Choose recipes and machines until the block solves.
 3. Review its imports and exports.
-4. Use Factory deficits to choose the next block.
+4. Use the Factory **Short** list to choose the next block.

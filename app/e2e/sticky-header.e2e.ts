@@ -55,7 +55,7 @@ test("PageHeader stays pinned when the inner scroll region scrolls (settings)", 
 // has no flows to fill the page.
 test("PageHeader stays pinned when the root container scrolls (factory)", async ({ page }) => {
   await page.goto("/factory");
-  const section = page.getByText(/^(Deficits|Surpluses|Balanced|Stock buffers)/).first();
+  const section = page.getByText(/^(Short|Surplus|Balanced|Stock buffers)/).first();
   const noFlows = page.getByText("No flows yet");
   await expect(section.or(noFlows).first()).toBeVisible();
   if (await noFlows.isVisible()) test.skip(true, "no factory flows in the active project DB");

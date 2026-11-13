@@ -42,7 +42,7 @@ test("turd filter offers clear-filter on no matches", async ({ page }) => {
 test("factory filter shows the shared no-matches state", async ({ page }) => {
   await page.goto("/factory");
   // wait until the flows either rendered (some goods section) or came up empty
-  const section = page.getByText(/^(Deficits|Surpluses|Balanced|Stock buffers)/).first();
+  const section = page.getByText(/^(Short|Surplus|Balanced|Stock buffers)/).first();
   const noFlows = page.getByText("No flows yet");
   await expect(section.or(noFlows).first()).toBeVisible();
   if (await noFlows.isVisible()) test.skip(true, "no factory flows in the active project DB");

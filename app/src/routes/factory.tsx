@@ -56,7 +56,7 @@ const fmtW = (w: number) =>
       : `${(w / 1e3).toFixed(0)} kW`;
 
 /** Factory overview — the whole point of caching block flows: every block's
- * solved I/O aggregated per item with zero solving. Deficits (consumed more
+ * solved I/O aggregated per item with zero solving. Short goods (consumed more
  * than produced across blocks) are what you build next. */
 function FactoryPage() {
   const qc = useQueryClient();
@@ -288,8 +288,8 @@ function FactoryPage() {
                 <div className="font-semibold text-foreground">What you see</div>
                 <ul className="mt-1 list-disc space-y-1 pl-5">
                   <li>
-                    <span className="text-foreground">Deficits</span> — a negative net (consumed
-                    more than produced across blocks) is what to build or scale next. Ranked by{" "}
+                    <span className="text-foreground">Short</span> — a negative net (consumed more
+                    than produced across blocks) is what to build or scale next. Ranked by{" "}
                     <span className="text-foreground">% of demand met</span> — a fully-starved
                     intermediate outranks a half-fed bulk fluid, whatever their raw rates.
                   </li>
@@ -318,7 +318,7 @@ function FactoryPage() {
               <div>
                 <div className="font-semibold text-foreground">Worked example — the ranking</div>
                 <p className="mt-1">
-                  Two deficits: a heavy fluid consumed 200/s but produced 180/s (90% met, −20/s),
+                  Two short goods: a heavy fluid consumed 200/s but produced 180/s (90% met, −20/s),
                   and a niche intermediate consumed 4/s with nothing making it (0% met, −4/s). The
                   bigger raw number is the fluid, but the intermediate ranks{" "}
                   <span className="text-foreground">first</span> — it&apos;s{" "}
@@ -391,8 +391,8 @@ function FactoryPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <GoodsSection
           id="deficits"
-          title="Deficits"
-          hint="Consumed across blocks but not produced enough — build these next"
+          title="Short"
+          hint="Consumed across blocks but not produced enough — build these next. Includes goods no block makes, which Connections lists separately."
           rows={deficits}
           defaultSorting={[
             { id: "met", desc: false },
@@ -404,8 +404,8 @@ function FactoryPage() {
         />
         <GoodsSection
           id="surpluses"
-          title="Surpluses"
-          hint="Net production available to new blocks"
+          title="Surplus"
+          hint="Net production available to new blocks. Includes final outputs no block consumes, which Connections lists separately. Goods made only for keep-in-stock goals go under Stock buffers instead."
           rows={surpluses}
           defaultSorting={[{ id: "net", desc: true }]}
           selectedItem={selected?.flowKey ?? null}

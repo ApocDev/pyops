@@ -28,12 +28,17 @@ edge.
 Connections groups goods as:
 
 - **Short**: linked consumers require more than their producer blocks provide.
-- **Overproduced**: linked producers make more than their internal consumers use.
+- **Surplus**: linked producers make more than their consumer blocks use.
 - **Balanced**: the producer and consumer rates agree; collapsed by default. Residuals under
   1% of a good's throughput count as balanced — they are rounding noise from hand-typed
   goal rates, the same rule the Overview applies.
-- **Unsourced imports**: blocks consume the good, but no enabled block supplies it.
-- **Surplus / outputs**: blocks produce the good, but no enabled block consumes it.
+- **Short, no producer**: blocks consume the good, but no enabled block supplies it.
+- **Surplus, no consumer**: blocks produce the good, but no enabled block consumes it.
+
+Overview counts the last two groups inside its own **Short** and **Surplus** lists, so its
+counts are usually larger than the Connections **Short** and **Surplus** counts. Overview moves
+goods made only for keep-in-stock goals to **Stock buffers**, so they never count as surplus
+there.
 
 On a short good, use **scale up** to select a producer block, enter a new target, and
 preview the machines, power, and inputs before applying it. When a good touches many
@@ -78,7 +83,8 @@ system without saving proposed block-goal changes. PyOps reuses the last result 
 inputs remain current, so revisiting the page does not run the solver again. The first visit
 calculates automatically; after a block, factory pin, research context, or other solver input
 changes, the previous result stays visible and the status bar marks it **Scenario needs
-recalculation**.
+recalculation**. While the result is out of date, an empty list reads **Previous calculation**
+in gray instead of a green "balanced" message, so it never reads as the current answer.
 
 1. Under **Factory pins**, add the goods that define the factory's desired outputs or
    consumption. Positive rates request production; negative rates request consumption.
@@ -93,7 +99,9 @@ recalculation**.
    rounding-scale corrections do not keep reappearing. Select a good to open the block that owns
    its goal.
 5. Check **Raw inputs** for the projected demand from outside the planned factory.
-6. Check **Overproduced** for goods that would accumulate without another consumer.
+6. Check **Surplus** for goods that would accumulate without another consumer. This list is
+   projected from the Scenario's next goals, so its count can differ from Overview's
+   **Surplus**, which uses today's goals.
 7. With the saved pin targets, select **Balance factory** to apply every listed
    goal change as one undoable action. After editing a final-product target, the same action
    is labelled **Apply scenario**.

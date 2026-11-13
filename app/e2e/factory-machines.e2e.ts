@@ -17,7 +17,7 @@ test("machines card sorts by column and collapses", async ({ page }) => {
   // hydration proof first (same as filter.e2e.ts), then wait for the queries
   // to settle: skeletons gone means the machines card is rendered — or absent
   // because the active project has no machine data at all
-  const section = page.getByText(/^(Deficits|Surpluses|Balanced|Stock buffers)/).first();
+  const section = page.getByText(/^(Short|Surplus|Balanced|Stock buffers)/).first();
   const noFlows = page.getByText("No flows yet");
   await expect(section.or(noFlows).first()).toBeVisible();
   await expect(page.locator('[data-slot="skeleton"]')).toHaveCount(0);

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   factoryScenarioProgressFn,
   factoryScenarioSnapshotFn,
@@ -12,7 +12,6 @@ import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
-import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { InfoHint } from "#/components/info-hint.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
@@ -149,8 +148,8 @@ function WhatIf() {
                     block can currently supply.
                   </li>
                   <li>
-                    <span className="text-foreground">Overproduced</span> — anything the target
-                    would pile up that still needs a consumer.
+                    <span className="text-foreground">Surplus</span> — anything the target would
+                    pile up that still needs a consumer.
                   </li>
                 </ul>
               </div>
@@ -252,9 +251,9 @@ function WhatIf() {
               <Skeleton className="h-5 w-2/3" />
             </div>
           ) : changed.length === 0 ? (
-            <Callout tone="success" variant="strip">
+            <Verdict stale={dirty}>
               Already balanced for these demands — no goal changes needed
-            </Callout>
+            </Verdict>
           ) : (
             changed.map((b) => (
               <Link
@@ -307,13 +306,11 @@ function WhatIf() {
         />
         <Card>
           <CardHeader>
-            <CardTitle>Overproduced ({r?.overproduced?.length ?? 0})</CardTitle>
-            <InfoHint content="Byproduct surplus that needs a consumer — scale the suggested sink, or add one" />
+            <CardTitle>Surplus ({r?.overproduced?.length ?? 0})</CardTitle>
+            <InfoHint content="Projected byproduct surplus that needs a consumer. Scenario does not scale consumers to absorb it. Overview's Surplus counts today's block goals, so its count can differ." />
           </CardHeader>
           {(r?.overproduced ?? []).length === 0 ? (
-            <Callout tone="success" variant="strip">
-              Nothing piling up
-            </Callout>
+            <Verdict stale={dirty}>Nothing piling up</Verdict>
           ) : (
             <div className="divide-y divide-border">
               {(r?.overproduced ?? []).map((x) => (
@@ -329,15 +326,32 @@ function WhatIf() {
                   </span>
                   <span className="text-surplus">+{rateLabel(x.good, x.projected)}</span>
                   <span className="text-muted-foreground">/s</span>
-                  <Tooltip content="Factory balance does not scale consumers to absorb surplus">
-                    <span className="ml-2 text-sm text-warning/80">Surplus</span>
-                  </Tooltip>
                 </div>
               ))}
             </div>
           )}
         </Card>
       </div>
+    </div>
+  );
+}
+
+/** An empty-list verdict ("already balanced"). While the Scenario is stale it
+ * describes the previous calculation, so it drops the green success tone and
+ * says so instead of reading as the current answer. */
+function Verdict({ stale, children }: { stale: boolean; children: ReactNode }) {
+  if (!stale)
+    return (
+      <Callout tone="success" variant="strip">
+        {children}
+      </Callout>
+    );
+  return (
+    <div
+      className="px-3 py-1.5 text-sm text-muted-foreground"
+      data-testid="scenario-previous-verdict"
+    >
+      Previous calculation: {children}
     </div>
   );
 }
