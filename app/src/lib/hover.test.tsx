@@ -42,6 +42,11 @@ describe("CursorHover keyboard and touch", () => {
     });
     expect(queryByText("Iron ore card")).not.toBeNull();
 
+    // the mouse passing over and off the chip doesn't close a focus-opened card
+    fireEvent.mouseEnter(chip);
+    fireEvent.mouseLeave(chip);
+    expect(queryByText("Iron ore card")).not.toBeNull();
+
     fireEvent.keyDown(chip, { key: "Escape" });
     expect(queryByText("Iron ore card")).toBeNull();
     matches.mockRestore();

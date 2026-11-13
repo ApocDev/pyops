@@ -71,7 +71,8 @@ const PRESS_SLOP_PX = 10; // finger drift allowed before a press counts as a scr
  * `pos` is set. The card opens on:
  * - mouse hover, following the cursor;
  * - keyboard focus (`:focus-visible` only, so a mouse click doesn't open it) after
- *   a short delay, anchored under the focused element; blur or Escape closes it;
+ *   a short delay, anchored under the focused element; blur or Escape closes it,
+ *   and the mouse leaving returns it to that anchor instead;
  * - touch long-press, at the finger. The press's own click and context menu are
  *   swallowed so a tap still opens what it always did, and the next touch
  *   anywhere dismisses the card. Long-press is skipped inside any element marked
@@ -83,13 +84,19 @@ export function useHoverCard() {
   const timer = useRef<number | undefined>(undefined);
   const press = useRef<Point | null>(null);
   const swallowClick = useRef(false);
+  const focused = useRef<Element | null>(null); // keyboard-focused trigger
 
+  const under = (el: Element) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.left, y: r.bottom };
+  };
   const clearTimer = () => window.clearTimeout(timer.current);
   const close = () => {
     clearTimer();
     setPos(null);
     setPinned(false);
     swallowClick.current = false;
+    focused.current = null;
   };
   const endPress = () => {
     press.current = null;
@@ -114,16 +121,16 @@ export function useHoverCard() {
     onMouseEnter: (e: React.MouseEvent) => setPos({ x: e.clientX, y: e.clientY }),
     onMouseMove: (e: React.MouseEvent) => setPos({ x: e.clientX, y: e.clientY }),
     onMouseLeave: () => {
-      if (!pinned) close();
+      if (pinned) return;
+      if (focused.current) setPos(under(focused.current));
+      else close();
     },
     onFocus: (e: React.FocusEvent) => {
       const el = e.target;
       if (!el.matches(":focus-visible")) return;
+      focused.current = el;
       clearTimer();
-      timer.current = window.setTimeout(() => {
-        const r = el.getBoundingClientRect();
-        setPos({ x: r.left, y: r.bottom });
-      }, FOCUS_DELAY_MS);
+      timer.current = window.setTimeout(() => setPos(under(el)), FOCUS_DELAY_MS);
     },
     onBlur: (e: React.FocusEvent) => {
       if (!e.currentTarget.contains(e.relatedTarget)) close();
