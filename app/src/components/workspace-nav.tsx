@@ -33,7 +33,7 @@ export function WorkspaceNav() {
   return (
     <nav
       aria-label={links === factoryLinks ? "Factory views" : "Explore views"}
-      className="flex h-9 shrink-0 items-stretch overflow-x-auto border-b border-border bg-background px-2 font-mono"
+      className="flex h-9 shrink-0 items-stretch overflow-x-auto border-b border-border bg-background px-1 font-mono sm:px-2"
     >
       {links.map(({ to, label, icon: Icon }) => {
         const selected = pathname === to;
@@ -42,13 +42,13 @@ export function WorkspaceNav() {
             key={to}
             to={to}
             aria-current={selected ? "page" : undefined}
-            className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 text-sm transition-colors ${
+            className={`flex shrink-0 items-center gap-1.5 border-b-2 px-2 text-sm sm:px-3 transition-colors ${
               selected
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground"
             }`}
           >
-            <Icon className="size-3.5" /> {label}
+            <Icon className="hidden size-3.5 sm:block" /> {label}
           </Link>
         );
       })}

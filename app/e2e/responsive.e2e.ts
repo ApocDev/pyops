@@ -106,3 +106,18 @@ for (const vp of [
     for (const control of controls) await expect(control).toBeInViewport({ ratio: 1 });
   });
 }
+
+// The Factory view tabs must fit without scrolling sideways at narrow phone widths.
+for (const vp of [
+  { name: "phone-360", width: 360, height: 640 },
+  { name: "phone-320", width: 320, height: 640 },
+]) {
+  test(`${vp.name} factory tabs fit on screen`, async ({ page }) => {
+    await page.setViewportSize({ width: vp.width, height: vp.height });
+    await page.goto("/factory", { waitUntil: "domcontentloaded" });
+    const tabs = page.getByRole("navigation", { name: "Factory views" });
+    await expect(tabs.getByRole("link", { name: "Scenario" })).toBeVisible();
+    const overflow = await tabs.evaluate((el) => el.scrollWidth - el.clientWidth);
+    expect(overflow, `factory tabs overflow by ${overflow}px`).toBeLessThanOrEqual(0);
+  });
+}
