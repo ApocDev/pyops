@@ -18,7 +18,14 @@ The **TURD** page appears when the active project's synced data contains TURD up
 1. Open **TURD**.
 2. Search by the master upgrade or branch name when necessary.
 3. Expand a master and compare the offered recipe changes.
-4. Select the branch that matches the playthrough or the choice you want to evaluate.
+4. Select **Choose** on the branch that matches the playthrough or the choice you want to
+   evaluate.
+5. Review the confirmation, which lists every block that re-solves, and select
+   **Choose upgrade**.
+
+The chosen branch shows **Chosen** and a **Clear** button, which removes the choice after
+the same confirmation. Choosing or clearing a branch is one undoable action: the undo button
+in the main navigation restores the previous choice and re-solves the blocks again.
 
 <AppScreenshot
   src="/images/turd-upgrades.png"
