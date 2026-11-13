@@ -1,0 +1,23 @@
+app/src/components/factory/board/focus-graph.test.ts
+  s_2e2dcdef8cc0f3::t_7a150f8452e1f4 111-128
+app/src/components/factory/board/focus-graph.ts
+  s_2e2dcdef8cc0f3::t_2b22e88205db97 102-110,139,231-232
+app/src/components/factory/board/shortfall-rail.tsx
+  s_2e2dcdef8cc0f3::t_567afe31d87e15 6,27-49,51-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "85164f5f6626f226ca0641eb316bd830718a01cb",
+  "prompts": {},
+  "sessions": {
+    "s_2e2dcdef8cc0f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cc91899-9788-4780-ad00-00102e37aed5",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
