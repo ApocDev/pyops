@@ -17,6 +17,8 @@ import { dataCapabilitiesFn } from "../server/factorio";
 const row =
   "flex items-center gap-3 px-4 h-12 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground";
 const rowActive = "!text-foreground bg-muted/40 border-l-2 border-primary";
+// One footer control cell, same touch height as a nav row.
+const control = "flex h-12";
 
 /** Below ~1400px the desktop bar can't fit, so it collapses to a hamburger that opens
  * a left drawer with the full destination list plus the persistent toolbar controls.
@@ -61,12 +63,25 @@ export function NavMobile() {
               );
             })}
           </nav>
-          <div className="flex shrink-0 flex-wrap items-center gap-1 border-t border-border p-2 font-mono">
-            <UndoButton />
-            <HorizonMenu />
-            <LogisticsMenu />
-            <BridgeIndicator />
-            <ProjectSwitcher />
+          {/* The shared top-bar controls size themselves `h-full` to fill the desktop bar.
+              Each gets a fixed-height cell here so that height is definite: the footer then
+              grows to fit every wrapped row instead of clipping them off-screen. */}
+          <div className="flex shrink-0 flex-wrap gap-1 border-t border-border p-2 font-mono">
+            <div className={control}>
+              <UndoButton />
+            </div>
+            <div className={control}>
+              <HorizonMenu />
+            </div>
+            <div className={control}>
+              <LogisticsMenu />
+            </div>
+            <div className={control}>
+              <BridgeIndicator />
+            </div>
+            <div className={control}>
+              <ProjectSwitcher />
+            </div>
           </div>
         </SheetContent>
       </Sheet>

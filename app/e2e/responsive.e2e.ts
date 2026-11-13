@@ -81,3 +81,28 @@ for (const vp of VIEWPORTS) {
     }
   });
 }
+
+// The mobile drawer's footer holds the shared top-bar controls. At phone sizes they
+// wrap onto extra rows, and every one must still sit fully on screen.
+for (const vp of [
+  { name: "phone-390", width: 390, height: 844 },
+  { name: "phone-360", width: 360, height: 640 },
+]) {
+  test(`${vp.name} drawer controls fit on screen`, async ({ page }) => {
+    await page.setViewportSize({ width: vp.width, height: vp.height });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    // Retry the click: before hydration the SSR'd menu button has no handler yet.
+    const drawer = page.getByRole("dialog");
+    await expect(async () => {
+      await page.getByRole("button", { name: "Open menu" }).click();
+      await expect(drawer).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 15000 });
+    const controls = [
+      drawer.getByRole("button", { name: /^(Undo|Nothing to undo)/ }),
+      drawer.getByRole("button", { name: /Horizon/ }),
+      drawer.getByRole("button", { name: /Logistics/ }),
+      drawer.getByTitle(/^Project:/),
+    ];
+    for (const control of controls) await expect(control).toBeInViewport({ ratio: 1 });
+  });
+}
