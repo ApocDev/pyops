@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createBlock } from "./helpers";
+import { createBlock, withDb } from "./helpers";
 
 /**
  * Sub-blocks v2 (#76): a display-only row group (#7) can be PROMOTED to a real,
@@ -9,7 +9,7 @@ import { createBlock } from "./helpers";
  * compose it, edit its internal goal, and confirm the promotion persists.
  */
 test("promote a sub-block to a composed module, edit its goal, and persist", async ({ page }) => {
-  await createBlock(page);
+  const blockId = await createBlock(page);
 
   // goal: iron plate (a real chain: iron-plate ← iron ore)
   await page.locator('button[title="Add a goal product"]').click();
@@ -69,6 +69,23 @@ test("promote a sub-block to a composed module, edit its goal, and persist", asy
   await page.mouse.up();
   await page.mouse.move(0, 0);
   await expect(header).toContainText("2 recipes");
+  // dnd-kit swallows every click for 50 ms after a drop (it eats the click that
+  // follows the pointer-up), so a click straight after the drop is lost. Wait
+  // for the drop to save, as a person would have by the time they click again.
+  await expect
+    .poll(() =>
+      withDb(
+        (db) => {
+          const row = db.prepare("SELECT data FROM blocks WHERE id = ?").get(blockId) as {
+            data: string;
+          };
+          const doc = JSON.parse(row.data) as { recipeGroups?: Record<string, number> };
+          return doc.recipeGroups?.["mine-iron-ore"] ?? null;
+        },
+        { readOnly: true },
+      ),
+    )
+    .not.toBeNull();
 
   // compose it: the Boxes button promotes the display fold to a real module
   await page.locator('button[title^="Compose — solve this sub-block"]').click();

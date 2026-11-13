@@ -86,6 +86,8 @@ fresh fixture or on a warm server that earlier runs have filled:
 - Factory-wide views (Scenario) solve every block in the project. Their specs
   call `clearFactory()` or `seedScenarioFactory()` (`mut/scenario-factory.ts`,
   a small coal-processing factory with demand pins) before each test.
+- dnd-kit drops every click for 50 ms after a drag ends. After a drag, wait for
+  its result to save (or another real signal) before the next click.
 - Use `withDb(...)` for direct arrangements and assertions on the scratch db.
 - Put back any project-wide setting you change, such as the planning horizon
   (the fixture plans in Future) or a default module template.
