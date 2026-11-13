@@ -1,0 +1,65 @@
+AGENTS.md
+  s_1ae7a8c97d56af::t_c38ebcae59e95d 80-83
+app/e2e/README.md
+  s_1ae7a8c97d56af::t_ffa1c539d6d3a8 37-50,63-81
+app/e2e/mut/count-pin.e2e.ts
+  s_1ae7a8c97d56af::t_1dafb494162598 2,8,10,222-232,260,262
+app/e2e/mut/fluid-fuel.e2e.ts
+  s_1ae7a8c97d56af::t_b41704dfa04880 8,57-63
+app/e2e/mut/helpers.ts
+  s_1ae7a8c97d56af::t_84d04ca95f82e0 4-7,11,30-88,134-146,200-202,207
+app/e2e/mut/horizon.e2e.ts
+  s_1ae7a8c97d56af::t_9dfb2c32d312fb 2-7
+app/e2e/mut/loading-fit.e2e.ts
+  s_1ae7a8c97d56af::t_6b5462ca18f77c 32
+app/e2e/mut/made-links.e2e.ts
+  s_1ae7a8c97d56af::t_88e3c7c1afca3a 51,167,212,222
+app/e2e/mut/module-presets.e2e.ts
+  s_1ae7a8c97d56af::t_2ed29ee14fffd6 2-10
+app/e2e/mut/rebalance.e2e.ts
+  s_1ae7a8c97d56af::t_11a71f4b768631 3-19,131-132,136,181-182,190-195,197-213,220-221,223-228,230-238,243-245,247-253,258-269,271-273,275-282
+app/e2e/mut/scenario-factory.ts
+  s_66e9bd8848559a::t_91ab3cf6639321 1-105
+app/e2e/mut/science-block.e2e.ts
+  s_1ae7a8c97d56af::t_8320b660099acc 60-61,91,122
+app/e2e/mut/supply-priority.e2e.ts
+  s_995b207560eeb0::t_4c48a58237c335 2,5-6,8,11-12,15,17
+app/e2e/mut/temp-warnings.e2e.ts
+  s_1ae7a8c97d56af::t_f7ef783b3f998d 45-46,51,55-56
+app/e2e/playwright.config.ts
+  s_1ae7a8c97d56af::t_79d7a716ebb7b1 18-21
+app/e2e/seed-mut-data.mjs
+  s_1ae7a8c97d56af::t_f5517ce70450bd 1-13,23,32-133,135-142,145-200,202
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "15596c68712649842209b7da7fc0e36bdecb2def",
+  "prompts": {},
+  "sessions": {
+    "s_1ae7a8c97d56af": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0e760880-1e9c-4b0b-865c-7cf6100fa651",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_66e9bd8848559a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "23ef49d8-de08-4a9b-9bdc-f2083bb4e54a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_995b207560eeb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cef9ec12-eec2-430e-8ba3-ca49ff9d4875",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
