@@ -1,0 +1,37 @@
+app/e2e/mut/turd-choice.e2e.ts
+  s_54a171887d7685::t_bcca5c36a2abec 5-7,9,11-19
+app/src/components/turd/turd-group-row.tsx
+  s_54a171887d7685::t_c01723a9a680e1 1-132
+app/src/components/turd/turd-option-card.tsx
+  s_54a171887d7685::t_1f97ae26d394c1 1-208
+app/src/components/turd/turd-swap-groups.tsx
+  s_54a171887d7685::t_8aaa875f925fda 1-88
+app/src/db/queries.server.ts
+  s_54a171887d7685::t_432a58a7ca9b8d 155,788-798,801,1348,1352
+app/src/lib/turd-swaps.test.ts
+  s_54a171887d7685::t_2d3066153fdb41 1-97
+app/src/lib/turd-swaps.ts
+  s_54a171887d7685::t_ece0a457923087 1-134
+app/src/routes/turd.tsx
+  s_54a171887d7685::t_46bd3c182a642a 3,7,10,14,21-22,44-49,53-55,82-103,160,214-232,260-262,267-271,278-296,298-319
+app/src/server/factorio.ts
+  s_54a171887d7685::t_cc2b47ac27a4f0 29,1201-1203
+app/src/server/turd-board.server.ts
+  s_54a171887d7685::t_f4cfa7e673a438 1-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dd882c6d3d661cb0dae4f145079fae3e016fe0ec",
+  "prompts": {},
+  "sessions": {
+    "s_54a171887d7685": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0a9886de-ba91-4ef8-a173-9906e09e3128",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
