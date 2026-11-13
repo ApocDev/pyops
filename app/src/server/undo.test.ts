@@ -9,7 +9,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 
 import { db, switchDatabase } from "../db/index.server.ts";
 import { blockFlows, blocks, tasks, undoActions, undoCurrent, undoLog } from "../db/schema.ts";
-import { deleteBlock, getBlock, saveBlockRow, setBlockEnabled } from "../db/queries.server.ts";
+import {
+  deleteBlock,
+  getBlock,
+  getTurdSelections,
+  saveBlockRow,
+  setBlockEnabled,
+  setTurdSelection,
+} from "../db/queries.server.ts";
+import { solveGenerationNeedsRefresh } from "../db/solve-generation.server.ts";
 import { type TestDb, makeTestDb } from "../db/test-helpers.ts";
 import { UNDO_RETAIN, withUndoAction } from "./undo-action.server.ts";
 import { undoLast, undoStatus } from "./undo.server.ts";
@@ -288,6 +296,30 @@ describe("undoLast", () => {
     const asc = (x: number, y: number) => x - y;
     expect([...res.changedBlockIds].sort(asc)).toEqual([a, b].sort(asc));
   });
+
+  it("reverts a TURD pick and re-solves blocks under the restored choice", async () => {
+    setTurdSelection("turd-a", "branch-1"); // untracked: e.g. synced from the game
+    await withUndoAction("switch", () => setTurdSelection("turd-a", "branch-2"));
+    await withUndoAction("pick", () => setTurdSelection("turd-b", "branch-3"));
+
+    await undoLast();
+    expect([...getTurdSelections()]).toEqual([["turd-a", "branch-2"]]);
+    expect(solveGenerationNeedsRefresh()).toBe(false);
+    await undoLast();
+    expect([...getTurdSelections()]).toEqual([["turd-a", "branch-1"]]);
+    expect(solveGenerationNeedsRefresh()).toBe(false);
+  });
+
+  it("undoes a TURD clear after the game re-synced the same row", async () => {
+    setTurdSelection("turd-a", "branch-1"); // untracked: synced from the game
+    await withUndoAction("clear", () => setTurdSelection("turd-a", null));
+    setTurdSelection("turd-a", "branch-1"); // the game syncs the row back
+
+    const res = await undoLast();
+    expect(res.undone).toBe("clear");
+    expect([...getTurdSelections()]).toEqual([["turd-a", "branch-1"]]);
+    expect((await undoLast()).undone).not.toBe("clear"); // popped, not wedged
+  });
 });
 
 describe("trigger coverage (migration drift guard)", () => {
@@ -298,6 +330,7 @@ describe("trigger coverage (migration drift guard)", () => {
     "blocks",
     "block_groups",
     "module_presets",
+    "turd_selections",
     "tasks",
     "task_steps",
     "task_links",

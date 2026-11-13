@@ -16,10 +16,13 @@ import { loadBlockFn } from "../server/factorio";
 import { undoLastFn } from "../server/undo";
 
 /** Query families invalidated after an undo — everything the triggered
- * planning tables (blocks, groups, presets, tasks/steps/links, notes) feed. */
+ * planning tables (blocks, groups, presets, TURD picks, tasks/steps/links,
+ * notes) feed. */
 const UNDO_QUERY_KEYS = [
   ["blocks"],
   ["block"],
+  ["solve"],
+  ["turd"],
   ["blocksForGood"],
   ["factory"],
   ["factoryTotals"],

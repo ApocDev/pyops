@@ -934,7 +934,7 @@ export const notes = sqliteTable("notes", {
 /* ── Undo system (#90) ──────────────────────────────────────────────────
  * Trigger-based inverse log per sqlite.org/undoredo.html: AFTER INSERT/UPDATE/
  * DELETE triggers on the USER-PLANNING tables (blocks, block_groups,
- * module_presets, tasks, task_steps, task_links, notes — never imported
+ * module_presets, turd_selections, tasks, task_steps, task_links, notes — never imported
  * reference data, caches like block_flows/block_machines, or the undo tables
  * themselves) write the inverse SQL statement into `undo_log`. The triggers
  * live in the migration (drizzle can't model triggers); they only fire while a

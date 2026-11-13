@@ -1350,11 +1350,19 @@ export const blockChangeReportFn = createServerFn({ method: "GET" }).handler(asy
 });
 
 /** Set (or clear) the chosen sub-tech for a TURD master, then re-solve all
- * cached blocks since TURD effects change machine throughput everywhere. */
+ * cached blocks since TURD effects change machine throughput everywhere. The
+ * pick is one undo step; undoLast re-solves the blocks again when it reverts it. */
 export const setTurdSelectionFn = createServerFn({ method: "POST" })
   .validator((d: { masterTech: string; subTech: string | null }) => d)
   .handler(async ({ data }) => {
-    const changed = q.setTurdSelection(data.masterTech, data.subTech);
+    const names = q.techDisplays([data.masterTech, ...(data.subTech ? [data.subTech] : [])]);
+    const master = names.get(data.masterTech) ?? data.masterTech;
+    const action = data.subTech
+      ? `Choose TURD "${names.get(data.subTech) ?? data.subTech}" — ${master}`
+      : `Clear TURD choice — ${master}`;
+    const changed = await withUndoAction(action, () =>
+      q.setTurdSelection(data.masterTech, data.subTech),
+    );
     const resolved = changed ? await resolveAllBlocks() : 0;
     return { ok: true, resolved };
   });

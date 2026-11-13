@@ -161,7 +161,9 @@ writes such as imported reference data, caches, and solve refreshes run without 
 and do not pollute the user's undo stack.
 
 `undoLast()` applies one action's inverse statements in a transaction, re-solves affected
-blocks, and returns their IDs so open editors can rehydrate. The client routes the nav
+blocks, and returns their IDs so open editors can rehydrate. Reverting a TURD choice
+(`turd_selections`) changes the global solve context, so it advances the solve generation
+and re-solves every block. The client routes the nav
 button, command-palette action, and keyboard shortcut through the same invalidation and
 editor-hydration path.
 

@@ -9,7 +9,8 @@
  *   transaction WITHOUT re-logging (it runs under `{ undo: false }`), then
  *   re-solves the affected blocks through the existing computeBlock/
  *   persistBlock machinery so the untracked caches (block_flows/
- *   block_machines, power/status columns) stay consistent.
+ *   block_machines, power/status columns) stay consistent. Reverting a TURD
+ *   pick re-solves every block, since it changes the global solve context.
  * - Linear undo only: strictly top-of-stack. Redo can come later.
  * - The log is per project db like everything else.
  */
@@ -18,7 +19,13 @@ import { desc, eq, sql } from "drizzle-orm";
 import { db } from "../db/index.server.ts";
 import { blockFlows, blockMachines, undoActions, undoLog } from "../db/schema.ts";
 import * as q from "../db/queries.server.ts";
-import { computeBlock, persistBlock, type SolveInput } from "./block-compute.server.ts";
+import { bumpSolveGeneration } from "../db/solve-generation.server.ts";
+import {
+  computeBlock,
+  persistBlock,
+  resolveAllBlocks,
+  type SolveInput,
+} from "./block-compute.server.ts";
 import { withUndoAction } from "./undo-action.server.ts";
 
 export { UNDO_RETAIN, withUndoAction, type UndoOpts } from "./undo-action.server.ts";
@@ -80,6 +87,10 @@ export async function undoLast(): Promise<UndoResult> {
       const changedBlockIds = [
         ...new Set(entries.filter((e) => e.tbl === "blocks").map((e) => e.rowId)),
       ];
+      // A reverted TURD pick changes the global solve context, like the pick
+      // itself: advance the generation first, then re-solve every block below.
+      const turdChanged = entries.some((e) => e.tbl === "turd_selections");
+      if (turdChanged) bumpSolveGeneration();
       db.transaction((tx) => {
         for (const e of entries) tx.run(sql.raw(e.stmt));
         tx.delete(undoLog).where(eq(undoLog.actionId, top.id)).run();
@@ -103,6 +114,7 @@ export async function undoLast(): Promise<UndoResult> {
           db.delete(blockMachines).where(eq(blockMachines.blockId, id)).run();
         }
       }
+      if (turdChanged) await resolveAllBlocks();
       return { undone: top.name, changedBlockIds };
     },
     { undo: false },
