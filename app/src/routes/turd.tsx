@@ -1,19 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Check, Plus } from "lucide-react";
+import { Boxes, Check } from "lucide-react";
 import {
   listBlocksFn,
-  listTurdUpgradesFn,
   setTurdSelectionFn,
+  turdBoardFn,
   turdSyncStatusFn,
 } from "../server/factorio";
-import { Icon, IconProvider } from "../lib/icons";
-import { RecipeDiffHover, RecipeHover } from "../lib/recipe-card";
-import { Badge } from "#/components/ui/badge.tsx";
+import { IconProvider } from "../lib/icons";
 import { Button } from "#/components/ui/button.tsx";
-import { Card } from "#/components/ui/card.tsx";
 import { ConfirmDialog } from "#/components/confirm-dialog.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
+import { Segmented } from "#/components/ui/segmented.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
@@ -21,6 +19,8 @@ import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { SyncStatus } from "#/components/sync-status.tsx";
+import { QueryError } from "#/components/query-error.tsx";
+import { TurdGroupRow, groupBlockCount } from "#/components/turd/turd-group-row.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
 import { countNoun } from "../lib/delete-copy";
 import { useState } from "react";
@@ -33,112 +33,6 @@ export const Route = createFileRoute("/turd")({
   ),
 });
 
-const pct = (x: number) => `${x > 0 ? "+" : ""}${Math.round(x * 100)}%`;
-
-type TurdChange = {
-  from: string | null;
-  fromDisplay: string | null;
-  to: string;
-  toDisplay: string;
-  buildsBuilding: boolean;
-};
-/** A choice's always-on module effects, applied to swap-recipe throughput. */
-type RateBonus = { speed: number; prod: number };
-type SubTech = {
-  name: string;
-  display: string;
-  description: string;
-  changes: TurdChange[];
-  modules: { effSpeed: number; effProductivity: number; effConsumption: number }[];
-};
-
-/** The always-on module effects a choice grants (summarized from the lowest tier).
- * Recipe changes are shown explicitly below, not folded into a bare count. Each
- * effect is color-coded by kind so speed/productivity/energy stand out. */
-type Effect = { label: string; className: string };
-function subEffectSummary(s: Pick<SubTech, "modules">): Effect[] {
-  const out: Effect[] = [];
-  const m = s.modules[0];
-  const suffix = s.modules.length > 1 ? " (mk01)" : "";
-  if (m) {
-    if (m.effSpeed)
-      out.push({
-        label: `${pct(m.effSpeed)} speed${suffix}`,
-        className: "border-info/40 bg-info/15 text-info",
-      });
-    if (m.effProductivity)
-      out.push({
-        label: `${pct(m.effProductivity)} productivity${suffix}`,
-        className: "border-success/40 bg-success/15 text-success",
-      });
-    if (m.effConsumption)
-      out.push({
-        label: `${pct(m.effConsumption)} energy${suffix}`,
-        className: "border-warning/40 bg-warning/15 text-warning",
-      });
-  }
-  return out;
-}
-
-/** One recipe change a choice makes — a swap (old→new, hover for the full diff) or
- * a brand-new unlock (hover for the recipe). This is what "5 recipes" now expands
- * to: exactly which recipes, and what actually changes. */
-function ChangeRow({ change: c, moduleBonus }: { change: TurdChange; moduleBonus?: RateBonus }) {
-  if (c.from) {
-    // the module boosts recipes the affected building RUNS — not a recipe that just
-    // builds a building, so skip the bonus there (its rate stays pure recipe math)
-    const bonus = c.buildsBuilding ? undefined : moduleBonus;
-    return (
-      <RecipeDiffHover
-        a={c.from}
-        b={c.to}
-        bonus={bonus}
-        className="flex min-w-0 cursor-help items-center gap-1.5"
-      >
-        <Icon kind="recipe" name={c.from} size="sm" noTitle />
-        <span className="truncate text-muted-foreground line-through">{c.fromDisplay}</span>
-        <ArrowRight className="size-3 shrink-0 text-muted-foreground" />
-        <Icon kind="recipe" name={c.to} size="sm" noTitle />
-        <span className="truncate">{c.toDisplay}</span>
-      </RecipeDiffHover>
-    );
-  }
-  return (
-    <RecipeHover name={c.to} className="flex min-w-0 cursor-help items-center gap-1.5">
-      <Plus className="size-3 shrink-0 text-success" />
-      <Icon kind="recipe" name={c.to} size="sm" noHover />
-      <span className="truncate">{c.toDisplay}</span>
-      <span className="shrink-0 text-xs text-muted-foreground">New</span>
-    </RecipeHover>
-  );
-}
-
-/** The expandable body under a choice: its flavor description and the concrete
- * recipe changes it makes. */
-function ChoiceDetails({ s }: { s: SubTech }) {
-  if (!s.description && s.changes.length === 0) return null;
-  // the choice's always-on module (lowest tier) boosts the recipes it runs in the
-  // affected buildings; ChangeRow applies it to each swap that isn't a building recipe
-  const m = s.modules[0];
-  const moduleBonus: RateBonus | undefined = m
-    ? { speed: m.effSpeed, prod: m.effProductivity }
-    : undefined;
-  return (
-    <div className="space-y-1.5 border-t border-border/50 px-2 py-1.5">
-      {s.description && (
-        <p className="text-sm leading-relaxed text-muted-foreground">{s.description}</p>
-      )}
-      {s.changes.length > 0 && (
-        <div className="flex flex-col gap-1 text-sm">
-          {s.changes.map((c) => (
-            <ChangeRow key={c.to} change={c} moduleBonus={moduleBonus} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /** A TURD pick waiting on the confirm dialog. `sub` null = clear the master's choice. */
 type PendingChoice = {
   master: { name: string; display: string };
@@ -147,12 +41,18 @@ type PendingChoice = {
   current: string | null;
 };
 
-/** Pyanodon TURD board: one selectable sub-tech per master upgrade. Choose or
- * Clear opens a confirm naming the blocks that re-solve; the write is one undo step. */
+type Show = "all" | "chosen" | "unchosen" | "mine";
+
+/** Pyanodon TURD board: an accordion of TURD groups (chosen first, then groups
+ * that touch the player's blocks), each expanding into its options side by side.
+ * Choose or Clear opens a confirm naming the blocks that re-solve; the write is
+ * one undo step. */
 function TurdPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const upgrades = useQuery({ queryKey: ["turd"], queryFn: () => listTurdUpgradesFn() });
+  const [show, setShow] = useState<Show>("all");
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+  const upgrades = useQuery({ queryKey: ["turd"], queryFn: () => turdBoardFn() });
   const sync = useQuery({
     queryKey: ["turd-sync"],
     queryFn: () => turdSyncStatusFn(),
@@ -179,7 +79,28 @@ function TurdPage() {
     display: (u) => [u.display, ...u.subTechs.map((s) => s.display)],
     internal: (u) => [u.name, ...u.subTechs.map((s) => s.name)],
   });
-  const chosen = (upgrades.data ?? []).filter((u) => u.selected).length;
+  const all = upgrades.data ?? [];
+  const chosen = all.filter((u) => u.selected).length;
+  const mine = all.filter((u) => groupBlockCount(u) > 0).length;
+  const tier = (u: (typeof all)[number]) => (u.selected ? 2 : groupBlockCount(u) > 0 ? 1 : 0);
+  const shown = list
+    .filter((u) =>
+      show === "chosen"
+        ? u.selected
+        : show === "unchosen"
+          ? !u.selected
+          : show === "mine"
+            ? groupBlockCount(u) > 0
+            : true,
+    )
+    // a search keeps its relevance order inside each tier
+    .sort((a, b) => tier(b) - tier(a) || (search ? 0 : a.display.localeCompare(b.display)));
+  const toggle = (name: string) =>
+    setOpen((cur) => {
+      const next = new Set(cur);
+      if (!next.delete(name)) next.add(name);
+      return next;
+    });
 
   return (
     <div className="p-4 font-mono text-foreground">
@@ -236,7 +157,7 @@ function TurdPage() {
       />
       <PageHeader
         title="TURD upgrades"
-        description={`${chosen}/${upgrades.data?.length ?? 0} chosen`}
+        description={`${chosen} of ${all.length} chosen`}
         actions={
           <HelpButton title="What are TURD upgrades?">
             <p>
@@ -289,6 +210,25 @@ function TurdPage() {
             placeholder="Filter upgrades…"
             className="w-64"
           />
+          <Segmented
+            aria-label="Show"
+            value={show}
+            onValueChange={setShow}
+            options={[
+              { value: "all", label: <>All {all.length}</> },
+              { value: "chosen", label: <>Chosen {chosen}</> },
+              { value: "unchosen", label: <>Not chosen {all.length - chosen}</> },
+              {
+                value: "mine",
+                label: (
+                  <>
+                    <Boxes />
+                    <span className="max-sm:sr-only">My blocks</span> {mine}
+                  </>
+                ),
+              },
+            ]}
+          />
           {select.isPending && <span className="text-sm text-warning">Re-solving blocks…</span>}
           {select.data && !select.isPending && (
             <span className="text-sm text-muted-foreground">
@@ -312,103 +252,66 @@ function TurdPage() {
       </PageHeader>
 
       {upgrades.isLoading && (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-40" />
+        <div className="flex flex-col gap-1">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-12" />
           ))}
         </div>
       )}
 
-      {!upgrades.isLoading && (upgrades.data?.length ?? 0) === 0 && (
+      {upgrades.isError && (
+        <QueryError message={upgrades.error.message} onRetry={() => void upgrades.refetch()} />
+      )}
+
+      {upgrades.isSuccess && all.length === 0 && (
         <EmptyState
           title="No TURD upgrades in this dataset"
           description="TURD is a Pyanodons mechanic — sync a mod set that includes it (e.g. pyalienlife) and its upgrades appear here. (This tab is hidden from the nav when there's no TURD data.)"
         />
       )}
 
-      {!upgrades.isLoading && (upgrades.data?.length ?? 0) > 0 && list.length === 0 && (
-        <FilterEmptyState query={search} onClear={() => setSearch("")} />
-      )}
-
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
-        {list.map((u) => (
-          <Card key={u.name} className="p-3">
-            <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <Icon kind="technology" name={u.name} size="md" title={u.display} />
-              <span className="font-semibold">{u.display}</span>
-              <span className="ml-auto flex flex-wrap items-center justify-end gap-1">
-                {u.science.map((s) => (
-                  <Icon key={s.name} kind="item" name={s.name} size="sm" title={s.display} />
-                ))}
-              </span>
-            </div>
-            {u.description && (
-              <p className="mb-2 text-sm leading-relaxed text-muted-foreground">{u.description}</p>
-            )}
-            <div className="space-y-1.5">
-              {u.subTechs.map((s) => {
-                const sel = u.selected === s.name;
-                const current = u.subTechs.find((x) => x.name === u.selected)?.display ?? null;
-                return (
-                  <div
-                    key={s.name}
-                    className={`overflow-hidden border ${
-                      sel ? "border-success/60 bg-success/10" : "border-border"
-                    }`}
-                  >
-                    <div className="flex items-start gap-2 px-2 py-1.5">
-                      <Icon kind="technology" name={s.name} size="md" />
-                      <span className="min-w-0 flex-1">
-                        <span className={`block truncate ${sel ? "text-success" : ""}`}>
-                          {s.display}
-                        </span>
-                        <span className="flex flex-wrap gap-1">
-                          {subEffectSummary(s).map((fx) => (
-                            <Tooltip
-                              key={fx.label}
-                              content="Always-on module effect inserted into this upgrade's affected buildings — it boosts the recipes those buildings run, not the recipe swaps shown below."
-                            >
-                              <Badge variant="outline" className={fx.className}>
-                                {fx.label}
-                              </Badge>
-                            </Tooltip>
-                          ))}
-                        </span>
-                      </span>
-                      {sel ? (
-                        <span className="flex shrink-0 items-center gap-1">
-                          <span className="inline-flex items-center gap-1 text-sm text-success">
-                            <Check className="size-4" /> Chosen
-                          </span>
-                          <Button
-                            variant="ghost"
-                            aria-label={`Clear ${s.display}`}
-                            disabled={select.isPending}
-                            onClick={() => setPending({ master: u, sub: null, current: s.display })}
-                          >
-                            Clear
-                          </Button>
-                        </span>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          aria-label={`Choose ${s.display}`}
-                          className="shrink-0"
-                          disabled={select.isPending}
-                          onClick={() => setPending({ master: u, sub: s, current })}
-                        >
-                          Choose
-                        </Button>
-                      )}
-                    </div>
-                    <ChoiceDetails s={s} />
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
+      {all.length > 0 &&
+        shown.length === 0 &&
+        (search.trim() ? (
+          <FilterEmptyState
+            query={search}
+            onClear={() => {
+              setSearch("");
+              setShow("all");
+            }}
+          />
+        ) : (
+          <EmptyState
+            title="No upgrades in this view"
+            action={
+              <Button variant="outline" size="sm" onClick={() => setShow("all")}>
+                Show all
+              </Button>
+            }
+          />
         ))}
-      </div>
+
+      {shown.length > 0 && (
+        <div className="flex flex-col divide-y divide-border border border-border">
+          {shown.map((u) => (
+            <TurdGroupRow
+              key={u.name}
+              group={u}
+              open={open.has(u.name)}
+              onToggle={() => toggle(u.name)}
+              disabled={select.isPending}
+              onChoose={(s) =>
+                setPending({
+                  master: u,
+                  sub: s,
+                  current: u.subTechs.find((x) => x.name === u.selected)?.display ?? null,
+                })
+              }
+              onClear={(s) => setPending({ master: u, sub: null, current: s.display })}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
