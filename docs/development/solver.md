@@ -154,6 +154,9 @@ the solve:
 4. Consumers draw from the pool, allowing any mixture of valid temperatures.
 5. A fluid goal uses an exact one-temperature pool when selected; an unselected goal uses its
    full displayed range.
+6. A consume goal's pool feeds every consumer pool whose range accepts the goal's temperature,
+   and those pools are drained. Everything those consumers take in then arrives through the
+   goal, so the goal sizes them the same way it does for an item.
 
 This models range pooling rather than forcing one independent chain per exact temperature.
 A made rule expands to its variants and pools. If no in-range producer exists, the result
