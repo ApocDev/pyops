@@ -233,14 +233,20 @@ to auto-close).
 **No AI attribution.** Do not add `Co-Authored-By:` trailers, "Generated with…"
 lines, or any other AI/tool attribution to commit messages.
 
-Breaking changes: add `!` before the colon (`feat(db)!: …`) and/or a
-`BREAKING CHANGE:` footer describing the migration.
+Breaking changes: add `!` before the colon (`feat(db)!: …`). Put it in the **PR
+title**, since the squash merge keeps only the title (see below); describe the
+migration in the PR body.
 
-**Prefer small, targeted commits** — one logical change each, so every commit maps
-to a clean changelog entry. Split unrelated changes (a feature vs. its docs, two
-independent fixes, a refactor vs. a behavior change) into separate commits rather
-than bundling them under one dominant type. Only combine changes that are genuinely
-inseparable.
+**Pull requests are squash-merged** (the only merge method allowed on `main`). The
+squash commit takes the PR title and an empty body, so **the PR title is the
+changelog entry**: write it as a Conventional Commit subject. Keep one logical
+change per PR, and split unrelated changes (a feature vs. a separate fix, a
+refactor vs. a behavior change) into separate PRs. Commits inside a PR branch
+should still follow this format, but fix-up commits don't need cleaning up.
+
+`main` is protected by a ruleset: changes land through a PR, CI's `check` and the
+`forge-review/default` status must pass, and review threads must be resolved.
+Release-please PRs don't trigger CI, so they are merged with an admin override.
 
 Examples:
 

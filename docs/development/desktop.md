@@ -189,7 +189,9 @@ these files in lockstep:
 - `mod/info.json`.
 
 Do not hand-edit only one version. Conventional commits determine the release, and the
-generated release PR updates the complete set plus `CHANGELOG.md`.
+generated release PR updates the complete set plus `CHANGELOG.md`. PRs are squash-merged
+with the PR title as the commit message, so each PR contributes exactly one changelog
+entry: its title.
 
 ## Release workflow quirks
 
