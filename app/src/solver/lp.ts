@@ -71,6 +71,12 @@ export type LpBlockInput = {
    * absorbs exactly the surplus, existing consumers unaffected. A produce-goal
    * item is never drained (the goal's ≥ takes precedence). */
   drains?: string[];
+  /** Pure identity conversions (the temperature expansion's selectors) and,
+   * per split fluid, the goods they connect: `sources` are produced identities,
+   * `sinks` the identities consumers draw from. After the solve, the selectors
+   * are re-routed with every other recipe fixed, so production that already
+   * runs feeds compatible consumers before anything crosses the boundary. */
+  routing?: { recipes: string[]; fluids: { sources: string[]; sinks: string[] }[] };
 };
 
 /** The user gesture a constraint came from — the unit of diagnosis. */
@@ -319,6 +325,77 @@ export async function runLp(
   };
 }
 
+type LpSolution = Awaited<ReturnType<typeof runLp>>;
+
+/**
+ * In-block routing (#252). The temperature expansion splits a fluid into
+ * produced identities and consumer pools joined by selector recipes, which cost
+ * an epsilon while boundary flows are free — so a solve happily exports a
+ * pump's water and imports the same water for a compatible consumer. Items
+ * never do that: one good nets production against consumption.
+ *
+ * This pass restores item behaviour as a strict tie-break: every real recipe
+ * stays at its solved rate (so nothing is started or scaled to avoid an
+ * import), every constraint still holds, and only the selectors move, to
+ * minimize the routed goods' boundary flow. Importing a produced identity or
+ * exporting a consumer pool costs more than the reverse, which keeps the
+ * answer unique. Returns null when nothing can be re-routed or the pass fails;
+ * the caller keeps its solution.
+ */
+async function rerouteInBlock(
+  model: BlockModel,
+  routing: NonNullable<LpBlockInput["routing"]>,
+  sol: LpSolution,
+): Promise<LpSolution | null> {
+  const { recipes, constraints, coeff } = model;
+  const routers = new Set(routing.recipes);
+  const sources = new Set(routing.fluids.flatMap((fluid) => fluid.sources));
+  const sinks = new Set(routing.fluids.flatMap((fluid) => fluid.sinks));
+  const net = (good: string) =>
+    (coeff[good] ?? []).reduce((total, c, i) => total + c * sol.primal(`x${i}`), 0);
+  // Only worth a solve when one split fluid both exports and imports. A direct
+  // exported-source → imported-sink selector isn't required: freeing a source
+  // can take a chain of swaps through pools that are already balanced (15°
+  // water takes over a broad pool so the 125° it fed can serve a ≥100° one).
+  const reroutable = routing.fluids.some((fluid) => {
+    const nets = [...fluid.sources, ...fluid.sinks].map(net);
+    return nets.some((n) => n > FLOW_EPS) && nets.some((n) => n < -FLOW_EPS);
+  });
+  if (!reroutable) return null;
+
+  const goods = [...sources, ...sinks].filter((good) => coeff[good]);
+  const rows = [
+    ...constraints,
+    ...goods.map((good, k) => ({
+      id: `route_${k}`,
+      parts: [
+        ...coeff[good].flatMap((c, i) => (c !== 0 ? [term(c, `x${i}`)] : [])),
+        term(1, `imp${k}`),
+        term(-1, `exp${k}`),
+      ],
+      op: "=",
+      rhs: 0,
+    })),
+  ];
+  const objective = goods
+    .flatMap((good, k) => {
+      const [importCost, exportCost] = sources.has(good) ? [2, 1] : [1, 2];
+      return [term(importCost, `imp${k}`), term(exportCost, `exp${k}`)];
+    })
+    .join(" ");
+  const fixed = recipes.flatMap((r, i) => {
+    if (routers.has(r.name)) return [];
+    const v = sol.primal(`x${i}`);
+    return [`x${i} = ${v > FLOW_EPS ? v : 0}`];
+  });
+  try {
+    const routed = await runLp(recipes, rows, { objective, extraBounds: fixed });
+    return routed.status === "Optimal" ? routed : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function solveBlockLp(input: LpBlockInput): Promise<LpBlockResult> {
   const model = buildModel(input);
   const { recipes, constraints, unmade, coeff, kindOf, goalRate, goalCoeff } = model;
@@ -444,6 +521,8 @@ export async function solveBlockLp(input: LpBlockInput): Promise<LpBlockResult> 
       sol = machineSol.status === "Optimal" ? machineSol : goalSol;
     }
   }
+
+  if (input.routing) sol = (await rerouteInBlock(model, input.routing, sol)) ?? sol;
 
   const rates = recipes.map((_, i) => {
     const v = sol.primal(`x${i}`);

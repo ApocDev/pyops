@@ -162,14 +162,22 @@ the solve:
    - Produced temperatures outside the goal's range are not in the row, so they can't count
      toward it. Consumption they feed into an overlapping pool cancels out of the row, because
      their selector adds to the pool as much as the consumer takes from it.
-   - Every boundary flow stays free. The row constrains only the net, so pins and other goals
-     decide how it is met. In-block production does not feed a compatible consumer unless the
-     fluid is marked made, the same as for any other fluid.
+   - The row constrains only the net, so pins and other goals decide how it is met.
    - The goal subsumes made marks on the goods in its row, as an item goal subsumes a made mark
      on its own item. Otherwise a made consumer pool could never import what the goal needs.
    - Each consumer pool's import carries the pool's range intersected with the goal's range. A
      165° goal feeding a ≥100° consumer imports 165°, and the factory planner only matches
      compatible suppliers to it.
+
+Production that already runs feeds compatible consumers before anything crosses the block
+boundary, as it does for an item. Because selectors cost an epsilon and boundary flows are free,
+the first solve can export a pump's water and import the same water for a compatible consumer.
+Whenever one fluid both exports and imports, a second pass keeps every real recipe at its solved
+rate and re-solves only the selectors, minimizing the boundary flow of every produced temperature
+and consumer pool. That routes the pump's water into the consumer, including when it takes a chain
+of swaps: 15° water takes over a pool that accepts any temperature, freeing the 125° water that
+fed it for a ≥90° consumer. Nothing is started or scaled to avoid an import, and
+temperature compatibility is unchanged: 125° water still can't feed a ≤101° consumer.
 
 The block keeps its imports and exports of one fluid apart, so a cold import and a hot export of
 the same fluid both reach the factory.
