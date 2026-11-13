@@ -1,0 +1,41 @@
+app/e2e/smoke.e2e.ts
+  s_20c9565712ce02::t_11ecabe32330d5 105-118
+app/src/components/ui/card.tsx
+  s_c5a788887b0ee5::t_0dda3c8880fce4 5-9,11,38
+app/src/routes/index.tsx
+  s_c5a788887b0ee5::t_ed6ad72c7e43ab 1,33,35,49-60,101-104,106-109,274-277,282-284,295-296,301-303,316-322,331,340,346-351,373
+docs/getting-started/index.md
+  s_3f0a2c5a2e1d29::t_05b8c134e965b4 76-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "58fa45af451c9b9ed9c2299f7b0e9cca7db8c719",
+  "prompts": {},
+  "sessions": {
+    "s_20c9565712ce02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e72a5375-7ebf-4de3-845d-770aa761691f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_3f0a2c5a2e1d29": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cfba2bc-d306-4104-8eae-acbd60d93d5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_c5a788887b0ee5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "426f4247-8e74-42f0-a098-4c96dd2abd4c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
