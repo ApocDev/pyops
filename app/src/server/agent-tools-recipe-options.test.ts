@@ -22,13 +22,13 @@ type Candidate = {
 const options = async (good: string) =>
   (await recipeOptions.execute!(
     { good, direction: "produce", limit: 12 },
-    { toolCallId: "test", messages: [] },
+    { toolCallId: "test", messages: [], context: {} },
   )) as Candidate[];
 
 const batchOptions = async (goods: string[]) =>
   (await recipeOptionsBatch.execute!(
     { goods, direction: "produce", limitEach: 12 },
-    { toolCallId: "test", messages: [] },
+    { toolCallId: "test", messages: [], context: {} },
   )) as Record<string, Candidate[]>;
 
 describe("optionsFor resolves 'machine' the same way computeBlock does (#130)", () => {

@@ -12,7 +12,7 @@ import { type TestDb, makeTestDb } from "../db/test-helpers.ts";
 import { logisticsFor } from "./agent-tools.server.ts";
 
 const call = async (good: string, rate: number) =>
-  logisticsFor.execute!({ good, rate }, { toolCallId: "test", messages: [] });
+  logisticsFor.execute!({ good, rate }, { toolCallId: "test", messages: [], context: {} });
 
 describe("logisticsFor tool (#126)", () => {
   let fx: TestDb;

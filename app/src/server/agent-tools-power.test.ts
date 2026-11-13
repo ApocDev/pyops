@@ -28,7 +28,7 @@ type Rollup = {
 const run = async (limit?: number): Promise<Rollup> =>
   (await factoryPower.execute!(
     { limit: limit ?? 10 },
-    { toolCallId: "test", messages: [] },
+    { toolCallId: "test", messages: [], context: {} },
   )) as Rollup;
 
 describe("factoryPower (#129)", () => {

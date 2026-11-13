@@ -16,7 +16,7 @@ describe("gameEval approval gate (#15)", () => {
   it("returns the snippet as a proposal without touching the bridge", async () => {
     const res = (await gameEval.execute!(
       { code: "player.force.technologies['automation'].researched", note: "check research" },
-      { toolCallId: "t", messages: [] },
+      { toolCallId: "t", messages: [], context: {} },
     )) as { proposed: boolean; code: string; note: string | null; status: string };
     expect(res.proposed).toBe(true);
     expect(res.code).toBe("player.force.technologies['automation'].researched");
@@ -43,7 +43,7 @@ describe("gameEval approval gate (#15)", () => {
     requestFromMod.mockResolvedValueOnce({ ok: true, result: "42" });
     const res = (await mcpTools.gameEval.execute!(
       { code: "game.tick" },
-      { toolCallId: "t", messages: [] },
+      { toolCallId: "t", messages: [], context: {} },
     )) as { ok: boolean; result?: string };
     expect(requestFromMod).toHaveBeenCalledWith("cmd.eval", { code: "game.tick" }, 8000);
     expect(res).toEqual({ ok: true, result: "42" });

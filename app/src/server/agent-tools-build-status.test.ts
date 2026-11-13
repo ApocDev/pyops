@@ -44,7 +44,7 @@ type Result = {
 const status = async (blockId?: number, limit = 10): Promise<Result> =>
   (await blockBuildStatus.execute!(
     { blockId, limit },
-    { toolCallId: "test", messages: [] },
+    { toolCallId: "test", messages: [], context: {} },
   )) as Result;
 
 describe("blockBuildStatus tool", () => {

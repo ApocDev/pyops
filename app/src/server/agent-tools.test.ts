@@ -23,7 +23,7 @@ type Draft = {
 };
 
 const draft = async (input: { target: string; rate: number; recipes: string[] }): Promise<Draft> =>
-  (await submitBlock.execute!(input, { toolCallId: "test", messages: [] })) as Draft;
+  (await submitBlock.execute!(input, { toolCallId: "test", messages: [], context: {} })) as Draft;
 
 describe("submitBlock fluid-fuel alignment (#115)", () => {
   let fx: TestDb;

@@ -11,7 +11,7 @@ import { listNotes } from "./agent-tools.server.ts";
 type Note = { id: number; title: string | null; body: string | null };
 
 const call = async (): Promise<Note[]> =>
-  (await listNotes.execute!({}, { toolCallId: "test", messages: [] })) as Note[];
+  (await listNotes.execute!({}, { toolCallId: "test", messages: [], context: {} })) as Note[];
 
 describe("listNotes", () => {
   let fx: TestDb;

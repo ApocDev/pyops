@@ -35,7 +35,7 @@ const revise = async (input: {
   rate?: number;
   recipes?: string[];
 }): Promise<Update> =>
-  (await reviseBlock.execute!(input, { toolCallId: "test", messages: [] })) as Update;
+  (await reviseBlock.execute!(input, { toolCallId: "test", messages: [], context: {} })) as Update;
 
 describe("reviseBlock recipe-set revision (#12)", () => {
   let fx: TestDb;
