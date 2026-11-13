@@ -2,7 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import ts from "typescript";
+import { parseSync, Visitor, type ESTree } from "vite-plus";
 
 /**
  * Mechanical enforcement of docs/development/design.md (issue #103): raw palette classes,
@@ -77,19 +77,40 @@ function startsLowercase(value: string): boolean {
   return /^[a-z]/.test(text) && !text.startsWith("e.g.");
 }
 
-function lowercaseStaticStarts(node: ts.Expression): { node: ts.Node; value: string }[] {
-  if (ts.isStringLiteralLike(node)) {
-    return startsLowercase(node.text) ? [{ node, value: node.text }] : [];
+function lowercaseStaticStarts(node: ESTree.Expression): { node: ESTree.Node; value: string }[] {
+  const text = staticString(node);
+  if (text !== undefined) return startsLowercase(text) ? [{ node, value: text }] : [];
+  if (node.type === "TemplateLiteral") {
+    const head = node.quasis[0].value.cooked ?? "";
+    return startsLowercase(head) ? [{ node, value: head }] : [];
   }
-  if (ts.isTemplateExpression(node)) {
-    return startsLowercase(node.head.text) ? [{ node, value: node.head.text }] : [];
-  }
-  if (ts.isParenthesizedExpression(node)) return lowercaseStaticStarts(node.expression);
-  if (ts.isConditionalExpression(node)) {
-    return [...lowercaseStaticStarts(node.whenTrue), ...lowercaseStaticStarts(node.whenFalse)];
+  if (node.type === "ParenthesizedExpression") return lowercaseStaticStarts(node.expression);
+  if (node.type === "ConditionalExpression") {
+    return [...lowercaseStaticStarts(node.consequent), ...lowercaseStaticStarts(node.alternate)];
   }
   return [];
 }
+
+/** The text of a string literal or a template literal with no `${}` parts. */
+function staticString(node: ESTree.Node | null): string | undefined {
+  if (node?.type === "Literal" && typeof node.value === "string") return node.value;
+  if (node?.type === "TemplateLiteral" && node.expressions.length === 0) {
+    return node.quasis[0].value.cooked ?? undefined;
+  }
+  return undefined;
+}
+
+const CASED_PROPERTIES = new Set([
+  "description",
+  "empty",
+  "header",
+  "hint",
+  "label",
+  "message",
+  "prompt",
+  "text",
+  "title",
+]);
 
 /** High-signal static copy only. Dynamic/localized content and sentence fragments mixed
  * with expressions are deliberately outside this guard. */
@@ -98,83 +119,58 @@ function casingViolations(): string[] {
   for (const f of files) {
     if (!f.endsWith(".tsx") || f.endsWith(".test.tsx")) continue;
     const sourceText = readFileSync(join(SRC, f), "utf8");
-    const source = ts.createSourceFile(
-      f,
-      sourceText,
-      ts.ScriptTarget.Latest,
-      true,
-      ts.ScriptKind.TSX,
-    );
-    const report = (node: ts.Node, value: string) => {
-      const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+    const { program } = parseSync(f, sourceText, { lang: "tsx" });
+    const report = (node: ESTree.Node, value: string) => {
+      const line = sourceText.slice(0, node.start).split("\n").length;
       out.push(`${f}:${line}:${value.trim()}`);
     };
-    const visit = (node: ts.Node) => {
-      if (
-        ts.isJsxAttribute(node) &&
-        CASED_ATTRIBUTES.has(node.name.getText(source)) &&
-        node.initializer &&
-        ts.isStringLiteral(node.initializer) &&
-        startsLowercase(node.initializer.text)
-      ) {
-        report(node, node.initializer.text);
-      }
-      if (
-        ts.isJsxAttribute(node) &&
-        CASED_ATTRIBUTES.has(node.name.getText(source)) &&
-        node.initializer &&
-        ts.isJsxExpression(node.initializer) &&
-        node.initializer.expression
-      ) {
-        for (const hit of lowercaseStaticStarts(node.initializer.expression)) {
-          report(hit.node, hit.value);
-        }
-      }
-
-      if (
-        ts.isPropertyAssignment(node) &&
-        ts.isIdentifier(node.name) &&
-        [
-          "description",
-          "empty",
-          "header",
-          "hint",
-          "label",
-          "message",
-          "prompt",
-          "text",
-          "title",
-        ].includes(node.name.text) &&
-        ts.isStringLiteralLike(node.initializer) &&
-        startsLowercase(node.initializer.text)
-      ) {
-        report(node, node.initializer.text);
-      }
-
-      if (ts.isJsxElement(node)) {
-        const tag = node.openingElement.tagName.getText(source);
-        const meaningful = node.children.filter(
-          (child) => !ts.isJsxText(child) || child.text.trim().length > 0,
-        );
-        if (CASED_ELEMENTS.has(tag) && meaningful.length > 0 && meaningful.every(ts.isJsxText)) {
-          const text = meaningful.map((child) => child.text).join(" ");
-          if (startsLowercase(text)) report(node, text);
+    new Visitor({
+      JSXAttribute(node) {
+        if (node.name.type !== "JSXIdentifier" || !CASED_ATTRIBUTES.has(node.name.name)) return;
+        if (node.value?.type === "Literal" && startsLowercase(node.value.value)) {
+          report(node, node.value.value);
         }
         if (
-          CASED_ELEMENTS.has(tag) &&
-          meaningful[0] &&
-          ts.isJsxExpression(meaningful[0]) &&
-          meaningful[0].expression
+          node.value?.type === "JSXExpressionContainer" &&
+          node.value.expression.type !== "JSXEmptyExpression"
         ) {
-          for (const hit of lowercaseStaticStarts(meaningful[0].expression)) {
+          for (const hit of lowercaseStaticStarts(node.value.expression)) {
             report(hit.node, hit.value);
           }
         }
-      }
-
-      ts.forEachChild(node, visit);
-    };
-    visit(source);
+      },
+      Property(node) {
+        if (
+          node.computed ||
+          node.key.type !== "Identifier" ||
+          !CASED_PROPERTIES.has(node.key.name)
+        ) {
+          return;
+        }
+        const text = staticString(node.value);
+        if (text !== undefined && startsLowercase(text)) report(node, text);
+      },
+      JSXElement(node) {
+        const { name } = node.openingElement;
+        if (name.type !== "JSXIdentifier" || !CASED_ELEMENTS.has(name.name)) return;
+        const meaningful = node.children.filter(
+          (child) => child.type !== "JSXText" || child.value.trim().length > 0,
+        );
+        if (meaningful.length > 0 && meaningful.every((child) => child.type === "JSXText")) {
+          const text = meaningful.map((child) => child.value).join(" ");
+          if (startsLowercase(text)) report(node, text);
+        }
+        const first = meaningful[0];
+        if (
+          first?.type === "JSXExpressionContainer" &&
+          first.expression.type !== "JSXEmptyExpression"
+        ) {
+          for (const hit of lowercaseStaticStarts(first.expression)) {
+            report(hit.node, hit.value);
+          }
+        }
+      },
+    }).visit(program);
   }
   return out;
 }
