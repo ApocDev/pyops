@@ -8,7 +8,7 @@ import {
   CircleDot,
   Factory,
   Gamepad2,
-  Github,
+  GitBranch,
   Hammer,
   ListChecks,
   Search,
@@ -145,7 +145,7 @@ function Home() {
                 rel="noreferrer"
                 title="View PyOps on GitHub"
               >
-                <Github /> GitHub
+                <GitBranch /> GitHub
               </a>
             </Button>
             <LaunchFactorioButton size="sm" />

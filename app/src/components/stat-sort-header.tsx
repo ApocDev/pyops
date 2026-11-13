@@ -1,4 +1,5 @@
-import type { Header } from "@tanstack/react-table";
+import type { Header, RowData } from "@tanstack/react-table";
+import type { StatTableFeatures } from "#/lib/stat-table.ts";
 import { ArrowDown, ArrowUp } from "lucide-react";
 
 import { cn } from "#/lib/utils.ts";
@@ -11,12 +12,12 @@ import { cn } from "#/lib/utils.ts";
  * `StatCell` (minus the `md:` prefix — the header is already md-only): the lead
  * column takes `flex-1 text-left`, numeric columns add `justify-end`.
  */
-export function StatSortHeader<T>({
+export function StatSortHeader<T extends RowData>({
   headers,
   widths,
   className,
 }: {
-  headers: Header<T, unknown>[];
+  headers: Header<StatTableFeatures, T, unknown>[];
   widths: Record<string, string>;
   className?: string;
 }) {
