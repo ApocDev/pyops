@@ -78,6 +78,23 @@ describe("groupSwaps", () => {
     expect(group!.lines[0]!.good?.display).toBe("Bioreactor");
   });
 
+  it("keeps a dropped and an added tier of the same good as separate lines", () => {
+    const reactor = (t: number) => ({
+      kind: "item",
+      name: `reactor-${t}`,
+      display: `Bioreactor MK 0${t}`,
+      amount: 1,
+    });
+    const [group] = groupSwaps([
+      change("Moss farm", recipe(1, [reactor(1)], []), recipe(1, [reactor(2)], [])),
+    ]);
+    expect(group!.lines).toHaveLength(2);
+    expect(group!.lines.map((l) => [l.a[1], l.b[1]]).sort((x, y) => x[0]! - y[0]!)).toEqual([
+      [0, 1],
+      [1, 0],
+    ]);
+  });
+
   it("keeps same-named swaps apart when their changes point different ways", () => {
     const up = change("Fish", recipe(10, [], [good("fish", 1)]), recipe(10, [], [good("fish", 2)]));
     const down = change(

@@ -102,7 +102,9 @@ export function groupSwaps<C extends { fromDisplay: string | null; lines: SwapLi
     if (!g) groups.set(key, (g = { label, changes: [], byKey: new Map() }));
     g.changes.push(c);
     for (const l of c.lines) {
-      const k = lineKey(l);
+      // by direction too: one swap can drop "Bioreactor MK 01" and add "MK 02",
+      // which share a tier-less key but must stay two lines
+      const k = lineShape(l);
       const m = g.byKey.get(k);
       const ratio = l.a !== 0 && l.b !== 0 ? l.b / l.a : null;
       if (!m) {
