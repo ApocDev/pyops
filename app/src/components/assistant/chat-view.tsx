@@ -1244,7 +1244,13 @@ function Prose({ text }: { text: string }) {
 type GoodRate = { good: string; rate?: number | null };
 // One output goal (#38): either a throughput `rate` or a keep-in-stock `stock`
 // (+ refill `window`, seconds) — the shape persisted into BlockData.goals.
-type DraftGoal = { name: string; rate: number; stock?: number; window?: number };
+type DraftGoal = {
+  name: string;
+  rate: number;
+  temperature?: number;
+  stock?: number;
+  window?: number;
+};
 type Draft = {
   name?: string;
   target: string;

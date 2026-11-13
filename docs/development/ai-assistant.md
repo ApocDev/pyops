@@ -322,7 +322,7 @@ persist changes. They solve and return typed proposal data for dedicated chat ca
 
 A block draft can contain:
 
-- multiple throughput or keep-in-stock goals;
+- multiple throughput or keep-in-stock goals, each fluid goal optionally at an exact temperature;
 - selected recipes, machines, fuels, modules, and beacons;
 - solved building counts, imports, byproducts, power, heat, and pollution;
 - TURD requirements and conflicts;

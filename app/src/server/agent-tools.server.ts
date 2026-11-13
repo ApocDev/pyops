@@ -728,6 +728,12 @@ export const researchPath = tool({
 const blockGoalInput = z
   .object({
     name: z.string().describe("Internal name of the good this goal targets"),
+    temperature: z
+      .number()
+      .optional()
+      .describe(
+        "Exact produced temperature for a fluid goal (e.g. 500 for 500° steam). Omit to accept any temperature.",
+      ),
     rate: z
       .number()
       .positive()
@@ -760,9 +766,16 @@ const blockGoalInput = z
 type BlockGoalInput = z.infer<typeof blockGoalInput>;
 
 /** A resolved goal ready for computeBlock: name + solver rate (derived from
- * stock/window when it's a stock goal), plus stock/window kept for the draft
- * return (so the apply path can persist them). */
-type ResolvedGoal = { name: string; rate: number; stock?: number; window?: number };
+ * stock/window when it's a stock goal) + a fluid goal's exact temperature, plus
+ * stock/window kept for the draft return (so the apply path can persist them). */
+type ResolvedGoal = Pick<Goal, "name" | "rate" | "temperature" | "stock" | "window">;
+
+/** The part of a resolved goal the solver reads. */
+const solverGoal = ({ name, rate, temperature }: ResolvedGoal) => ({
+  name,
+  rate,
+  ...(temperature != null ? { temperature } : {}),
+});
 
 /** Resolve a block-draft's goal input to solver-ready goals — either the
  * `goals` array (#38, multi-goal + stock support) or the legacy single
@@ -776,7 +789,10 @@ function resolveGoals(input: {
     return input.goals.map((g) => {
       const window = g.window ?? STOCK_WINDOW_DEFAULT;
       const rate = g.stock != null ? g.stock / window : g.rate!;
-      return { name: g.name, rate, ...(g.stock != null ? { stock: g.stock, window } : {}) };
+      return {
+        ...solverGoal({ name: g.name, rate, temperature: g.temperature }),
+        ...(g.stock != null ? { stock: g.stock, window } : {}),
+      };
     });
   }
   return [{ name: input.target ?? "", rate: input.rate ?? 1 }];
@@ -832,7 +848,7 @@ const blockDraftInput = z
  * `computeBlock({goals, recipes})` under-counted Py's creature/farm buildings
  * (intentionally near-useless unmoduled) by ~10-15x and disagreed with
  * submitBlock's own (already module-filled) counts for the same recipes. */
-async function solveWithModuleFill(goals: { name: string; rate: number }[], recipes: string[]) {
+async function solveWithModuleFill(goals: ResolvedGoal[], recipes: string[]) {
   const provisional = await computeBlock({ goals, recipes });
   const suggestions =
     provisional.status === "solved" &&
@@ -880,8 +896,10 @@ async function buildBlockDraft(input: z.infer<typeof blockDraftInput>) {
     machines: {},
   };
   try {
-    const goals = resolved.map((g) => ({ name: g.name, rate: g.rate }));
-    const { solved, modules, machines } = await solveWithModuleFill(goals, recipes);
+    const { solved, modules, machines } = await solveWithModuleFill(
+      resolved.map(solverGoal),
+      recipes,
+    );
     moduleFill = { modules, machines };
     for (const f of solved.imports) rates.set(f.name, +f.rate.toFixed(3));
     for (const f of solved.exports) rates.set(f.name, +f.rate.toFixed(3));
@@ -930,8 +948,7 @@ async function buildBlockDraft(input: z.infer<typeof blockDraftInput>) {
     // full goal set (#38): name/rate + stock/window when it's a keep-in-stock
     // goal — the apply path (assistant.tsx) persists THIS, not just target/rate.
     goals: resolved.map((g) => ({
-      name: g.name,
-      rate: g.rate,
+      ...solverGoal(g),
       ...(g.stock != null ? { stock: g.stock, window: g.window } : {}),
     })),
     recipes,
@@ -1013,6 +1030,7 @@ async function buildBlockUpdate({
       name: g.name,
       rate: g.rate,
       window: g.window ?? STOCK_WINDOW_DEFAULT,
+      ...(g.temperature != null ? { temperature: g.temperature } : {}),
       ...(g.stock != null ? { stock: g.stock } : {}),
     }));
   const draft = await buildBlockDraft(
@@ -1215,8 +1233,7 @@ export const buildingBill = tool({
     for (const block of blocks) {
       const resolved = resolveGoals(block);
       try {
-        const goals = resolved.map((g) => ({ name: g.name, rate: g.rate }));
-        const { solved } = await solveWithModuleFill(goals, block.recipes);
+        const { solved } = await solveWithModuleFill(resolved.map(solverGoal), block.recipes);
         for (const b of machineReqs(solved.rows)) {
           const count = Math.ceil(b.count - 1e-9); // whole machines per block, THEN sum
           if (count <= 0) continue;
