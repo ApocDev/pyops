@@ -1163,6 +1163,8 @@ export async function computeBlock(rawData: SolveInput) {
     return {
       recipe: rr.recipe,
       display: def.display ?? rr.recipe,
+      // recipe kind (real | burning | …) so machineless rows can say why
+      kind: def.kind,
       rate: rr.rate,
       spoil,
       reactor,

@@ -474,6 +474,10 @@ export function RecipeRow({
                   )}
                 </span>
               </Tooltip>
+            ) : row?.kind === "burning" ? (
+              <Tooltip content="Stands in for this fuel burning in any burner. To link the result to a real boiler or furnace, pick this fuel on that building's row instead.">
+                <span className="text-sm text-muted-foreground">No building</span>
+              </Tooltip>
             ) : (
               <span className="text-muted-foreground">—</span>
             )}

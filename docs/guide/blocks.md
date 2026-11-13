@@ -123,7 +123,12 @@ own internal goals and a boundary contract for the parent block.
 Each recipe row shows its selected machine and required building count.
 
 - Select the machine to choose another compatible option.
-- For a fuel-burning machine, select its fuel indicator to choose an allowed fuel.
+- For a fuel-burning machine, select its fuel indicator to choose an allowed fuel. Its burnt
+  result, such as Ash, can feed another recipe in the block. Right-click the burnt result
+  and choose **Make in this block (link production)** to size the burners for that recipe
+  instead of importing it.
+- A "… burns to" recipe shows **No building**. It stands in for fuel burned in some burner
+  elsewhere. To tie the result to a real boiler or furnace, choose the fuel on that row.
 - Use the module control to fill module slots or override the block's preferred defaults.
 
 Global preferred machines, fuels, fluid temperatures, and module-fill behavior live under
