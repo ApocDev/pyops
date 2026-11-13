@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Boxes, Check } from "lucide-react";
+import { Boxes } from "lucide-react";
 import {
   listBlocksFn,
   setTurdSelectionFn,
