@@ -1,9 +1,10 @@
 # Single-package settings file (not a monorepo). pnpm 10+ reads build-script
 # approvals from `allowBuilds` here (not package.json's "pnpm" field). Each
 # dependency with a build script needs an explicit decision, or a fresh install
-# (e.g. CI) errors with ERR_PNPM_IGNORED_BUILDS. better-sqlite3 must build (its
-# native binary backs drizzle/the importer); esbuild and lightningcss are
-# transitive (Vite/Tailwind) and only surface on a clean install.
+# (e.g. CI) errors with ERR_PNPM_IGNORED_BUILDS. better-sqlite3's install step
+# picks its bundled prebuilt binary and compiles from source only on a platform
+# without one; esbuild and lightningcss are transitive (Vite/Tailwind) and only
+# surface on a clean install.
 allowBuilds:
   better-sqlite3: true
   esbuild: true
