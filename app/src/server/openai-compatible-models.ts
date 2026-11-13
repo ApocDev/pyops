@@ -7,7 +7,9 @@
  * picker still lists them, but context window and reasoning support stay unknown
  * and the UI hides the gauge's percentage and the reasoning control. LiteLLM adds
  * `max_input_tokens` and `mode` to `/models`, and `/model/info` reports
- * `supports_reasoning` and the accepted OpenAI parameters.
+ * `supports_reasoning` and the accepted OpenAI parameters. `reasoning` here means
+ * the model accepts `reasoning_effort`: decided by the parameter list when one is
+ * given, else by `supports_reasoning`.
  */
 
 export type Endpoint = { baseUrl: string; apiKey: string | undefined };
@@ -64,12 +66,14 @@ export function mergeModelLists(models: RawModel[], info: RawModelInfo[]): Endpo
     const extra = infoById.get(m.id)?.model_info;
     const mode = m.mode ?? extra?.mode;
     if (mode && mode !== "chat") return [];
-    const params = extra?.supported_openai_params ?? [];
+    // An explicit accepted-parameter list is authoritative for effort support;
+    // `supports_reasoning` alone doesn't mean the effort is configurable.
+    const params = extra?.supported_openai_params;
     return [
       {
         id: m.id,
         contextWindow: m.max_input_tokens || extra?.max_input_tokens || null,
-        reasoning: !!extra?.supports_reasoning || params.includes("reasoning_effort"),
+        reasoning: params ? params.includes("reasoning_effort") : !!extra?.supports_reasoning,
       },
     ];
   });

@@ -36,6 +36,7 @@ import { ShowInGameButton } from "#/components/assistant/show-in-game-button.tsx
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { InfoHint } from "#/components/info-hint.tsx";
 import { ItemHover, RecipeHover, TechHover } from "#/lib/recipe-card";
+import { contextGaugeTitle, type TokenStatus } from "#/lib/context-gauge.ts";
 import { formatQty, formatRate } from "#/lib/format";
 import { STOCK_WINDOW_DEFAULT } from "#/lib/goals";
 import {
@@ -531,25 +532,11 @@ function ChatView({
   );
 }
 
-type TokenStatus = {
-  usedTokens: number;
-  contextWindow: number | null;
-  ratio: number | null;
-  estimated: boolean;
-  modelId: string | null;
-  costUsd: number | null;
-  resolvedModel: string;
-  messageCount: number;
-};
-
-/** USD with enough precision for sub-cent turns. */
-const formatUsd = (usd: number) => `$${usd < 0.01 ? usd.toFixed(4) : usd.toFixed(2)}`;
-
 /** A small filling ring plus "N% context" showing how much of the model's
  * context window the conversation occupies; clicking compacts older messages
  * now. Green → amber → red as it fills. When the endpoint doesn't report the
- * model's window, it shows the token count alone. The tooltip carries the last
- * turn's cost, or says it's unknown when the provider didn't report one. */
+ * model's window, it shows the token count alone. The tooltip (contextGaugeTitle)
+ * carries the last turn's cost, or says it's unknown. */
 function ContextGauge({
   status,
   busy,
@@ -573,17 +560,7 @@ function ContextGauge({
   const window = status?.contextWindow ?? null;
   // Still loading counts as known, so the ring doesn't pop in.
   const windowKnown = !status || window != null;
-  const cost =
-    !status || status.estimated
-      ? ""
-      : `\nlast turn cost: ${status.costUsd == null ? "unknown (not reported by the provider)" : formatUsd(status.costUsd)}`;
-  const title = status
-    ? (window != null
-        ? `${used.toLocaleString()} / ${window.toLocaleString()} tokens · ${pct}% of context\n`
-        : `${used.toLocaleString()} tokens · context window not reported by the endpoint\n`) +
-      `${status.estimated ? "estimated (no completed turn yet)" : "measured from the last turn"}` +
-      `\nmodel: ${status.modelId ?? status.resolvedModel}${cost}\n\nClick to compact older messages now`
-    : "context usage";
+  const title = contextGaugeTitle(status);
   return (
     <Tooltip content={title}>
       <button

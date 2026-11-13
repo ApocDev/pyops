@@ -160,9 +160,11 @@ For an OpenAI-compatible endpoint, `app/src/server/openai-compatible-models.ts` 
 result per base URL and key for ten minutes, and waits 30 seconds before retrying a failed
 fetch. LiteLLM adds `max_input_tokens` and `mode` to `/models`; non-chat entries (image,
 audio, embedding) are dropped. `/model/info` adds `supports_reasoning` and the accepted
-OpenAI parameters. A plain server returns only IDs. Then the context window is `null`, the
-gauge shows a token count without a percentage, compaction falls back to the
-`FALLBACK_CONTEXT_WINDOW` threshold, and reasoning effort is not offered.
+OpenAI parameters. Effort is offered when that parameter list includes `reasoning_effort`;
+`supports_reasoning` decides only when no list is given. A plain server returns only IDs.
+Then the context window is `null`, the gauge shows a token count without a percentage,
+compaction falls back to the `FALLBACK_CONTEXT_WINDOW` threshold, and reasoning effort is
+not offered.
 
 ### Reasoning effort
 
@@ -273,7 +275,11 @@ and later turns use the same context.
 `conversationTokenStatusFn` returns used tokens, context limit (or `null` when unknown),
 model, the last turn's cost, and whether the value is measured or estimated. The input
 toolbar renders that as a filling ring labeled "N% context", or "N tokens" when the limit is
-unknown. Its tooltip shows the last turn's cost or says it is unknown.
+unknown. It also returns `turnCompleted` (an assistant reply exists) apart from `estimated`,
+because an endpoint can finish a turn without reporting usage. Once a turn has completed,
+the tooltip (`contextGaugeTitle()` in `app/src/lib/context-gauge.ts`) shows its cost or says
+it is unknown. Manual compaction clears the token measurement but keeps the last turn's
+cost.
 
 Manual compaction calls the same implementation with `force: true`, replaces the client
 chat with the persisted result, and clears the stale real-token measurement until the next

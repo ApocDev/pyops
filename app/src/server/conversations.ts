@@ -90,6 +90,9 @@ export const conversationTokenStatusFn = createServerFn({ method: "GET" })
       contextWindow,
       ratio: contextWindow ? usedTokens / contextWindow : null,
       estimated: real == null,
+      // A reply can finish without the provider reporting usage, so "a turn
+      // completed" is tracked apart from "usage was measured".
+      turnCompleted: conv?.messages.some((m) => m.role === "assistant") ?? false,
       modelId: conv?.usage.modelId ?? null,
       costUsd: conv?.usage.costUsd ?? null,
       resolvedModel: resolved,
@@ -120,7 +123,8 @@ export const compactConversationFn = createServerFn({ method: "POST" })
         outputTokens: null,
         totalTokens: null,
         modelId: null,
-        costUsd: null,
+        // compaction doesn't change what the last turn cost
+        costUsd: conv.usage.costUsd,
       });
     }
     return { ok: true, compacted: res.compacted, messages: res.messages };
