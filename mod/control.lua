@@ -732,19 +732,23 @@ local function update_tab_captions(player)
   end
 end
 
+-- What an open build sheet depends on: the per-row built counts (`rows`, which
+-- catch a machine moving between two of the block's recipes) and the block's
+-- last edit (`rev`, a goal or recipe change).
+local function sheet_key(b)
+  return b and (tostring(b.rows) .. "|" .. tostring(b.rev)) or nil
+end
+
 -- New block list: store it, redraw the board, and refresh an open build sheet
--- whose per-row built counts moved (its Built column comes from the app). `rows`
--- catches a machine moving between two of the block's recipes, which leaves
--- `have` unchanged.
+-- whose block was edited or whose built counts moved.
 local function on_block_list(player, payload)
   local open_id = Blocks.selected(player)
-  local before = open_id and Blocks.find(open_id)
-  local had = before and before.rows
+  local had = sheet_key(open_id and Blocks.find(open_id))
   Blocks.set_data(payload)
   Blocks.refresh(player)
   update_tab_captions(player)
-  local after = open_id and Blocks.find(open_id)
-  if after and had ~= nil and after.rows ~= had and Summary.is_open(player) then
+  local now = sheet_key(open_id and Blocks.find(open_id))
+  if now and had and now ~= had and Summary.is_open(player) then
     send_request(player, "block.show", { id = open_id })
   end
 end

@@ -36,6 +36,7 @@ const listed = (b: Partial<Listed> & { id: number; name: string }) =>
     electricityW: 2e6,
     health: "ok",
     goal: { name: "iron-plate", rate: 1.5 },
+    updatedAt: new Date(1_700_000_000_000),
     ...b,
   }) as Listed;
 const group = (id: number, name: string, parentId: number | null = null) =>
@@ -54,6 +55,7 @@ describe("groupBlocks", () => {
     have: 0,
     need: 0,
     rows: "",
+    rev: 0,
   });
 
   it("orders folders depth-first with path labels, ungrouped last, empty rows dropped", () => {
@@ -109,6 +111,7 @@ describe("block.list", () => {
               have: 6,
               need: 10,
               rows: "6,0",
+              rev: 1_700_000_000,
             },
             {
               id: 3,
@@ -120,6 +123,7 @@ describe("block.list", () => {
               have: 0,
               need: 0,
               rows: "",
+              rev: 1_700_000_000,
             },
           ],
         },
@@ -157,6 +161,21 @@ describe("block.list", () => {
     expect(server.sendToPeer).toHaveBeenCalledTimes(1);
     const sent = vi.mocked(server.sendToPeer).mock.calls[0][0].payload as BlockListPayload;
     expect(sent.groups[0].blocks[0]).toMatchObject({ have: 5, need: 10, rows: "4,1" });
+  });
+
+  it("pushes when a block was edited but its counts did not move", () => {
+    vi.mocked(q.blockBuildTotals).mockReturnValue(
+      new Map([[1, { need: 10, missing: 5, rows: "5,0" }]]),
+    );
+    vi.mocked(q.listBlocks).mockReturnValue([listed({ id: 1, name: "Iron" })]);
+    blocks.handleBlockList(req("block.list"));
+
+    vi.mocked(q.listBlocks).mockReturnValue([
+      listed({ id: 1, name: "Iron", updatedAt: new Date(1_700_000_060_000) }),
+    ]);
+    blocks.pushBlockListIfChanged();
+    const sent = vi.mocked(server.sendToPeer).mock.calls[0][0].payload as BlockListPayload;
+    expect(sent.groups[0].blocks[0]).toMatchObject({ rows: "5,0", rev: 1_700_000_060 });
   });
 });
 
