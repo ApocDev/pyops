@@ -2281,12 +2281,15 @@ export function factoryBlocks() {
   const flowsByBlock = enabledFlowsByBlock();
   return bs.map((b) => {
     // each goal as the assistant's reviseBlock `goals` entries name it: a
-    // throughput rate, or a keep-in-stock amount + refill window
-    const goals = normalizeBlockData(b.data).goals.map((g) =>
-      g.stock != null
-        ? { name: g.name, stock: g.stock, window: g.window ?? STOCK_WINDOW_DEFAULT }
-        : { name: g.name, rate: g.rate },
-    );
+    // throughput rate, or a keep-in-stock amount + refill window, plus the
+    // temperature that tells one fluid's goals apart
+    const goals = normalizeBlockData(b.data).goals.map((g) => ({
+      name: g.name,
+      ...(g.temperature != null ? { temperature: g.temperature } : {}),
+      ...(g.stock != null
+        ? { stock: g.stock, window: g.window ?? STOCK_WINDOW_DEFAULT }
+        : { rate: g.rate }),
+    }));
     const flows = flowsByBlock.get(b.id) ?? [];
     const pick = (roles: string[]) =>
       flows

@@ -332,10 +332,12 @@ A block draft can contain:
 item name. One update can change several goals at once: a throughput `rate`, or a
 keep-in-stock `stock` and `window`. Goals it doesn't name keep their values, so a multi-goal
 mall block can raise its stock of one machine without touching the rest. The top-level
-`rate` is shorthand for the first goal. Naming a good that isn't one of the block's goals
-returns an error that lists the real goals. `factoryBlocks` reports each block's goals in the
-same shape. The proposal returns `goalChanges`, each changed goal's before and after values,
-which the card lists.
+`rate` is shorthand for the first goal. A goal entry can also carry a `temperature`, which
+picks one goal when the block targets the same fluid at several temperatures. Naming a good
+that isn't one of the block's goals returns an error that lists the real goals. So does a
+bare fluid name that matches several temperature-specific goals. `factoryBlocks` reports
+each block's goals in the same shape. The proposal returns `goalChanges`, each changed goal's
+before and after values, which the card lists.
 
 The draft path shares module-fill and compute logic with the block editor. `buildingBill`
 uses the same fill pass before rounding whole machine items, so construction estimates and

@@ -158,6 +158,45 @@ describe("withGoalChanges", () => {
           { name: "b", rate: 5, direction: undefined },
         ],
       },
+      indexes: [1],
+    });
+  });
+
+  describe("one fluid at several temperatures", () => {
+    const boilers = {
+      goals: [
+        { name: "steam", rate: 60, temperature: 165 },
+        { name: "steam", rate: 20, temperature: 500 },
+        { name: "water", rate: 10 },
+      ],
+    };
+
+    it("refuses a bare name that matches several goals, listing them", () => {
+      expect(withGoalChanges(boilers, [{ name: "steam", rate: 90 }])).toEqual({
+        error:
+          '"steam" matches several goals (steam at 165°, steam at 500°) — pass `temperature` to pick one',
+      });
+    });
+
+    it("edits only the goal at the given temperature", () => {
+      const out = withGoalChanges(boilers, [{ name: "steam", temperature: 500, rate: 45 }]);
+      if ("error" in out) throw new Error(out.error);
+      expect(out.indexes).toEqual([1]);
+      expect(out.data.goals.map((g) => g.rate)).toEqual([60, 45, 10]);
+      expect(out.data.goals[1].temperature).toBe(500);
+    });
+
+    it("still matches a unique name without a temperature", () => {
+      const out = withGoalChanges(boilers, [{ name: "water", rate: 12 }]);
+      if ("error" in out) throw new Error(out.error);
+      expect(out.data.goals.map((g) => g.rate)).toEqual([60, 20, 12]);
+    });
+
+    it("names the goals when no goal has that temperature", () => {
+      expect(withGoalChanges(boilers, [{ name: "steam", temperature: 250, rate: 1 }])).toEqual({
+        error:
+          '"steam at 250°" is not a goal of this block (its goals: steam at 165°, steam at 500°, water)',
+      });
     });
   });
 

@@ -124,9 +124,20 @@ export function withPrimaryRate<T extends { goals?: Goal[] }>(d: T, rate: number
   return { ...d, goals };
 }
 
-/** A change to one EXISTING goal, matched by good name: a new throughput `rate`,
- * or a new keep-in-stock `stock` and/or refill `window` (seconds). */
-export type GoalChange = { name: string; rate?: number; stock?: number; window?: number };
+/** A change to one EXISTING goal, matched by good name (plus `temperature` when
+ * the block has the same fluid at several temperatures): a new throughput
+ * `rate`, or a new keep-in-stock `stock` and/or refill `window` (seconds). */
+export type GoalChange = {
+  name: string;
+  temperature?: number;
+  rate?: number;
+  stock?: number;
+  window?: number;
+};
+
+/** A goal as errors name it: "steam at 500°", or just "steam" with no temperature. */
+const goalLabel = (g: Pick<Goal, "name" | "temperature">) =>
+  g.temperature == null ? g.name : `${g.name} at ${g.temperature}°`;
 
 /** A goal's values as a resize proposal shows them. */
 export type GoalValue = Pick<Goal, "rate" | "stock" | "window">;
@@ -141,37 +152,50 @@ export function formatGoalValue({ rate, stock, window }: GoalValue): string {
 /** One goal's before/after values in a resize proposal. */
 export type GoalChangeDiff = {
   name: string;
+  temperature?: number;
   display: string;
   before: GoalValue;
   after: GoalValue;
 };
 
 /** The change that applies a proposal's final value for one goal. */
-export const goalChangeRequest = ({ name, after }: GoalChangeDiff): GoalChange =>
-  after.stock != null
-    ? { name, stock: after.stock, window: after.window }
-    : { name, rate: after.rate };
+export const goalChangeRequest = ({ name, temperature, after }: GoalChangeDiff): GoalChange => ({
+  name,
+  ...(temperature != null ? { temperature } : {}),
+  ...(after.stock != null ? { stock: after.stock, window: after.window } : { rate: after.rate }),
+});
 
 /** Apply several goal changes at once (the assistant's resize path). Goals that
  * aren't named keep their values. A `rate` on a stock goal scales its buffer
  * like `withPrimaryRate`; a `stock`/`window` change re-derives the rate as
  * stock/window. Returns an error naming the problem instead of guessing when a
- * change is unknown, repeated, or contradictory. */
+ * change is unknown, ambiguous (one fluid at several temperatures, no
+ * `temperature` given), repeated, or contradictory. `indexes` gives each
+ * change's goal position, in order. */
 export function withGoalChanges<T extends { goals?: Goal[] }>(
   d: T,
   changes: GoalChange[],
-): { data: T } | { error: string } {
+): { data: T; indexes: number[] } | { error: string } {
   const goals = [...(d.goals ?? [])];
-  const seen = new Set<string>();
+  const indexes: number[] = [];
+  const allGoals = goals.map(goalLabel).join(", ") || "none";
   for (const c of changes) {
-    if (seen.has(c.name)) return { error: `goal "${c.name}" is changed twice — change it once` };
-    seen.add(c.name);
-    const i = goals.findIndex((g) => g.name === c.name);
-    if (i < 0) {
+    const named = goals.flatMap((g, i) => (g.name === c.name ? [i] : []));
+    const matches =
+      c.temperature == null ? named : named.filter((i) => goals[i].temperature === c.temperature);
+    if (matches.length === 0) {
+      return { error: `"${goalLabel(c)}" is not a goal of this block (its goals: ${allGoals})` };
+    }
+    if (matches.length > 1) {
       return {
-        error: `"${c.name}" is not a goal of this block (its goals: ${goalNames(d).join(", ") || "none"})`,
+        error: `"${c.name}" matches several goals (${matches.map((i) => goalLabel(goals[i])).join(", ")}) — pass \`temperature\` to pick one`,
       };
     }
+    const [i] = matches;
+    if (indexes.includes(i)) {
+      return { error: `goal "${goalLabel(goals[i])}" is changed twice — change it once` };
+    }
+    indexes.push(i);
     const g = goals[i];
     if (c.rate != null && (c.stock != null || c.window != null)) {
       return { error: `goal "${c.name}": give either \`rate\` or \`stock\`/\`window\`, not both` };
@@ -198,5 +222,5 @@ export function withGoalChanges<T extends { goals?: Goal[] }>(
       return { error: `goal "${c.name}": pass a new \`rate\`, \`stock\`, or \`window\`` };
     }
   }
-  return { data: { ...d, goals } };
+  return { data: { ...d, goals }, indexes };
 }

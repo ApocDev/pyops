@@ -38,7 +38,7 @@ import { HelpButton } from "#/components/help-drawer.tsx";
 import { InfoHint } from "#/components/info-hint.tsx";
 import { ItemHover, RecipeHover, TechHover } from "#/lib/recipe-card";
 import { contextGaugeTitle, type TokenStatus } from "#/lib/context-gauge.ts";
-import { formatQty, formatRate } from "#/lib/format";
+import { fmtTemp, formatQty, formatRate } from "#/lib/format";
 import { formatGoalValue, goalChangeRequest, type GoalChangeDiff } from "#/lib/goals";
 import { classifyRefFn, saveBlockFn, setAiConfigFn, applyBlockUpdateFn } from "#/server/factorio";
 import {
@@ -1618,7 +1618,8 @@ function updateGoalSummary(draft: Draft): string {
   if (changes.length === 0) return "";
   if (changes.length > 1) return `${changes.length} goals changed`;
   const [c] = changes;
-  return `${c.display} ${formatGoalValue(c.before)} → ${formatGoalValue(c.after)}`;
+  const temp = c.temperature != null ? ` ${fmtTemp(c.temperature)}` : "";
+  return `${c.display}${temp} ${formatGoalValue(c.before)} → ${formatGoalValue(c.after)}`;
 }
 
 /** Persist one update proposal: its goal changes and, when it swaps recipes,

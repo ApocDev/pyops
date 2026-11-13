@@ -1134,6 +1134,7 @@ describe("batched block projections", () => {
       goals: [
         { name: "plate", rate: 10 },
         { name: "steel", rate: 3, stock: 1800, window: 600 },
+        { name: "steam", rate: 5, temperature: 165 },
       ],
       recipes: ["smelt-plate"],
     });
@@ -1170,6 +1171,7 @@ describe("batched block projections", () => {
       goals: [
         { name: "plate", rate: 10 },
         { name: "steel", stock: 1800, window: 600 },
+        { name: "steam", temperature: 165, rate: 5 },
       ],
       makes: [
         { item: "plate", kind: "item", rate: 10 },
