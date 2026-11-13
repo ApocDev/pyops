@@ -68,6 +68,7 @@ import { goalNames, normalizeBlockData, primaryRate } from "../lib/goals.ts";
 import { prodScaledAmount } from "../lib/productivity.ts";
 import { wholeMachines } from "../lib/machine-count.ts";
 import { factoryFlowKey, type FactoryFlowQualifier } from "../lib/factory-flow.ts";
+import { unitCost } from "../lib/explorer.ts";
 import {
   bumpSolveGeneration,
   currentSolveGeneration,
@@ -5169,6 +5170,10 @@ export function browseDetail(name: string) {
   const lockMap = recipeLockStatesByRecipe(recipeNames);
   const eco = recipeEconomy(recipeNames);
   const superseded = turdSuperseded(recipeNames);
+  const prices = goodCosts([
+    name,
+    ...recipeNames.flatMap((r) => recipeMap.get(r)?.products.map((p) => p.name) ?? []),
+  ]);
   const cards = (rs: { name: string }[]) => {
     return rs
       .map((row) => {
@@ -5178,16 +5183,23 @@ export function browseDetail(name: string) {
           : null;
       })
       .filter((c): c is RecipeCardData => c !== null)
-      .map((c) => ({
-        ...c,
-        ...(eco.get(c.name) ?? { cost: null, flow: null, waste: null }),
-        avail: computeAvail(c.enabled, c.unlocks, horizon, selections),
-        superseded: superseded.get(c.name) ?? null,
-      }));
+      .map((c) => {
+        const economy = eco.get(c.name) ?? { cost: null, flow: null, waste: null };
+        return {
+          ...c,
+          ...economy,
+          // ¥ per unit of THIS good (producers' price ladder)
+          unitCost: unitCost(economy.cost, c.products, name, (g) => prices.get(g)),
+          avail: computeAvail(c.enabled, c.unlocks, horizon, selections),
+          superseded: superseded.get(c.name) ?? null,
+        };
+      });
   };
   return {
     name,
     kind: fluid ? "fluid" : "item",
+    /** cost-analysis ¥ per unit of this good (its cheapest known price) */
+    price: prices.get(name) ?? null,
     display: item?.display ?? fluid?.display ?? name,
     item,
     fluid,

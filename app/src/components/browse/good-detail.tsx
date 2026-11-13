@@ -11,10 +11,20 @@ import { EmptyState } from "#/components/empty-state.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Segmented } from "#/components/ui/segmented.tsx";
+import { InfoHint } from "#/components/info-hint.tsx";
+import { isRecyclingOrVoid } from "../../lib/explorer";
+import { cn } from "#/lib/utils.ts";
 import { FlowStaleCallout } from "./flow-stale-callout.tsx";
+import { fmtUnitCost } from "./price-ladder.tsx";
 import { RecipeList } from "./recipe-list.tsx";
+import type { BrowseCard } from "./recipe-row.tsx";
 
 type Kind = "item" | "fluid";
+
+/** The list's count without recycling & void recipes (hidden by default) —
+ * unless those are all there is. */
+const shownCount = (cards: BrowseCard[]) =>
+  cards.filter((c) => !isRecyclingOrVoid(c)).length || cards.length;
 
 /** Full producer/consumer explorer for one good. Shared by the Browse page and
  * the global Alt+Click dialog so both surfaces expose the same decisions. */
@@ -54,7 +64,7 @@ export function GoodDetail({
   }, [data, name]);
 
   return (
-    <div className={className}>
+    <div className={cn("@container", className)}>
       {!name && (
         <EmptyState
           className="h-full"
@@ -72,7 +82,11 @@ export function GoodDetail({
               <Skeleton className="h-4 w-64" />
             </div>
           </div>
-          <div className={variant === "dialog" ? "" : "grid grid-cols-1 gap-4 2xl:grid-cols-2"}>
+          <div
+            className={
+              variant === "dialog" ? "" : "grid grid-cols-1 gap-4 @min-[900px]:grid-cols-2"
+            }
+          >
             <Skeleton className="h-40 w-full" />
             {variant === "browse" && <Skeleton className="h-40 w-full" />}
           </div>
@@ -102,6 +116,12 @@ export function GoodDetail({
                   </span>
                 )}
                 {data.item?.burntResult && ` · burns to ${data.item.burntResult}`}
+                {data.price != null && data.price > 0 && (
+                  <span className="inline-flex items-center gap-1">
+                    · <span className="text-foreground">¥{fmtUnitCost(data.price)}</span> per unit
+                    <InfoHint content="Estimated cost from the cost analysis (inputs, machine time, power), at its cheapest known recipe. Producer bars show ¥ per unit on one scale; the hatched part is waste." />
+                  </span>
+                )}
                 <Button
                   asChild
                   variant="ghost"
@@ -164,26 +184,41 @@ export function GoodDetail({
               />
             )
           ) : (
-            <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
-              <RecipeList
-                title={`Produced by (${data.producedBy.length})`}
-                cards={data.producedBy}
-                focus={data.name}
-                emptyText="Nothing makes this — a raw input"
-                query={recipeQuery}
-                onClearQuery={() => setRecipeQuery("")}
-                onPick={onPick}
+            <>
+              <Segmented
+                value={side}
+                onValueChange={setSide}
+                aria-label="Recipe lists"
+                options={[
+                  { value: "recipes", label: `Produced by ${shownCount(data.producedBy)}` },
+                  { value: "uses", label: `Consumed by ${shownCount(data.consumedBy)}` },
+                ]}
+                className="mb-4 w-full @min-[900px]:hidden [&>button]:flex-1"
               />
-              <RecipeList
-                title={`Consumed by (${data.consumedBy.length})`}
-                cards={data.consumedBy}
-                focus={data.name}
-                emptyText="No consumers"
-                query={recipeQuery}
-                onClearQuery={() => setRecipeQuery("")}
-                onPick={onPick}
-              />
-            </div>
+              <div className="grid grid-cols-1 gap-4 @min-[900px]:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+                <RecipeList
+                  title="Produced by"
+                  cards={data.producedBy}
+                  focus={data.name}
+                  emptyText="Nothing makes this — a raw input"
+                  query={recipeQuery}
+                  onClearQuery={() => setRecipeQuery("")}
+                  onPick={onPick}
+                  price={data.price}
+                  className={side === "recipes" ? "" : "hidden @min-[900px]:flex"}
+                />
+                <RecipeList
+                  title="Consumed by"
+                  cards={data.consumedBy}
+                  focus={data.name}
+                  emptyText="No consumers"
+                  query={recipeQuery}
+                  onClearQuery={() => setRecipeQuery("")}
+                  onPick={onPick}
+                  className={side === "uses" ? "" : "hidden @min-[900px]:flex"}
+                />
+              </div>
+            </>
           )}
         </>
       )}

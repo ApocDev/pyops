@@ -4,14 +4,26 @@ import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
 import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { useFilteredList } from "../../lib/use-filtered-list";
-import { groupExplorerCards } from "../../lib/explorer";
+import { groupExplorerCards, isRecyclingOrVoid } from "../../lib/explorer";
+import { cn } from "#/lib/utils.ts";
 import { RecipeRow, type BrowseCard } from "./recipe-row.tsx";
 
 const LIMIT = 25;
+/** price-ladder scale cap, as a multiple of the good's price */
+const MAX_MULTIPLE = 20;
+
+const RECYCLED_GROUP = {
+  id: "recycled",
+  label: "Recycling & void",
+  hint: "Recycler recipes and voids that only dispose of a good",
+};
 
 /** One ranked explorer list (#97): the recipes producing/consuming a good,
- * filtered by the shared query, grouped by research-horizon availability, and
- * ordered inside each group by estimated economy flow (busiest first). */
+ * filtered by the shared query and grouped by research-horizon availability.
+ * Consumers rank by estimated economy flow (busiest first). With `price`
+ * (a producer list), rows rank by ¥ per unit of the good, cheapest first, and
+ * draw a price ladder on one scale. The dense variant hides recycling and void
+ * recipes behind a header toggle, off by default. */
 export function RecipeList({
   title,
   cards,
@@ -21,6 +33,8 @@ export function RecipeList({
   onClearQuery,
   onPick,
   variant = "dense",
+  price,
+  className,
 }: {
   title: string;
   cards: BrowseCard[];
@@ -32,16 +46,47 @@ export function RecipeList({
   onClearQuery: () => void;
   onPick: (name: string) => void;
   variant?: "dense" | "comfortable";
+  /** dense producer lists: the focus good's price — turns on the price ladder */
+  price?: number | null;
+  className?: string;
 }) {
   const [showAll, setShowAll] = useState(false);
-  const filtered = useFilteredList(cards, query, {
+  const [showRecycled, setShowRecycled] = useState(false);
+  const ladder = variant === "dense" && price !== undefined;
+
+  const { main, recycled } = useMemo(() => {
+    if (variant === "comfortable") return { main: cards, recycled: [] };
+    const main: BrowseCard[] = [];
+    const recycled: BrowseCard[] = [];
+    for (const c of cards) (isRecyclingOrVoid(c) ? recycled : main).push(c);
+    return { main, recycled };
+  }, [cards, variant]);
+  // a good only recycling/voids produce shows them outright, with no toggle
+  const recycledOn = showRecycled || main.length === 0;
+  const listed = useMemo(
+    () => (recycledOn ? [...main, ...recycled] : main),
+    [recycledOn, main, recycled],
+  );
+
+  const filtered = useFilteredList(listed, query, {
     display: (c) => c.display,
     internal: (c) => c.name,
   });
-  const groups = useMemo(() => groupExplorerCards(filtered), [filtered]);
-  // the flow meters are relative to the busiest recipe of the WHOLE list, so
-  // filtering doesn't rescale the bars under the cursor
-  const maxFlow = useMemo(() => cards.reduce((m, c) => Math.max(m, c.flow ?? 0), 0), [cards]);
+  const order = ladder ? "unit-cost" : "flow";
+  const groups = useMemo(() => {
+    const recycledSet = new Set(recycled);
+    const kept = filtered.filter((c) => !recycledSet.has(c));
+    const gone = filtered.filter((c) => recycledSet.has(c));
+    return [
+      ...groupExplorerCards(kept, order),
+      ...(gone.length
+        ? [{ ...RECYCLED_GROUP, cards: groupExplorerCards(gone, order).flatMap((g) => g.cards) }]
+        : []),
+    ];
+  }, [filtered, recycled, order]);
+  // meters and ladder bars are relative to the WHOLE listed set, so filtering
+  // doesn't rescale the bars under the cursor
+  const maxFlow = useMemo(() => listed.reduce((m, c) => Math.max(m, c.flow ?? 0), 0), [listed]);
 
   // cap the rendered rows across groups (Py goods can have 200+ consumers)
   let budget = showAll ? Infinity : LIMIT;
@@ -52,18 +97,37 @@ export function RecipeList({
       return { ...g, cards: g.cards.slice(0, take) };
     })
     .filter((g) => g.cards.length > 0);
+  // ladder bars share one scale, capped at MAX_MULTIPLE × the good's price:
+  // burning a ¥100k item also "makes" ash, and would flatten every other bar
+  const cap = price != null && price > 0 ? price * MAX_MULTIPLE : Infinity;
+  const maxUnit = listed.reduce((m, c) => Math.max(m, Math.min(c.unitCost ?? 0, cap)), 0);
 
   return (
     <Card
-      className={variant === "comfortable" ? "self-start border-0 bg-transparent" : "self-start"}
+      className={cn(
+        variant === "comfortable" ? "self-start border-0 bg-transparent" : "self-start",
+        className,
+      )}
     >
       {variant === "dense" && (
-        <CardHeader>
+        <CardHeader className="border-b-0">
           <CardTitle>{title}</CardTitle>
+          <span className="text-sm text-muted-foreground">{main.length || cards.length}</span>
+          {main.length > 0 && recycled.length > 0 && (
+            <Button
+              variant="toggle"
+              size="sm"
+              aria-pressed={showRecycled}
+              onClick={() => setShowRecycled((on) => !on)}
+              className="ml-auto"
+            >
+              Recycling &amp; void <span className="tabular-nums">{recycled.length}</span>
+            </Button>
+          )}
         </CardHeader>
       )}
       {cards.length === 0 && <div className="px-3 pb-3 text-muted-foreground">{emptyText}</div>}
-      {cards.length > 0 && filtered.length === 0 && (
+      {listed.length > 0 && filtered.length === 0 && (
         <FilterEmptyState className="px-3 pb-3" query={query} onClear={onClearQuery} />
       )}
       {variant === "comfortable" && filtered.length > 0 && (
@@ -91,6 +155,7 @@ export function RecipeList({
               maxFlow={maxFlow}
               onPick={onPick}
               variant={variant}
+              ladder={ladder ? { price: price ?? null, max: maxUnit } : undefined}
             />
           ))}
         </div>

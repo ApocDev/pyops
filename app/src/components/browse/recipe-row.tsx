@@ -5,6 +5,7 @@ import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { Icon } from "../../lib/icons";
 import { RecipeHover, TechLine } from "../../lib/recipe-card";
 import { fmtCost } from "../block/format.ts";
+import { PriceLadder } from "./price-ladder.tsx";
 
 /** One enriched recipe card of the browse detail (economy + availability, #97). */
 export type BrowseCard = NonNullable<
@@ -20,13 +21,15 @@ const num = (n: number) => {
 
 /** One recipe of the explorer list: name, cost + waste + relative-flow context,
  * lock/TURD state, machines, and its io with every component clickable (that's
- * how you walk the recipe graph). */
+ * how you walk the recipe graph). With `ladder` (producer lists), the per-craft
+ * cost, waste, and flow meter give way to a ¥-per-unit price ladder bar. */
 export function RecipeRow({
   card,
   focus,
   maxFlow,
   onPick,
   variant = "dense",
+  ladder,
 }: {
   card: BrowseCard;
   focus: string;
@@ -34,6 +37,8 @@ export function RecipeRow({
   maxFlow: number;
   onPick: (name: string) => void;
   variant?: "dense" | "comfortable";
+  /** dense only: the focus good's price and the list's largest ¥ per unit */
+  ladder?: { price: number | null; max: number };
 }) {
   const comfortable = variant === "comfortable";
   const turd = card.unlocks.find((u) => u.isTurdSub);
@@ -90,12 +95,12 @@ export function RecipeRow({
       <span className="flex items-center gap-1 text-sm text-muted-foreground">
         <Timer className="size-3.5" /> {num(card.energyRequired ?? 0.5)}s
       </span>
-      {card.cost != null && (
+      {!ladder && card.cost != null && (
         <Tooltip content="Estimated cost per craft (cost analysis)">
           <span className="text-sm text-muted-foreground">¥{fmtCost(card.cost)}</span>
         </Tooltip>
       )}
-      {wastePct != null && wastePct >= 5 && (
+      {!ladder && wastePct != null && wastePct >= 5 && (
         <Tooltip content="Share of the input + processing value this recipe destroys (cost analysis) — high waste means its products return far less than they cost">
           <span
             className={`text-sm ${
@@ -239,7 +244,7 @@ export function RecipeRow({
         {timingAndCost}
         {availability}
         <span className="ml-auto flex shrink-0 items-center gap-1.5">
-          {card.flow != null && maxFlow > 0 && (
+          {!ladder && card.flow != null && maxFlow > 0 && (
             <Tooltip content="Estimated economy flow (relative to the busiest recipe here) — how much a sensible economy actually runs this recipe, per the cost analysis">
               <span className="block h-1.5 w-10 overflow-hidden bg-muted">
                 <span
@@ -261,6 +266,14 @@ export function RecipeRow({
           </span>
         </span>
       </div>
+      {ladder && (
+        <PriceLadder
+          unit={card.unitCost}
+          price={ladder.price}
+          max={ladder.max}
+          waste={card.waste}
+        />
+      )}
       {card.superseded && (
         <Tooltip
           content={`Your ${card.superseded.masterDisplay ?? "TURD"} choice "${card.superseded.subDisplay}" replaced this recipe with "${card.superseded.newDisplay}" — the base version no longer exists in-game`}
