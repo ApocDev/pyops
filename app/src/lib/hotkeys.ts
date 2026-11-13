@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 
 /**
  * Global hotkey layer (#78). Components register combos through `useHotkey`
@@ -195,6 +195,18 @@ export function formatCombo(combo: string, isMac: boolean = detectMac()): string
   // mac chords read glued (⌘K); everything else joins with + (Ctrl+K). Bare
   // keys are just themselves either way.
   return isMac ? parts.join("") : parts.join("+");
+}
+
+const noSubscribe = () => () => {};
+
+/** `formatCombo` for UI rendered on the server too. The server renders the
+ * non-mac label so hydration matches; mac clients swap in theirs after. */
+export function useFormattedCombo(combo: string): string {
+  return useSyncExternalStore(
+    noSubscribe,
+    () => formatCombo(combo),
+    () => formatCombo(combo, false),
+  );
 }
 
 /** Collapse `activeHotkeys()` for display: one row per description (a feature

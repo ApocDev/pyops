@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Keyboard } from "lucide-react";
 import { activeHotkeys, formatCombo, summarizeHotkeys, useHotkey } from "../lib/hotkeys";
 import { EmptyState } from "./empty-state";
+import { Kbd } from "./ui/kbd";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
 
 // The palette (or anything else) opens the mounted sheet through this module
@@ -59,9 +60,7 @@ export function ShortcutHelpSheet() {
                     {row.combos.map((combo, i) => (
                       <span key={combo} className="flex items-center gap-1">
                         {i > 0 && <span className="text-xs text-muted-foreground">Or</span>}
-                        <kbd className="border border-border bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
-                          {formatCombo(combo)}
-                        </kbd>
+                        <Kbd>{formatCombo(combo)}</Kbd>
                       </span>
                     ))}
                   </span>

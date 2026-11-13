@@ -11,9 +11,11 @@ The main navigation is organized around workspaces. **Factory** contains **Overv
 Selecting a workspace reveals its views directly below the main navigation; each view keeps
 its own linkable URL.
 
-The command palette is the quickest way to move around a large project. Open it with
-<kbd>Ctrl</kbd>+<kbd>K</kbd> on Windows or Linux, <kbd>Command</kbd>+<kbd>K</kbd> on macOS,
-or <kbd>/</kbd> when the cursor is not in a text field.
+The command palette is the quickest way to move around a large project. Click **Search**
+in the top bar, or press <kbd>Ctrl</kbd>+<kbd>K</kbd> on Windows or Linux,
+<kbd>Command</kbd>+<kbd>K</kbd> on macOS, or <kbd>/</kbd> when the cursor is not in a text
+field. On a phone, tap the magnifier next to the menu button, or open the menu and choose
+**Search**.
 
 ## Use the command palette
 
@@ -41,7 +43,8 @@ prototype names. This is useful when a mod error or console message gives you on
 ## See the shortcuts active on a page
 
 Press <kbd>?</kbd> outside a text field, or open the command palette and choose **Keyboard
-shortcuts**. The sheet lists the shortcuts available on the current page.
+shortcuts**. In the menu shown on narrower windows, choose **Keyboard shortcuts**. The sheet
+lists the shortcuts available on the current page.
 
 The global shortcuts are:
 

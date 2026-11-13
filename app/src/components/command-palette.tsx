@@ -52,6 +52,15 @@ function useDebouncedValue<T>(value: T, ms: number): T {
   return debounced;
 }
 
+// The top bar's search control and the phone drawer open the mounted palette
+// through this module hook (same pattern as openShortcutHelp).
+let openListener: (() => void) | null = null;
+
+/** Open the command palette from anywhere (it's mounted once in the root). */
+export function openCommandPalette(): void {
+  openListener?.();
+}
+
 /**
  * The Ctrl+K / `/` command palette (#78): one search box over page navigation,
  * factory blocks, goods (items + fluids, searched server-side against SQLite),
@@ -75,6 +84,12 @@ export function CommandPalette() {
     allowInInputs: true,
   });
   useHotkey("/", () => setOpen(true), { description: "Open the command palette" });
+  useEffect(() => {
+    openListener = () => setOpen(true);
+    return () => {
+      openListener = null;
+    };
+  }, []);
 
   const caps = useQuery({ queryKey: ["dataCapabilities"], queryFn: () => dataCapabilitiesFn() });
   const blocks = useQuery({
