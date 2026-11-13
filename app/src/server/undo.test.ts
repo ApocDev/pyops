@@ -309,6 +309,17 @@ describe("undoLast", () => {
     expect([...getTurdSelections()]).toEqual([["turd-a", "branch-1"]]);
     expect(solveGenerationNeedsRefresh()).toBe(false);
   });
+
+  it("undoes a TURD clear after the game re-synced the same row", async () => {
+    setTurdSelection("turd-a", "branch-1"); // untracked: synced from the game
+    await withUndoAction("clear", () => setTurdSelection("turd-a", null));
+    setTurdSelection("turd-a", "branch-1"); // the game syncs the row back
+
+    const res = await undoLast();
+    expect(res.undone).toBe("clear");
+    expect([...getTurdSelections()]).toEqual([["turd-a", "branch-1"]]);
+    expect((await undoLast()).undone).not.toBe("clear"); // popped, not wedged
+  });
 });
 
 describe("trigger coverage (migration drift guard)", () => {
