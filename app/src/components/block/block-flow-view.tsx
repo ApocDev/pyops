@@ -4,7 +4,6 @@ import { LayoutGrid, Maximize, Workflow } from "lucide-react";
 import {
   Background,
   BackgroundVariant,
-  MiniMap,
   Panel,
   ReactFlow,
   ReactFlowProvider,
@@ -31,6 +30,10 @@ const nodeTypes = { recipe: FlowRecipeNode, boundary: FlowBoundaryNode };
 const edgeTypes = { flowlink: FlowLinkEdge };
 
 type FlowNodeType = RecipeFlowNodeType | BoundaryFlowNodeType;
+
+/** Fit the whole flow, but never zoom past 100%: a small block stays at its
+ * natural size instead of being blown up to fill the canvas. */
+const FIT = { padding: 0.1, maxZoom: 1 };
 
 /**
  * The block's material flow as a layered node-link diagram (#101) on a
@@ -115,7 +118,14 @@ export function BlockFlowView({
           </span>
         </div>
       </div>
-      <div className="h-[max(24rem,calc(100dvh-20rem))]">
+      {/* As tall as the laid-out graph needs (plus fit padding), between 20rem
+          and the viewport-based cap, so a small block doesn't sit in a mostly
+          empty canvas that runs below the fold. */}
+      <div
+        style={{
+          height: `min(max(24rem, calc(100dvh - 20rem)), max(20rem, ${Math.ceil(layout.height * 1.25)}px))`,
+        }}
+      >
         <ReactFlowProvider>
           <FlowCanvas
             blockId={blockId}
@@ -197,7 +207,7 @@ function FlowCanvas({
       }),
     );
     save.mutate({ positions: {}, reset: true });
-    requestAnimationFrame(() => fitView({ padding: 0.1, duration: 300 }));
+    requestAnimationFrame(() => fitView({ ...FIT, duration: 300 }));
   };
   const hasCustom = storedPositions != null && Object.keys(storedPositions).length > 0;
 
@@ -262,7 +272,7 @@ function FlowCanvas({
       onEdgeMouseMove={(e, edge) => setHoverLink({ id: edge.id, x: e.clientX, y: e.clientY })}
       onEdgeMouseLeave={() => setHoverLink(null)}
       fitView
-      fitViewOptions={{ padding: 0.1 }}
+      fitViewOptions={FIT}
       minZoom={0.1}
       maxZoom={2}
       nodesConnectable={false}
@@ -270,21 +280,12 @@ function FlowCanvas({
       className="bg-background"
     >
       <Background variant={BackgroundVariant.Dots} gap={28} size={1.5} color="var(--border)" />
-      <MiniMap
-        position="bottom-left"
-        pannable
-        zoomable
-        nodeColor="var(--muted)"
-        nodeStrokeColor="var(--border)"
-        maskColor="color-mix(in oklab, var(--background) 75%, transparent)"
-        style={{ backgroundColor: "var(--card)", border: "1px solid var(--border)" }}
-      />
       <Panel position="top-right" className="flex gap-1.5">
         <Tooltip label content="Fit the whole flow in view">
           <Button
             variant="outline"
             size="icon-sm"
-            onClick={() => fitView({ padding: 0.1, duration: 300 })}
+            onClick={() => fitView({ ...FIT, duration: 300 })}
             className="bg-card text-muted-foreground"
           >
             <Maximize />

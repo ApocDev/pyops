@@ -147,6 +147,48 @@ describe("buildFlowGraph", () => {
     expect(g.links.some((l) => l.good === "cat")).toBe(false);
   });
 
+  it("links power, fuel and burnt results to the rows whose buildings use them", () => {
+    // crush (electric, plus beacons) feeds smelt (a burner on coal → ash). None
+    // of these energy flows are recipe ingredients or products.
+    const crush = {
+      ...row("crush", [["ore", 4]], [["crushed", 4]]),
+      machine: { count: 2, energySource: "electric", powerW: 3e6 },
+      beaconPowerW: 1e6,
+    };
+    const smelt = {
+      ...row("smelt", [["crushed", 4]], [["plate", 2]]),
+      machine: { count: 5, energySource: "burner", powerW: 2e6 },
+      fuel: { name: "coal", kind: "item", perSec: 0.5, burnt: { name: "ash", perSec: 0.5 } },
+    };
+    const g = buildFlowGraph({
+      rows: [crush, smelt],
+      imports: [
+        { name: "ore", kind: "item", rate: 4 },
+        { name: "pyops-electricity", kind: "fluid", rate: 4 },
+        { name: "coal", kind: "item", rate: 0.5 },
+      ],
+      exports: [{ name: "ash", kind: "item", rate: 0.5 }],
+      goalNames: ["plate"],
+    });
+    const node = (id: string) => g.nodes.find((n) => n.id === id)!;
+    const link = (source: string, target: string) =>
+      g.links.find((l) => l.source === source && l.target === target);
+
+    // boundary nodes carry their solved rates (MJ/s for electricity)
+    expect(node("i:pyops-electricity").throughput).toBeCloseTo(4);
+    expect(node("i:coal").throughput).toBeCloseTo(0.5);
+    expect(node("e:ash").throughput).toBeCloseTo(0.5);
+
+    // machine + beacon draw goes to the electric row; fuel in and ash out on the burner
+    expect(link("i:pyops-electricity", "r:crush")!.rate).toBeCloseTo(4);
+    expect(link("i:coal", "r:smelt")!.rate).toBeCloseTo(0.5);
+    expect(link("r:smelt", "e:ash")!.rate).toBeCloseTo(0.5);
+
+    // coal sits in the column just before the smelter, not at the far left
+    expect(node("i:coal").layer).toBe(node("r:smelt").layer - 1);
+    expect(node("i:ore").layer).toBe(0);
+  });
+
   it("returns an empty graph for a block with no running rows", () => {
     const g = buildFlowGraph({ rows: [], imports: [], exports: [], goalNames: [] });
     expect(g.nodes).toEqual([]);
