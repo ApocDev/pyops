@@ -209,9 +209,11 @@ function TurdPage() {
               <span className="mt-2 block">
                 {blocks.isPending
                   ? "Loading blocks…"
-                  : resolving.length === 0
-                    ? "No blocks to re-solve."
-                    : `This re-solves ${countNoun(resolving.length, "block")}:`}
+                  : blocks.isError
+                    ? "Couldn't load the block list. Every block that isn't broken will re-solve."
+                    : resolving.length === 0
+                      ? "No blocks to re-solve."
+                      : `This re-solves ${countNoun(resolving.length, "block")}:`}
               </span>
               {resolving.length > 0 && (
                 <span className="mt-1 block max-h-48 overflow-y-auto border border-border/50 px-2 py-1">
