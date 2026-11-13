@@ -1,0 +1,75 @@
+app/src/server/block-compute.server.ts
+  s_615355d7d3241c::t_1d95527bc256b9 1843-1851,1886,1905,1912,1914-1924
+mod/tests/format-test.lua
+  s_f3f524ab146216::t_9de280dc7167ad 1-80
+mod/blocks.lua
+  s_615355d7d3241c::t_b1096f5197fcdf 1-315
+app/src/db/queries.server.ts
+  s_615355d7d3241c::t_ebfda1cbd3656f 67,1903-1904,2930-2958
+mod/control.lua
+  s_615355d7d3241c::t_6b7ce428b36d74 15,23,77-100,105,136,168-174,434,710-743,753-754,756,781-784,813-815,824,843,845,847,849,868-869,872-877,883-884,892,1008-1014,1047-1051,1072-1089,1248-1252,1312
+mod/summary.lua
+  s_615355d7d3241c::t_23d4f1cf2d8d0d 1-6,9-10,15,20,22-26,31,37,190-193,213,220,264,291,330,343,377,385,403-428,437-452,455-456,470,484,486-488,490-491,493,496-497,502,516,519-521,547-564,566,569-584,586-604,606-608,617,630-634,636,640-649,651,654-655,657,659-660,662-664,666,714,718,720-722
+mod/data.lua
+  s_615355d7d3241c::t_3efac7fbb7e864 92-94
+app/src/components/game-open-block.tsx
+  s_82f66c35cd6336::t_13d01d3352af75 1-32
+app/src/db/queries.test.ts
+  s_615355d7d3241c::t_f71b4418d60636 6,1421-1427
+app/src/server/bridge/handlers.ts
+  s_615355d7d3241c::t_0232ffa54a0d63 14-19,28-37,52-56
+app/src/routes/__root.tsx
+  s_615355d7d3241c::t_e77429284ec757 8,87
+docs/development/bridge.md
+  s_615355d7d3241c::t_b89ce308689eb4 114-127,143-144,181-183,187,215-257,311-312
+AGENTS.md
+  s_615355d7d3241c::t_c25f1e0aec7850 142-143,145
+app/src/server/bridge/handlers/blocks.ts
+  s_82f66c35cd6336::t_e22fef5ab4278d 1-159
+mod/format.lua
+  s_f3f524ab146216::t_e48d4efc1754e1 1-88
+app/src/server/bridge/fns.ts
+  s_615355d7d3241c::t_bf24214309bb2e 12,18-20
+mod/tests/README.md
+  s_615355d7d3241c::t_e6abf0f3db4caa 13-15,28
+mod/tasks.lua
+  s_615355d7d3241c::t_cd7714af76986e 4-5,28-32,35,37-40,42-46,98-108,115,131-132,137,158,167,171-176,180-183,193,196,198-199,202-204,208,210-212,331,335,342-343,352,357,359
+docs/guide/in-game-link.md
+  s_615355d7d3241c::t_100a6597eb8a92 103-104,116-179,203
+app/src/server/bridge/handlers/blocks.test.ts
+  s_615355d7d3241c::t_07c9be64428746 1-155
+app/src/server/bridge/protocol.ts
+  s_615355d7d3241c::t_35459481448034 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "53b4f89f8ffc7bb094cbc66f4815b49d45b7af7e",
+  "prompts": {},
+  "sessions": {
+    "s_615355d7d3241c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bfe37481-b1e5-41b2-9d94-9353b0d73ad7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_82f66c35cd6336": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05a761d2-dce1-4ddc-867a-ab9bd4503d76",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f3f524ab146216": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a7f2f158-99d4-4236-864b-ece6ccf78b67",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
