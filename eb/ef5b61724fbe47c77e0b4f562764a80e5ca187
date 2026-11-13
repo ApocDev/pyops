@@ -1,0 +1,77 @@
+app/src/components/bridge-indicator.tsx
+  s_7352500fe903ae::t_2909dab8dcf1ed 4,15
+app/src/components/factory/machines-card.tsx
+  s_7352500fe903ae::t_2c917ccca0f503 30,131
+app/src/components/goods-table.tsx
+  s_7352500fe903ae::t_0fa2198d05606d 24,77,82-84,88-89,93,96-100,127,139-140,233-238
+app/src/components/home/next-action-card.tsx
+  s_7352500fe903ae::t_7f3adf649139b8 19,23,31-32,159
+app/src/components/horizon-picker.tsx
+  s_7352500fe903ae::t_edb0c246a7209a 22,88-89
+app/src/components/sync-status.test.tsx
+  s_7352500fe903ae::t_d489c0615f6bdb 1-40
+app/src/components/sync-status.tsx
+  s_3f0a2c5a2e1d29::t_623953e93e3c4a 1-29
+app/src/lib/format.test.ts
+  s_7352500fe903ae::t_d455dd095502d7 2,52-58
+app/src/lib/format.ts
+  s_3f0a2c5a2e1d29::t_ab232947e96e08 76-77,82-84
+app/src/lib/use-game-linked.ts
+  s_a7533a925d7265::t_4207a2bec41b55 1-14
+app/src/routes/factory.tsx
+  s_7352500fe903ae::t_3fa47a7cc83e5a 3,35,51-52,97-98,237-247,255,259,404,414,424,436
+app/src/routes/factory_.connections.tsx
+  s_7352500fe903ae::t_dec3ca840cbd3c 147,150,152
+app/src/routes/index.tsx
+  s_a4820a053dda35::t_b8430e083a993c 29,82-83,108-114,250,323
+app/src/routes/turd.tsx
+  s_7352500fe903ae::t_78a702f00a9ff3 17,180-181,228-238
+app/src/server/factorio.ts
+  s_7352500fe903ae::t_34efe20c6354e9 1205
+docs/getting-started/factory.md
+  s_7352500fe903ae::t_81869ba48ccf2b 57-62
+docs/guide/balance.md
+  s_7352500fe903ae::t_814f3825780158 49
+docs/guide/planning-horizon.md
+  s_7352500fe903ae::t_a93700675b949c 41-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ebef5b61724fbe47c77e0b4f562764a80e5ca187",
+  "prompts": {},
+  "sessions": {
+    "s_3f0a2c5a2e1d29": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cfba2bc-d306-4104-8eae-acbd60d93d5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_7352500fe903ae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "07c86a2b-d577-4dda-b9e5-18c4264e5cfb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_a4820a053dda35": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ff6fdf86-8b27-4bb3-84c7-2d0ed6c089d9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_a7533a925d7265": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ccc1308a-7f13-4b24-8b66-646564c955a0",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
