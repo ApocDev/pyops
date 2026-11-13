@@ -8,6 +8,7 @@
  */
 import { createColumnHelper, useTable, type SortingState } from "@tanstack/react-table";
 import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "#/components/ui/badge.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
@@ -79,6 +80,8 @@ function ActualCell({
    * on-target colors, and say how old it is */
   staleSince: string | null;
 }) {
+  // re-render on open so the stale age is computed now, not at the last render
+  const [, setOpened] = useState(0);
   if (actual == null) return <span className="text-muted-foreground/50">—</span>;
   let color = "text-muted-foreground";
   if (staleSince) color = "text-muted-foreground/60";
@@ -89,6 +92,9 @@ function ActualCell({
   const rates = `${rateLabel(good, actual, { perSec: true })} · planned ${rateLabel(good, planned, { perSec: true })}`;
   return (
     <Tooltip
+      onOpenChange={(open) => {
+        if (open && staleSince) setOpened((n) => n + 1);
+      }}
       content={
         staleSince
           ? `Was making ${rates} when last synced ${timeAgo(staleSince)}. Link the game for live rates.`
