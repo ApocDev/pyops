@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render } from "@testing-library/react";
+import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { SyncStatus } from "./sync-status.tsx";
 
@@ -36,5 +36,23 @@ describe("SyncStatus", () => {
   it("treats a peer outside the freshness window as unlinked", () => {
     const { container } = renderWithPeer(Date.now() - 60_000);
     expect(container.textContent).toContain("Last synced");
+  });
+
+  it("keeps aging the label while the game stays disconnected", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    try {
+      const client = new QueryClient();
+      client.setQueryData(["bridgeStatus"], { status: "listening", lastPeer: null });
+      const { container } = render(
+        <QueryClientProvider client={client}>
+          <SyncStatus syncedAt={new Date().toISOString()} />
+        </QueryClientProvider>,
+      );
+      const first = container.textContent;
+      await act(() => vi.advanceTimersByTimeAsync(5 * 60_000));
+      expect(container.textContent).not.toBe(first);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

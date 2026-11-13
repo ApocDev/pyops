@@ -1,5 +1,5 @@
 import { Check, History } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { timeAgo } from "../lib/format";
 import { useGameLinked } from "../lib/use-game-linked";
 
@@ -16,6 +16,14 @@ export function SyncStatus({
   className?: string;
 }) {
   const linked = useGameLinked();
+  // The polled status stops changing once the game is gone, so nothing else
+  // re-renders this; tick so "Last synced …" keeps aging in an idle tab.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (linked) return;
+    const timer = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(timer);
+  }, [linked]);
   return linked ? (
     <span className={`inline-flex items-center gap-1 text-sm text-success ${className}`}>
       <Check className="size-3.5 shrink-0" /> Live{children}
