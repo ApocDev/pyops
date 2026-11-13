@@ -727,16 +727,18 @@ local function update_tab_captions(player)
 end
 
 -- New block list: store it, redraw the board, and refresh an open build sheet
--- whose built counts moved (its Built column comes from the app).
+-- whose per-row built counts moved (its Built column comes from the app). `rows`
+-- catches a machine moving between two of the block's recipes, which leaves
+-- `have` unchanged.
 local function on_block_list(player, payload)
   local open_id = Blocks.selected(player)
   local before = open_id and Blocks.find(open_id)
-  local had = before and before.have
+  local had = before and before.rows
   Blocks.set_data(payload)
   Blocks.refresh(player)
   update_tab_captions(player)
   local after = open_id and Blocks.find(open_id)
-  if after and had ~= nil and after.have ~= had and Summary.is_open(player) then
+  if after and had ~= nil and after.rows ~= had and Summary.is_open(player) then
     send_request(player, "block.show", { id = open_id })
   end
 end

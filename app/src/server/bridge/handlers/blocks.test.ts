@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { BridgeRequest } from "../protocol.ts";
+import type { BlockListPayload } from "./blocks.ts";
 
 vi.mock("../../../db/queries.server.ts", () => ({
   listBlocks: vi.fn(() => []),
@@ -52,6 +53,7 @@ describe("groupBlocks", () => {
     health: "ok" as const,
     have: 0,
     need: 0,
+    rows: "",
   });
 
   it("orders folders depth-first with path labels, ungrouped last, empty rows dropped", () => {
@@ -85,7 +87,9 @@ describe("block.list", () => {
       listed({ id: 2, name: "Off", enabled: false }),
       listed({ id: 3, name: "Water", iconKind: null, iconName: null, goal: null }),
     ]);
-    vi.mocked(q.blockBuildTotals).mockReturnValue(new Map([[1, { need: 10, missing: 4 }]]));
+    vi.mocked(q.blockBuildTotals).mockReturnValue(
+      new Map([[1, { need: 10, missing: 4, rows: "6,0" }]]),
+    );
 
     const res = blocks.handleBlockList(req("block.list"));
     expect(res.type).toBe("block.list");
@@ -104,6 +108,7 @@ describe("block.list", () => {
               health: "ok",
               have: 6,
               need: 10,
+              rows: "6,0",
             },
             {
               id: 3,
@@ -114,6 +119,7 @@ describe("block.list", () => {
               health: "ok",
               have: 0,
               need: 0,
+              rows: "",
             },
           ],
         },
@@ -135,6 +141,22 @@ describe("block.list", () => {
 
     blocks.pushBlockListIfChanged();
     expect(server.sendToPeer).toHaveBeenCalledTimes(1);
+  });
+
+  it("pushes when only the per-row built split changed (same have/need)", () => {
+    vi.mocked(q.listBlocks).mockReturnValue([listed({ id: 1, name: "Iron" })]);
+    vi.mocked(q.blockBuildTotals).mockReturnValue(
+      new Map([[1, { need: 10, missing: 5, rows: "5,0" }]]),
+    );
+    blocks.handleBlockList(req("block.list"));
+
+    vi.mocked(q.blockBuildTotals).mockReturnValue(
+      new Map([[1, { need: 10, missing: 5, rows: "4,1" }]]),
+    );
+    blocks.pushBlockListIfChanged();
+    expect(server.sendToPeer).toHaveBeenCalledTimes(1);
+    const sent = vi.mocked(server.sendToPeer).mock.calls[0][0].payload as BlockListPayload;
+    expect(sent.groups[0].blocks[0]).toMatchObject({ have: 5, need: 10, rows: "4,1" });
   });
 });
 

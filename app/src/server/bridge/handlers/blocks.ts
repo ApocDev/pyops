@@ -23,7 +23,10 @@ type ListedBlock = ReturnType<typeof q.listBlocks>[number];
 type Group = ReturnType<typeof q.listGroups>[number];
 
 /** One slot on the board. `goal.rate` is per second; `unit` is the block's
- * display unit, which the mod applies. `have`/`need` are whole machines. */
+ * display unit, which the mod applies. `have`/`need` are whole machines.
+ * `rows` is the per-row built counts ("5,0"): the mod re-requests an open build
+ * sheet when it changes, since a machine can move between two of the block's
+ * recipes without changing `have`. */
 export type WireBlock = {
   id: number;
   name: string;
@@ -33,6 +36,7 @@ export type WireBlock = {
   health: ListedBlock["health"];
   have: number;
   need: number;
+  rows: string;
 };
 
 export type BlockListPayload = { groups: { name: string; blocks: WireBlock[] }[] };
@@ -86,7 +90,7 @@ export function blockListPayload(): BlockListPayload {
   for (const b of q.listBlocks()) {
     if (!b.enabled) continue;
     groupOf.set(b.id, b.groupId);
-    const t = totals.get(b.id) ?? { need: 0, missing: 0 };
+    const t = totals.get(b.id) ?? { need: 0, missing: 0, rows: "" };
     const g = b.goal;
     blocks.push({
       id: b.id,
@@ -104,6 +108,7 @@ export function blockListPayload(): BlockListPayload {
       health: b.health,
       have: t.need - t.missing,
       need: t.need,
+      rows: t.rows,
     });
   }
   return groupBlocks(blocks, groupOf, q.listGroups());

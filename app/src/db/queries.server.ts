@@ -2929,10 +2929,12 @@ export function blockBuildStatus(
 
 /** Whole-machine totals for every block in one pass: `need` sums the block's
  * required buildings and `missing` is what blockBuildStatus would report as
- * totalMissing (same exact-recipe / machine-total fallback rule). Feeds the
- * in-game slot board, which only needs a done / partly built / not started
- * verdict per block. */
-export function blockBuildTotals(): Map<number, { need: number; missing: number }> {
+ * totalMissing (same exact-recipe / machine-total fallback rule). `rows` is the
+ * per-row built counts in a stable order ("5,0"), so a machine moving between
+ * two of the block's recipes changes it even when the totals stay the same.
+ * Feeds the in-game slot board (done / partly built / not started per block)
+ * and tells the mod when an open build sheet's Built column is stale. */
+export function blockBuildTotals(): Map<number, { need: number; missing: number; rows: string }> {
   const reqByBlock = new Map<number, { machine: string; recipe: string; required: number }[]>();
   for (const r of db
     .select({
@@ -2942,16 +2944,24 @@ export function blockBuildTotals(): Map<number, { need: number; missing: number 
       count: blockMachines.count,
     })
     .from(blockMachines)
+    .orderBy(blockMachines.blockId, blockMachines.machine, blockMachines.recipe)
     .all()) {
     const rows = reqByBlock.get(r.blockId) ?? [];
     rows.push({ machine: r.machine, recipe: r.recipe, required: wholeMachines(r.count) });
     reqByBlock.set(r.blockId, rows);
   }
   const builtRows = db.select().from(builtMachines).all();
-  const out = new Map<number, { need: number; missing: number }>();
+  const out = new Map<number, { need: number; missing: number; rows: string }>();
   for (const [blockId, rows] of reqByBlock) {
     const need = rows.reduce((s, r) => s + r.required, 0);
-    out.set(blockId, { need, missing: withBuiltStatus(rows, builtRows).totalMissing });
+    const status = withBuiltStatus(rows, builtRows);
+    // recipe-blind rows (built: null) show their machine's total, like the sheet
+    const fallback = new Map(status.machineFallback.map((m) => [m.machine, m.builtTotal]));
+    out.set(blockId, {
+      need,
+      missing: status.totalMissing,
+      rows: status.recipes.map((r) => r.built ?? fallback.get(r.machine) ?? 0).join(","),
+    });
   }
   return out;
 }

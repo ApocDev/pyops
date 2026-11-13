@@ -230,6 +230,7 @@ type BlockListPayload = {
       health: "ok" | "warn" | "error";
       have: number; // whole machines built, same rule as blockBuildStatus
       need: number; // whole machines the block requires
+      rows: string; // per-row built counts in a stable order, e.g. "4,1"
     }[];
   }[];
 };
@@ -248,12 +249,15 @@ hook on each write path.
 A slot click sends `block.show`, and the app answers with the same `cmd.show_block` the web
 button sends. That payload carries the block `id`, icon, goal, and a `built` count per
 recipe row for the sheet's **Built** column. When a new `block.list` changes the open
-block's `have`, the mod asks for the sheet again so that column stays current.
+block's `rows`, the mod asks for the sheet again so that column stays current. `rows`
+catches a machine switching between two of the block's recipes, which leaves `have`
+unchanged.
 
 `block.open` (shift-click, or the sheet's title-bar button) is stored in app memory and
 returned as `openBlock` from the bridge status server function. The web UI's
-`GameOpenBlock` listener navigates to `/block/$id` when a newer request appears. Requests
-older than the page load are ignored.
+`GameOpenBlock` listener navigates to `/block/$id` for any request newer than its mount
+time and newer than the last one it followed. Requests from before the page loaded are
+ignored, and one that arrives before the first status read still opens.
 
 ### Tasks
 
