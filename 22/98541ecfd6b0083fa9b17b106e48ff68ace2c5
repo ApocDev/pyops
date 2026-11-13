@@ -1,0 +1,51 @@
+app/e2e/mut/temporary-campaign.e2e.ts
+  s_03e6bf3b34538e::t_b70491d7701935 17
+app/src/components/block/building-picker-dialog.tsx
+  s_03e6bf3b34538e::t_ae48f3a1d75873 8,75,80
+app/src/components/block/editable-rate.tsx
+  s_03e6bf3b34538e::t_316ffed2d01f60 4,10,52
+app/src/components/block/format.test.ts
+  s_03e6bf3b34538e::t_39430871c6511e 2
+app/src/components/block/format.ts
+  s_03e6bf3b34538e::t_cb3d39fbba1ce1 5,9-10
+app/src/components/block/group-header-row.tsx
+  s_03e6bf3b34538e::t_7c8fa754003810 23,165-167
+app/src/components/block/recipe-row.tsx
+  s_03e6bf3b34538e::t_515922d50faee5 34,353,359,380,394-396
+app/src/components/factory/board/block-node.tsx
+  s_03e6bf3b34538e::t_18e78bf4a1b427 4,51
+app/src/components/goods-table.tsx
+  s_03e6bf3b34538e::t_8db4799b663e18 24-25,98-109,217,219
+app/src/components/science/science-block-view.tsx
+  s_03e6bf3b34538e::t_1a26dafa22efc8 7,208
+app/src/components/whatif/supply-allocation-card.tsx
+  s_03e6bf3b34538e::t_26702ea61006b7 62
+app/src/lib/format.test.ts
+  s_03e6bf3b34538e::t_3bf68d211fbd91 2-10,36,38,41,43-45,54,64-91
+app/src/lib/format.ts
+  s_03e6bf3b34538e::t_9d8cd5ac41f53e 41-48,52-53,56,67-79,95-115,126-127
+app/src/lib/modules-modal.tsx
+  s_03e6bf3b34538e::t_fe2642127416bf 22,448,481,817
+app/src/lib/recipe-card.tsx
+  s_03e6bf3b34538e::t_d47b4edacc004a 9,734,753,772
+app/src/routes/factory.tsx
+  s_03e6bf3b34538e::t_b79f5e25bbdaf4 50,204-205,624-626
+app/src/routes/factory_.scenario.tsx
+  s_03e6bf3b34538e::t_78c90c0d4d6a62 330-332,383
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2298541ecfd6b0083fa9b17b106e48ff68ace2c5",
+  "prompts": {},
+  "sessions": {
+    "s_03e6bf3b34538e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d25c0efe-2c9e-4cef-9033-c81eed92e714",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
