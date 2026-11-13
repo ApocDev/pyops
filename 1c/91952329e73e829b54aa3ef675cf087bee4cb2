@@ -1,0 +1,31 @@
+app/e2e/mut/destructive.e2e.ts
+  s_a7533a925d7265::t_0adab1c92c0e49 30-34,49
+app/src/components/deps/deps-node.tsx
+  s_a7533a925d7265::t_5264be1218d32a 144-146
+app/src/components/factory/machines-card.tsx
+  s_a7533a925d7265::t_a2c7778ddb4874 221
+app/src/components/stat-cell.tsx
+  s_a7533a925d7265::t_7dd0397e9a678e 40
+app/src/routes/assistant.tsx
+  s_a7533a925d7265::t_89311f103fdc5b 658-664
+app/src/routes/block.tsx
+  s_a7533a925d7265::t_3f8505e0d0898a 50,576,579,581,584,613-618,634,636,639,664-669,743-745,889-890,892
+app/src/routes/settings.tsx
+  s_a7533a925d7265::t_46f01d17ea064b 567
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1c91952329e73e829b54aa3ef675cf087bee4cb2",
+  "prompts": {},
+  "sessions": {
+    "s_a7533a925d7265": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ccc1308a-7f13-4b24-8b66-646564c955a0",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
