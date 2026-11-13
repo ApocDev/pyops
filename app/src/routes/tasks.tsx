@@ -171,7 +171,7 @@ function TasksShell() {
       refresh();
       setActionError(res.ok ? null : res.error);
     },
-    onError: (e) => setActionError(e instanceof Error ? e.message : "prioritise failed"),
+    onError: (e) => setActionError(e instanceof Error ? e.message : "prioritize failed"),
   });
 
   const nodes = tasks.data ?? [];
@@ -227,7 +227,7 @@ function TasksShell() {
                   here and the game within a few seconds.
                 </p>
                 <p>
-                  <span className="text-foreground">Prioritise</span> asks the assistant to rank
+                  <span className="text-foreground">Prioritize</span> asks the assistant to rank
                   your open tasks.
                 </p>
               </HelpButton>
@@ -244,13 +244,13 @@ function TasksShell() {
                     size="xs"
                     onClick={() => prioritize.mutate()}
                     disabled={prioritize.isPending}
-                    title="Ask the assistant to prioritise open tasks"
+                    title="Ask the assistant to prioritize open tasks"
                   >
                     {prioritize.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                    Prioritise
+                    Prioritize
                   </Button>
                   <Button size="xs" onClick={() => newTask.mutate(null)}>
-                    <Plus /> Task
+                    <Plus /> New task
                   </Button>
                 </div>
               </div>

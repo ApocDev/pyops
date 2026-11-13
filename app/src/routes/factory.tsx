@@ -31,6 +31,7 @@ import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
+import { countNoun } from "../lib/delete-copy";
 import { GoodsSection } from "#/components/goods-table.tsx";
 import { MachinesCard } from "#/components/factory/machines-card.tsx";
 import {
@@ -208,7 +209,8 @@ function FactoryPage() {
         title="Factory"
         description={
           <span className="flex flex-wrap items-center gap-1">
-            {blocks.data?.length ?? 0} block(s) · <Zap className="size-3.5" /> {fmtW(totalPowerW)}
+            {countNoun(blocks.data?.length ?? 0, "block")} · <Zap className="size-3.5" />{" "}
+            {fmtW(totalPowerW)}
             {Math.abs(totalPollution) > 0.005 && (
               <Tooltip content="Net pollution per minute across all enabled blocks — negative means your forestry/plantations absorb more than the machines emit">
                 <span
@@ -477,7 +479,7 @@ function ChangeReport({ data }: { data: ChangeReportData }) {
   if (data.affected === 0) {
     return (
       <Callout tone="success" className="mb-4">
-        All {data.total} block(s) up to date — no drift or missing recipes
+        All {countNoun(data.total, "block")} up to date — no drift or missing recipes
       </Callout>
     );
   }

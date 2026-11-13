@@ -58,7 +58,7 @@ test("block delete: confirm dialog with real copy, cancel keeps it, undo toast r
 test("task delete fires immediately — undo toast, no confirm dialog", async ({ page }) => {
   const title = uniqueName("Doomed task");
   await goto(page, "/tasks");
-  await page.getByRole("button", { name: "Task", exact: true }).click();
+  await page.getByRole("button", { name: "New task", exact: true }).first().click();
 
   // the new task opens in the detail pane; give it a findable title
   const titleInput = page.getByPlaceholder("Task title");

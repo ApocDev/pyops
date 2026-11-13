@@ -289,9 +289,9 @@ function ChatPaneSkeleton() {
 }
 
 const SUGGESTIONS = [
-  "Draft a block: 250/s iron-plate using the high-tier endgame chain.",
+  "Draft a block: 250/s of iron plate using the high-tier endgame chain.",
   "How do I make iron plate at high tier? Trace the chain.",
-  "Is pressured-air something I build or import?",
+  "Is pressurized air something I build or import?",
   "What can I do with tailings?",
 ];
 
@@ -509,8 +509,7 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
         <div className="mx-auto w-full max-w-6xl space-y-4 px-6 py-4">
           {messages.length === 0 && (
             <div className="mt-10 text-center text-muted-foreground">
-              <div className="text-lg font-semibold text-foreground">PyOps Assistant</div>
-              <p className="mx-auto mt-2 max-w-xl text-sm">
+              <p className="mx-auto max-w-xl text-sm">
                 Ask about Pyanodons production chains, recipes, tiers, and what to import vs. build
                 — or have it draft a full block. Hover any item or recipe for details.
               </p>
@@ -678,9 +677,9 @@ type TokenStatus = {
   messageCount: number;
 };
 
-/** A small filling ring showing how much of the model's context window the
- * conversation occupies. The % sits in the middle; clicking compacts older
- * messages now. Green → amber → red as it fills. */
+/** A small filling ring plus "N% context" showing how much of the model's
+ * context window the conversation occupies; clicking compacts older messages
+ * now. Green → amber → red as it fills. */
 function ContextGauge({
   status,
   busy,
@@ -694,8 +693,8 @@ function ContextGauge({
 }) {
   const ratio = Math.min(1, Math.max(0, status?.ratio ?? 0));
   const pct = Math.round(ratio * 100);
-  const size = 34;
-  const stroke = 4;
+  const size = 22;
+  const stroke = 3;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const ringColor =
@@ -714,7 +713,7 @@ function ContextGauge({
         onClick={onCompact}
         disabled={busy || compacting}
         aria-label={`Context ${pct}% full — click to compact`}
-        className="relative inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-muted/60 disabled:opacity-50"
+        className="inline-flex h-9 shrink-0 items-center gap-1.5 px-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/60 disabled:opacity-50"
       >
         <svg width={size} height={size} className="-rotate-90">
           <circle
@@ -739,9 +738,15 @@ function ContextGauge({
             stroke="currentColor"
           />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular-nums text-foreground">
-          {compacting ? <Loader2 className="size-3.5 animate-spin" /> : pct}
-        </span>
+        {compacting ? (
+          <span className="flex items-center gap-1">
+            <Loader2 className="size-3.5 animate-spin" /> Compacting
+          </span>
+        ) : (
+          <span>
+            <span className="text-foreground tabular-nums">{pct}%</span> context
+          </span>
+        )}
       </button>
     </Tooltip>
   );
@@ -941,6 +946,7 @@ function ReasoningMenu({
           className="text-muted-foreground"
         >
           {current ? <Brain className="size-3.5" /> : <Zap className="size-3.5" />}
+          Reasoning
           <span className="text-foreground">
             {current ? current[0].toUpperCase() + current.slice(1) : "Auto"}
           </span>

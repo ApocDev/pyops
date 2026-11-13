@@ -14,10 +14,10 @@ desktop navigation or from the navigation drawer on a narrower window.
 | Settings tab       | What it controls                                                                               |
 | ------------------ | ---------------------------------------------------------------------------------------------- |
 | **Planning**       | Solver preferences, display options, Assistant access, planning horizon, and recipe exclusions |
-| **Game data**      | Reference-data sync, Factorio install paths, mod and reader versions, drift, and storage paths |
+| **Game data**      | Reference-data sync, Factorio install paths, installed mods, drift, and storage paths          |
 | **In-game link**   | Companion mod installation, Factorio launch, UDP bridge status, and live-state sync            |
 | **Backup & share** | Complete project backups and portable block JSON files                                         |
-| **Advanced**       | Opt-in diagnostic tools for investigating planner behavior                                     |
+| **Advanced**       | Data fingerprints and reader versions, plus opt-in planner diagnostics                         |
 
 The active project selector is separate from Settings. It appears beside Settings on a
 wide desktop and near the bottom of the navigation drawer on narrower windows.

@@ -530,6 +530,10 @@ function Shell() {
     visit(groupId);
     return worst;
   };
+  // Shown blocks in a folder, nested subfolders included.
+  const folderBlockCount = (groupId: number): number =>
+    filtered.filter((b) => b.groupId === groupId).length +
+    childrenOf(groupId).reduce((n, k) => n + folderBlockCount(k.id), 0);
   const renderBlock = (b: Row, depth: number) => (
     <DndRow
       key={b.id}
@@ -615,7 +619,7 @@ function Shell() {
             className={`min-w-0 flex-1 truncate ${healthText(gHealth)}`}
             onDoubleClick={() => renameFolder(group.id, group.name)}
           >
-            {group.name} ({rows.length})
+            {group.name} ({folderBlockCount(group.id)})
           </span>
           {healthBadge(
             gHealth,
