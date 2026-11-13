@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Flame, FlaskConical, Fuel, Timer, Zap } from "lucide-react";
 import { iconManifestFn, spoilablesFn, type IconManifest, type IconSlot } from "../server/factorio";
 import { GoodHover } from "./recipe-card";
@@ -25,7 +26,7 @@ export function fmtSpoilTime(ticks: number): string {
  * server fn; atlas sheets are served from /icons). Each
  * icon is a background-position slice. Manifest keys are `${prototypeType}/${name}`.
  *
- * The manifest loads CLIENT-ONLY (useEffect) so it isn't fetched during SSR.
+ * The manifest loads through react-query on the client; it isn't fetched during SSR.
  */
 
 // Prototype types that are "items" — their icon folder isn't always "item/"
@@ -56,24 +57,6 @@ const ITEM_TYPES = new Set([
   "space-platform-starter-pack",
 ]);
 
-let cache: IconManifest | null = null;
-let inflight: Promise<IconManifest> | null = null;
-function loadManifest(): Promise<IconManifest> {
-  if (cache) return Promise.resolve(cache);
-  inflight ??= iconManifestFn().then((m) => (cache = m));
-  return inflight;
-}
-
-// Spoilable items (name → spoil ticks) load alongside the manifest, once, and
-// drive the stopwatch overlay on every spoilable item icon.
-let spoilCache: Record<string, number> | null = null;
-let spoilInflight: Promise<Record<string, number>> | null = null;
-function loadSpoilables(): Promise<Record<string, number>> {
-  if (spoilCache) return Promise.resolve(spoilCache);
-  spoilInflight ??= spoilablesFn().then((s) => (spoilCache = s));
-  return spoilInflight;
-}
-
 /** Spoilable map (item name → spoil ticks) for spoil-risk UI beyond the icon
  * overlay (#20) — e.g. flagging a block's SURPLUS spoilables, which are the
  * ones that actually sit around long enough to rot. */
@@ -90,21 +73,24 @@ const IconCtx = createContext<{
   spoil: {},
 });
 
+const NO_SPOILABLES: Record<string, number> = {};
+
 export function IconProvider({ children }: { children: React.ReactNode }) {
-  const [m, setM] = useState<IconManifest | undefined>(cache ?? undefined);
-  const [spoil, setSpoil] = useState<Record<string, number>>(spoilCache ?? {});
-  useEffect(() => {
-    if (!m)
-      loadManifest()
-        .then(setM)
-        .catch((e) => console.error("[icons]", e));
-  }, [m]);
-  useEffect(() => {
-    if (!spoilCache)
-      loadSpoilables()
-        .then(setSpoil)
-        .catch((e) => console.error("[icons:spoil]", e));
-  }, []);
+  // Shared react-query entries, so every provider on a page reuses one fetch and
+  // a finished data sync (which invalidates every query) swaps in the rebuilt
+  // atlas's manifest. A stale manifest over a rebuilt atlas draws wrong sprites.
+  const { data: m } = useQuery({
+    queryKey: ["iconManifest"],
+    queryFn: () => iconManifestFn(),
+    staleTime: Infinity,
+  });
+  // Spoilable items (name → spoil ticks) drive the stopwatch overlay on every
+  // spoilable item icon.
+  const { data: spoil = NO_SPOILABLES } = useQuery({
+    queryKey: ["spoilables"],
+    queryFn: () => spoilablesFn(),
+    staleTime: Infinity,
+  });
   const itemIdx = useMemo(() => {
     const idx: Record<string, IconSlot> = {};
     if (m) {
