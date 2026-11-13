@@ -191,6 +191,10 @@ content in `DialogBody`; keep title and action regions outside it.
 | Rich Factorio detail                          | `CursorHover` / `CursorCard`              |
 | Full value for non-interactive truncated text | native `title={display}` on the text span |
 
+`CursorHover` and the card wrappers share `useHoverCard`, so a rich card also opens on
+keyboard focus of a control inside the wrapper and on touch long-press. Put the hover wrapper
+around a focusable trigger, as `ItemChip` does, rather than inside it.
+
 Do not wrap a hover-enabled game `Icon` in a tooltip; choose one owner. Icon buttons need an
 `aria-label`, and a tooltip that shares a trigger with a menu or dialog must close while the
 larger surface is open.

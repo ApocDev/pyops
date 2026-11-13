@@ -52,6 +52,14 @@ The global shortcuts are:
 | <kbd>Ctrl</kbd>/<kbd>Command</kbd>+<kbd>Z</kbd> | Undo the most recent reversible project action            |
 | <kbd>?</kbd>                                    | Show active keyboard shortcuts outside a text field       |
 
+## Open item and recipe details
+
+The detail card that appears when you hover an item, fluid, or recipe also opens without a
+mouse. <kbd>Tab</kbd> to a block chip and the card appears after a short pause;
+<kbd>Escape</kbd> hides it. <kbd>Enter</kbd> still opens the recipe picker. On a touch
+screen, press and hold a chip or icon to show its card, and tap anywhere to dismiss it. A
+short tap works as before.
+
 ## Switch projects and settings
 
 On a wide desktop, the active project and **Settings** are at the top-right of the main
