@@ -5,6 +5,7 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 
 import { AppLiveQueries } from "../components/app-live-queries";
+import { GameOpenBlock } from "../components/game-open-block";
 import { AppNav } from "../components/app-nav";
 import { AssistantDockHost } from "../components/assistant-dock-host";
 import { CommandPalette } from "../components/command-palette";
@@ -84,6 +85,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <AppLiveQueries />
+        <GameOpenBlock />
         <div className="flex h-screen flex-col">
           <AppNav />
           <WorkspaceNav />

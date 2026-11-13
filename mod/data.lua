@@ -89,9 +89,9 @@ data:extend({
   }
 })
 
--- Custom GUI styles for the in-game block summary. The zebra-striped rows are
--- what give Helmod's "Production block" its clean banded look; the odd-row
--- graphical set is drawn from core graphics, so we ship no images of our own.
+-- The mod's only custom GUI styles. Everything else in the panel uses vanilla
+-- styles. The build sheet's zebra-striped rows give Helmod's "Production block"
+-- its banded look; the odd-row graphical set is drawn from core graphics.
 local styles = data.raw["gui-style"].default
 
 -- Top-left mod-gui button. `mod_gui_button` is the flat light-gray button face,
@@ -118,22 +118,3 @@ styles["pyops_matrix_table"] = {
     opacity = 0.7,
   },
 }
-
--- The number tucked under each good icon (Helmod renders these as labels, not the
--- engine's .number overlay, so small rates read as "0.06" instead of "0.0").
-styles["pyops_cell_number"] = {
-  type = "label_style",
-  parent = "label",
-  font = "default-small",
-  top_padding = -4,
-  bottom_padding = 0,
-  left_padding = 0,
-  right_padding = 0,
-  horizontal_align = "center",
-  minimal_width = 40,
-  maximal_width = 40,
-}
-
--- The PyOps panel style kit (pills, badges, cards, rows, toggles). Kept in its own
--- file so the design-time palette can be trimmed independently before shipping.
-require("gui-styles")

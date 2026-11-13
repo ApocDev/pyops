@@ -64,7 +64,7 @@ import {
   insertersForRate,
   inserterHandStack,
 } from "../lib/logistics.ts";
-import { goalNames, normalizeBlockData, primaryRate } from "../lib/goals.ts";
+import { goalNames, normalizeBlockData, primaryGoal, primaryRate } from "../lib/goals.ts";
 import { prodScaledAmount } from "../lib/productivity.ts";
 import { wholeMachines } from "../lib/machine-count.ts";
 import { factoryFlowKey, type FactoryFlowQualifier } from "../lib/factory-flow.ts";
@@ -1903,6 +1903,8 @@ export function listBlocks() {
       // for the delete-block confirm (#83): what the deletion would destroy
       recipeCount: blockRecipes.length,
       goalCount: goalNames(d).length,
+      // goals[0] anchors the block's rate (the in-game slot board shows it)
+      goal: primaryGoal(d) ?? null,
     };
   });
 }
@@ -2926,6 +2928,45 @@ export function blockBuildStatus(
     .filter((r) => r.totalMissing > 0)
     .sort((a, b) => b.totalMissing - a.totalMissing);
   return limit != null ? worst.slice(0, limit) : worst;
+}
+
+/** Whole-machine totals for every block in one pass: `need` sums the block's
+ * required buildings and `missing` is what blockBuildStatus would report as
+ * totalMissing (same exact-recipe / machine-total fallback rule). `rows` is the
+ * per-row built counts in a stable order ("5,0"), so a machine moving between
+ * two of the block's recipes changes it even when the totals stay the same.
+ * Feeds the in-game slot board (done / partly built / not started per block)
+ * and tells the mod when an open build sheet's Built column is stale. */
+export function blockBuildTotals(): Map<number, { need: number; missing: number; rows: string }> {
+  const reqByBlock = new Map<number, { machine: string; recipe: string; required: number }[]>();
+  for (const r of db
+    .select({
+      blockId: blockMachines.blockId,
+      machine: blockMachines.machine,
+      recipe: blockMachines.recipe,
+      count: blockMachines.count,
+    })
+    .from(blockMachines)
+    .orderBy(blockMachines.blockId, blockMachines.machine, blockMachines.recipe)
+    .all()) {
+    const rows = reqByBlock.get(r.blockId) ?? [];
+    rows.push({ machine: r.machine, recipe: r.recipe, required: wholeMachines(r.count) });
+    reqByBlock.set(r.blockId, rows);
+  }
+  const builtRows = db.select().from(builtMachines).all();
+  const out = new Map<number, { need: number; missing: number; rows: string }>();
+  for (const [blockId, rows] of reqByBlock) {
+    const need = rows.reduce((s, r) => s + r.required, 0);
+    const status = withBuiltStatus(rows, builtRows);
+    // recipe-blind rows (built: null) show their machine's total, like the sheet
+    const fallback = new Map(status.machineFallback.map((m) => [m.machine, m.builtTotal]));
+    out.set(blockId, {
+      need,
+      missing: status.totalMissing,
+      rows: status.recipes.map((r) => r.built ?? fallback.get(r.machine) ?? 0).join(","),
+    });
+  }
+  return out;
 }
 
 export type HomeBlockBuildStatus = {

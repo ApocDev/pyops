@@ -100,8 +100,8 @@ somewhere else.
 ## Synchronize the save
 
 Research updates automatically when a technology finishes. To request the complete state
-immediately, select **pull from game** under **Live bridge** or select **Sync now** in the
-in-game PyOps panel.
+immediately, select **pull from game** under **Live bridge** or open the in-game PyOps
+panel, which pushes the full state each time it opens.
 
 After synchronization:
 
@@ -112,6 +112,73 @@ After synchronization:
 
 The green **live** labels include the age of the most recent data. Treat an old timestamp
 as stale even if the bridge has reconnected.
+
+## Use the in-game panel
+
+Open the panel with the PyOps button at the top left of the screen, the PyOps shortcut
+button, or `Ctrl + Shift + P`. It has two tabs, **Blocks** and **Tasks**, and remembers
+the last one you used.
+
+### Read the status dot
+
+The dot next to the **PyOps** title shows the bridge state. Hover it for details and click
+it to ping the app again.
+
+- **Green, Connected**: the app answered the last heartbeat.
+- **Yellow, Connecting…**: the panel is waiting for the app on the bridge port. It shows
+  for the first seconds after opening, and again if the app stops answering.
+- **Red, No app link**: the app hasn't answered for about 15 seconds. Start PyOps, or
+  check the Companion mod's bridge-port setting.
+- **Red, Version mismatch**: the app and the mod use different bridge protocol versions.
+  Re-link or re-copy the Companion mod.
+- **Red, Lua UDP is off**: Factorio was started without `--enable-lua-udp`.
+
+### Find a block on the Blocks tab
+
+The **Blocks** tab shows every enabled block as a slot, with one row per block folder and
+an **Ungrouped** row at the end. The slot color shows how much of the block is built:
+
+- **green**: every machine the block needs is placed;
+- **yellow**: some of its machines are placed;
+- **grey**: none are placed yet, or the block needs no machines.
+
+The number on a slot is the block's goal rate in the block's own time unit. Rates under
+0.1 show no number. Hover a slot to see the block name, exact goal rate, power, and how
+many machines are built.
+
+Type in the search box to filter blocks by name. The check-mark button hides finished
+(green) blocks.
+
+The board updates by itself when you edit, add, or disable a block in PyOps, and when you
+place or remove machines.
+
+### Open a block's build sheet
+
+Click a slot to open that block's build sheet next to the panel. The sheet lists each
+recipe row with its machine and count, its products (blue slots), its ingredients (yellow
+slots), and a **Built** column with how many of that machine are placed versus needed.
+**Out** and **In** list what the whole block exports and imports.
+
+From the sheet you can:
+
+- click a machine to put a one-machine blueprint (recipe and modules set) on the cursor;
+- press `Q` over a good or machine to pipette it;
+- use the combinator button to size a request combinator for the block's imports;
+- use the belt button to show belts and inserters for each good;
+- use the arrow button in the title bar to open the block in PyOps.
+
+The **Open in game** button on a block's page in PyOps opens the same sheet.
+
+### Open a block in PyOps from the game
+
+Shift-click a slot, or use the arrow button on the build sheet's title bar. Any open PyOps
+window switches to that block's page within a few seconds.
+
+### Capture and read tasks
+
+The **Tasks** tab lists the project's tasks with their status and priority. Select one to
+read its description, steps, and links; **Go to** moves the map view to a task's location.
+**New task** captures a task anchored to your position and the entity you are hovering.
 
 ## Troubleshoot the connection
 
@@ -136,7 +203,7 @@ the app's bridge port, but the Companion mod setting must point to the same port
 ### The bridge is linked but live values are stale
 
 Select **pull from game**. If the timestamp does not advance, open the in-game PyOps panel
-and select **Sync now**, then check the bridge packet counts for activity.
+and check its status dot, then check the bridge packet counts for activity.
 
 ::: warning Keep the bridge local
 The standard bridge listens on localhost. Do not expose its UDP port to an untrusted

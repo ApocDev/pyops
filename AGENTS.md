@@ -139,8 +139,10 @@ Documentation is a practical manual, not a marketing site:
 ## The Factorio mod (`mod/`)
 
 Pure Lua, edited in place — no build step. Key files: `control.lua` (panel +
-bridge + live-state sync), `summary.lua` (production-block view), `combinator.lua`
+bridge + live-state sync), `blocks.lua` (Blocks tab slot board), `summary.lua`
+(production-block build sheet), `tasks.lua` (Tasks tab), `combinator.lua`
 (request-combinator planner), `data.lua`/`settings.lua` (prototypes/settings).
+The panel uses vanilla GUI styles; `data.lua` holds the only two custom ones.
 
 - **After editing anything in `mod/`, reload the mod before verifying it.** If the
   running save already has the PyOps developer bridge command loaded, use the MCP

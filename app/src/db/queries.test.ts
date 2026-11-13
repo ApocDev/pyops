@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { db, switchDatabase } from "./index.server.ts";
 import {
   blockBuildStatus,
+  blockBuildTotals,
   blockMissingRefs,
   blockReferenceFingerprint,
   blocksForGood,
@@ -1416,6 +1417,30 @@ describe("blockBuildStatus", () => {
 
   it("returns empty for an unknown block id", () => {
     expect(blockBuildStatus(999999)).toEqual([]);
+  });
+
+  it("blockBuildTotals matches blockBuildStatus's totals for every block in one pass", () => {
+    const totals = blockBuildTotals();
+    expect(totals.get(1)).toMatchObject({ need: 10, missing: 3 });
+    expect(totals.get(2)).toMatchObject({ need: 2, missing: 0 });
+    expect(totals.get(4)).toMatchObject({ need: 2, missing: 1, rows: "1" }); // machine-total fallback
+  });
+
+  it("blockBuildTotals' row signature moves when a machine switches recipes inside a block", () => {
+    db.run(sql`INSERT INTO blocks (id, name, data, enabled) VALUES (5,'split','{}',1)`);
+    db.run(
+      sql`INSERT INTO block_machines (block_id, machine, recipe, count) VALUES (5,'furnace','alpha',5),(5,'furnace','beta',5)`,
+    );
+    setBuiltMachines([{ machine: "furnace", recipe: "alpha", count: 5 }]);
+    const before = blockBuildTotals().get(5);
+    setBuiltMachines([
+      { machine: "furnace", recipe: "alpha", count: 4 },
+      { machine: "furnace", recipe: "beta", count: 1 },
+    ]);
+    const after = blockBuildTotals().get(5);
+    // same totals (5 of 10 built) but a different per-row split
+    expect(before).toEqual({ need: 10, missing: 5, rows: "5,0" });
+    expect(after).toEqual({ need: 10, missing: 5, rows: "4,1" });
   });
 });
 

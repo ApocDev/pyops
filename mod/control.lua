@@ -12,6 +12,8 @@ local mod_gui = require("__core__.lualib.mod-gui")
 local Summary = require("summary")
 local Combinator = require("combinator")
 local Tasks = require("tasks")
+local Blocks = require("blocks")
+local Format = require("format")
 local Sushi = require("sushi")
 
 local PANEL_NAME = "pyops_panel"
@@ -19,7 +21,7 @@ local BUTTON_NAME = "pyops_button"
 local SHORTCUT_NAME = "pyops-toggle-panel"
 -- Bridge wire contract. Keep in lockstep with PROTOCOL_VERSION in the app's
 -- src/server/bridge/protocol.ts — each side warns if the other reports a different one.
-local PROTOCOL_VERSION = 9
+local PROTOCOL_VERSION = 10
 
 local function get_player(event)
   if not event.player_index then
@@ -73,20 +75,40 @@ local function set_status(player, caption)
   end
 end
 
--- Connection dot in the titlebar (replaces the old status strip). Click pings.
-local LED = {
-  connected = { "60,220,90", "Connected" },
-  disconnected = { "220,80,80", "Not connected" },
-  mismatch = { "230,180,60", "Protocol version mismatch" },
-}
-local function set_led(player, state)
+-- Connection dot in the titlebar: a vanilla entity-status sprite with a tooltip
+-- per state. Clicking it pings the app.
+local function led_state(player, state, app_version)
+  local port = get_bridge_port(player)
+  if state == "connected" then
+    return "utility/status_working",
+      { "", "[font=default-bold]Connected[/font]\nPyOps app, protocol ", tostring(PROTOCOL_VERSION),
+        "\n[color=150,155,162]Click: ping now[/color]" }
+  elseif state == "mismatch" then
+    return "utility/status_not_working",
+      { "", "[font=default-bold]Version mismatch[/font]\nApp protocol ", tostring(app_version or "?"),
+        ", mod protocol ", tostring(PROTOCOL_VERSION), ". Update the mod or the app.",
+        "\n[color=150,155,162]Click: retry[/color]" }
+  elseif state == "no_app" then
+    return "utility/status_not_working",
+      { "", "[font=default-bold]No app link[/font]\nThe PyOps app isn't answering on port ", tostring(port),
+        ". Start PyOps, or check the mod's bridge port setting.",
+        "\n[color=150,155,162]Click: retry[/color]" }
+  elseif state == "no_udp" then
+    return "utility/status_not_working",
+      { "", "[font=default-bold]Lua UDP is off[/font]\nLaunch Factorio with --enable-lua-udp on a port other than ",
+        tostring(port), " (the app's)." }
+  end
+  return "utility/status_yellow",
+    { "", "[font=default-bold]Connecting…[/font]\nWaiting for the PyOps app on port ", tostring(port),
+      "\n[color=150,155,162]Click: retry[/color]" }
+end
+
+local function set_led(player, state, app_version)
   local led = find_child(get_panel(player), "pyops_led")
   if not led then
     return
   end
-  local s = LED[state] or LED.disconnected
-  led.caption = "[color=" .. s[1] .. "]●[/color]"
-  led.tooltip = s[2] .. " · click to refresh"
+  led.sprite, led.tooltip = led_state(player, state, app_version)
 end
 
 local function destroy_panel(player)
@@ -117,7 +139,7 @@ local function guarded_udp(player, fn, ...)
     udp_available = false
     if player and player.valid then
       set_status(player, {"pyops.status-no-udp"})
-      set_led(player, "disconnected")
+      set_led(player, "no_udp")
     end
   end
   return ok
@@ -148,6 +170,13 @@ end
 Tasks.send = function(player, request_type, payload)
   send_request(player, request_type, payload)
 end
+
+-- Same hook for the Blocks board (block.show / block.open) and the build sheet's
+-- open-in-PyOps button.
+Blocks.send = function(player, request_type, payload)
+  send_request(player, request_type, payload)
+end
+Summary.send = Blocks.send
 
 -- Same hook for the sushi-loop tools (sushi.trace measurements → the planner).
 Sushi.send = function(player, request_type, payload)
@@ -408,6 +437,7 @@ local function sync_state(player)
   send_turd(player)
   send_built_machines(player)
   send_stats(player)
+  send_request(player, "block.list", {})
   send_request(player, "bridge.ping")
 end
 
@@ -683,6 +713,46 @@ local function schedule_reload_mods(player, request_id, payload)
   })
 end
 
+-- Tab captions carry a count, like vanilla's "Blocks 70".
+local function tab_caption(label, count)
+  return label .. "  [color=150,155,162]" .. count .. "[/color]"
+end
+
+local function update_tab_captions(player)
+  local tabs = find_child(get_panel(player), "pyops_tabs")
+  if not tabs then
+    return
+  end
+  for _, t in ipairs(tabs.tabs) do
+    if t.tab.name == "pyops_tab_blocks" then
+      t.tab.caption = tab_caption("Blocks", Blocks.count())
+    elseif t.tab.name == "pyops_tab_tasks" then
+      t.tab.caption = tab_caption("Tasks", Tasks.open_count())
+    end
+  end
+end
+
+-- What an open build sheet depends on: the per-row built counts (`rows`, which
+-- catch a machine moving between two of the block's recipes) and `rev`, which
+-- moves on a block edit and on any re-solve (research or TURD changes).
+local function sheet_key(b)
+  return b and (tostring(b.rows) .. "|" .. tostring(b.rev)) or nil
+end
+
+-- New block list: store it, redraw the board, and refresh an open build sheet
+-- whose block was edited or whose built counts moved.
+local function on_block_list(player, payload)
+  local open_id = Blocks.selected(player)
+  local had = sheet_key(open_id and Blocks.find(open_id))
+  Blocks.set_data(payload)
+  Blocks.refresh(player)
+  update_tab_captions(player)
+  local now = sheet_key(open_id and Blocks.find(open_id))
+  if now and had and now ~= had and Summary.is_open(player) then
+    send_request(player, "block.show", { id = open_id })
+  end
+end
+
 local function handle_bridge_response(player, response)
   if not response or not response.type then
     set_status(player, {"pyops.status-error", "invalid response"})
@@ -692,8 +762,10 @@ local function handle_bridge_response(player, response)
   if response.type == "bridge.pong" then
     -- protocol handshake: the app echoes its contract version in the pong
     local app_version = response.protocol_version
+    storage.pyops_last_pong = storage.pyops_last_pong or {}
+    storage.pyops_last_pong[player.index] = game.tick
     if app_version and app_version ~= PROTOCOL_VERSION then
-      set_led(player, "mismatch")
+      set_led(player, "mismatch", app_version)
     else
       set_led(player, "connected")
     end
@@ -718,6 +790,10 @@ local function handle_bridge_response(player, response)
     local payload = response.payload or {}
     Tasks.set_data(payload.tasks)
     Tasks.refresh(player)
+    update_tab_captions(player)
+  elseif response.type == "block.list" then
+    -- the app sent the enabled blocks (on request, or because they changed)
+    on_block_list(player, response.payload)
   elseif response.type == "task.captured" then
     -- the app confirmed a task was filed → pull the refreshed list
     local payload = response.payload or {}
@@ -746,6 +822,12 @@ end
 
 -- ── Panel ─────────────────────────────────────────────────────────────────────
 
+-- The panel's preferred width (logical px). It shrinks on small screens; the
+-- width actually used goes in the panel's tags, since GUI sizes can't be read
+-- back, so the board and the build sheet beside it can use it.
+local PANEL_WIDTH = 680
+local SCREEN_MARGIN = 24
+
 local function create_panel(player)
   local panel = player.gui.screen.add({
     type = "frame",
@@ -753,10 +835,13 @@ local function create_panel(player)
     direction = "vertical"
   })
   panel.auto_center = true
-  -- Size to most of the screen (a gui.screen frame otherwise hugs its content).
   local res, scale = player.display_resolution, player.display_scale
-  panel.style.width = math.floor(res.width / scale * 0.6)
+  local width = Format.panel_width(res.width / scale, PANEL_WIDTH, SCREEN_MARGIN)
+  panel.style.width = width
   panel.style.height = math.floor(res.height / scale * 0.72)
+  panel.tags = { pyops_width = width }
+  storage.pyops_panel_opened = storage.pyops_panel_opened or {}
+  storage.pyops_panel_opened[player.index] = game.tick
 
   -- Titlebar: title, connection LED (click = ping), drag handle, close.
   local titlebar = panel.add({
@@ -774,12 +859,13 @@ local function create_panel(player)
     ignored_by_interaction = true
   })
   local led = titlebar.add({
-    type = "label",
+    type = "sprite-button",
     name = "pyops_led",
-    caption = "[color=220,80,80]●[/color]",
-    tooltip = "Not connected · click to refresh"
+    style = "transparent_slot",
   })
+  led.style.size = 16
   led.style.top_margin = 4
+  led.sprite, led.tooltip = led_state(player, udp_available and "connecting" or "no_udp")
 
   local drag_handle = titlebar.add({
     type = "empty-widget",
@@ -798,21 +884,23 @@ local function create_panel(player)
     style = "frame_action_button"
   })
 
-  -- Tabs: Tasks (live) + Blocks (placeholder for now).
-  local tp = panel.add({ type = "tabbed-pane" })
+  -- Tabs: Blocks (slot board) + Tasks. The last-picked tab is remembered.
+  local tp = panel.add({ type = "tabbed-pane", name = "pyops_tabs" })
   tp.style.horizontally_stretchable = true
   tp.style.vertically_stretchable = true
-  local tasks_tab = tp.add({ type = "tab", caption = "Tasks" })
-  local blocks_tab = tp.add({ type = "tab", caption = "Blocks" })
+  local blocks_tab = tp.add({ type = "tab", name = "pyops_tab_blocks", caption = tab_caption("Blocks", Blocks.count()) })
+  local tasks_tab = tp.add({ type = "tab", name = "pyops_tab_tasks", caption = tab_caption("Tasks", Tasks.open_count()) })
+
+  local blocks_content = tp.add({ type = "flow", name = "pyops_blocks_tab", direction = "vertical" })
+  tp.add_tab(blocks_tab, blocks_content)
+  Blocks.build(player, blocks_content)
 
   local tasks_content = tp.add({ type = "flow", name = "pyops_tasks_tab", direction = "vertical" })
   tp.add_tab(tasks_tab, tasks_content)
   Tasks.build(player, tasks_content)
 
-  local blocks_content = tp.add({ type = "flow", direction = "vertical" })
-  tp.add_tab(blocks_tab, blocks_content)
-  blocks_content.style.padding = 8
-  blocks_content.add({ type = "label", style = "pyops_muted", caption = "(Blocks viewer — coming soon.)" })
+  storage.pyops_panel_tab = storage.pyops_panel_tab or {}
+  tp.selected_tab_index = storage.pyops_panel_tab[player.index] or 1
 
   set_shortcut_state(player, true)
   ping(player)
@@ -820,6 +908,7 @@ local function create_panel(player)
   send_turd(player)
   send_built_machines(player)
   send_stats(player)
+  send_request(player, "block.list", {}) -- pull the enabled blocks for the board
   send_request(player, "task.list", {}) -- pull the project's tasks to render
 end
 
@@ -935,6 +1024,13 @@ pcall(function()
   end)
 end)
 
+-- Tooling entry (dev/MCP screenshots): open or close the PyOps panel.
+remote.add_interface("pyops", {
+  toggle_panel = function(player_index)
+    toggle_panel(game.get_player(player_index))
+  end,
+})
+
 -- Tooling entry (dev/MCP + future UI surfaces): trace/untrace without a hotkey.
 remote.add_interface("pyops-sushi", {
   trace_at = function(player_index, position)
@@ -967,6 +1063,11 @@ script.on_event(defines.events.on_gui_click, function(event)
     return
   end
 
+  -- the Blocks board handles its slots and toolbar
+  if Blocks.on_gui_click(player, event.element, event) then
+    return
+  end
+
   -- the request-combinator dialog handles its own buttons
   if Combinator.on_gui_click(player, event.element) then
     return
@@ -984,6 +1085,24 @@ script.on_event(defines.events.on_gui_click, function(event)
     destroy_panel(player)
   elseif name == "pyops_led" then
     ping(player)
+  end
+end)
+
+-- Typing in the Blocks board's search box filters the board.
+script.on_event(defines.events.on_gui_text_changed, function(event)
+  local player = get_player(event)
+  if player and event.element and event.element.valid then
+    Blocks.on_text_changed(player, event.element)
+  end
+end)
+
+-- Remember the panel's last tab so it reopens where the player left it.
+script.on_event(defines.events.on_gui_selected_tab_changed, function(event)
+  local player = get_player(event)
+  local tp = event.element
+  if player and tp and tp.valid and tp.name == "pyops_tabs" then
+    storage.pyops_panel_tab = storage.pyops_panel_tab or {}
+    storage.pyops_panel_tab[player.index] = tp.selected_tab_index
   end
 end)
 
@@ -1145,6 +1264,14 @@ script.on_nth_tick(120, function()
     else
       ping(player, true)
     end
+    -- no pong for 5s: back to "Connecting…"; for 15s: "No app link". Counted
+    -- from the last pong or the panel opening, whichever is later.
+    local last = storage.pyops_last_pong and storage.pyops_last_pong[player.index] or 0
+    local opened = storage.pyops_panel_opened and storage.pyops_panel_opened[player.index] or 0
+    local state = Format.link_state(game.tick - math.max(last, opened))
+    if state then
+      set_led(player, state)
+    end
   end
   if synced then
     pending_resync = false
@@ -1204,5 +1331,5 @@ end)
 -- runtime dependency, so this branch is dead unless you explicitly add it.
 -- See mod/tests/README.md.
 if script.active_mods["factorio-test"] then
-  require("__factorio-test__/init")({ "tests/combinator-test" }, {})
+  require("__factorio-test__/init")({ "tests/combinator-test", "tests/format-test" }, {})
 end
