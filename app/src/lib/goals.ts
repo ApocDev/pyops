@@ -130,8 +130,9 @@ export function withPrimaryRate<T extends { goals?: Goal[] }>(d: T, rate: number
 export type GoalChange = {
   name: string;
   temperature?: number;
-  /** Target the goal at this position instead of matching by name (the
-   * top-level `rate` shorthand: the first goal). */
+  /** Prefer the goal at this position while it still has this name (and
+   * temperature): the top-level `rate` shorthand's first goal, or the goal a
+   * proposal previewed. Otherwise the change matches by name as usual. */
   index?: number;
   rate?: number;
   stock?: number;
@@ -209,9 +210,13 @@ export function withGoalChanges<T extends { goals?: Goal[] }>(
     const named = goals.flatMap((g, i) => (g.name === c.name ? [i] : []));
     // no temperature: a unique name, else the one goal whose temperature is unset
     const unqualified = named.filter((i) => goals[i].temperature == null);
+    // a position is a hint: used while that goal still has the name (and temperature)
+    const atIndex = named.filter(
+      (i) => i === c.index && (c.temperature == null || goals[i].temperature === c.temperature),
+    );
     const matches =
-      c.index != null
-        ? named.filter((i) => i === c.index)
+      atIndex.length > 0
+        ? atIndex
         : c.temperature != null
           ? named.filter((i) => goals[i].temperature === c.temperature)
           : named.length > 1 && unqualified.length === 1

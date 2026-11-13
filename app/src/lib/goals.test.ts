@@ -245,6 +245,11 @@ describe("withGoalChanges", () => {
         after: { rate: 90 },
       };
       expect(rates([goalChangeRequest(diff)], twins)).toEqual([90, 20]);
+      // a stale position falls back to matching the temperature
+      const reordered = { goals: [...block.goals].reverse() };
+      expect(rates([{ name: "steam", temperature: 500, index: 1, rate: 45 }], reordered)).toEqual([
+        45, 60,
+      ]);
     });
   });
 

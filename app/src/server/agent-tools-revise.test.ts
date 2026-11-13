@@ -134,7 +134,13 @@ describe("reviseBlock recipe-set revision (#12)", () => {
     expect(res.ok).toBe(true);
     expect(res.rate).toBe(5);
     expect(res.goalChanges).toEqual([
-      { name: "iron-plate", display: "Iron plate", before: { rate: 2 }, after: { rate: 5 } },
+      {
+        name: "iron-plate",
+        index: 0,
+        display: "Iron plate",
+        before: { rate: 2 },
+        after: { rate: 5 },
+      },
     ]);
     expect(res.recipesAdded).toEqual([]);
     expect(res.recipesRemoved).toEqual([]);
@@ -153,11 +159,18 @@ describe("reviseBlock recipe-set revision (#12)", () => {
     expect(res.goalChanges).toEqual([
       {
         name: "iron-gear",
+        index: 1,
         display: "Iron gear",
         before: { rate: 0.1, stock: 60, window: 600 },
         after: { rate: 0.2, stock: 120, window: 600 },
       },
-      { name: "iron-plate", display: "Iron plate", before: { rate: 1 }, after: { rate: 3 } },
+      {
+        name: "iron-plate",
+        index: 0,
+        display: "Iron plate",
+        before: { rate: 1 },
+        after: { rate: 3 },
+      },
     ]);
     // the preview solves the block's full, changed goal set
     expect(res.goals).toEqual([
@@ -176,6 +189,7 @@ describe("reviseBlock recipe-set revision (#12)", () => {
       {
         name: "steam",
         temperature: 500,
+        index: 1,
         display: "Steam",
         before: { rate: 20 },
         after: { rate: 40 },
