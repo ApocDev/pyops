@@ -292,8 +292,8 @@ describe("fluid ingredient temperature selections", () => {
 
   it("counts in-block water the consumer accepts toward a sink's net consumption", async () => {
     // 10/s of 15° water made in-block, which the ≤101° consumer accepts:
-    // `water -5/s` is net consumption, so the consumer takes 15/s and the
-    // block's water imports minus exports come to 5/s
+    // `water -5/s` is net consumption, so the consumer takes 15/s, the pump's
+    // 10/s plus a single 5/s import
     const input = {
       goals: [{ name: "water", rate: -5 }],
       recipes: ["pump-water", "cold-gel"],
@@ -302,10 +302,38 @@ describe("fluid ingredient temperature selections", () => {
     const solved = await computeBlock(input);
 
     expect(solved.rows.find((row) => row.recipe === "cold-gel")?.rate).toBeCloseTo(15);
-    const water = boundaryFlows(goalFlows(input), solved).filter((flow) => flow.item === "water");
-    expect(netImport(water)).toBeCloseTo(5);
-    expect(water).toContainEqual(
-      expect.objectContaining({ role: "import", minTemp: 15, maxTemp: 101 }),
+    expect(boundaryFlows(goalFlows(input), solved).filter((flow) => flow.item === "water")).toEqual(
+      [
+        expect.objectContaining({
+          role: "import",
+          rate: expect.closeTo(5),
+          minTemp: 15,
+          maxTemp: 101,
+        }),
+      ],
+    );
+  });
+
+  it("feeds in-block water to a compatible consumer before importing", async () => {
+    // no consume goal: a pinned pump's 10/s of 15° water covers part of the
+    // ≤101° consumer's 15/s, so only 5/s is imported and nothing exported
+    const input = {
+      goals: [{ name: "gel", rate: 15 }],
+      recipes: ["pump-water", "cold-gel"],
+      made: [],
+      pins: [{ kind: "count" as const, recipe: "pump-water", count: 1 }],
+    };
+    const solved = await computeBlock(input);
+
+    expect(boundaryFlows(goalFlows(input), solved).filter((flow) => flow.item === "water")).toEqual(
+      [
+        expect.objectContaining({
+          role: "import",
+          rate: expect.closeTo(5),
+          minTemp: 15,
+          maxTemp: 101,
+        }),
+      ],
     );
   });
 

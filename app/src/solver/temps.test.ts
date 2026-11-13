@@ -1,6 +1,6 @@
-import { expect, test } from "vite-plus/test";
-import { expandTemps, type TempRecipeDef } from "./temps.ts";
-import { solveBlockLp } from "./lp.ts";
+import { describe, expect, test } from "vite-plus/test";
+import { expandTemps, type TempFold, type TempRecipeDef } from "./temps.ts";
+import { type Flow, solveBlockLp } from "./lp.ts";
 
 /** Py's real fusion/MHD shape (#110): dt-he3 makes neutron @3000°, b-h @4000°,
  * the MHD generator accepts exactly 4000°. Plus the heavy-water loop's water
@@ -333,9 +333,8 @@ test("a consume goal can't route an out-of-range producer into a narrower consum
 
 test("a consume goal counts in-block production the consumer accepts, like an item goal", async () => {
   // 10/s of 15° water made in-block, which the ≤101° consumer accepts. A
-  // `water -5/s` goal is net consumption, so the consumer takes 15/s. Boundary
-  // flows stay free (unmarked water isn't routed in-block), so only the net
-  // is fixed: import minus export is 5/s
+  // `water -5/s` goal is net consumption, so the consumer takes 15/s: the
+  // pump's 10/s plus 5/s imported, nothing exported
   const pump: TempRecipeDef = {
     name: "pump",
     energyRequired: 1,
@@ -362,6 +361,53 @@ test("a consume goal counts in-block production the consumer accepts, like an it
   const rates = Object.fromEntries(r.recipes.map((x) => [x.recipe, x.rate]));
   expect(rates["cold-process"]).toBeCloseTo(15);
   const water = (flows: typeof r.imports) =>
-    flows.filter((f) => fold.bare(f.name) === "water").reduce((sum, f) => sum + f.rate, 0);
-  expect(water(r.imports) - water(r.exports)).toBeCloseTo(5);
+    flows.filter((f) => fold.bare(f.name) === "water").map((f) => f.rate.toFixed(2));
+  expect(water(r.imports)).toEqual(["5.00"]);
+  expect(water(r.exports)).toEqual([]);
+});
+
+describe("in-block fluid feeds compatible consumers before the boundary (#252)", () => {
+  const pump: TempRecipeDef = {
+    name: "pump",
+    energyRequired: 1,
+    ingredients: [],
+    products: [{ kind: "fluid", name: "water", amount: 10, temperature: 15 }],
+  };
+  const cold: TempRecipeDef = {
+    name: "cold-process",
+    energyRequired: 1,
+    ingredients: [{ kind: "fluid", name: "water", amount: 1, maxTemp: 101 }],
+    products: [{ kind: "item", name: "gel", amount: 1 }],
+  };
+  const waterFlows = (flows: Flow[], fold: TempFold) =>
+    flows
+      .filter((f) => fold.bare(f.name) === "water")
+      .map((f) => `${fold.tempOf(f.name) ?? "any"} ${f.rate.toFixed(2)}`);
+
+  test("production that already runs offsets the consumer's import", async () => {
+    const { input, fold } = expandTemps(
+      {
+        goals: [{ name: "gel", rate: 15 }],
+        recipes: [pump, cold],
+        made: [],
+        pins: [{ kind: "rate", recipe: "pump", rate: 1 }],
+      },
+      (f) => (f === "water" ? 15 : null),
+    );
+    const r = await solveBlockLp(input);
+    expect(r.status).toBe("solved");
+    expect(waterFlows(r.imports, fold)).toEqual(["≤101° 5.00"]);
+    expect(waterFlows(r.exports, fold)).toEqual([]);
+  });
+
+  test("a producer is never started just to avoid an import", async () => {
+    const { input, fold } = expandTemps(
+      { goals: [{ name: "gel", rate: 15 }], recipes: [pump, cold], made: [], pins: [] },
+      (f) => (f === "water" ? 15 : null),
+    );
+    const r = await solveBlockLp(input);
+    const rates = Object.fromEntries(r.recipes.map((x) => [x.recipe, x.rate]));
+    expect(rates["pump"]).toBeCloseTo(0);
+    expect(waterFlows(r.imports, fold)).toEqual(["≤101° 15.00"]);
+  });
 });

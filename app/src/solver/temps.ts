@@ -283,6 +283,13 @@ export function expandTemps(
       made: [...new Set(outMade)].filter((m) => !rowMembers.has(m)),
       pins: outPins,
       drains: [...new Set(outDrains)].filter((m) => !rowMembers.has(m)),
+      routing: {
+        recipes: [...selNames],
+        sources: [...variants].flatMap(([fluid, temps]) =>
+          [...temps].map((t) => variantKey(fluid, t)),
+        ),
+        sinks: [...pools.keys()],
+      },
     },
     fold: {
       isSynthetic: (recipe) => selNames.has(recipe) || recipe.startsWith(SEL),
