@@ -8,7 +8,6 @@ import {
   CircleDot,
   Factory,
   Gamepad2,
-  GitBranch,
   Hammer,
   ListChecks,
   Search,
@@ -30,6 +29,7 @@ import { LaunchFactorioButton } from "#/components/launch-factorio-button.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { QueryError } from "#/components/query-error.tsx";
 import { Button } from "#/components/ui/button.tsx";
+import { GithubIcon } from "#/components/github-icon.tsx";
 import { Card, CardHeader, CardTitle, cardClassName } from "#/components/ui/card.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { cn } from "#/lib/utils.ts";
@@ -165,7 +165,7 @@ function Home() {
                 rel="noreferrer"
                 title="View PyOps on GitHub"
               >
-                <GitBranch /> GitHub
+                <GithubIcon /> GitHub
               </a>
             </Button>
             <LaunchFactorioButton size="sm" />
