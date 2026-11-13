@@ -1,0 +1,25 @@
+app/src/components/science/science-block-view.test.tsx
+  s_82f66c35cd6336::t_cbf04220574ebf 1-77
+app/src/components/science/science-block-view.tsx
+  s_82f66c35cd6336::t_a55ccc1797731f 1,5,52-66
+app/src/server/factorio.ts
+  s_82f66c35cd6336::t_ab77e77f662bbe 44,1020-1021
+app/src/server/science-block.server.ts
+  s_82f66c35cd6336::t_643b9ad329d78d 197-207,216,221-222
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "480c4704e2903f5908e98b16754b17a896a7a3cf",
+  "prompts": {},
+  "sessions": {
+    "s_82f66c35cd6336": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05a761d2-dce1-4ddc-867a-ab9bd4503d76",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
