@@ -49,7 +49,7 @@ export const Route = createFileRoute("/factory")({
   ),
 });
 
-import { formatPower, formatQty as num, rateLabel, timeAgo } from "../lib/format";
+import { formatPower, formatQty as num, rateLabel } from "../lib/format";
 import { useGameLinked } from "../lib/use-game-linked";
 /** Factory overview — the whole point of caching block flows: every block's
  * solved I/O aggregated per item with zero solving. Short goods (consumed more
