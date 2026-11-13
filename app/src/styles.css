@@ -161,7 +161,7 @@ body,
 
 /* Base theme — plain CSS (unlayered) so it reliably wins over Tailwind preflight
    regardless of the preset's @import order. The @layer/@apply version was being
-   overridden, which left body text/borders falling back to currentColor. */
+   overridden, which left body text falling back to currentColor. */
 html {
   /* color-scheme is set by the pre-paint theme script + lib/theme.ts (#107),
      following the light/dark/system preference; dark is the fallback here for
@@ -177,8 +177,13 @@ body {
   background-color: var(--background);
   color: var(--foreground);
 }
-*,
-::before,
-::after {
-  border-color: var(--border); /* bare `border` → token, not currentColor */
+/* A bare `border` uses the theme token, not currentColor. This one lives in
+   `base` (after preflight's `border: 0 solid` reset) so `border-*` color
+   utilities still win; unlayered, it would beat every one of them. */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
 }
