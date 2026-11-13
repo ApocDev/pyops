@@ -1,0 +1,19 @@
+docs/guide/explore.md
+  s_3ad30b7cb7a305::t_2b587783474b1c 19-20,22-36,47-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e0b94dd2bfc51ab726d314ca655da4b486fd61aa",
+  "prompts": {},
+  "sessions": {
+    "s_3ad30b7cb7a305": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "46c936e3-3497-4a70-a77a-d30f12dd4ea0",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
