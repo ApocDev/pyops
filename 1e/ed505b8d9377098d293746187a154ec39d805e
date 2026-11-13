@@ -1,0 +1,37 @@
+app/e2e/mut/science-block.e2e.ts
+  s_82f66c35cd6336::t_fa1a725bb057f6 62-65
+app/src/components/science/science-block-view.tsx
+  s_82f66c35cd6336::t_8633d81db20c97 189,218
+app/src/server/bridge/handlers/handlers.test.ts
+  s_82f66c35cd6336::t_a67e6f86f17427 97-104
+app/src/server/bridge/handlers/research.ts
+  s_82f66c35cd6336::t_22c70a82bf6451 5-6,17,60-67
+app/src/server/bridge/protocol.ts
+  s_82f66c35cd6336::t_b46edb55d89aab 13
+app/src/server/science-bank.ts
+  s_82f66c35cd6336::t_181a4d33baea57 15-17,38-39,56,58-59,95,125
+app/src/server/science-block.server.ts
+  s_82f66c35cd6336::t_00a4bf65df1ca6 197-203,214
+docs/development/bridge.md
+  s_82f66c35cd6336::t_b8c574cd8be449 117
+docs/guide/blocks.md
+  s_82f66c35cd6336::t_08df65a0870111 236-240
+mod/control.lua
+  s_82f66c35cd6336::t_f34ec2b85fd930 22,210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1eed505b8d9377098d293746187a154ec39d805e",
+  "prompts": {},
+  "sessions": {
+    "s_82f66c35cd6336": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05a761d2-dce1-4ddc-867a-ab9bd4503d76",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
