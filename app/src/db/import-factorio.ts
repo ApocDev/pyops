@@ -12,6 +12,7 @@
 import Database from "better-sqlite3";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { readDump } from "./read-dump.ts";
 import { synthesizePass2 } from "./synthesize.ts";
 import { temperatureFedDrain, type TempFedFluid } from "./fluid-energy.ts";
 import {
@@ -203,7 +204,7 @@ export function importFactorioDump(
   const DUMP = opts.dumpPath ?? join(factorioScriptOutputDir(), "data-raw-dump.json");
   const DB_URL = opts.dbUrl ?? process.env.DATABASE_URL ?? join(PROJECTS_DIR, "default.db");
 
-  const raw = JSON.parse(readFileSync(DUMP, "utf8")) as Record<string, Record<string, any>>;
+  const raw = readDump(DUMP);
 
   // Locale: load every <type>-locale.json ({ names, descriptions }) for display names.
   const SO_DIR = dirname(DUMP);

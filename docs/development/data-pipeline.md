@@ -85,6 +85,10 @@ project applies a branch selection.
 `*-locale.json` file. It replaces reference tables in the active SQLite database while
 leaving user-owned planning tables intact.
 
+A large modpack's dump can be bigger than V8's maximum string length (about 512 MB), so the
+importer never decodes it as one string. `app/src/db/read-dump.ts` scans the raw bytes for
+each top-level prototype type and parses each type's slice on its own.
+
 Project metadata is not a reference table. Only a handful of its keys describe the dump, and
 the importer overwrites exactly those; everything else in it belongs to someone else and
 survives a sync untouched. That includes display preferences, the research horizon, factory
