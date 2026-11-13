@@ -134,7 +134,8 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
               result
                 ? {
                     speed: result.speedMult - 1,
-                    productivity: result.productivityMult - 1,
+                    // modules and beacons only: the research bonus is not a module
+                    productivity: result.productivityMult - 1 - result.labProductivityBonus,
                     consumption: 0,
                   }
                 : undefined
@@ -186,7 +187,7 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
           const drawnPerSec = Object.values(result.packDemand).reduce((sum, r) => sum + r, 0);
           const pct = `${Math.round((result.productivityMult - 1) * 100)}%`;
           return (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Stat
                 label="Labs"
                 value={formatQty(result.labs)}
@@ -213,9 +214,13 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
                     ? `${formatQty(perMin(result.totalPerSec - drawnPerSec))}/min of science for free`
                     : undefined
                 }
-                hint="From modules and beacons. Pack demand is divided by it."
+                hint="From modules, beacons, and research. Pack demand is divided by it."
               />
               <Stat label="Research speed" value={`+${Math.round(result.labSpeedBonus * 100)}%`} />
+              <Stat
+                label="Research productivity"
+                value={`+${Math.round(result.labProductivityBonus * 100)}%`}
+              />
             </div>
           );
         })()}
@@ -285,7 +290,7 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
             result
               ? {
                   speed: result.speedMult - 1,
-                  productivity: result.productivityMult - 1,
+                  productivity: result.productivityMult - 1 - result.labProductivityBonus,
                   consumption: 0,
                 }
               : undefined

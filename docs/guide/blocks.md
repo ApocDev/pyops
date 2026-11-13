@@ -233,11 +233,13 @@ The block asks for three things:
   different ones running together.
 - **Science per minute** — the rate you want for each pack. These are the plan.
 
-The result reads back the pool size, the total science rate, power, the productivity
-applied to it, and **Research speed**: the research speed bonus your technologies give every
-lab. PyOps reads the bonus from the game while the mod is linked and keeps the last value it
-saw when it is not. A project that never synced uses no bonus. **Imports the factory must
-supply** is what the rest of the factory has to deliver: your rates divided by productivity.
+The result reads back the pool size, the total science rate, power, and the productivity
+applied to it. **Research speed** and **Research productivity** are the lab bonuses your
+technologies give. Research speed cuts the lab count. Research productivity adds to module
+productivity, so it cuts both the lab count and the packs drawn. PyOps reads both bonuses
+from the game while the mod is linked and keeps the last values it saw when it is not. A
+project that never synced uses no bonus. **Imports the factory must supply** is what the
+rest of the factory has to deliver: your rates divided by productivity.
 
 Labs are one pool. Asking for 40 automation science and 20 logistic science per minute needs
 the labs for 60 packs a minute, not the two figures added as separate banks.

@@ -194,10 +194,9 @@ export function sciencePins(): {
   return [...pins.values()];
 }
 
-/** The force's research speed bonus as last synced from the game, or 0 if it
- * never synced. */
-function labSpeedBonus(): number {
-  const bonus = Number(q.metaAll().research_lab_speed_bonus);
+/** A force bonus as last synced from the game, or 0 if it never synced. */
+function syncedBonus(key: "research_lab_speed_bonus" | "research_lab_productivity_bonus"): number {
+  const bonus = Number(q.metaAll()[key]);
   return Number.isFinite(bonus) ? bonus : 0;
 }
 
@@ -211,7 +210,8 @@ export function solveScienceBank(bank: ScienceBank): ScienceBankResult | null {
     lab,
     packs: bank.packs,
     labSecondsPerPack: bank.labSecondsPerPack || DEFAULT_LAB_SECONDS_PER_PACK,
-    labSpeedBonus: labSpeedBonus(),
+    labSpeedBonus: syncedBonus("research_lab_speed_bonus"),
+    labProductivityBonus: syncedBonus("research_lab_productivity_bonus"),
     modules: bank.modules ?? [],
     beacons,
     moduleDb: q.getModules(moduleNames),

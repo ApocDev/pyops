@@ -59,9 +59,12 @@ test("creating a science block, typing rates, and deriving them from a technolog
     // pool per pack, which is the whole reason this is not a set of recipes
     await expect(page.getByTestId("science-stat-labs")).toHaveText(/^Labs\s*60$/);
     await expect(page.getByTestId("science-stat-total-science")).toContainText("60/min");
-    // the fixture never synced research, so no research speed bonus applies
+    // the fixture never synced research, so no research bonus applies
     await expect(page.getByTestId("science-stat-research-speed")).toHaveText(
       /^Research speed\s*\+0%$/,
+    );
+    await expect(page.getByTestId("science-stat-research-productivity")).toHaveText(
+      /^Research productivity\s*\+0%$/,
     );
 
     // ── the technology helper writes into those same fields ──

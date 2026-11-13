@@ -47,6 +47,8 @@ const req = (payload: unknown, extra: Partial<BridgeRequest> = {}): BridgeReques
 beforeEach(() => vi.clearAllMocks());
 
 describe("handleResearch", () => {
+  const NO_LAB_BONUS = { labSpeedBonus: 0, labProductivityBonus: 0 };
+
   it("stores the researched set and stamps sync meta", async () => {
     expect(
       await handleResearch(
@@ -61,15 +63,16 @@ describe("handleResearch", () => {
       researched: ["automation", "logistics"],
       miningProductivityBonus: 1.7,
       recipeProductivityBonuses: { "fawogae-spore": 0.35 },
+      ...NO_LAB_BONUS,
     });
     expect(q.metaSet).toHaveBeenCalledWith("research_synced_count", "2");
   });
 
   it("filters non-string techs and treats a missing list as empty", async () => {
     await handleResearch(req({ researched: ["a", 1, null, "b"] }));
-    expect(q.setResearchHorizon).toHaveBeenCalledWith({ researched: ["a", "b"] });
+    expect(q.setResearchHorizon).toHaveBeenCalledWith({ researched: ["a", "b"], ...NO_LAB_BONUS });
     await handleResearch(req({}));
-    expect(q.setResearchHorizon).toHaveBeenLastCalledWith({ researched: [] });
+    expect(q.setResearchHorizon).toHaveBeenLastCalledWith({ researched: [], ...NO_LAB_BONUS });
   });
 
   it("clears the exact mining bonus only when a malformed bonus is explicitly sent", async () => {
@@ -80,6 +83,7 @@ describe("handleResearch", () => {
       researched: ["a"],
       miningProductivityBonus: null,
       recipeProductivityBonuses: null,
+      ...NO_LAB_BONUS,
     });
   });
 
@@ -91,15 +95,42 @@ describe("handleResearch", () => {
     expect(q.setResearchHorizon).toHaveBeenCalledWith({
       researched: ["a"],
       miningProductivityBonus: null,
+      ...NO_LAB_BONUS,
     });
   });
 
-  it("stores the research speed bonus, and 0 when it is absent", async () => {
+  it("sends the lab bonuses through the research change check, 0 when absent", async () => {
+    await handleResearch(
+      req({
+        researched: ["a"],
+        laboratory_speed_modifier: 2.5,
+        laboratory_productivity_bonus: 0.3,
+      }),
+    );
+    expect(q.setResearchHorizon).toHaveBeenCalledWith({
+      researched: ["a"],
+      labSpeedBonus: 2.5,
+      labProductivityBonus: 0.3,
+    });
+    await handleResearch(req({ researched: ["a"], laboratory_productivity_bonus: "bad" }));
+    expect(q.setResearchHorizon).toHaveBeenLastCalledWith({ researched: ["a"], ...NO_LAB_BONUS });
+  });
+
+  it("re-solves on a speed-only change and not when nothing changed", async () => {
+    // setResearchHorizon owns the stored-vs-incoming comparison (covered in
+    // solve-generation.server.test.ts); the handler re-solves on its verdict
+    vi.mocked(q.setResearchHorizon).mockReturnValueOnce(true);
     await handleResearch(req({ researched: ["a"], laboratory_speed_modifier: 2.5 }));
-    expect(q.metaSet).toHaveBeenCalledWith("research_lab_speed_bonus", "2.5");
-    vi.clearAllMocks();
-    await handleResearch(req({ researched: ["a"] }));
-    expect(q.metaSet).toHaveBeenCalledWith("research_lab_speed_bonus", "0");
+    expect(q.setResearchHorizon).toHaveBeenLastCalledWith({
+      researched: ["a"],
+      labSpeedBonus: 2.5,
+      labProductivityBonus: 0,
+    });
+    expect(factorio.resolveAllBlocks).toHaveBeenCalledTimes(1);
+
+    vi.mocked(q.setResearchHorizon).mockReturnValueOnce(false);
+    await handleResearch(req({ researched: ["a"], laboratory_speed_modifier: 2.5 }));
+    expect(factorio.resolveAllBlocks).toHaveBeenCalledTimes(1);
   });
 
   it("re-solves blocks only when the canonical research context changed", async () => {
@@ -276,6 +307,10 @@ describe("dispatch", () => {
 
   it("routes a known type to its handler", async () => {
     await dispatch(req({ researched: ["x"] }, { type: "state.research" }));
-    expect(q.setResearchHorizon).toHaveBeenCalledWith({ researched: ["x"] });
+    expect(q.setResearchHorizon).toHaveBeenCalledWith({
+      researched: ["x"],
+      labSpeedBonus: 0,
+      labProductivityBonus: 0,
+    });
   });
 });

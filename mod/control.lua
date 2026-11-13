@@ -208,6 +208,7 @@ local function send_research(player)
     researched = researched,
     mining_productivity_bonus = force.mining_drill_productivity_bonus,
     laboratory_speed_modifier = force.laboratory_speed_modifier,
+    laboratory_productivity_bonus = force.laboratory_productivity_bonus,
     recipe_productivity_bonuses = recipe_productivity_bonuses
   })
 end

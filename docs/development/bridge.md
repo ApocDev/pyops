@@ -111,17 +111,17 @@ bump. Changing required fields, field meaning, or correlation behavior does.
 `app/src/server/bridge/handlers.ts` dispatches inbound request types to small domain
 handlers:
 
-| Type             | Ownership and result                                                               |
-| ---------------- | ---------------------------------------------------------------------------------- |
-| `bridge.ping`    | Registers liveness and returns `bridge.pong` with the app protocol version         |
-| `state.research` | Replaces the synced researched set, productivity context, and research speed bonus |
-| `state.turd`     | Replaces synchronized TURD selections and refreshes affected solves                |
-| `state.built`    | Replaces placed-machine counts used by built-versus-required views                 |
-| `state.stats`    | Replaces current production and consumption rates                                  |
-| `sushi.trace`    | Stores the most recent measured sushi-loop geometry                                |
-| `task.capture`   | Creates a project task from the in-game capture dialog                             |
-| `task.list`      | Returns the complete task list for the in-game panel                               |
-| `bridge.result`  | Resolves an awaiting app-to-mod request by `request_id`                            |
+| Type             | Ownership and result                                                                |
+| ---------------- | ----------------------------------------------------------------------------------- |
+| `bridge.ping`    | Registers liveness and returns `bridge.pong` with the app protocol version          |
+| `state.research` | Replaces the researched set, recipe/mining productivity, and lab speed/productivity |
+| `state.turd`     | Replaces synchronized TURD selections and refreshes affected solves                 |
+| `state.built`    | Replaces placed-machine counts used by built-versus-required views                  |
+| `state.stats`    | Replaces current production and consumption rates                                   |
+| `sushi.trace`    | Stores the most recent measured sushi-loop geometry                                 |
+| `task.capture`   | Creates a project task from the in-game capture dialog                              |
+| `task.list`      | Returns the complete task list for the in-game panel                                |
+| `bridge.result`  | Resolves an awaiting app-to-mod request by `request_id`                             |
 
 Live-state messages are snapshots, not patches. The mod sends the complete canonical set
 on connection, explicit sync, and relevant game events. Machine changes are debounced into
