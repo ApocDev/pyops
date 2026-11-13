@@ -850,15 +850,18 @@ export const conversations = sqliteTable("conversations", {
   id: text().primaryKey(), // client-generated uuid
   title: text(),
   model: text(), // optional per-conversation model override
-  reasoningEffort: text("reasoning_effort"), // optional OpenRouter reasoning effort
+  reasoningEffort: text("reasoning_effort"), // optional reasoning effort (low/medium/high)
   // Real token usage from the most recent completed turn, straight from
-  // OpenRouter. Anchors compaction + the context gauge to actual counts instead
+  // the provider. Anchors compaction + the context gauge to actual counts instead
   // of a chars/4 estimate. `last_model_id` is the concrete model that served it
   // (a `~…-latest` alias resolves to e.g. anthropic/claude-sonnet-4.6).
   lastInputTokens: integer("last_input_tokens"),
   lastOutputTokens: integer("last_output_tokens"),
   lastTotalTokens: integer("last_total_tokens"),
   lastModelId: text("last_model_id"),
+  // That turn's total cost in USD across its steps. Null means the provider
+  // didn't report a cost (unknown), never free.
+  lastCostUsd: real("last_cost_usd"),
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });

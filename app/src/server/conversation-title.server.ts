@@ -5,7 +5,7 @@
  */
 import { generateText } from "ai";
 import * as store from "../db/conversations.server.ts";
-import { resolveApiKey } from "./app-config.server.ts";
+import { providerProblem, resolveModel } from "./app-config.server.ts";
 import { getModel, reasoningProviderOptions } from "./agent.ts";
 
 /** Plain text from a stored message's JSON parts. */
@@ -37,12 +37,14 @@ export async function generateConversationTitle(id: string) {
     .join("\n");
   if (!transcript) return null;
 
-  if (!resolveApiKey().key) return null;
+  // The app default model when one is set, else the conversation's own pick.
+  const model = resolveModel().model ? null : conv.model;
+  if (providerProblem(model)) return null;
   try {
     const { text } = await generateText({
       // generous cap: reasoning models (e.g. gpt-5.x) spend output tokens on
       // reasoning before emitting the title, so a tiny cap yields empty text
-      model: getModel(),
+      model: getModel(model, id),
       providerOptions: reasoningProviderOptions(null, "low", { exclude: true }),
       maxOutputTokens: 512,
       prompt:

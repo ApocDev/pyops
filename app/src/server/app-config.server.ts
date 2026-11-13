@@ -13,15 +13,27 @@ import { dirname } from "node:path";
 
 import { APP_CONFIG_FILE } from "./paths.server.ts";
 
-/** Default OpenRouter model when neither env nor app-config sets one. */
+/** Default OpenRouter model when neither env nor app-config sets one. An
+ * OpenAI-compatible endpoint has no default: its model list is the endpoint's own. */
 export const DEFAULT_MODEL = "~anthropic/claude-sonnet-latest";
+
+/** Which API the assistant talks to: OpenRouter, or any server that speaks the
+ * OpenAI Chat Completions API (LiteLLM, vLLM, Ollama, ...). */
+export const AI_PROVIDERS = ["openrouter", "openai-compatible"] as const;
+export type AiProviderKind = (typeof AI_PROVIDERS)[number];
 
 const FILE = APP_CONFIG_FILE;
 
 export type AppConfig = {
   active?: string; // the selected project id
+  aiProvider?: AiProviderKind;
   openrouterApiKey?: string;
-  model?: string;
+  model?: string; // the OpenRouter default model
+  // OpenAI-compatible endpoint (Settings → Planning). The base URL includes the
+  // API version path, e.g. https://gateway.example/v1.
+  openaiCompatibleBaseUrl?: string;
+  openaiCompatibleApiKey?: string;
+  openaiCompatibleModel?: string;
   factorySolverDebug?: boolean;
   // Factorio install paths (Settings → Game data). Env vars still win; see
   // factorio-paths.server.ts for the resolution order.
@@ -55,24 +67,86 @@ export function writeAppConfig(patch: Partial<AppConfig>): AppConfig {
   return next;
 }
 
-/** OpenRouter API key: env wins, else the stored value, else undefined. */
-export function resolveApiKey(): { key: string | undefined; fromEnv: boolean } {
-  const env = process.env.OPENROUTER_API_KEY;
-  if (env) return { key: env, fromEnv: true };
-  return { key: readAppConfig().openrouterApiKey, fromEnv: false };
+type Env = Record<string, string | undefined>;
+
+export const isProviderKind = (v: unknown): v is AiProviderKind =>
+  AI_PROVIDERS.some((p) => p === v);
+
+/** The active assistant provider and its connection settings. Each value comes
+ * from env when set (a deployment override), else from app-config. */
+export type ResolvedProvider =
+  | { kind: "openrouter"; apiKey: string | undefined }
+  | { kind: "openai-compatible"; baseUrl: string | undefined; apiKey: string | undefined };
+
+/** Pure provider resolution, so tests can pass env and stored config directly. */
+export function resolveProviderFrom(env: Env, stored: AppConfig): ResolvedProvider {
+  const envKind = env.PYOPS_AI_PROVIDER;
+  const kind = isProviderKind(envKind)
+    ? envKind
+    : isProviderKind(stored.aiProvider)
+      ? stored.aiProvider
+      : "openrouter";
+  if (kind === "openrouter") {
+    return { kind, apiKey: env.OPENROUTER_API_KEY || stored.openrouterApiKey };
+  }
+  const baseUrl = env.PYOPS_OPENAI_COMPATIBLE_BASE_URL || stored.openaiCompatibleBaseUrl;
+  return {
+    kind,
+    baseUrl: baseUrl?.trim().replace(/\/+$/, "") || undefined,
+    apiKey: env.PYOPS_OPENAI_COMPATIBLE_API_KEY || stored.openaiCompatibleApiKey,
+  };
 }
 
-/** Agent model: env wins, else the provided override, else the stored value, else
- * DEFAULT_MODEL. Env stays a hard deployment override; per-conversation model
- * picks only apply when PYOPS_AGENT_MODEL is unset. */
-export function resolveModel(override?: string | null): {
-  model: string;
-  fromEnv: boolean;
-  fromConversation: boolean;
-} {
-  const env = process.env.PYOPS_AGENT_MODEL;
-  if (env) return { model: env, fromEnv: true, fromConversation: false };
+export const resolveProvider = () => resolveProviderFrom(process.env, readAppConfig());
+
+/** Pure model resolution: env wins, else the conversation override, else the
+ * active provider's stored default, else DEFAULT_MODEL for OpenRouter ("" for an
+ * OpenAI-compatible endpoint, which has no universal default). Env stays a hard
+ * deployment override; per-conversation picks only apply when PYOPS_AGENT_MODEL
+ * is unset. */
+export function resolveModelFrom(
+  env: Env,
+  stored: AppConfig,
+  override?: string | null,
+): { model: string; fromEnv: boolean; fromConversation: boolean } {
+  if (env.PYOPS_AGENT_MODEL) {
+    return { model: env.PYOPS_AGENT_MODEL, fromEnv: true, fromConversation: false };
+  }
   const picked = override?.trim();
   if (picked) return { model: picked, fromEnv: false, fromConversation: true };
-  return { model: readAppConfig().model || DEFAULT_MODEL, fromEnv: false, fromConversation: false };
+  const model =
+    resolveProviderFrom(env, stored).kind === "openrouter"
+      ? stored.model || DEFAULT_MODEL
+      : stored.openaiCompatibleModel || "";
+  return { model, fromEnv: false, fromConversation: false };
 }
+
+/** Agent model for the active provider. See resolveModelFrom for the order. */
+export const resolveModel = (override?: string | null) =>
+  resolveModelFrom(process.env, readAppConfig(), override);
+
+/** Why the assistant can't run with the current settings, as a user-facing
+ * message, or null when it is ready. `modelOverride` is the conversation's own
+ * model pick, which satisfies the model requirement on its own. */
+export function providerProblemFrom(
+  env: Env,
+  stored: AppConfig,
+  modelOverride?: string | null,
+): string | null {
+  const p = resolveProviderFrom(env, stored);
+  if (p.kind === "openrouter") {
+    return p.apiKey
+      ? null
+      : "No OpenRouter API key. Set one in Settings → Planning, or via the OPENROUTER_API_KEY env var.";
+  }
+  if (!p.baseUrl) {
+    return "No OpenAI-compatible endpoint URL. Set one in Settings → Planning, or via the PYOPS_OPENAI_COMPATIBLE_BASE_URL env var.";
+  }
+  if (!resolveModelFrom(env, stored, modelOverride).model) {
+    return "No model set for the OpenAI-compatible endpoint. Pick one in Settings → Planning, or via the PYOPS_AGENT_MODEL env var.";
+  }
+  return null;
+}
+
+export const providerProblem = (modelOverride?: string | null) =>
+  providerProblemFrom(process.env, readAppConfig(), modelOverride);

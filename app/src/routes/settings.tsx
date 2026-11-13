@@ -3,13 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useSyncExternalStore } from "react";
 import { Check, Copy, Star } from "lucide-react";
 import {
-  aiConfigFn,
   dataPathsFn,
   dataStatusFn,
   exclusionsFn,
   modDriftFn,
   plannerSettingsFn,
-  setAiConfigFn,
   setExclusionsFn,
   setPlannerSettingsFn,
 } from "../server/factorio";
@@ -21,6 +19,7 @@ import { BlockShareCard } from "../components/block-share-card.tsx";
 import { ProjectBackupCard } from "../components/project-backup-card.tsx";
 import { HorizonPicker } from "../components/horizon-picker";
 import { CompanionModCard } from "../components/companion-mod-card";
+import { AssistantCard } from "../components/settings/assistant-card.tsx";
 import { FactorioPathsCard } from "../components/settings/factorio-paths-card.tsx";
 import { FactorySolverDebugCard } from "../components/settings/factory-solver-debug-card.tsx";
 import { GameDataDetailsCard } from "../components/settings/game-data-details-card.tsx";
@@ -590,127 +589,6 @@ function PlannerCard() {
             Star a building, fuel, or fluid temperature to make it the default for new recipes.
           </p>
         </div>
-      </div>
-    </Card>
-  );
-}
-
-/** Assistant / AI config: the OpenRouter key + model. App-level (your AI account,
- * not a project). Env vars win; the stored values are the fallback default. */
-function AssistantCard() {
-  const qc = useQueryClient();
-  const cfg = useQuery({ queryKey: ["aiConfig"], queryFn: () => aiConfigFn() });
-  const save = useMutation({
-    mutationFn: (d: { openrouterApiKey?: string | null; model?: string | null }) =>
-      setAiConfigFn({ data: d }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["aiConfig"] }),
-  });
-  const [key, setKey] = useState("");
-  const [model, setModel] = useState("");
-  const [modelDirty, setModelDirty] = useState(false);
-  const d = cfg.data;
-  if (!d) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Assistant (AI)</CardTitle>
-        </CardHeader>
-        <div className="space-y-2 px-3 pb-3">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-8 w-72" />
-          <Skeleton className="h-8 w-72" />
-        </div>
-      </Card>
-    );
-  }
-  const modelValue = modelDirty ? model : d.model;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Assistant (AI)</CardTitle>
-      </CardHeader>
-      <div className="space-y-3 px-3 pb-3 text-sm">
-        <p className="flex items-center gap-1.5 text-muted-foreground">
-          Shared across all projects.
-          <InfoHint content="The OPENROUTER_API_KEY / PYOPS_AGENT_MODEL env vars take priority when set; these stored values are the fallback." />
-        </p>
-
-        <div>
-          <FieldLabel>OpenRouter API key</FieldLabel>
-          {d.keyFromEnv ? (
-            <div className="mt-1 flex items-center gap-1 text-sm text-success">
-              <Check className="size-3.5" /> Set via OPENROUTER_API_KEY env (wins)
-            </div>
-          ) : (
-            <div className="mt-1 flex items-center gap-2">
-              <Input
-                type="password"
-                value={key}
-                placeholder={
-                  d.keyStored ? "•••••••• (stored — type to replace)" : "OpenRouter key (sk-or-…)"
-                }
-                onChange={(e) => setKey(e.target.value)}
-                className="w-72"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  save.mutate({ openrouterApiKey: key });
-                  setKey("");
-                }}
-                disabled={!key.trim()}
-              >
-                Save
-              </Button>
-              {d.keyStored && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => save.mutate({ openrouterApiKey: "" })}
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <FieldLabel>Model</FieldLabel>
-          {d.modelFromEnv ? (
-            <div className="mt-1 flex items-center gap-1 text-sm text-success">
-              <Check className="size-3.5" /> Set via PYOPS_AGENT_MODEL env (wins): {d.resolvedModel}
-            </div>
-          ) : (
-            <div className="mt-1 flex items-center gap-2">
-              <Input
-                value={modelValue}
-                placeholder={d.defaultModel}
-                onChange={(e) => {
-                  setModel(e.target.value);
-                  setModelDirty(true);
-                }}
-                className="w-72"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  save.mutate({ model: modelValue });
-                  setModelDirty(false);
-                }}
-              >
-                Save
-              </Button>
-            </div>
-          )}
-        </div>
-        {save.isError && (
-          <p className="text-sm text-destructive">Save failed: {save.error.message}</p>
-        )}
       </div>
     </Card>
   );

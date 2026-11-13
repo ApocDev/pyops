@@ -86,8 +86,8 @@ actions are unavailable.
 
 ## The Assistant fails
 
-PyOps currently requires an OpenRouter API key. Key, credit, model, reasoning, context, and
-live-state failures are covered under [Troubleshoot the Assistant](../guide/assistant#troubleshoot-the-assistant).
+PyOps needs an OpenRouter API key or a configured OpenAI-compatible endpoint. Key, endpoint,
+credit, model, reasoning, context, and live-state failures are covered under [Troubleshoot the Assistant](../guide/assistant#troubleshoot-the-assistant).
 
 ## An update or reinstall does not behave as expected
 
@@ -144,5 +144,5 @@ Search existing reports or open an issue in the
 - whether Factorio, the Companion mod, or the Assistant was involved;
 - the enabled mod names and versions shown under **Settings → Game data** when relevant.
 
-Do not attach an OpenRouter key or other secret. Share a project backup only when its
+Do not attach an Assistant key or other secret. Share a project backup only when its
 planning data is appropriate to disclose.

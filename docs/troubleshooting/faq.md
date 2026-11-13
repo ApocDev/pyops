@@ -24,7 +24,8 @@ project-aware Assistant tools work without it. See
 ### Does the core planner require internet access?
 
 No. Planning and data sync are local. Internet access is needed to download releases,
-check for updates, open external links, and use the OpenRouter-backed Assistant.
+check for updates, open external links, and reach the Assistant's provider (OpenRouter,
+or your own OpenAI-compatible endpoint, which can be on the local network).
 
 ### Can I plan more than one save or mod set?
 
@@ -87,9 +88,9 @@ for that running installation. See [Settings and storage](../reference/settings-
 It is a portable copy of one block or a set of blocks, not a complete project. Use
 **Download “project”** under **Settings → Backup & share** for recovery or migration.
 
-### Does a project backup contain my OpenRouter key?
+### Does a project backup contain my Assistant key?
 
-No. The key is app-level configuration and is intentionally separate from project
+No. Assistant keys are app-level configuration and is intentionally separate from project
 databases and block exports.
 
 ### Can an imported plan use recipes from a different mod set?
@@ -102,8 +103,10 @@ relying on the result.
 
 ### Can I use an OpenAI or Anthropic API key directly?
 
-No. PyOps currently connects through OpenRouter only. You can select models from those
-providers through OpenRouter, using an OpenRouter API key.
+Not as a direct provider. PyOps connects through OpenRouter, or through any
+OpenAI-compatible endpoint. To use a provider key, put it behind a gateway such as LiteLLM
+and point **Settings → Planning → Assistant (AI) → OpenAI-compatible** at the gateway. See
+[Use an OpenAI-compatible endpoint](../guide/assistant#use-an-openai-compatible-endpoint).
 
 ### Does the Assistant change blocks automatically?
 

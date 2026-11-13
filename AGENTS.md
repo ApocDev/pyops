@@ -24,7 +24,7 @@ This is a single repo with three cooperating parts:
 
 Per-project SQLite stores live in `projects/*.db` (each self-describes its name in
 its own `meta`); `app-config.json` holds app-level config (active project + the
-OpenRouter key/model). Both live under the app's **data dir** — the working dir in
+assistant provider, keys, and models). Both live under the app's **data dir** — the working dir in
 dev, a per-OS user-data dir for a packaged build, overridable via `PYOPS_DATA_DIR`
 (see `app/src/server/paths.server.ts`). All are generated/gitignored.
 
@@ -36,7 +36,8 @@ dev, a per-OS user-data dir for a packaged build, overridable via `PYOPS_DATA_DI
 - `server/` — server-side modules (run only on the backend):
   - `factorio.ts`, `dump.server.ts` — load/query the Factorio data dump.
   - `factory-solve.server.ts`, `cost-analysis.server.ts`, `effects.ts`, `additives.ts` — planning logic.
-  - `agent.ts`, `agent-tools.server.ts` — the AI assistant (AI SDK v7 + OpenRouter,
+  - `agent.ts`, `agent-tools.server.ts` — the AI assistant (AI SDK v7; OpenRouter
+    or any OpenAI-compatible endpoint, see `model-catalog.server.ts`,
     read-only tools + propose-then-apply writes: draft-a-block, draft-a-plan,
     and revise a block's rate or recipe set).
   - `bridge/` — UDP bridge to the mod. `protocol.ts` defines the wire contract;

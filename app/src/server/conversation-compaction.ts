@@ -1,9 +1,10 @@
 import { generateId, generateText } from "ai";
 
 import type { StoredMessage } from "../db/conversations.server.ts";
-import { ensureModelsLoaded, modelContextWindow } from "./openrouter-models.ts";
+import { FALLBACK_CONTEXT_WINDOW } from "../lib/model-capabilities.ts";
+import { ensureModelsLoaded, modelContextWindow } from "./model-catalog.server.ts";
 import { getModel, reasoningProviderOptions } from "./agent.ts";
-import { resolveApiKey, resolveModel } from "./app-config.server.ts";
+import { providerProblem, resolveModel } from "./app-config.server.ts";
 
 const TRIGGER_RATIO = 0.75;
 const TARGET_RATIO = 0.55;
@@ -107,11 +108,15 @@ function fallbackSummary(messages: StoredMessage[]): string {
   );
 }
 
-async function summarizeMessages(messages: StoredMessage[], modelOverride: string | null) {
-  if (!resolveApiKey().key) return fallbackSummary(messages);
+async function summarizeMessages(
+  messages: StoredMessage[],
+  modelOverride: string | null,
+  sessionId: string | undefined,
+) {
+  if (providerProblem(modelOverride)) return fallbackSummary(messages);
   try {
     const { text } = await generateText({
-      model: getModel(modelOverride),
+      model: getModel(modelOverride, sessionId),
       providerOptions: reasoningProviderOptions(modelOverride, "low", { exclude: true }),
       maxOutputTokens: SUMMARY_MAX_OUTPUT_TOKENS,
       prompt:
@@ -128,7 +133,7 @@ async function summarizeMessages(messages: StoredMessage[], modelOverride: strin
 }
 
 type CompactOptions = {
-  /** Real token count of the conversation as last measured by OpenRouter; when
+  /** Real token count of the conversation as last measured by the provider; when
    * present it (not the chars/4 estimate) drives the trigger. */
   realUsedTokens?: number | null;
   /** The concrete model that served the last turn — its context window is more
@@ -136,6 +141,8 @@ type CompactOptions = {
   lastModelId?: string | null;
   /** Compact now regardless of the trigger ratio (the manual gauge button). */
   force?: boolean;
+  /** The conversation id, sent as the gateway session header. */
+  sessionId?: string;
 };
 
 export async function compactMessagesForContext(
@@ -145,7 +152,11 @@ export async function compactMessagesForContext(
 ): Promise<{ messages: StoredMessage[]; compacted: boolean }> {
   await ensureModelsLoaded();
   const resolved = resolveModel(modelOverride).model;
-  const contextWindow = modelContextWindow(opts.lastModelId || resolved);
+  // An endpoint that reports no window gets the conservative fallback.
+  const contextWindow =
+    modelContextWindow(opts.lastModelId || resolved) ??
+    modelContextWindow(resolved) ??
+    FALLBACK_CONTEXT_WINDOW;
   const estimated = estimateConversationTokens(messages);
   // Prefer the real count from the last turn; fall back to the estimate only when
   // we have no measured number yet. Accuracy here means we don't compact (and drop
@@ -174,7 +185,7 @@ export async function compactMessagesForContext(
   if (candidates.length < MIN_MESSAGES_TO_COMPACT) return { messages, compacted: false };
 
   const archived = archiveOriginals(candidates);
-  const summary = await summarizeMessages(candidates, modelOverride);
+  const summary = await summarizeMessages(candidates, modelOverride, opts.sessionId);
   const compactedAt = new Date().toISOString();
   const summaryMessage: StoredMessage = {
     id: `compaction-${generateId()}`,

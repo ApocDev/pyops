@@ -1,0 +1,1 @@
+ALTER TABLE `conversations` ADD `last_cost_usd` real;

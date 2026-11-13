@@ -20,7 +20,8 @@ For installation and product workflows, use the [user guide](../getting-started/
 - [Factorio bridge](./bridge) documents the localhost UDP protocol, live-state ownership,
   Companion mod, and development loop.
 - [AI assistant](./ai-assistant) covers conversation persistence, context management,
-  tool boundaries, proposal approval, OpenRouter, and the MCP surface.
+  tool boundaries, proposal approval, providers (OpenRouter and OpenAI-compatible), and the
+  MCP surface.
 - [Design system](./design) defines tokens, primitives, page anatomy, responsive behavior,
   and interaction states.
 - [Desktop app and releases](./desktop) explains the Tauri shell, bundled server, platform

@@ -14,8 +14,9 @@ import {
   agentTools,
   getModel,
   reasoningProviderOptions,
+  turnCost,
 } from "#/server/agent.ts";
-import { resolveApiKey } from "#/server/app-config.server.ts";
+import { providerProblem } from "#/server/app-config.server.ts";
 import { generateConversationTitle } from "#/server/conversation-title.server.ts";
 import * as conv from "#/db/conversations.server.ts";
 import * as q from "#/db/queries.server.ts";
@@ -54,15 +55,12 @@ export const Route = createFileRoute("/api/chat")({
           return Response.json(stopAssistantRun(body.id, body.assistantMessage));
         }
 
-        if (!resolveApiKey().key) {
-          return new Response(
-            "No OpenRouter API key. Set one in Settings → Assistant, or via the OPENROUTER_API_KEY env var.",
-            { status: 500 },
-          );
-        }
         const id = body.id;
         let messages = body.messages ?? [];
         if (!id) return new Response("Missing chat id.", { status: 400 });
+        // Validate against the conversation's own model pick, not just the app default.
+        const problem = providerProblem(conv.getConversationModel(id));
+        if (problem) return new Response(problem, { status: 500 });
         const shouldGenerateTitle = !messages.some((m) => m.role === "assistant");
 
         conv.syncConversation(id, toStored(messages));
@@ -74,6 +72,7 @@ export const Route = createFileRoute("/api/chat")({
             {
               realUsedTokens: conversation.usage.totalTokens,
               lastModelId: conversation.usage.modelId,
+              sessionId: id,
             },
           );
           if (compacted.compacted) {
@@ -95,7 +94,7 @@ export const Route = createFileRoute("/api/chat")({
               : `FUTURE planning — any recipe is fair game; just CALL OUT what must be unlocked (the science packs in needsResearch) or which TURD to select (turd.state 'pickable' = pick it; 'blocked' = requires a respec on that master).`);
 
         const result = streamText({
-          model: getModel(conversation?.model),
+          model: getModel(conversation?.model, id),
           providerOptions: reasoningProviderOptions(
             conversation?.model,
             conversation?.reasoningEffort,
@@ -114,7 +113,7 @@ export const Route = createFileRoute("/api/chat")({
             console.log(
               `[agent] finished: reason=${finishReason} steps=${steps.length} textLen=${finalStep.text.length} tokens=${finalStep.usage.totalTokens ?? "?"} model=${modelId}`,
             );
-            // Persist the real OpenRouter token counts so compaction + the context
+            // Persist the real token counts so compaction + the context
             // gauge run on actuals. The aggregate `usage` SUMS every tool step's
             // prompt (each step re-sends the whole context), so it wildly overcounts
             // the real context size — the final step's input+output is the true fill
@@ -129,6 +128,7 @@ export const Route = createFileRoute("/api/chat")({
                   ? null
                   : (inputTokens ?? 0) + (outputTokens ?? 0),
               modelId,
+              costUsd: turnCost(steps),
             });
           },
         });

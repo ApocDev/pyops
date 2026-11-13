@@ -72,7 +72,7 @@ navigation. On narrower windows, open the menu button; the same controls appear 
 navigation drawer.
 
 Project switching changes the complete planning workspace: blocks, tasks, synced reference
-data, snapshots, research state, and TURD choices. The OpenRouter key and default Assistant
+data, snapshots, research state, and TURD choices. Assistant provider settings, keys, and the default
 model belong to the app rather than an individual project.
 
 ## Undo a project change

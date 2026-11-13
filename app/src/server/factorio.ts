@@ -25,6 +25,7 @@ import * as q from "../db/queries.server.ts";
 import * as projects from "./projects.server.ts";
 import * as dump from "./dump.server.ts";
 import * as cfg from "./app-config.server.ts";
+import * as modelCatalog from "./model-catalog.server.ts";
 import { computeCostAnalysis } from "./cost-analysis.server.ts";
 import { recipeDifferencesFor } from "./recipe-differences.server.ts";
 import { turdBoard } from "./turd-board.server.ts";
@@ -1041,28 +1042,66 @@ export const setResearchHorizonFn = createServerFn({ method: "POST" })
     return { ok: true, resolved };
   });
 
-/** App-level AI config (OpenRouter key + model). Env always wins; the stored value
- * is the UI default. The key itself is never sent back — only whether one is set. */
+/** App-level AI config: the provider choice, its connection settings, and the
+ * default model. Env always wins; stored values are the UI default. Keys are
+ * never sent back, only whether one is set. `model` is the ACTIVE provider's
+ * stored default; `models` is the endpoint's list (null for OpenRouter). */
 export const aiConfigFn = createServerFn({ method: "GET" }).handler(async () => {
   const stored = cfg.readAppConfig();
+  const env = process.env;
+  const provider = cfg.resolveProvider().kind;
+  await modelCatalog.ensureModelsLoaded();
   return {
+    provider,
+    providerFromEnv: cfg.isProviderKind(env.PYOPS_AI_PROVIDER),
+    problem: cfg.providerProblem(),
     keyStored: !!stored.openrouterApiKey,
-    keyFromEnv: !!process.env.OPENROUTER_API_KEY,
-    model: stored.model ?? "",
-    modelFromEnv: !!process.env.PYOPS_AGENT_MODEL,
+    keyFromEnv: !!env.OPENROUTER_API_KEY,
+    baseUrl: stored.openaiCompatibleBaseUrl ?? "",
+    baseUrlFromEnv: !!env.PYOPS_OPENAI_COMPATIBLE_BASE_URL,
+    compatKeyStored: !!stored.openaiCompatibleApiKey,
+    compatKeyFromEnv: !!env.PYOPS_OPENAI_COMPATIBLE_API_KEY,
+    model: (provider === "openrouter" ? stored.model : stored.openaiCompatibleModel) ?? "",
+    modelFromEnv: !!env.PYOPS_AGENT_MODEL,
     resolvedModel: cfg.resolveModel().model,
-    defaultModel: cfg.DEFAULT_MODEL,
+    defaultModel: provider === "openrouter" ? cfg.DEFAULT_MODEL : "",
+    models: modelCatalog.pickerModels(),
   };
 });
 
 /** Persist the app-level AI config. Pass a field to set it ("" clears it back to
- * env/default); omit a field to leave it unchanged. */
+ * env/default); omit a field to leave it unchanged. `model` sets the default for
+ * the provider that is active after this save. */
 export const setAiConfigFn = createServerFn({ method: "POST" })
-  .validator((d: { openrouterApiKey?: string | null; model?: string | null }) => d)
+  .validator(
+    (d: {
+      aiProvider?: cfg.AiProviderKind;
+      openrouterApiKey?: string | null;
+      openaiCompatibleBaseUrl?: string | null;
+      openaiCompatibleApiKey?: string | null;
+      model?: string | null;
+    }) => {
+      if (d.aiProvider !== undefined && !cfg.isProviderKind(d.aiProvider)) {
+        throw new Error(`Unknown AI provider: ${String(d.aiProvider)}`);
+      }
+      return d;
+    },
+  )
   .handler(async ({ data }) => {
-    const patch: { openrouterApiKey?: string; model?: string } = {};
+    const patch: Partial<cfg.AppConfig> = {};
+    if (data.aiProvider) patch.aiProvider = data.aiProvider;
     if (data.openrouterApiKey !== undefined) patch.openrouterApiKey = data.openrouterApiKey ?? "";
-    if (data.model !== undefined) patch.model = data.model ?? "";
+    if (data.openaiCompatibleBaseUrl !== undefined) {
+      patch.openaiCompatibleBaseUrl = data.openaiCompatibleBaseUrl?.trim() ?? "";
+    }
+    if (data.openaiCompatibleApiKey !== undefined) {
+      patch.openaiCompatibleApiKey = data.openaiCompatibleApiKey ?? "";
+    }
+    if (data.model !== undefined) {
+      const next = { ...cfg.readAppConfig(), ...patch };
+      const kind = cfg.resolveProviderFrom(process.env, next).kind;
+      patch[kind === "openrouter" ? "model" : "openaiCompatibleModel"] = data.model ?? "";
+    }
     cfg.writeAppConfig(patch);
     return { ok: true };
   });

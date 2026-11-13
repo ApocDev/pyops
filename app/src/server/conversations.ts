@@ -5,15 +5,10 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import type { StoredMessage } from "../db/conversations.server.ts";
-import {
-  ensureModelsLoaded,
-  modelContextWindow,
-  supportedReasoningEfforts,
-  supportsReasoningEffort,
-} from "./openrouter-models.ts";
 
 // Server-only modules, top-level: referenced only inside `.handler()` bodies,
 // so the Start compiler prunes them from the client bundle with the handlers.
+import * as catalog from "./model-catalog.server.ts";
 import * as store from "../db/conversations.server.ts";
 import * as compaction from "./conversation-compaction.ts";
 import * as cfg from "./app-config.server.ts";
@@ -55,7 +50,7 @@ export const activeAssistantRunsFn = createServerFn({ method: "GET" }).handler(a
 export const conversationModelFn = createServerFn({ method: "GET" })
   .validator((id: string) => id)
   .handler(async ({ data }) => {
-    await ensureModelsLoaded();
+    await catalog.ensureModelsLoaded();
     const conv = store.getConversation(data);
     const resolved = cfg.resolveModel(conv?.model);
     return {
@@ -64,32 +59,39 @@ export const conversationModelFn = createServerFn({ method: "GET" })
       resolvedModel: resolved.model,
       modelFromEnv: resolved.fromEnv,
       modelFromConversation: resolved.fromConversation,
-      reasoningEffortSupported: supportsReasoningEffort(resolved.model),
-      reasoningEfforts: supportedReasoningEfforts(resolved.model),
-      defaultModel: cfg.DEFAULT_MODEL,
+      reasoningEffortSupported: catalog.supportsReasoningEffort(resolved.model),
+      reasoningEfforts: catalog.supportedReasoningEfforts(resolved.model),
+      // The endpoint's own model list in OpenAI-compatible mode; null means
+      // OpenRouter, where the picker shows its curated shortlist.
+      models: catalog.pickerModels(),
+      defaultModel: cfg.resolveProvider().kind === "openrouter" ? cfg.DEFAULT_MODEL : "",
+      // Missing setup for THIS chat: its own model pick counts toward the model.
+      problem: cfg.providerProblem(conv?.model),
     };
   });
 
 /** Live context-fill status for the gauge: real token count from the last turn
  * when we have one (else a chars/4 estimate), against the model's real context
- * window. */
+ * window. `contextWindow` is null when the endpoint doesn't report one. */
 export const conversationTokenStatusFn = createServerFn({ method: "GET" })
   .validator((id: string) => id)
   .handler(async ({ data }) => {
-    await ensureModelsLoaded();
+    await catalog.ensureModelsLoaded();
     const conv = store.getConversation(data);
     const resolved = cfg.resolveModel(conv?.model).model;
-    const windowModel = conv?.usage.modelId || resolved;
-    const contextWindow = modelContextWindow(windowModel);
+    const contextWindow =
+      catalog.modelContextWindow(conv?.usage.modelId || resolved) ??
+      catalog.modelContextWindow(resolved);
     const real = conv?.usage.totalTokens ?? null;
     const usedTokens = real ?? (conv ? compaction.estimateConversationTokens(conv.messages) : 0);
     const messageCount = conv?.messages.length ?? 0;
     return {
       usedTokens,
       contextWindow,
-      ratio: contextWindow > 0 ? usedTokens / contextWindow : 0,
+      ratio: contextWindow ? usedTokens / contextWindow : null,
       estimated: real == null,
       modelId: conv?.usage.modelId ?? null,
+      costUsd: conv?.usage.costUsd ?? null,
       resolvedModel: resolved,
       messageCount,
     };
@@ -109,6 +111,7 @@ export const compactConversationFn = createServerFn({ method: "POST" })
       realUsedTokens: conv.usage.totalTokens,
       lastModelId: conv.usage.modelId,
       force: true,
+      sessionId: data,
     });
     if (res.compacted) {
       s.saveConversation(data, res.messages, conv.title ?? undefined);
@@ -117,6 +120,7 @@ export const compactConversationFn = createServerFn({ method: "POST" })
         outputTokens: null,
         totalTokens: null,
         modelId: null,
+        costUsd: null,
       });
     }
     return { ok: true, compacted: res.compacted, messages: res.messages };

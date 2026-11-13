@@ -36,7 +36,8 @@ Each project keeps its own:
 Switching projects changes all of that state together. This lets one PyOps installation
 hold factories with different saves or mod sets without mixing their recipes and plans.
 
-The OpenRouter key and default Assistant model are app-level settings. They remain the same
+The Assistant provider, its keys and endpoint URL, and the default model are app-level
+settings. They remain the same
 when you switch projects and are not included in a project backup.
 
 ## Capture a factory solver trace
@@ -106,7 +107,7 @@ instead of overwriting the current one.
 ## Back up the right data
 
 A project `.db` backup contains the complete selected project, including its synced
-reference data. It does not contain app-level configuration or the OpenRouter key. A block
+reference data. It does not contain app-level configuration or Assistant keys. A block
 JSON export contains only portable block definitions and is not a disaster-recovery
 backup.
 
