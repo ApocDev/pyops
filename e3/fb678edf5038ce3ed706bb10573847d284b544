@@ -1,0 +1,21 @@
+app/e2e/README.md
+  s_1ae7a8c97d56af::t_1456b0f27f1240 89-90
+app/e2e/mut/subblock.e2e.ts
+  s_1ae7a8c97d56af::t_eb32bb668833e7 2,12,72-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e3fb678edf5038ce3ed706bb10573847d284b544",
+  "prompts": {},
+  "sessions": {
+    "s_1ae7a8c97d56af": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0e760880-1e9c-4b0b-865c-7cf6100fa651",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
