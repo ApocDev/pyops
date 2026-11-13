@@ -1,0 +1,25 @@
+app/src/components/good-explorer-dialog.test.tsx
+  s_831e8c0c645f77::t_f34c12ce4618d8 2,13-16,19,39
+app/src/lib/icons.test.tsx
+  s_831e8c0c645f77::t_7ee6d7719c4285 2,6,23,27-30,34,55,69,84,104,122,137-163
+app/src/lib/icons.tsx
+  s_831e8c0c645f77::t_30c4f152efcd96 1-2,29,76-77,79-93
+app/src/components/project-switcher.tsx
+  s_831e8c0c645f77::t_334c938d6166d5 44-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6239e3efe119c3aeb1b88f2d350ab28294ccf98d",
+  "prompts": {},
+  "sessions": {
+    "s_831e8c0c645f77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92b0e243-936b-46c8-807b-c4c86041ee0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
