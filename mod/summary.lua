@@ -441,13 +441,28 @@ function Summary.is_open(player)
   return player.gui.screen[PANEL_NAME] ~= nil
 end
 
+-- Rough width of a sheet (logical px) for placement; GUI sizes can't be read.
+local SHEET_WIDTH_ESTIMATE = 560
+
 -- Where a newly opened sheet goes: beside the PyOps panel when that's open (the
--- board's slots open sheets), else where the sheet last sat, else centered.
+-- board's slots open sheets), right of it if there's room, else left of it. The
+-- panel's width comes from its tags. Otherwise where the sheet last sat, else
+-- centered (nil).
 local function initial_location(player, state)
   local main = player.gui.screen[MAIN_PANEL]
-  if main and main.style.minimal_width and main.style.minimal_width > 0 then
+  local width = main and main.tags.pyops_width
+  if width then
     local scale = player.display_scale
-    return { x = main.location.x + math.floor((main.style.minimal_width + 8) * scale), y = main.location.y }
+    local x = Format.beside_x(
+      main.location.x,
+      math.floor(width * scale),
+      math.floor(SHEET_WIDTH_ESTIMATE * scale),
+      player.display_resolution.width,
+      math.floor(8 * scale)
+    )
+    if x then
+      return { x = x, y = main.location.y }
+    end
   end
   return state.location
 end

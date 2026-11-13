@@ -85,4 +85,47 @@ function Format.matches(name, query)
   return string.find(string.lower(name or ""), string.lower(query), 1, true) ~= nil
 end
 
+-- The PyOps panel's width in logical pixels: `preferred`, but never wider than
+-- the screen's logical width minus a margin on each side. Never under 320, which
+-- keeps a few slot columns on very small screens.
+function Format.panel_width(screen_width, preferred, margin)
+  return math.max(320, math.min(preferred, math.floor(screen_width - 2 * margin)))
+end
+
+-- Blocks board layout for a panel width (logical px): the folder-label width and
+-- how many 40px slots fit per row (1..10). About 80px goes to the frame, scroll
+-- bar, and paddings around the board.
+function Format.board_layout(panel_width)
+  local label = panel_width >= 560 and 170 or 100
+  local columns = math.floor((panel_width - label - 12 - 80) / 40)
+  return label, math.max(1, math.min(10, columns))
+end
+
+-- Where a new build sheet goes beside the panel, in screen pixels: right of the
+-- panel when it fits, else left of it, else nil (let the caller center it).
+-- `sheet` is an estimate of the sheet's width, since GUI sizes can't be read.
+function Format.beside_x(panel_x, panel_px, sheet_px, screen_px, gap)
+  local right = panel_x + panel_px + gap
+  if right + sheet_px <= screen_px then
+    return right
+  end
+  local left = panel_x - gap - sheet_px
+  if left >= 0 then
+    return left
+  end
+  return nil
+end
+
+-- Connection dot state from ticks since the last pong (or since the panel opened,
+-- whichever is later): nil while fresh (keep what the last pong set), then
+-- "connecting" after 5 s, then "no_app" after 15 s.
+function Format.link_state(age_ticks)
+  if age_ticks > 900 then
+    return "no_app"
+  elseif age_ticks > 300 then
+    return "connecting"
+  end
+  return nil
+end
+
 return Format

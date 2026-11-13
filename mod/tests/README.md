@@ -12,7 +12,8 @@ bundled luassert).
   `totals_caption`, `network_signal`.
 - `tests/format-test.lua` — `format.lua`, the number and state helpers behind the
   Blocks board and the build sheet: slot numbers, rate units, built state, power,
-  and the search match.
+  the search match, panel width and board columns, sheet placement, and the
+  connection dot's timeout states.
 
 These need no game state, so the assertions are deterministic. Logic that touches
 `LuaEntity`/`game`/blueprints (`on_selected`, `build_combinator`, GUI handlers)

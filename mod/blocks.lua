@@ -19,7 +19,6 @@ local SEARCH = "pyops_blocks_search"
 local HIDE_DONE = "pyops_blocks_hide_done"
 local BODY = "pyops_blocks_body"
 local SLOT_PREFIX = "pyops_block_slot_"
-local COLUMNS = 10
 
 -- Vanilla slot styles carry the built state: green done, yellow partly built,
 -- grey not started.
@@ -178,6 +177,9 @@ end
 local function build_board(player, body)
   body.clear()
   local v = view(player)
+  -- the panel records the width it got (it shrinks on small screens)
+  local panel = player.gui.screen[PANEL]
+  local label_width, columns = Format.board_layout(panel and panel.tags.pyops_width or 680)
   if #groups() == 0 then
     local msg = body.add({
       type = "label",
@@ -203,9 +205,9 @@ local function build_board(player, body)
       row.style.horizontal_spacing = 12
       local label = row.add({ type = "label", caption = g.name, style = "caption_label" })
       label.style.top_margin = 10
-      label.style.width = 170
+      label.style.width = label_width
       local frame = row.add({ type = "frame", style = "slot_button_deep_frame" })
-      local slots = frame.add({ type = "table", column_count = math.min(#visible, COLUMNS), style = "filter_slot_table" })
+      local slots = frame.add({ type = "table", column_count = math.min(#visible, columns), style = "filter_slot_table" })
       for _, b in ipairs(visible) do
         add_slot(slots, b, v.selected == b.id)
       end

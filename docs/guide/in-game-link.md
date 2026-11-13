@@ -125,10 +125,13 @@ The dot next to the **PyOps** title shows the bridge state. Hover it for details
 it to ping the app again.
 
 - **Green, Connected**: the app answered the last heartbeat.
-- **Yellow, Connecting…**: the panel is waiting for the app on the bridge port.
+- **Yellow, Connecting…**: the panel is waiting for the app on the bridge port. It shows
+  for the first seconds after opening, and again if the app stops answering.
+- **Red, No app link**: the app hasn't answered for about 15 seconds. Start PyOps, or
+  check the Companion mod's bridge-port setting.
 - **Red, Version mismatch**: the app and the mod use different bridge protocol versions.
   Re-link or re-copy the Companion mod.
-- **Red, No app link**: Factorio was started without `--enable-lua-udp`.
+- **Red, Lua UDP is off**: Factorio was started without `--enable-lua-udp`.
 
 ### Find a block on the Blocks tab
 

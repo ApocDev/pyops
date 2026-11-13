@@ -13,6 +13,7 @@ local Summary = require("summary")
 local Combinator = require("combinator")
 local Tasks = require("tasks")
 local Blocks = require("blocks")
+local Format = require("format")
 local Sushi = require("sushi")
 
 local PANEL_NAME = "pyops_panel"
@@ -87,9 +88,14 @@ local function led_state(player, state, app_version)
       { "", "[font=default-bold]Version mismatch[/font]\nApp protocol ", tostring(app_version or "?"),
         ", mod protocol ", tostring(PROTOCOL_VERSION), ". Update the mod or the app.",
         "\n[color=150,155,162]Click: retry[/color]" }
+  elseif state == "no_app" then
+    return "utility/status_not_working",
+      { "", "[font=default-bold]No app link[/font]\nThe PyOps app isn't answering on port ", tostring(port),
+        ". Start PyOps, or check the mod's bridge port setting.",
+        "\n[color=150,155,162]Click: retry[/color]" }
   elseif state == "no_udp" then
     return "utility/status_not_working",
-      { "", "[font=default-bold]No app link[/font]\nLaunch Factorio with --enable-lua-udp on a port other than ",
+      { "", "[font=default-bold]Lua UDP is off[/font]\nLaunch Factorio with --enable-lua-udp on a port other than ",
         tostring(port), " (the app's)." }
   end
   return "utility/status_yellow",
@@ -812,8 +818,11 @@ end
 
 -- ── Panel ─────────────────────────────────────────────────────────────────────
 
--- Fixed width: the build sheet opens beside the panel, so it needs a known edge.
+-- The panel's preferred width (logical px). It shrinks on small screens; the
+-- width actually used goes in the panel's tags, since GUI sizes can't be read
+-- back, so the board and the build sheet beside it can use it.
 local PANEL_WIDTH = 680
+local SCREEN_MARGIN = 24
 
 local function create_panel(player)
   local panel = player.gui.screen.add({
@@ -823,8 +832,12 @@ local function create_panel(player)
   })
   panel.auto_center = true
   local res, scale = player.display_resolution, player.display_scale
-  panel.style.width = PANEL_WIDTH
+  local width = Format.panel_width(res.width / scale, PANEL_WIDTH, SCREEN_MARGIN)
+  panel.style.width = width
   panel.style.height = math.floor(res.height / scale * 0.72)
+  panel.tags = { pyops_width = width }
+  storage.pyops_panel_opened = storage.pyops_panel_opened or {}
+  storage.pyops_panel_opened[player.index] = game.tick
 
   -- Titlebar: title, connection LED (click = ping), drag handle, close.
   local titlebar = panel.add({
@@ -1247,10 +1260,13 @@ script.on_nth_tick(120, function()
     else
       ping(player, true)
     end
-    -- no pong for ~5s: the app went away, show the LED as connecting again
-    local last = storage.pyops_last_pong and storage.pyops_last_pong[player.index]
-    if not last or game.tick - last > 300 then
-      set_led(player, "connecting")
+    -- no pong for 5s: back to "Connecting…"; for 15s: "No app link". Counted
+    -- from the last pong or the panel opening, whichever is later.
+    local last = storage.pyops_last_pong and storage.pyops_last_pong[player.index] or 0
+    local opened = storage.pyops_panel_opened and storage.pyops_panel_opened[player.index] or 0
+    local state = Format.link_state(game.tick - math.max(last, opened))
+    if state then
+      set_led(player, state)
     end
   end
   if synced then
