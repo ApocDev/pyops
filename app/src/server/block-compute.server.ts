@@ -33,7 +33,7 @@ import { pickAutoModules } from "./module-fill.server.ts";
 import { resolveLogistics, rowLogistics } from "../lib/logistics";
 import { prodScaledAmount } from "../lib/productivity";
 import { reactorHeatMultiplier, REACTOR_LAYOUT_DEFAULT, type ReactorLayout } from "../lib/reactor";
-import { goalNames, normalizeBlockData } from "../lib/goals";
+import { goalConsumes, goalNames, normalizeBlockData } from "../lib/goals";
 import { fmtTemp, fmtTempRange } from "../lib/format";
 import type { Goal, TemporaryCampaign } from "../db/schema.ts";
 import * as q from "../db/queries.server.ts";
@@ -641,7 +641,8 @@ export async function computeBlock(rawData: SolveInput) {
   // unpinned steam chain for the rest of a 1 MW goal). CAP pins also leave the
   // goal binding: their ceiling should produce an honest shortfall diagnosis.
   // The doc goal is untouched (naming, rollups); when all producers are fixed,
-  // only the solver floor is relaxed and `goalSuperseded` reports the gap.
+  // only the solver floor is relaxed and `goalSuperseded` reports the gap. A
+  // consume goal is never superseded: pinned producers don't fix what it takes.
   const productsByRecipe = new Map(defs.map((d) => [d.name, d.products.map((p) => p.name)]));
   const countPinnedRecipes = new Set(
     (data.pins ?? []).flatMap((pin) => (pin.kind === "count" ? [pin.recipe] : [])),
@@ -665,7 +666,7 @@ export async function computeBlock(rawData: SolveInput) {
         producers.length > 0 && producers.every((recipe) => countPinnedRecipes.has(recipe));
       if (
         outputIsFullyPinned &&
-        targets.some((t) => t.name === prod && t.rate != null) &&
+        targets.some((t) => t.name === prod && t.rate != null && !goalConsumes(t)) &&
         !supersededGoals.has(prod)
       )
         supersededGoals.set(prod, { recipe: p.recipe, count: p.count });
@@ -850,18 +851,26 @@ export async function computeBlock(rawData: SolveInput) {
     mergeQualified(
       flows.flatMap((flow): QualifiedResultFlow[] => {
         // A consume goal's import is what its consumers took in: split it by
-        // the pool each part fed, so it keeps the ranges they accept.
+        // the pool each part fed, each part carrying the goal's own range
+        // narrowed to what that consumer accepts.
         const feeds = direction === "import" ? goalFeeds.get(flow.name) : undefined;
         const fed = feeds?.reduce((sum, feed) => sum + feed.rate, 0) ?? 0;
-        if (feeds && fed > 1e-9)
-          return qualifyFlows(
-            feeds.map((feed) => ({
+        if (feeds && fed > 1e-9) {
+          const goal = fold.qualifierOf(flow.name);
+          return feeds.map((feed) => {
+            const pool = fold.qualifierOf(feed.pool);
+            const bounds = [goal?.minTemp, pool?.minTemp].filter((t) => t != null);
+            const ceilings = [goal?.maxTemp, pool?.maxTemp].filter((t) => t != null);
+            return {
               ...flow,
-              name: feed.pool,
+              name: fold.bare(flow.name),
               rate: (flow.rate * feed.rate) / fed,
-            })),
-            direction,
-          );
+              temperatureMode: "range" as const,
+              minTemp: bounds.length ? Math.max(...bounds) : null,
+              maxTemp: ceilings.length ? Math.min(...ceilings) : null,
+            };
+          });
+        }
         const name = fold.bare(flow.name);
         const qualifier = fold.qualifierOf(flow.name);
         if (qualifier?.mode === "exact")
@@ -1301,26 +1310,34 @@ export async function computeBlock(rawData: SolveInput) {
   // Fold fuel into the balance: burning is extra consumption of the chosen fuel.
   // It offsets that item's byproduct export first, then any shortfall becomes an
   // import. A byproduct that fully covers its burners → self-fueled (no import).
+  // Imports and exports stay separate per good: the LP can import and export one
+  // fluid at once when its temperatures differ (cold in, hot out), and netting
+  // them would lose one side.
   const EPS = 1e-6;
-  const flowNet = new Map<string, { kind: string; net: number }>(); // net>0 export, <0 import
-  for (const f of result.imports) flowNet.set(f.name, { kind: f.kind, net: -f.rate });
-  for (const f of result.exports) flowNet.set(f.name, { kind: f.kind, net: f.rate });
-  for (const [name, t] of fuelTotals) {
-    const cur = flowNet.get(name) ?? { kind: t.kind, net: 0 };
-    cur.net -= t.perSec;
-    flowNet.set(name, cur);
-  }
-  for (const [name, t] of upkeepTotals) {
-    const cur = flowNet.get(name) ?? { kind: t.kind, net: 0 };
-    cur.net -= t.perSec;
-    flowNet.set(name, cur);
-  }
-  for (const [name, t] of burntTotals) {
-    // burning emits a burnt result (ash, …)
-    const cur = flowNet.get(name) ?? { kind: "item", net: 0 };
-    cur.net += t.perSec;
-    flowNet.set(name, cur);
-  }
+  const flowIn = new Map<string, { kind: string; rate: number }>();
+  const flowOut = new Map<string, { kind: string; rate: number }>();
+  for (const f of result.imports) flowIn.set(f.name, { kind: f.kind, rate: f.rate });
+  for (const f of result.exports) flowOut.set(f.name, { kind: f.kind, rate: f.rate });
+  /** Post-solve production (> 0) or consumption (< 0) of a good: it offsets the
+   * opposite boundary flow first, and only the remainder adds to its own side. */
+  const adjustFlow = (name: string, kind: string, delta: number) => {
+    const [offset, add] = delta < 0 ? [flowOut, flowIn] : [flowIn, flowOut];
+    let rest = Math.abs(delta);
+    const opposite = offset.get(name);
+    if (opposite) {
+      const taken = Math.min(opposite.rate, rest);
+      opposite.rate -= taken;
+      rest -= taken;
+    }
+    if (rest <= 0) return;
+    const own = add.get(name) ?? { kind: opposite?.kind ?? kind, rate: 0 };
+    own.rate += rest;
+    add.set(name, own);
+  };
+  for (const [name, t] of fuelTotals) adjustFlow(name, t.kind, -t.perSec);
+  for (const [name, t] of upkeepTotals) adjustFlow(name, t.kind, -t.perSec);
+  // burning emits a burnt result (ash, …)
+  for (const [name, t] of burntTotals) adjustFlow(name, "item", t.perSec);
   // Estimated incidental spoil results join ordinary byproducts. They are not
   // goals, so factory-wide balancing can pool/report their current rate but can
   // never scale this block merely to satisfy demand for the spoiled result.
@@ -1328,9 +1345,7 @@ export async function computeBlock(rawData: SolveInput) {
     if (!(rate > 0)) return [];
     const item = refs.getItem(source);
     if (!item?.spoilResult) return [];
-    const cur = flowNet.get(item.spoilResult) ?? { kind: "item", net: 0 };
-    cur.net += rate; // Factorio item spoil_result is a 1:1 conversion.
-    flowNet.set(item.spoilResult, cur);
+    adjustFlow(item.spoilResult, "item", rate); // Factorio item spoil_result is a 1:1 conversion.
     return [
       {
         source,
@@ -1343,24 +1358,20 @@ export async function computeBlock(rawData: SolveInput) {
   // 1 MJ → rate/s = MW). Generating recipes in-block produce it through the
   // solver; any shortfall shows as an "Electricity" import you can click to
   // add a generator recipe. Same netting rule as fuel: no auto-spawning.
-  if (totalPowerW > EPS) {
-    const cur = flowNet.get(ELECTRICITY) ?? { kind: "fluid", net: 0 };
-    cur.net -= totalPowerW / 1e6;
-    flowNet.set(ELECTRICITY, cur);
-  }
+  if (totalPowerW > EPS) adjustFlow(ELECTRICITY, "fluid", -totalPowerW / 1e6);
   // Heat (Py hard mode) is NOT folded here — unlike electricity, it flows through
   // the solver as a real good (heat-powered machines consume pyops-heat; reactor
   // recipes produce it). So a heat shortfall already shows up in result.imports as
   // a pyops-heat import, and a reactor in the block balances it internally.
   // totalHeatW is retained only for the power.heatW display figure.
   const byNameAsc = (a: { name: string }, b: { name: string }) => (a.name < b.name ? -1 : 1);
-  const imports = [...flowNet]
-    .filter(([, v]) => v.net < -EPS)
-    .map(([name, v]) => ({ name, kind: v.kind, rate: -v.net }))
+  const imports = [...flowIn]
+    .filter(([, v]) => v.rate > EPS)
+    .map(([name, v]) => ({ name, kind: v.kind, rate: v.rate }))
     .sort(byNameAsc);
-  const allExports = [...flowNet]
-    .filter(([, v]) => v.net > EPS)
-    .map(([name, v]) => ({ name, kind: v.kind, rate: v.net }))
+  const allExports = [...flowOut]
+    .filter(([, v]) => v.rate > EPS)
+    .map(([name, v]) => ({ name, kind: v.kind, rate: v.rate }))
     .sort(byNameAsc);
   // Goals are solver targets (excluded from the solver's exports), so every surplus
   // here is a genuine byproduct. A good you don't target is never a "primary output".

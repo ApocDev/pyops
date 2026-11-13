@@ -159,8 +159,10 @@ the solve:
    in-range temperature they accept, so that production feeds them instead of exporting. The
    goal's import is then the block's net consumption, as for an item. Production no goal-fed
    consumer accepts can still export and never counts toward the goal. At the block boundary the
-   goal's import splits by the consumer pools it fed, so each part carries the range those
-   consumers accept and the factory planner only matches compatible suppliers to it.
+   goal's import splits by the consumer pools it fed. Each part carries the goal's own range
+   narrowed to what those consumers accept, so the factory planner only matches compatible
+   suppliers to it. The block keeps its imports and exports of one fluid apart, so a cold import
+   and a hot export of the same fluid both reach the factory.
 
 This models range pooling rather than forcing one independent chain per exact temperature.
 A made rule expands to its variants and pools. If no in-range producer exists, the result

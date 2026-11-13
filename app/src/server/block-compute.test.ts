@@ -73,11 +73,14 @@ describe("fluid ingredient temperature selections", () => {
     fx.db.exec(`
       INSERT INTO items (name, display) VALUES
         ('tin','Tin'),('formic-product','Formic product'),('random-result','Random result'),
-        ('gel','Gel'),('warm-gel','Warm gel');
+        ('gel','Gel'),('warm-gel','Warm gel'),('power-a','Power A'),('power-b','Power B'),
+        ('heat','Heat');
       INSERT INTO fluids (name, display, default_temperature, max_temperature) VALUES
         ('steam','Steam',15,5000),
         ('formic-acid','Formic acid',15,NULL),
-        ('water','Water',15,1000);
+        ('water','Water',15,1000),
+        ('kerosene','Kerosene',15,NULL),
+        ('coolant','Coolant',15,1000);
       INSERT INTO recipes (name, display, kind, energy_required, enabled, hidden) VALUES
         ('steam-250','Steam 250C','real',1,1,0),
         ('steam-2000','Steam 2000C','real',1,1,0),
@@ -88,13 +91,20 @@ describe("fluid ingredient temperature selections", () => {
         ('hot-water','Hot water','real',1,1,0),
         ('random-output','Random output','real',1,1,0),
         ('cold-gel','Cold gel','real',1,1,0),
-        ('warm-gel','Warm gel','real',1,1,0);
+        ('warm-gel','Warm gel','real',1,1,0),
+        ('coolant-165','Coolant 165C','real',1,1,0),
+        ('turbine-cold','Cold turbine','real',1,1,0),
+        ('turbine-hot','Hot turbine','real',0.5,1,0),
+        ('sink-kerosene','Kerosene sink','real',1,1,0);
       INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
         ('tin-steam',0,'fluid','steam',10),
         ('use-formic',0,'fluid','formic-acid',5);
       INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount, min_temp, max_temp) VALUES
         ('cold-gel',0,'fluid','water',1,NULL,101),
-        ('warm-gel',0,'fluid','water',1,90,NULL);
+        ('warm-gel',0,'fluid','water',1,90,NULL),
+        ('turbine-cold',0,'fluid','coolant',1,100,NULL),
+        ('turbine-hot',0,'fluid','coolant',1,500,NULL),
+        ('sink-kerosene',0,'fluid','kerosene',1,10,NULL);
       INSERT INTO recipe_products (recipe, idx, kind, name, amount, temperature) VALUES
         ('steam-250',0,'fluid','steam',10,250),
         ('steam-2000',0,'fluid','steam',10,2000),
@@ -104,7 +114,11 @@ describe("fluid ingredient temperature selections", () => {
         ('pump-water',0,'fluid','water',10,NULL),
         ('hot-water',0,'fluid','water',10,125),
         ('cold-gel',0,'item','gel',1,NULL),
-        ('warm-gel',0,'item','warm-gel',1,NULL);
+        ('warm-gel',0,'item','warm-gel',1,NULL),
+        ('coolant-165',0,'fluid','coolant',10,165),
+        ('turbine-cold',0,'item','power-a',1,NULL),
+        ('turbine-hot',0,'item','power-b',1,NULL),
+        ('sink-kerosene',0,'item','heat',1,NULL);
       INSERT INTO recipe_products
         (recipe, idx, kind, name, amount_min, amount_max, probability) VALUES
         ('random-output',0,'item','random-result',1,3,0.25);
@@ -187,6 +201,110 @@ describe("fluid ingredient temperature selections", () => {
           minTemp: 15, // the fluid's default fills an open lower bound
           maxTemp: 101,
         },
+      ],
+    );
+  });
+
+  it("runs a fluid sink's consumer and imports the fluid through the goal", async () => {
+    const input = { goals: [{ name: "kerosene", rate: -5 }], recipes: ["sink-kerosene"] };
+    const solved = await computeBlock(input);
+
+    expect(solved.rows.find((row) => row.recipe === "sink-kerosene")?.rate).toBeCloseTo(5);
+    expect(
+      boundaryFlows(goalFlows(input), solved).filter((flow) => flow.item === "kerosene"),
+    ).toEqual([
+      {
+        item: "kerosene",
+        kind: "fluid",
+        role: "import",
+        rate: expect.closeTo(5),
+        temperatureMode: "range",
+        minTemp: 10,
+        maxTemp: null,
+      },
+    ]);
+  });
+
+  it("keeps an exact-temperature sink's temperature on its import", async () => {
+    // the hot turbine is cheaper but needs ≥500°; the ≥100° one takes 165°,
+    // and the import must still say 165°, not the consumer's ≥100°
+    const input = {
+      goals: [{ name: "coolant", rate: -10, temperature: 165 }],
+      recipes: ["turbine-cold", "turbine-hot"],
+    };
+    const solved = await computeBlock(input);
+
+    expect(solved.rows.find((row) => row.recipe === "turbine-cold")?.rate).toBeCloseTo(10);
+    expect(solved.rows.find((row) => row.recipe === "turbine-hot")?.rate).toBeCloseTo(0);
+    expect(
+      boundaryFlows(goalFlows(input), solved).filter((flow) => flow.item === "coolant"),
+    ).toEqual([
+      {
+        item: "coolant",
+        kind: "fluid",
+        role: "import",
+        rate: expect.closeTo(10),
+        temperatureMode: "range",
+        minTemp: 165,
+        maxTemp: 165,
+      },
+    ]);
+  });
+
+  it("keeps a sink's import and an out-of-range export of the same fluid apart", async () => {
+    // 10/s of 125° water is made in-block; the ≤101° consumer can't use it, so
+    // all 15/s it needs is imported and the hot water exports
+    const input = {
+      goals: [
+        { name: "gel", rate: 15 },
+        { name: "water", rate: -5 },
+      ],
+      recipes: ["hot-water", "cold-gel"],
+      pins: [{ kind: "count" as const, recipe: "hot-water", count: 1 }],
+    };
+    const solved = await computeBlock(input);
+
+    expect(solved.rows.find((row) => row.recipe === "cold-gel")?.rate).toBeCloseTo(15);
+    const water = boundaryFlows(goalFlows(input), solved).filter((flow) => flow.item === "water");
+    expect(water).toHaveLength(2);
+    expect(water).toContainEqual(
+      expect.objectContaining({
+        role: "import",
+        rate: expect.closeTo(15),
+        minTemp: 15,
+        maxTemp: 101,
+      }),
+    );
+    expect(water).toContainEqual(
+      expect.objectContaining({
+        role: "byproduct",
+        rate: expect.closeTo(10),
+        temperatureMode: "exact",
+        minTemp: 125,
+        maxTemp: 125,
+      }),
+    );
+  });
+
+  it("counts in-block water the consumer accepts toward a sink's net consumption", async () => {
+    // 10/s of 15° water made in-block feeds the ≤101° consumer, so `water -5/s`
+    // means 15/s consumed, 5/s imported, and nothing exported
+    const input = {
+      goals: [{ name: "water", rate: -5 }],
+      recipes: ["pump-water", "cold-gel"],
+      pins: [{ kind: "count" as const, recipe: "pump-water", count: 1 }],
+    };
+    const solved = await computeBlock(input);
+
+    expect(solved.rows.find((row) => row.recipe === "cold-gel")?.rate).toBeCloseTo(15);
+    expect(boundaryFlows(goalFlows(input), solved).filter((flow) => flow.item === "water")).toEqual(
+      [
+        expect.objectContaining({
+          role: "import",
+          rate: expect.closeTo(5),
+          minTemp: 15,
+          maxTemp: 101,
+        }),
       ],
     );
   });
