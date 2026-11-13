@@ -29,9 +29,9 @@ Self-updating desktop builds for Linux, macOS, and Windows.
   Pyanodons TURD choices throughout the factory.
 - **Connect to Factorio** — use the companion mod for live research, machine,
   location, and production-plan integration.
-- **Draft with the Assistant** — optionally use an OpenRouter-backed planning
-  assistant that understands the current project and can propose production
-  blocks for review.
+- **Draft with the Assistant** — optionally use a planning assistant, backed by
+  OpenRouter or your own OpenAI-compatible endpoint such as LiteLLM, that
+  understands the current project and can propose production blocks for review.
 
 The [planning guide](https://apocdev.github.io/pyops/guide/) explains how these
 parts fit into a complete workflow.

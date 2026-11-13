@@ -1,19 +1,21 @@
 ---
 title: AI assistant
-description: Understand Assistant persistence, streaming runs, OpenRouter model resolution, context compaction, tool trust levels, proposals, live-game access, and MCP reuse.
+description: Understand Assistant persistence, streaming runs, provider and model resolution, context compaction, tool trust levels, proposals, live-game access, and MCP reuse.
 outline: [2, 3]
 ---
 
 # AI assistant
 
-The PyOps Assistant is a project-aware planning agent built with AI SDK and OpenRouter. It
-combines a planning system prompt with structured tools over the same queries, solvers, and
+The PyOps Assistant is a project-aware planning agent built with AI SDK. It talks to
+OpenRouter or to any OpenAI-compatible endpoint, such as a LiteLLM gateway. It combines a planning system prompt with structured tools over the same queries, solvers, and
 bridge used by the application.
 
 The principal boundaries are:
 
-- `app/src/server/agent.ts` — model creation, system prompt, reasoning options, and tool-loop
-  limit;
+- `app/src/server/agent.ts` — provider and model creation, system prompt, reasoning
+  options, turn cost, and tool-loop limit;
+- `app/src/server/app-config.server.ts` — provider, connection, and model precedence;
+- `app/src/server/model-catalog.server.ts` — model metadata for the active provider;
 - `app/src/server/agent-tools.server.ts` — shared tool definitions and trust tiers;
 - `app/src/routes/api.chat.ts` — conversation synchronization and streaming run lifecycle;
 - `app/src/db/conversations.server.ts` — per-project conversation persistence;
@@ -28,7 +30,8 @@ For API-key setup, model selection, privacy, cost expectations, and end-user wor
 
 `POST /api/chat` owns one complete turn:
 
-1. Validate the OpenRouter key and conversation ID.
+1. Validate the conversation ID, then check that the active provider is configured for
+   it (`providerProblem()` with the conversation's own model pick).
 2. Persist the submitted UI messages immediately.
 3. Load the per-conversation model, reasoning effort, usage, and stored transcript.
 4. Compact older context when required.
@@ -37,7 +40,7 @@ For API-key setup, model selection, privacy, cost expectations, and end-user wor
    system prompt.
 7. Call `streamText()` with `agentTools` and a bounded step count.
 8. Stream UI-message events to the client and replay buffer.
-9. Record the final turn's real token usage and concrete model ID.
+9. Record the final step's real token usage, the concrete model ID, and the turn's cost.
 10. Persist the finished assistant message and generate a title for the first completed
     exchange.
 
@@ -94,27 +97,55 @@ run.
 Starting a new run for the same conversation aborts and replaces any previous active run,
 preventing concurrent writers from interleaving one transcript.
 
-## Model resolution
+## Provider and model resolution
 
-PyOps currently creates models through the OpenRouter AI SDK provider. Configuration
-resolves in these orders:
+PyOps has two providers. `openrouter` uses the OpenRouter AI SDK provider.
+`openai-compatible` uses `@ai-sdk/openai-compatible` against any server that implements the
+OpenAI Chat Completions API. LiteLLM is the main target, but nothing in the request path is
+LiteLLM-specific. Configuration resolves in these orders:
 
 ```text
-API key: OPENROUTER_API_KEY → stored app key
-Model:  PYOPS_AGENT_MODEL → conversation override → stored app default → built-in default
+Provider:   PYOPS_AI_PROVIDER → stored provider → openrouter
+OpenRouter: OPENROUTER_API_KEY → stored key
+Endpoint:   PYOPS_OPENAI_COMPATIBLE_BASE_URL → stored URL
+            PYOPS_OPENAI_COMPATIBLE_API_KEY → stored key (optional)
+Model:      PYOPS_AGENT_MODEL → conversation override → active provider's stored default
+            → built-in default (OpenRouter only)
 ```
 
 `PYOPS_AGENT_MODEL` is a deployment override. When present, conversation-level model
-controls cannot affect the request. The built-in default is the curated
-`~anthropic/claude-sonnet-latest` OpenRouter alias.
+controls cannot affect the request. The OpenRouter built-in default is the curated
+`~anthropic/claude-sonnet-latest` alias. An OpenAI-compatible endpoint has no universal
+default, so the stored model (`openaiCompatibleModel`) is required there. Each provider
+keeps its own stored default, so switching back and forth doesn't carry an OpenRouter alias
+to a gateway that would reject it.
 
-`app/src/server/app-config.server.ts` owns precedence. `agent.ts` creates a fresh OpenRouter
-provider model for the resolved ID after confirming that a key exists.
+`app/src/server/app-config.server.ts` owns precedence. Its pure `…From(env, stored)`
+functions take the environment and stored config as arguments, which keeps them testable.
+`providerProblem(modelOverride)` returns a user-facing message naming the missing key,
+URL, or model, or null when the provider is ready. A conversation's own model pick
+satisfies the model requirement, so a chat can run on an endpoint without a stored default.
+The chat route, the input-bar warning, title generation, compaction, and task helpers all
+check it before calling a model.
+
+`getModel(modelOverride, sessionId)` in `agent.ts` builds a fresh provider model per call. In
+OpenAI-compatible mode it:
+
+- sends the key as a bearer token when one is set;
+- adds `x-ai-app: pyops` to every request, and `x-ai-session: <conversation id>` when the
+  call belongs to a conversation (chat turns, titles, and compaction), so a gateway can
+  attribute usage;
+- sets `stream_options.include_usage` so streamed responses carry token counts;
+- reads `usage.cost` from the response through the provider's `metadataExtractor`.
 
 ### Model metadata
 
-`app/src/server/openrouter-models.ts` loads OpenRouter's public model catalog and caches it
-for six hours. It records:
+`app/src/server/model-catalog.server.ts` answers context window, reasoning support, effort
+levels, and the picker's model list for whichever provider is active. Callers never branch on
+the provider.
+
+For OpenRouter, `app/src/server/openrouter-models.ts` loads OpenRouter's public model
+catalog and caches it for six hours. It records:
 
 - context-window size;
 - whether the model advertises reasoning parameters;
@@ -124,15 +155,28 @@ for six hours. It records:
 The curated table in `app/src/lib/model-capabilities.ts` is an offline fallback, not the
 primary source when the catalog is available.
 
+For an OpenAI-compatible endpoint, `app/src/server/openai-compatible-models.ts` reads
+`GET /models` and, when the server answers it, LiteLLM's `GET /model/info`. It caches the
+result per base URL and key for ten minutes, and waits 30 seconds before retrying a failed
+fetch. LiteLLM adds `max_input_tokens` and `mode` to `/models`; non-chat entries (image,
+audio, embedding) are dropped. `/model/info` adds `supports_reasoning` and the accepted
+OpenAI parameters. Effort is offered when that parameter list includes `reasoning_effort`;
+`supports_reasoning` decides only when no list is given. A plain server returns only IDs.
+Then the context window is `null`, the gauge shows a token count without a percentage,
+compaction falls back to the `FALLBACK_CONTEXT_WINDOW` threshold, and reasoning effort is
+not offered.
+
 ### Reasoning effort
 
 A conversation may store low, medium, or high reasoning effort. `reasoningProviderOptions()`
-normalizes the selection and sends an OpenRouter reasoning option only when the resolved
-model advertises support. Unsupported and unknown models receive no forced effort.
+normalizes the selection and sends it only when the resolved model advertises support:
+as OpenRouter's `reasoning.effort` option, or as the `reasoning_effort` request parameter on
+an OpenAI-compatible endpoint. Unsupported and unknown models receive no forced effort.
 
 Reasoning parts remain in the stored AI SDK message and render as collapsed transcript
-sections. Background title generation and compaction use low excluded reasoning on
-compatible models so their budget is directed toward concise visible output.
+sections. Background title generation and compaction use low reasoning effort on
+compatible models so their budget goes toward concise visible output. On OpenRouter they
+also exclude the reasoning text from the response.
 
 ## Planning-horizon injection
 
@@ -187,8 +231,8 @@ can't write the old doc back, and refreshes the planning queries.
 
 ## Context measurement and compaction
 
-Each completed turn stores the concrete model ID and the last tool-loop step's input and
-output token counts. Aggregate AI SDK usage sums every step's prompt and therefore
+Each completed turn stores the concrete model ID, the last tool-loop step's input and
+output token counts, and the turn's cost (`last_cost_usd`). Aggregate AI SDK usage sums every step's prompt and therefore
 overstates how full the context window was; the final step carried the complete current
 conversation and is the relevant measurement.
 
@@ -201,6 +245,15 @@ and chooses its measurement source:
 Automatic compaction starts at 75 percent of the context window. It summarizes an older
 prefix, keeps at least the newest eight messages verbatim, and targets a remaining estimate
 below 55 percent. Very short conversations are not compacted even when forced.
+
+### Turn cost
+
+`turnCost()` in `agent.ts` sums each step's cost, because every tool-loop step is a billed
+request. OpenRouter reports cost in its provider metadata. An OpenAI-compatible response
+carries it as `usage.cost` when the server sends one; LiteLLM passes OpenRouter's value
+through. If any step lacks a cost, the turn's cost is `null`, meaning unknown, never 0.
+LiteLLM's `x-litellm-response-cost` header is not used because streamed responses send
+headers before the cost is known.
 
 ### Summary persistence
 
@@ -219,8 +272,14 @@ and later turns use the same context.
 
 ### Context gauge
 
-`conversationTokenStatusFn` returns used tokens, context limit, model, and whether the value
-is measured or estimated. The input toolbar renders that as a filling ring labeled "N% context".
+`conversationTokenStatusFn` returns used tokens, context limit (or `null` when unknown),
+model, the last turn's cost, and whether the value is measured or estimated. The input
+toolbar renders that as a filling ring labeled "N% context", or "N tokens" when the limit is
+unknown. It also returns `turnCompleted` (an assistant reply exists) apart from `estimated`,
+because an endpoint can finish a turn without reporting usage. Once a turn has completed,
+the tooltip (`contextGaugeTitle()` in `app/src/lib/context-gauge.ts`) shows its cost or says
+it is unknown. Manual compaction clears the token measurement but keeps the last turn's
+cost.
 
 Manual compaction calls the same implementation with `force: true`, replaces the client
 chat with the persisted result, and clears the stale real-token measurement until the next
@@ -362,9 +421,10 @@ mod's eval setting as defense in depth.
 
 ## Privacy and data boundaries
 
-Project reads and tool outputs selected by the model become part of the OpenRouter request
-context. The OpenRouter key and app default model live in app configuration, while
-conversation transcripts live in the project database.
+Project reads and tool outputs selected by the model become part of the request context sent
+to the configured provider. Provider keys, the endpoint URL, and default models live in app
+configuration, while conversation transcripts live in the project database. The settings
+server function reports only whether a key is set, never its value.
 
 The Assistant does not receive the whole database automatically. It sees the system prompt,
 conversation messages, and results of tools it calls. Tool contracts should return the
@@ -397,6 +457,9 @@ planning changes belong behind proposal cards and explicit application.
 
 Assistant changes should cover the narrow owner and the streamed integration:
 
+- config resolution tests (`app-config.server.test.ts`) and provider tests
+  (`agent-provider.test.ts`, which checks the exact HTTP request an OpenAI-compatible
+  endpoint receives);
 - conversation database tests for persistence, model/reasoning fields, branching, and usage;
 - compaction tests for thresholds, preserved recent turns, fallback summaries, and archived
   originals;
@@ -407,5 +470,6 @@ Assistant changes should cover the narrow owner and the streamed integration:
 - API/E2E coverage for streaming, stop, reload/resume, model overrides, and project
   switching.
 
-Run `vp test` and `vp check`. Live OpenRouter verification should use a bounded prompt and a
-dedicated key, while deterministic tool behavior remains covered without model calls.
+Run `vp test` and `vp check`. Live verification against OpenRouter or a gateway should use a
+bounded prompt, a cheap model, and a dedicated key, while deterministic tool behavior
+remains covered without model calls.

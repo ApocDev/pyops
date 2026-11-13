@@ -57,7 +57,7 @@ families whose server-derived data changed.
 
 ### Server-only modules
 
-Node APIs, SQLite access, Factorio processes, OpenRouter calls, the UDP socket, and other
+Node APIs, SQLite access, Factorio processes, model-provider calls, the UDP socket, and other
 backend work belong in `*.server.ts` modules. TanStack import protection rejects a client
 bundle that reaches one of these modules.
 
@@ -94,7 +94,7 @@ for the reference-data boundary.
 | State                                                                                          | Owner                                      | Lifetime                                |
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------- |
 | Blocks, groups, tasks, conversations, planning settings, synced prototypes, and live snapshots | One SQLite file under `projects/`          | Per project                             |
-| Active project, stored OpenRouter key, and default model                                       | `app-config.json`                          | Per app installation                    |
+| Active project, Assistant provider settings and keys, and default models                       | `app-config.json`                          | Per app installation                    |
 | Generated icon sheets and manifest                                                             | `icon-data/`                               | Per app data directory; rebuilt by sync |
 | Database migrations and Companion mod source                                                   | Bundled read-only resources                | Per app version                         |
 | Active Assistant stream buffer and UDP socket status                                           | Server process memory                      | Until restart                           |
@@ -195,7 +195,7 @@ references missing from the receiving project's data.
   interaction conventions.
 
 Keep these integrations behind server or shell boundaries so the planner remains usable
-without the Companion mod, an OpenRouter key, or a desktop runtime.
+without the Companion mod, an Assistant provider, or a desktop runtime.
 
 ## Verification
 

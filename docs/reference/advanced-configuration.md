@@ -15,16 +15,19 @@ Set variables in the environment that launches PyOps. Source runs can also use
 
 ## User-facing overrides
 
-| Variable                   | Default                                      | Purpose                                                                        |
-| -------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------ |
-| `FACTORIO_BIN`             | Settings value, then per-OS detection        | Factorio executable used by game-data sync and **Launch Factorio**             |
-| `FACTORIO_DATA_DIR`        | Settings value, then the platform folder     | Factorio user-data folder containing `mods` and `script-output`                |
-| `FACTORIO_MODS_DIR`        | Settings value, then `<user-data>/mods`      | Factorio mods folder that directly contains `mod-list.json`                    |
-| `PYOPS_DATA_DIR`           | Platform app-data folder in a packaged build | Root for project databases, icon data, and app configuration                   |
-| `PYOPS_HIDE_STORAGE_PATHS` | Unset                                        | Set to `true` to prevent absolute storage paths from being sent to the browser |
-| `PYOPS_BRIDGE_PORT`        | `37657`                                      | UDP port on which PyOps listens for the Companion mod                          |
-| `OPENROUTER_API_KEY`       | Stored Settings value                        | OpenRouter key; an environment value takes priority over Settings              |
-| `PYOPS_AGENT_MODEL`        | Stored model, then PyOps default             | OpenRouter model ID; an environment value forces every conversation to use it  |
+| Variable                           | Default                                      | Purpose                                                                        |
+| ---------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------ |
+| `FACTORIO_BIN`                     | Settings value, then per-OS detection        | Factorio executable used by game-data sync and **Launch Factorio**             |
+| `FACTORIO_DATA_DIR`                | Settings value, then the platform folder     | Factorio user-data folder containing `mods` and `script-output`                |
+| `FACTORIO_MODS_DIR`                | Settings value, then `<user-data>/mods`      | Factorio mods folder that directly contains `mod-list.json`                    |
+| `PYOPS_DATA_DIR`                   | Platform app-data folder in a packaged build | Root for project databases, icon data, and app configuration                   |
+| `PYOPS_HIDE_STORAGE_PATHS`         | Unset                                        | Set to `true` to prevent absolute storage paths from being sent to the browser |
+| `PYOPS_BRIDGE_PORT`                | `37657`                                      | UDP port on which PyOps listens for the Companion mod                          |
+| `PYOPS_AI_PROVIDER`                | Stored Settings value, then `openrouter`     | Assistant provider: `openrouter` or `openai-compatible`                        |
+| `OPENROUTER_API_KEY`               | Stored Settings value                        | OpenRouter key; an environment value takes priority over Settings              |
+| `PYOPS_OPENAI_COMPATIBLE_BASE_URL` | Stored Settings value                        | OpenAI-compatible endpoint URL including the version path, e.g. `…/v1`         |
+| `PYOPS_OPENAI_COMPATIBLE_API_KEY`  | Stored Settings value                        | Bearer key for the OpenAI-compatible endpoint                                  |
+| `PYOPS_AGENT_MODEL`                | Stored model for the active provider         | Model ID; an environment value forces every conversation to use it             |
 
 The three Factorio paths are normally set under
 [**Settings → Game data → Factorio paths**](settings-and-storage#point-pyops-at-your-factorio-installation);
@@ -46,11 +49,17 @@ opens a separate game-side port. With the default app port, use a command such a
 
 Assistant configuration resolves in this order:
 
-1. `OPENROUTER_API_KEY` overrides the key stored under **Settings → Planning**.
-2. `PYOPS_AGENT_MODEL` overrides both the app default and every conversation selection.
-3. Without the environment override, a conversation selection overrides the stored app
-   default.
-4. Without any selection, PyOps uses its built-in default model alias.
+1. `PYOPS_AI_PROVIDER` overrides the provider chosen under **Settings → Planning**. An
+   unrecognized value is ignored.
+2. Each connection value comes from its environment variable when set, else from Settings:
+   `OPENROUTER_API_KEY` for OpenRouter; `PYOPS_OPENAI_COMPATIBLE_BASE_URL` and
+   `PYOPS_OPENAI_COMPATIBLE_API_KEY` for an OpenAI-compatible endpoint.
+3. `PYOPS_AGENT_MODEL` overrides both the app default and every conversation selection,
+   for either provider.
+4. Without the environment override, a conversation selection overrides the stored app
+   default. Each provider stores its own default model.
+5. Without any selection, OpenRouter uses PyOps' built-in default model alias. An
+   OpenAI-compatible endpoint has no built-in default, so the Assistant asks for a model.
 
 Settings marks an environment-controlled value and disables controls that cannot take
 effect. Remove the environment variable and restart PyOps when you want the UI to manage

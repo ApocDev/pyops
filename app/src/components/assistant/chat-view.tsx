@@ -36,10 +36,10 @@ import { ShowInGameButton } from "#/components/assistant/show-in-game-button.tsx
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { InfoHint } from "#/components/info-hint.tsx";
 import { ItemHover, RecipeHover, TechHover } from "#/lib/recipe-card";
+import { contextGaugeTitle, type TokenStatus } from "#/lib/context-gauge.ts";
 import { formatQty, formatRate } from "#/lib/format";
 import { STOCK_WINDOW_DEFAULT } from "#/lib/goals";
 import {
-  aiConfigFn,
   classifyRefFn,
   saveBlockFn,
   setAiConfigFn,
@@ -157,9 +157,6 @@ function ChatView({
   // saves. We only render + send here.
   const { messages, status, error } = useChat({ chat, resume: true });
   const qc = useQueryClient();
-  // Surface a missing OpenRouter key up front — otherwise a send just fails silently.
-  const aiConfig = useQuery({ queryKey: ["aiConfig"], queryFn: () => aiConfigFn() });
-  const noKey = aiConfig.data ? !aiConfig.data.keyStored && !aiConfig.data.keyFromEnv : false;
   // the unsent draft lives in the chat store, so it survives the dock closing
   // or the chat moving between the dock and the full page
   const [input, setInput] = useState(() => chatDraft(chat.id).input);
@@ -171,6 +168,8 @@ function ChatView({
     queryKey: ["conversation-model", chat.id],
     queryFn: () => conversationModelFn({ data: chat.id }),
   });
+  // Surface a missing key/endpoint/model up front — otherwise a send just fails silently.
+  const setupProblem = model.data?.problem ?? null;
   const tokenStatus = useQuery({
     queryKey: ["token-status", chat.id],
     queryFn: () => conversationTokenStatusFn({ data: chat.id }),
@@ -339,7 +338,7 @@ function ChatView({
                 <li>
                   <span className="text-foreground">Model</span> and{" "}
                   <span className="text-foreground">reasoning effort</span> are per-chat overrides —
-                  set a default in Settings → Assistant.
+                  set a default in Settings → Planning.
                 </li>
                 <li>
                   Hover a message for <span className="text-foreground">edit</span>,{" "}
@@ -350,8 +349,9 @@ function ChatView({
               </ul>
             </div>
             <p>
-              Needs an <span className="text-foreground">OpenRouter API key</span> (Settings →
-              Assistant, or the <code className="font-mono">OPENROUTER_API_KEY</code> env var).
+              Needs an <span className="text-foreground">OpenRouter API key</span> or an{" "}
+              <span className="text-foreground">OpenAI-compatible endpoint</span> such as LiteLLM
+              (Settings → Planning → Assistant).
             </p>
           </HelpButton>
         </div>
@@ -428,13 +428,12 @@ function ChatView({
         className={`flex shrink-0 items-end gap-2 border-t border-border bg-card ${gutter} py-3`}
       >
         <div className="mx-auto w-full max-w-6xl">
-          {noKey && (
+          {setupProblem && (
             <Callout tone="warning" className="mb-1.5">
-              No OpenRouter API key set — the assistant can&apos;t respond. Add one in{" "}
+              {setupProblem} The assistant can&apos;t respond until then.{" "}
               <Link to="/settings" className="font-medium underline">
-                Settings → Assistant
+                Open Settings
               </Link>
-              , or set the <code className="font-mono">OPENROUTER_API_KEY</code> env var.
             </Callout>
           )}
           {error && (
@@ -533,19 +532,11 @@ function ChatView({
   );
 }
 
-type TokenStatus = {
-  usedTokens: number;
-  contextWindow: number;
-  ratio: number;
-  estimated: boolean;
-  modelId: string | null;
-  resolvedModel: string;
-  messageCount: number;
-};
-
 /** A small filling ring plus "N% context" showing how much of the model's
  * context window the conversation occupies; clicking compacts older messages
- * now. Green → amber → red as it fills. */
+ * now. Green → amber → red as it fills. When the endpoint doesn't report the
+ * model's window, it shows the token count alone. The tooltip (contextGaugeTitle)
+ * carries the last turn's cost, or says it's unknown. */
 function ContextGauge({
   status,
   busy,
@@ -566,51 +557,59 @@ function ContextGauge({
   const ringColor =
     ratio >= 0.85 ? "text-destructive" : ratio >= 0.6 ? "text-warning" : "text-success";
   const used = status?.usedTokens ?? 0;
-  const window = status?.contextWindow ?? 0;
-  const title = status
-    ? `${used.toLocaleString()} / ${window.toLocaleString()} tokens · ${pct}% of context\n` +
-      `${status.estimated ? "estimated (no completed turn yet)" : "measured from the last turn"}` +
-      `\nmodel: ${status.modelId ?? status.resolvedModel}\n\nClick to compact older messages now`
-    : "context usage";
+  const window = status?.contextWindow ?? null;
+  // Still loading counts as known, so the ring doesn't pop in.
+  const windowKnown = !status || window != null;
+  const title = contextGaugeTitle(status);
   return (
     <Tooltip content={title}>
       <button
         type="button"
         onClick={onCompact}
         disabled={busy || compacting}
-        aria-label={`Context ${pct}% full — click to compact`}
+        aria-label={
+          windowKnown
+            ? `Context ${pct}% full — click to compact`
+            : `${used.toLocaleString()} tokens in context — click to compact`
+        }
         className="inline-flex h-9 shrink-0 items-center gap-1.5 px-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/60 disabled:opacity-50"
       >
-        <svg width={size} height={size} className="-rotate-90">
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={r}
-            fill="none"
-            strokeWidth={stroke}
-            className="text-border"
-            stroke="currentColor"
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={r}
-            fill="none"
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            strokeDasharray={c}
-            strokeDashoffset={c * (1 - ratio)}
-            className={ringColor}
-            stroke="currentColor"
-          />
-        </svg>
+        {windowKnown && (
+          <svg width={size} height={size} className="-rotate-90">
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={r}
+              fill="none"
+              strokeWidth={stroke}
+              className="text-border"
+              stroke="currentColor"
+            />
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={r}
+              fill="none"
+              strokeWidth={stroke}
+              strokeLinecap="round"
+              strokeDasharray={c}
+              strokeDashoffset={c * (1 - ratio)}
+              className={ringColor}
+              stroke="currentColor"
+            />
+          </svg>
+        )}
         {compacting ? (
           <span className="flex items-center gap-1">
             <Loader2 className="size-3.5 animate-spin" /> Compacting
           </span>
-        ) : (
+        ) : windowKnown ? (
           <span>
             <span className="text-foreground tabular-nums">{pct}%</span> context
+          </span>
+        ) : (
+          <span>
+            <span className="text-foreground tabular-nums">{formatQty(used)}</span> tokens
           </span>
         )}
       </button>
@@ -626,6 +625,7 @@ type ModelInfo = {
   modelFromConversation: boolean;
   reasoningEffortSupported: boolean;
   reasoningEfforts: string[];
+  models: string[] | null;
   defaultModel: string;
 };
 
@@ -656,16 +656,18 @@ function ModelMenu({
   const resolved = model?.resolvedModel ?? "";
   const defaultModel = model?.defaultModel ?? "";
   const envOverride = !!model?.modelFromEnv;
+  // An OpenAI-compatible endpoint supplies its own list; OpenRouter uses ours.
+  const shortlist = model?.models ?? MODEL_SHORTLIST;
 
   const [draft, setDraft] = useState(value);
-  const [customOpen, setCustomOpen] = useState(() => !!value && !MODEL_SHORTLIST.includes(value));
+  const [customOpen, setCustomOpen] = useState(() => !!value && !shortlist.includes(value));
   const inputRef = useRef<HTMLInputElement>(null);
-  const selected = !draft ? "__default__" : MODEL_SHORTLIST.includes(draft) ? draft : "__custom__";
+  const selected = !draft ? "__default__" : shortlist.includes(draft) ? draft : "__custom__";
   const activeModel = draft.trim() || resolved;
   useEffect(() => {
     setDraft(value);
-    setCustomOpen(!!value && !MODEL_SHORTLIST.includes(value));
-  }, [value]);
+    setCustomOpen(!!value && !shortlist.includes(value));
+  }, [value, shortlist]);
 
   const fieldClass =
     "h-8 w-full border border-input bg-background px-2 text-sm outline-none focus:border-primary disabled:opacity-50";
@@ -713,13 +715,13 @@ function ModelMenu({
             }}
             className={fieldClass}
           >
-            <option value="__default__">Default · {resolved || defaultModel}</option>
-            {MODEL_SHORTLIST.map((m) => (
+            <option value="__default__">Default · {resolved || defaultModel || "not set"}</option>
+            {shortlist.map((m) => (
               <option key={m} value={m}>
                 {m}
               </option>
             ))}
-            <option value="__custom__">Custom OpenRouter id…</option>
+            <option value="__custom__">Custom model id…</option>
           </select>
           {customOpen && !envOverride && (
             <Input
@@ -804,11 +806,7 @@ function ReasoningMenu({
           type="button"
           variant="outline"
           disabled={disabled}
-          title={
-            supported
-              ? "Reasoning effort"
-              : "This model doesn’t advertise OpenRouter reasoning effort"
-          }
+          title={supported ? "Reasoning effort" : "This model doesn’t advertise reasoning effort"}
           className="text-muted-foreground"
         >
           {current ? <Brain className="size-3.5" /> : <Zap className="size-3.5" />}

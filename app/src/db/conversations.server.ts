@@ -89,6 +89,19 @@ export function listConversations() {
     .all();
 }
 
+/** A conversation's model override (null when unset or the chat doesn't exist
+ * yet), without loading its messages. */
+export function getConversationModel(id: string): string | null {
+  ensureSchema();
+  return (
+    db
+      .select({ model: conversations.model })
+      .from(conversations)
+      .where(eq(conversations.id, id))
+      .get()?.model ?? null
+  );
+}
+
 export function getConversation(id: string) {
   ensureSchema();
   const c = db.select().from(conversations).where(eq(conversations.id, id)).get();
@@ -109,6 +122,7 @@ export function getConversation(id: string) {
       outputTokens: c.lastOutputTokens ?? null,
       totalTokens: c.lastTotalTokens ?? null,
       modelId: c.lastModelId ?? null,
+      costUsd: c.lastCostUsd ?? null,
     },
     messages: msgs.map((m) => ({ id: m.id, role: m.role, parts: m.parts }) as StoredMessage),
   };
@@ -119,10 +133,12 @@ export type TurnUsage = {
   outputTokens: number | null;
   totalTokens: number | null;
   modelId: string | null;
+  /** The whole turn's cost in USD; null when the provider didn't report it. */
+  costUsd: number | null;
 };
 
-/** Record the real token usage of the most recent completed turn (from
- * OpenRouter, via the stream's onFinish). Used to anchor compaction and the
+/** Record the real token usage and cost of the most recent completed turn (from
+ * the provider, via the stream's onEnd). Used to anchor compaction and the
  * context gauge to actual counts. No-op if the conversation row doesn't exist. */
 export function recordTurnUsage(id: string, usage: TurnUsage) {
   ensureSchema();
@@ -132,6 +148,7 @@ export function recordTurnUsage(id: string, usage: TurnUsage) {
       lastOutputTokens: usage.outputTokens,
       lastTotalTokens: usage.totalTokens,
       lastModelId: usage.modelId,
+      lastCostUsd: usage.costUsd,
     })
     .where(eq(conversations.id, id))
     .run();

@@ -101,7 +101,8 @@ chain is cheapest, shortest, or best for your playthrough.
   production solver.
 - Live save state and in-game actions require the Companion mod and UDP bridge. The core
   planner remains available without them.
-- Assistant access currently requires OpenRouter. Model answers and proposals still need
+- Assistant access requires OpenRouter or an OpenAI-compatible endpoint such as LiteLLM.
+  Model answers and proposals still need
   review before they become part of the plan or run in the game.
 - The Linux `.deb` package requires manual updates; use the AppImage for in-app updates.
 

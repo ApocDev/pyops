@@ -11,7 +11,7 @@ import type { RefKind } from "../db/tasks.server.ts";
 // so the Start compiler prunes them from the client bundle with the handlers.
 import { generateText } from "ai";
 import * as store from "../db/tasks.server.ts";
-import { resolveApiKey } from "./app-config.server.ts";
+import { providerProblem } from "./app-config.server.ts";
 import { getModel, reasoningProviderOptions } from "./agent.ts";
 import { withUndoAction } from "./undo-action.server.ts";
 
@@ -56,15 +56,14 @@ export const deleteTaskFn = createServerFn({ method: "POST" })
   });
 
 /** Ask the LLM to (re)assign advisory priorities to all open/in-progress tasks.
- * Recomputable — a re-run can demote tasks whose context changed. No-op without
- * an OpenRouter key. */
+ * Recomputable — a re-run can demote tasks whose context changed. No-op until
+ * the assistant provider is configured. */
 export const prioritizeTasksFn = createServerFn({ method: "POST" }).handler(async () => {
   const input = store.prioritizationInput();
   if (!input.length) return { ok: true as const, count: 0 };
 
-  if (!resolveApiKey().key) {
-    return { ok: false as const, error: "No OpenRouter API key configured (set one in Settings)." };
-  }
+  const problem = providerProblem();
+  if (problem) return { ok: false as const, error: problem };
   try {
     // generateText + JSON parse (not generateObject) — structured-output mode is
     // flaky across OpenRouter models (some hang/retry); plain text + a strict JSON
@@ -113,19 +112,15 @@ export const prioritizeTasksFn = createServerFn({ method: "POST" }).handler(asyn
 
 /** Sharpen one task's rough title/body into something clearer using the LLM,
  * preserving the user's original wording and any captured context. For the
- * quick-capture → "enhance" flow. No-op without an OpenRouter key. */
+ * quick-capture → "enhance" flow. No-op until the assistant provider is configured. */
 export const enrichTaskFn = createServerFn({ method: "POST" })
   .validator((id: number) => id)
   .handler(async ({ data }) => {
     const task = store.getTask(data);
     if (!task) return { ok: false as const, error: "no such task" };
 
-    if (!resolveApiKey().key) {
-      return {
-        ok: false as const,
-        error: "No OpenRouter API key configured (set one in Settings).",
-      };
-    }
+    const problem = providerProblem();
+    if (problem) return { ok: false as const, error: problem };
     try {
       const links = task.links.map((l) => `${l.kind}:${l.display}`).join(", ");
       const { text } = await generateText({

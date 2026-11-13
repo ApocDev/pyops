@@ -3,41 +3,93 @@
  * Imported by both the streaming chat route (routes/api.chat.ts) and the headless
  * eval harness so they exercise an identical agent.
  */
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import type { LanguageModel } from "ai";
+import type { generateText, LanguageModel, ProviderMetadata } from "ai";
 
 import { agentTools } from "./agent-tools.server.ts";
-import { DEFAULT_MODEL, resolveApiKey, resolveModel } from "./app-config.server.ts";
+import { DEFAULT_MODEL, resolveModel, resolveProvider } from "./app-config.server.ts";
 import { normalizeReasoningEffort, type ReasoningEffort } from "../db/conversations.server.ts";
-import { supportsReasoningEffort } from "./openrouter-models.ts";
+import { supportsReasoningEffort } from "./model-catalog.server.ts";
 
 export { agentTools, DEFAULT_MODEL };
 
 /** Max tool-loop steps. Drafting a full Py chain is many calls. */
 export const MAX_STEPS = 60;
 
-/** Resolve the configured model (env → conversation override → app-config →
- * default). Throws if no API key is set anywhere — callers should check
- * resolveApiKey() first for a friendly message.
+type ProviderOptions = NonNullable<Parameters<typeof generateText>[0]["providerOptions"]>;
+
+/** Provider name for the OpenAI-compatible mode. It is also the key for its
+ * provider options and response metadata. */
+const COMPAT = "openaiCompatible";
+
+/** Reads `usage.cost` from an OpenAI-compatible stream's final usage chunk.
+ * OpenRouter reports it, and LiteLLM passes it through for OpenRouter models;
+ * servers that don't send it leave the cost unknown. */
+const costExtractor = {
+  extractMetadata: async ({ parsedBody }: { parsedBody: unknown }) => costMetadata(parsedBody),
+  createStreamExtractor: () => {
+    let cost: number | undefined;
+    return {
+      processChunk(chunk: unknown) {
+        cost = costMetadata(chunk)?.[COMPAT].cost ?? cost;
+      },
+      buildMetadata: () => (cost === undefined ? undefined : { [COMPAT]: { cost } }),
+    };
+  },
+};
+
+function costMetadata(body: unknown) {
+  if (typeof body !== "object" || body === null || !("usage" in body)) return undefined;
+  const usage = body.usage;
+  if (typeof usage !== "object" || usage === null || !("cost" in usage)) return undefined;
+  return typeof usage.cost === "number" ? { [COMPAT]: { cost: usage.cost } } : undefined;
+}
+
+/** Build the language model for the active provider (see resolveProvider and
+ * resolveModel for where each setting comes from). Throws when the provider
+ * isn't configured; callers check providerProblem() first for a friendly message.
+ *
+ * In OpenAI-compatible mode every request carries `x-ai-app: pyops`, plus
+ * `x-ai-session: <sessionId>` when the call belongs to a conversation, so a
+ * gateway can attribute usage.
  *
  * Note: no `anthropic-beta` header is attached for Claude's 1M context — it's GA
  * and the default window on the current Sonnet/Opus generations (the retired
  * `context-1m-2025-08-07` beta only ever covered Sonnet 4/4.5). See
  * lib/model-capabilities.ts and #72. */
-export function getModel(modelOverride?: string | null): LanguageModel {
-  const { key } = resolveApiKey();
-  if (!key) throw new Error("OPENROUTER_API_KEY is not set");
-  const openrouter = createOpenRouter({ apiKey: key });
-  return openrouter(resolveModel(modelOverride).model);
+export function getModel(modelOverride?: string | null, sessionId?: string): LanguageModel {
+  const p = resolveProvider();
+  const model = resolveModel(modelOverride).model;
+  if (p.kind === "openrouter") {
+    if (!p.apiKey) throw new Error("OPENROUTER_API_KEY is not set");
+    return createOpenRouter({ apiKey: p.apiKey })(model);
+  }
+  if (!p.baseUrl) throw new Error("No OpenAI-compatible endpoint URL is set");
+  if (!model) throw new Error("No model is set for the OpenAI-compatible endpoint");
+  return createOpenAICompatible({
+    name: COMPAT,
+    baseURL: p.baseUrl,
+    apiKey: p.apiKey,
+    headers: { "x-ai-app": "pyops", ...(sessionId ? { "x-ai-session": sessionId } : {}) },
+    includeUsage: true,
+    metadataExtractor: costExtractor,
+  })(model);
 }
 
+/** Provider options that set the reasoning effort, or undefined when no effort
+ * is chosen or the model doesn't support one. `exclude` (OpenRouter only) drops
+ * the reasoning text from the response for short helper calls. */
 export function reasoningProviderOptions(
   modelOverride?: string | null,
   effort?: string | null,
   options: { exclude?: boolean } = {},
-) {
+): ProviderOptions | undefined {
   const normalized: ReasoningEffort | null = normalizeReasoningEffort(effort);
   if (!normalized || !supportsReasoningEffort(resolveModel(modelOverride).model)) return undefined;
+  if (resolveProvider().kind === "openai-compatible") {
+    return { [COMPAT]: { reasoningEffort: normalized } };
+  }
   return {
     openrouter: {
       reasoning: {
@@ -46,6 +98,27 @@ export function reasoningProviderOptions(
       },
     },
   };
+}
+
+/** One request's cost in USD, from either provider's response metadata, or
+ * undefined when the provider didn't report it. */
+function stepCost(meta: ProviderMetadata | undefined): number | undefined {
+  const usage = meta?.openrouter?.usage;
+  const cost =
+    usage && typeof usage === "object" && "cost" in usage ? usage.cost : meta?.[COMPAT]?.cost;
+  return typeof cost === "number" ? cost : undefined;
+}
+
+/** A turn's total cost in USD across all its steps (each step is a billed
+ * request), or null when any step's cost is unknown. Unknown is never 0. */
+export function turnCost(steps: readonly { providerMetadata?: ProviderMetadata }[]): number | null {
+  let total = 0;
+  for (const s of steps) {
+    const cost = stepCost(s.providerMetadata);
+    if (cost === undefined) return null;
+    total += cost;
+  }
+  return steps.length ? total : null;
 }
 
 export const AGENT_SYSTEM = `You are the PyOps planning assistant — an expert on the Pyanodons (Py) overhaul mods for Factorio, helping the user design production chains inside their factory planner.
