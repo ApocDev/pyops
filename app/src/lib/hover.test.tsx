@@ -15,10 +15,16 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const renderChip = (onClick = () => {}) =>
+const renderChip = (onClick = () => {}, onContextMenu?: () => void) =>
   render(
     <CursorHover card={<div>Iron ore card</div>}>
-      <button onClick={onClick}>Iron ore</button>
+      <button
+        onClick={onClick}
+        data-context-menu={onContextMenu ? "" : undefined}
+        onContextMenu={onContextMenu}
+      >
+        Iron ore
+      </button>
     </CursorHover>,
   );
 
@@ -52,7 +58,7 @@ describe("CursorHover keyboard and touch", () => {
     expect(queryByText("Iron ore card")).toBeNull();
   });
 
-  it("opens on touch long-press without firing the press's click", () => {
+  it("opens on touch long-press without firing the press's click or context menu", () => {
     const onClick = vi.fn();
     const { getByRole, queryByText } = renderChip(onClick);
     const chip = getByRole("button");
@@ -62,6 +68,8 @@ describe("CursorHover keyboard and touch", () => {
       vi.advanceTimersByTime(450);
     });
     expect(queryByText("Iron ore card")).not.toBeNull();
+    // a browser long-press contextmenu is swallowed (false = default prevented)
+    expect(fireEvent.contextMenu(chip)).toBe(false);
     fireEvent.pointerUp(chip, { pointerType: "touch" });
     fireEvent.click(chip);
     expect(onClick).not.toHaveBeenCalled();
@@ -70,6 +78,25 @@ describe("CursorHover keyboard and touch", () => {
     fireEvent.pointerDown(document.body, { pointerType: "touch" });
     expect(queryByText("Iron ore card")).toBeNull();
     fireEvent.pointerDown(chip, { pointerType: "touch", clientX: 10, clientY: 10 });
+    fireEvent.pointerUp(chip, { pointerType: "touch" });
+    fireEvent.click(chip);
+    expect(onClick).toHaveBeenCalledOnce();
+  });
+
+  it("leaves long-press to an element's own context menu", () => {
+    const onClick = vi.fn();
+    const onMenu = vi.fn();
+    const { getByRole, queryByText } = renderChip(onClick, onMenu);
+    const chip = getByRole("button");
+
+    fireEvent.pointerDown(chip, { pointerType: "touch", clientX: 10, clientY: 10 });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(queryByText("Iron ore card")).toBeNull();
+    // the browser's long-press contextmenu still reaches the chip's menu
+    fireEvent.contextMenu(chip);
+    expect(onMenu).toHaveBeenCalledOnce();
     fireEvent.pointerUp(chip, { pointerType: "touch" });
     fireEvent.click(chip);
     expect(onClick).toHaveBeenCalledOnce();

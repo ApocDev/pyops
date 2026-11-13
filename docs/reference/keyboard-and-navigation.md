@@ -57,7 +57,8 @@ The global shortcuts are:
 The detail card that appears when you hover an item, fluid, or recipe also opens without a
 mouse. <kbd>Tab</kbd> to a block chip and the card appears after a short pause;
 <kbd>Escape</kbd> hides it. <kbd>Enter</kbd> still opens the recipe picker. On a touch
-screen, press and hold a chip or icon to show its card, and tap anywhere to dismiss it. A
+screen, press and hold an icon to show its card, and tap anywhere to dismiss it. Where an
+element has its own menu, such as a block chip, press and hold opens that menu instead. A
 short tap works as before.
 
 ## Switch projects and settings

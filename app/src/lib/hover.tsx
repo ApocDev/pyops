@@ -74,7 +74,9 @@ const PRESS_SLOP_PX = 10; // finger drift allowed before a press counts as a scr
  *   a short delay, anchored under the focused element; blur or Escape closes it;
  * - touch long-press, at the finger. The press's own click and context menu are
  *   swallowed so a tap still opens what it always did, and the next touch
- *   anywhere dismisses the card. */
+ *   anywhere dismisses the card. Long-press is skipped inside any element marked
+ *   `data-context-menu` (one with its own right-click menu): on touch, the
+ *   browser's long-press `contextmenu` is the only way to reach that menu. */
 export function useHoverCard() {
   const [pos, setPos] = useState<Point | null>(null);
   const [pinned, setPinned] = useState(false); // opened by long-press, outlives the touch
@@ -132,6 +134,7 @@ export function useHoverCard() {
     onPointerDown: (e: React.PointerEvent) => {
       swallowClick.current = false;
       if (e.pointerType !== "touch") return;
+      if (e.target instanceof Element && e.target.closest("[data-context-menu]")) return;
       const at = { x: e.clientX, y: e.clientY };
       press.current = at;
       clearTimer();

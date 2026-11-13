@@ -133,6 +133,7 @@ export function ItemChip({
       >
         <button
           onClick={onClick}
+          data-context-menu={onContext ? "" : undefined}
           onContextMenu={(e) => {
             if (!onContext) return;
             e.preventDefault();

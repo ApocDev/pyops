@@ -14,7 +14,8 @@ import { cn } from "#/lib/utils.ts";
  * `role="menu"` semantics, and click-away come from the primitive rather than a
  * hand-rolled backdrop (#86). Callers stay declarative — own the open state and
  * render `{menu && <ContextMenu x y onClose>…</ContextMenu>}`; a second
- * right-click still dismisses.
+ * right-click still dismisses. Mark the right-click trigger `data-context-menu`
+ * so a touch long-press reaches it instead of opening a hover card (`useHoverCard`).
  */
 function ContextMenu({
   x,
