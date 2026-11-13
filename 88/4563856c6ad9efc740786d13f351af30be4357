@@ -1,0 +1,21 @@
+app/e2e/explorer-alt-click.e2e.ts
+  s_4a0fb07906cf34::t_969eec7e587471 51-71
+app/src/components/good-explorer-dialog.tsx
+  s_4a0fb07906cf34::t_918c93145fab75 1,18,37-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "884563856c6ad9efc740786d13f351af30be4357",
+  "prompts": {},
+  "sessions": {
+    "s_4a0fb07906cf34": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ce3c79fc-8888-44e1-8847-062affb92d27",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
