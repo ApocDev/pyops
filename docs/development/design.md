@@ -203,7 +203,7 @@ per-page lowercase substring filters.
 
 Goods and statistics tables use `GoodsSection`, `StatCell`, `StatTableHeader`, or
 `StatSortHeader`. Desktop headers are hidden at narrow widths; each `StatCell` becomes a
-labeled mobile value. `usePersistedSorting` and `usePersistedFold` store browser-local table
+mobile value with its label stacked above it. `usePersistedSorting` and `usePersistedFold` store browser-local table
 preferences where applicable.
 
 The lead cell owns the flexible width and truncation. Numeric/stat columns remain fixed and

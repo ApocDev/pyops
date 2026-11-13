@@ -190,16 +190,15 @@ export function GoodsSection({
                   </Tooltip>
                 )}
               </span>
-              <span className="grid grid-cols-2 gap-x-4 gap-y-0.5 pl-7 md:flex md:gap-2 md:pl-0">
-                <StatCell label="Produced/s" layout="row" w="md:w-24" className="text-success">
+              <span className="grid grid-cols-2 gap-x-4 gap-y-2 pl-7 md:flex md:gap-2 md:pl-0">
+                <StatCell label="Produced/s" w="md:w-24" className="text-success">
                   {rateLabel(r.item, r.produced)}
                 </StatCell>
-                <StatCell label="Consumed/s" layout="row" w="md:w-24" className="text-warning">
+                <StatCell label="Consumed/s" w="md:w-24" className="text-warning">
                   {rateLabel(r.item, r.consumed)}
                 </StatCell>
                 <StatCell
                   label="Net/s"
-                  layout="row"
                   w="md:w-24"
                   className={`font-semibold ${
                     r.net < -1e-6
@@ -212,11 +211,11 @@ export function GoodsSection({
                   {rateLabel(r.item, r.net, { sign: true })}
                 </StatCell>
                 {showMet && (
-                  <StatCell label="Met" layout="row" w="md:w-14">
+                  <StatCell label="Met" w="md:w-14">
                     <MetCell pct={r.pctMet} />
                   </StatCell>
                 )}
-                <StatCell label="Actual/s" layout="row" w="md:w-24">
+                <StatCell label="Actual/s" w="md:w-24">
                   <ActualCell good={r.item} planned={r.produced} actual={r.actualProduced} />
                 </StatCell>
               </span>
