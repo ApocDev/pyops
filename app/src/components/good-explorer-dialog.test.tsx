@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 import { GoodExplorerDialog } from "./good-explorer-dialog";
@@ -9,9 +10,13 @@ vi.mock("./browse/good-detail.tsx", () => ({
 
 afterEach(cleanup);
 
+// The dialog's icons read the manifest through react-query.
+const renderWithQuery = (ui: React.ReactElement) =>
+  render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
+
 test("Alt+Click opens the explorer and suppresses the trigger action", () => {
   const regularClick = vi.fn();
-  render(
+  renderWithQuery(
     <>
       <button onClick={regularClick}>
         <span data-good-kind="item" data-good-name="iron-plate">
@@ -31,7 +36,7 @@ test("Alt+Click opens the explorer and suppresses the trigger action", () => {
 
 test("an ordinary click keeps the surface's existing behavior", () => {
   const regularClick = vi.fn();
-  render(
+  renderWithQuery(
     <>
       <button onClick={regularClick}>
         <span data-good-kind="fluid" data-good-name="water">

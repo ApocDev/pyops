@@ -1144,7 +1144,11 @@ function Block({ blockId }: { blockId: number }) {
           importRate={res?.imports.find((f) => f.name === ctxMenu.name)?.rate ?? null}
           made={!!made?.has(ctxMenu.name)}
           producedInBlock={
-            !!res?.rows.some((r) => r.products.some((pr) => pr.name === ctxMenu.name))
+            !!res?.rows.some(
+              (r) =>
+                r.products.some((pr) => pr.name === ctxMenu.name) ||
+                r.fuel?.burnt?.name === ctxMenu.name, // a burner's ash
+            )
           }
           spoilRate={spoilRates[ctxMenu.name] ?? null}
           onAddGoal={() => void addGoalWithDefault(ctxMenu.name)}

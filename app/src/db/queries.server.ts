@@ -466,7 +466,15 @@ export function fuelsForCategories(categories: string[]) {
       burntResult: items.burntResult,
     })
     .from(items)
-    .where(and(isNotNull(items.fuelValueJ), inArray(items.fuelCategory, categories)))
+    .where(
+      and(
+        isNotNull(items.fuelValueJ),
+        sql`EXISTS (SELECT 1 FROM json_each(${items.fuelCategories}) WHERE value IN (${sql.join(
+          categories.map((c) => sql`${c}`),
+          sql`, `,
+        )}))`,
+      ),
+    )
     .orderBy(items.fuelValueJ)
     .all()
     .filter((f) => !isExcluded(f.name)); // EE / user-excluded fuels
@@ -3242,7 +3250,7 @@ export function entityDetail(name: string) {
       ? {
           stackSize: item.stackSize,
           fuelValueJ: item.fuelValueJ,
-          fuelCategory: item.fuelCategory,
+          fuelCategories: item.fuelCategories,
         }
       : null,
     cost: goodCosts([name]).get(name) ?? null,
@@ -5312,11 +5320,15 @@ export function setFavoriteMachine(category: string, machine: string | null) {
   metaSet("favorite_machines", JSON.stringify(map));
 }
 
-/** Set (or clear, when `fuel` is null) the preferred fuel for a fuel category. */
-export function setFavoriteFuel(fuelCategory: string, fuel: string | null) {
+/** Star (or unstar) `fuel` as the preferred fuel in each of its fuel categories.
+ * Unstarring only clears categories that still prefer this fuel, so another
+ * fuel's preference in a shared category survives. */
+export function setFavoriteFuel(fuel: string, categories: string[], favorite: boolean) {
   const map = getFavoriteFuels();
-  if (fuel) map[fuelCategory] = fuel;
-  else delete map[fuelCategory];
+  for (const category of categories) {
+    if (favorite) map[category] = fuel;
+    else if (map[category] === fuel) delete map[category];
+  }
   metaSet("favorite_fuels", JSON.stringify(map));
 }
 

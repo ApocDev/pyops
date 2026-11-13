@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, waitFor } from "@testing-library/react";
 import { expect, test, vi } from "vite-plus/test";
 import { Icon, IconProvider } from "./icons";
+import { iconManifestFn } from "../server/factorio";
 
 const { manifest } = vi.hoisted(() => ({
   manifest: {
@@ -18,14 +20,18 @@ const { manifest } = vi.hoisted(() => ({
 }));
 
 vi.mock("../server/factorio", () => ({
-  iconManifestFn: () => Promise.resolve(manifest),
+  iconManifestFn: vi.fn(() => Promise.resolve(manifest)),
   spoilablesFn: () => Promise.resolve({}),
 }));
+
+// IconProvider reads the manifest through react-query.
+const renderIcons = (ui: React.ReactElement) =>
+  render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
 
 // `noHover` renders the bare sprite (RawIcon) with its native title, which is
 // where the slicing math lives; the default `Icon` wraps this in a hover card.
 test("draws an item icon as a slice scaled off the size token", async () => {
-  const { container } = render(
+  const { container } = renderIcons(
     <IconProvider>
       <Icon kind="item" name="iron-plate" size="sm" noHover />
     </IconProvider>,
@@ -46,7 +52,7 @@ test("draws an item icon as a slice scaled off the size token", async () => {
 });
 
 test("item-kind falls back to non-item folders (module/)", async () => {
-  const { container } = render(
+  const { container } = renderIcons(
     <IconProvider>
       <Icon kind="item" name="speed-module" size="md" noHover />
     </IconProvider>,
@@ -60,7 +66,7 @@ test("item-kind falls back to non-item folders (module/)", async () => {
 });
 
 test("fluid-fuel conversion recipes use the source fluid icon with a fuel badge", async () => {
-  const { container } = render(
+  const { container } = renderIcons(
     <IconProvider>
       <Icon kind="recipe" name="burn-fluid-kerosene" size="md" noHover />
     </IconProvider>,
@@ -75,7 +81,7 @@ test("fluid-fuel conversion recipes use the source fluid icon with a fuel badge"
 });
 
 test("the default icon shows no internal-name title (a rich hover card replaces it)", async () => {
-  const { container } = render(
+  const { container } = renderIcons(
     <IconProvider>
       <Icon kind="item" name="iron-plate" size="sm" />
     </IconProvider>,
@@ -95,7 +101,7 @@ test("the default icon shows no internal-name title (a rich hover card replaces 
 // good it makes must draw the PACK — a generic glyph would render all eleven
 // identically and hide the only distinction that matters.
 test("research recipes use the science pack icon with a research badge", async () => {
-  const { container } = render(
+  const { container } = renderIcons(
     <IconProvider>
       <Icon kind="recipe" name="research-automation-science-pack" size="md" noHover />
     </IconProvider>,
@@ -113,7 +119,7 @@ test("research recipes use the science pack icon with a research badge", async (
 });
 
 test("the synthetic research good falls back to its pack icon", async () => {
-  const { container } = render(
+  const { container } = renderIcons(
     <IconProvider>
       <Icon kind="fluid" name="pyops-research-automation-science-pack" size="md" noHover />
     </IconProvider>,
@@ -126,5 +132,32 @@ test("the synthetic research good falls back to its pack icon", async () => {
       "calc(var(--icon-md) * -2) calc(var(--icon-md) * -3)",
     );
     expect(container.querySelector("[data-icon-badge='research'] svg")).toBeTruthy();
+  });
+});
+
+// A data sync rebuilds the atlas and then invalidates every query. The open page
+// must redraw from the rebuilt manifest, or icons land on other icons' sprites.
+test("a sync's query invalidation swaps in the rebuilt atlas manifest", async () => {
+  const client = new QueryClient();
+  const { container } = render(
+    <QueryClientProvider client={client}>
+      <IconProvider>
+        <Icon kind="item" name="iron-plate" size="sm" noHover />
+      </IconProvider>
+    </QueryClientProvider>,
+  );
+  const style = () => container.querySelector("span[title='iron-plate']")?.getAttribute("style");
+  await waitFor(() => expect(style()).toContain("/icons/atlas-0.png"));
+
+  vi.mocked(iconManifestFn).mockResolvedValueOnce({
+    ...manifest,
+    sheets: ["atlas-0.png?v=new"],
+    icons: { ...manifest.icons, "item/iron-plate": { s: 0, x: 0, y: 64 } },
+  });
+  await client.invalidateQueries();
+
+  await waitFor(() => {
+    expect(style()).toContain("/icons/atlas-0.png?v=new");
+    expect(style()).toContain("calc(var(--icon-sm) * 0) calc(var(--icon-sm) * -1)");
   });
 });

@@ -93,7 +93,7 @@ export function GoodDetail({
                 {data.item?.fuelValueJ != null && (
                   <span className="inline-flex items-center gap-1">
                     · <Flame className="size-3.5" /> {fmtJ(data.item.fuelValueJ)} (
-                    {data.item.fuelCategory})
+                    {data.item.fuelCategories?.join(", ")})
                   </span>
                 )}
                 {data.fluid?.fuelValueJ != null && (

@@ -12,6 +12,7 @@
 import Database from "better-sqlite3";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { readDump } from "./read-dump.ts";
 import { synthesizePass2 } from "./synthesize.ts";
 import { temperatureFedDrain, type TempFedFluid } from "./fluid-energy.ts";
 import {
@@ -203,7 +204,7 @@ export function importFactorioDump(
   const DUMP = opts.dumpPath ?? join(factorioScriptOutputDir(), "data-raw-dump.json");
   const DB_URL = opts.dbUrl ?? process.env.DATABASE_URL ?? join(PROJECTS_DIR, "default.db");
 
-  const raw = JSON.parse(readFileSync(DUMP, "utf8")) as Record<string, Record<string, any>>;
+  const raw = readDump(DUMP);
 
   // Locale: load every <type>-locale.json ({ names, descriptions }) for display names.
   const SO_DIR = dirname(DUMP);
@@ -240,7 +241,7 @@ export function importFactorioDump(
       `INSERT INTO recipe_products (recipe,idx,kind,name,amount,amount_min,amount_max,probability,temperature,ignored_by_productivity) VALUES (@recipe,@idx,@kind,@name,@amount,@amount_min,@amount_max,@probability,@temperature,@ignored_by_productivity)`,
     ),
     item: db.prepare(
-      `INSERT OR IGNORE INTO items (name,display,subgroup,"order",stack_size,weight,fuel_value_j,fuel_category,spoil_result,spoil_ticks,burnt_result,plant_result) VALUES (@name,@display,@subgroup,@order,@stack_size,@weight,@fuel_value_j,@fuel_category,@spoil_result,@spoil_ticks,@burnt_result,@plant_result)`,
+      `INSERT OR IGNORE INTO items (name,display,subgroup,"order",stack_size,weight,fuel_value_j,fuel_categories,spoil_result,spoil_ticks,burnt_result,plant_result) VALUES (@name,@display,@subgroup,@order,@stack_size,@weight,@fuel_value_j,@fuel_categories,@spoil_result,@spoil_ticks,@burnt_result,@plant_result)`,
     ),
     fluid: db.prepare(
       `INSERT INTO fluids (name,display,subgroup,"order",default_temperature,max_temperature,fuel_value_j,heat_capacity_j) VALUES (@name,@display,@subgroup,@order,@default_temperature,@max_temperature,@fuel_value_j,@heat_capacity_j)`,
@@ -389,7 +390,10 @@ export function importFactorioDump(
           stack_size: it.stack_size ?? null,
           weight: typeof it.weight === "number" ? it.weight : null,
           fuel_value_j: parseSI(it.fuel_value),
-          fuel_category: it.fuel_category ?? null,
+          // Factorio 2.1 lists `fuel_categories`; older dumps have one `fuel_category`.
+          fuel_categories: jsonList(
+            it.fuel_categories ?? (it.fuel_category ? [it.fuel_category] : null),
+          ),
           spoil_result: it.spoil_result ?? null,
           spoil_ticks: it.spoil_ticks ?? null,
           burnt_result: it.burnt_result ?? null,

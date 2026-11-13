@@ -41,12 +41,10 @@ export function ProjectSwitcher() {
     // (src/db/index.server.ts, src/server/projects.server.ts), so the next
     // server-fn call already reads the new project's database. The client is
     // what can't switch softly — per-project data lives not only in react-query
-    // caches (invalidatable) but also in module-level caches (the icon manifest
-    // and spoilables in lib/icons.tsx are fetched once per page load) and in
-    // useEffect-owned local state across pages (block, assistant, tasks). A
-    // router.navigate + invalidateQueries would leave those surfaces showing —
-    // or writing edits against — the previous project's data. A reload is the
-    // one flush that covers all three.
+    // caches (invalidatable) but also in useEffect-owned local state across
+    // pages (block, assistant, tasks). A router.navigate + invalidateQueries
+    // would leave those surfaces showing — or writing edits against — the
+    // previous project's data. A reload is the one flush that covers both.
     window.location.reload();
   };
   const remove = async (p: { id: string; name: string }) => {
