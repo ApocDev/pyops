@@ -1,0 +1,21 @@
+app/src/components/block/flow-graph.test.ts
+  s_995b207560eeb0::t_d43443b0513e49 192-213
+app/src/components/block/flow-graph.ts
+  s_995b207560eeb0::t_998c1c0c103337 62-74,162,167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ab71f51e9f38398be09296621b73f1ed2f978cf2",
+  "prompts": {},
+  "sessions": {
+    "s_995b207560eeb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cef9ec12-eec2-430e-8ba3-ca49ff9d4875",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
