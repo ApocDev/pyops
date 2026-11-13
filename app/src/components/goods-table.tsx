@@ -3,7 +3,7 @@
  * owns sorting state + row models only; the markup (badges, drawer-clicks, the
  * mobile card-stacking) is entirely ours. Each section is independently
  * sortable (click a header) and collapsible, both remembered per section in
- * localStorage. Deficits sort by "% of demand met" by default, so a fully
+ * localStorage. Short goods sort by "% of demand met" by default, so a fully
  * starved 0.3/s intermediate outranks a half-fed 500/s bulk fluid.
  */
 import {

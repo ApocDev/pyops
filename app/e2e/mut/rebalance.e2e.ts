@@ -95,6 +95,10 @@ test("Scenario target waits for explicit recalculation and reports progress", as
   const status = page.getByTestId("scenario-status");
   await expect(status).toHaveAttribute("data-state", "stale");
   await expect(status).toContainText("Targets or factory inputs changed");
+  // A stale result must not show a green "balanced" verdict as the current answer.
+  await expect(
+    page.getByTestId("scenario-workspace").locator('[data-slot="callout"][data-tone="success"]'),
+  ).toHaveCount(0);
 
   await status.getByRole("button", { name: "Recalculate" }).click();
   await expect(status).toHaveAttribute("data-state", "calculating");

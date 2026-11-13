@@ -65,7 +65,9 @@ function Callout({
       data-slot="callout"
       data-tone={tone}
       className={cn(
-        "flex items-start gap-2 text-sm",
+        // wraps so an action drops under the text on narrow widths instead of
+        // squeezing it into a thin column
+        "flex flex-wrap items-start gap-2 text-sm sm:flex-nowrap",
         variant === "box" ? cn("border px-3 py-2", t.classes) : cn("px-3 py-1.5", t.strip),
         className,
       )}
@@ -76,7 +78,11 @@ function Callout({
         {title && <div className="font-semibold">{title}</div>}
         {children}
       </div>
-      {action && <div className="ml-2 shrink-0">{action}</div>}
+      {action && (
+        <div className={cn("basis-full sm:ml-2 sm:shrink-0 sm:basis-auto", IconComp && "ml-6")}>
+          {action}
+        </div>
+      )}
     </div>
   );
 }
