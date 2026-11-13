@@ -552,6 +552,7 @@ function PlannerCard() {
               value={s.spoilImportCutoffSec}
               min={0}
               step={30}
+              aria-label="Spoilage import cutoff in seconds"
               onChange={(e) =>
                 save.mutate({
                   autofill: s.autofill,

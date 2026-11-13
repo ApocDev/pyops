@@ -213,7 +213,7 @@ export function MachinesCard({ data }: { data: MachineSufficiency }) {
                     </div>
                   ))}
                 {m.recipeAware && m.unassignedBuilt > 0 && (
-                  <div className="flex items-center gap-2 py-0.5 pr-3 pl-10 text-sm text-muted-foreground/70 italic">
+                  <div className="flex items-center gap-2 py-0.5 pr-3 pl-10 text-sm text-muted-foreground italic">
                     <span className="min-w-0 flex-1">
                       {m.unassignedBuilt} built with no recipe set (idle / spare)
                     </span>
