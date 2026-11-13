@@ -1,0 +1,19 @@
+docs/guide/blocks.md
+  s_4a0fb07906cf34::t_86c85f963406a9 94-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c0078d710a58892173c8eb2e4ceb93d26c107610",
+  "prompts": {},
+  "sessions": {
+    "s_4a0fb07906cf34": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ce3c79fc-8888-44e1-8847-062affb92d27",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
