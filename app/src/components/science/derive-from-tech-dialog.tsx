@@ -16,9 +16,9 @@ import {
 } from "#/components/ui/dialog.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
 import { EmptyState } from "#/components/empty-state.tsx";
+import { formatQty } from "../../lib/format";
 
 const perMin = (perSec: number) => perSec * 60;
-const fmt = (n: number) => (n >= 100 ? Math.round(n).toLocaleString() : n.toFixed(2));
 
 /** Work out pack rates from "research THIS in THIS long".
  *
@@ -107,7 +107,7 @@ export function DeriveFromTechDialog({
                 >
                   <Icon kind="technology" name={t.name} size="sm" noHover />
                   <span className="min-w-0 flex-1 truncate">{t.display ?? t.name}</span>
-                  <span className="text-muted-foreground">{fmt(t.unitCount)} units</span>
+                  <span className="text-muted-foreground">{formatQty(t.unitCount)} units</span>
                 </button>
               ))
             )}
@@ -141,14 +141,14 @@ export function DeriveFromTechDialog({
                     {Object.entries(rates.packs).map(([pack, perSec]) => (
                       <span key={pack} className="flex items-center gap-1">
                         <Icon kind="item" name={pack} size="sm" noHover />
-                        <span className="font-semibold">{fmt(perMin(perSec))}</span>
+                        <span className="font-semibold">{formatQty(perMin(perSec))}</span>
                         <span className="text-muted-foreground">/min</span>
                       </span>
                     ))}
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    {fmt(perMin(rates.totalPerSec))} science/min total ·{" "}
-                    {fmt(rates.labSecondsPerPack)} lab-seconds per pack
+                    {formatQty(perMin(rates.totalPerSec))} science/min total ·{" "}
+                    {formatQty(rates.labSecondsPerPack)} lab-seconds per pack
                   </div>
                 </>
               )}
