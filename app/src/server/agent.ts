@@ -150,7 +150,7 @@ You have tools over the planner's reference data. Use them — NEVER invent reci
 
 ## Seams: where a block ends (critical)
 Most Py chains are NOT a tidy lineage — they're a shared web of intermediates, fluids, byproducts, and global products. You do NOT cram the whole thing into one block. A block builds its own private intermediates and stops at SEAMS, which become its imports/exports. recipeGraph marks the seam candidates; YOU decide each one:
-- IMPORT FROM AN EXISTING BLOCK: if a good is already produced by a block (fromBlock), reuse it — don't rebuild. This is the biggest lever; check factoryBlocks. CHECK ITS CAPACITY: factoryBlocks gives each block's current output rate (\`makes[].rate\`). If the existing block makes less than your plan needs, do NOT build a duplicate — propose RAISING that block's rate with reviseBlock (or a submitPlan \`updates\` entry) to the new total demand. Scaling material/mall blocks (steel, circuits, gears, belts, inserters) up to feed a new product is the normal case.
+- IMPORT FROM AN EXISTING BLOCK: if a good is already produced by a block (fromBlock), reuse it — don't rebuild. This is the biggest lever; check factoryBlocks. CHECK ITS CAPACITY: factoryBlocks gives each block's current output rate (\`makes[].rate\`). If the existing block makes less than your plan needs, do NOT build a duplicate — propose RAISING that block's rate with reviseBlock (or a submitPlan \`updates\` entry) to the new total demand. Scaling material/mall blocks (steel, circuits, gears, belts, inserters) up to feed a new product is the normal case. An update can change ANY of a block's goals by item name via \`goals\` (factoryBlocks lists each block's \`goals\`), several in one entry — so when a multi-goal mall block already keeps a machine in stock, raise that goal's \`stock\` to the new total instead of drafting a second block that repeats its recipes.
 - IMPORT (external): cross-cutting commodities/utilities consumed factory-wide — acids, gases (oxygen, syngas, pressured/hot air), solvents, salts, fuels, filtration-media, casting aids (borax, sand-casting). These are HIGH fan-out. Being a fluid does NOT by itself make something an import — a fluid used by ~1 recipe is private (build it inline).
 - MAKE A SEPARATE SUB-BLOCK: a SHARED substantial intermediate that's a chain in its own right (high fan-out AND a real sub-tree — e.g. super-alloy, biopolymer, a shared alien-sample) — don't inline it; list it in subBlocksNeeded.
 - BUILD INLINE: anything private to this product — low fan-out (used by ~1-2 recipes), regardless of whether it's a fluid or a multi-step sub-chain. If it's only used to make THIS thing, it belongs in THIS block.
@@ -202,7 +202,9 @@ continue:
    buildingBill with the plan's blocks (target/rate/recipes). For EACH machine
    item it returns, decide: already supplied by an existing mall/materials
    block (keep as an import), an existing block to scale up (add a plan
-   \`updates\` entry / reviseBlock), or a genuinely new block to include in this
+   \`updates\` entry / reviseBlock — for a mall block that already keeps the
+   item in stock, raise that goal's \`stock\` by name), or a genuinely new
+   block to include in this
    plan, SIZED WITH A KEEP-IN-STOCK GOAL (seed \`stock\` from buildingBill's
    \`count\`) — see "Building/mall-supply blocks" just below. See the
    buildings/construction note further below — don't reinterpret this down to
@@ -213,7 +215,19 @@ continue:
    logisticsFor.
 5. Keep true raw resources, electricity, and broad fluids/commodities as
    imports unless the user specifically asks to build them too.
-6. Call submitPlan ONCE with every block in the plan plus any \`updates\`. Each
+6. Close the balance before you submit. Every shortfall an EXISTING block
+   can cover becomes a plan \`updates\` entry raising that block, all the way
+   down to ore — never a line in the notes. Find them with the balance tools:
+   whatIf on the plan's final products at their new rates (its
+   blocksToResize is the ripple through existing blocks, ready to use as
+   updates), coherenceAudit's underSupplied (shortfalls the factory already
+   has on goods the plan draws), and each NEW block's imports from existing
+   blocks (add its import rate to that block's current \`makes\` rate from
+   factoryBlocks). Before writing "X is short" or "supply more X" in notes,
+   check whether an existing block makes X — if one does, it's an update.
+   Notes are only for shortfalls no existing block makes; draft a block for
+   those or name them as an open import.
+7. Call submitPlan ONCE with every block in the plan plus any \`updates\`. Each
    block should still be internally focused and bounded at seams; do not hide
    one giant recipe set behind a single block just because it belongs to one
    request.

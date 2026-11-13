@@ -9,7 +9,7 @@ import {
   primaryRate,
   withPrimaryRate,
 } from "../lib/goals";
-import { extractRecipeToBlockDocs, withRecipeSet } from "../lib/block-doc";
+import { extractRecipeToBlockDocs } from "../lib/block-doc";
 import type { FactoryFlowQualifier } from "../lib/factory-flow.ts";
 import { referenceDataFormatStatus } from "../lib/data-format.ts";
 
@@ -45,6 +45,7 @@ import { APP_CONFIG_FILE, DATA_DIR, ICON_DATA_DIR, PROJECTS_DIR } from "./paths.
 import { syncedLabBonuses } from "./science-block.server.ts";
 import { withUndoAction } from "./undo-action.server.ts";
 import { captureSnapshot } from "./snapshots.server.ts";
+import { applyBlockUpdate, type BlockUpdateRequest } from "./block-update.server.ts";
 import { defaultPresetLoadout, presetsForRow } from "./module-presets.server.ts";
 import { storagePathsHidden, storagePathsResponse } from "./storage-paths.server.ts";
 import { factorioPathDefaults, factorioPaths } from "./factorio-paths.server.ts";
@@ -634,7 +635,7 @@ export const setBlockRateFn = createServerFn({ method: "POST" })
     ) as SolveInput;
     const r = await computeBlock(input);
     if (r.broken) return { ok: false, broken: true };
-    // Restore point (#85) before a structural apply (scale-to-demand, assistant resize).
+    // Restore point (#85) before a structural apply (scale-to-demand).
     await captureSnapshot(data.blockId, { kind: "auto", label: "before resize" });
     await withUndoAction(`Set "${row.name}" rate`, () =>
       persistBlock(
@@ -646,33 +647,12 @@ export const setBlockRateFn = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Apply an assistant recipe-set revision (#12): replace one block's recipe list
- * (optionally re-rating its anchor goal too), re-solve, and persist — the same
- * cache refresh as saveBlock. Per-recipe config for removed recipes is pruned
- * (`withRecipeSet`); goals, made marks, and the rest of the doc survive. */
-export const setBlockRecipesFn = createServerFn({ method: "POST" })
-  .validator((d: { blockId: number; recipes: string[]; rate?: number }) => d)
-  .handler(async ({ data }) => {
-    const row = q.getBlock(data.blockId);
-    if (!row) return { ok: false };
-    let input = withRecipeSet(
-      normalizeBlockData(row.data as SolveInput),
-      data.recipes,
-    ) as SolveInput;
-    if (data.rate != null) input = withPrimaryRate(input, data.rate) as SolveInput;
-    const r = await computeBlock(input);
-    if (r.broken) return { ok: false, broken: true };
-    // Restore point (#85) before a structural apply (assistant recipe revision).
-    await captureSnapshot(data.blockId, { kind: "auto", label: "before recipe change" });
-    await withUndoAction(`Change "${row.name}" recipes`, () =>
-      persistBlock(
-        { id: row.id, name: row.name, iconKind: row.iconKind, iconName: row.iconName },
-        input,
-        r,
-      ),
-    );
-    return { ok: true };
-  });
+/** Apply an assistant block revision (#12, #132): change any goals by name
+ * and/or replace the recipe set, re-solve, and persist as one undoable action.
+ * See `applyBlockUpdate`. */
+export const applyBlockUpdateFn = createServerFn({ method: "POST" })
+  .validator((d: BlockUpdateRequest) => d)
+  .handler(async ({ data }) => applyBlockUpdate(data));
 
 /** Break one recipe row out into a new supplier block. The new block is sized to
  * the selected row's current product rates and carries that row's machine/fuel/

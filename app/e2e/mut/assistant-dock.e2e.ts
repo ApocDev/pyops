@@ -151,6 +151,73 @@ test("applying a resize from the dock updates the open block editor", async ({ p
   expect(JSON.parse(stored().data).goals[0].rate).toBe(3);
 });
 
+test("applying a multi-goal update changes only the goals it names", async ({ page }) => {
+  const name = uniqueName("Dock mall");
+  const goals = [
+    { name: "iron-plate", rate: 1 },
+    { name: "iron-gear-wheel", rate: 0.1, stock: 60, window: 600 },
+    { name: "pipe", rate: 0.05, stock: 30, window: 600 },
+  ];
+  const blockId = insertBlock(name, {
+    goals,
+    recipes: ["iron-plate", "iron-gear-wheel", "pipe"],
+  });
+  // a reviseBlock proposal raising the plate rate and the gear stock, not the pipes
+  await stubChat(page, () => [
+    { type: "tool-input-available", toolCallId: "c1", toolName: "reviseBlock", input: {} },
+    {
+      type: "tool-output-available",
+      toolCallId: "c1",
+      output: {
+        ok: true,
+        kind: "update",
+        updateBlockId: blockId,
+        blockName: name,
+        target: "iron-plate",
+        targetDisplay: "Iron plate",
+        rate: 3,
+        recipes: ["iron-plate", "iron-gear-wheel", "pipe"],
+        goalChanges: [
+          { name: "iron-plate", display: "Iron plate", before: { rate: 1 }, after: { rate: 3 } },
+          {
+            name: "iron-gear-wheel",
+            display: "Iron gear wheel",
+            before: { rate: 0.1, stock: 60, window: 600 },
+            after: { rate: 0.2, stock: 120, window: 600 },
+          },
+        ],
+      },
+    },
+  ]);
+  await goto(page, `/block/${blockId}`);
+  await askButton(page).click();
+  await dock(page).getByPlaceholder("Ask about this block…").fill("Stock more gears");
+  await page.keyboard.press("Enter");
+
+  // the card lists each changed goal, old → new
+  const card = dock(page);
+  await expect(card.getByText("keep 120 (refill 10m)")).toBeVisible();
+  await expect(card.getByText("keep 60 (refill 10m)")).toBeVisible();
+  await card.getByRole("button", { name: /Apply update/ }).click();
+  await expect(card.getByText("Applied")).toBeVisible();
+  await expect(goalRateButton(page).first()).toHaveText("3");
+
+  const stored = () =>
+    withDb(
+      (db) =>
+        JSON.parse(
+          (db.prepare("SELECT data FROM blocks WHERE id = ?").get(blockId) as { data: string })
+            .data,
+        ) as { goals: typeof goals },
+      { readOnly: true },
+    );
+  expect(stored().goals).toEqual([
+    { name: "iron-plate", rate: 3 },
+    { name: "iron-gear-wheel", rate: 0.2, stock: 120, window: 600 },
+    goals[2],
+  ]);
+});
+
 test("an unsent draft survives closing the dock and opening the full page", async ({ page }) => {
   await goto(page, "/tasks");
   await askButton(page).click();

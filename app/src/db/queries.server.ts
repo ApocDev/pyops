@@ -64,7 +64,13 @@ import {
   insertersForRate,
   inserterHandStack,
 } from "../lib/logistics.ts";
-import { goalNames, normalizeBlockData, primaryGoal, primaryRate } from "../lib/goals.ts";
+import {
+  goalNames,
+  normalizeBlockData,
+  primaryGoal,
+  primaryRate,
+  STOCK_WINDOW_DEFAULT,
+} from "../lib/goals.ts";
 import { prodScaledAmount } from "../lib/productivity.ts";
 import { wholeMachines } from "../lib/machine-count.ts";
 import { factoryFlowKey, type FactoryFlowQualifier } from "../lib/factory-flow.ts";
@@ -2267,13 +2273,23 @@ export function factoryScenarioCacheBlocks() {
  * and imports — the factory context the planner consults to reuse blocks. */
 export function factoryBlocks() {
   const bs = db
-    .select({ id: blocks.id, name: blocks.name })
+    .select({ id: blocks.id, name: blocks.name, data: blocks.data })
     .from(blocks)
     .where(eq(blocks.enabled, true)) // disabled blocks (#73) don't count factory-wide
     .orderBy(blocks.sortOrder, blocks.name)
     .all();
   const flowsByBlock = enabledFlowsByBlock();
   return bs.map((b) => {
+    // each goal as the assistant's reviseBlock `goals` entries name it: a
+    // throughput rate, or a keep-in-stock amount + refill window, plus the
+    // temperature that tells one fluid's goals apart
+    const goals = normalizeBlockData(b.data).goals.map((g) => ({
+      name: g.name,
+      ...(g.temperature != null ? { temperature: g.temperature } : {}),
+      ...(g.stock != null
+        ? { stock: g.stock, window: g.window ?? STOCK_WINDOW_DEFAULT }
+        : { rate: g.rate }),
+    }));
     const flows = flowsByBlock.get(b.id) ?? [];
     const pick = (roles: string[]) =>
       flows
@@ -2288,6 +2304,7 @@ export function factoryBlocks() {
     return {
       id: b.id,
       name: b.name,
+      goals,
       makes: pick(["primary", "stock"]),
       byproducts: pick(["byproduct"]),
       imports: pick(["import"]),

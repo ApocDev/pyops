@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
+  goalChangeRequest,
   goalNames,
   normalizeBlockData,
   primaryGoal,
   primaryRate,
+  requestedGoalChanges,
+  withGoalChanges,
   withPrimaryRate,
 } from "./goals.ts";
 
@@ -105,5 +108,175 @@ describe("goal accessors", () => {
   it("preserves consume intent when a negative primary goal is balanced to zero", () => {
     const out = withPrimaryRate({ goals: [{ name: "kerogen", rate: -40 }] }, 0);
     expect(out.goals).toEqual([{ name: "kerogen", rate: 0, direction: "consume" }]);
+  });
+});
+
+describe("withGoalChanges", () => {
+  // a mall block: one rate goal, two keep-in-stock goals
+  const mall = {
+    goals: [
+      { name: "biofactory", rate: 0.01 },
+      { name: "assembler", rate: 0.02, stock: 12, window: 600 },
+      { name: "soil-extractor", rate: 0.01, stock: 6, window: 600 },
+    ],
+  };
+  const changed = (changes: Parameters<typeof withGoalChanges>[1]) => {
+    const out = withGoalChanges(mall, changes);
+    if ("error" in out) throw new Error(out.error);
+    return out.data.goals;
+  };
+
+  it("changes several goals by name in one call and keeps the rest", () => {
+    const goals = changed([
+      { name: "assembler", stock: 78 },
+      { name: "soil-extractor", stock: 53, window: 1200 },
+    ]);
+    expect(goals[0]).toEqual(mall.goals[0]);
+    expect(goals[1]).toMatchObject({ name: "assembler", stock: 78, window: 600 });
+    expect(goals[1].rate).toBeCloseTo(78 / 600);
+    expect(goals[2]).toMatchObject({ stock: 53, window: 1200 });
+    expect(goals[2].rate).toBeCloseTo(53 / 1200);
+  });
+
+  it("re-derives a stock goal's rate from a new window alone", () => {
+    const goals = changed([{ name: "assembler", window: 300 }]);
+    expect(goals[1]).toMatchObject({ stock: 12, window: 300, rate: 12 / 300 });
+  });
+
+  it("changes a rate goal that is not the first one", () => {
+    const out = withGoalChanges(
+      {
+        goals: [
+          { name: "a", rate: 1 },
+          { name: "b", rate: 2 },
+        ],
+      },
+      [{ name: "b", rate: 5 }],
+    );
+    expect(out).toEqual({
+      data: {
+        goals: [
+          { name: "a", rate: 1 },
+          { name: "b", rate: 5, direction: undefined },
+        ],
+      },
+      indexes: [1],
+    });
+  });
+
+  describe("one fluid at several temperatures", () => {
+    const boilers = {
+      goals: [
+        { name: "steam", rate: 60, temperature: 165 },
+        { name: "steam", rate: 20, temperature: 500 },
+        { name: "water", rate: 10 },
+      ],
+    };
+
+    it("refuses a bare name that matches several goals, listing them", () => {
+      expect(withGoalChanges(boilers, [{ name: "steam", rate: 90 }])).toEqual({
+        error:
+          '"steam" matches several goals (steam at 165°, steam at 500°) — pass `temperature` to pick one',
+      });
+    });
+
+    it("edits only the goal at the given temperature", () => {
+      const out = withGoalChanges(boilers, [{ name: "steam", temperature: 500, rate: 45 }]);
+      if ("error" in out) throw new Error(out.error);
+      expect(out.indexes).toEqual([1]);
+      expect(out.data.goals.map((g) => g.rate)).toEqual([60, 45, 10]);
+      expect(out.data.goals[1].temperature).toBe(500);
+    });
+
+    it("still matches a unique name without a temperature", () => {
+      const out = withGoalChanges(boilers, [{ name: "water", rate: 12 }]);
+      if ("error" in out) throw new Error(out.error);
+      expect(out.data.goals.map((g) => g.rate)).toEqual([60, 20, 12]);
+    });
+
+    it("names the goals when no goal has that temperature", () => {
+      expect(withGoalChanges(boilers, [{ name: "steam", temperature: 250, rate: 1 }])).toEqual({
+        error:
+          '"steam at 250°" is not a goal of this block (its goals: steam at 165°, steam at 500°, water)',
+      });
+    });
+  });
+
+  describe("one fluid with and without a temperature", () => {
+    const block = {
+      goals: [
+        { name: "steam", rate: 60 },
+        { name: "steam", rate: 20, temperature: 500 },
+      ],
+    };
+    const rates = (changes: Parameters<typeof withGoalChanges>[1], d = block) => {
+      const out = withGoalChanges(d, changes);
+      if ("error" in out) throw new Error(out.error);
+      return out.data.goals.map((g) => g.rate);
+    };
+
+    it("a bare name edits the goal with no temperature", () => {
+      expect(rates([{ name: "steam", rate: 90 }])).toEqual([90, 20]);
+    });
+
+    it("a temperature edits the qualified goal", () => {
+      expect(rates([{ name: "steam", temperature: 500, rate: 45 }])).toEqual([60, 45]);
+    });
+
+    it("the top-level rate edits the first goal by position", () => {
+      expect(rates(requestedGoalChanges(block, 90))).toEqual([90, 20]);
+      // even when name matching alone couldn't tell the goals apart
+      const twins = {
+        goals: [
+          { name: "steam", rate: 60 },
+          { name: "steam", rate: 20 },
+        ],
+      };
+      expect(rates(requestedGoalChanges(twins, 90), twins)).toEqual([90, 20]);
+      expect(withGoalChanges(twins, [{ name: "steam", rate: 90 }])).toEqual({
+        error: expect.stringMatching(/matches several goals/),
+      });
+      // the proposal card's Apply keeps the position the preview changed
+      const diff = {
+        name: "steam",
+        index: 0,
+        display: "Steam",
+        before: { rate: 60 },
+        after: { rate: 90 },
+      };
+      expect(rates([goalChangeRequest(diff)], twins)).toEqual([90, 20]);
+      // a stale position falls back to matching the temperature
+      const reordered = { goals: [...block.goals].reverse() };
+      expect(rates([{ name: "steam", temperature: 500, index: 1, rate: 45 }], reordered)).toEqual([
+        45, 60,
+      ]);
+      // ...and so does a stale position for the goal with no temperature
+      expect(rates([{ name: "steam", index: 0, rate: 90 }], reordered)).toEqual([20, 90]);
+    });
+  });
+
+  it("names an unknown good and the block's real goals", () => {
+    expect(withGoalChanges(mall, [{ name: "pipe", stock: 10 }])).toEqual({
+      error:
+        '"pipe" is not a goal of this block (its goals: biofactory, assembler, soil-extractor)',
+    });
+  });
+
+  it("rejects repeated, contradictory, and empty changes", () => {
+    expect(
+      withGoalChanges(mall, [
+        { name: "assembler", stock: 1 },
+        { name: "assembler", stock: 2 },
+      ]),
+    ).toEqual({ error: expect.stringMatching(/changed twice/) });
+    expect(withGoalChanges(mall, [{ name: "assembler", rate: 1, stock: 2 }])).toEqual({
+      error: expect.stringMatching(/not both/),
+    });
+    expect(withGoalChanges(mall, [{ name: "biofactory", window: 60 }])).toEqual({
+      error: expect.stringMatching(/rate goal/),
+    });
+    expect(withGoalChanges(mall, [{ name: "assembler" }])).toEqual({
+      error: expect.stringMatching(/pass a new/),
+    });
   });
 });

@@ -5,7 +5,7 @@
  * doc as an orphaned machine pick, module loadout, pin, or group membership.
  *
  * Pure module (no db, no React) — usable from the server apply path
- * (`setBlockRecipesFn`) and unit-testable in isolation, like `lib/goals.ts`.
+ * (`applyBlockUpdate`) and unit-testable in isolation, like `lib/goals.ts`.
  */
 import type { BlockData, Goal } from "../db/schema.ts";
 

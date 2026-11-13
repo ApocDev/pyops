@@ -6,8 +6,9 @@
  * solver says so; the fix is the user's (add a recipe, or change a rate). A good you
  * don't target isn't a goal — it falls out as a byproduct (export) or import.
  *
- * `goals[0]` names the block + picks its default icon, and the rate-scaling tools
- * (revise / scale-to-demand) resize the block by it.
+ * `goals[0]` names the block + picks its default icon, and scale-to-demand resizes
+ * the block by it. The assistant's resize names the goals it changes
+ * (`withGoalChanges`).
  *
  * Pure module — no db, no Factorio API — so it's unit-testable and usable from both
  * the server and the React editor. `normalizeBlockData` migrates the old
@@ -16,6 +17,7 @@
  */
 import type { BlockData, Goal } from "../db/schema.ts";
 import { campaignGoalRate, normalizeCampaign } from "./campaign.ts";
+import { formatQty, formatRate } from "./format.ts";
 
 /** A block doc as it may exist on disk: the current `goals` shape, the legacy
  * single-`target` shape, or an interim `goals` with nullable rates (older co-product
@@ -101,22 +103,170 @@ export const goalNames = (d: { goals?: Goal[] }): string[] => {
  * "the block's rate". */
 export const primaryRate = (d: { goals?: Goal[] }): number => primaryGoal(d)?.rate ?? 1;
 
+/** Re-rate one goal. A stock goal's `stock` is kept consistent with its derived
+ * rate (#38), so external re-rating scales the buffer rather than silently
+ * detaching it. */
+function rerateGoal(g: Goal, rate: number): Goal {
+  return {
+    ...g,
+    rate,
+    ...(rate === 0 ? { direction: goalDirection(g) } : { direction: undefined }),
+    ...(g.stock != null
+      ? { stock: rate * (g.window ?? STOCK_WINDOW_DEFAULT), factoryRate: undefined }
+      : {}),
+  };
+}
+
 /** Return a copy of the doc with the first goal re-rated (used by the
- * scale-to-demand / revise-rate paths, which resize a block by its anchor goal).
- * A stock goal's `stock` is kept consistent with its derived rate (#38), so
- * external re-rating scales the buffer rather than silently detaching it. */
+ * scale-to-demand path, which resizes a block by its anchor goal). */
 export function withPrimaryRate<T extends { goals?: Goal[] }>(d: T, rate: number): T {
-  const goals = (d.goals ?? []).map((g, i) =>
-    i === 0
-      ? {
-          ...g,
-          rate,
-          ...(rate === 0 ? { direction: goalDirection(g) } : { direction: undefined }),
-          ...(g.stock != null
-            ? { stock: rate * (g.window ?? STOCK_WINDOW_DEFAULT), factoryRate: undefined }
-            : {}),
-        }
-      : g,
-  );
+  const goals = (d.goals ?? []).map((g, i) => (i === 0 ? rerateGoal(g, rate) : g));
   return { ...d, goals };
+}
+
+/** A change to one EXISTING goal, matched by good name (plus `temperature` when
+ * the block has the same fluid at several temperatures): a new throughput
+ * `rate`, or a new keep-in-stock `stock` and/or refill `window` (seconds). */
+export type GoalChange = {
+  name: string;
+  temperature?: number;
+  /** Prefer the goal at this position while it still has this name and exactly
+   * this temperature (absent = a goal with none): the top-level `rate`
+   * shorthand's first goal, or the goal a proposal previewed. Otherwise the
+   * change matches by name and temperature as usual. */
+  index?: number;
+  rate?: number;
+  stock?: number;
+  window?: number;
+};
+
+/** The changes a resize request means: a top-level `rate` re-rates the FIRST
+ * goal by position (so it never depends on name matching), then the named
+ * `goals`. */
+export function requestedGoalChanges(
+  d: { goals?: Goal[] },
+  rate: number | undefined,
+  goals: GoalChange[] = [],
+): GoalChange[] {
+  const first = primaryGoal(d);
+  const byPosition = first && {
+    name: first.name,
+    ...(first.temperature != null ? { temperature: first.temperature } : {}),
+    index: 0,
+  };
+  return [...(rate != null && byPosition ? [{ ...byPosition, rate }] : []), ...goals];
+}
+
+/** A goal as errors name it: "steam at 500°", or just "steam" with no temperature. */
+const goalLabel = (g: Pick<Goal, "name" | "temperature">) =>
+  g.temperature == null ? g.name : `${g.name} at ${g.temperature}°`;
+
+/** A goal's values as a resize proposal shows them. */
+export type GoalValue = Pick<Goal, "rate" | "stock" | "window">;
+
+/** A goal's target as text: "2.5/s", or "keep 80 (refill 10m)" for a stock goal. */
+export function formatGoalValue({ rate, stock, window }: GoalValue): string {
+  if (stock == null) return formatRate(rate);
+  const w = window ?? STOCK_WINDOW_DEFAULT;
+  return `keep ${formatQty(stock)} (refill ${w >= 3600 ? `${w / 3600}h` : `${w / 60}m`})`;
+}
+
+/** One goal's before/after values in a resize proposal. */
+export type GoalChangeDiff = {
+  name: string;
+  temperature?: number;
+  /** The goal's position, so Apply hits the goal the preview changed even when
+   * two goals share a name and temperature. Absent in older saved drafts. */
+  index?: number;
+  display: string;
+  before: GoalValue;
+  after: GoalValue;
+};
+
+/** The change that applies a proposal's final value for one goal. */
+export const goalChangeRequest = ({
+  name,
+  temperature,
+  index,
+  after,
+}: GoalChangeDiff): GoalChange => ({
+  name,
+  ...(temperature != null ? { temperature } : {}),
+  ...(index != null ? { index } : {}),
+  ...(after.stock != null ? { stock: after.stock, window: after.window } : { rate: after.rate }),
+});
+
+/** Apply several goal changes at once (the assistant's resize path). Goals that
+ * aren't named keep their values. A `rate` on a stock goal scales its buffer
+ * like `withPrimaryRate`; a `stock`/`window` change re-derives the rate as
+ * stock/window. Returns an error naming the problem instead of guessing when a
+ * change is unknown, ambiguous, repeated, or contradictory. A change without
+ * `temperature` matches a unique name, or else the one same-name goal with no
+ * temperature; it is ambiguous when several goals share the name and none or
+ * several of them lack a temperature. `indexes` gives each
+ * change's goal position, in order. */
+export function withGoalChanges<T extends { goals?: Goal[] }>(
+  d: T,
+  changes: GoalChange[],
+): { data: T; indexes: number[] } | { error: string } {
+  const goals = [...(d.goals ?? [])];
+  const indexes: number[] = [];
+  const allGoals = goals.map(goalLabel).join(", ") || "none";
+  for (const c of changes) {
+    const named = goals.flatMap((g, i) => (g.name === c.name ? [i] : []));
+    // no temperature: a unique name, else the one goal whose temperature is unset
+    const unqualified = named.filter((i) => goals[i].temperature == null);
+    // a position is a hint: used while that goal still has the same name and
+    // temperature (no temperature counts as a value, not a wildcard)
+    const atIndex = named.filter(
+      (i) => i === c.index && (goals[i].temperature ?? null) === (c.temperature ?? null),
+    );
+    const matches =
+      atIndex.length > 0
+        ? atIndex
+        : c.temperature != null
+          ? named.filter((i) => goals[i].temperature === c.temperature)
+          : named.length > 1 && unqualified.length === 1
+            ? unqualified
+            : named;
+    if (matches.length === 0) {
+      return { error: `"${goalLabel(c)}" is not a goal of this block (its goals: ${allGoals})` };
+    }
+    if (matches.length > 1) {
+      return {
+        error: `"${c.name}" matches several goals (${matches.map((i) => goalLabel(goals[i])).join(", ")}) — pass \`temperature\` to pick one`,
+      };
+    }
+    const [i] = matches;
+    if (indexes.includes(i)) {
+      return { error: `goal "${goalLabel(goals[i])}" is changed twice — change it once` };
+    }
+    indexes.push(i);
+    const g = goals[i];
+    if (c.rate != null && (c.stock != null || c.window != null)) {
+      return { error: `goal "${c.name}": give either \`rate\` or \`stock\`/\`window\`, not both` };
+    }
+    if (c.rate != null) {
+      goals[i] = rerateGoal(g, c.rate);
+    } else if (c.stock != null || c.window != null) {
+      const stock = c.stock ?? g.stock;
+      if (stock == null) {
+        return {
+          error: `goal "${c.name}" is a rate goal — \`window\` needs a \`stock\` amount too`,
+        };
+      }
+      const window = c.window ?? g.window ?? STOCK_WINDOW_DEFAULT;
+      goals[i] = {
+        ...g,
+        stock,
+        window,
+        rate: stock / window,
+        direction: undefined,
+        factoryRate: undefined,
+      };
+    } else {
+      return { error: `goal "${c.name}": pass a new \`rate\`, \`stock\`, or \`window\`` };
+    }
+  }
+  return { data: { ...d, goals }, indexes };
 }

@@ -22,8 +22,10 @@ import {
   primaryGoal,
   primaryRate,
   STOCK_WINDOW_DEFAULT,
-  withPrimaryRate,
+  requestedGoalChanges,
+  withGoalChanges,
 } from "../lib/goals.ts";
+import type { Goal } from "../db/schema.ts";
 
 import * as q from "../db/queries.server.ts";
 import * as tasksDb from "../db/tasks.server.ts";
@@ -72,7 +74,7 @@ export const searchGoods = tool({
 
 export const factoryBlocks = tool({
   description:
-    "List the blocks that already exist in the user's factory: what each PRODUCES (makes/primary), has spare (byproducts), and imports. Consult this BEFORE drafting — if an existing block already makes a good you need, import it from that block instead of rebuilding it. recipeGraph already marks goods covered by a block; this gives the fuller picture (rates, byproducts you could consume).",
+    "List the blocks that already exist in the user's factory: what each PRODUCES (makes/primary), has spare (byproducts), and imports. Consult this BEFORE drafting — if an existing block already makes a good you need, import it from that block instead of rebuilding it. recipeGraph already marks goods covered by a block; this gives the fuller picture (rates, byproducts you could consume). Each block's `goals` lists its goals exactly as reviseBlock's `goals` changes them: a `rate`, or a keep-in-stock `stock` + `window`, plus `temperature` for a temperature-specific fluid goal.",
   inputSchema: z.object({}),
   execute: async () => {
     await ensureSolvedProjections();
@@ -726,6 +728,12 @@ export const researchPath = tool({
 const blockGoalInput = z
   .object({
     name: z.string().describe("Internal name of the good this goal targets"),
+    temperature: z
+      .number()
+      .optional()
+      .describe(
+        "Exact produced temperature for a fluid goal (e.g. 500 for 500° steam). Omit to accept any temperature.",
+      ),
     rate: z
       .number()
       .positive()
@@ -758,9 +766,16 @@ const blockGoalInput = z
 type BlockGoalInput = z.infer<typeof blockGoalInput>;
 
 /** A resolved goal ready for computeBlock: name + solver rate (derived from
- * stock/window when it's a stock goal), plus stock/window kept for the draft
- * return (so the apply path can persist them). */
-type ResolvedGoal = { name: string; rate: number; stock?: number; window?: number };
+ * stock/window when it's a stock goal) + a fluid goal's exact temperature, plus
+ * stock/window kept for the draft return (so the apply path can persist them). */
+type ResolvedGoal = Pick<Goal, "name" | "rate" | "temperature" | "stock" | "window">;
+
+/** The part of a resolved goal the solver reads. */
+const solverGoal = ({ name, rate, temperature }: ResolvedGoal) => ({
+  name,
+  rate,
+  ...(temperature != null ? { temperature } : {}),
+});
 
 /** Resolve a block-draft's goal input to solver-ready goals — either the
  * `goals` array (#38, multi-goal + stock support) or the legacy single
@@ -774,7 +789,10 @@ function resolveGoals(input: {
     return input.goals.map((g) => {
       const window = g.window ?? STOCK_WINDOW_DEFAULT;
       const rate = g.stock != null ? g.stock / window : g.rate!;
-      return { name: g.name, rate, ...(g.stock != null ? { stock: g.stock, window } : {}) };
+      return {
+        ...solverGoal({ name: g.name, rate, temperature: g.temperature }),
+        ...(g.stock != null ? { stock: g.stock, window } : {}),
+      };
     });
   }
   return [{ name: input.target ?? "", rate: input.rate ?? 1 }];
@@ -830,7 +848,7 @@ const blockDraftInput = z
  * `computeBlock({goals, recipes})` under-counted Py's creature/farm buildings
  * (intentionally near-useless unmoduled) by ~10-15x and disagreed with
  * submitBlock's own (already module-filled) counts for the same recipes. */
-async function solveWithModuleFill(goals: { name: string; rate: number }[], recipes: string[]) {
+async function solveWithModuleFill(goals: ResolvedGoal[], recipes: string[]) {
   const provisional = await computeBlock({ goals, recipes });
   const suggestions =
     provisional.status === "solved" &&
@@ -878,8 +896,10 @@ async function buildBlockDraft(input: z.infer<typeof blockDraftInput>) {
     machines: {},
   };
   try {
-    const goals = resolved.map((g) => ({ name: g.name, rate: g.rate }));
-    const { solved, modules, machines } = await solveWithModuleFill(goals, recipes);
+    const { solved, modules, machines } = await solveWithModuleFill(
+      resolved.map(solverGoal),
+      recipes,
+    );
     moduleFill = { modules, machines };
     for (const f of solved.imports) rates.set(f.name, +f.rate.toFixed(3));
     for (const f of solved.exports) rates.set(f.name, +f.rate.toFixed(3));
@@ -928,8 +948,7 @@ async function buildBlockDraft(input: z.infer<typeof blockDraftInput>) {
     // full goal set (#38): name/rate + stock/window when it's a keep-in-stock
     // goal — the apply path (assistant.tsx) persists THIS, not just target/rate.
     goals: resolved.map((g) => ({
-      name: g.name,
-      rate: g.rate,
+      ...solverGoal(g),
       ...(g.stock != null ? { stock: g.stock, window: g.window } : {}),
     })),
     recipes,
@@ -962,13 +981,16 @@ export const submitBlock = tool({
   execute: async (input) => buildBlockDraft(input),
 });
 
-/** Re-solve an existing block at a new rate and/or with a REVISED recipe set
- * (#12) and return it as an "update" draft the user approves before it's
- * applied. A recipe revision re-runs the closure check, so the draft carries the
+/** Re-solve an existing block with changed goals and/or a REVISED recipe set
+ * (#12, #132) and return it as an "update" draft the user approves before it's
+ * applied. Goals are changed by name (`withGoalChanges`, the same helper the
+ * apply path uses), so a multi-goal mall block can raise any of its stock
+ * goals. A recipe revision re-runs the closure check, so the draft carries the
  * added/removed recipes and any byproducts the block didn't have before. */
 async function buildBlockUpdate({
   blockId,
   rate,
+  goals,
   recipes,
   notes,
 }: z.infer<typeof reviseBlockInput>) {
@@ -978,40 +1000,54 @@ async function buildBlockUpdate({
   }
   const data = normalizeBlockData(row.data);
   const primary = primaryGoal(data);
-  if (rate == null && recipes == null) {
-    return {
-      ok: false,
-      kind: "update" as const,
-      updateBlockId: blockId,
-      blockName: row.name,
-      error: "pass a new rate, a new recipe list, or both — nothing to revise otherwise",
-    };
+  const fail = (error: string) => ({
+    ok: false,
+    kind: "update" as const,
+    updateBlockId: blockId,
+    blockName: row.name,
+    error,
+  });
+  // top-level `rate` is shorthand for a change to the anchor (first) goal
+  const changes = requestedGoalChanges(data, rate, goals);
+  if (changes.length === 0 && recipes == null) {
+    return fail(
+      "pass new goal values (`rate` or `goals`), a new recipe list, or both — nothing to revise otherwise",
+    );
   }
+  const changed = withGoalChanges(data, changes);
+  if ("error" in changed) return fail(changed.error);
   const newRecipes = recipes ?? data.recipes;
-  // Re-rate the anchor goal but PRESERVE the rest of the block's goals — including
-  // any keep-in-stock ones (#38) — so this preview solve (and what setBlockRateFn/
-  // setBlockRecipesFn actually persist via the same withPrimaryRate) agree on what
-  // the block produces. Scoped down deliberately: reviseBlock re-rates the anchor,
-  // it doesn't let the assistant restructure a block's whole goal set.
-  const rerated = rate != null ? withPrimaryRate(data, rate) : data;
-  const preservedGoals = (rerated.goals ?? [])
+  // Solve with the block's FULL goal set — unnamed goals, including keep-in-stock
+  // ones (#38), keep their values — so this preview and the apply path agree.
+  const preservedGoals = changed.data.goals
     .filter((g) => g.name)
     .map((g) => ({
       name: g.name,
       rate: g.rate,
       window: g.window ?? STOCK_WINDOW_DEFAULT,
+      ...(g.temperature != null ? { temperature: g.temperature } : {}),
       ...(g.stock != null ? { stock: g.stock } : {}),
     }));
   const draft = await buildBlockDraft(
     preservedGoals.length
       ? { goals: preservedGoals, recipes: newRecipes, notes }
-      : {
-          target: primary?.name ?? "",
-          rate: rate ?? primaryRate(data),
-          recipes: newRecipes,
-          notes,
-        },
+      : { target: primary?.name ?? "", rate: primaryRate(data), recipes: newRecipes, notes },
   );
+  const valueOf = (g: Goal) =>
+    g.stock != null
+      ? { rate: g.rate, stock: g.stock, window: g.window ?? STOCK_WINDOW_DEFAULT }
+      : { rate: g.rate };
+  const goalChanges = changed.indexes.map((i) => {
+    const { name, temperature } = data.goals[i];
+    return {
+      name,
+      ...(temperature != null ? { temperature } : {}),
+      index: i,
+      display: q.getItem(name)?.display ?? q.getFluid(name)?.display ?? name,
+      before: valueOf(data.goals[i]),
+      after: valueOf(changed.data.goals[i]),
+    };
+  });
   const oldSet = new Set(data.recipes);
   const newSet = new Set(newRecipes);
   const recipesAdded = newRecipes.filter((r) => !oldSet.has(r));
@@ -1030,12 +1066,35 @@ async function buildBlockUpdate({
     kind: "update" as const,
     updateBlockId: blockId,
     blockName: row.name,
-    oldRate: primaryRate(data),
+    goalChanges,
     recipesAdded,
     recipesRemoved,
     newByproducts,
   };
 }
+
+const goalChangeInput = z.object({
+  name: z
+    .string()
+    .describe("Internal name of one of the block's EXISTING goals (factoryBlocks lists `goals`)"),
+  temperature: z
+    .number()
+    .optional()
+    .describe(
+      "The goal's `temperature` from factoryBlocks — needed only to pick a temperature-specific goal when the block has this fluid as a goal more than once; omit it for the goal with no temperature",
+    ),
+  rate: z.number().positive().optional().describe("New throughput target, per second"),
+  stock: z
+    .number()
+    .positive()
+    .optional()
+    .describe("New keep-in-stock amount — the TOTAL to keep on hand, not an increment"),
+  window: z
+    .number()
+    .positive()
+    .optional()
+    .describe("New refill window in seconds for a stock goal; omit to keep its current window"),
+});
 
 const reviseBlockInput = z.object({
   blockId: z
@@ -1047,7 +1106,14 @@ const reviseBlockInput = z.object({
     .positive()
     .optional()
     .describe(
-      "New target output rate (items or fluid units per second); omit to keep the current rate",
+      "Shorthand: new throughput for the block's FIRST goal. For any other goal, or a stock goal, use `goals`.",
+    ),
+  goals: z
+    .array(goalChangeInput)
+    .min(1)
+    .optional()
+    .describe(
+      "Changes to the block's existing goals, matched by item name — any goal, not just the first, and several in one update. Each sets a `rate`, or a `stock` (and optionally `window`) for a keep-in-stock goal. Goals you don't name keep their values. Use this to raise a mall block's stock of several machines at once.",
     ),
   recipes: z
     .array(z.string())
@@ -1064,7 +1130,7 @@ const reviseBlockInput = z.object({
 
 export const reviseBlock = tool({
   description:
-    "Propose changing an EXISTING block (by its factoryBlocks id) — its output RATE, its RECIPE SET, or both — instead of building a duplicate. Pass `rate` to raise/lower output to meet new demand; pass `recipes` (the complete replacement list) to add/remove/swap recipes (e.g. swap to a higher-yield variant, add a byproduct-consuming step). `rate` only re-rates the block's ANCHOR (first) goal — any other goals it already has, including keep-in-stock ones (#38), are PRESERVED, not collapsed to a single goal. The block is RE-SOLVED with the change and returned as a PROPOSAL the user approves before it's applied: check the returned imports/byproducts for closure — a recipe change can open new imports or NEW dangling byproducts (returned in newByproducts; route them or say why they're fine BEFORE the user applies). Recipe revisions keep the block's other recipes' machine/module picks; removed recipes' picks are pruned on apply. Also returns `buildings` — the resized block's solved recipe→machine→count list, module-filled the same way submitBlock/buildingBill are.",
+    "Propose changing an EXISTING block (by its factoryBlocks id) — its GOALS, its RECIPE SET, or both — instead of building a duplicate. Pass `goals` to change any of its existing goals by item name: a new `rate`, or a new `stock` (+ optional `window`) for a keep-in-stock goal, several in one call (e.g. raise a mall block's assembling-machine-1 AND soil-extractor stock together). `rate` is shorthand for changing the FIRST goal's rate. Goals you don't name keep their values; naming a good that isn't one of the block's goals is an error (add it to a new block instead). When the block targets one fluid at several temperatures, also pass that goal's `temperature` (from factoryBlocks). Pass `recipes` (the complete replacement list) to add/remove/swap recipes (e.g. swap to a higher-yield variant, add a byproduct-consuming step). Returns `goalChanges` (each changed goal's before/after). The block is RE-SOLVED with the change and returned as a PROPOSAL the user approves before it's applied: check the returned imports/byproducts for closure — a recipe change can open new imports or NEW dangling byproducts (returned in newByproducts; route them or say why they're fine BEFORE the user applies). Recipe revisions keep the block's other recipes' machine/module picks; removed recipes' picks are pruned on apply. Also returns `buildings` — the resized block's solved recipe→machine→count list, module-filled the same way submitBlock/buildingBill are.",
   inputSchema: reviseBlockInput,
   execute: async (input) => buildBlockUpdate(input),
 });
@@ -1084,7 +1150,7 @@ export const submitPlan = tool({
       .array(reviseBlockInput)
       .optional()
       .describe(
-        "Existing blocks (by factoryBlocks id) to REVISE for this plan — resize to a new rate and/or swap their recipe set — instead of duplicating them. Use for already-built material/mall blocks that are too small.",
+        "Existing blocks (by factoryBlocks id) to REVISE for this plan — change any of their goals (rates, or stock amounts of a mall block) and/or swap their recipe set — instead of duplicating them. Use for already-built material/mall blocks that are too small.",
       ),
     buildingMaterialsIncluded: z
       .boolean()
@@ -1163,8 +1229,7 @@ export const buildingBill = tool({
     for (const block of blocks) {
       const resolved = resolveGoals(block);
       try {
-        const goals = resolved.map((g) => ({ name: g.name, rate: g.rate }));
-        const { solved } = await solveWithModuleFill(goals, block.recipes);
+        const { solved } = await solveWithModuleFill(resolved.map(solverGoal), block.recipes);
         for (const b of machineReqs(solved.rows)) {
           const count = Math.ceil(b.count - 1e-9); // whole machines per block, THEN sum
           if (count <= 0) continue;
