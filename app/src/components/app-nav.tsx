@@ -6,6 +6,7 @@ import { BridgeIndicator } from "./bridge-indicator";
 import { HorizonMenu } from "./horizon-menu";
 import { LogisticsMenu } from "./logistics-menu";
 import { NavMobile } from "./nav-mobile";
+import { SearchButton } from "./search-button";
 import { navLinkActive, SETTINGS_LINK, visibleNavLinks } from "./nav-links";
 import { UndoButton } from "./undo-button";
 import { activeRunCount, subscribeRuns } from "../lib/chat-store";
@@ -72,7 +73,7 @@ export function AppNav() {
       {/* Full inline bar — only once it actually fits (~1400px). Below that it would
           overflow and scroll sideways (notably at the 1280 Steam Deck width), so the
           hamburger drawer takes over. */}
-      <div className="hidden flex-1 items-stretch min-[1400px]:flex">
+      <div className="hidden min-w-0 flex-1 items-stretch min-[1400px]:flex">
         {visibleNavLinks(caps.data).map((link) => {
           const { to, label, icon: Icon } = link;
           return (
@@ -86,7 +87,12 @@ export function AppNav() {
             </Link>
           );
         })}
-        <span className="ml-auto flex items-stretch">
+        {/* The search field is the one thing here that gives way when the bar runs
+            short: it can shrink to its icon and key hint (min-w-21 = that + px-2). */}
+        <span className="ml-auto flex min-w-21 items-center px-2">
+          <SearchButton size="short" />
+        </span>
+        <span className="flex items-stretch">
           <UndoButton />
           <DataDriftIndicator />
           <RunIndicator />

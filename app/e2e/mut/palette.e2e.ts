@@ -5,7 +5,8 @@ import { blockNameInput, createBlock, expectUndoTop, goto, uniqueName } from "./
  * The Ctrl+K / `/` command palette (#78): open/close semantics (including the
  * input-focus rules of the hotkey layer), fuzzy search over pages, blocks,
  * and actions, server-side goods search, recents on an empty query, and the
- * `?` shortcut help sheet. Lives in the mutating suite because the block-search
+ * `?` shortcut help sheet, plus the visible Search entry points in the top bar
+ * and phone menu. Lives in the mutating suite because the block-search
  * and recents cases create their own blocks to find.
  */
 
@@ -153,4 +154,39 @@ test("the palette's 'Keyboard shortcuts' action opens the help sheet", async ({ 
   await group(page, "Actions").getByRole("button", { name: "Keyboard shortcuts" }).click();
   await expect(palette(page)).toBeHidden();
   await expect(helpSheet(page)).toBeVisible();
+});
+
+test("the top bar's Search control opens the palette (desktop)", async ({ page }) => {
+  await goto(page, "/");
+  await page.getByRole("navigation").getByRole("button", { name: "Search", exact: true }).click();
+  await expect(palette(page)).toBeVisible();
+  await expect(paletteInput(page)).toBeFocused();
+});
+
+test.describe("phone", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+  const menu = (page: Page) => page.getByRole("dialog", { name: "PyOps" });
+
+  test("the magnifier beside the menu button opens the palette", async ({ page }) => {
+    await goto(page, "/");
+    await page.getByRole("navigation").getByRole("button", { name: "Search", exact: true }).click();
+    await expect(palette(page)).toBeVisible();
+    await expect(paletteInput(page)).toBeFocused();
+  });
+
+  test("the menu's Search and Keyboard shortcuts rows open their overlays", async ({ page }) => {
+    await goto(page, "/");
+    await page.getByRole("button", { name: "Open menu" }).click();
+    await menu(page).getByRole("button", { name: /^Search/ }).click();
+    await expect(menu(page)).toBeHidden();
+    await expect(palette(page)).toBeVisible();
+    await expect(paletteInput(page)).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(palette(page)).toBeHidden();
+
+    await page.getByRole("button", { name: "Open menu" }).click();
+    await menu(page).getByRole("button", { name: /^Keyboard shortcuts/ }).click();
+    await expect(menu(page)).toBeHidden();
+    await expect(helpSheet(page)).toBeVisible();
+  });
 });
