@@ -41,7 +41,7 @@ export function withDb<T>(fn: (db: DatabaseSync) => T, options: { readOnly?: boo
 
 /** The subset of a block document (`blocks.data`) that specs write directly. */
 export type BlockDoc = {
-  goals: { name: string; rate: number; temperature?: number }[];
+  goals: { name: string; rate: number; stock?: number; window?: number; temperature?: number }[];
   recipes: string[];
   made?: string[];
   pins?: { kind: string; recipe: string; item?: string; count?: number }[];

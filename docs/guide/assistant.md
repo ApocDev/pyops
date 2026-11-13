@@ -178,8 +178,10 @@ cards:
   follow-up blocks. Select **Create block** to save it.
 - **Draft a plan** presents several block cards for a larger production goal. Review the
   plan before creating its blocks.
-- **Revise a block** shows rate and recipe changes against the saved block. Select
-  **Apply update →** to persist them.
+- **Revise a block** lists each goal it changes (old → new rate or stock amount) and any
+  recipe changes against the saved block. One update can change several goals, such as
+  the stock of several machines in a mall block. Select **Apply update →** to persist
+  them. A single undo reverts the whole update.
 - A live-game Lua request shows the proposed code and requires **Run** before anything is
   executed in Factorio.
 

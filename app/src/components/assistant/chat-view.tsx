@@ -32,20 +32,15 @@ import { Textarea } from "#/components/ui/textarea.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { FollowUpChips, type FollowUp } from "#/components/assistant/follow-up-chips.tsx";
 import { GameEvalCard, type GameEvalProposal } from "#/components/assistant/game-eval-card.tsx";
+import { GoalChangeList } from "#/components/assistant/goal-change-list.tsx";
 import { ShowInGameButton } from "#/components/assistant/show-in-game-button.tsx";
 import { HelpButton } from "#/components/help-drawer.tsx";
 import { InfoHint } from "#/components/info-hint.tsx";
 import { ItemHover, RecipeHover, TechHover } from "#/lib/recipe-card";
 import { contextGaugeTitle, type TokenStatus } from "#/lib/context-gauge.ts";
 import { formatQty, formatRate } from "#/lib/format";
-import { STOCK_WINDOW_DEFAULT } from "#/lib/goals";
-import {
-  classifyRefFn,
-  saveBlockFn,
-  setAiConfigFn,
-  setBlockRateFn,
-  setBlockRecipesFn,
-} from "#/server/factorio";
+import { formatGoalValue, goalChangeRequest, type GoalChangeDiff } from "#/lib/goals";
+import { classifyRefFn, saveBlockFn, setAiConfigFn, applyBlockUpdateFn } from "#/server/factorio";
 import {
   conversationModelFn,
   conversationTokenStatusFn,
@@ -1295,6 +1290,9 @@ type Draft = {
   kind?: "update";
   updateBlockId?: number;
   blockName?: string;
+  // each changed goal's before/after (#132); drafts saved before that carry
+  // only the anchor goal's `oldRate` (see updateGoalChanges)
+  goalChanges?: GoalChangeDiff[];
   oldRate?: number;
   missing?: boolean;
   error?: string;
@@ -1365,8 +1363,6 @@ function rateRow(label: ReactNode, entries: GoodRate[] | undefined) {
   ) : null;
 }
 
-const fmtWindow = (s: number) => (s >= 3600 ? `${s / 3600}h` : `${s / 60}m`);
-
 /** Every output goal (#38), shown only when a block has more than one — the
  * common single-target case keeps its existing header-only display. A stock
  * goal reads as "keep N (refill Xm)" instead of a rate. */
@@ -1379,11 +1375,7 @@ function goalsRow(goals: DraftGoal[] | undefined) {
         {goals.map((g) => (
           <span key={g.name} className="inline-flex items-center gap-1">
             <Ref name={g.name} />
-            <span className="text-xs text-muted-foreground">
-              {g.stock != null
-                ? `keep ${formatQty(g.stock)} (refill ${fmtWindow(g.window ?? STOCK_WINDOW_DEFAULT)})`
-                : fmtRate(g.rate)}
-            </span>
+            <span className="text-xs text-muted-foreground">{formatGoalValue(g)}</span>
           </span>
         ))}
       </div>
@@ -1604,14 +1596,47 @@ function BlockDraft({
   );
 }
 
-/** True when a reviseBlock proposal changes the block's recipe set (#12) — it
- * then applies through setBlockRecipesFn instead of the rate-only path. */
+/** True when a reviseBlock proposal changes the block's recipe set (#12). */
 const changesRecipes = (draft: Draft) =>
   (draft.recipesAdded?.length ?? 0) > 0 || (draft.recipesRemoved?.length ?? 0) > 0;
 
-/** A reviseBlock proposal: re-solve an existing block at a new rate and/or with
- * a revised recipe set (#12). The user clicks Apply to persist (setBlockRateFn /
- * setBlockRecipesFn re-solve + save). */
+/** The goals an update proposal changes. A draft saved in an older conversation
+ * has no `goalChanges`, only the anchor goal's `oldRate` → `rate`. */
+function updateGoalChanges(draft: Draft): GoalChangeDiff[] {
+  if (draft.goalChanges) return draft.goalChanges;
+  if (draft.oldRate == null || draft.oldRate === draft.rate) return [];
+  const display = draft.targetDisplay ?? draft.target;
+  return [
+    { name: draft.target, display, before: { rate: draft.oldRate }, after: { rate: draft.rate } },
+  ];
+}
+
+/** A plan row's one-line summary of an update's goal changes: the single
+ * change's old → new, or how many goals change. */
+function updateGoalSummary(draft: Draft): string {
+  const changes = updateGoalChanges(draft);
+  if (changes.length === 0) return "";
+  if (changes.length > 1) return `${changes.length} goals changed`;
+  const [c] = changes;
+  return `${c.display} ${formatGoalValue(c.before)} → ${formatGoalValue(c.after)}`;
+}
+
+/** Persist one update proposal: its goal changes and, when it swaps recipes,
+ * the new recipe set — one re-solve and one undo step. */
+async function applyUpdate(draft: Draft) {
+  const res = await applyBlockUpdateFn({
+    data: {
+      blockId: draft.updateBlockId!,
+      goals: updateGoalChanges(draft).map(goalChangeRequest),
+      recipes: changesRecipes(draft) ? draft.recipes : undefined,
+    },
+  });
+  if (!res.ok) throw new Error(res.error);
+}
+
+/** A reviseBlock proposal: re-solve an existing block with changed goals and/or
+ * a revised recipe set (#12, #132). The user clicks Apply to persist
+ * (applyBlockUpdateFn re-solves + saves as one undo step). */
 function BlockUpdate({
   draft,
   onFollowUp,
@@ -1637,15 +1662,11 @@ function BlockUpdate({
   }
   const blockId = draft.updateBlockId;
   const recipeChange = changesRecipes(draft);
-  const rateChange = draft.oldRate == null || draft.oldRate !== draft.rate;
 
   const apply = async () => {
     setStatus("applying");
     try {
-      const res = recipeChange
-        ? await setBlockRecipesFn({ data: { blockId, recipes: draft.recipes, rate: draft.rate } })
-        : await setBlockRateFn({ data: { blockId, rate: draft.rate } });
-      if (!res.ok) throw new Error("not ok");
+      await applyUpdate(draft);
       // the block may already be open (dock beside its editor): navigating to
       // it doesn't remount the editor, so push the applied doc in
       await syncChangedBlocks(qc, [blockId]);
@@ -1663,29 +1684,14 @@ function BlockUpdate({
           <Icon kind="item" name={draft.target} size="md" noTitle />
           <span>
             {recipeChange ? "Revise" : "Resize"} block #{blockId}:{" "}
-            <span className="text-warning">{draft.blockName ?? draft.targetDisplay}</span>{" "}
-            <span className="text-sm font-normal text-muted-foreground">
-              {rateChange ? (
-                <>
-                  {draft.oldRate != null && (
-                    <>
-                      <span className="line-through">{draft.oldRate}/s</span>
-                      {" → "}
-                    </>
-                  )}
-                  <span className="font-medium text-foreground">{draft.rate}/s</span>
-                </>
-              ) : (
-                <>@ {draft.rate}/s</>
-              )}
-              {recipeChange && (
-                <>
-                  {" · "}
-                  {draft.recipesAdded?.length ?? 0} added / {draft.recipesRemoved?.length ?? 0}{" "}
-                  removed
-                </>
-              )}
-            </span>
+            <span className="text-warning">{draft.blockName ?? draft.targetDisplay}</span>
+            {recipeChange && (
+              <span className="text-sm font-normal text-muted-foreground">
+                {" · "}
+                {draft.recipesAdded?.length ?? 0} added / {draft.recipesRemoved?.length ?? 0}{" "}
+                removed
+              </span>
+            )}
           </span>
         </div>
         <Button
@@ -1705,6 +1711,7 @@ function BlockUpdate({
         </Button>
       </div>
 
+      <GoalChangeList changes={updateGoalChanges(draft)} />
       {draft.notes && <p className="mt-2 text-sm text-muted-foreground">{draft.notes}</p>}
       {refRow("recipes added", draft.recipesAdded, "recipe")}
       {refRow("recipes removed", draft.recipesRemoved, "recipe")}
@@ -1765,18 +1772,8 @@ function PlanDraft({
         });
         made.push(res);
       }
-      // Apply the existing-block revisions (each re-solves + persists): recipe
-      // revisions (#12) go through setBlockRecipesFn, rate-only ones keep the
-      // rate path.
-      for (const u of updates) {
-        if (changesRecipes(u)) {
-          await setBlockRecipesFn({
-            data: { blockId: u.updateBlockId!, recipes: u.recipes, rate: u.rate },
-          });
-        } else {
-          await setBlockRateFn({ data: { blockId: u.updateBlockId!, rate: u.rate } });
-        }
-      }
+      // Apply the existing-block revisions (each re-solves + persists)
+      for (const u of updates) await applyUpdate(u);
       await syncChangedBlocks(
         qc,
         updates.map((u) => u.updateBlockId!),
@@ -1848,12 +1845,7 @@ function PlanDraft({
                 <summary className="cursor-pointer select-none text-sm font-medium">
                   #{u.updateBlockId} {u.blockName ?? u.targetDisplay ?? u.target}{" "}
                   <span className="text-sm font-normal text-muted-foreground">
-                    {u.oldRate != null && u.oldRate !== u.rate && (
-                      <>
-                        <span className="line-through">{u.oldRate}/s</span> →{" "}
-                      </>
-                    )}
-                    <span className="text-foreground">{u.rate}/s</span>
+                    {updateGoalSummary(u)}
                     {changesRecipes(u) && (
                       <>
                         {" · "}
@@ -1863,6 +1855,7 @@ function PlanDraft({
                     )}
                   </span>
                 </summary>
+                <GoalChangeList changes={updateGoalChanges(u)} />
                 <PlanBlockPreview draft={u} onFollowUp={onFollowUp} busy={busy} />
               </details>
             ))}

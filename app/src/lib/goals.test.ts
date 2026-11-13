@@ -4,6 +4,7 @@ import {
   normalizeBlockData,
   primaryGoal,
   primaryRate,
+  withGoalChanges,
   withPrimaryRate,
 } from "./goals.ts";
 
@@ -105,5 +106,83 @@ describe("goal accessors", () => {
   it("preserves consume intent when a negative primary goal is balanced to zero", () => {
     const out = withPrimaryRate({ goals: [{ name: "kerogen", rate: -40 }] }, 0);
     expect(out.goals).toEqual([{ name: "kerogen", rate: 0, direction: "consume" }]);
+  });
+});
+
+describe("withGoalChanges", () => {
+  // a mall block: one rate goal, two keep-in-stock goals
+  const mall = {
+    goals: [
+      { name: "biofactory", rate: 0.01 },
+      { name: "assembler", rate: 0.02, stock: 12, window: 600 },
+      { name: "soil-extractor", rate: 0.01, stock: 6, window: 600 },
+    ],
+  };
+  const changed = (changes: Parameters<typeof withGoalChanges>[1]) => {
+    const out = withGoalChanges(mall, changes);
+    if ("error" in out) throw new Error(out.error);
+    return out.data.goals;
+  };
+
+  it("changes several goals by name in one call and keeps the rest", () => {
+    const goals = changed([
+      { name: "assembler", stock: 78 },
+      { name: "soil-extractor", stock: 53, window: 1200 },
+    ]);
+    expect(goals[0]).toEqual(mall.goals[0]);
+    expect(goals[1]).toMatchObject({ name: "assembler", stock: 78, window: 600 });
+    expect(goals[1].rate).toBeCloseTo(78 / 600);
+    expect(goals[2]).toMatchObject({ stock: 53, window: 1200 });
+    expect(goals[2].rate).toBeCloseTo(53 / 1200);
+  });
+
+  it("re-derives a stock goal's rate from a new window alone", () => {
+    const goals = changed([{ name: "assembler", window: 300 }]);
+    expect(goals[1]).toMatchObject({ stock: 12, window: 300, rate: 12 / 300 });
+  });
+
+  it("changes a rate goal that is not the first one", () => {
+    const out = withGoalChanges(
+      {
+        goals: [
+          { name: "a", rate: 1 },
+          { name: "b", rate: 2 },
+        ],
+      },
+      [{ name: "b", rate: 5 }],
+    );
+    expect(out).toEqual({
+      data: {
+        goals: [
+          { name: "a", rate: 1 },
+          { name: "b", rate: 5, direction: undefined },
+        ],
+      },
+    });
+  });
+
+  it("names an unknown good and the block's real goals", () => {
+    expect(withGoalChanges(mall, [{ name: "pipe", stock: 10 }])).toEqual({
+      error:
+        '"pipe" is not a goal of this block (its goals: biofactory, assembler, soil-extractor)',
+    });
+  });
+
+  it("rejects repeated, contradictory, and empty changes", () => {
+    expect(
+      withGoalChanges(mall, [
+        { name: "assembler", stock: 1 },
+        { name: "assembler", stock: 2 },
+      ]),
+    ).toEqual({ error: expect.stringMatching(/changed twice/) });
+    expect(withGoalChanges(mall, [{ name: "assembler", rate: 1, stock: 2 }])).toEqual({
+      error: expect.stringMatching(/not both/),
+    });
+    expect(withGoalChanges(mall, [{ name: "biofactory", window: 60 }])).toEqual({
+      error: expect.stringMatching(/rate goal/),
+    });
+    expect(withGoalChanges(mall, [{ name: "assembler" }])).toEqual({
+      error: expect.stringMatching(/pass a new/),
+    });
   });
 });

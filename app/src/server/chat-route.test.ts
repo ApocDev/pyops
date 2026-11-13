@@ -4,14 +4,19 @@
  * records the final step's token usage and the turn's cost. The conversation
  * opens with a compaction summary (a stored `system` message), which the route
  * must still accept. Further cases run the OpenAI-compatible mode, including the
- * setup check that a conversation's own model pick satisfies.
+ * setup check that a conversation's own model pick satisfies. A reviseBlock
+ * call that changes several goals of a mall block round-trips from the model's
+ * tool call to a saved proposal that applies.
  */
 import { MockLanguageModelV4, simulateReadableStream } from "ai/test";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { evictDatabase, switchDatabase } from "#/db/index.server.ts";
 import { getConversation, setConversationModel } from "#/db/conversations.server.ts";
+import { getBlock } from "#/db/queries.server.ts";
 import { makeTestDb, type TestDb } from "#/db/test-helpers.ts";
+import { goalChangeRequest, type GoalChangeDiff } from "#/lib/goals.ts";
+import { applyBlockUpdate } from "#/server/block-update.server.ts";
 
 // An empty data dir, set before any module reads it, so a developer's real
 // app-config.json can't change which provider or model these tests resolve.
@@ -105,9 +110,38 @@ const { Route } = await import("#/routes/api.chat.ts");
 
 let fx: TestDb;
 
+// A small mall block (plates at a rate, gears kept in stock) and the reference
+// data to solve it, for the reviseBlock round trip.
+const mall = {
+  goals: [
+    { name: "plate", rate: 1 },
+    { name: "gear", rate: 0.1, stock: 60, window: 600 },
+  ],
+  recipes: ["smelt-plate", "make-gear"],
+};
+
 beforeEach(async () => {
   vi.stubEnv("OPENROUTER_API_KEY", "test-key");
   fx = await makeTestDb();
+  fx.db.exec(`
+    INSERT INTO items (name, display) VALUES ('plate','Plate'),('ore','Ore'),('gear','Gear');
+    INSERT INTO recipes (name, kind, category, energy_required, enabled, hidden) VALUES
+      ('smelt-plate','real','smelting',1,1,0),('make-gear','real','crafting',1,1,0);
+    INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
+      ('smelt-plate',0,'item','ore',1),('make-gear',0,'item','plate',2);
+    INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+      ('smelt-plate',0,'item','plate',1),('make-gear',0,'item','gear',1);
+    INSERT INTO crafting_machines
+      (name, display, kind, crafting_speed, module_slots, energy_usage_w, energy_source)
+    VALUES
+      ('furnace','Furnace','furnace',1,0,90000,'electric'),
+      ('assembler','Assembler','assembling-machine',1,0,75000,'electric');
+    INSERT INTO machine_categories (machine, category) VALUES
+      ('furnace','smelting'),('assembler','crafting');
+  `);
+  fx.db
+    .prepare("INSERT INTO blocks (id, name, data, enabled) VALUES (1, 'Mall', ?, 1)")
+    .run(JSON.stringify(mall));
   fx.db.close();
   switchDatabase(fx.file);
 });
@@ -287,6 +321,72 @@ describe("/api/chat", () => {
     // the record itself stays out of the user turn
     expect(prompt.find((m) => m.role === "user")?.content).toEqual([
       { type: "text", text: "Why does this need so much power?" },
+    ]);
+  });
+
+  it("round-trips a multi-goal reviseBlock proposal that then applies", async () => {
+    const input = {
+      blockId: 1,
+      goals: [
+        { name: "gear", stock: 120 },
+        { name: "plate", rate: 3 },
+      ],
+    };
+    model = new MockLanguageModelV4({
+      doStream: [
+        step([
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "reviseBlock",
+            input: JSON.stringify(input),
+          },
+          {
+            type: "finish",
+            usage: usage(1000, 40),
+            finishReason: { unified: "tool-calls", raw: undefined },
+          },
+        ]),
+        step([
+          { type: "text-start", id: "t1" },
+          { type: "text-delta", id: "t1", delta: "Raise the mall." },
+          { type: "text-end", id: "t1" },
+          { type: "finish", usage: usage(1300, 5), finishReason: { unified: "stop", raw: "stop" } },
+        ]),
+      ],
+      doGenerate: titleReply,
+    });
+
+    const response = await post({ request: chatRequest("mall-chat") });
+    expect(response.status).toBe(200);
+    await response.text();
+
+    // the model saw the tool's result: both goals changed, the block solved
+    const parts = JSON.parse(getConversation("mall-chat")!.messages.at(-1)!.parts) as {
+      type: string;
+      input?: unknown;
+      output?: { ok: boolean; updateBlockId: number; goalChanges: GoalChangeDiff[] };
+    }[];
+    const proposal = parts.find((p) => p.type === "tool-reviseBlock")!;
+    expect(proposal.input).toEqual(input);
+    expect(proposal.output).toMatchObject({
+      ok: true,
+      kind: "update",
+      updateBlockId: 1,
+      goalChanges: [
+        { name: "gear", after: { stock: 120, window: 600 } },
+        { name: "plate", after: { rate: 3 } },
+      ],
+    });
+    // nothing changed until the card applies it, the way the chat card does
+    expect(getBlock(1)!.data).toEqual(mall);
+    const { updateBlockId, goalChanges } = proposal.output!;
+    expect(
+      await applyBlockUpdate({ blockId: updateBlockId, goals: goalChanges.map(goalChangeRequest) }),
+    ).toEqual({ ok: true });
+    expect(getBlock(1)!.data.goals).toEqual([
+      { name: "plate", rate: 3 },
+      { name: "gear", rate: 0.2, stock: 120, window: 600 },
     ]);
   });
 });

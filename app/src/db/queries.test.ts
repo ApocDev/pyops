@@ -1130,7 +1130,14 @@ describe("batched block projections", () => {
   };
 
   it("loads factory flows with a flat statement count and excludes disabled blocks", () => {
-    db.run(sql`UPDATE blocks SET sort_order = 0 WHERE id = 1`);
+    const goals = JSON.stringify({
+      goals: [
+        { name: "plate", rate: 10 },
+        { name: "steel", rate: 3, stock: 1800, window: 600 },
+      ],
+      recipes: ["smelt-plate"],
+    });
+    db.run(sql`UPDATE blocks SET sort_order = 0, data = ${goals} WHERE id = 1`);
     db.run(sql`
       INSERT INTO block_flows (block_id, item, kind, role, rate) VALUES
         (1, 'plate', 'item', 'primary', 10),
@@ -1159,6 +1166,11 @@ describe("batched block projections", () => {
     expect(largeFactory.result[0]).toEqual({
       id: 1,
       name: "smelting",
+      // goals as reviseBlock names them: a rate, or a stock amount + window
+      goals: [
+        { name: "plate", rate: 10 },
+        { name: "steel", stock: 1800, window: 600 },
+      ],
       makes: [
         { item: "plate", kind: "item", rate: 10 },
         { item: "steel", kind: "item", rate: 3, stock: true },

@@ -328,13 +328,25 @@ A block draft can contain:
 - TURD requirements and conflicts;
 - suggested supporting blocks and notes.
 
+`reviseBlock` (and each `submitPlan` `updates` entry) changes an existing block's goals by
+item name. One update can change several goals at once: a throughput `rate`, or a
+keep-in-stock `stock` and `window`. Goals it doesn't name keep their values, so a multi-goal
+mall block can raise its stock of one machine without touching the rest. The top-level
+`rate` is shorthand for the first goal. Naming a good that isn't one of the block's goals
+returns an error that lists the real goals. `factoryBlocks` reports each block's goals in the
+same shape. The proposal returns `goalChanges`, each changed goal's before and after values,
+which the card lists.
+
 The draft path shares module-fill and compute logic with the block editor. `buildingBill`
 uses the same fill pass before rounding whole machine items, so construction estimates and
 draft building counts agree.
 
 Proposal cards provide explicit create or apply actions. The React handlers use normal
 block server functions and persistence paths, preserving solve caches, snapshots, undo,
-conflict handling, and full goal definitions. Multi-block plan application groups its block
+conflict handling, and full goal definitions. An update applies through
+`applyBlockUpdateFn` (`server/block-update.server.ts`). It runs the same `withGoalChanges`
+and `withRecipeSet` helpers as the preview, re-solves once, and saves the block as one undo
+step after an automatic snapshot. The card then refreshes any open editor of that block. Multi-block plan application groups its block
 creation and requested existing-block updates into one reviewable operation.
 
 After creation, a card can send the saved block through the ordinary bridge summary command.
@@ -380,7 +392,11 @@ Important boundaries include:
 
 - choose recipes deliberately; intrinsic cost is comparison evidence, not an automatic
   tier selector;
-- reuse and resize existing supplier blocks before proposing duplicates;
+- reuse and resize existing supplier blocks before proposing duplicates, including any
+  goal of a multi-goal mall block;
+- before submitting a plan, turn every shortfall that an existing block can cover into a
+  plan update, found with `whatIf`, `coherenceAudit`, and the new blocks' imports, rather
+  than leaving it in the notes;
 - cut blocks at shared commodities and substantial reusable intermediates, while keeping
   private or fast-spoiling chains local;
 - route every byproduct to a consumer, disposal recipe, or explicit storage problem;
