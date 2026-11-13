@@ -10,6 +10,7 @@ export function InfoHint({ content, className }: { content: string; className?: 
     <Tooltip content={content}>
       <span
         tabIndex={0}
+        role="img"
         aria-label={content}
         className={cn(
           "inline-flex cursor-help items-center text-muted-foreground/70 outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50",
