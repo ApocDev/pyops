@@ -1,0 +1,25 @@
+app/src/server/bridge/handlers/blocks.test.ts
+  s_615355d7d3241c::t_7a412015138d7c 11-13,18,62,118,130,182-197
+app/src/server/bridge/handlers/blocks.ts
+  s_615355d7d3241c::t_26945b1a842e8e 18,28-32,43,92,117
+docs/development/bridge.md
+  s_615355d7d3241c::t_33c43d02f7f901 234,255-256
+mod/control.lua
+  s_615355d7d3241c::t_b92b40367a08c5 736-737
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "50b2f931ca7cc05e1b9d0a271814065b03feb8f5",
+  "prompts": {},
+  "sessions": {
+    "s_615355d7d3241c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bfe37481-b1e5-41b2-9d94-9353b0d73ad7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
