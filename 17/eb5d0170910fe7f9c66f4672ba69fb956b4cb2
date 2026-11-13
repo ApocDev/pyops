@@ -1,0 +1,113 @@
+AGENTS.md
+  s_a01b7d11c9c230::t_4f0fb31089c870 27,39-40
+README.md
+  s_4459038fb5360e::t_019141dce64af3 32-34
+app/drizzle/0023_conversation-turn-cost.sql
+  s_a01b7d11c9c230::t_a103bc35aa488e 1
+app/drizzle/meta/0023_snapshot.json
+  s_a01b7d11c9c230::t_753d75275a865e 1-2914
+app/drizzle/meta/_journal.json
+  s_a01b7d11c9c230::t_21c0846840569a 165-171
+app/package.json
+  s_a01b7d11c9c230::t_07795250193306 20
+app/pnpm-lock.yaml
+  s_a01b7d11c9c230::t_fe4a6a2fe5553a 11-13,213-218,5823-5828
+app/src/components/settings/assistant-card.tsx
+  s_4459038fb5360e::t_0220344f510ce2 1-267
+app/src/db/conversations.server.ts
+  s_a01b7d11c9c230::t_b3d69d010cf668 112,123-124,127-128,138
+app/src/db/schema.ts
+  s_a01b7d11c9c230::t_47a4f76073cb0e 847,849,856-858
+app/src/routes/api.chat.ts
+  s_a01b7d11c9c230::t_b309a8d1b6cda8 17,19,57-58,73,95,114,129
+app/src/routes/assistant.tsx
+  s_a01b7d11c9c230::t_81f4932dfa889f 318,320,491,502-504,579,581,583,678-679,682,687-689,692-694,715-721,723-725,727,735-739,742-766,771,775-778,793,824-825,828,830,834-835,883-884,889,974
+app/src/routes/settings.tsx
+  s_a01b7d11c9c230::t_33a4766fbd6a33 22
+app/src/server/agent-provider.test.ts
+  s_df39cf6ee92946::t_46a2f7785104c2 1-127
+app/src/server/agent.ts
+  s_a01b7d11c9c230::t_11906a87989b37 6,8,11,13,20-55,61-77,80-82,87,90-92,103-123
+app/src/server/app-config.server.test.ts
+  s_a01b7d11c9c230::t_f3b33108a32993 1-97
+app/src/server/app-config.server.ts
+  s_a01b7d11c9c230::t_d7bd21f54b74e2 16-17,20-24,29,31-36,70-97,100-114,117-121,123-146
+app/src/server/chat-route.test.ts
+  s_a01b7d11c9c230::t_6d150194f0014a 4-6,27-29,40-74,78,80-82,84-85,100,106-109,112,148-182
+app/src/server/conversation-compaction.ts
+  s_a01b7d11c9c230::t_a03289dccdb5ee 4-5,7,111-116,119,136,144-145,155-159,188
+app/src/server/conversation-title.server.ts
+  s_a01b7d11c9c230::t_468e182336af90 8,40,45
+app/src/server/conversations.ts
+  s_a01b7d11c9c230::t_a8c1303fbb9810 11,53,62-67,73,77,80-82,89,92,112,121
+app/src/server/factorio.ts
+  s_a01b7d11c9c230::t_69a609b85071d0 28,1042-1045,1048-1050,1052-1054,1056-1062,1064-1065,1070-1071,1073-1086,1088-1089,1091-1101
+app/src/server/openai-compatible-models.ts
+  s_a01b7d11c9c230::t_728faacb653d9c 1-118
+app/src/server/tasks.ts
+  s_a01b7d11c9c230::t_26715e685b11a5 14,59-60,65-66,115,122-123
+docs/development/ai-assistant.md
+  s_a01b7d11c9c230::t_872b3ad885dd74 3,9-10,15-18,33-34,42,90,92-95,98-103,107-127,131-136,146-154,158-160,163-165,185-186,200-208,226-229,371-374,407-409,420-422
+docs/development/architecture.md
+  s_a01b7d11c9c230::t_3c8b8d60bfd2e5 60,97,198
+docs/development/index.md
+  s_a01b7d11c9c230::t_a986bb908c3a81 23-24
+docs/guide/assistant.md
+  s_a01b7d11c9c230::t_8507957e04031f 15-61,71-73,75-77,86-87,97-98,105-109,112-115,168-170,179,181-184,188-192,202-204
+docs/reference/advanced-configuration.md
+  s_a01b7d11c9c230::t_7141b5d449c43c 18-30,52-62
+docs/reference/concepts-and-limitations.md
+  s_a01b7d11c9c230::t_793320c46ee0e4 104-105
+docs/reference/keyboard-and-navigation.md
+  s_a01b7d11c9c230::t_8e34798795ac18 74
+docs/reference/settings-and-storage.md
+  s_a01b7d11c9c230::t_6f5e65434cb626 39-40,110
+docs/troubleshooting/faq.md
+  s_a01b7d11c9c230::t_49aade2e53b56a 27-28,91,93,106-109
+docs/troubleshooting/index.md
+  s_a01b7d11c9c230::t_b50b0019d0d8d9 89-90,147
+app/e2e/mut/assistant-provider.e2e.ts
+  s_615355d7d3241c::t_10eb10c558e065 1-66
+app/src/server/model-catalog.server.ts
+  s_615355d7d3241c::t_7f11d5e8c5c8d1 1-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "17eb5d0170910fe7f9c66f4672ba69fb956b4cb2",
+  "prompts": {},
+  "sessions": {
+    "s_4459038fb5360e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21bed058-e7bd-49f4-a0d0-add53b50d556",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_615355d7d3241c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bfe37481-b1e5-41b2-9d94-9353b0d73ad7",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_a01b7d11c9c230": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7bc5ac73-d070-49dd-9f5b-fbbef357e3a8",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_df39cf6ee92946": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9f8189b5-cf23-418d-ac82-8817ccd77bb2",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
