@@ -159,11 +159,16 @@ function CoherencePage() {
               </p>
               <p>
                 <span className="text-foreground">List vs Board.</span> List groups the wiring by
-                good, problem-first. Board draws it as a map: blocks are draggable nodes, the goods
-                flowing between them are edges — <span className="text-destructive">red</span> where
-                a good runs short. Drag blocks to arrange your map (positions are saved), scroll to
-                zoom, double-click a block to open it, and hover an edge to see what flows on it.
-                Auto-arrange (⊞) relayouts everything.
+                good, problem-first. Board draws it as a map. It opens on{" "}
+                <span className="text-foreground">Shortfalls</span>: each short good with the blocks
+                that make it on the left and the blocks that use it on the right. Click a good or
+                block, or search, to focus it with its direct neighbors; small makers or users of
+                one good fold into a single &quot;N more&quot; node. With nothing short, the board
+                opens on the last block you viewed.{" "}
+                <span className="text-foreground">All blocks</span> shows the whole factory: drag
+                blocks to arrange it (positions are saved), scroll to zoom, double-click a block to
+                open it, and hover an edge to see what flows on it. Auto-arrange (⊞) relayouts
+                everything.
               </p>
               <p>
                 <span className="text-foreground">Why it differs from Overview.</span> The Overview

@@ -6,8 +6,9 @@ export type FlowEdgeData = {
   status: EdgeStatus;
   width: number;
   /** focus state lifted to the board (RF edge components get no hover events):
-   * "active" = hovered/on a focused block, "dimmed" = something else is focused */
-  emphasis: "normal" | "active" | "dimmed";
+   * "active" = hovered/on a focused block, "dimmed" = something else is focused,
+   * "strong" = status colors at full weight (focused views with few edges) */
+  emphasis: "normal" | "active" | "dimmed" | "strong";
 };
 
 export type BoardFlowEdgeType = Edge<FlowEdgeData, "flow">;
@@ -20,6 +21,8 @@ const STROKE: Record<EdgeStatus, string> = {
   surplus: "var(--surplus)",
   balanced: "var(--muted-foreground)",
 };
+
+const STRONG_OPACITY: Record<EdgeStatus, number> = { short: 0.8, surplus: 0.6, balanced: 0.45 };
 
 /** A block→block supply edge: one bezier carrying every good flowing between
  * the pair, tinted by the worst good's factory-wide balance (short = red) and
@@ -57,11 +60,13 @@ export function BoardFlowEdge({
           ? 0.95
           : dimmed
             ? 0.04
-            : data.status === "short"
-              ? 0.4
-              : data.status === "surplus"
-                ? 0.18
-                : 0.1,
+            : data.emphasis === "strong"
+              ? STRONG_OPACITY[data.status]
+              : data.status === "short"
+                ? 0.4
+                : data.status === "surplus"
+                  ? 0.18
+                  : 0.1,
         fill: "none",
       }}
       interactionWidth={16}

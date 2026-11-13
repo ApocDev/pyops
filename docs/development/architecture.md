@@ -78,8 +78,9 @@ The planning path is deliberately layered:
 4. Factory Overview, Connections, cost, and Scenario modules aggregate cached block flows and solved
    blocks for cross-block analysis. The Connections Board renders that wiring with React Flow
    (`@xyflow/react`): `components/factory/board/board-graph.ts` derives nodes and aggregated
-   edges (pure, tested), block positions persist as `board_x`/`board_y` on the blocks table,
-   and position writes deliberately bypass the undo log. The block page's Flow view shares the
+   edges for the full board, and `focus-graph.ts` derives the three-column shortfall, good, and
+   block views the Board opens on (both pure, tested). Block positions persist as
+   `board_x`/`board_y` on the blocks table, and position writes deliberately bypass the undo log. The block page's Flow view shares the
    same React Flow viewport and drag-to-arrange model, keeping
    `components/block/flow-graph.ts`/`flow-layout.ts` as its pure layout engine for every node
    the user has not placed; its hand positions persist as a `flow_positions` JSON map on the

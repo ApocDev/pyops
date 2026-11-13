@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { activeProjectDbFile, dragFlowNode, goto } from "./helpers";
 
 const boardPositions = (): { id: number; x: number; y: number }[] => {
@@ -22,6 +22,63 @@ const clearPositions = () => {
   }
 };
 
+const allBlocks = (page: Page) =>
+  page.getByRole("group", { name: "Board view" }).getByRole("button", { name: /All blocks/ });
+
+const firstEnabledBlock = (): { id: number; name: string } => {
+  const db = new DatabaseSync(activeProjectDbFile());
+  try {
+    return db.prepare("SELECT id, name FROM blocks WHERE enabled = 1 ORDER BY id LIMIT 1").get() as {
+      id: number;
+      name: string;
+    };
+  } finally {
+    db.close();
+  }
+};
+
+/** The Board opens on shortfalls (the seeded project has short goods), search
+ * focuses a block with its direct neighbors, a click on a block refocuses on
+ * it, and a double-click opens it. */
+test("factory board opens on shortfalls; search and clicks focus, double-click opens", async ({ page }) => {
+  await goto(page, "/factory/connections?view=board");
+  const views = page.getByRole("group", { name: "Board view" });
+  await expect(views.getByRole("button", { name: "Shortfalls" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+    { timeout: 15_000 },
+  );
+  // short goods sit in the middle column as good nodes
+  await expect(page.locator(".react-flow__node-good").first()).toBeVisible();
+
+  const block = firstEnabledBlock();
+  await page.getByPlaceholder("Focus a block or good…").fill(block.name);
+  await page.getByRole("option", { name: block.name, exact: true }).last().click();
+  await expect(page.locator(`.react-flow__node[data-id="b:${block.id}"]`)).toBeVisible();
+  await expect(views.getByRole("button", { name: "Shortfalls" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+
+  // clearing the focus goes back to shortfalls
+  await page.getByRole("button", { name: "Clear focus" }).click();
+  await expect(views.getByRole("button", { name: "Shortfalls" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  // a click on a maker or user block refocuses on it (after the double-click window)
+  const sideBlock = page.locator(".react-flow__node-block").first();
+  const sideId = (await sideBlock.getAttribute("data-id"))!.split(":")[1];
+  await sideBlock.click();
+  await expect(page.locator(`.react-flow__node[data-id="b:${sideId}"]`)).toBeVisible();
+
+  // a double-click opens the block instead of refocusing
+  await page.getByRole("button", { name: "Clear focus" }).click();
+  await page.locator(`.react-flow__node[data-id$=":${sideId}"]`).first().dblclick();
+  await expect(page).toHaveURL(new RegExp(`/block/${sideId}`));
+});
+
 /** Connections → Board: dragging a block persists its position (and only its
  * position), the spot survives a reload, and Auto-arrange resets to auto. */
 test("factory board drag persists and auto-arrange resets", async ({ page }) => {
@@ -30,6 +87,7 @@ test("factory board drag persists and auto-arrange resets", async ({ page }) => 
     await goto(page, "/factory/connections");
     await page.getByRole("button", { name: "Board", exact: true }).click();
     await expect(page).toHaveURL(/view=board/);
+    await allBlocks(page).click();
 
     const node = page.locator(".react-flow__node").first();
     await expect(node).toBeVisible({ timeout: 15_000 });
@@ -43,6 +101,7 @@ test("factory board drag persists and auto-arrange resets", async ({ page }) => 
 
     // the hand-placed position survives a reload, to the pixel
     await goto(page, "/factory/connections?view=board");
+    await allBlocks(page).click();
     const restored = page.locator(`.react-flow__node[data-id="${nodeId}"]`);
     await expect(restored).toBeVisible({ timeout: 15_000 });
     await expect(restored).toHaveCSS("transform", /matrix/);

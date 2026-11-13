@@ -55,13 +55,40 @@ Use **Recompute all** when the page reports stale results after a data sync, TUR
 change, or solver update. This re-solves saved blocks; it does not invent new recipes.
 :::
 
+## Find shortfalls on the Board
+
+Select **Board** at the top of Connections to see the same wiring as a map. The Board opens
+on **Shortfalls**: a list of the goods that run short, worst first, and a map of just those
+goods. Each short good sits in the middle, the blocks that make it on the left, and the blocks
+that use it on the right. Edge color carries the diagnosis — red where a good runs short, the
+surplus tint where more is made than used, and gray where producers and consumers agree — and
+edge thickness tracks how much flows.
+
+- **Pick a good** in the list, or click it on the map, to focus it: its makers, its users,
+  and how much is made and used.
+- **Click a block** to focus it: the blocks that supply it on the left and the blocks it
+  supplies on the right. **Open** in the focus bar (or a double-click on the block) opens it
+  in the block editor.
+- **Focus a block or good…** searches every block and good on the board; pick a result to
+  focus it.
+- When many blocks make or use one good, the smaller ones fold into a single **N more makers**
+  or **N more users** node. Click it to focus that good and see them all.
+- **Scroll** to move through a column too tall for the window; hold Ctrl while scrolling to
+  zoom.
+- **Hover** an edge to list the goods it carries with their rates.
+- The **×** in the focus bar returns to Shortfalls.
+
+When nothing is short, the Board opens on the last block you viewed.
+
+In a window too narrow to draw the map at a readable size (phones and most tablets),
+Shortfalls is the list alone, and a focused good or block shows as **Made by** and **Used by**
+lists instead.
+
 ## Arrange the factory on the Board
 
-Select **Board** at the top of Connections to see the same wiring as a map. Every enabled
-block is a node showing its icon, name, and power draw; every good flowing between two
-blocks rides an edge between them. Edge color carries the diagnosis — red where a good runs
-short, the surplus tint where more is made than used, and faint gray where producers and
-consumers agree — and edge thickness tracks how much flows.
+Select **All blocks** on the Board to see the whole factory. Every enabled block is a node
+showing its icon, name, and power draw; every good flowing between two blocks rides an edge
+between them.
 
 - **Drag** a block to place it; positions are saved per block and restored on the next
   visit. Dragging a selection moves the whole group.
