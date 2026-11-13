@@ -1,0 +1,23 @@
+app/e2e/theme.e2e.ts
+  s_fa41d1182ff98d::t_d758a02e9d4853 62,67,71,74-78
+app/src/styles.css
+  s_fa41d1182ff98d::t_5edf3aa6176321 32,35-36,38-39,42-45
+docs/development/design.md
+  s_fa41d1182ff98d::t_6e0e5435a569e9 94-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e39726c5afc375855ae7599261d1e710ff9a3eb9",
+  "prompts": {},
+  "sessions": {
+    "s_fa41d1182ff98d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5af8104-db1e-4dc9-9c0d-78232a4b292f",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
