@@ -123,3 +123,11 @@ test("Explore search renders recipes by their localized display names", async ({
   await expect(page.locator("nav").getByRole("link", { name: "Explore" })).toBeVisible();
   await expect(page.locator("body")).not.toContainText("Something went wrong");
 });
+
+test("an unknown URL shows the not-found page with a way home", async ({ page }) => {
+  await page.goto("/no-such-page");
+  await expect(page.getByText("Page not found")).toBeVisible();
+  await expect(page.locator("nav")).toBeVisible(); // still inside the app shell
+  await page.getByRole("link", { name: "Home" }).click();
+  await expect(page).toHaveURL(/\/$/);
+});

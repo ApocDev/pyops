@@ -12,6 +12,7 @@ import { DriftModal } from "../components/drift-modal";
 import { GoodExplorerDialog } from "../components/good-explorer-dialog";
 import { NativeContextMenu } from "../components/native-context-menu";
 import { RouteError } from "../components/route-error";
+import { RouteNotFound } from "../components/route-not-found";
 import { RoutePending } from "../components/route-pending";
 import { ShortcutHelpSheet } from "../components/shortcut-help-sheet";
 import { UndoHotkey } from "../components/undo-hotkey";
@@ -57,6 +58,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     ],
   }),
   errorComponent: RouteError,
+  notFoundComponent: RouteNotFound,
   pendingComponent: RoutePending,
   shellComponent: RootDocument,
 });
