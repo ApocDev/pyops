@@ -1,0 +1,21 @@
+app/src/lib/goals.test.ts
+  s_995b207560eeb0::t_d101ca7be49378 253-254
+app/src/lib/goals.ts
+  s_995b207560eeb0::t_af24a836e9dc2d 133-136,152-157,219-220,222
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c3849f5588fef16f36f250d43904bb819d8a59ae",
+  "prompts": {},
+  "sessions": {
+    "s_995b207560eeb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cef9ec12-eec2-430e-8ba3-ca49ff9d4875",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
