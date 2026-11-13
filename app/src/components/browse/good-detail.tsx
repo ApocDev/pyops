@@ -32,12 +32,10 @@ export function GoodDetail({
   name,
   onPick,
   className = "",
-  variant = "browse",
 }: {
   name?: string;
   onPick: (name: string) => void;
   className?: string;
-  variant?: "browse" | "dialog";
 }) {
   const [recipeQuery, setRecipeQuery] = useState("");
   const [side, setSide] = useState<"recipes" | "uses">("recipes");
@@ -82,13 +80,9 @@ export function GoodDetail({
               <Skeleton className="h-4 w-64" />
             </div>
           </div>
-          <div
-            className={
-              variant === "dialog" ? "" : "grid grid-cols-1 gap-4 @min-[900px]:grid-cols-2"
-            }
-          >
+          <div className="grid grid-cols-1 gap-4 @min-[900px]:grid-cols-2">
             <Skeleton className="h-40 w-full" />
-            {variant === "browse" && <Skeleton className="h-40 w-full" />}
+            <Skeleton className="h-40 w-full" />
           </div>
         </div>
       )}
@@ -139,18 +133,6 @@ export function GoodDetail({
           {!data.flowComputed && data.producedBy.length + data.consumedBy.length > 0 && (
             <FlowStaleCallout />
           )}
-          {variant === "dialog" && (
-            <Segmented
-              value={side}
-              onValueChange={setSide}
-              aria-label="Recipe explorer view"
-              options={[
-                { value: "recipes", label: `Recipes (${data.producedBy.length})` },
-                { value: "uses", label: `Uses (${data.consumedBy.length})` },
-              ]}
-              className="mb-4"
-            />
-          )}
           {data.producedBy.length + data.consumedBy.length > 0 && (
             <FilterInput
               value={recipeQuery}
@@ -159,67 +141,39 @@ export function GoodDetail({
               className="mb-4 max-w-sm"
             />
           )}
-          {variant === "dialog" ? (
-            side === "recipes" ? (
-              <RecipeList
-                title={`Recipes (${data.producedBy.length})`}
-                cards={data.producedBy}
-                focus={data.name}
-                emptyText="Nothing makes this — a raw input"
-                query={recipeQuery}
-                onClearQuery={() => setRecipeQuery("")}
-                onPick={onPick}
-                variant="comfortable"
-              />
-            ) : (
-              <RecipeList
-                title={`Uses (${data.consumedBy.length})`}
-                cards={data.consumedBy}
-                focus={data.name}
-                emptyText="No consumers"
-                query={recipeQuery}
-                onClearQuery={() => setRecipeQuery("")}
-                onPick={onPick}
-                variant="comfortable"
-              />
-            )
-          ) : (
-            <>
-              <Segmented
-                value={side}
-                onValueChange={setSide}
-                aria-label="Recipe lists"
-                options={[
-                  { value: "recipes", label: `Produced by ${shownCount(data.producedBy)}` },
-                  { value: "uses", label: `Consumed by ${shownCount(data.consumedBy)}` },
-                ]}
-                className="mb-4 w-full @min-[900px]:hidden [&>button]:flex-1"
-              />
-              <div className="grid grid-cols-1 gap-4 @min-[900px]:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-                <RecipeList
-                  title="Produced by"
-                  cards={data.producedBy}
-                  focus={data.name}
-                  emptyText="Nothing makes this — a raw input"
-                  query={recipeQuery}
-                  onClearQuery={() => setRecipeQuery("")}
-                  onPick={onPick}
-                  price={data.price}
-                  className={side === "recipes" ? "" : "hidden @min-[900px]:flex"}
-                />
-                <RecipeList
-                  title="Consumed by"
-                  cards={data.consumedBy}
-                  focus={data.name}
-                  emptyText="No consumers"
-                  query={recipeQuery}
-                  onClearQuery={() => setRecipeQuery("")}
-                  onPick={onPick}
-                  className={side === "uses" ? "" : "hidden @min-[900px]:flex"}
-                />
-              </div>
-            </>
-          )}
+          <Segmented
+            value={side}
+            onValueChange={setSide}
+            aria-label="Recipe lists"
+            options={[
+              { value: "recipes", label: `Produced by ${shownCount(data.producedBy)}` },
+              { value: "uses", label: `Consumed by ${shownCount(data.consumedBy)}` },
+            ]}
+            className="mb-4 w-full @min-[900px]:hidden [&>button]:flex-1"
+          />
+          <div className="grid grid-cols-1 gap-4 @min-[900px]:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <RecipeList
+              title="Produced by"
+              cards={data.producedBy}
+              focus={data.name}
+              emptyText="Nothing makes this — a raw input"
+              query={recipeQuery}
+              onClearQuery={() => setRecipeQuery("")}
+              onPick={onPick}
+              price={data.price}
+              className={side === "recipes" ? "" : "hidden @min-[900px]:flex"}
+            />
+            <RecipeList
+              title="Consumed by"
+              cards={data.consumedBy}
+              focus={data.name}
+              emptyText="No consumers"
+              query={recipeQuery}
+              onClearQuery={() => setRecipeQuery("")}
+              onPick={onPick}
+              className={side === "uses" ? "" : "hidden @min-[900px]:flex"}
+            />
+          </div>
         </>
       )}
     </div>

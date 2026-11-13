@@ -91,9 +91,9 @@ row:
 - Select an ingredient chip to find recipes that make that ingredient.
 - Select a product chip to find recipes that consume that product.
 - Alt+Click any item or fluid icon to open the **Recipe explorer** without leaving the current
-  page. Switch between **Recipes** and **Uses** to inspect every producer or consumer, including
-  availability, machines, and filters; select an ingredient or product inside the dialog to
-  keep walking the graph.
+  page. It shows the same **Produced by** and **Consumed by** lists as
+  [Explore](./explore.md), with producers ranked by ¥ per unit. Select an ingredient or
+  product inside the dialog to keep walking the graph.
 - Hover recipe, technology, and item details when you need the precise inputs, outputs, or
   unlock status.
 - A probabilistic product shows its chance as a small percentage beneath its expected rate.

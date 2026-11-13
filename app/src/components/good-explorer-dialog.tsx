@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GoodDetail } from "./browse/good-detail.tsx";
 import { IconProvider } from "../lib/icons.tsx";
 import {
@@ -15,6 +15,7 @@ const selector = "[data-good-name][data-good-kind]";
  * its complete recipe graph without navigating away from the current work. */
 export function GoodExplorerDialog() {
   const [name, setName] = useState<string | null>(null);
+  const content = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const open = (event: MouseEvent) => {
@@ -33,13 +34,22 @@ export function GoodExplorerDialog() {
 
   return (
     <Dialog open={name != null} onOpenChange={(open) => !open && setName(null)}>
-      <DialogContent className="md:max-w-[min(94vw,72rem)]">
+      <DialogContent
+        ref={content}
+        className="outline-none md:max-w-[min(94vw,72rem)]"
+        // focus the dialog, not its first tabbable: that's the header's price
+        // InfoHint, and focusing it opens its tooltip over the dialog
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          content.current?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Recipe explorer</DialogTitle>
         </DialogHeader>
         <DialogBody className="font-mono text-sm text-foreground">
           <IconProvider>
-            <GoodDetail name={name ?? undefined} onPick={setName} variant="dialog" />
+            <GoodDetail name={name ?? undefined} onPick={setName} />
           </IconProvider>
         </DialogBody>
       </DialogContent>
