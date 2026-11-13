@@ -1,0 +1,57 @@
+AGENTS.md
+  s_69efd3e82c7d0d::t_aa00b6a80abe12 39
+app/package.json
+  s_69efd3e82c7d0d::t_1bd6b61f27786a 20,26,41
+app/pnpm-lock.yaml
+  s_69efd3e82c7d0d::t_8dc1a1e5da31f8 12-13,30-31,75-76,198-200,204-206,210-214,216-222,1160-1162,1164-1165,3220-3222,3312-3314,5679,5681-5682,5686,5688-5696,5698,5700,5703,5707,5709-5712,6478,6480,6483-6484,8377-8378,8447,8449-8451
+app/src/routes/api.chat.ts
+  s_69efd3e82c7d0d::t_db48396c7e636f 2-9,102,104-106,109,111-112,114,119,121-122,130,135-145
+app/src/routes/mcp.ts
+  s_69efd3e82c7d0d::t_dbe3c545144fa9 22
+app/src/server/agent-tools-build-status.test.ts
+  s_69efd3e82c7d0d::t_d90f1daae687fc 47
+app/src/server/agent-tools-buildings.test.ts
+  s_69efd3e82c7d0d::t_75306269b87f8e 39,42-45
+app/src/server/agent-tools-eval.test.ts
+  s_69efd3e82c7d0d::t_a91743de15ae9a 19,46
+app/src/server/agent-tools-goals.test.ts
+  s_69efd3e82c7d0d::t_1185b4150496b8 43,47-51,59-63
+app/src/server/agent-tools-logistics.test.ts
+  s_69efd3e82c7d0d::t_e3c842c43153c2 15
+app/src/server/agent-tools-notes.test.ts
+  s_69efd3e82c7d0d::t_38e8b5ee5a4c56 14
+app/src/server/agent-tools-power.test.ts
+  s_69efd3e82c7d0d::t_712c0e2b6424dc 31
+app/src/server/agent-tools-production-stats.test.ts
+  s_69efd3e82c7d0d::t_e24ef518d2626d 28-31
+app/src/server/agent-tools-recipe-options.test.ts
+  s_69efd3e82c7d0d::t_4faabe804b4d10 25,31
+app/src/server/agent-tools-research.test.ts
+  s_69efd3e82c7d0d::t_4febb6049c54e3 41-44
+app/src/server/agent-tools-revise.test.ts
+  s_69efd3e82c7d0d::t_77a88ce87eedbb 38
+app/src/server/agent-tools-whatif.test.ts
+  s_69efd3e82c7d0d::t_c18d8302039303 44-47
+app/src/server/agent-tools.test.ts
+  s_69efd3e82c7d0d::t_2ae91053a8fa91 26
+app/src/server/chat-route.test.ts
+  s_69efd3e82c7d0d::t_1c94546b52863e 1-130
+docs/development/ai-assistant.md
+  s_69efd3e82c7d0d::t_7287c56c4e2ba8 167-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f28f97a068fcde06dab5844d18b85d6fcbe8ec1c",
+  "prompts": {},
+  "sessions": {
+    "s_69efd3e82c7d0d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "12cc5051-1b1c-4f33-8dbd-fce1e38a5fb3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
