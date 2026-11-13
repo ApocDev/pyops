@@ -149,10 +149,27 @@ export async function compactChat(id: string): Promise<{ compacted: boolean }> {
   return { compacted: res.compacted };
 }
 
+/** An unsent composer draft: the text, and the earlier message being edited. */
+export type ChatDraft = { input: string; editingId: string | null };
+
+const drafts = new Map<string, ChatDraft>();
+
+/** The conversation's unsent draft, kept outside the view so closing the dock
+ * or opening the chat on the full page doesn't lose it. */
+export function chatDraft(id: string): ChatDraft {
+  return drafts.get(id) ?? { input: "", editingId: null };
+}
+
+export function saveChatDraft(id: string, draft: ChatDraft): void {
+  if (draft.input || draft.editingId) drafts.set(id, draft);
+  else drafts.delete(id);
+}
+
 /** Forget a conversation's live chat (on delete): stop it and drop it. */
 export function dropChat(id: string) {
   const chat = chats.get(id);
   if (chat) void chat.stop();
   chats.delete(id);
+  drafts.delete(id);
   setRunning(id, false);
 }

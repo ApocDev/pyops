@@ -180,7 +180,7 @@ describe("/api/chat", () => {
     expect(prompt[0]).toMatchObject({
       role: "system",
       content: expect.stringContaining(
-        'sent from the Blocks page (`/block/12`), focused on block id 12 ("Iron plate")',
+        "sent from the Blocks page (`/block`), focused on block id 12, which the app labels «Iron plate».",
       ),
     });
     // the record itself stays out of the user turn

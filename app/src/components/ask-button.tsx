@@ -8,7 +8,9 @@ import { Kbd } from "#/components/ui/kbd.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 
 /** Top-bar toggle for the assistant dock. `label` is the full desktop bar's icon
- * plus "Ask"; `icon` is the folded bar's touch-sized button. Hidden on the Assistant page, which is the full view. */
+ * plus "Ask"; `icon` is the folded bar's touch-sized button. Hidden on the
+ * Assistant page, which is the full view. `data-ask-button` lets the dock sheet
+ * return focus here on close. */
 export function AskButton({ size }: { size: "label" | "icon" }) {
   const { open } = useDock();
   const combo = useFormattedCombo(ASK_HOTKEY);
@@ -25,6 +27,7 @@ export function AskButton({ size }: { size: "label" | "icon" }) {
       <Button
         variant="ghost"
         aria-label="Ask"
+        data-ask-button
         aria-pressed={open}
         aria-keyshortcuts="Control+."
         onClick={toggleDock}

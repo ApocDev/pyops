@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -15,6 +15,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { LayoutGrid, Maximize, X } from "lucide-react";
 import { factoryCoherenceFn, listBlocksFn } from "../../../server/factorio";
+import { useMediaQuery } from "../../../lib/use-media-query";
 import { setBoardPositionsFn } from "../../../server/board-fns";
 import { Button } from "#/components/ui/button.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
@@ -43,23 +44,6 @@ const MIN_CANVAS_W = Math.ceil(FOCUS_GRAPH_W * MIN_FOCUS_ZOOM * (1 + 2 * FOCUS_F
 const CHROME_W = 40;
 /** The shortfall rail beside the canvas (`w-64`). */
 const RAIL_W = 256;
-
-/** Live `matchMedia` result; true on the server (the board renders after mount). */
-function useMediaQuery(query: string): boolean {
-  const subscribe = useCallback(
-    (onChange: () => void) => {
-      const mq = matchMedia(query);
-      mq.addEventListener("change", onChange);
-      return () => mq.removeEventListener("change", onChange);
-    },
-    [query],
-  );
-  return useSyncExternalStore(
-    subscribe,
-    () => matchMedia(query).matches,
-    () => true,
-  );
-}
 
 type BoardTarget = FocusTarget | { kind: "all" };
 

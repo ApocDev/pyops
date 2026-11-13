@@ -60,9 +60,12 @@ import {
   retryInChat,
   sendInChat,
   stopInChat,
+  chatDraft,
+  saveChatDraft,
   type ChatInstance,
 } from "#/lib/chat-store.ts";
 import { showDockChat } from "#/lib/assistant-dock.ts";
+import { syncChangedBlocks } from "#/lib/undo-client.ts";
 import { ENTITY_NOUN, PAGE_CONTEXT_PART, type PageContextRecord } from "#/lib/page-context.ts";
 
 /** Dock-only extras: the page record each send carries, and the context chip
@@ -157,8 +160,11 @@ function ChatView({
   // Surface a missing OpenRouter key up front — otherwise a send just fails silently.
   const aiConfig = useQuery({ queryKey: ["aiConfig"], queryFn: () => aiConfigFn() });
   const noKey = aiConfig.data ? !aiConfig.data.keyStored && !aiConfig.data.keyFromEnv : false;
-  const [input, setInput] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
+  // the unsent draft lives in the chat store, so it survives the dock closing
+  // or the chat moving between the dock and the full page
+  const [input, setInput] = useState(() => chatDraft(chat.id).input);
+  const [editingId, setEditingId] = useState(() => chatDraft(chat.id).editingId);
+  useEffect(() => saveChatDraft(chat.id, { input, editingId }), [chat.id, input, editingId]);
   const busy = status === "submitted" || status === "streaming";
   const navigate = useNavigate();
   const model = useQuery({
@@ -1618,6 +1624,7 @@ function BlockUpdate({
   busy?: boolean;
 }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [status, setStatus] = useState<"idle" | "applying" | "done" | "error">("idle");
 
   if (draft.missing || draft.updateBlockId == null) {
@@ -1641,6 +1648,9 @@ function BlockUpdate({
         ? await setBlockRecipesFn({ data: { blockId, recipes: draft.recipes, rate: draft.rate } })
         : await setBlockRateFn({ data: { blockId, rate: draft.rate } });
       if (!res.ok) throw new Error("not ok");
+      // the block may already be open (dock beside its editor): navigating to
+      // it doesn't remount the editor, so push the applied doc in
+      await syncChangedBlocks(qc, [blockId]);
       setStatus("done");
       await navigate({ to: "/block/$id", params: { id: String(blockId) } });
     } catch {
@@ -1736,6 +1746,7 @@ function PlanDraft({
   busy?: boolean;
 }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [status, setStatus] = useState<"idle" | "creating" | "done" | "error">("idle");
   const [created, setCreated] = useState<{ id: number; name: string }[]>([]);
 
@@ -1768,6 +1779,10 @@ function PlanDraft({
           await setBlockRateFn({ data: { blockId: u.updateBlockId!, rate: u.rate } });
         }
       }
+      await syncChangedBlocks(
+        qc,
+        updates.map((u) => u.updateBlockId!),
+      );
       setCreated(made);
       setStatus("done");
       if (made[0]) await navigate({ to: "/block/$id", params: { id: String(made[0].id) } });

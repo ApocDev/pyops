@@ -35,16 +35,20 @@ export const ENTITY_NOUN: Record<PageEntity["kind"], string> = {
 };
 
 let focused: PageEntity | null = null;
-// The entity whose chip the user removed; it stays hidden until focus moves on.
-let dismissed: PageEntity | null = null;
+// `kind:id` of the entity whose chip the user removed. Keyed on identity, so a
+// rename or icon change keeps it hidden; focusing a different entity resets it.
+let dismissed: string | null = null;
+// what the dock shows: the focused entity unless dismissed (stable identity
+// between changes, as useSyncExternalStore needs)
+let snapshot: PageEntity | null = null;
 const listeners = new Set<() => void>();
 
-const sameEntity = (a: PageEntity | null, b: PageEntity | null) =>
-  a?.kind === b?.kind && a?.id === b?.id;
+const keyOf = (entity: PageEntity) => `${entity.kind}:${entity.id}`;
 
 function setFocused(entity: PageEntity | null) {
-  if (!sameEntity(entity, dismissed)) dismissed = null;
+  if (entity && keyOf(entity) !== dismissed) dismissed = null;
   focused = entity;
+  snapshot = focused && keyOf(focused) !== dismissed ? focused : null;
   listeners.forEach((l) => l());
 }
 
@@ -52,7 +56,6 @@ const subscribe = (cb: () => void) => {
   listeners.add(cb);
   return () => void listeners.delete(cb);
 };
-const snapshot = () => (dismissed ? null : focused);
 
 /** Pages call this with their focused entity (or null). It is cleared on unmount,
  * so routes that never call it offer no context. */
@@ -77,11 +80,17 @@ export function usePageEntity(entity: PageEntity | null): void {
 
 /** The current page's entity, unless the user removed its chip. */
 export function useFocusedEntity(): PageEntity | null {
-  return useSyncExternalStore(subscribe, snapshot, () => null);
+  return useSyncExternalStore(
+    subscribe,
+    () => snapshot,
+    () => null,
+  );
 }
 
 /** Remove the current entity's chip from the composer. */
 export function dismissFocusedEntity(): void {
-  dismissed = focused;
+  if (!focused) return;
+  dismissed = keyOf(focused);
+  snapshot = null;
   listeners.forEach((l) => l());
 }

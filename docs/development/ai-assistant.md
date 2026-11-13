@@ -68,7 +68,9 @@ dock, not with every page.
 
 The transcript, composer, and proposal cards are one component,
 `app/src/components/assistant/chat-view.tsx`. The Assistant page and the dock both render
-its `ChatPane`.
+its `ChatPane`. An unsent draft (the input text and any message being edited) is kept per
+conversation in the chat store, so closing the dock or opening the chat on the full page
+keeps it.
 
 Editing a user message truncates and retries from that point. Retrying an assistant message
 reuses the preceding transcript. Branching copies the selected prefix into a new persisted
@@ -152,8 +154,9 @@ active/pickable/blocked TURD state, and machine availability.
 
 The dock is the same chat beside any page. `AssistantDockHost`, mounted in the root layout,
 owns the <kbd>Ctrl</kbd>/<kbd>Command</kbd>+<kbd>.</kbd> hotkey and the frame: a 440px
-column from the `lg` breakpoint up, an overlay on tablets, and a full-screen sheet on
-phones. It lazy-loads `components/assistant/assistant-dock.tsx` on first open. Open state
+column from the `lg` breakpoint up, and below that a modal sheet: a
+right-hand panel on tablets, full screen on phones. The sheet holds focus while open and
+returns it to the Ask button on close, since it covers the page. It lazy-loads `components/assistant/assistant-dock.tsx` on first open. Open state
 and the shown conversation live in `app/src/lib/assistant-dock.ts`.
 
 Pages offer their focused entity through `usePageEntity()` in `app/src/lib/page-context.ts`:
@@ -169,6 +172,18 @@ so the record never appears as user text. Instead, `pageContextNote()` in
 route appends it to the system prompt after the planning-horizon note. The note says the
 context is advisory. Messages sent from the full Assistant page carry no part and get no
 note.
+
+The part comes from the client, and block and task names can come from someone else's
+shared block or backup. So `pageContextNote()` validates it first: a known entity kind, a
+numeric or internal-name ID, and a route on the app's own list. It names the page from that
+list and the entity by kind and ID. The label goes in only as single-line, length-capped
+data in «…» quotes. A malformed part adds no note.
+
+The dock can sit beside the block a proposal changes, and navigating to an open block
+doesn't remount its editor. Applying a block revision or plan therefore calls
+`syncChangedBlocks()` from `app/src/lib/undo-client.ts`, the same path undo uses: it
+hydrates each changed block's open editor with the saved doc, so the editor's auto-save
+can't write the old doc back, and refreshes the planning queries.
 
 ## Context measurement and compaction
 

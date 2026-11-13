@@ -15,7 +15,7 @@ import { undoToastMessage } from "./undo-names";
 import { loadBlockFn } from "../server/factorio";
 import { undoLastFn } from "../server/undo";
 
-/** Query families invalidated after an undo — everything the triggered
+/** Query families invalidated after an undo or assistant apply — everything the triggered
  * planning tables (blocks, groups, presets, TURD picks, tasks/steps/links,
  * notes) feed. */
 const UNDO_QUERY_KEYS = [
@@ -65,6 +65,26 @@ export function undoToast(qc: QueryClient, message: string): void {
   void qc.invalidateQueries({ queryKey: ["undoStatus"] });
 }
 
+/**
+ * After a write made outside the block editor (an undo, an assistant apply),
+ * push each changed block's server doc into its OPEN editor, so the editor's
+ * auto-save can't write the stale state back, then refresh every query family
+ * the planning tables feed. Editors go first, so a stale doc is replaced
+ * before a refetch-triggered render can interact with it.
+ */
+export async function syncChangedBlocks(qc: QueryClient, blockIds: number[]): Promise<void> {
+  for (const id of blockIds) {
+    const editor = openBlockEditor(id);
+    if (!editor) continue;
+    const row = await loadBlockFn({ data: id });
+    if (row) editor.hydrate(row.data, row.name, epochSeconds(row.updatedAt));
+    else editor.onDeleted(); // e.g. an undo reverted this block's creation
+  }
+  await Promise.all(
+    UNDO_QUERY_KEYS.map((queryKey) => qc.invalidateQueries({ queryKey: [...queryKey] })),
+  );
+}
+
 let inFlight = false;
 
 /**
@@ -79,18 +99,7 @@ export async function runUndo(qc: QueryClient): Promise<void> {
     const res = await undoLastFn();
     toast({ message: undoToastMessage(res.undone) });
     if (!res.undone) return;
-    // Open editors first, so a stale doc is replaced before anything else
-    // (e.g. a refetch-triggered render) can interact with it.
-    for (const id of res.changedBlockIds) {
-      const editor = openBlockEditor(id);
-      if (!editor) continue;
-      const row = await loadBlockFn({ data: id });
-      if (row) editor.hydrate(row.data, row.name, epochSeconds(row.updatedAt));
-      else editor.onDeleted(); // the undo reverted this block's creation
-    }
-    await Promise.all(
-      UNDO_QUERY_KEYS.map((queryKey) => qc.invalidateQueries({ queryKey: [...queryKey] })),
-    );
+    await syncChangedBlocks(qc, res.changedBlockIds);
   } catch {
     toast({ message: "Undo failed — nothing was changed.", tone: "destructive" });
   } finally {

@@ -1,9 +1,9 @@
 /**
  * Open-block-editor registry (#90). The block editor registers itself here for
- * the block it has open; external writers (undo today; snapshot restore #85 and
- * assistant applies #12 next) look the editor up by block id and push the fresh
- * server doc into it via `hydrate` instead of letting the editor's in-memory
- * state — and its next auto-save — silently clobber the external change.
+ * the block it has open; external writers (undo and assistant applies, through
+ * `syncChangedBlocks` in undo-client.ts) look the editor up by block id and push
+ * the fresh server doc into it via `hydrate` instead of letting the editor's
+ * in-memory state — and its next auto-save — silently clobber the external change.
  *
  * Module-level (like the hotkey registry) so the undo runner doesn't need
  * React context threading: the editor mounts/unmounts its entry, anything can
