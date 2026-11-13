@@ -1,0 +1,21 @@
+app/src/components/info-hint.tsx
+  s_67c72f8fdbd6ba::t_528ba9b854ca62 13
+app/src/routes/settings.tsx
+  s_67c72f8fdbd6ba::t_9f2a682530e6b2 380-384,389
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f697011629bc2e717f57a50768205d5adafb88ab",
+  "prompts": {},
+  "sessions": {
+    "s_67c72f8fdbd6ba": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e5059ef0-04a6-4087-9bcc-61d85e429a07",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
