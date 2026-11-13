@@ -102,6 +102,20 @@ test("home presents project status and a next action", async ({ page }) => {
   await expect(page.getByText("Project status", { exact: true })).toBeVisible();
 });
 
+test("home summary cards label their counts and link to their views", async ({ page }) => {
+  await page.goto("/");
+  const blocks = page.getByRole("link", { name: /^Blocks \d+ blocks?/ });
+  await expect(blocks).toHaveAttribute("href", /^\/block(\/\d+)?$/);
+  const build = page.getByRole("link", { name: /^Build status/ });
+  await expect(build).toHaveAttribute("href", /^\/(block(\/\d+)?|settings\?tab=link)$/);
+  const status = page.getByRole("link", { name: /^Project status/ });
+  await expect(status).toHaveAttribute("href", /^\/settings\?tab=(data|link)$/);
+  const balance = page.getByRole("link", { name: /^Factory balance \d+ deficits?/ });
+  await expect(balance).toHaveAttribute("href", "/factory");
+  await balance.click();
+  await expect(page).toHaveURL(/\/factory$/);
+});
+
 test("Explore search renders recipes by their localized display names", async ({ page }) => {
   await page.goto("/explore");
   // the recipe browser lists rows; assert at least some content rendered (real

@@ -2141,6 +2141,9 @@ export function saveBlockRow(
     solveStatus?: string | null;
     /** IIS cards from an infeasible solve; null clears (solved); undefined keeps */
     solveDiagnosis?: unknown[] | null;
+    /** Leave `updated_at` alone: a cache-only re-solve is not a user edit, so
+     * it must not reorder Home's Recent blocks or trip the editor's staleness guard. */
+    keepUpdatedAt?: boolean;
   },
   flows: BlockFlow[] | null,
   machines: BlockMachine[] | null = [],
@@ -2164,7 +2167,7 @@ export function saveBlockRow(
     };
     if (id != null) {
       tx.update(blocks)
-        .set({ ...values, updatedAt: new Date() })
+        .set(input.keepUpdatedAt ? values : { ...values, updatedAt: new Date() })
         .where(eq(blocks.id, id))
         .run();
     } else {

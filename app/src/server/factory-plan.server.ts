@@ -13,6 +13,7 @@ import {
   type FactorySolverTraceRecorder,
 } from "./factory-debug.server.ts";
 import type { FactorySolveProgressReporter } from "./factory-progress.server.ts";
+import { currentSolveGeneration } from "../db/solve-generation.server.ts";
 import { sciencePins } from "./science-block.server.ts";
 import {
   acceptsTemperature,
@@ -386,7 +387,9 @@ async function responseColumns(
   row: NonNullable<ReturnType<typeof q.getBlock>>,
   doc: SolveInput,
 ): Promise<BlockResponse> {
-  const key = `${row.id}\u0000${String(row.updatedAt)}\u0000${JSON.stringify(doc)}`;
+  // The solve generation advances on research, TURD and bonus changes, which
+  // move coefficients without touching the block's edit time.
+  const key = `${row.id}\u0000${String(row.updatedAt)}\u0000${currentSolveGeneration()}\u0000${JSON.stringify(doc)}`;
   let pending = cachedBlockResponse(key);
   if (!pending) {
     pending = (async () => {

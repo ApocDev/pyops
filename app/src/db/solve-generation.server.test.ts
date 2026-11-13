@@ -140,9 +140,14 @@ describe("solve projection generation", () => {
     expect(setResearchHorizon({ mode: "now", researched: ["a", "b"] })).toBe(false);
     expect(currentSolveGeneration()).toBe(2);
 
+    db.run(sql`UPDATE blocks SET updated_at = 1000 WHERE id = ${id}`);
     expect(await ensureSolvedProjections()).toBe(1);
     expect(solveGenerationNeedsRefresh()).toBe(false);
-    expect(listBlocks().find((block) => block.id === id)?.stale).toBe(false);
+    // a cache refresh is not an edit: Home's Recent blocks order stays intact
+    expect(listBlocks().find((block) => block.id === id)).toMatchObject({
+      stale: false,
+      updatedAt: new Date(1_000_000),
+    });
     expect(await ensureSolvedProjections()).toBe(0);
   });
 });

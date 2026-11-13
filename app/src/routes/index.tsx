@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, linkOptions } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -30,8 +30,9 @@ import { LaunchFactorioButton } from "#/components/launch-factorio-button.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { QueryError } from "#/components/query-error.tsx";
 import { Button } from "#/components/ui/button.tsx";
-import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
+import { Card, CardHeader, CardTitle, cardClassName } from "#/components/ui/card.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { cn } from "#/lib/utils.ts";
 import {
   activeHomeActionKeys,
   chooseHomeAction,
@@ -44,6 +45,18 @@ import {
 export const Route = createFileRoute("/")({ component: Home });
 
 const BRIDGE_FRESH_MS = 6000;
+
+/** A summary card that is itself the link to the view behind its number. */
+const summaryCardLink = cn(
+  cardClassName,
+  "outline-none hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
+);
+
+/** Open one block, or the block workspace when there is none to point at. */
+const blockLink = (id: number | undefined) =>
+  id == null
+    ? linkOptions({ to: "/block" })
+    : linkOptions({ to: "/block/$id", params: { id: String(id) } });
 
 function Home() {
   const queryClient = useQueryClient();
@@ -85,8 +98,15 @@ function Home() {
   const scaleCount = buildRows.filter((block) => block.phase === "scale").length;
   const peer = bridge.data?.lastPeer ?? null;
   const gameLinked = peer != null && Date.now() - peer.lastSeenMs < BRIDGE_FRESH_MS;
+  const nextBuild =
+    buildRows.find((block) => block.phase === "unbuilt") ??
+    buildRows.find((block) => block.phase === "partial");
+  // last edited first; ties (e.g. blocks never edited since a bulk import) put newer blocks first
   const recentBlocks = [...blockRows]
-    .sort((a, b) => new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime())
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime() || b.id - a.id,
+    )
     .slice(0, 4);
   const needsSetup = !dataReady || blockRows.length === 0;
   const actionInput: HomeActionInput = {
@@ -251,12 +271,17 @@ function Home() {
       {!needsSetup && !loading && (
         <>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Card>
+            <Link
+              {...blockLink((blockErrors[0] ?? blockWarnings[0])?.id)}
+              className={summaryCardLink}
+            >
               <CardHeader>
                 <Blocks className="size-4" /> <CardTitle>Blocks</CardTitle>
               </CardHeader>
               <div className="p-3">
-                <div className="text-2xl font-semibold">{blockRows.length}</div>
+                <div className="text-2xl font-semibold">
+                  {blockRows.length} block{blockRows.length === 1 ? "" : "s"}
+                </div>
                 <div className="text-sm text-muted-foreground">
                   {blockErrors.length + blockWarnings.length > 0 ? (
                     <span className="text-warning">
@@ -267,13 +292,15 @@ function Home() {
                   )}
                 </div>
               </div>
-            </Card>
-            <Card>
+            </Link>
+            <Link to="/factory" className={summaryCardLink}>
               <CardHeader>
                 <Factory className="size-4" /> <CardTitle>Factory balance</CardTitle>
               </CardHeader>
               <div className="p-3">
-                <div className="text-2xl font-semibold">{deficits.length}</div>
+                <div className="text-2xl font-semibold">
+                  {deficits.length} deficit{deficits.length === 1 ? "" : "s"}
+                </div>
                 <div className="truncate text-sm text-muted-foreground">
                   {actionContext.isPending
                     ? "Checking planning horizon…"
@@ -286,8 +313,13 @@ function Home() {
                           : "No deficits"}
                 </div>
               </div>
-            </Card>
-            <Card>
+            </Link>
+            <Link
+              {...(haveBuiltSync || actionContext.isPending
+                ? blockLink(nextBuild?.blockId)
+                : linkOptions({ to: "/settings", search: { tab: "link" } }))}
+              className={summaryCardLink}
+            >
               <CardHeader>
                 <Hammer className="size-4" /> <CardTitle>Build status</CardTitle>
               </CardHeader>
@@ -296,7 +328,7 @@ function Home() {
                   {actionContext.isPending
                     ? "…"
                     : haveBuiltSync
-                      ? unbuiltCount + partialCount
+                      ? `${unbuiltCount + partialCount} to build`
                       : "—"}
                 </div>
                 <div className="text-sm text-muted-foreground">
@@ -305,14 +337,18 @@ function Home() {
                     : !haveBuiltSync
                       ? "Connect the game for build coverage"
                       : unbuiltCount + partialCount > 0
-                        ? `${unbuiltCount} unbuilt · ${partialCount} partial`
+                        ? `${unbuiltCount} unbuilt, ${partialCount} partial blocks`
                         : scaleCount > 0
                           ? `${scaleCount} built · scaling optional`
                           : "All planned blocks operational"}
                 </div>
               </div>
-            </Card>
-            <Card>
+            </Link>
+            <Link
+              to="/settings"
+              search={{ tab: drift.data?.needsRedump || gameLinked ? "data" : "link" }}
+              className={summaryCardLink}
+            >
               <CardHeader>
                 <Gamepad2 className="size-4" /> <CardTitle>Project status</CardTitle>
               </CardHeader>
@@ -334,7 +370,7 @@ function Home() {
                     : "No game linked"}
                 </div>
               </div>
-            </Card>
+            </Link>
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-3">

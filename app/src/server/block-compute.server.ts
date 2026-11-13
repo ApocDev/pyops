@@ -1715,7 +1715,13 @@ export function computeModuleSuggestions(
  * the mod restores the block; the input + per-block reference fingerprint are still
  * written. Shared by every save path so they all degrade the same way. */
 export async function persistBlock(
-  meta: { id?: number | null; name: string; iconKind: string | null; iconName: string | null },
+  meta: {
+    id?: number | null;
+    name: string;
+    iconKind: string | null;
+    iconName: string | null;
+    keepUpdatedAt?: boolean;
+  },
   rawData: SolveInput,
   r: Awaited<ReturnType<typeof computeBlock>>,
 ): Promise<number> {
@@ -1913,9 +1919,16 @@ export async function resolveAllBlocks() {
         if (!row) continue;
         const data = row.data as SolveInput;
         const r = await computeBlock(data);
-        // broken blocks keep their last-good cache (persistBlock passes null flows)
+        // broken blocks keep their last-good cache (persistBlock passes null flows);
+        // a cache refresh isn't an edit, so the block's updatedAt stays put
         await persistBlock(
-          { id: b.id, name: row.name, iconKind: row.iconKind, iconName: row.iconName },
+          {
+            id: b.id,
+            name: row.name,
+            iconKind: row.iconKind,
+            iconName: row.iconName,
+            keepUpdatedAt: true,
+          },
           data,
           r,
         );

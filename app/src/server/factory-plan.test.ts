@@ -13,6 +13,7 @@ let nonlinearElectricity = false;
 let recoveredIronPerCoke = 10;
 let ironGoalScalable = true;
 let solveVersion = 0;
+let solveGeneration = 1;
 const blocks = [
   {
     id: 1,
@@ -115,6 +116,10 @@ vi.mock("./factory-debug.server.ts", () => ({
 }));
 vi.mock("./undo-action.server.ts", () => ({
   withUndoAction: vi.fn(async (_name: string, action: () => unknown) => action()),
+}));
+
+vi.mock("../db/solve-generation.server.ts", () => ({
+  currentSolveGeneration: vi.fn(() => solveGeneration),
 }));
 
 vi.mock("./block-compute.server.ts", () => ({
@@ -396,6 +401,7 @@ vi.mock("./block-compute.server.ts", () => ({
 }));
 
 const plan = await import("./factory-plan.server.ts");
+const { computeBlock } = await import("./block-compute.server.ts");
 
 beforeEach(() => {
   meta.clear();
@@ -910,6 +916,18 @@ describe("pinned factory solve", () => {
     expect(result.passes).toBe(2);
     expect(result.residual).toBe(0);
     expect(result.raws).toContainEqual(expect.objectContaining({ good: "ore", projected: 12 }));
+  });
+
+  it("re-solves cached block responses when the solve context changes without an edit", async () => {
+    await plan.solvePinnedFactory();
+    const calls = () => vi.mocked(computeBlock).mock.calls.length;
+    const before = calls();
+    await plan.solvePinnedFactory();
+    const cached = calls() - before;
+    solveGeneration++; // research / TURD / bonus change: edit times stay put
+    const beforeBump = calls();
+    await plan.solvePinnedFactory();
+    expect(calls() - beforeBump).toBeGreaterThan(cached);
   });
 
   it("captures a fixed response offset after re-linearizing", async () => {

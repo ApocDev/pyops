@@ -73,6 +73,11 @@ header. A block returns automatically when it advances to a different stage, suc
 **Finish** or **Finish** to **Scale**; use **Restore** to bring back actions that have not changed.
 Re-sync warnings cannot be dismissed because the remaining recommendations may rely on stale data.
 
+Below the recommendation, each summary card opens the view behind its number. **Blocks** opens the
+first unhealthy block, **Factory balance** opens Factory, **Build status** opens the next block to
+build, and **Project status** opens the matching Settings tab. **Recent blocks** lists the blocks
+you edited last.
+
 1. [Install PyOps](./install).
 2. [Choose or create a project](./project) for this factory or mod set.
 3. [Sync game data](./sync-game-data) from Factorio into that project.
