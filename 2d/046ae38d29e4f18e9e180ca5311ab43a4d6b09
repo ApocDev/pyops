@@ -1,0 +1,21 @@
+app/src/components/science/derive-from-tech-dialog.tsx
+  s_995b207560eeb0::t_0bf40ed489330b 19,110,144,150-151
+app/src/components/science/science-block-view.tsx
+  s_995b207560eeb0::t_7aba53776db454 7,192,197,203,213,243,264
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2d046ae38d29e4f18e9e180ca5311ab43a4d6b09",
+  "prompts": {},
+  "sessions": {
+    "s_995b207560eeb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cef9ec12-eec2-430e-8ba3-ca49ff9d4875",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
