@@ -61,16 +61,17 @@ export function ProjectSwitcher() {
   };
 
   return (
-    <div className="flex items-stretch">
+    <div className="flex min-w-0 items-stretch">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
             disabled={busy}
-            className="h-full gap-1.5 px-3 font-normal text-muted-foreground hover:bg-muted/50"
+            className="h-full min-w-16 shrink gap-1.5 px-3 font-normal text-muted-foreground hover:bg-muted/50"
             title={`Project: ${active?.name ?? "…"} — click to switch`}
           >
-            <Database className="size-4" /> {active?.name ?? "…"}
+            <Database className="size-4" />
+            <span className="max-w-40 min-w-0 truncate">{active?.name ?? "…"}</span>
             <ChevronDown className="size-3" />
           </Button>
         </DropdownMenuTrigger>
