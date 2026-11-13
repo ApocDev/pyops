@@ -1,5 +1,6 @@
 import dgram from "node:dgram";
 import { expect, test } from "@playwright/test";
+import { BRIDGE_PORT } from "./ports";
 import { PROTOCOL_VERSION } from "./versions";
 
 /**
@@ -8,11 +9,10 @@ import { PROTOCOL_VERSION } from "./versions";
  * confirm the app sent the expected request — and (for request/reply commands)
  * that a stubbed mod response flows back into the app.
  *
- * Pairs with bridge.e2e.ts (mod→app). The dev server's bridge port is pinned via
- * PYOPS_BRIDGE_PORT (see config).
+ * Pairs with bridge.e2e.ts (mod→app). The dev server's bridge port is
+ * E2E_BRIDGE_PORT (see ports.ts).
  */
 
-const BRIDGE_PORT = 37659;
 const HOST = "127.0.0.1";
 
 type Datagram = { type?: string; request_id?: string; payload?: unknown };

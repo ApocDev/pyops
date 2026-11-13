@@ -53,6 +53,16 @@ each (see `playwright.config.ts`):
   than a Playwright `globalSetup`, because Playwright starts webServers *before*
   globalSetup runs — the copy has to land before the server opens the db.
 
+Each server also binds a UDP bridge port: 37659 for the read-only server
+(`E2E_BRIDGE_PORT`, the one the bridge specs send to) and 37661 for the
+mutating one (`E2E_MUT_BRIDGE_PORT`). All four ports live in `ports.ts`. To run
+e2e suites from two checkouts on one machine at once, give the second run its
+own set:
+
+```bash
+E2E_PORT=3200 E2E_MUT_PORT=3201 E2E_BRIDGE_PORT=37759 E2E_MUT_BRIDGE_PORT=37761 npm test
+```
+
 The two servers also set separate `PYOPS_NITRO_BUILD_DIR` values. Nitro's
 default dev build directory is shared by every process in a checkout; without
 this isolation, concurrent hot-reload workers can overwrite each other's build

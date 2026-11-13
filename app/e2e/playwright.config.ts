@@ -1,6 +1,7 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
+import { BRIDGE_PORT, MUT_BRIDGE_PORT, MUT_PORT, PORT } from "./ports";
 
 /**
  * Standalone E2E package — intentionally NOT part of the app's pnpm project, so
@@ -24,8 +25,6 @@ import { defineConfig, devices } from "@playwright/test";
  * globalSetup) because webServer plugins start BEFORE globalSetup runs — the
  * copy must land before the server opens the db.
  */
-const PORT = Number(process.env.E2E_PORT ?? 3100);
-const MUT_PORT = Number(process.env.E2E_MUT_PORT ?? 3101);
 
 const here = dirname(fileURLToPath(import.meta.url));
 /** Scratch data dir for the mutating server — wiped + re-seeded on every cold start. */
@@ -71,7 +70,7 @@ export default defineConfig({
       // pin the UDP bridge to a known, non-default port so the fake-mod peer in
       // bridge.e2e.ts can reach it without clashing with a real mod/app on 37657
       env: {
-        PYOPS_BRIDGE_PORT: "37659",
+        PYOPS_BRIDGE_PORT: String(BRIDGE_PORT),
         PYOPS_NITRO_BUILD_DIR: "node_modules/.nitro-e2e-readonly",
       },
     },
@@ -86,7 +85,7 @@ export default defineConfig({
       // default 37657 may belong to a real running app/mod
       env: {
         PYOPS_DATA_DIR: MUT_DATA_DIR,
-        PYOPS_BRIDGE_PORT: "37661",
+        PYOPS_BRIDGE_PORT: String(MUT_BRIDGE_PORT),
         PYOPS_NITRO_BUILD_DIR: "node_modules/.nitro-e2e-mutating",
       },
     },
