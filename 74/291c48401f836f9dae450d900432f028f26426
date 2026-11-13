@@ -1,0 +1,29 @@
+app/e2e/mut/factory-board.e2e.ts
+  s_2e2dcdef8cc0f3::t_cb9d77a4d47e74 40-43,69-79
+app/src/components/factory/board/factory-board.tsx
+  s_2e2dcdef8cc0f3::t_2c23334ae9ca49 1,25-26,40-62,87-91
+app/src/components/factory/board/focus-canvas.tsx
+  s_2e2dcdef8cc0f3::t_c43d4f7f438b65 1,16-25,70-71,105,108-114,117,131-135
+app/src/components/factory/board/focus-graph.test.ts
+  s_2e2dcdef8cc0f3::t_a656c44d92d970 66-70,76-81
+app/src/components/factory/board/focus-graph.ts
+  s_2e2dcdef8cc0f3::t_0a04ad24bd3d86 7-10,91-97,112-113,123,130-131,178-183,214,249-250
+docs/guide/balance.md
+  s_2e2dcdef8cc0f3::t_1c3e16d0297a03 76-77,83-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "74291c48401f836f9dae450d900432f028f26426",
+  "prompts": {},
+  "sessions": {
+    "s_2e2dcdef8cc0f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cc91899-9788-4780-ad00-00102e37aed5",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
