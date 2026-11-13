@@ -1,0 +1,47 @@
+app/drizzle/0023_machine_effect_receiver.sql
+  s_f3f524ab146216::t_f4f295ec7b9dec 1
+app/drizzle/meta/0023_snapshot.json
+  s_f3f524ab146216::t_5e12fab7589a3c 1-2914
+app/drizzle/meta/_journal.json
+  s_f3f524ab146216::t_8f8c81d05cdff2 165-171
+app/src/db/effect-receiver.ts
+  s_f3f524ab146216::t_710e0513dd43fb 1-41
+app/src/db/import-factorio.test.ts
+  s_f3f524ab146216::t_1aa6d6d82451c7 10,131-175
+app/src/db/import-factorio.ts
+  s_f3f524ab146216::t_fb2b874562061c 18,256,497
+app/src/db/queries.server.ts
+  s_f3f524ab146216::t_2d14bc76a3fadf 243,441,878
+app/src/db/schema.ts
+  s_f3f524ab146216::t_711cd2d158cf4c 3,185-189
+app/src/db/synthesize.ts
+  s_f3f524ab146216::t_c2d3ad42589c59 30,105,223-224,242,306,789
+app/src/lib/data-format.ts
+  s_f3f524ab146216::t_f40ea601614f5c 9
+app/src/server/block-compute.server.ts
+  s_f3f524ab146216::t_3f6a86a99bd816 459,1708
+app/src/server/effects.test.ts
+  s_f3f524ab146216::t_d660e32e22dca1 2-3,52,229-302
+app/src/server/effects.ts
+  s_f3f524ab146216::t_5c1c4ffb302e51 6-16,28-52,69,119,121-122,124-129,142,155-160,168,170-171
+docs/development/data-pipeline.md
+  s_f3f524ab146216::t_19147141d0ef9c 130-132
+docs/development/solver.md
+  s_f3f524ab146216::t_701516d0573bca 277-298
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "acf5e033a9d625c0e0dcd91473176d7104268961",
+  "prompts": {},
+  "sessions": {
+    "s_f3f524ab146216": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a7f2f158-99d4-4236-864b-ece6ccf78b67",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
