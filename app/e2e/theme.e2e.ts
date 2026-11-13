@@ -59,16 +59,23 @@ for (const theme of ["light", "dark"] as const) {
         const pairs = [
           ["foreground", "var(--foreground)", "var(--background)"],
           ["muted", "var(--muted-foreground)", "var(--background)"],
+          ["muted badge", "var(--muted-foreground)", "var(--muted)"],
           ["primary", "var(--primary)", "var(--background)"],
           ["primary action", "var(--primary-foreground)", "var(--primary-solid)"],
           ...["success", "warning", "info", "surplus"].flatMap((token) => [
             [token, `var(--${token})`, "var(--background)"],
+            // 20% is the strongest tint that carries text (chips, badges)
             [
               `${token} tint`,
               `var(--${token})`,
-              `color-mix(in oklab, var(--${token}) 10%, var(--background))`,
+              `color-mix(in oklab, var(--${token}) 20%, var(--background))`,
             ],
           ]),
+          [
+            "warning 80%",
+            "color-mix(in oklab, var(--warning) 80%, transparent)",
+            "var(--background)",
+          ],
         ];
 
         for (const [label, color, backgroundColor] of pairs) {

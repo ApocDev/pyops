@@ -76,16 +76,15 @@ function ActualCell({
   good: string;
   planned: number;
   actual: number | null;
-  /** sync time of an old snapshot (game not linked): dim, drop the
-   * on-target colors, and say how old it is */
+  /** sync time of an old snapshot (game not linked): drop the on-target
+   * colors and say how old it is */
   staleSince: string | null;
 }) {
   // re-render on open so the stale age is computed now, not at the last render
   const [, setOpened] = useState(0);
   if (actual == null) return <span className="text-muted-foreground/50">—</span>;
   let color = "text-muted-foreground";
-  if (staleSince) color = "text-muted-foreground/60";
-  else if (planned > 1e-6) {
+  if (!staleSince && planned > 1e-6) {
     const ratio = actual / planned;
     color = ratio < 0.5 ? "text-destructive" : ratio < 0.9 ? "text-warning" : "text-success";
   }
