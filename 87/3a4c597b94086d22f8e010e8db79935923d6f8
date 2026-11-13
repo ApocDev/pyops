@@ -1,0 +1,31 @@
+docs/guide/in-game-link.md
+  s_615355d7d3241c::t_6da9a6824bbd8c 128-131,134
+mod/blocks.lua
+  s_615355d7d3241c::t_53fc330aa381fa 180-182,208,210
+mod/control.lua
+  s_615355d7d3241c::t_a27791425585e4 16,91-95,98,821-823,825,835-836,838-840,1263-1269
+mod/format.lua
+  s_615355d7d3241c::t_bf835b68fab45f 88-130
+mod/summary.lua
+  s_615355d7d3241c::t_3d8714c6dcd589 444-446,448-450,453-454,456-465
+mod/tests/README.md
+  s_615355d7d3241c::t_5ab9adb79c3603 15-16
+mod/tests/format-test.lua
+  s_615355d7d3241c::t_5eb8084bb2f6a5 81-128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "873a4c597b94086d22f8e010e8db79935923d6f8",
+  "prompts": {},
+  "sessions": {
+    "s_615355d7d3241c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bfe37481-b1e5-41b2-9d94-9353b0d73ad7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
