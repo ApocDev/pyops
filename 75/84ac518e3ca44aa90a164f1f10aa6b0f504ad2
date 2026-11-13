@@ -1,0 +1,47 @@
+app/e2e/mut/assistant-dock.e2e.ts
+  s_4459038fb5360e::t_614cbfab5a2745 2-12,23,25-33,41,53-57,107-170,191,195-201,210-215,218
+app/src/components/ask-button.tsx
+  s_4459038fb5360e::t_5ef1d57b5220d9 11-13,30
+app/src/components/assistant/chat-view.tsx
+  s_4459038fb5360e::t_ba6c6201b2a208 63-64,68,163-167,1627,1651-1653,1749,1782-1785
+app/src/components/factory/board/factory-board.tsx
+  s_4459038fb5360e::t_7ebb057f97c5be 1,18
+app/src/lib/block-editors.ts
+  s_4459038fb5360e::t_2c5333309f58f7 3-6
+app/src/lib/chat-store.ts
+  s_4459038fb5360e::t_5097163261fc77 152-167,173
+app/src/lib/page-context.ts
+  s_4459038fb5360e::t_98e25873a8040f 38-43,46,49,51,83-87,92-94
+app/src/lib/undo-client.ts
+  s_4459038fb5360e::t_b75e6a0461f04c 18,68-87,102
+app/src/lib/use-media-query.ts
+  s_4459038fb5360e::t_39c8921bfece4a 1-18
+app/src/server/chat-route.test.ts
+  s_4459038fb5360e::t_853edfb7c280bb 183
+app/src/server/page-context-note.test.ts
+  s_4459038fb5360e::t_95700c124253f3 1-53
+docs/development/ai-assistant.md
+  s_4459038fb5360e::t_52184f2090c20e 71-73,157-159,176-187
+app/src/components/assistant-dock-host.tsx
+  s_4459038fb5360e::t_2329523d69ff45 4,6-7,15-23,27,33-69,73,75
+app/src/lib/page-context.test.tsx
+  s_4459038fb5360e::t_9540db03778ffe 1-42
+app/src/server/page-context-note.ts
+  s_4459038fb5360e::t_489d228d6d7143 2,4-5,7-35,38-40,42,44,50-51,56-66,69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7584ac518e3ca44aa90a164f1f10aa6b0f504ad2",
+  "prompts": {},
+  "sessions": {
+    "s_4459038fb5360e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21bed058-e7bd-49f4-a0d0-add53b50d556",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
