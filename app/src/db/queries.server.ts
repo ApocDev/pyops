@@ -153,7 +153,7 @@ function componentDisplays(rows: { kind: string; name: string }[]): Map<string, 
   return out;
 }
 
-function recipesByName(names: string[]) {
+export function recipesByName(names: string[]) {
   const uniq = [...new Set(names)].filter((n) => n);
   const out = new Map<string, NonNullable<ReturnType<typeof getRecipe>>>();
   if (!uniq.length) return out;
@@ -786,14 +786,20 @@ function turdModulesForMachine(
     allowedModuleCategories: string[] | null;
   },
 ): ModuleRow[] {
-  return turdModulesOf(sub).filter((mod) => {
-    if (!machine.allowedModuleCategories?.includes(mod.category ?? "")) return false;
-    const tier = /-mk0(\d)$/.exec(mod.name);
-    return !tier || machine.name.endsWith(`-mk0${tier[1]}`);
-  });
+  return turdModulesOf(sub).filter((mod) => turdModuleFits(mod, machine));
 }
 
-const avgAmount = (c: {
+/** Whether a TURD module lands in a machine (see turdModulesForMachine). */
+export function turdModuleFits(
+  mod: { name: string; category: string | null },
+  machine: { name: string; allowedModuleCategories: string[] | null },
+) {
+  if (!machine.allowedModuleCategories?.includes(mod.category ?? "")) return false;
+  const tier = /-mk0(\d)$/.exec(mod.name);
+  return !tier || machine.name.endsWith(`-mk0${tier[1]}`);
+}
+
+export const avgAmount = (c: {
   amount: number | null;
   amountMin?: number | null;
   amountMax?: number | null;
@@ -1340,9 +1346,11 @@ function turdDetailsForMasters(masterRows: (typeof technologies.$inferSelect)[])
       changes,
       modules: mods.map((mod) => ({
         name: mod.name,
+        category: mod.category,
         effSpeed: mod.effSpeed,
         effProductivity: mod.effProductivity,
         effConsumption: mod.effConsumption,
+        effPollution: mod.effPollution,
       })),
     };
   };

@@ -27,6 +27,7 @@ import * as dump from "./dump.server.ts";
 import * as cfg from "./app-config.server.ts";
 import { computeCostAnalysis } from "./cost-analysis.server.ts";
 import { recipeDifferencesFor } from "./recipe-differences.server.ts";
+import { turdBoard } from "./turd-board.server.ts";
 import { currentDatabaseFile } from "../db/index.server.ts";
 import { applyPinnedFactory, getFactoryPins, saveFactoryPins } from "./factory-plan.server.ts";
 import {
@@ -1205,9 +1206,9 @@ export const modDriftFn = createServerFn({ method: "GET" }).handler(async () => 
 
 /* ── TURD (Pyanodon tech upgrades) ──────────────────────────────────────────── */
 
-export const listTurdUpgradesFn = createServerFn({ method: "GET" }).handler(async () =>
-  q.listTurdUpgrades(),
-);
+/** The /turd board: every group with per-option swap diffs and the player's
+ * blocks each option touches. */
+export const turdBoardFn = createServerFn({ method: "GET" }).handler(async () => turdBoard());
 
 /** Live TURD state pushed by the in-game mod (bridge), if any. Mirrors the
  * research synced status — drives the sync status on the TURD page. */

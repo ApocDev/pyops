@@ -15,13 +15,29 @@ The **TURD** page appears when the active project's synced data contains TURD up
 
 ## Review and select a branch
 
+The page lists one row per TURD master. Chosen masters come first, then masters whose
+branches touch your blocks, then the rest. Each row shows the chosen branch (or the
+branches' icons), how many of your blocks it touches, and the science it needs.
+
 1. Open **TURD**.
-2. Search by the master upgrade or branch name when necessary.
-3. Expand a master and compare the offered recipe changes.
+2. Narrow the list with **Chosen**, **Not chosen**, or **My blocks**, or search by the
+   master or branch name.
+3. Select a row to expand it. Its branches appear side by side with the same sections in
+   line: **Module** (the always-on effect), **Recipe changes**, **New recipes**, and
+   **Your blocks**.
 4. Select **Choose** on the branch that matches the playthrough or the choice you want to
    evaluate.
 5. Review the confirmation, which lists every block that re-solves, and select
    **Choose upgrade**.
+
+**Recipe changes** collapses swaps that differ only by tier into one line, such as
+**Moss ×5**, and lists only what changes: craft time, added or removed inputs, and changed
+amounts. When the tiers change by different amounts, the line shows the percentage range.
+Hover a recipe icon for its full before-and-after comparison.
+
+**Your blocks** lists each block that runs one of the branch's recipes, or a building its
+module goes into, with the recipe or building icons that match. **Game text** shows the
+in-game description.
 
 The chosen branch shows **Chosen** and a **Clear** button, which removes the choice after
 the same confirmation. Choosing or clearing a branch is one undoable action: the undo button
@@ -29,8 +45,8 @@ in the main navigation restores the previous choice and re-solves the blocks aga
 
 <AppScreenshot
   src="/images/turd-upgrades.png"
-  alt="The dark-mode TURD upgrades page showing Arqad and Arthurian branch choices and their recipe changes"
-  caption="Each master groups mutually exclusive branches. Changed recipe lines make the affected inputs, outputs, and productivity bonuses explicit."
+  alt="The dark-mode TURD upgrades page with the Moss farm upgrade expanded into four branches side by side"
+  caption="An expanded master lines up its branches: module effect, recipe changes, new recipes, and the blocks each one touches."
 />
 
 PyOps re-solves blocks affected by the changed recipes. Review **Factory → Overview** and
