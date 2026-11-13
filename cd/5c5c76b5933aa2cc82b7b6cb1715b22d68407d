@@ -1,0 +1,19 @@
+app/src/components/goods-table.tsx
+  s_2e2dcdef8cc0f3::t_2382b2df322826 11,83-84,95-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cd5c5c76b5933aa2cc82b7b6cb1715b22d68407d",
+  "prompts": {},
+  "sessions": {
+    "s_2e2dcdef8cc0f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cc91899-9788-4780-ad00-00102e37aed5",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
