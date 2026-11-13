@@ -1,0 +1,21 @@
+docs/development/design.md
+  s_71fed34410c3f1::t_40813a30a9f0c7 194-197
+docs/reference/keyboard-and-navigation.md
+  s_71fed34410c3f1::t_260ff0fae85610 55-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4c499167135b3bf76ccca866033183a1d1790577",
+  "prompts": {},
+  "sessions": {
+    "s_71fed34410c3f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90e2feea-580a-4bff-bd27-dbb7dda6051f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

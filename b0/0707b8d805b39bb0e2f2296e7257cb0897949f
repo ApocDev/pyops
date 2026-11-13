@@ -1,0 +1,25 @@
+app/e2e/mut/hover-card-keyboard.e2e.ts
+  s_71fed34410c3f1::t_f518133cc4c550 1-39
+app/src/lib/hover.test.tsx
+  s_71fed34410c3f1::t_d02ea4eeb80bad 1-77
+app/src/lib/hover.tsx
+  s_71fed34410c3f1::t_01fcb1b70835bf 1,46,63-167,169-170,190,197
+app/src/lib/recipe-card.tsx
+  s_71fed34410c3f1::t_ab07c0216570ca 7,217,219,243,245,648,650,675,677,805,807
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b00707b8d805b39bb0e2f2296e7257cb0897949f",
+  "prompts": {},
+  "sessions": {
+    "s_71fed34410c3f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "90e2feea-580a-4bff-bd27-dbb7dda6051f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
