@@ -280,10 +280,53 @@ test("an exact-temperature consume goal only feeds consumers that accept it", as
     ingredients: [{ kind: "fluid", name: "steam", amount: 1, minTemp: 100 }],
     products: [{ kind: "fluid", name: "pyops-electricity", amount: 1 }],
   };
-  const { res } = solve([hot, cold], [{ name: "steam", rate: -10, temperature: 165 }], []);
+  const { res, fold } = solve([hot, cold], [{ name: "steam", rate: -10, temperature: 165 }], []);
   const r = await res;
   expect(r.status).toBe("solved");
   const rates = Object.fromEntries(r.recipes.map((x) => [x.recipe, x.rate]));
   expect(rates["turbine-cold"]).toBeCloseTo(10);
   expect(rates["turbine-hot"]).toBeCloseTo(0);
+  // the goal's import keeps its exact temperature at the boundary
+  expect(r.imports.map((f) => [fold.bare(f.name), fold.qualifierOf(f.name)])).toEqual([
+    ["steam", { mode: "range", minTemp: 165, maxTemp: 165 }],
+  ]);
+});
+
+test("a consume goal can't route an out-of-range producer into a narrower consumer", async () => {
+  // 10/s of 125° water is made in-block, but the consumer only takes ≤101°:
+  // all 15/s it needs has to come in through the goal, and the hot water exports
+  const hotPump: TempRecipeDef = {
+    name: "hot-pump",
+    energyRequired: 1,
+    ingredients: [],
+    products: [{ kind: "fluid", name: "water", amount: 10, temperature: 125 }],
+  };
+  const cold: TempRecipeDef = {
+    name: "cold-process",
+    energyRequired: 1,
+    ingredients: [{ kind: "fluid", name: "water", amount: 1, maxTemp: 101 }],
+    products: [{ kind: "item", name: "gel", amount: 1 }],
+  };
+  const { input, fold } = expandTemps(
+    {
+      goals: [
+        { name: "gel", rate: 15 },
+        { name: "water", rate: -5, direction: "consume" },
+      ],
+      recipes: [hotPump, cold],
+      made: [],
+      pins: [{ kind: "rate", recipe: "hot-pump", rate: 1 }],
+    },
+    (f) => (f === "water" ? 15 : null),
+  );
+  const r = await solveBlockLp(input);
+  expect(r.status).toBe("solved");
+  const rates = Object.fromEntries(r.recipes.map((x) => [x.recipe, x.rate]));
+  expect(rates["cold-process"]).toBeCloseTo(15);
+  const water = (flows: typeof r.imports) =>
+    flows
+      .filter((f) => fold.bare(f.name) === "water")
+      .map((f) => `${fold.tempOf(f.name) ?? "any"} ${f.rate.toFixed(2)}`);
+  expect(water(r.imports)).toEqual(["any 15.00"]);
+  expect(water(r.exports)).toEqual(["125° 10.00"]);
 });

@@ -21,9 +21,10 @@ import type { LpBlockInput, Pin, RecipeDef } from "./lp.ts";
  *   - fluid goals move to either their selected one-temperature pool or a
  *     full-range pool when no exact temperature is selected;
  *     share pins follow their consumer onto its pool.
- *   - a consume goal's pool feeds every consumer pool that accepts its
- *     temperature, and those pools are drained, so everything those recipes
- *     take in arrives through the goal and the goal sizes them
+ *   - a consume goal gets its own good that only the boundary feeds. It feeds
+ *     every consumer pool that accepts its temperature, and those pools are
+ *     drained, so their intake is in-range variants plus what arrives through
+ *     the goal, and the goal sizes the consumers
  *
  * `fold` maps the solve's synthetic goods/recipes back for display: selector
  * rows vanish, variant/pool flows collapse onto the bare fluid name with a
@@ -51,6 +52,12 @@ const SEL = `${SEP}sel${SEP}`;
 
 const variantKey = (fluid: string, temp: number) => `${fluid}${SEP}@${temp}`;
 const poolKey = (fluid: string, lo: number, hi: number) => `${fluid}${SEP}pool${SEP}${lo}..${hi}`;
+/** A consume goal's own good: the goal's range, but outside `pools`, so no
+ * in-block variant can enter it — only the block boundary feeds it. */
+const consumeGoalKey = (fluid: string, lo: number, hi: number) =>
+  `${poolKey(fluid, lo, hi)}${SEP}goal`;
+/** Parses the temperature range out of a pool or consume-goal key. */
+const RANGE = new RegExp(`pool${SEP}([^${SEP}]+?)\\.\\.([^${SEP}]+)`);
 
 export type TempFold = {
   /** selector pseudo-recipes — drop from rows/rates */
@@ -162,11 +169,18 @@ export function expandTemps(
   }));
 
   const goalPools = new Map<string, string>();
+  const consumeGoals: { fluid: string; key: string; lo: number; hi: number }[] = [];
   const outGoals = goals.map((g) => {
     const goal = baseGoal(g);
     if (!ranged.has(g.name)) return goal;
     const lo = g.temperature ?? -Infinity;
     const hi = g.temperature ?? Infinity;
+    if (g.direction === "consume" || g.rate < 0) {
+      const key = consumeGoalKey(g.name, lo, hi);
+      goalPools.set(g.name, key);
+      consumeGoals.push({ fluid: g.name, key, lo, hi });
+      return { ...goal, name: key };
+    }
     const pool = poolOf(g.name, lo, hi);
     goalPools.set(g.name, pool);
     return { ...goal, name: pool };
@@ -190,23 +204,22 @@ export function expandTemps(
     }
   }
 
-  // consume goals: the goal pool → each consumer pool whose range overlaps it.
-  // Draining those pools (net = 0) stops them importing on their own, so the
-  // goal's `net ≤ -rate` constrains what the consumers actually take in.
+  // consume goals: the goal's good → each consumer pool whose range overlaps
+  // it. Draining those pools (net = 0) stops them importing on their own, so
+  // the goal's `net ≤ -rate` constrains what the consumers take in from the
+  // boundary. In-block variants still reach them only through the
+  // temperature-checked selectors above.
   const goalFedPools: string[] = [];
-  for (const g of goals) {
-    if (!ranged.has(g.name) || !(g.direction === "consume" || g.rate < 0)) continue;
-    const goalPool = goalPools.get(g.name)!;
-    const { lo, hi } = pools.get(goalPool)!;
+  for (const goal of consumeGoals) {
     for (const [pKey, p] of pools) {
-      if (p.fluid !== g.name || pKey === goalPool || p.hi < lo || p.lo > hi) continue;
-      const name = `${SEL}${goalPool}${SEP}${pKey}`;
+      if (p.fluid !== goal.fluid || p.hi < goal.lo || p.lo > goal.hi) continue;
+      const name = `${SEL}${goal.key}${SEP}${pKey}`;
       selNames.add(name);
       goalFedPools.push(pKey);
       outDefs.push({
         name,
         energyRequired: 0,
-        ingredients: [{ kind: "fluid", name: goalPool, amount: 1 }],
+        ingredients: [{ kind: "fluid", name: goal.key, amount: 1 }],
         products: [{ kind: "fluid", name: pKey, amount: 1 }],
       });
     }
@@ -280,7 +293,7 @@ export function expandTemps(
         const rest = good.slice(i + 1);
         if (rest.startsWith("@")) return `${rest.slice(1)}°`;
         // the second separator sits between pool and the range
-        const m = new RegExp(`pool${SEP}(.+?)\\.\\.(.+)$`).exec(rest);
+        const m = RANGE.exec(rest);
         if (!m) return null;
         const [lo, hi] = [Number(m[1]), Number(m[2])];
         if (!Number.isFinite(lo) && !Number.isFinite(hi)) return null; // any temp
@@ -298,7 +311,7 @@ export function expandTemps(
             ? { mode: "exact", minTemp: temperature, maxTemp: temperature }
             : null;
         }
-        const m = new RegExp(`pool${SEP}(.+?)\\.\\.(.+)$`).exec(rest);
+        const m = RANGE.exec(rest);
         if (!m) return null;
         const lo = Number(m[1]);
         const hi = Number(m[2]);
