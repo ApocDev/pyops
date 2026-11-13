@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { bridgeStatusSubscription } from "../lib/live-query-options";
 import { useGameLinked } from "../lib/use-game-linked";
+import { TOPBAR_LABEL } from "./nav-links";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 
 /** At-a-glance in-game link status for the global nav: a colored dot + label,
@@ -56,10 +57,11 @@ export function BridgeIndicator() {
       <Link
         to="/settings"
         search={{ tab: "link" }}
+        aria-label={label}
         className="flex items-center gap-1.5 px-3 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground"
       >
         <span className={`inline-block size-2 rounded-full ${color}`} />
-        <span className="hidden sm:inline">{label}</span>
+        <span className={`hidden sm:inline ${TOPBAR_LABEL}`}>{label}</span>
       </Link>
     </Tooltip>
   );

@@ -7,7 +7,7 @@ import { HorizonMenu } from "./horizon-menu";
 import { LogisticsMenu } from "./logistics-menu";
 import { NavMobile } from "./nav-mobile";
 import { SearchButton } from "./search-button";
-import { navLinkActive, SETTINGS_LINK, visibleNavLinks } from "./nav-links";
+import { navLinkActive, SETTINGS_LINK, TOPBAR_LABEL, visibleNavLinks } from "./nav-links";
 import { UndoButton } from "./undo-button";
 import { activeRunCount, subscribeRuns } from "../lib/chat-store";
 import { dataCapabilitiesFn, modDriftFn } from "../server/factorio";
@@ -25,11 +25,12 @@ function DataDriftIndicator() {
     <Tooltip content="Reference data no longer matches the current mods or data reader — click to review and re-sync.">
       <Button
         variant="ghost"
+        aria-label="Data stale"
         onClick={() => driftModal.open()}
         className="h-full gap-1.5 px-3 font-normal text-warning hover:bg-muted/50 hover:text-warning"
       >
         <span className="inline-block size-2 rounded-full bg-warning" />
-        <span className="hidden sm:inline">Data stale</span>
+        <span className={`hidden sm:inline ${TOPBAR_LABEL}`}>Data stale</span>
       </Button>
     </Tooltip>
   );
@@ -44,10 +45,12 @@ function RunIndicator() {
     <Tooltip content="Assistant runs in progress">
       <Link
         to="/assistant"
+        aria-label={`${n} running`}
         className="flex items-center gap-1.5 px-3 text-sm text-primary hover:bg-muted/50"
       >
         <span className="inline-block size-2 animate-pulse rounded-full bg-primary" />
-        {n} running
+        {n}
+        <span className={TOPBAR_LABEL}>running</span>
       </Link>
     </Tooltip>
   );
@@ -73,7 +76,7 @@ export function AppNav() {
       {/* Full inline bar — only once it actually fits (~1400px). Below that it would
           overflow and scroll sideways (notably at the 1280 Steam Deck width), so the
           hamburger drawer takes over. */}
-      <div className="hidden min-w-0 flex-1 items-stretch min-[1400px]:flex">
+      <div className="@container/topbar hidden min-w-0 flex-1 items-stretch min-[1400px]:flex">
         {visibleNavLinks(caps.data).map((link) => {
           const { to, label, icon: Icon } = link;
           return (
@@ -87,12 +90,13 @@ export function AppNav() {
             </Link>
           );
         })}
-        {/* The search field is the one thing here that gives way when the bar runs
-            short: it can shrink to its icon and key hint (min-w-21 = that + px-2). */}
+        {/* When the bar runs short, the search field shrinks to its icon and key hint
+            (min-w-21 = that + px-2), and the horizon and project names truncate. Below
+            the TOPBAR_LABEL width the status chips also fold to their dot or count. */}
         <span className="ml-auto flex min-w-21 items-center px-2">
           <SearchButton size="short" />
         </span>
-        <span className="flex items-stretch">
+        <span className="flex min-w-0 items-stretch whitespace-nowrap">
           <UndoButton />
           <DataDriftIndicator />
           <RunIndicator />

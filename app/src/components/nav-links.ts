@@ -69,3 +69,9 @@ export function navLinkActive(link: NavLink, pathname: string): boolean {
 
 /** Settings sits in the right cluster on desktop; folded in with the rest on mobile. */
 export const SETTINGS_LINK: NavLink = { to: "/settings", label: "Settings", icon: Settings };
+
+/** Hides a label inside the desktop top bar (the `topbar` container in app-nav)
+ * until the bar has room for every label, so status chips fold to their dot and
+ * the bar never runs past the window. Outside the bar (the mobile drawer) the
+ * class matches nothing and the label shows. */
+export const TOPBAR_LABEL = "@max-[98rem]/topbar:hidden";
