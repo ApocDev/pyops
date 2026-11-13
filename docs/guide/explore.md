@@ -16,10 +16,24 @@ active project's synced Factorio data and do not change the plan.
 2. Search under **items & fluids** using the localized name.
 3. Select a result.
 
-The detail pane shows the good's properties and two recipe groups:
+The detail pane shows the good's properties, its estimated price in ¥ per unit, and two
+recipe lists:
 
-- **Produced by** lists recipes that create it.
-- **Consumed by** lists recipes that use it.
+- **Produced by** lists recipes that create it, cheapest per unit first within each
+  availability group. Each row has a bar of its ¥ per unit of the selected good, on one
+  scale for the whole list. The solid part is the good's price. The hatched part is waste,
+  the value the recipe spends beyond what its products are worth. A recipe with several
+  outputs splits its cost by each output's share of the output value.
+- **Consumed by** lists recipes that use it, busiest first, with their cost per craft.
+
+Recycling and void recipes are hidden by default. Turn on **Recycling & void** in a list's
+header to show them in their own group at the bottom.
+
+On a wide window the two lists sit side by side. On a narrow window they become two tabs,
+**Produced by** and **Consumed by**.
+
+¥ is the cost analysis estimate of a recipe's inputs, machine time, and power. It is not an
+in-game currency. Lower is cheaper.
 
 Select an ingredient or product chip to move to that good and walk through the recipe
 graph. This is useful when comparing overhaul-mod recipe tiers or tracing an unfamiliar
@@ -30,9 +44,9 @@ temperature. The internal prototype name is available for debugging and Assistan
 references, but ordinary planning uses the localized display name.
 
 <AppScreenshot
-  src="/images/browse-automation-science.png"
-  alt="The Explore Search view for Automation science pack, with available and research-locked producer recipes"
-  caption="Search groups the recipes that produce a good by current availability and keeps their inputs, outputs, machines, and unlocks visible."
+  src="/images/explore-iron-plate.png"
+  alt="The Explore Search view for Iron plate, with producer recipes on a price ladder beside the consumer list"
+  caption="Producers of Iron plate ranked by ¥ per plate. The cheapest available recipe still wastes 75% of its input value."
 />
 
 ## Walk the full tree with Dependencies
