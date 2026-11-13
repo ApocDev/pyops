@@ -10,6 +10,7 @@ import { prodScaledAmount } from "./productivity";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
+import { RecipeLabel } from "#/components/recipe-label.tsx";
 
 /** One ingredient/product line: icon + amount + name (+ temps / probability). */
 function Comp(c: {
@@ -348,18 +349,31 @@ export function ItemCard({
   );
 }
 
+type ListRecipe = { name: string; display: string | null; differs?: string };
+
 /** Compact recipe list for the item tooltip — so you can see at a glance whether
- * a good is used elsewhere (import it) or only here (build it local). */
+ * a good is used elsewhere (import it) or only here (build it local). Recipes
+ * sharing a display name fold into one group, each labeled by what sets it
+ * apart, so nine "Iron ore" rows take one slot of the cap instead of nine. */
 function RecipeList({
   label,
   recipes,
   empty,
 }: {
   label: string;
-  recipes: { name: string; display: string | null }[];
+  recipes: ListRecipe[];
   empty: string;
 }) {
   const CAP = 7;
+  const GROUP_CAP = 9;
+  const groups = new Map<string, ListRecipe[]>();
+  for (const r of recipes) {
+    const key = r.display ?? r.name;
+    const g = groups.get(key);
+    if (g) g.push(r);
+    else groups.set(key, [r]);
+  }
+  const entries = [...groups];
   return (
     <div className="mt-1.5">
       <FieldLabel className="text-muted-foreground/70">
@@ -369,14 +383,43 @@ function RecipeList({
         <div className="text-sm italic text-muted-foreground/60">{empty}</div>
       ) : (
         <div className="mt-0.5 flex flex-col gap-0.5">
-          {recipes.slice(0, CAP).map((r) => (
-            <div key={r.name} className="flex min-w-0 items-center gap-1.5">
-              <Icon kind="recipe" name={r.name} size="sm" noTitle />
-              <span className="truncate text-foreground/90">{r.display ?? r.name}</span>
+          {entries.slice(0, CAP).map(([display, group]) =>
+            group.length === 1 ? (
+              <div key={group[0].name} className="flex min-w-0 items-center gap-1.5">
+                <Icon kind="recipe" name={group[0].name} size="sm" noTitle />
+                <RecipeLabel
+                  display={display}
+                  differs={group[0].differs}
+                  className="text-foreground/90"
+                />
+              </div>
+            ) : (
+              <div key={display} className="flex min-w-0 flex-col gap-0.5">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <Icon kind="recipe" name={group[0].name} size="sm" noTitle />
+                  <span className="truncate text-foreground/90">{display}</span>
+                  <span className="shrink-0 text-muted-foreground">· {group.length} recipes</span>
+                </div>
+                <div className="ml-2 flex flex-col gap-0.5 border-l border-border pl-2.5">
+                  {group.slice(0, GROUP_CAP).map((r) => (
+                    <div key={r.name} className="flex min-w-0 items-center gap-1.5">
+                      <Icon kind="recipe" name={r.name} size="xs" noTitle />
+                      <span className="truncate text-foreground/90">{r.differs ?? display}</span>
+                    </div>
+                  ))}
+                  {group.length > GROUP_CAP && (
+                    <div className="text-xs text-muted-foreground/70">
+                      +{group.length - GROUP_CAP} more…
+                    </div>
+                  )}
+                </div>
+              </div>
+            ),
+          )}
+          {entries.length > CAP && (
+            <div className="text-xs text-muted-foreground/70">
+              +{entries.slice(CAP).reduce((n, [, g]) => n + g.length, 0)} more…
             </div>
-          ))}
-          {recipes.length > CAP && (
-            <div className="text-xs text-muted-foreground/70">+{recipes.length - CAP} more…</div>
           )}
         </div>
       )}

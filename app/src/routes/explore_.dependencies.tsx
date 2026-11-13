@@ -14,6 +14,7 @@ import { HelpButton } from "#/components/help-drawer.tsx";
 import { SidebarShell } from "#/components/sidebar-shell.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { DepsTreePane } from "#/components/deps/deps-tree-pane.tsx";
+import { RecipeLabel } from "#/components/recipe-label.tsx";
 
 /** The dependency explorer (#100): the transitive requires / required-by tree
  * of a good or recipe. Root + direction live in the URL so every view is
@@ -90,17 +91,17 @@ function Deps() {
                   The tree keeps the and/or distinction: a good is made by{" "}
                   <span className="text-foreground">any one</span> of its producer recipes, while a
                   recipe needs <span className="text-foreground">all</span> of its ingredients.
-                  Collapsed branches show the size of what&apos;s beneath (&quot;12 goods via 4
-                  recipes&quot;); locked recipes are marked with the tech that gates them.
+                  Locked recipes are marked with the tech that gates them. Recipes that share a name
+                  get a second line saying what sets them apart.
                 </p>
                 <p>
                   <span className="text-foreground">Worked example.</span> Pick a good and switch to{" "}
                   <span className="text-foreground">required by</span> to ask &quot;what breaks if I
                   can&apos;t make this?&quot; — the tree fans out to every downstream recipe and
                   good that depends on it. Switch to{" "}
-                  <span className="text-foreground">requires</span> and you get the opposite: the
-                  full shopping list of prerequisites to unlock before that good is buildable. A
-                  locked branch shows the gating tech, so you can read a plan straight off the tree.
+                  <span className="text-foreground">requires</span> and you get the opposite: every
+                  prerequisite of every recipe that could make it, not one chain to build. A locked
+                  branch shows the gating tech, so you can read a plan straight off the tree.
                 </p>
               </HelpButton>
             </div>
@@ -150,7 +151,7 @@ function Deps() {
                   size="sm"
                   noTitle
                 />
-                <span className="min-w-0 flex-1 truncate text-left">{r.display ?? r.name}</span>
+                <RecipeLabel display={r.display ?? r.name} differs={r.differs} className="flex-1" />
                 {r.kind === "fluid" && (
                   <span className="text-info" title="Fluid">
                     <Droplet className="size-3.5" />

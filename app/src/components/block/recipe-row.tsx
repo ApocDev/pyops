@@ -64,6 +64,7 @@ export function RecipeRow({
   name,
   row,
   display,
+  differs,
   grouped,
   off,
   error,
@@ -84,6 +85,8 @@ export function RecipeRow({
   name: string;
   row: SolveResult["rows"][number] | undefined;
   display: string;
+  /** what sets this recipe apart when its display name repeats */
+  differs?: string;
   /** member of a sub-block (#7) */
   grouped: boolean;
   /** toggled out of the solve (#73) */
@@ -195,9 +198,17 @@ export function RecipeRow({
                 open.rowMenu(e, name);
               }}
             >
-              <span className={`block truncate ${off ? "line-through" : ""}`} title={display}>
+              <span
+                className={`line-clamp-2 break-words ${off ? "line-through" : ""}`}
+                title={display}
+              >
                 {display}
               </span>
+              {differs && (
+                <span className="line-clamp-2 text-sm text-muted-foreground" title={differs}>
+                  {differs}
+                </span>
+              )}
               {off ? (
                 <Tooltip content="Excluded from the solve">
                   <span className="text-sm font-semibold text-muted-foreground">Disabled</span>

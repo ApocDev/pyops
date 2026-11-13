@@ -54,7 +54,7 @@ export function DepsTreePane({
   const fetched = useMemo(() => Object.keys(tree.nodes).length, [tree.nodes]);
   const summary =
     dir === "requires"
-      ? `Requires ${root.closure.goods} goods via ${root.closure.recipes} recipes`
+      ? `${root.closure.goods} goods · ${root.closure.recipes} recipes reachable across all alternatives`
       : `Required by ${root.closure.recipes} recipes touching ${root.closure.goods} goods`;
 
   return (
@@ -134,7 +134,6 @@ export function DepsTreePane({
       {filter.trim() ? (
         <DepsFilterResults
           tree={tree}
-          dir={dir}
           query={filter}
           onClear={() => onFilterChange("")}
           onExplore={onExplore}
