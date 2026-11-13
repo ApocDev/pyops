@@ -150,4 +150,19 @@ describe("solve projection generation", () => {
     });
     expect(await ensureSolvedProjections()).toBe(0);
   });
+
+  // The lab bonuses size the science block, whose pins include beacon upkeep,
+  // so a change to either one alone is a research-context change.
+  it("treats a lab bonus change as a research-context change", () => {
+    const ctx = { researched: ["a"], labSpeedBonus: 0, labProductivityBonus: 0 };
+    setResearchHorizon(ctx);
+    const before = currentSolveGeneration();
+    expect(setResearchHorizon({ ...ctx, labSpeedBonus: 2.5 })).toBe(true);
+    expect(currentSolveGeneration()).toBe(before + 1);
+    expect(setResearchHorizon({ ...ctx, labSpeedBonus: 2.5 })).toBe(false);
+    expect(setResearchHorizon({ ...ctx, labSpeedBonus: 2.5, labProductivityBonus: 0.3 })).toBe(
+      true,
+    );
+    expect(currentSolveGeneration()).toBe(before + 2);
+  });
 });

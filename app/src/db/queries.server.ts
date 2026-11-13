@@ -4107,6 +4107,10 @@ export function setResearchHorizon(x: {
   target?: string | null;
   miningProductivityBonus?: number | null;
   recipeProductivityBonuses?: Record<string, number> | null;
+  /** force research speed bonus (LuaForce.laboratory_speed_modifier) */
+  labSpeedBonus?: number;
+  /** force research productivity bonus (LuaForce.laboratory_productivity_bonus) */
+  labProductivityBonus?: number;
 }): boolean {
   const desired = new Map<string, string | null>();
   const setJson = (values: string[]) => JSON.stringify([...new Set(values)].sort());
@@ -4136,6 +4140,12 @@ export function setResearchHorizon(x: {
       desired.set("research_recipe_productivity_bonuses", JSON.stringify(clean));
     }
   }
+  // Lab bonuses size the science block, whose pins (pack demand and beacon
+  // upkeep) feed the factory, so a change counts like any other research change.
+  if (x.labSpeedBonus !== undefined)
+    desired.set("research_lab_speed_bonus", String(x.labSpeedBonus));
+  if (x.labProductivityBonus !== undefined)
+    desired.set("research_lab_productivity_bonus", String(x.labProductivityBonus));
   const before = metaAll();
   const changed = [...desired].some(([key, value]) =>
     value == null ? Object.prototype.hasOwnProperty.call(before, key) : before[key] !== value,

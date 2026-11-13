@@ -12,6 +12,12 @@
  *
  * Productivity divides both sides: each lab earns more research per second, so
  * fewer labs reach the target rate and fewer packs are consumed getting there.
+ *
+ * The force's research speed bonus (LuaForce.laboratory_speed_modifier) is a
+ * separate factor: lab speed = researching_speed × (1 + bonus) × module speed.
+ * Its research productivity bonus (LuaForce.laboratory_productivity_bonus) adds
+ * to module productivity, the way LuaEntity.productivity_bonus sums force and
+ * module bonuses into one figure.
  */
 import { computeEffects, type BeaconConfig, type BeaconEff, type ModuleEff } from "./effects.ts";
 
@@ -32,6 +38,10 @@ export type ScienceBankInput = {
   packs: Record<string, number>;
   /** seconds of lab time per single pack at speed 1 */
   labSecondsPerPack: number;
+  /** the force's research speed bonus from technologies (0 = none) */
+  labSpeedBonus: number;
+  /** the force's research productivity bonus from technologies (0 = none) */
+  labProductivityBonus: number;
   modules: string[];
   beacons: BeaconConfig[];
   moduleDb: Map<string, ModuleEff>;
@@ -46,9 +56,14 @@ export type ScienceBankResult = {
   labs: number;
   /** Total packs per second across every type, as entered. */
   totalPerSec: number;
-  /** Productivity multiplier applied by modules and beacons. */
+  /** Productivity multiplier: modules, beacons, and the research bonus. */
   productivityMult: number;
+  /** Speed multiplier from modules and beacons only. */
   speedMult: number;
+  /** The force's research speed bonus the labs were sized with. */
+  labSpeedBonus: number;
+  /** The force's research productivity bonus, already in productivityMult. */
+  labProductivityBonus: number;
   /** Pack → what the factory must supply per second. */
   packDemand: Record<string, number>;
   /** Beacon buildings needed, whole (a fraction cannot be placed). */
@@ -63,6 +78,7 @@ export type ScienceBankResult = {
 export function computeScienceBank(input: ScienceBankInput): ScienceBankResult {
   const { lab, moduleDb, beaconDb } = input;
   const fx = computeEffects(true, input.modules, input.beacons, moduleDb, beaconDb);
+  const prodMult = fx.prodMult + input.labProductivityBonus;
 
   const accepted = lab.inputs?.length ? new Set(lab.inputs) : null;
   const unsupported = Object.keys(input.packs)
@@ -79,12 +95,12 @@ export function computeScienceBank(input: ScienceBankInput): ScienceBankResult {
   let totalPerSec = 0;
   for (const [pack, rate] of Object.entries(input.packs)) {
     if (!(rate > 0)) continue;
-    packDemand[pack] = rate / fx.prodMult;
+    packDemand[pack] = rate / prodMult;
     totalPerSec += rate;
   }
   const labs =
     (totalPerSec * input.labSecondsPerPack) /
-    Math.max(1e-9, lab.researchingSpeed * fx.speedMult * fx.prodMult);
+    Math.max(1e-9, lab.researchingSpeed * (1 + input.labSpeedBonus) * fx.speedMult * prodMult);
 
   const beaconBuildings = input.beacons.map((cfg) => ({
     beacon: cfg.beacon,
@@ -112,8 +128,10 @@ export function computeScienceBank(input: ScienceBankInput): ScienceBankResult {
   return {
     labs,
     totalPerSec,
-    productivityMult: fx.prodMult,
+    productivityMult: prodMult,
     speedMult: fx.speedMult,
+    labSpeedBonus: input.labSpeedBonus,
+    labProductivityBonus: input.labProductivityBonus,
     packDemand,
     beaconBuildings,
     upkeep,

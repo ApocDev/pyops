@@ -2,7 +2,9 @@
  * `state.research` — the mod pushes the force's full researched-tech set. We store
  * it as the planning horizon's researched set (the same slot the manual picker
  * fills), so the existing "now"-mode availability uses real unlock state with no
- * extra wiring. Fire-and-forget: no response needed.
+ * extra wiring. It also carries the force's lab speed and productivity bonuses,
+ * which size the science block's labs and pack demand. Fire-and-forget: no
+ * response needed.
  */
 import type { BridgeRequest, BridgeResponse } from "../protocol.ts";
 import * as q from "../../../db/queries.server.ts";
@@ -13,6 +15,8 @@ export async function handleResearch(req: BridgeRequest): Promise<BridgeResponse
     researched?: unknown;
     force?: unknown;
     mining_productivity_bonus?: unknown;
+    laboratory_speed_modifier?: unknown;
+    laboratory_productivity_bonus?: unknown;
     recipe_productivity_bonuses?: unknown;
   };
   const researched = Array.isArray(payload.researched)
@@ -46,15 +50,17 @@ export async function handleResearch(req: BridgeRequest): Promise<BridgeResponse
         )
       : null;
 
-  const changed = q.setResearchHorizon(
-    hasMiningBonus || hasRecipeBonuses
-      ? {
-          researched,
-          ...(hasMiningBonus ? { miningProductivityBonus: miningBonus } : {}),
-          ...(hasRecipeBonuses ? { recipeProductivityBonuses: recipeBonuses } : {}),
-        }
-      : { researched },
-  );
+  // Lab bonuses change the science block's pins (pack demand and beacon upkeep),
+  // so they go through the same change check as the rest. A missing bonus is 0.
+  const labBonus = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+
+  const changed = q.setResearchHorizon({
+    researched,
+    ...(hasMiningBonus ? { miningProductivityBonus: miningBonus } : {}),
+    ...(hasRecipeBonuses ? { recipeProductivityBonuses: recipeBonuses } : {}),
+    labSpeedBonus: labBonus(payload.laboratory_speed_modifier),
+    labProductivityBonus: labBonus(payload.laboratory_productivity_bonus),
+  });
   q.metaSet("research_synced_at", new Date().toISOString());
   q.metaSet("research_synced_count", String(researched.length));
   if (changed) await resolveAllBlocks();

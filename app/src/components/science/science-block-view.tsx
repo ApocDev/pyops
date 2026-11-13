@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Calculator, FlaskConical } from "lucide-react";
 import { labOptionsFn, saveScienceBankFn, scienceBlockFn } from "../../server/science";
+import { researchHorizonSubscription } from "../../lib/live-query-options";
 import type { ScienceBank } from "../../db/schema";
 import { Icon } from "../../lib/icons";
 import { formatPower, formatQty } from "../../lib/format";
@@ -47,6 +48,21 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
     mutationFn: (bank: ScienceBank) => saveScienceBankFn({ data: { id: blockId, bank } }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["scienceBlock"] }),
   });
+
+  // Research can change the lab bonuses while this page is open. AppLiveQueries
+  // already polls the research horizon, which carries them, so re-solve the bank
+  // when they move instead of running a second poll.
+  const horizon = useQuery(researchHorizonSubscription);
+  const labBonuses = horizon.data
+    ? `${horizon.data.labBonuses.speed}/${horizon.data.labBonuses.productivity}`
+    : undefined;
+  const seenLabBonuses = useRef(labBonuses);
+  useEffect(() => {
+    const previous = seenLabBonuses.current;
+    seenLabBonuses.current = labBonuses;
+    if (previous !== undefined && previous !== labBonuses)
+      void qc.invalidateQueries({ queryKey: ["scienceBlock"] });
+  }, [labBonuses, qc]);
 
   // Adopt the stored bank once, then edit locally so typing stays responsive.
   useEffect(() => {
@@ -134,7 +150,8 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
               result
                 ? {
                     speed: result.speedMult - 1,
-                    productivity: result.productivityMult - 1,
+                    // modules and beacons only: the research bonus is not a module
+                    productivity: result.productivityMult - 1 - result.labProductivityBonus,
                     consumption: 0,
                   }
                 : undefined
@@ -186,7 +203,7 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
           const drawnPerSec = Object.values(result.packDemand).reduce((sum, r) => sum + r, 0);
           const pct = `${Math.round((result.productivityMult - 1) * 100)}%`;
           return (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Stat
                 label="Labs"
                 value={formatQty(result.labs)}
@@ -213,7 +230,12 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
                     ? `${formatQty(perMin(result.totalPerSec - drawnPerSec))}/min of science for free`
                     : undefined
                 }
-                hint="From modules and beacons. Pack demand is divided by it."
+                hint="From modules, beacons, and research. Pack demand is divided by it."
+              />
+              <Stat label="Research speed" value={`+${Math.round(result.labSpeedBonus * 100)}%`} />
+              <Stat
+                label="Research productivity"
+                value={`+${Math.round(result.labProductivityBonus * 100)}%`}
               />
             </div>
           );
@@ -284,7 +306,7 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
             result
               ? {
                   speed: result.speedMult - 1,
-                  productivity: result.productivityMult - 1,
+                  productivity: result.productivityMult - 1 - result.labProductivityBonus,
                   consumption: 0,
                 }
               : undefined
