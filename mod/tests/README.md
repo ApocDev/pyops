@@ -10,6 +10,9 @@ bundled luassert).
 - `tests/combinator-test.lua` — `combinator.lua`'s pure helpers, exposed for tests
   on `Combinator._internal`: `group_add`, `sorted_groups`, `measured_totals`,
   `totals_caption`, `network_signal`.
+- `tests/format-test.lua` — `format.lua`, the number and state helpers behind the
+  Blocks board and the build sheet: slot numbers, rate units, built state, power,
+  and the search match.
 
 These need no game state, so the assertions are deterministic. Logic that touches
 `LuaEntity`/`game`/blueprints (`on_selected`, `build_combinator`, GUI handlers)
@@ -22,7 +25,7 @@ present — inert in normal play (it is never a runtime dependency of pyops):
 
 ```lua
 if script.active_mods["factorio-test"] then
-  require("__factorio-test__/init")({ "tests/combinator-test" }, {})
+  require("__factorio-test__/init")({ "tests/combinator-test", "tests/format-test" }, {})
 end
 ```
 

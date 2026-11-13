@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { db, switchDatabase } from "./index.server.ts";
 import {
   blockBuildStatus,
+  blockBuildTotals,
   blockMissingRefs,
   blockReferenceFingerprint,
   blocksForGood,
@@ -1416,6 +1417,13 @@ describe("blockBuildStatus", () => {
 
   it("returns empty for an unknown block id", () => {
     expect(blockBuildStatus(999999)).toEqual([]);
+  });
+
+  it("blockBuildTotals matches blockBuildStatus's totals for every block in one pass", () => {
+    const totals = blockBuildTotals();
+    expect(totals.get(1)).toEqual({ need: 10, missing: 3 });
+    expect(totals.get(2)).toEqual({ need: 2, missing: 0 });
+    expect(totals.get(4)).toEqual({ need: 2, missing: 1 }); // machine-total fallback
   });
 });
 

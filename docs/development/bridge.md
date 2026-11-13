@@ -111,17 +111,20 @@ bump. Changing required fields, field meaning, or correlation behavior does.
 `app/src/server/bridge/handlers.ts` dispatches inbound request types to small domain
 handlers:
 
-| Type             | Ownership and result                                                                |
-| ---------------- | ----------------------------------------------------------------------------------- |
-| `bridge.ping`    | Registers liveness and returns `bridge.pong` with the app protocol version          |
-| `state.research` | Replaces the researched set, recipe/mining productivity, and lab speed/productivity |
-| `state.turd`     | Replaces synchronized TURD selections and refreshes affected solves                 |
-| `state.built`    | Replaces placed-machine counts used by built-versus-required views                  |
-| `state.stats`    | Replaces current production and consumption rates                                   |
-| `sushi.trace`    | Stores the most recent measured sushi-loop geometry                                 |
-| `task.capture`   | Creates a project task from the in-game capture dialog                              |
-| `task.list`      | Returns the complete task list for the in-game panel                                |
-| `bridge.result`  | Resolves an awaiting app-to-mod request by `request_id`                             |
+| Type             | Ownership and result                                                                                           |
+| ---------------- | -------------------------------------------------------------------------------------------------------------- |
+| `bridge.ping`    | Registers liveness and returns `bridge.pong` with the app protocol version; also pushes a changed `block.list` |
+| `state.research` | Replaces the researched set, recipe/mining productivity, and lab speed/productivity                            |
+| `state.turd`     | Replaces synchronized TURD selections and refreshes affected solves                                            |
+| `state.built`    | Replaces placed-machine counts used by built-versus-required views                                             |
+| `state.stats`    | Replaces current production and consumption rates                                                              |
+| `sushi.trace`    | Stores the most recent measured sushi-loop geometry                                                            |
+| `task.capture`   | Creates a project task from the in-game capture dialog                                                         |
+| `task.list`      | Returns the complete task list for the in-game panel                                                           |
+| `block.list`     | Returns the enabled blocks for the in-game Blocks tab (see below)                                              |
+| `block.show`     | Pushes `cmd.show_block` for the block `id` a board slot was clicked for                                        |
+| `block.open`     | Records the block `id` to open; the web UI follows it through bridge status                                    |
+| `bridge.result`  | Resolves an awaiting app-to-mod request by `request_id`                                                        |
 
 Live-state messages are snapshots, not patches. The mod sends the complete canonical set
 on connection, explicit sync, and relevant game events. Machine changes are debounced into
@@ -137,6 +140,8 @@ heartbeats and identical snapshots do not trigger unnecessary block solves.
 Once a peer is known, `sendToPeer()` can push commands to Factorio:
 
 - `request.sync` asks the mod to send complete live state;
+- `block.list` replaces the Blocks tab's data, both as the reply to the mod's request and
+  as an unsolicited push when the list changed;
 - `cmd.show_block` and `cmd.hide_block` control the production summary panel;
 - `cmd.locate` delegates supported entity searches to Factory Search;
 - `cmd.blueprint` places a generated blueprint on the player's cursor when safe;
@@ -173,13 +178,14 @@ The Factorio side is a normal 2.1 mod with no JavaScript build step:
 | File             | Responsibility                                                                                              |
 | ---------------- | ----------------------------------------------------------------------------------------------------------- |
 | `control.lua`    | Lifecycle, panel shell, UDP poll/heartbeat, live-state collection, command dispatch, and event registration |
-| `summary.lua`    | Helmod-style saved-block summary and logistics display                                                      |
+| `blocks.lua`     | Blocks tab slot board, search, and slot clicks                                                              |
+| `summary.lua`    | Helmod-style build sheet with built-versus-needed per row and logistics display                             |
+| `format.lua`     | Pure number, rate-unit, and built-state helpers shared by the board and sheet                               |
 | `tasks.lua`      | In-game task list, detail view, and task capture                                                            |
 | `sushi.lua`      | Belt-loop tracing, circuit readers, and trace cleanup                                                       |
 | `combinator.lua` | Request-combinator planning tools                                                                           |
-| `data.lua`       | Custom inputs, shortcuts, and runtime prototypes                                                            |
+| `data.lua`       | Custom inputs, shortcuts, runtime prototypes, and the two custom GUI styles                                 |
 | `settings.lua`   | Bridge port and app-driven Lua-eval settings                                                                |
-| `gui-styles.lua` | Shared Factorio GUI style definitions                                                                       |
 
 ### Saved-block summary
 
@@ -205,6 +211,49 @@ recent trace. The resulting tile, segment, and closure measurements are sent as
 Splitter internals are not directly circuit-readable, and adjacent branches can influence
 an entire-belt read. The result is an operational loop estimate rather than an exact item
 census.
+
+### Blocks tab
+
+The Blocks tab is a slot board fed by `block.list`. The payload is already grouped and
+ordered, so the mod only renders it:
+
+```ts
+type BlockListPayload = {
+  groups: {
+    name: string; // folder path ("Metals / Iron"); "Ungrouped" comes last
+    blocks: {
+      id: number;
+      name: string;
+      icon: { kind: string; name: string } | null;
+      goal: { name: string; kind: "item" | "fluid"; rate: number; unit: string } | null;
+      powerW: number;
+      health: "ok" | "warn" | "error";
+      have: number; // whole machines built, same rule as blockBuildStatus
+      need: number; // whole machines the block requires
+    }[];
+  }[];
+};
+```
+
+Only enabled blocks are listed. `goal.rate` is per second and `unit` is the block's
+display unit (`s`, `min`, `h`), which the mod applies. `have` and `need` come from the
+app's `state.built` snapshot and cached block machines, so the mod does not repeat the
+built-versus-required matching.
+
+The mod requests the list on connect, resync, and panel open. After the first request,
+every `bridge.ping` rebuilds the payload and pushes it only when it differs from the last
+one sent. That covers block edits, undo, project switches, and new built counts without a
+hook on each write path.
+
+A slot click sends `block.show`, and the app answers with the same `cmd.show_block` the web
+button sends. That payload carries the block `id`, icon, goal, and a `built` count per
+recipe row for the sheet's **Built** column. When a new `block.list` changes the open
+block's `have`, the mod asks for the sheet again so that column stays current.
+
+`block.open` (shift-click, or the sheet's title-bar button) is stored in app memory and
+returned as `openBlock` from the bridge status server function. The web UI's
+`GameOpenBlock` listener navigates to `/block/$id` when a newer request appears. Requests
+older than the page load are ignored.
 
 ### Tasks
 
@@ -259,8 +308,8 @@ require Factorio's normal reload/restart path.
   lockstep.
 - `server.test.ts` covers binding, heartbeat, malformed input, packet accounting, transient
   send errors, and app-to-mod round trips.
-- handler tests cover payload normalization, persistence, idempotent re-solve behavior, and
-  task responses.
+- handler tests cover payload normalization, persistence, idempotent re-solve behavior,
+  task responses, and the block-list grouping and change-only push.
 - `inspect.test.ts` covers correlation, missing peers, timeouts, and late replies.
 - `app/e2e/bridge.e2e.ts` exercises a UDP round trip against the running application.
 - pure Lua helpers under `mod/tests/` run through `factorio-test`; GUI and game-API behavior

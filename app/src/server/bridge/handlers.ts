@@ -11,6 +11,12 @@ import { handleBuilt } from "./handlers/built.ts";
 import { handleStats } from "./handlers/stats.ts";
 import { handleSushiTrace } from "./handlers/sushi.ts";
 import { handleTaskCapture, handleTaskList } from "./handlers/tasks.ts";
+import {
+  handleBlockList,
+  handleBlockOpen,
+  handleBlockShow,
+  pushBlockListIfChanged,
+} from "./handlers/blocks.ts";
 import { handleModResult } from "./inspect.ts";
 
 export type BridgeHandler = (
@@ -19,12 +25,16 @@ export type BridgeHandler = (
 
 const handlers: Record<string, BridgeHandler> = {
   // Connection check — the mod's heartbeat. Echo back (with our protocol version
-  // so the mod can warn on a mismatch) so it shows "connected".
-  "bridge.ping": (req) => ({
-    type: "bridge.pong",
-    request_id: req.request_id,
-    protocol_version: PROTOCOL_VERSION,
-  }),
+  // so the mod can warn on a mismatch) so it shows "connected". The heartbeat is
+  // also when a changed block list goes out to the in-game board.
+  "bridge.ping": (req) => {
+    pushBlockListIfChanged();
+    return {
+      type: "bridge.pong",
+      request_id: req.request_id,
+      protocol_version: PROTOCOL_VERSION,
+    };
+  },
   // Live force state: researched techs → planning horizon's researched set.
   "state.research": handleResearch,
   // Live force state: TURD selections → stored master→sub picks (re-solves blocks).
@@ -39,6 +49,11 @@ const handlers: Record<string, BridgeHandler> = {
   "task.capture": handleTaskCapture,
   // The in-game panel pulls the project's tasks to render (list + detail).
   "task.list": handleTaskList,
+  // The in-game Blocks tab pulls the enabled blocks (slot board), asks for a
+  // block's build sheet, or asks the web UI to open a block.
+  "block.list": handleBlockList,
+  "block.show": handleBlockShow,
+  "block.open": handleBlockOpen,
   // A reply to an app→mod inspect request (correlated by request_id). Fire-and-forget
   // here — handleModResult resolves the pending promise; no response goes back.
   "bridge.result": (req) => {

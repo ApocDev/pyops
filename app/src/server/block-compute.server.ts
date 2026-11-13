@@ -1840,6 +1840,15 @@ export async function showBlockInGame(id: number) {
   const goods = (arr: { name: string; kind: string; rate: number }[], machineCount: number) =>
     arr.filter((c) => !PSEUDO.has(c.name)).map((c) => good(c, machineCount));
 
+  // Built-vs-needed per row (the sheet's Built column), from the game's last
+  // state.built snapshot. Recipe-blind machines (boilers, generators, …) only
+  // have a machine-wide total, so those rows show that total.
+  const status = q.blockBuildStatus(id)[0];
+  const builtFor = (machine: string, recipe: string): number | null =>
+    status?.recipes.find((s) => s.machine === machine && s.recipe === recipe)?.built ??
+    status?.machineFallback?.find((m) => m.machine === machine)?.builtTotal ??
+    null;
+
   // Per-recipe rows for the Helmod-style matrix: each recipe's products, its
   // factory + count (the blueprint button), and its ingredients.
   const recipes = r.rows
@@ -1874,6 +1883,7 @@ export async function showBlockInGame(id: number) {
         recipe: row.recipe,
         recipeDisplay: row.display,
         count: Math.ceil(count - 1e-6),
+        built: builtFor(row.machine!.name, row.recipe),
         modules: row.modules ?? [],
         products,
         ingredients,
@@ -1892,13 +1902,26 @@ export async function showBlockInGame(id: number) {
     .filter((f) => !PSEUDO.has(f.name))
     .map(boundary);
   const inputs = r.imports.filter((f) => !PSEUDO.has(f.name)).map(boundary);
+  const goal = goalFlows(input)[0];
 
   ensureBridge();
   return {
     sent: sendToPeer({
       type: "cmd.show_block",
       payload: {
+        id,
         name: row.name,
+        iconKind: row.iconKind,
+        iconName: row.iconName,
+        // goals[0] in the sheet header, per second plus the block's display unit
+        goal: goal
+          ? {
+              name: goal.name,
+              kind: goal.kind,
+              rate: Math.abs(goal.rate),
+              unit: input.goals[0].unit ?? "s",
+            }
+          : null,
         powerW: r.power.totalW,
         heatW: r.power.heatW,
         logistics,

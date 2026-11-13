@@ -1,7 +1,8 @@
 -- In-game task panel. Renders the project's tasks — pushed from the
 -- app over the bridge (task.list) — as a collapsible master-detail list, and owns
 -- the New-task capture dialog (task.capture). Read-only for now: status/step writes
--- land in a later pass. Uses the style kit in data.lua (pyops_*).
+-- land in a later pass. Vanilla styles throughout; status and priority read as
+-- colored text in the web app's colors.
 --
 -- Data lives in `storage`:
 --   storage.pyops_tasks            — the list pushed by the app
@@ -24,20 +25,25 @@ local STATUS_DOT = {
   done = "16,185,129", -- emerald-500
   closed = "100,116,139", -- slate-500
 }
-local STATUS_BADGE = {
-  open = { "grey", "OPEN" },
-  in_progress = { "amber", "IN PROGRESS" },
-  done = { "green", "DONE" },
-  closed = { "slate", "CLOSED" },
+local STATUS_TEXT = {
+  open = "OPEN",
+  in_progress = "IN PROGRESS",
+  done = "DONE",
+  closed = "CLOSED",
 }
 local DONE_DOT, OPEN_DOT = "16,185,129", "150,155,162" -- step glyphs (done / not-done)
+local MUTED = "150,155,162"
 local PRIO_BADGE = {
-  low = { "grey", "LOW" },
-  medium = { "amber", "MED" },
-  high = { "red", "HIGH" },
-  critical = { "purple", "CRIT" },
+  low = { "150,160,175", "LOW" },
+  medium = { "230,190,90", "MED" },
+  high = { "220,90,90", "HIGH" },
+  critical = { "200,150,240", "CRIT" },
 }
-local PRIO_TEXT = { grey = "150,160,175", amber = "230,190,90", red = "220,90,90", purple = "200,150,240" }
+
+-- "[color=r,g,b]text[/color]"
+local function tinted(color, text)
+  return "[color=" .. color .. "]" .. text .. "[/color]"
+end
 
 local function tasks_list()
   storage.pyops_tasks = storage.pyops_tasks or {}
@@ -89,13 +95,24 @@ function Tasks.set_data(list)
   storage.pyops_tasks = list or {}
 end
 
+-- Open + in-progress tasks (the tab caption's count).
+function Tasks.open_count()
+  local n = 0
+  for _, t in ipairs(tasks_list()) do
+    if t.status == "open" or t.status == "in_progress" then
+      n = n + 1
+    end
+  end
+  return n
+end
+
 -- ── List row (clickable; rich-text caption keeps it a single button) ──────────
 local function row_caption(task)
   local dot = STATUS_DOT[task.status] or STATUS_DOT.open
   local cap = "[color=" .. dot .. "]●[/color] " .. (task.title or "(untitled)")
   local pb = PRIO_BADGE[task.priority]
   if pb then
-    cap = cap .. "  [color=" .. (PRIO_TEXT[pb[1]] or "200,200,200") .. "]" .. pb[2] .. "[/color]"
+    cap = cap .. "  " .. tinted(pb[1], pb[2])
   end
   for _, l in ipairs(task.links or {}) do
     if l.kind == "location" then
@@ -111,12 +128,13 @@ local function build_list(player, parent, current)
   local lf = parent.add({ type = "frame", style = "inside_deep_frame", direction = "vertical" })
   lf.style.vertically_stretchable = true
   local sp = lf.add({ type = "scroll-pane" })
-  sp.style.width = 320
+  sp.horizontal_scroll_policy = "never"
+  sp.style.width = 280
   sp.style.vertically_stretchable = true
   sp.style.padding = 4
   local list = tasks_list()
   if #list == 0 then
-    local m = sp.add({ type = "label", style = "pyops_muted", caption = "No tasks yet — click + New task." })
+    local m = sp.add({ type = "label", style = "grey_label", caption = "No tasks yet. Click New task to add one." })
     m.style.single_line = false
     m.style.padding = 6
     return
@@ -137,7 +155,7 @@ end
 
 local function build_detail(parent, task)
   local df = parent.add({ type = "frame", style = "inside_shallow_frame", direction = "vertical" })
-  df.style.minimal_width = 330
+  df.style.minimal_width = 300
   df.style.horizontally_stretchable = true
   df.style.vertically_stretchable = true
   local dfb = df.add({ type = "flow", direction = "vertical" })
@@ -146,23 +164,23 @@ local function build_detail(parent, task)
   dfb.style.horizontally_stretchable = true
 
   if not task then
-    dfb.add({ type = "label", style = "pyops_muted", caption = "Select a task." })
+    dfb.add({ type = "label", style = "grey_label", caption = "Select a task." })
     return
   end
 
-  -- Title row: name + status badge + priority badge
-  local hrow = dfb.add({ type = "flow", direction = "horizontal" })
-  hrow.style.vertical_align = "center"
-  hrow.style.horizontal_spacing = 8
-  hrow.add({ type = "label", style = "pyops_h1", caption = task.title or "(untitled)" })
-  hrow.add({ type = "empty-widget" }).style.horizontally_stretchable = true
-  local sb = STATUS_BADGE[task.status]
-  if sb then
-    hrow.add({ type = "button", style = "pyops_badge_" .. sb[1], caption = sb[2] })
+  -- Title, then a status + priority line in the web app's colors
+  local title = dfb.add({ type = "label", style = "heading_2_label", caption = task.title or "(untitled)" })
+  title.style.single_line = false
+  local meta = {}
+  if STATUS_TEXT[task.status] then
+    meta[#meta + 1] = tinted(STATUS_DOT[task.status], "● " .. STATUS_TEXT[task.status])
   end
   local pb = PRIO_BADGE[task.priority]
   if pb then
-    hrow.add({ type = "button", style = "pyops_badge_" .. pb[1], caption = pb[2] })
+    meta[#meta + 1] = tinted(pb[1], pb[2])
+  end
+  if #meta > 0 then
+    dfb.add({ type = "label", style = "semibold_label", caption = table.concat(meta, "    ") })
   end
 
   -- Body (plain wrapped text; markdown stays in the web UI)
@@ -172,33 +190,26 @@ local function build_detail(parent, task)
     body.style.horizontally_stretchable = true
     body.style.font_color = { 0.82, 0.84, 0.88 }
   else
-    dfb.add({ type = "label", style = "pyops_muted", caption = "No description." })
+    dfb.add({ type = "label", style = "grey_label", caption = "No description." })
   end
 
-  -- Steps card (read-only check/dot glyphs for now)
+  -- Steps (read-only check/dot glyphs for now)
   if task.steps and #task.steps > 0 then
-    local sc = dfb.add({ type = "frame", style = "pyops_card" })
-    sc.style.horizontally_stretchable = true
-    local scv = sc.add({ type = "flow", direction = "vertical" })
-    scv.style.vertical_spacing = 4
-    scv.style.horizontally_stretchable = true
-    scv.add({ type = "label", style = "pyops_h2", caption = "Steps" })
+    dfb.add({ type = "line" })
+    dfb.add({ type = "label", style = "caption_label", caption = "Steps" })
     for _, s in ipairs(task.steps) do
       local dot = s.done and DONE_DOT or OPEN_DOT
-      local txt = s.done and ("[color=150,155,162]" .. s.text .. "[/color]") or s.text
-      scv.add({ type = "label", caption = "[color=" .. dot .. "]●[/color]  " .. txt })
+      local txt = s.done and tinted(MUTED, s.text) or s.text
+      local step = dfb.add({ type = "label", caption = tinted(dot, "●") .. "  " .. txt })
+      step.style.single_line = false
     end
   end
 
-  -- Links card (icon chips + a Go-to button for the location anchor)
+  -- Links (icon slots + a Go-to button for the location anchor)
   if task.links and #task.links > 0 then
-    local lc = dfb.add({ type = "frame", style = "pyops_card" })
-    lc.style.horizontally_stretchable = true
-    local lcv = lc.add({ type = "flow", direction = "vertical" })
-    lcv.style.vertical_spacing = 6
-    lcv.style.horizontally_stretchable = true
-    lcv.add({ type = "label", style = "pyops_h2", caption = "Links" })
-    local lk = lcv.add({ type = "flow", direction = "horizontal" })
+    dfb.add({ type = "line" })
+    dfb.add({ type = "label", style = "caption_label", caption = "Links" })
+    local lk = dfb.add({ type = "flow", direction = "horizontal" })
     lk.style.horizontal_spacing = 4
     lk.style.vertical_align = "center"
     local goto_link = nil
@@ -270,31 +281,6 @@ function Tasks.build(player, parent)
     style = "tool_button",
     tooltip = "Refresh",
   })
-  bar.add({ type = "empty-widget" }).style.horizontally_stretchable = true
-  -- view + status toggles (visual placeholders this pass)
-  local vf = bar.add({
-    type = "sprite-button",
-    sprite = "utility/list_view",
-    style = "pyops_toggle",
-    tooltip = "Flat — by priority",
-  })
-  vf.toggled = true
-  bar.add({
-    type = "sprite-button",
-    sprite = "utility/expand_dots",
-    style = "pyops_toggle",
-    tooltip = "Grouped — by parent",
-  })
-  -- Status filter chips, colored to match each status (gray / amber / emerald).
-  local fl = bar.add({ type = "flow" })
-  fl.style.left_margin = 10
-  fl.style.horizontal_spacing = 3
-  fl.style.vertical_align = "center"
-  local o = fl.add({ type = "button", caption = "Open", style = "pyops_chip_grey" })
-  o.toggled = true
-  local ip = fl.add({ type = "button", caption = "In progress", style = "pyops_chip_amber" })
-  ip.toggled = true
-  fl.add({ type = "button", caption = "Done", style = "pyops_chip_green" })
 
   -- master-detail
   local md = parent.add({ type = "flow", direction = "horizontal" })
@@ -342,21 +328,19 @@ function Tasks.open_new(player)
   cb.style.vertical_spacing = 6
   cb.style.horizontally_stretchable = true
 
-  cb.add({ type = "label", style = "pyops_h2", caption = "Title" })
+  cb.add({ type = "label", style = "caption_label", caption = "Title" })
   local tf = cb.add({ type = "textfield", name = "pyops_nt_title" })
   tf.style.horizontally_stretchable = true
 
-  cb.add({ type = "label", style = "pyops_h2", caption = "Description" })
+  cb.add({ type = "label", style = "caption_label", caption = "Description" })
   local desc = cb.add({ type = "text-box", name = "pyops_nt_desc" })
   desc.word_wrap = true
   desc.style.horizontally_stretchable = true
   desc.style.maximal_width = 100000
   desc.style.minimal_height = 70
 
-  local ac = cb.add({ type = "frame", style = "pyops_card" })
-  ac.style.horizontally_stretchable = true
-  ac.style.top_margin = 4
-  local av = ac.add({ type = "flow", direction = "vertical" })
+  cb.add({ type = "line" }).style.top_margin = 4
+  local av = cb.add({ type = "flow", direction = "vertical" })
   av.style.vertical_spacing = 6
   av.style.horizontally_stretchable = true
   av.add({ type = "checkbox", name = "pyops_nt_anchor", state = true, caption = "Anchor to what I'm looking at" })
@@ -365,14 +349,14 @@ function Tasks.open_new(player)
   chips.style.vertical_align = "center"
   local pos = player.position
   local loc = string.format("%s  (%d, %d)", player.surface.name, math.floor(pos.x), math.floor(pos.y))
-  chips.add({ type = "button", style = "pyops_badge_blue", caption = "[img=utility/map] " .. loc })
+  chips.add({ type = "label", caption = "[img=utility/map] " .. loc })
   local sel = player.selected
   if sel and sel.valid then
     local spath = "entity/" .. sel.name
     local icon = helpers.is_valid_sprite_path(spath) and ("[img=" .. spath .. "] ") or ""
-    chips.add({ type = "button", style = "pyops_badge_dim", caption = { "", icon, sel.localised_name } })
+    chips.add({ type = "label", caption = { "", "·  ", icon, sel.localised_name } })
   else
-    chips.add({ type = "label", style = "pyops_muted_small", caption = "(hover an entity to anchor it too)" })
+    chips.add({ type = "label", style = "grey_label", caption = "(hover an entity to anchor it too)" })
   end
 
   local ft = f.add({ type = "flow", direction = "horizontal" })

@@ -1,58 +1,40 @@
--- PyOps in-game block summary: a Helmod-style production-block matrix pushed from
--- the web app (cmd.show_block). Each recipe is a row — its products, its factory
--- (with count) and its ingredients shown as icon cells with number overlays. The
--- factory cell is clickable: it puts a configured blueprint (recipe set, modules
--- inserted) on the cursor so you can stamp the planned block down without
--- re-entering anything by hand.
+-- PyOps in-game build sheet: a Helmod-style production-block matrix pushed from
+-- the web app (cmd.show_block), opened from the web or from a slot on the Blocks
+-- board. Each recipe is a row: its machine (with count), products, ingredients,
+-- and how many of that machine are built versus needed. The machine cell is
+-- clickable: it puts a configured blueprint (recipe set, modules inserted) on the
+-- cursor so you can stamp the planned block down without re-entering anything.
 
 local Combinator = require("combinator")
+local Blocks = require("blocks")
+local Format = require("format")
 
 local Summary = {}
 
 local PANEL_NAME = "pyops_summary"
+local MAIN_PANEL = "pyops_panel"
 local COMBINATOR_NAME = "pyops_sum_combinator"
 local CLOSE_NAME = "pyops_sum_close"
-local MAX_NAME = "pyops_sum_max"
 local MIN_NAME = "pyops_sum_min"
 local LOGI_NAME = "pyops_sum_logi"
+local OPEN_NAME = "pyops_sum_open"
 
--- Per-player panel state: the last payload (so we can rebuild on maximize) and
--- whether the window is expanded. Factorio has no drag-resize, so maximize is the
--- standard "make it bigger" affordance.
+-- app→mod sender (block.open), injected by control.lua.
+Summary.send = function(_player, _type, _payload) end
+
+-- Per-player sheet state: the last payload (so toggles can rebuild without the
+-- app), where the window sits, and the minimize / logistics toggles.
 local function state_for(player)
   storage.pyops_summary = storage.pyops_summary or {}
   local s = storage.pyops_summary[player.index]
   if not s then
-    s = { maximized = false }
+    s = {}
     storage.pyops_summary[player.index] = s
   end
   return s
 end
 
--- Precise rate for tooltips.
-local function fmt_rate(rate)
-  if rate >= 100 then
-    return string.format("%.1f", rate)
-  elseif rate >= 1 then
-    return string.format("%.2f", rate)
-  end
-  return string.format("%.3f", rate)
-end
-
--- Compact number for the cell label: integers plain, sub-1 with just enough
--- decimals, trailing zeros trimmed (so 1→"1", 0.10→"0.1", 0.06→"0.06").
-local function fmt_num(n)
-  if not n or n <= 0 then
-    return ""
-  end
-  if n >= 100 or n == math.floor(n) then
-    return string.format("%.0f", n)
-  end
-  local s = (n >= 1) and string.format("%.1f", n) or string.format("%.2f", n)
-  s = s:gsub("0+$", "")
-  s = s:gsub("%.$", "")
-  return s
-end
+local fmt_rate, fmt_num = Format.rate, Format.num
 
 -- Belt/inserter counts: like fmt_num but never collapses a tiny non-zero count to
 -- "0" (that reads as "none"); shows "<0.01" instead.
@@ -171,12 +153,6 @@ end
 
 -- ── GUI ─────────────────────────────────────────────────────────────────────
 
-local function add_section_label(parent, caption)
-  local label = parent.add({ type = "label", caption = caption, style = "caption_label" })
-  label.style.top_padding = 6
-  return label
-end
-
 -- A good's SignalID (item or fluid) for a choose-elem-button, or nil if neither
 -- prototype exists in this game (so we can fall back to a plain sprite).
 local function good_signal(good)
@@ -211,13 +187,10 @@ end
 -- signal, exactly like Q-ing a fluid in a pump's filter. Goods that resolve to no
 -- item/fluid prototype fall back to a plain sprite. `opts.storage` appends the
 -- 5-minute buffer hint (used for the Imports/Exports lists).
-local function add_good_cell(parent, good, card_style, opts)
-  -- The good sits in its own colored card (blue product / yellow ingredient) so the
-  -- icon + rate + logistics read as one separated unit. The card's color carries the
-  -- recipe/in/out meaning, so the slot inside is left neutral. A content flow inside
-  -- the frame controls the tight inner spacing (frames have no vertical_spacing).
-  local card = parent.add({ type = "frame", direction = "vertical", style = card_style or "pyops_card" })
-  local cell = card.add({ type = "flow", direction = "vertical" })
+local function add_good_cell(parent, good, slot_style, opts)
+  -- The vanilla slot color carries the meaning (blue product / yellow ingredient);
+  -- the logistics lines stack under the slot in the same cell.
+  local cell = parent.add({ type = "flow", direction = "vertical" })
   cell.style.vertical_spacing = 0
   cell.style.horizontal_align = "center"
   local tip = { "", good.display or good.name, ":  ", fmt_rate(good.rate), "/s" }
@@ -237,14 +210,14 @@ local function add_good_cell(parent, good, card_style, opts)
       elem_type = "signal",
       signal = signal,
       locked = true,
-      style = "slot_button",
+      style = slot_style,
       tooltip = { "", tip, "\n[Q] to pipette as a filter signal" },
     })
   else
     cell.add({
       type = "sprite-button",
       sprite = valid_sprite(good.kind, good.name) or "utility/questionmark",
-      style = "slot_button",
+      style = slot_style,
       tooltip = tip,
     })
   end
@@ -288,7 +261,7 @@ local function add_good_cell(parent, good, card_style, opts)
     add_logi_line(logi.belt, good.belts, "Belts to carry this item")
     add_logi_line(logi.mover, good.inserters, mover_word:gsub("^%l", string.upper) .. " to feed one building")
   end
-  return card
+  return cell
 end
 
 -- Order a recipe's goods for display: a pinned primary product first (when given),
@@ -315,7 +288,7 @@ local function sorted_goods(goods, primary_name)
 end
 
 -- A compact grid of good cells (products or ingredients) inside one matrix cell.
--- `cols` widens when the window is maximized so content spreads horizontally.
+-- `cols` is the widest row's count, so every row stays on one line.
 local function add_goods_grid(parent, goods, slot_style, cols, opts)
   local grid = parent.add({ type = "table", column_count = cols or 3 })
   grid.style.horizontal_spacing = 2
@@ -354,7 +327,7 @@ local function add_io_goods(parent, goods, slot_style, logi)
     add_goods_grid(parent, fluids, slot_style, math.min(#fluids, 12), opts)
   end
   if #solids == 0 and #fluids == 0 then
-    parent.add({ type = "label", caption = "—", style = "pyops_cell_number" })
+    parent.add({ type = "label", caption = "—", style = "grey_label" })
   end
 end
 
@@ -367,6 +340,7 @@ local function add_factory_cell(parent, m)
     type = "sprite-button",
     sprite = valid_sprite("entity", m.machine) or "utility/questionmark",
     style = "slot_button",
+    number = m.count or 1,
     tooltip = {
       "",
       m.recipeDisplay or m.recipe,
@@ -382,7 +356,6 @@ local function add_factory_cell(parent, m)
     },
     raise_hover_events = true, -- needed for on_gui_hover/leave (Q pipette tracking)
   })
-  cell.add({ type = "label", caption = "×" .. fmt_num(m.count or 1), style = "pyops_cell_number" })
   if m.modules and #m.modules > 0 then
     local mods = cell.add({ type = "flow", direction = "horizontal" })
     for _, mod in ipairs(m.modules) do
@@ -401,7 +374,7 @@ local function add_beacon_cell(parent, beacons)
   local cell = parent.add({ type = "flow", direction = "vertical" })
   cell.style.vertical_spacing = 0
   if not beacons or #beacons == 0 then
-    cell.add({ type = "label", caption = "—", style = "pyops_cell_number" })
+    cell.add({ type = "label", caption = "—", style = "grey_label" })
     return cell
   end
   for _, b in ipairs(beacons) do
@@ -409,11 +382,11 @@ local function add_beacon_cell(parent, beacons)
       type = "sprite-button",
       sprite = valid_sprite("entity", b.beacon) or "utility/questionmark",
       style = "slot_button",
+      number = b.count,
       tooltip = { "", b.beacon, "  ×", tostring(b.count or 0), "\n[Q] to pipette" },
       tags = { pyops_pipette = b.beacon }, -- building name for the Q pipette
       raise_hover_events = true, -- needed for on_gui_hover/leave (Q pipette tracking)
     })
-    cell.add({ type = "label", caption = "×" .. fmt_num(b.count or 0), style = "pyops_cell_number" })
     if b.modules and #b.modules > 0 then
       local mods = cell.add({ type = "flow", direction = "horizontal" })
       for _, mod in ipairs(b.modules) do
@@ -427,9 +400,32 @@ local function add_beacon_cell(parent, beacons)
   return cell
 end
 
--- Build (or rebuild) the summary panel. `payload` is stored per player so the
--- maximize toggle can rebuild without it; passing nil reuses the last payload.
--- Close the panel (app cmd.hide_block / dev close tool). Mirrors the titlebar X.
+-- The Built cell: a progress bar plus "have/need" for this row's machine, from
+-- the game's built counts as the app last saw them. Recipe-blind machines
+-- (boilers, generators, …) report a machine-wide total.
+local function add_built_cell(parent, m)
+  local cell = parent.add({ type = "flow", direction = "horizontal" })
+  cell.style.vertical_align = "center"
+  cell.style.top_margin = 12
+  cell.style.horizontal_spacing = 6
+  local need = m.count or 0
+  if m.built == nil then
+    cell.add({ type = "label", caption = "—", style = "grey_label", tooltip = "No built counts from the game yet" })
+    return
+  end
+  local have = m.built
+  local bar = cell.add({ type = "progressbar", value = need > 0 and math.min(have / need, 1) or 0 })
+  bar.style.width = 64
+  bar.style.color = Format.build_state(have, need) == "done" and { 0.36, 0.80, 0.30 } or { 0.98, 0.75, 0.14 }
+  cell.add({
+    type = "label",
+    caption = have .. "/" .. need,
+    tooltip = { "", have, " of ", need, " ", m.machineDisplay or m.machine, " built for this recipe" },
+  })
+end
+
+-- Close the sheet (titlebar X, app cmd.hide_block / dev close tool) and drop the
+-- board's highlight on its slot.
 function Summary.hide(player)
   if not (player and player.valid) then
     return
@@ -438,8 +434,26 @@ function Summary.hide(player)
   if panel then
     panel.destroy()
   end
+  Blocks.select(player, nil)
 end
 
+function Summary.is_open(player)
+  return player.gui.screen[PANEL_NAME] ~= nil
+end
+
+-- Where a newly opened sheet goes: beside the PyOps panel when that's open (the
+-- board's slots open sheets), else where the sheet last sat, else centered.
+local function initial_location(player, state)
+  local main = player.gui.screen[MAIN_PANEL]
+  if main and main.style.minimal_width and main.style.minimal_width > 0 then
+    local scale = player.display_scale
+    return { x = main.location.x + math.floor((main.style.minimal_width + 8) * scale), y = main.location.y }
+  end
+  return state.location
+end
+
+-- Build (or rebuild) the sheet. `payload` is stored per player so the toggles can
+-- rebuild without it; passing nil reuses the last payload.
 function Summary.show(player, payload)
   if not (player and player.valid) then
     return
@@ -453,7 +467,7 @@ function Summary.show(player, payload)
   if not payload then
     return
   end
-  local maximized = state.maximized
+  Blocks.select(player, payload.id)
   local minimized = state.minimized
   local show_logistics = state.show_logistics and payload.logistics ~= nil
   -- belt/inserter sprites for the logistics readout, resolved once per build
@@ -465,34 +479,30 @@ function Summary.show(player, payload)
       mover_kind = payload.logistics.moverKind,
     }
   end
-  -- The window sizes to its content (tables grow past the floor when a row needs
-  -- it), so the floor stays modest to avoid dead space on the right for small blocks.
-  local body_min_width = maximized and 480 or 380
 
   local existing = player.gui.screen[PANEL_NAME]
+  local location
   if existing then
-    -- Remember where the window sits so a rebuild (toggling logistics, maximize, a
-    -- fresh show_block push) keeps the player's chosen position instead of snapping
-    -- back to center. The titlebar is a drag_target, so this also persists drags.
-    state.location = existing.location
+    -- A rebuild (a toggle, a fresh push) keeps the player's chosen position. The
+    -- titlebar is a drag_target, so this also persists drags.
+    location = existing.location
     existing.destroy()
+  else
+    location = initial_location(player, state)
   end
+  state.location = location
 
   local panel = player.gui.screen.add({ type = "frame", name = PANEL_NAME, direction = "vertical" })
-  -- Anchor by top-left: keep the saved position across rebuilds; only center the
-  -- very first time the window is opened (no saved anchor yet).
-  if state.location then
-    panel.location = state.location
+  if location then
+    panel.location = location
   else
     panel.auto_center = true
   end
 
-  -- Titlebar
+  -- Titlebar: block name, open-in-web, minimize, close.
   local titlebar = panel.add({ type = "flow", direction = "horizontal" })
   titlebar.drag_target = panel
   titlebar.style.horizontal_spacing = 8
-  -- Just the block name — the old "PyOps block:" prefix made the title bar the
-  -- widest row, forcing the panel wider than its content (dead space on the right).
   titlebar.add({
     type = "label",
     caption = payload.name or "PyOps block",
@@ -503,39 +513,15 @@ function Summary.show(player, payload)
   drag.style.horizontally_stretchable = true
   drag.style.height = 24
   drag.style.right_margin = 4
-  -- request-combinator generator — only when the block has imports to request
-  if payload.inputs and #payload.inputs > 0 then
+  if payload.id then
     titlebar.add({
       type = "sprite-button",
-      name = COMBINATOR_NAME,
-      sprite = valid_sprite("entity", "constant-combinator") or "utility/questionmark",
-      tooltip = {
-        "",
-        "Create request combinator",
-        "\nArms a selector — drag over the station + holding chests/tanks to size a Cybersyn/LTN request combinator",
-      },
+      name = OPEN_NAME,
+      sprite = "utility/export_slot",
+      tooltip = { "", "Open in PyOps (web)" },
       style = "frame_action_button",
     })
   end
-  -- logistics: toggle the Helmod-style belt/inserter readout on the good cells
-  if payload.logistics and not minimized then
-    -- pyops_toggle (not frame_action_button): the action-button style paints a harsh
-    -- amber "selected" background over the colored belt icon when toggled; this one
-    -- highlights with a subtle blue instead and leaves the icon untouched.
-    local logi_btn = titlebar.add({
-      type = "sprite-button",
-      name = LOGI_NAME,
-      sprite = valid_sprite("entity", payload.logistics.belt) or "utility/questionmark",
-      tooltip = {
-        "",
-        show_logistics and "Hide belts & inserters" or "Show belts & inserters",
-      },
-      style = "pyops_toggle",
-    })
-    logi_btn.style.size = 24
-    logi_btn.toggled = show_logistics
-  end
-  -- minimize: collapse to just the title bar (park it out of the way mid-build)
   titlebar.add({
     type = "sprite-button",
     name = MIN_NAME,
@@ -543,16 +529,6 @@ function Summary.show(player, payload)
     tooltip = { "", minimized and "Restore from title bar" or "Minimize to title bar" },
     style = "frame_action_button",
   })
-  -- expand/restore size (only meaningful when the body is shown)
-  if not minimized then
-    titlebar.add({
-      type = "sprite-button",
-      name = MAX_NAME,
-      sprite = maximized and "utility/collapse" or "utility/expand",
-      tooltip = { "", maximized and "Restore size" or "Expand" },
-      style = "frame_action_button",
-    })
-  end
   titlebar.add({
     type = "sprite-button",
     name = CLOSE_NAME,
@@ -567,27 +543,69 @@ function Summary.show(player, payload)
   end
 
   local content = panel.add({ type = "frame", style = "inside_shallow_frame", direction = "vertical" })
-  local scroll = content.add({ type = "scroll-pane" })
-  scroll.style.maximal_height = maximized and 1200 or 760
-  local body = scroll.add({ type = "flow", direction = "vertical" })
-  body.style.padding = 12
-  body.style.vertical_spacing = 4
-  body.style.minimal_width = body_min_width
 
-  -- power / heat
+  -- Subheader: icon, goal rate, power/heat, then the sheet's tools.
+  local sub = content.add({ type = "frame", style = "subheader_frame" })
+  sub.style.horizontally_stretchable = true
+  local head = sub.add({ type = "flow", direction = "horizontal" })
+  head.style.vertical_align = "center"
+  head.style.horizontal_spacing = 10
+  head.style.left_padding = 8
+  head.style.right_padding = 4
+  local icon = payload.iconName and valid_sprite(payload.iconKind, payload.iconName)
+  if icon then
+    local sp = head.add({ type = "sprite", sprite = icon, resize_to_sprite = false })
+    sp.style.size = 24
+    sp.style.stretch_image_to_widget_size = true
+  end
+  if payload.goal then
+    local value, suffix = Format.in_unit(payload.goal.rate, payload.goal.unit)
+    head.add({ type = "label", style = "subheader_caption_label", caption = fmt_rate(value) .. suffix })
+  end
   if payload.powerW and payload.powerW > 0 then
-    body.add({ type = "label", caption = { "", "⚡ ", string.format("%.2f", payload.powerW / 1e6), " MW" } })
+    head.add({ type = "label", caption = "[img=tooltip-category-electricity] " .. Format.power(payload.powerW) })
   end
   if payload.heatW and payload.heatW > 0 then
-    body.add({ type = "label", caption = { "", "🔥 ", string.format("%.2f", payload.heatW / 1e6), " MW heat" } })
+    head.add({ type = "label", caption = "[img=tooltip-category-heat] " .. Format.power(payload.heatW) .. " heat" })
+  end
+  head.add({ type = "empty-widget" }).style.horizontally_stretchable = true
+  -- request-combinator generator — only when the block has imports to request
+  if payload.inputs and #payload.inputs > 0 then
+    head.add({
+      type = "sprite-button",
+      name = COMBINATOR_NAME,
+      sprite = valid_sprite("entity", "constant-combinator") or "utility/questionmark",
+      tooltip = {
+        "",
+        "Create request combinator",
+        "\nArms a selector — drag over the station + holding chests/tanks to size a Cybersyn/LTN request combinator",
+      },
+      style = "tool_button",
+    })
+  end
+  -- logistics: toggle the Helmod-style belt/inserter readout on the good cells
+  if payload.logistics then
+    local logi_btn = head.add({
+      type = "sprite-button",
+      name = LOGI_NAME,
+      sprite = valid_sprite("entity", payload.logistics.belt) or "utility/questionmark",
+      tooltip = { "", show_logistics and "Hide belts & inserters" or "Show belts & inserters" },
+      style = "tool_button",
+    })
+    logi_btn.toggled = show_logistics
   end
 
-  -- The production matrix: Products | Factory | Ingredients | (Beacon). The recipe
-  -- column was dropped (its icon just mirrors Products); the recipe name lives in
-  -- the factory cell's tooltip. The Beacon column is shown only when some recipe
-  -- actually has beacons — otherwise it's a column of dashes wasting width. The
-  -- custom pyops_matrix_table style zebra-stripes the rows for the Helmod look.
-  add_section_label(body, "Recipes — click a factory for a blueprint")
+  -- The window sizes to its content up to most of the screen height, then scrolls.
+  local scroll = content.add({ type = "scroll-pane" })
+  scroll.style.maximal_height = math.floor(player.display_resolution.height / player.display_scale * 0.75)
+  local body = scroll.add({ type = "flow", direction = "vertical" })
+  body.style.padding = 12
+  body.style.vertical_spacing = 6
+  body.style.minimal_width = 380
+
+  -- The production matrix: Machine | Products | Ingredients | (Beacons) | Built.
+  -- The recipe name lives in the machine cell's tooltip. The Beacons column only
+  -- appears when some recipe has beacons. pyops_matrix_table zebra-stripes rows.
   local has_beacons = false
   for _, m in ipairs(payload.recipes or {}) do
     if m.beacons and #m.beacons > 0 then
@@ -596,9 +614,7 @@ function Summary.show(player, payload)
     end
   end
   -- Size the product/ingredient grids to the widest recipe so each row stays on one
-  -- line and fills the width, instead of wrapping at an arbitrary limit. Each recipe
-  -- has its own grid, so a short row reserves no extra width; capped so one giant
-  -- recipe can't blow the panel out.
+  -- line, capped so one giant recipe can't blow the window out.
   local function widest(field)
     local n = 1
     for _, m in ipairs(payload.recipes or {}) do
@@ -611,41 +627,43 @@ function Summary.show(player, payload)
   local prod_cols = widest("products")
   local ing_cols = widest("ingredients")
 
-  local headers = has_beacons and { "Products", "Factory", "Ingredients", "Beacon" }
-    or { "Products", "Factory", "Ingredients" }
+  local headers = { "Machine", "Products", "Ingredients" }
+  if has_beacons then
+    headers[#headers + 1] = "Beacons"
+  end
+  headers[#headers + 1] = "Built"
   local matrix = body.add({ type = "table", column_count = #headers, style = "pyops_matrix_table" })
-  matrix.style.horizontal_spacing = 4 -- tighter columns (closer to Helmod's density)
+  matrix.style.horizontal_spacing = 16
   for _, h in ipairs(headers) do
     matrix.add({ type = "label", caption = h, style = "bold_label" })
   end
-  if payload.recipes then
-    for _, m in ipairs(payload.recipes) do
-      -- products lead with the recipe's main product (if it has one), then sort;
-      -- ingredients just sort solids → fluids, most → least
-      local rp = prototypes.recipe[m.recipe]
-      local primary = rp and rp.main_product and rp.main_product.name or nil
-      add_goods_grid(matrix, sorted_goods(m.products, primary), "pyops_good_product", prod_cols, { logi = logi })
-      add_factory_cell(matrix, m)
-      add_goods_grid(matrix, sorted_goods(m.ingredients, nil), "pyops_good_ingredient", ing_cols, { logi = logi })
-      if has_beacons then
-        add_beacon_cell(matrix, m.beacons)
-      end
+  for _, m in ipairs(payload.recipes or {}) do
+    -- products lead with the recipe's main product (if it has one), then sort;
+    -- ingredients just sort solids → fluids, most → least
+    local rp = prototypes.recipe[m.recipe]
+    local primary = rp and rp.main_product and rp.main_product.name or nil
+    add_factory_cell(matrix, m)
+    add_goods_grid(matrix, sorted_goods(m.products, primary), "blue_slot", prod_cols, { logi = logi })
+    add_goods_grid(matrix, sorted_goods(m.ingredients, nil), "yellow_slot", ing_cols, { logi = logi })
+    if has_beacons then
+      add_beacon_cell(matrix, m.beacons)
     end
+    add_built_cell(matrix, m)
   end
 
-  -- Block boundary: what the whole block draws in / pushes out.
+  -- Block boundary: what the whole block pushes out (left, like products) and
+  -- draws in (right, like ingredients).
   if (payload.inputs and #payload.inputs > 0) or (payload.outputs and #payload.outputs > 0) then
-    add_section_label(body, "Block in / out")
+    body.add({ type = "line" })
     local io = body.add({ type = "flow", direction = "horizontal" })
-    io.style.horizontal_spacing = 24
-    -- Exports (products) on the LEFT, Imports (ingredients) on the right — mirrors the
-    -- recipe matrix (products left, ingredients right) so products always read left.
+    io.style.horizontal_spacing = 12
+    io.add({ type = "label", caption = "Out", style = "caption_label" }).style.top_margin = 10
     local outcol = io.add({ type = "flow", direction = "vertical" })
-    outcol.add({ type = "label", caption = "Exports", style = "bold_label" })
-    add_io_goods(outcol, payload.outputs, "pyops_good_product", logi)
+    add_io_goods(outcol, payload.outputs, "blue_slot", logi)
+    io.add({ type = "empty-widget" }).style.width = 16
+    io.add({ type = "label", caption = "In", style = "caption_label" }).style.top_margin = 10
     local incol = io.add({ type = "flow", direction = "vertical" })
-    incol.add({ type = "label", caption = "Imports", style = "bold_label" })
-    add_io_goods(incol, payload.inputs, "pyops_good_ingredient", logi)
+    add_io_goods(incol, payload.inputs, "yellow_slot", logi)
   end
 end
 
@@ -693,17 +711,15 @@ function Summary.on_gui_click(player, element)
   end
 
   if element.name == CLOSE_NAME then
-    local panel = player.gui.screen[PANEL_NAME]
-    if panel then
-      panel.destroy()
-    end
+    Summary.hide(player)
     return true
   end
 
-  if element.name == MAX_NAME then
+  if element.name == OPEN_NAME then
     local state = state_for(player)
-    state.maximized = not state.maximized
-    Summary.show(player) -- rebuild from the stored payload at the new size
+    if state.payload and state.payload.id then
+      Summary.send(player, "block.open", { id = state.payload.id })
+    end
     return true
   end
 
