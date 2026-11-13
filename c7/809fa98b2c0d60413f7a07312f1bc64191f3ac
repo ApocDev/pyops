@@ -1,0 +1,53 @@
+app/e2e/mut/assistant-dock.e2e.ts
+  s_190e8316c9ba79::t_761973f09cf38f 154-220
+app/e2e/mut/helpers.ts
+  s_190e8316c9ba79::t_3c547ef6be89c6 44
+app/src/components/assistant/chat-view.tsx
+  s_190e8316c9ba79::t_1007beb722e5ca 35,42-43,1293-1295,1378,1599,1603-1639,1669,1687-1694,1714,1775-1776,1848,1858
+app/src/components/assistant/goal-change-list.tsx
+  s_190e8316c9ba79::t_e00081d416ac81 1-21
+app/src/db/queries.server.ts
+  s_190e8316c9ba79::t_eeaf52a395e94c 67-73,2276,2283-2289,2304
+app/src/db/queries.test.ts
+  s_190e8316c9ba79::t_d563e67fcfcc36 1133-1140,1169-1173
+app/src/lib/block-doc.ts
+  s_190e8316c9ba79::t_f3e60e2b4248fb 8
+app/src/lib/goals.test.ts
+  s_190e8316c9ba79::t_ff493373cafb20 7,111-188
+app/src/lib/goals.ts
+  s_190e8316c9ba79::t_ec4d26fe168db2 9-11,20,106-119,121,123,126-202
+app/src/server/agent-tools-revise.test.ts
+  s_190e8316c9ba79::t_42a407f90811fc 9-11,18,24-25,40,52,58-59,63-64,69-70,76-77,80-81,84-85,103,118-120,126-156
+app/src/server/agent-tools.server.ts
+  s_190e8316c9ba79::t_77c41c22e80ce6 25-26,28,77,967-971,976,986-1001,1003-1004,1006-1008,1019,1021-1032,1051,1058-1074,1085-1092,1109,1129
+app/src/server/agent.ts
+  s_190e8316c9ba79::t_e3fca48e7ec7ac 153,205-207,218-230
+app/src/server/block-update.server.ts
+  s_190e8316c9ba79::t_5bc5086dd36caa 1-45
+app/src/server/block-update.test.ts
+  s_190e8316c9ba79::t_85ef16c39f53f1 1-94
+app/src/server/chat-route.test.ts
+  s_190e8316c9ba79::t_383ef9b9732de4 7-9,16,18-19,113-122,126-144,326-391
+app/src/server/factorio.ts
+  s_190e8316c9ba79::t_bb41d28fe2cbd2 12,48,638,650-655
+docs/development/ai-assistant.md
+  s_190e8316c9ba79::t_9dc1fa594f78eb 331-339,346-349,395-399
+docs/guide/assistant.md
+  s_190e8316c9ba79::t_bf2f83d9c55d9f 181-184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c7809fa98b2c0d60413f7a07312f1bc64191f3ac",
+  "prompts": {},
+  "sessions": {
+    "s_190e8316c9ba79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "655bd363-6e02-4af1-93b7-246f73900d00",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
