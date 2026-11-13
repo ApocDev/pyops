@@ -1,0 +1,29 @@
+app/e2e/responsive.e2e.ts
+  s_471c2a1523da2d::t_d4c3e24b48b8a0 84-108
+app/src/components/nav-mobile.tsx
+  s_71232a668bd9bf::t_9a100560bcc023 20-21,66-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7c0dcc5858df70c4ae02bff52c520c40e9384ae8",
+  "prompts": {},
+  "sessions": {
+    "s_471c2a1523da2d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c957d67d-8ddb-4b5a-8c4e-70662dab21d3",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_71232a668bd9bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c0eb39ca-691c-4426-9a2c-790106a42271",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
