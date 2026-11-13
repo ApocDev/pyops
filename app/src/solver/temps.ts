@@ -2,7 +2,7 @@ import type { LpBlockInput, Pin, RecipeDef } from "./lp.ts";
 
 /**
  * Fluid-temperature identity (#110): the full model, as a PURE transformation
- * of the solver input — the LP core is untouched.
+ * of the solver input. The LP core only adds multi-member goal rows for it.
  *
  * A real fluid is expanded when an enabled recipe produces it or declares an
  * accepted temperature range. Producer-only blocks expand too so their factory
@@ -21,10 +21,12 @@ import type { LpBlockInput, Pin, RecipeDef } from "./lp.ts";
  *   - fluid goals move to either their selected one-temperature pool or a
  *     full-range pool when no exact temperature is selected;
  *     share pins follow their consumer onto its pool.
- *   - a consume goal gets its own good that only the boundary feeds. It feeds
- *     every consumer pool that accepts its temperature; those pools and the
- *     in-range variants they accept are drained, so the goal's import is the
- *     block's net consumption, as for an item
+ *   - a consume goal is ONE row over the summed net of every identity in its
+ *     range: each produced variant inside it and each consumer pool overlapping
+ *     it. That is net consumption at the goal's temperatures, as for an item.
+ *     Out-of-range variants are outside the row; what they feed into an
+ *     overlapping pool cancels out. Boundary flows stay free, and the goal
+ *     subsumes made/drain marks on its row's goods.
  *
  * `fold` maps the solve's synthetic goods/recipes back for display: selector
  * rows vanish, variant/pool flows collapse onto the bare fluid name with a
@@ -52,8 +54,8 @@ const SEL = `${SEP}sel${SEP}`;
 
 const variantKey = (fluid: string, temp: number) => `${fluid}${SEP}@${temp}`;
 const poolKey = (fluid: string, lo: number, hi: number) => `${fluid}${SEP}pool${SEP}${lo}..${hi}`;
-/** A consume goal's own good: the goal's range, but outside `pools`, so no
- * in-block variant can enter it — only the block boundary feeds it. */
+/** The label of a consume goal's row. Not a good: the LP sums the row's
+ * members, so nothing ever flows under this name. */
 const consumeGoalKey = (fluid: string, lo: number, hi: number) =>
   `${poolKey(fluid, lo, hi)}${SEP}goal`;
 /** Parses the temperature range out of a pool or consume-goal key. */
@@ -78,10 +80,9 @@ export type TempFold = {
   /** Selector provenance used to turn an exported pool back into the exact
    * temperatures that physically entered it. */
   selectorOf: (recipe: string) => { fluid: string; temperature: number; pool: string } | null;
-  /** A consume goal's feed into one consumer pool. Its import splits across
-   * these, so the boundary carries the ranges the consumers accept rather than
-   * the goal's own range. */
-  goalFeedOf: (recipe: string) => { goal: string; pool: string } | null;
+  /** For a consumer pool in a consume goal's row: the goal's range, which its
+   * import is narrowed to at the boundary. `null` for every other good. */
+  consumeGoalRangeOf: (good: string) => { minTemp: number | null; maxTemp: number | null } | null;
 };
 
 export function expandTemps(
@@ -134,7 +135,7 @@ export function expandTemps(
         tempOf: () => null,
         qualifierOf: () => null,
         selectorOf: () => null,
-        goalFeedOf: () => null,
+        consumeGoalRangeOf: () => null,
       },
     };
   }
@@ -174,7 +175,10 @@ export function expandTemps(
   }));
 
   const goalPools = new Map<string, string>();
-  const consumeGoals: { fluid: string; key: string; lo: number; hi: number }[] = [];
+  // goods in a consume goal's row: the goal subsumes made/drain marks on them
+  const rowMembers = new Set<string>();
+  // consumer pool → the consume goal range its import is narrowed to
+  const poolGoalRange = new Map<string, { lo: number; hi: number }>();
   const outGoals = goals.map((g) => {
     const goal = baseGoal(g);
     if (!ranged.has(g.name)) return goal;
@@ -183,8 +187,19 @@ export function expandTemps(
     if (g.direction === "consume" || g.rate < 0) {
       const key = consumeGoalKey(g.name, lo, hi);
       goalPools.set(g.name, key);
-      consumeGoals.push({ fluid: g.name, key, lo, hi });
-      return { ...goal, name: key };
+      const members = [
+        ...[...(variants.get(g.name) ?? [])]
+          .filter((t) => t >= lo && t <= hi)
+          .map((t) => variantKey(g.name, t)),
+        ...[...pools]
+          .filter(([, p]) => p.fluid === g.name && p.hi >= lo && p.lo <= hi)
+          .map(([pKey]) => {
+            poolGoalRange.set(pKey, { lo, hi });
+            return pKey;
+          }),
+      ];
+      for (const m of members) rowMembers.add(m);
+      return { ...goal, name: key, members };
     }
     const pool = poolOf(g.name, lo, hi);
     goalPools.set(g.name, pool);
@@ -209,39 +224,9 @@ export function expandTemps(
     }
   }
 
-  // consume goals: the goal's good → each consumer pool whose range overlaps
-  // it. Draining those pools (net = 0) stops them importing on their own, and
-  // draining every in-range variant they accept stops that production
-  // exporting instead of feeding them. The goal's import is then the block's
-  // net consumption, so its `net ≤ -rate` means what it means for an item. In-block
-  // variants still reach consumers only through the temperature-checked
-  // selectors above; one no goal-fed consumer accepts stays free to export
-  // and never counts.
-  const consumeGoalDrains: string[] = [];
-  const goalFeeds = new Map<string, { goal: string; pool: string }>();
-  for (const goal of consumeGoals) {
-    const fed: { lo: number; hi: number }[] = [];
-    for (const [pKey, p] of pools) {
-      if (p.fluid !== goal.fluid || p.hi < goal.lo || p.lo > goal.hi) continue;
-      const name = `${SEL}${goal.key}${SEP}${pKey}`;
-      selNames.add(name);
-      goalFeeds.set(name, { goal: goal.key, pool: pKey });
-      consumeGoalDrains.push(pKey);
-      fed.push(p);
-      outDefs.push({
-        name,
-        energyRequired: 0,
-        ingredients: [{ kind: "fluid", name: goal.key, amount: 1 }],
-        products: [{ kind: "fluid", name: pKey, amount: 1 }],
-      });
-    }
-    for (const t of variants.get(goal.fluid) ?? [])
-      if (t >= goal.lo && t <= goal.hi && fed.some((p) => t >= p.lo && t <= p.hi))
-        consumeGoalDrains.push(variantKey(goal.fluid, t));
-  }
-
-  // made(F) → every variant + every pool of F (goal-pools are covered by the
-  // goal constraint itself). Non-expanded marks pass through.
+  // made(F) → every variant + every pool of F (goal-pools and consume-goal row
+  // members are covered by the goal constraint itself). Non-expanded marks
+  // pass through.
   const outMade: string[] = [];
   for (const m of made) {
     if (!ranged.has(m)) {
@@ -261,7 +246,7 @@ export function expandTemps(
       for (const t of variants.get(g.name) ?? []) outMade.push(variantKey(g.name, t));
 
   // a drained fluid's surplus must vanish per-variant AND per-pool
-  const outDrains: string[] = [...consumeGoalDrains];
+  const outDrains: string[] = [];
   for (const m of drains) {
     if (!ranged.has(m)) {
       outDrains.push(m);
@@ -295,9 +280,9 @@ export function expandTemps(
     input: {
       goals: outGoals,
       recipes: outDefs as RecipeDef[],
-      made: [...new Set(outMade)],
+      made: [...new Set(outMade)].filter((m) => !rowMembers.has(m)),
       pins: outPins,
-      drains: [...new Set(outDrains)],
+      drains: [...new Set(outDrains)].filter((m) => !rowMembers.has(m)),
     },
     fold: {
       isSynthetic: (recipe) => selNames.has(recipe) || recipe.startsWith(SEL),
@@ -337,7 +322,14 @@ export function expandTemps(
         };
       },
       selectorOf: (recipe) => selectors.get(recipe) ?? null,
-      goalFeedOf: (recipe) => goalFeeds.get(recipe) ?? null,
+      consumeGoalRangeOf: (good) => {
+        const range = poolGoalRange.get(good);
+        if (!range) return null;
+        return {
+          minTemp: Number.isFinite(range.lo) ? range.lo : null,
+          maxTemp: Number.isFinite(range.hi) ? range.hi : null,
+        };
+      },
     },
   };
 }

@@ -65,6 +65,10 @@ import {
   goalFlows,
 } from "./block-compute.server.ts";
 
+/** A good's imports minus its exports across boundary rows. */
+const netImport = (flows: { role: string; rate: number }[]) =>
+  flows.reduce((sum, flow) => sum + (flow.role === "import" ? flow.rate : -flow.rate), 0);
+
 describe("fluid ingredient temperature selections", () => {
   let fx: TestDb;
 
@@ -287,8 +291,9 @@ describe("fluid ingredient temperature selections", () => {
   });
 
   it("counts in-block water the consumer accepts toward a sink's net consumption", async () => {
-    // 10/s of 15° water made in-block feeds the ≤101° consumer, so `water -5/s`
-    // means 15/s consumed, 5/s imported, and nothing exported
+    // 10/s of 15° water made in-block, which the ≤101° consumer accepts:
+    // `water -5/s` is net consumption, so the consumer takes 15/s and the
+    // block's water imports minus exports come to 5/s
     const input = {
       goals: [{ name: "water", rate: -5 }],
       recipes: ["pump-water", "cold-gel"],
@@ -297,15 +302,43 @@ describe("fluid ingredient temperature selections", () => {
     const solved = await computeBlock(input);
 
     expect(solved.rows.find((row) => row.recipe === "cold-gel")?.rate).toBeCloseTo(15);
-    expect(boundaryFlows(goalFlows(input), solved).filter((flow) => flow.item === "water")).toEqual(
-      [
-        expect.objectContaining({
-          role: "import",
-          rate: expect.closeTo(5),
-          minTemp: 15,
-          maxTemp: 101,
-        }),
+    const water = boundaryFlows(goalFlows(input), solved).filter((flow) => flow.item === "water");
+    expect(netImport(water)).toBeCloseTo(5);
+    expect(water).toContainEqual(
+      expect.objectContaining({ role: "import", minTemp: 15, maxTemp: 101 }),
+    );
+  });
+
+  it("meets a sink's net balance under pins without forcing made water into one consumer", async () => {
+    // 10/s of 15° water pinned, the ≤101° consumer pinned to take 5/s, and a
+    // ≥90° consumer that can't use 15° water. Consumption 15/s minus
+    // production 10/s meets `water -5/s`, so the block must solve
+    const input = {
+      goals: [
+        { name: "warm-gel", rate: 10 },
+        { name: "water", rate: -5 },
       ],
+      recipes: ["pump-water", "cold-gel", "warm-gel"],
+      pins: [
+        { kind: "count" as const, recipe: "pump-water", count: 1 },
+        { kind: "count" as const, recipe: "cold-gel", count: 5 },
+      ],
+    };
+    const solved = await computeBlock(input);
+
+    expect(solved.status).toBe("solved");
+    expect(solved.rows.find((row) => row.recipe === "cold-gel")?.rate).toBeCloseTo(5);
+    expect(solved.rows.find((row) => row.recipe === "warm-gel")?.rate).toBeCloseTo(10);
+    const water = boundaryFlows(goalFlows(input), solved).filter((flow) => flow.item === "water");
+    expect(netImport(water)).toBeCloseTo(5);
+    // the warm consumer's water can only come from outside, at ≥90°
+    expect(water).toContainEqual(
+      expect.objectContaining({
+        role: "import",
+        rate: expect.closeTo(10),
+        minTemp: 90,
+        maxTemp: null,
+      }),
     );
   });
 

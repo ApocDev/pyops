@@ -286,9 +286,9 @@ test("an exact-temperature consume goal only feeds consumers that accept it", as
   const rates = Object.fromEntries(r.recipes.map((x) => [x.recipe, x.rate]));
   expect(rates["turbine-cold"]).toBeCloseTo(10);
   expect(rates["turbine-hot"]).toBeCloseTo(0);
-  // the goal's import keeps its exact temperature at the boundary
-  expect(r.imports.map((f) => [fold.bare(f.name), fold.qualifierOf(f.name)])).toEqual([
-    ["steam", { mode: "range", minTemp: 165, maxTemp: 165 }],
+  // the ≥100° pool imports for the goal, which narrows it to 165° at the boundary
+  expect(r.imports.map((f) => [fold.bare(f.name), fold.consumeGoalRangeOf(f.name)])).toEqual([
+    ["steam", { minTemp: 165, maxTemp: 165 }],
   ]);
 });
 
@@ -327,14 +327,15 @@ test("a consume goal can't route an out-of-range producer into a narrower consum
     flows
       .filter((f) => fold.bare(f.name) === "water")
       .map((f) => `${fold.tempOf(f.name) ?? "any"} ${f.rate.toFixed(2)}`);
-  expect(water(r.imports)).toEqual(["any 15.00"]);
+  expect(water(r.imports)).toEqual(["≤101° 15.00"]);
   expect(water(r.exports)).toEqual(["125° 10.00"]);
 });
 
 test("a consume goal counts in-block production the consumer accepts, like an item goal", async () => {
   // 10/s of 15° water made in-block, which the ≤101° consumer accepts. A
-  // `water -5/s` goal is net consumption: the consumer takes 15/s, 5/s of it
-  // imported, and none of the made water may export instead
+  // `water -5/s` goal is net consumption, so the consumer takes 15/s. Boundary
+  // flows stay free (unmarked water isn't routed in-block), so only the net
+  // is fixed: import minus export is 5/s
   const pump: TempRecipeDef = {
     name: "pump",
     energyRequired: 1,
@@ -361,7 +362,6 @@ test("a consume goal counts in-block production the consumer accepts, like an it
   const rates = Object.fromEntries(r.recipes.map((x) => [x.recipe, x.rate]));
   expect(rates["cold-process"]).toBeCloseTo(15);
   const water = (flows: typeof r.imports) =>
-    flows.filter((f) => fold.bare(f.name) === "water").map((f) => f.rate.toFixed(2));
-  expect(water(r.imports)).toEqual(["5.00"]);
-  expect(water(r.exports)).toEqual([]);
+    flows.filter((f) => fold.bare(f.name) === "water").reduce((sum, f) => sum + f.rate, 0);
+  expect(water(r.imports) - water(r.exports)).toBeCloseTo(5);
 });

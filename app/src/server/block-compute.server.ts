@@ -824,16 +824,6 @@ export async function computeBlock(rawData: SolveInput) {
     list.push({ fluid: selector.fluid, temperature: selector.temperature, rate: row.rate });
     selectorInputs.set(selector.pool, list);
   }
-  // a consume goal's boundary intake, per consumer pool it actually fed
-  const goalFeeds = new Map<string, { pool: string; rate: number }[]>();
-  for (const row of rawResult.recipes) {
-    const feed = fold.goalFeedOf(row.recipe);
-    if (!feed || row.rate <= 1e-9) continue;
-    goalFeeds.set(feed.goal, [
-      ...(goalFeeds.get(feed.goal) ?? []),
-      { pool: feed.pool, rate: row.rate },
-    ]);
-  }
   const mergeQualified = (flows: QualifiedResultFlow[]) => {
     const merged = new Map<string, QualifiedResultFlow>();
     for (const flow of flows) {
@@ -850,27 +840,6 @@ export async function computeBlock(rawData: SolveInput) {
   ): QualifiedResultFlow[] =>
     mergeQualified(
       flows.flatMap((flow): QualifiedResultFlow[] => {
-        // A consume goal's import is what its consumers took in: split it by
-        // the pool each part fed, each part carrying the goal's own range
-        // narrowed to what that consumer accepts.
-        const feeds = direction === "import" ? goalFeeds.get(flow.name) : undefined;
-        const fed = feeds?.reduce((sum, feed) => sum + feed.rate, 0) ?? 0;
-        if (feeds && fed > 1e-9) {
-          const goal = fold.qualifierOf(flow.name);
-          return feeds.map((feed) => {
-            const pool = fold.qualifierOf(feed.pool);
-            const bounds = [goal?.minTemp, pool?.minTemp].filter((t) => t != null);
-            const ceilings = [goal?.maxTemp, pool?.maxTemp].filter((t) => t != null);
-            return {
-              ...flow,
-              name: fold.bare(flow.name),
-              rate: (flow.rate * feed.rate) / fed,
-              temperatureMode: "range" as const,
-              minTemp: bounds.length ? Math.max(...bounds) : null,
-              maxTemp: ceilings.length ? Math.min(...ceilings) : null,
-            };
-          });
-        }
         const name = fold.bare(flow.name);
         const qualifier = fold.qualifierOf(flow.name);
         if (qualifier?.mode === "exact")
@@ -883,16 +852,22 @@ export async function computeBlock(rawData: SolveInput) {
               maxTemp: qualifier.maxTemp,
             },
           ];
-        if (qualifier?.mode === "range" && direction === "import")
+        if (qualifier?.mode === "range" && direction === "import") {
+          // a consumer pool in a consume goal's row imports only what the goal
+          // asks for: its range narrowed to the goal's (165° into a ≥100° pool)
+          const goal = fold.consumeGoalRangeOf(flow.name);
+          const lows = [qualifier.minTemp, goal?.minTemp].filter((t) => t != null);
+          const highs = [qualifier.maxTemp, goal?.maxTemp].filter((t) => t != null);
           return [
             {
               ...flow,
               name,
               temperatureMode: "range" as const,
-              minTemp: qualifier.minTemp,
-              maxTemp: qualifier.maxTemp,
+              minTemp: lows.length ? Math.max(...lows) : null,
+              maxTemp: highs.length ? Math.min(...highs) : null,
             },
           ];
+        }
         if (qualifier?.mode === "range") {
           const inputs = selectorInputs.get(flow.name) ?? [];
           const total = inputs.reduce((sum, input) => sum + input.rate, 0);
