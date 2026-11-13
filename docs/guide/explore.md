@@ -49,8 +49,10 @@ The tree preserves an important distinction:
 - a good can be produced by **any one** of its producer recipes;
 - a recipe requires **all** of its ingredients.
 
-Collapsed branches summarize what is underneath them. Locked recipes show their gating
-technology, so the tree can double as a research and prerequisite checklist.
+Locked recipes show their gating technology, so the tree can double as a research and
+prerequisite checklist. When several recipes share a name, each gets a muted second line with
+what sets it apart, such as **from Molten iron + Hot air**. Block recipe rows and item hover
+cards use the same line.
 
 <AppScreenshot
   src="/images/deps-automation-science.png"
