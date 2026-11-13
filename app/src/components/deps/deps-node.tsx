@@ -141,6 +141,9 @@ export function DepsNodeRow({
           <Button
             variant="ghost"
             onClick={() => (expandable ? onToggle(nodeKey) : onExplore(node))}
+            aria-expanded={expandable ? open : undefined}
+            // a recipe and its main product often share a display name
+            aria-label={`${frontier ? "Explore from " : ""}${node.display ?? node.name}${node.type === "recipe" ? " (recipe)" : ""}`}
             className="h-auto min-w-0 flex-1 justify-start gap-1.5 px-1 py-1 font-normal"
             title={
               frontier

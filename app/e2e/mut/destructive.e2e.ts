@@ -27,8 +27,11 @@ test("block delete: confirm dialog with real copy, cancel keeps it, undo toast r
   await expectUndoTop(page, new RegExp(`Undo: .* — ${name}|Undo: Edit block "${name}"`));
 
   const row = sidebarBlockRow(page, name);
-  await row.hover();
-  await row.getByRole("button", { name: "Delete", exact: true }).click();
+  const del = row.getByRole("button", { name: `Delete block ${name}` });
+  // keyboard focus reveals the hover-only delete button, not just the mouse
+  await del.focus();
+  await expect(del).toHaveCSS("opacity", "1");
+  await del.click();
 
   // the AlertDialog names the block and states what's destroyed
   const dialog = page.getByRole("alertdialog");
@@ -43,7 +46,7 @@ test("block delete: confirm dialog with real copy, cancel keeps it, undo toast r
 
   // Confirm deletes it and toasts with an Undo shortcut
   await row.hover();
-  await row.getByRole("button", { name: "Delete", exact: true }).click();
+  await del.click();
   await dialog.getByRole("button", { name: "Delete block" }).click();
   const deleted = toast(page, `Deleted "${name}"`);
   await expect(deleted).toBeVisible();

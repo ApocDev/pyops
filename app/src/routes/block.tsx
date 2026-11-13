@@ -47,6 +47,7 @@ import {
   FolderPlus,
   Plus,
   Power,
+  Trash2,
   X,
 } from "lucide-react";
 import { ensureScienceBlockFn, scienceBlockFn } from "../server/science";
@@ -576,14 +577,15 @@ function Shell() {
         )}
         {healthBadge(b.health, blockHealthTip(b))}
       </button>
-      {/* Raw button on purpose: hover-revealed glyph inside a drag row — a
+      {/* Raw button on purpose: hover/focus-revealed glyph inside a drag row — a
           Button box would change the row's density/hit-testing. */}
       <button
-        className="px-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
+        className="px-1 text-muted-foreground opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-destructive"
         title="Delete"
+        aria-label={`Delete block ${b.name}`}
         onClick={(e) => del(b.id, e)}
       >
-        <X className="size-3.5" />
+        <Trash2 className="size-3.5" />
       </button>
     </DndRow>
   );
@@ -612,7 +614,12 @@ function Shell() {
           {showLine && (
             <div className="pointer-events-none absolute inset-x-1 -top-px z-10 h-0.5 bg-primary" />
           )}
-          <button className="flex w-4 shrink-0 justify-center" onClick={() => toggle(key)}>
+          <button
+            className="flex w-4 shrink-0 justify-center"
+            aria-label={`${isCol ? "Expand" : "Collapse"} folder ${group.name}`}
+            aria-expanded={!isCol}
+            onClick={() => toggle(key)}
+          >
             {isCol ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
           </button>
           <span
@@ -628,11 +635,12 @@ function Shell() {
               : "A block in this folder needs attention — expand to find it",
           )}
           <button
-            className="px-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
+            className="px-1 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-destructive"
             title="Delete folder"
+            aria-label={`Delete folder ${group.name}`}
             onClick={() => void deleteFolder(group)}
           >
-            <X className="size-3.5" />
+            <Trash2 className="size-3.5" />
           </button>
         </DndRow>
         {!isCol && (
@@ -657,7 +665,12 @@ function Shell() {
           id={key}
           className={`group flex items-center gap-1 px-1 py-1 text-sm font-semibold tracking-wide text-muted-foreground hover:bg-muted/50 ${showInto ? "bg-primary/15 ring-1 ring-primary/40" : ""}`}
         >
-          <button className="flex w-4 shrink-0 justify-center" onClick={() => toggle(key)}>
+          <button
+            className="flex w-4 shrink-0 justify-center"
+            aria-label={`${isCol ? "Expand" : "Collapse"} Ungrouped`}
+            aria-expanded={!isCol}
+            onClick={() => toggle(key)}
+          >
             {isCol ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
           </button>
           <span className="min-w-0 flex-1 truncate">Ungrouped ({rows.length})</span>
@@ -731,7 +744,9 @@ function Shell() {
         sidebar={
           <>
             <div className="flex items-center gap-2 border-b border-border px-2 py-2">
-              <FieldLabel className="font-semibold">Blocks ({blocks.data?.length ?? 0})</FieldLabel>
+              <FieldLabel className="text-sm font-semibold">
+                Blocks ({blocks.data?.length ?? 0})
+              </FieldLabel>
               <Button
                 variant="outline"
                 size="icon-sm"
@@ -875,9 +890,10 @@ function Shell() {
                   {b?.name ?? `#${id}`}
                 </span>
                 {b && healthBadge(b.health, blockHealthTip(b))}
+                {/* Mouse-only close glyph: a nested role="button" inside the tab
+                    button is invalid ARIA, so it stays out of the a11y tree. */}
                 <span
-                  role="button"
-                  tabIndex={-1}
+                  aria-hidden
                   onClick={(e) => closeTab(id, e)}
                   className="flex items-center px-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                 >

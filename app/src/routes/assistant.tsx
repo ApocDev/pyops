@@ -654,7 +654,13 @@ function ChatView({ chat, active }: { chat: ChatInstance; active: boolean }) {
                 <Tooltip
                   content={`${editingId ? "Resend" : "Send"} — Enter (Shift+Enter for a newline)`}
                 >
-                  <Button type="submit" size="icon-lg" disabled={!input.trim()} className="ml-auto">
+                  <Button
+                    type="submit"
+                    size="icon-lg"
+                    disabled={!input.trim()}
+                    aria-label={editingId ? "Resend" : "Send"}
+                    className="ml-auto"
+                  >
                     <ArrowUp className="size-4" />
                   </Button>
                 </Tooltip>
