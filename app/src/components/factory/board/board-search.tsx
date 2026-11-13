@@ -53,7 +53,9 @@ export function BoardSearch({
       setOpen(true);
       const step = ev.key === "ArrowDown" ? 1 : -1;
       setCursor((c) => (options.length ? (c + step + options.length) % options.length : 0));
-    } else if (ev.key === "Enter" && shown) pick(options[Math.min(cursor, options.length - 1)]);
+    } else if (ev.key === "Enter" && shown && ev.target instanceof HTMLInputElement)
+      // only from the input: a focused result button handles its own Enter
+      pick(options[Math.min(cursor, options.length - 1)]);
   };
 
   return (
@@ -99,6 +101,7 @@ export function BoardSearch({
                         variant="ghost"
                         onClick={() => pick(e)}
                         onMouseMove={() => setCursor(i)}
+                        onFocus={() => setCursor(i)}
                         className={cn(
                           "w-full justify-start gap-2 font-normal",
                           i === cursor && "bg-muted",
