@@ -456,6 +456,7 @@ export async function computeBlock(rawData: SolveInput) {
           miningProd: r.kind === "mining" ? researchProd.mining : 0,
           maxProductivity: r.maximumProductivity,
         },
+        chosen?.effectReceiver,
       );
       return [
         r.name,
@@ -1704,6 +1705,7 @@ export function computeModuleSuggestions(
         miningProd: recipe.kind === "mining" ? researchProd.mining : 0,
         maxProductivity: recipe.maximumProductivity,
       },
+      chosen.effectReceiver,
     );
     // recipe rate × craft time = machine-seconds/sec at 1× speed. Divide by
     // the module-less machine speed so beacon/TURD effects remain represented.

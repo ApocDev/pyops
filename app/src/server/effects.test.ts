@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
-import { computeEffects, type BeaconEff, type ModuleEff } from "./effects";
+import { parseEffectReceiver } from "../db/effect-receiver";
+import { computeEffects, type BeaconEff, type EffectReceiver, type ModuleEff } from "./effects";
 
 const MODS = new Map<string, ModuleEff>([
   // vanilla-ish reference values
@@ -48,7 +49,7 @@ describe("computeEffects", () => {
       BEACONS,
     );
     expect(fx.consBonus).toBeCloseTo(-1.2);
-    expect(fx.consMult).toBe(0.2);
+    expect(fx.consMult).toBeCloseTo(0.2);
   });
 
   it("applies one beacon: de × profile[1] × modules", () => {
@@ -223,5 +224,102 @@ describe("computeEffects — beacon sharing", () => {
     );
     // 3 beacons each serving 2 machines → 1.5 buildings' worth of draw per machine
     expect(fx.beaconPowerPerMachineW).toBeCloseTo(36_000_000);
+  });
+});
+
+// Machine base effects (#258). Receivers are real Py/base dump values
+// (data-raw-dump `effect_receiver`), parsed the way the importer stores them.
+describe("computeEffects — machine effect receiver", () => {
+  const receiver = (raw: unknown) => JSON.parse(parseEffectReceiver(raw)!) as EffectReceiver;
+  // 184 Py farms/creature buildings, e.g. assembling-machine.fawogae-plantation-mk01
+  const farm = receiver({ base_effect: { speed: -1 }, speed_limits: { low: -0.9999 } });
+  const FAWOGAE = new Map<string, ModuleEff>([
+    // module.fawogae.effect = { speed = 1, pollution = 1 }
+    ["fawogae", { effSpeed: 1, effProductivity: 0, effConsumption: 0, effPollution: 1 }],
+  ]);
+  const farmFx = (n: number) =>
+    computeEffects(
+      false,
+      Array<string>(n).fill("fawogae"),
+      [],
+      FAWOGAE,
+      BEACONS,
+      [],
+      undefined,
+      farm,
+    );
+
+  it("adds a Py farm's base speed -1 to its creature modules", () => {
+    expect(farmFx(10).speedMult).toBeCloseTo(10); // -1 + 10, not 1 + 10
+    expect(farmFx(5).speedMult).toBeCloseTo(5);
+  });
+
+  it("clamps speed at the receiver's own low limit instead of 0.2", () => {
+    expect(farmFx(0).speedBonus).toBe(-1);
+    expect(farmFx(0).speedMult).toBeCloseTo(0.0001); // 1 + max(-0.9999, -1)
+    // the default receiver keeps the engine's -0.8 floor (0.2×)
+    const slow = new Map<string, ModuleEff>([
+      ["slow", { effSpeed: -2, effProductivity: 0, effConsumption: 0 }],
+    ]);
+    expect(computeEffects(true, ["slow"], [], slow, BEACONS).speedMult).toBeCloseTo(0.2);
+  });
+
+  it("adds a Py mine's base consumption +9", () => {
+    // mining-drill.salt-mine.effect_receiver = { base_effect = { consumption = 9 } }
+    const fx = computeEffects(
+      true,
+      [],
+      [],
+      MODS,
+      BEACONS,
+      [],
+      undefined,
+      receiver({ base_effect: { consumption: 9 } }),
+    );
+    expect(fx.consMult).toBeCloseTo(10);
+  });
+
+  it("keeps base productivity on a recipe that disallows productivity", () => {
+    // In game: furnace.compost-plant-mk01-turd (base_effect.productivity = 0.05)
+    // running biomass-guar-seeds (allowed_effects.productivity = false) showed
+    // productivity_bonus 0.05 and bonus_progress 0.0664 after 1.328 crafts.
+    const compost = receiver({ base_effect: { productivity: 0.05 } });
+    const fx = computeEffects(false, [], [], MODS, BEACONS, [], undefined, compost);
+    expect(fx.prodBonus).toBeCloseTo(0.05);
+    expect(fx.prodMult).toBeCloseTo(1.05);
+  });
+
+  it("still blocks module and beacon productivity next to the base", () => {
+    const compost = receiver({ base_effect: { productivity: 0.05 } });
+    const prodBeacon = [{ beacon: "beacon-AM3-FM2", modules: ["productivity-module"], count: 1 }];
+    const fx = computeEffects(
+      false,
+      ["productivity-module"],
+      prodBeacon,
+      MODS,
+      BEACONS,
+      [{ effSpeed: 0, effProductivity: 0.3, effConsumption: 0 }],
+      undefined,
+      compost,
+    );
+    expect(fx.prodBonus).toBeCloseTo(0.05); // only the base survives
+  });
+
+  it("clamps base productivity to the recipe's maximum_productivity", () => {
+    const strong = receiver({ base_effect: { productivity: 5 } });
+    const research = { recipeProd: 0, miningProd: 0, maxProductivity: 3 };
+    expect(computeEffects(false, [], [], MODS, BEACONS, [], research, strong).prodBonus).toBe(3);
+  });
+
+  it("ignores modules, beacons and the TURD beacon on a machine that doesn't use them", () => {
+    // base assembling-machine-1 / stone-furnace
+    const am1 = receiver({ uses_module_effects: false, uses_beacon_effects: false });
+    const beacon = [
+      { beacon: "beacon-AM3-FM2", modules: ["speed-module", "speed-module"], count: 1 },
+    ];
+    const turd = [{ effSpeed: 0.5, effProductivity: 0, effConsumption: 0 }];
+    const fx = computeEffects(true, ["speed-module"], beacon, MODS, BEACONS, turd, undefined, am1);
+    expect(fx.speedMult).toBe(1);
+    expect(fx.consMult).toBe(1);
   });
 });

@@ -1,5 +1,6 @@
 import { sqliteTable, integer, text, real, index, primaryKey } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
+import type { EffectReceiver } from "../server/effects.ts";
 
 const bool = (name?: string) => integer(name as string, { mode: "boolean" });
 
@@ -181,6 +182,11 @@ export const craftingMachines = sqliteTable("crafting_machines", {
   // fuel burners and pre-#114 imports (re-sync the data to populate).
   fluidFuelPerSec: real("fluid_fuel_per_sec"),
   fluidFuelEnergyJ: real("fluid_fuel_energy_j"),
+  // The machine's EffectReceiver (#258), defaults filled in by
+  // db/effect-receiver.ts: base effect, effect limits, and whether modules and
+  // beacons apply. Null = the prototype has none (engine defaults). Py farms and
+  // creature buildings carry base speed -1; Py mines base consumption +9.
+  effectReceiver: text("effect_receiver", { mode: "json" }).$type<EffectReceiver | null>(),
 });
 
 export const machineCategories = sqliteTable(

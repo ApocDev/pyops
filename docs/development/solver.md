@@ -274,8 +274,28 @@ selected building and all applicable effects.
 - consumption changes electrical or fuel demand;
 - pollution changes the row and block pollution budget.
 
-Factorio's lower multiplier clamp of `0.2` is applied to speed, consumption, and pollution.
-Productivity respects the recipe's maximum. `ignored_by_productivity` is an amount of output
+Each machine's effect receiver shapes that sum, following Factorio's `EffectReceiver`
+prototype:
+
+- the machine's `base_effect` adds into the sum like one more module;
+- `uses_module_effects = false` drops its own modules, and `uses_beacon_effects = false`
+  drops beacons and the TURD bonus, which Pyanodons delivers through a hidden beacon;
+- each total clamps to the machine's `*_limits`. The default low limit is `-0.8`, so speed,
+  consumption, and pollution never drop below `0.2×` unless a machine lowers it.
+
+Pyanodons' farms and creature buildings use this. They have `base_effect.speed = -1` and
+`speed_limits.low = -0.9999`, so an unmoduled farm runs at `0.0001×` and each `+1` speed
+creature module adds `1×`: ten fawogae modules give `10×`, not `11×`. Pyanodons' salt and
+sulfur mines and antimony drills have `+9` consumption.
+
+A recipe that disallows productivity blocks module, beacon, and TURD productivity, but not
+the machine's base productivity. In game, a `compost-plant-mk01-turd` (`+5%` base
+productivity) running `biomass-guar-seeds`, a recipe that disallows productivity, gains
+productivity bonus progress at exactly `5%` per craft. Pyanodons' TURD compost plants
+therefore add `+5%` to `+20%` to composting recipes.
+
+Productivity clamps to its limits before research productivity is added, then to zero and
+the recipe's maximum. `ignored_by_productivity` is an amount of output
 that remains unscaled; only the remainder receives the multiplier.
 
 Technology-derived recipe and mining productivity enter the same effects stage. Future

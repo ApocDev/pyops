@@ -27,6 +27,7 @@
  */
 import type Database from "better-sqlite3";
 import { temperatureFedDrain, type TempFedDrain } from "./fluid-energy.ts";
+import { parseEffectReceiver } from "./effect-receiver.ts";
 
 export const ELECTRICITY = "pyops-electricity";
 export const HEAT = "pyops-heat";
@@ -101,7 +102,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       `INSERT OR IGNORE INTO fluids (name,display,default_temperature,heat_capacity_j) VALUES (?,?,NULL,NULL)`,
     ),
     machine: db.prepare(
-      `INSERT OR REPLACE INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,neighbour_bonus,burns_fluid,fluid_fuel_filter,fluid_fuel_per_sec,fluid_fuel_energy_j) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT OR REPLACE INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,neighbour_bonus,burns_fluid,fluid_fuel_filter,fluid_fuel_per_sec,fluid_fuel_energy_j,effect_receiver) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     ),
     machineCat: db.prepare(
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
@@ -219,6 +220,8 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
     fluidFuelPerSec?: number | null;
     /** temperature-fed sources (#114): usable J per unit of the filter fluid */
     fluidFuelEnergyJ?: number | null;
+    /** the raw prototype `effect_receiver` (#258) of a mining drill or lab */
+    effectReceiver?: unknown;
   }) => {
     ins.machine.run(
       m.name,
@@ -236,6 +239,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       m.fluidFuelFilter ?? null,
       m.fluidFuelPerSec ?? null,
       m.fluidFuelEnergyJ ?? null,
+      parseEffectReceiver(m.effectReceiver),
     );
     ins.machineCat.run(m.name, m.category);
     for (const fc of m.fuelCategories ?? []) ins.machineFuel.run(m.name, fc);
@@ -299,6 +303,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
           burnsFluid: es.burnsFluid,
           fluidFuelFilter: es.fluidFuelFilter,
           ...tempFedDrain(d.energy_source, usage),
+          effectReceiver: d.effect_receiver,
         });
       }
     }
@@ -781,6 +786,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
         allowedModuleCategories: lab.allowed_module_categories ?? null,
         category: RESEARCH_CATEGORY,
         fuelCategories: es.fuel_categories ?? [],
+        effectReceiver: lab.effect_receiver,
       });
       for (const pack of lab.inputs ?? []) packs.add(pack);
     }
