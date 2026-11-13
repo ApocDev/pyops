@@ -469,10 +469,11 @@ export async function computeBlock(rawData: SolveInput) {
     }),
   );
 
-  // Goods produced by some recipe in this block — used to decide whether a burner's
-  // fuel is self-supplied (model it in the LP so production scales to self-fuel) vs
-  // imported (handled post-hoc as a fuel import).
+  // Goods produced / consumed by some recipe in this block — used to decide whether a
+  // burner's fuel belongs in the LP (self-supplied fuel, or a burnt result another
+  // recipe here eats) vs handled post-hoc as a plain fuel import.
   const producedInBlock = new Set(fetched.flatMap((r) => r.products.map((p) => p.name)));
+  const consumedInBlock = new Set(fetched.flatMap((r) => r.ingredients.map((c) => c.name)));
   const selfFueled = new Set<string>(); // recipes whose fuel is modeled in the LP (skip the post-hoc fold)
   const defs: TempRecipeDef[] = fetched.map((r) => {
     const s = setup.get(r.name)!;
@@ -503,7 +504,10 @@ export async function computeBlock(rawData: SolveInput) {
     // the LP — a fuel ingredient (+ its ash product) per execution. The solver then
     // scales mining up so net output meets the target AND covers its own fuel, and
     // ash falls out as a real byproduct, instead of the fuel showing as an import.
-    // Imported fuels (not produced in-block) stay post-hoc. Mirrors the powerW formula.
+    // An imported fuel whose burnt result feeds a recipe here (a boiler's ash into
+    // log3) is modeled the same way: the fuel stays a free import, but the ash is an
+    // LP product that can cover that recipe. Other imported fuels stay post-hoc.
+    // Mirrors the powerW formula.
     // Applies to solid burners and PINNED fluid burners (a filtered powerplant
     // burning the gas the block makes); pooled fluid burners are handled below.
     const fueling = chosen?.energySource === "fluid" ? fluidFueling(chosen) : null;
@@ -515,7 +519,10 @@ export async function computeBlock(rawData: SolveInput) {
               const all = fuelsForCategories(chosen.fuelCategories);
               return all.find((f) => f.name === data.fuels?.[r.name]) ?? defaultFuel(all);
             })();
-      if (pick?.fuelValueJ && producedInBlock.has(pick.name)) {
+      const inLp =
+        producedInBlock.has(pick?.name ?? "") ||
+        (!!pick?.burntResult && consumedInBlock.has(pick.burntResult));
+      if (pick?.fuelValueJ && inLp) {
         const speed = (chosen.craftingSpeed ?? 1) * fx.speedMult;
         const energyRequired = r.energyRequired ?? 0.5;
         const fuelPerExec =

@@ -1324,3 +1324,49 @@ describe("computeBlock beacon upkeep and sharing", () => {
     expect(priv.power.totalW - shared.power.totalW).toBeCloseTo(900_000 * (20 - 20 / 28), -2);
   });
 });
+
+describe("burnt result of an imported fuel feeding an in-block recipe", () => {
+  let fx: TestDb;
+
+  // A coal boiler (1 MW, 1 MJ coal → 1 coal per boil) and a farm that grows a log
+  // from 1 ash. Coal is imported; only the boiler's ash can make it in-block.
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    fx.db.exec(`
+      INSERT INTO fluids (name, display) VALUES ('steam','Steam');
+      INSERT INTO crafting_machines (name, display, kind, crafting_speed, energy_usage_w, energy_source)
+      VALUES ('boiler','Boiler','boiler',1,1000000,'burner'),
+             ('farm','Farm','assembling-machine',1,1000,'electric');
+      INSERT INTO machine_categories (machine, category) VALUES ('boiler','boil'), ('farm','grow');
+      INSERT INTO machine_fuel_categories (machine, fuel_category) VALUES ('boiler','chemical');
+      INSERT INTO recipes (name, display, kind, category, energy_required, enabled, hidden) VALUES
+        ('boil','Boil','boiling','boil',1,1,0),
+        ('grow-log','Log','real','grow',1,1,0);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+        ('boil',0,'fluid','steam',10),
+        ('grow-log',0,'item','log',1);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
+        ('grow-log',0,'item','ash',1);
+      INSERT INTO items (name, display, fuel_value_j, fuel_categories, burnt_result) VALUES
+        ('coal','Coal',1000000,'["chemical"]','ash');
+      INSERT INTO items (name, display) VALUES ('ash','Ash'), ('log','Log');
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+
+  afterEach(() => fx.cleanup());
+
+  it("marking ash made runs the boiler for it instead of importing ash", async () => {
+    const r = await computeBlock({
+      goals: [{ name: "log", rate: 1 }],
+      recipes: ["grow-log", "boil"],
+      fuels: { boil: "coal" },
+      made: ["ash"],
+    });
+    expect(r.status).toBe("solved");
+    expect(r.rows.find((row) => row.recipe === "boil")?.rate).toBeCloseTo(1, 9);
+    expect(r.imports.find((f) => f.name === "coal")?.rate).toBeCloseTo(1, 9);
+    expect(r.imports.find((f) => f.name === "ash")).toBeUndefined();
+  });
+});
