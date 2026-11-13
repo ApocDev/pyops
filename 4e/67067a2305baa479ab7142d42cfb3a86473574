@@ -1,0 +1,35 @@
+app/e2e/explorer-alt-click.e2e.ts
+  s_2e2dcdef8cc0f3::t_af386be4a6c98b 23-48
+app/src/components/browse/good-detail.tsx
+  s_4a0fb07906cf34::t_d85e43506ae9d5 83-84,144-176
+app/src/components/browse/recipe-list.tsx
+  s_4a0fb07906cf34::t_68e8b4709a011e 25-26,47,53,60,103-118
+app/src/components/browse/recipe-row.tsx
+  s_4a0fb07906cf34::t_f8d43abc85ca84 38,73-75,78
+app/src/components/good-explorer-dialog.tsx
+  s_4a0fb07906cf34::t_6b898bf787c56b 42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4e67067a2305baa479ab7142d42cfb3a86473574",
+  "prompts": {},
+  "sessions": {
+    "s_2e2dcdef8cc0f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cc91899-9788-4780-ad00-00102e37aed5",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_4a0fb07906cf34": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ce3c79fc-8888-44e1-8847-062affb92d27",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
