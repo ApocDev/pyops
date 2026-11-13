@@ -94,6 +94,14 @@ describe("handleResearch", () => {
     });
   });
 
+  it("stores the research speed bonus, and 0 when it is absent", async () => {
+    await handleResearch(req({ researched: ["a"], laboratory_speed_modifier: 2.5 }));
+    expect(q.metaSet).toHaveBeenCalledWith("research_lab_speed_bonus", "2.5");
+    vi.clearAllMocks();
+    await handleResearch(req({ researched: ["a"] }));
+    expect(q.metaSet).toHaveBeenCalledWith("research_lab_speed_bonus", "0");
+  });
+
   it("re-solves blocks only when the canonical research context changed", async () => {
     vi.mocked(q.setResearchHorizon).mockReturnValueOnce(true);
     await handleResearch(req({ researched: ["automation"] }));

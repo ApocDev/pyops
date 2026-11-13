@@ -194,6 +194,13 @@ export function sciencePins(): {
   return [...pins.values()];
 }
 
+/** The force's research speed bonus as last synced from the game, or 0 if it
+ * never synced. */
+function labSpeedBonus(): number {
+  const bonus = Number(q.metaAll().research_lab_speed_bonus);
+  return Number.isFinite(bonus) ? bonus : 0;
+}
+
 /** Solve the bank: labs, beacon buildings, pack demand, upkeep and power. */
 export function solveScienceBank(bank: ScienceBank): ScienceBankResult | null {
   const lab = labOptions().find((l) => l.name === bank.lab);
@@ -204,6 +211,7 @@ export function solveScienceBank(bank: ScienceBank): ScienceBankResult | null {
     lab,
     packs: bank.packs,
     labSecondsPerPack: bank.labSecondsPerPack || DEFAULT_LAB_SECONDS_PER_PACK,
+    labSpeedBonus: labSpeedBonus(),
     modules: bank.modules ?? [],
     beacons,
     moduleDb: q.getModules(moduleNames),

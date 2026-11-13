@@ -2,7 +2,8 @@
  * `state.research` — the mod pushes the force's full researched-tech set. We store
  * it as the planning horizon's researched set (the same slot the manual picker
  * fills), so the existing "now"-mode availability uses real unlock state with no
- * extra wiring. Fire-and-forget: no response needed.
+ * extra wiring. It also carries the force's research speed bonus, which sizes the
+ * science block's labs. Fire-and-forget: no response needed.
  */
 import type { BridgeRequest, BridgeResponse } from "../protocol.ts";
 import * as q from "../../../db/queries.server.ts";
@@ -13,6 +14,7 @@ export async function handleResearch(req: BridgeRequest): Promise<BridgeResponse
     researched?: unknown;
     force?: unknown;
     mining_productivity_bonus?: unknown;
+    laboratory_speed_modifier?: unknown;
     recipe_productivity_bonuses?: unknown;
   };
   const researched = Array.isArray(payload.researched)
@@ -55,6 +57,14 @@ export async function handleResearch(req: BridgeRequest): Promise<BridgeResponse
         }
       : { researched },
   );
+  // Only the science block reads this, and it solves on every read, so storing it
+  // needs no re-solve. A payload without it means no bonus.
+  const labSpeedBonus =
+    typeof payload.laboratory_speed_modifier === "number" &&
+    Number.isFinite(payload.laboratory_speed_modifier)
+      ? payload.laboratory_speed_modifier
+      : 0;
+  q.metaSet("research_lab_speed_bonus", String(labSpeedBonus));
   q.metaSet("research_synced_at", new Date().toISOString());
   q.metaSet("research_synced_count", String(researched.length));
   if (changed) await resolveAllBlocks();

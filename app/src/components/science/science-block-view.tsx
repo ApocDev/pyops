@@ -186,7 +186,7 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
           const drawnPerSec = Object.values(result.packDemand).reduce((sum, r) => sum + r, 0);
           const pct = `${Math.round((result.productivityMult - 1) * 100)}%`;
           return (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <Stat
                 label="Labs"
                 value={formatQty(result.labs)}
@@ -215,6 +215,7 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
                 }
                 hint="From modules and beacons. Pack demand is divided by it."
               />
+              <Stat label="Research speed" value={`+${Math.round(result.labSpeedBonus * 100)}%`} />
             </div>
           );
         })()}

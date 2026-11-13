@@ -19,7 +19,7 @@ local BUTTON_NAME = "pyops_button"
 local SHORTCUT_NAME = "pyops-toggle-panel"
 -- Bridge wire contract. Keep in lockstep with PROTOCOL_VERSION in the app's
 -- src/server/bridge/protocol.ts — each side warns if the other reports a different one.
-local PROTOCOL_VERSION = 8
+local PROTOCOL_VERSION = 9
 
 local function get_player(event)
   if not event.player_index then
@@ -207,6 +207,7 @@ local function send_research(player)
     force = force.name,
     researched = researched,
     mining_productivity_bonus = force.mining_drill_productivity_bonus,
+    laboratory_speed_modifier = force.laboratory_speed_modifier,
     recipe_productivity_bonuses = recipe_productivity_bonuses
   })
 end
