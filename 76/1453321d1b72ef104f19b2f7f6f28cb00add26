@@ -1,0 +1,23 @@
+app/src/server/effects.test.ts
+  s_f3f524ab146216::t_5465e9c064d7b0 282-285,287-311
+app/src/server/effects.ts
+  s_f3f524ab146216::t_102d4d4303c5b0 15-17,155-158,160
+docs/development/solver.md
+  s_f3f524ab146216::t_0a04a88a6f11ea 291-295
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "761453321d1b72ef104f19b2f7f6f28cb00add26",
+  "prompts": {},
+  "sessions": {
+    "s_f3f524ab146216": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a7f2f158-99d4-4236-864b-ece6ccf78b67",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
