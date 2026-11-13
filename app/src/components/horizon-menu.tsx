@@ -28,6 +28,7 @@ export function HorizonMenu() {
         <Button
           variant="ghost"
           className="h-full min-w-16 shrink gap-1.5 px-3 font-normal text-muted-foreground hover:bg-muted/50"
+          aria-label={`Horizon: ${label}`}
           title="Planning horizon — what the planner is allowed to use (blocks, picker, assistant)"
         >
           <Clock className="size-4" />
