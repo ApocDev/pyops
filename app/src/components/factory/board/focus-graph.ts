@@ -99,6 +99,15 @@ export function buildFocusGraph(
 
 type Contrib = { blockId: number; rate: number };
 
+/** One entry per block with its rows summed. Coherence keys links by good
+ * name alone, so a block can appear several times on one side, e.g. a fluid
+ * at two temperatures. */
+export function byBlock(ends: readonly Contrib[]): Contrib[] {
+  const sums = new Map<number, number>();
+  for (const e of ends) sums.set(e.blockId, (sums.get(e.blockId) ?? 0) + e.rate);
+  return [...sums].map(([blockId, rate]) => ({ blockId, rate }));
+}
+
 /** Split one good's contributing blocks into the ones drawn individually (top
  * FOLD_KEEP by rate) and the folded rest. A lone extra block isn't worth a
  * "1 more" node, so folding starts at FOLD_KEEP + 2. */
@@ -127,7 +136,7 @@ function builder(blocks: Map<number, BoardBlockInput>, fold: boolean) {
     contribs: Contrib[],
     centerId: string,
   ) => {
-    const drawn = contribs.filter((c) => blocks.has(c.blockId) && c.rate > EPS);
+    const drawn = byBlock(contribs).filter((c) => blocks.has(c.blockId) && c.rate > EPS);
     const { kept, folded } = fold ? splitFold(drawn) : { kept: drawn, folded: [] };
     const prefix = side === "makers" ? "m" : "u";
     const wire = (id: string, rate: number) =>
@@ -219,8 +228,8 @@ function blockView(
     const producedTotal = l.producers.reduce((s, p) => s + p.rate, 0);
     if (producedTotal <= EPS) continue;
     const share = (p: Contrib, c: Contrib) => (p.rate * c.rate) / producedTotal;
-    const asConsumer = l.consumers.find((c) => c.blockId === centerId);
-    const asProducer = l.producers.find((p) => p.blockId === centerId);
+    const asConsumer = byBlock(l.consumers).find((c) => c.blockId === centerId);
+    const asProducer = byBlock(l.producers).find((p) => p.blockId === centerId);
     if (asConsumer)
       g.placeSide(
         l,

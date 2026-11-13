@@ -108,4 +108,22 @@ describe("buildFocusGraph", () => {
       rate: 5,
     });
   });
+
+  it("sums a block's rows for one good, e.g. steam at two temperatures", () => {
+    // block 2 imports the same fluid twice (two temperatures): 3/s + 7/s
+    const steam = link(
+      "steam",
+      [{ blockId: 1, rate: 10 }],
+      [
+        { blockId: 2, rate: 3 },
+        { blockId: 2, rate: 7 },
+      ],
+    );
+    const focused = buildFocusGraph(blocks, [steam], { kind: "block", id: 2 });
+    expect(focused.edges.find((e) => e.id === "m:1->b:2")?.goods[0].rate).toBe(10);
+
+    const good = buildFocusGraph(blocks, [steam], { kind: "good", good: "steam" });
+    expect(good.nodes.filter((n) => n.id === "u:2")).toHaveLength(1);
+    expect(good.edges.find((e) => e.id === "g:steam->u:2")?.goods[0].rate).toBe(10);
+  });
 });
