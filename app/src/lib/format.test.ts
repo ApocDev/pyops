@@ -7,6 +7,7 @@ import {
   rateLabel,
   setCompactNumbers,
   snapResidue,
+  timeAgo,
 } from "./format.ts";
 
 test("true zero reads as 0", () => {
@@ -88,4 +89,11 @@ test("snapResidue: solver float noise reads 0, real imbalances stay", () => {
   expect(snapResidue(0.0000018, 11_700)).toBe(0);
   expect(snapResidue(0.001, 0.5)).toBe(0.001);
   expect(snapResidue(-0.5, 10)).toBe(-0.5);
+});
+
+test("timeAgo switches from hours to days after a day", () => {
+  const ago = (sec: number) => new Date(Date.now() - sec * 1000).toISOString();
+  expect(timeAgo(ago(5 * 3600))).toBe("5h ago");
+  expect(timeAgo(ago(30 * 3600))).toBe("1 day ago");
+  expect(timeAgo(ago(2579 * 3600))).toBe("107 days ago");
 });

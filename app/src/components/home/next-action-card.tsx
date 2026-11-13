@@ -16,9 +16,11 @@ import type { HomeAction } from "../../lib/home-actions.ts";
 import { formatRate } from "../../lib/format.ts";
 import { Button } from "#/components/ui/button.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
+import { SyncStatus } from "#/components/sync-status.tsx";
 
 export function NextActionCard({
   action,
+  syncedAt,
   canDismiss,
   dismissedCount,
   pending,
@@ -26,6 +28,8 @@ export function NextActionCard({
   onRestore,
 }: {
   action: HomeAction;
+  /** when the game data behind this action was synced; null if it isn't game-driven */
+  syncedAt: string | null;
   canDismiss: boolean;
   dismissedCount: number;
   pending: boolean;
@@ -152,6 +156,7 @@ export function NextActionCard({
             {title}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          {syncedAt && <SyncStatus syncedAt={syncedAt} className="mt-1" />}
         </div>
         <div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:items-center">
           {canDismiss && (

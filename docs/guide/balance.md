@@ -51,7 +51,7 @@ blocks, select the displayed block count to expand the individual connections.
 />
 
 ::: tip Recompute stale block flows
-Use **Recompute all blocks** when the page reports stale results after a data sync, TURD
+Use **Recompute all** when the page reports stale results after a data sync, TURD
 change, or solver update. This re-solves saved blocks; it does not invent new recipes.
 :::
 

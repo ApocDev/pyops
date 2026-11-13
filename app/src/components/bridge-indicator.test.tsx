@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { BRIDGE_FRESH_MS } from "../lib/use-game-linked";
 import { BridgeIndicator } from "./bridge-indicator.tsx";
 
 // Stub the router Link to a plain anchor (no router context needed) and the
@@ -86,6 +87,25 @@ describe("BridgeIndicator", () => {
     });
     const { findByText } = await renderIndicator();
     expect(await findByText("No game")).toBeTruthy();
+  });
+
+  it("drops to 'No game' when heartbeats stop, even if the status never changes", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      bridgeStatus.mockResolvedValue({
+        status: "listening",
+        host: "127.0.0.1",
+        port: 34197,
+        appProtocolVersion: 4,
+        lastPeer: { lastSeenMs: Date.now(), protocolVersion: 4, player: "jim" },
+      });
+      const { getByText } = await renderIndicator();
+      expect(getByText("Game linked")).toBeTruthy();
+      await act(() => vi.advanceTimersByTimeAsync(BRIDGE_FRESH_MS + 1));
+      expect(getByText("No game")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("surfaces a bind error", async () => {

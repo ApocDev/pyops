@@ -1202,7 +1202,7 @@ export const listTurdUpgradesFn = createServerFn({ method: "GET" }).handler(asyn
 );
 
 /** Live TURD state pushed by the in-game mod (bridge), if any. Mirrors the
- * research synced status — drives the "✓ live: N synced" note on the TURD page. */
+ * research synced status — drives the sync status on the TURD page. */
 export const turdSyncStatusFn = createServerFn({ method: "GET" }).handler(async () => {
   const m = q.metaAll();
   let unknown: { master: string; sub: string }[] = [];

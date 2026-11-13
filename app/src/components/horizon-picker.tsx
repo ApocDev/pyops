@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Check } from "lucide-react";
 import {
   goodInfoFn,
   searchAllFn,
@@ -20,6 +19,7 @@ import { Input } from "#/components/ui/input.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Segmented } from "#/components/ui/segmented.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
+import { SyncStatus } from "#/components/sync-status.tsx";
 
 /** Look up display names for a set of goods (science packs etc.) — memoised by key. */
 function useGoodDisplays(names: string[]) {
@@ -85,8 +85,8 @@ export function HorizonPicker() {
         />
 
         {d.syncedAt && (
-          <div className="flex items-center gap-1.5 text-sm text-success">
-            <Check className="size-3.5 shrink-0" /> Live · {d.syncedCount} techs synced
+          <div className="flex items-center gap-1.5">
+            <SyncStatus syncedAt={d.syncedAt}> · {d.syncedCount} techs synced</SyncStatus>
             {d.mode !== "now" && (
               <InfoHint content="Synced research only applies in Now mode." className="ml-0.5" />
             )}

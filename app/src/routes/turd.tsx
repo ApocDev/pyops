@@ -20,8 +20,8 @@ import { EmptyState } from "#/components/empty-state.tsx";
 import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
 import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
+import { SyncStatus } from "#/components/sync-status.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
-import { timeAgo } from "../lib/format";
 import { countNoun } from "../lib/delete-copy";
 import { useState } from "react";
 
@@ -248,9 +248,8 @@ function TurdPage() {
             </p>
             <p>
               This page lists every TURD master and its options. Your actual in-game picks{" "}
-              <span className="text-foreground">sync from the mod</span> (the{" "}
-              <Check className="inline size-3.5" /> live badge); choosing one here re-solves every
-              block that uses an affected recipe.
+              <span className="text-foreground">sync from the mod</span> (the sync status beside the
+              filter); choosing one here re-solves every block that uses an affected recipe.
             </p>
             <div>
               <div className="font-semibold text-foreground">How PyOps treats it</div>
@@ -297,21 +296,17 @@ function TurdPage() {
             </span>
           )}
           {sync.data?.syncedAt && (
-            <Tooltip content={`Pushed from the game ${timeAgo(sync.data.syncedAt)}`}>
-              <span className="inline-flex items-center gap-1 text-sm text-success">
-                <Check className="size-3.5" /> Live · {sync.data.syncedCount ?? 0} synced ·{" "}
-                {timeAgo(sync.data.syncedAt)}
-                {sync.data.unknown.length > 0 && (
-                  <Tooltip
-                    content={sync.data.unknown.map((u) => `${u.master} → ${u.sub}`).join("\n")}
-                  >
-                    <span className="ml-1 text-warning">
-                      · {sync.data.unknown.length} unmatched
-                    </span>
-                  </Tooltip>
-                )}
-              </span>
-            </Tooltip>
+            <SyncStatus syncedAt={sync.data.syncedAt}>
+              {" "}
+              · {sync.data.syncedCount ?? 0} synced
+              {sync.data.unknown.length > 0 && (
+                <Tooltip
+                  content={sync.data.unknown.map((u) => `${u.master} → ${u.sub}`).join("\n")}
+                >
+                  <span className="ml-1 text-warning">· {sync.data.unknown.length} unmatched</span>
+                </Tooltip>
+              )}
+            </SyncStatus>
           )}
         </div>
       </PageHeader>
