@@ -135,6 +135,21 @@ export type GoalChange = {
   window?: number;
 };
 
+/** The changes a resize request means: a top-level `rate` re-rates the FIRST
+ * goal (with its temperature, so it stays unambiguous when the block makes that
+ * fluid at several temperatures), then the named `goals`. */
+export function requestedGoalChanges(
+  d: { goals?: Goal[] },
+  rate: number | undefined,
+  goals: GoalChange[] = [],
+): GoalChange[] {
+  const first = primaryGoal(d);
+  return [
+    ...(rate != null && first ? [{ name: first.name, temperature: first.temperature, rate }] : []),
+    ...goals,
+  ];
+}
+
 /** A goal as errors name it: "steam at 500°", or just "steam" with no temperature. */
 const goalLabel = (g: Pick<Goal, "name" | "temperature">) =>
   g.temperature == null ? g.name : `${g.name} at ${g.temperature}°`;

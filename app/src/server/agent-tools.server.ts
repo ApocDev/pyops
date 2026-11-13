@@ -22,7 +22,7 @@ import {
   primaryGoal,
   primaryRate,
   STOCK_WINDOW_DEFAULT,
-  type GoalChange,
+  requestedGoalChanges,
   withGoalChanges,
 } from "../lib/goals.ts";
 import type { Goal } from "../db/schema.ts";
@@ -1008,12 +1008,7 @@ async function buildBlockUpdate({
     error,
   });
   // top-level `rate` is shorthand for a change to the anchor (first) goal
-  const changes: GoalChange[] = [
-    ...(rate != null && primary
-      ? [{ name: primary.name, temperature: primary.temperature, rate }]
-      : []),
-    ...(goals ?? []),
-  ];
+  const changes = requestedGoalChanges(data, rate, goals);
   if (changes.length === 0 && recipes == null) {
     return fail(
       "pass new goal values (`rate` or `goals`), a new recipe list, or both — nothing to revise otherwise",

@@ -1,7 +1,8 @@
 /**
  * Applying an assistant update (#132): goal changes by name and a recipe swap
  * persist in one re-solve, the cached flows follow, and one undo restores the
- * block exactly.
+ * block exactly. A proposal saved before named goal changes carries only a
+ * `rate`, which still means the block's first goal.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 
@@ -12,6 +13,14 @@ import { applyBlockUpdate } from "./block-update.server.ts";
 import { undoLast } from "./undo.server.ts";
 
 let fx: TestDb;
+
+const BOILERS = {
+  goals: [
+    { name: "steam", rate: 60, temperature: 165 },
+    { name: "steam", rate: 20, temperature: 500 },
+  ],
+  recipes: ["steam-165", "steam-500"],
+};
 
 const MALL = {
   goals: [
@@ -28,7 +37,11 @@ beforeEach(async () => {
     INSERT INTO recipes (name, kind, category, energy_required, enabled, hidden) VALUES
       ('smelt-plate','real','smelting',1,1,0),
       ('make-gear','real','crafting',1,1,0),
-      ('make-gear-cheap','real','crafting',1,1,0);
+      ('make-gear-cheap','real','crafting',1,1,0),
+      ('steam-165','real','boiling',1,1,0),
+      ('steam-500','real','boiling',1,1,0);
+    INSERT INTO fluids (name, display, default_temperature, max_temperature) VALUES
+      ('steam','Steam',15,5000);
     INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
       ('smelt-plate',0,'item','ore',1),
       ('make-gear',0,'item','plate',2),
@@ -37,17 +50,24 @@ beforeEach(async () => {
       ('smelt-plate',0,'item','plate',1),
       ('make-gear',0,'item','gear',1),
       ('make-gear-cheap',0,'item','gear',1);
+    INSERT INTO recipe_products (recipe, idx, kind, name, amount, temperature) VALUES
+      ('steam-165',0,'fluid','steam',10,165),
+      ('steam-500',0,'fluid','steam',10,500);
     INSERT INTO crafting_machines
       (name, display, kind, crafting_speed, module_slots, energy_usage_w, energy_source)
     VALUES
       ('furnace','Furnace','furnace',1,0,90000,'electric'),
-      ('assembler','Assembler','assembling-machine',1,0,75000,'electric');
+      ('assembler','Assembler','assembling-machine',1,0,75000,'electric'),
+      ('boiler','Boiler','assembling-machine',1,0,100000,'electric');
     INSERT INTO machine_categories (machine, category) VALUES
-      ('furnace','smelting'),('assembler','crafting');
+      ('furnace','smelting'),('assembler','crafting'),('boiler','boiling');
   `);
   fx.db
     .prepare("INSERT INTO blocks (id, name, data, enabled) VALUES (1, 'Mall', ?, 1)")
     .run(JSON.stringify(MALL));
+  fx.db
+    .prepare("INSERT INTO blocks (id, name, data, enabled) VALUES (2, 'Boilers', ?, 1)")
+    .run(JSON.stringify(BOILERS));
   fx.db.close();
   switchDatabase(fx.file);
 });
@@ -81,6 +101,15 @@ describe("applyBlockUpdate", () => {
       changedBlockIds: [1],
     });
     expect(getBlock(1)!.data).toEqual(MALL);
+  });
+
+  it("applies a legacy rate-only update to the first goal at its temperature", async () => {
+    // a bare "steam" would be ambiguous here; `rate` names the 165° goal
+    expect(await applyBlockUpdate({ blockId: 2, rate: 90 })).toEqual({ ok: true });
+    expect(getBlock(2)!.data.goals).toEqual([
+      { name: "steam", rate: 90, temperature: 165 },
+      { name: "steam", rate: 20, temperature: 500 },
+    ]);
   });
 
   it("refuses an unknown goal without saving", async () => {

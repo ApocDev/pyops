@@ -1629,12 +1629,15 @@ function updateGoalSummary(draft: Draft): string {
 }
 
 /** Persist one update proposal: its goal changes and, when it swaps recipes,
- * the new recipe set — one re-solve and one undo step. */
+ * the new recipe set — one re-solve and one undo step. An older saved draft has
+ * no `goalChanges`; its `rate` means the block's first goal, as it did then. */
 async function applyUpdate(draft: Draft) {
   const res = await applyBlockUpdateFn({
     data: {
       blockId: draft.updateBlockId!,
-      goals: updateGoalChanges(draft).map(goalChangeRequest),
+      ...(draft.goalChanges
+        ? { goals: draft.goalChanges.map(goalChangeRequest) }
+        : { rate: draft.rate }),
       recipes: changesRecipes(draft) ? draft.recipes : undefined,
     },
   });
