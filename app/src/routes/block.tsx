@@ -120,6 +120,7 @@ function DndRow({
       ref={setRef}
       style={style}
       data-block-nav-id={dataBlockId}
+      data-context-menu={onContextMenu ? "" : undefined}
       className={`${className ?? ""} ${drag.isDragging ? "opacity-40" : ""}`}
       onContextMenu={onContextMenu}
       {...drag.listeners}

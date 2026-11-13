@@ -179,6 +179,7 @@ export function RecipeRow({
             <span
               data-recipe-row-icon={name}
               className={off ? "opacity-40" : undefined}
+              data-context-menu
               onContextMenu={(e) => {
                 e.preventDefault();
                 open.rowMenu(e, name);
@@ -188,6 +189,7 @@ export function RecipeRow({
             </span>
             <span
               className={`min-w-0 flex-1 ${off ? "opacity-60" : ""}`}
+              data-context-menu
               onContextMenu={(e) => {
                 e.preventDefault();
                 open.rowMenu(e, name);

@@ -1,11 +1,10 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Bolt, Flame, Timer, Zap } from "lucide-react";
 import { entityDetailFn, itemDetailFn, recipeDetailFn, techDetailFn } from "../server/factorio";
 // Cards render the bare sprite (RawIcon) so a card's own icons never spawn nested
 // hover cards. The rich hover is the wrapper `Icon` adds around a RawIcon.
 import { RawIcon as Icon, fmtSpoilTime } from "./icons";
-import { CursorCard, CursorHover } from "./hover";
+import { CursorCard, CursorHover, useHoverCard } from "./hover";
 import { formatPower, formatQty, formatRate } from "./format";
 import { prodScaledAmount } from "./productivity";
 import { FieldLabel } from "#/components/ui/label.tsx";
@@ -215,14 +214,9 @@ export function TechHover({
   className?: string;
   children: React.ReactNode;
 }) {
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const { pos, triggerProps } = useHoverCard();
   return (
-    <div
-      className={className}
-      onMouseEnter={(e) => setPos({ x: e.clientX, y: e.clientY })}
-      onMouseMove={(e) => setPos({ x: e.clientX, y: e.clientY })}
-      onMouseLeave={() => setPos(null)}
-    >
+    <div className={className} {...triggerProps}>
       {children}
       {pos && typeof document !== "undefined" && (
         <CursorCard pos={pos} z={50}>
@@ -246,14 +240,9 @@ export function RecipeHover({
   className?: string;
   children: React.ReactNode;
 }) {
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const { pos, triggerProps } = useHoverCard();
   return (
-    <div
-      className={className}
-      onMouseEnter={(e) => setPos({ x: e.clientX, y: e.clientY })}
-      onMouseMove={(e) => setPos({ x: e.clientX, y: e.clientY })}
-      onMouseLeave={() => setPos(null)}
-    >
+    <div className={className} {...triggerProps}>
       {children}
       {pos && typeof document !== "undefined" && (
         <CursorCard pos={pos} z={50}>
@@ -656,14 +645,9 @@ export function RecipeDiffHover({
   className?: string;
   children: React.ReactNode;
 }) {
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const { pos, triggerProps } = useHoverCard();
   return (
-    <div
-      className={className}
-      onMouseEnter={(e) => setPos({ x: e.clientX, y: e.clientY })}
-      onMouseMove={(e) => setPos({ x: e.clientX, y: e.clientY })}
-      onMouseLeave={() => setPos(null)}
-    >
+    <div className={className} {...triggerProps}>
       {children}
       {pos && typeof document !== "undefined" && (
         <CursorCard pos={pos} z={50}>
@@ -688,16 +672,9 @@ export function ItemHover({
   className?: string;
   children: React.ReactNode;
 }) {
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const { pos, triggerProps } = useHoverCard();
   return (
-    <span
-      className={className}
-      data-good-kind={kind}
-      data-good-name={name}
-      onMouseEnter={(e) => setPos({ x: e.clientX, y: e.clientY })}
-      onMouseMove={(e) => setPos({ x: e.clientX, y: e.clientY })}
-      onMouseLeave={() => setPos(null)}
-    >
+    <span className={className} data-good-kind={kind} data-good-name={name} {...triggerProps}>
       {children}
       {pos && typeof document !== "undefined" && (
         <CursorCard pos={pos} z={60}>
@@ -823,14 +800,9 @@ export function EntityHover({
   className?: string;
   children: React.ReactNode;
 }) {
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const { pos, triggerProps } = useHoverCard();
   return (
-    <span
-      className={className}
-      onMouseEnter={(e) => setPos({ x: e.clientX, y: e.clientY })}
-      onMouseMove={(e) => setPos({ x: e.clientX, y: e.clientY })}
-      onMouseLeave={() => setPos(null)}
-    >
+    <span className={className} {...triggerProps}>
       {children}
       {pos && typeof document !== "undefined" && (
         <CursorCard pos={pos} z={60}>

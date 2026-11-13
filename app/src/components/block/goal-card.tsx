@@ -165,6 +165,7 @@ export function GoalCard({
                     {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
                       <div
                         data-goal={g}
+                        data-context-menu
                         onContextMenu={(e) => {
                           e.preventDefault();
                           onGoalMenu(e, g);
