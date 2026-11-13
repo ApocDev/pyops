@@ -283,8 +283,9 @@ document choices before re-solving.
 ### Power, fuel, and pollution
 
 Electrical draw is accumulated as consumption of `pyops-electricity` and then presented as
-power. Solid burners use the row's fuel selection. If the block produces that fuel, or a
-recipe in the block consumes its burnt result, the burn is represented inside the model so
+power. Solid burners use the row's fuel selection. If the block produces that fuel, or
+the block needs its burnt result (as an ingredient, a goal, or a good marked made), the
+burn is represented inside the model so
 extra production and burnt results remain balanced. An imported fuel stays a boundary
 import in both cases; modelling it lets a boiler's ash cover an in-block ash consumer.
 Otherwise the fuel import and burnt-result export are added after the solve.

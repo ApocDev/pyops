@@ -469,11 +469,16 @@ export async function computeBlock(rawData: SolveInput) {
     }),
   );
 
-  // Goods produced / consumed by some recipe in this block — used to decide whether a
-  // burner's fuel belongs in the LP (self-supplied fuel, or a burnt result another
-  // recipe here eats) vs handled post-hoc as a plain fuel import.
+  // Goods produced by some recipe here, and goods the block needs here (an ingredient,
+  // a goal, or marked made) — used to decide whether a burner's fuel belongs in the LP
+  // (self-supplied fuel, or a burnt result the block needs) vs handled post-hoc as a
+  // plain fuel import.
   const producedInBlock = new Set(fetched.flatMap((r) => r.products.map((p) => p.name)));
-  const consumedInBlock = new Set(fetched.flatMap((r) => r.ingredients.map((c) => c.name)));
+  const neededInBlock = new Set([
+    ...fetched.flatMap((r) => r.ingredients.map((c) => c.name)),
+    ...data.goals.map((g) => g.name),
+    ...(data.made ?? []),
+  ]);
   const selfFueled = new Set<string>(); // recipes whose fuel is modeled in the LP (skip the post-hoc fold)
   const defs: TempRecipeDef[] = fetched.map((r) => {
     const s = setup.get(r.name)!;
@@ -504,9 +509,10 @@ export async function computeBlock(rawData: SolveInput) {
     // the LP — a fuel ingredient (+ its ash product) per execution. The solver then
     // scales mining up so net output meets the target AND covers its own fuel, and
     // ash falls out as a real byproduct, instead of the fuel showing as an import.
-    // An imported fuel whose burnt result feeds a recipe here (a boiler's ash into
-    // log3) is modeled the same way: the fuel stays a free import, but the ash is an
-    // LP product that can cover that recipe. Other imported fuels stay post-hoc.
+    // An imported fuel whose burnt result the block needs (a boiler's ash into log3,
+    // or ash as a goal or marked made) is modeled the same way: the fuel stays a free
+    // import, but the ash is an LP product the solver can size. Other imported fuels
+    // stay post-hoc.
     // Mirrors the powerW formula.
     // Applies to solid burners and PINNED fluid burners (a filtered powerplant
     // burning the gas the block makes); pooled fluid burners are handled below.
@@ -521,7 +527,7 @@ export async function computeBlock(rawData: SolveInput) {
             })();
       const inLp =
         producedInBlock.has(pick?.name ?? "") ||
-        (!!pick?.burntResult && consumedInBlock.has(pick.burntResult));
+        (!!pick?.burntResult && neededInBlock.has(pick.burntResult));
       if (pick?.fuelValueJ && inLp) {
         const speed = (chosen.craftingSpeed ?? 1) * fx.speedMult;
         const energyRequired = r.energyRequired ?? 0.5;

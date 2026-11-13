@@ -1369,4 +1369,15 @@ describe("burnt result of an imported fuel feeding an in-block recipe", () => {
     expect(r.imports.find((f) => f.name === "coal")?.rate).toBeCloseTo(1, 9);
     expect(r.imports.find((f) => f.name === "ash")).toBeUndefined();
   });
+
+  it("an ash goal with no ash consumer sizes the boiler for it", async () => {
+    const r = await computeBlock({
+      goals: [{ name: "ash", rate: 2 }],
+      recipes: ["boil"],
+      fuels: { boil: "coal" },
+    });
+    expect(r.status).toBe("solved");
+    expect(r.rows.find((row) => row.recipe === "boil")?.rate).toBeCloseTo(2, 9);
+    expect(r.imports.find((f) => f.name === "coal")?.rate).toBeCloseTo(2, 9);
+  });
 });
