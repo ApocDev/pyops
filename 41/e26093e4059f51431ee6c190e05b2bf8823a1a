@@ -1,0 +1,35 @@
+app/src/components/block/recipe-grid.tsx
+  s_f392ce73dd87d2::t_e516bd20032b56 1,37-45,84-116,199,202,219,235-241
+app/src/components/block/recipe-row.tsx
+  s_f392ce73dd87d2::t_f038dd40b6c390 37-43,174
+app/src/routes/block.tsx
+  s_f392ce73dd87d2::t_364a479daf6a38 922
+docs/development/design.md
+  s_4459038fb5360e::t_4fa25c60efb3ce 222-229
+app/e2e/mut/large-block.e2e.ts
+  s_4459038fb5360e::t_262b26176c5d6d 1-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "41e26093e4059f51431ee6c190e05b2bf8823a1a",
+  "prompts": {},
+  "sessions": {
+    "s_4459038fb5360e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21bed058-e7bd-49f4-a0d0-add53b50d556",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f392ce73dd87d2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3036bb4c-da76-4e98-a7fd-8b513aef755a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
