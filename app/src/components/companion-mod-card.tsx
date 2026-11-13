@@ -56,9 +56,7 @@ export function CompanionModCard() {
   const badge = !s ? null : !s.installed ? (
     <Badge variant="outline">Not installed</Badge>
   ) : s.upToDate ? (
-    <Badge className="border-transparent bg-success/15 text-success">
-      {s.method === "symlink" ? "Linked" : "Copied"}
-    </Badge>
+    <Badge className="border-transparent bg-success/15 text-success">Installed</Badge>
   ) : (
     <Badge variant="destructive">{s.method === "symlink" ? "Broken link" : "Out of date"}</Badge>
   );
@@ -100,6 +98,10 @@ export function CompanionModCard() {
         </span>
       </CardHeader>
       <div className="space-y-3 px-3 pb-3 text-sm">
+        <p className="text-muted-foreground">
+          Planning, Explore, and Factory totals work without the game. Actual/s, build status, and
+          research and TURD sync need the game running with this mod.
+        </p>
         <p className="text-muted-foreground">
           Detected: <span className="text-foreground">{s ? PLATFORM_LABEL[s.platform] : "…"}</span>.
         </p>

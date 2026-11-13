@@ -16,6 +16,7 @@ import { FilterInput } from "#/components/filter-input.tsx";
 import { PageHeader } from "#/components/page-header.tsx";
 import { useFilteredList } from "../lib/use-filtered-list";
 import { timeAgo } from "../lib/format";
+import { countNoun } from "../lib/delete-copy";
 import { useState } from "react";
 
 export const Route = createFileRoute("/turd")({
@@ -222,7 +223,7 @@ function TurdPage() {
           {select.isPending && <span className="text-sm text-warning">Re-solving blocks…</span>}
           {select.data && !select.isPending && (
             <span className="text-sm text-muted-foreground">
-              Re-solved {select.data.resolved} block(s)
+              Re-solved {countNoun(select.data.resolved, "block")}
             </span>
           )}
           {sync.data?.syncedAt && (

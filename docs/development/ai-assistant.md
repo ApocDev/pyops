@@ -174,7 +174,7 @@ and later turns use the same context.
 ### Context gauge
 
 `conversationTokenStatusFn` returns used tokens, context limit, model, and whether the value
-is measured or estimated. The input toolbar renders that as a filling ring.
+is measured or estimated. The input toolbar renders that as a filling ring labeled "N% context".
 
 Manual compaction calls the same implementation with `force: true`, replaces the client
 chat with the persisted result, and clears the stale real-token measurement until the next

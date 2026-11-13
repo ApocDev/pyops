@@ -23,6 +23,7 @@ import { HorizonPicker } from "../components/horizon-picker";
 import { CompanionModCard } from "../components/companion-mod-card";
 import { FactorioPathsCard } from "../components/settings/factorio-paths-card.tsx";
 import { FactorySolverDebugCard } from "../components/settings/factory-solver-debug-card.tsx";
+import { GameDataDetailsCard } from "../components/settings/game-data-details-card.tsx";
 import { DriftChanges } from "../components/drift-changes";
 import { driftModal } from "../lib/drift-store";
 import { Badge } from "#/components/ui/badge.tsx";
@@ -87,7 +88,7 @@ function SettingsPage() {
   return (
     <div className="flex h-full flex-col font-mono text-sm text-foreground md:flex-row">
       <aside className="w-full shrink-0 border-b border-border p-2 md:w-40 md:border-r md:border-b-0">
-        <nav className="flex gap-1 overflow-x-auto md:block md:space-y-0.5 md:overflow-visible">
+        <nav className="flex flex-wrap gap-1 md:block md:space-y-0.5">
           {TABS.map((t) => (
             <Button
               key={t.id}
@@ -130,6 +131,7 @@ function SettingsPage() {
         )}
         {tab === "advanced" && (
           <div className={cols}>
+            <GameDataDetailsCard />
             <FactorySolverDebugCard />
           </div>
         )}
@@ -169,22 +171,8 @@ function GameDataTab() {
                 Imported from {status.data.meta.imported_from ?? "—"}
               </div>
               <div className="text-xs text-muted-foreground">
-                Synced {status.data.meta.synced_at ?? "manually (no sync recorded)"} · Fingerprint{" "}
-                {status.data.meta.data_fingerprint ?? "—"}
-                {status.data.currentFingerprint &&
-                  ` · Current mod list ${status.data.currentFingerprint}`}
+                Synced {status.data.meta.synced_at ?? "manually (no sync recorded)"}
               </div>
-              {drift.data?.dataFormat && (
-                <div
-                  className={`text-xs ${drift.data.dataFormat.stale ? "text-warning" : "text-muted-foreground"}`}
-                >
-                  Imported data format{" "}
-                  {drift.data.dataFormat.imported == null
-                    ? "unversioned"
-                    : `v${drift.data.dataFormat.imported}`}
-                  {" · "}Current reader v{drift.data.dataFormat.current}
-                </div>
-              )}
             </>
           )}
           <Button onClick={() => driftModal.open()} className="mt-1">
@@ -712,10 +700,6 @@ function AssistantCard() {
               >
                 Save
               </Button>
-              <span className="text-sm text-muted-foreground">
-                In use: {d.resolvedModel}
-                {!d.model && " (default)"}
-              </span>
             </div>
           )}
         </div>

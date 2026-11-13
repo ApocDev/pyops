@@ -13,7 +13,7 @@ to the active project and are included in its database backup.
 ## Create a task
 
 1. Open **Tasks** from the main navigation.
-2. Select **+ Task**.
+2. Select **+ New task**.
 3. Enter a title and markdown description.
 4. Set the status to **Open**, **In progress**, **Done**, or **Closed**.
 5. Add checklist entries under **Steps** and child work under **Subtasks**.
@@ -44,7 +44,7 @@ The status buttons above the task tree show or hide **Open**, **In progress**, *
 **Closed** work. An ancestor remains visible when one of its descendants matches the
 filter.
 
-Select **Prioritise** to ask the Assistant to rank open work. The resulting priority and
+Select **Prioritize** to ask the Assistant to rank open work. The resulting priority and
 reason are advisory; they do not change task status or complete steps. This action requires
 a configured Assistant model.
 

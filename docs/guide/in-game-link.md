@@ -116,7 +116,7 @@ as stale even if the bridge has reconnected.
 
 ### The status remains “no game”
 
-1. Confirm the Companion mod card says **linked** or **copied**.
+1. Confirm the Companion mod card says **Installed**.
 2. Close Factorio and select **Launch Factorio** from PyOps.
 3. Confirm the `pyops` mod is enabled in Factorio's mod list.
 4. Return to **Settings → In-game link** and check for a bridge error.

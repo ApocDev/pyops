@@ -69,7 +69,7 @@ token prices. PyOps does not add a separate Assistant subscription or markup.
 
 One visible answer can involve several model steps because the Assistant may inspect the
 project with tools before responding. Conversation titles, manual context compaction,
-**Prioritise**, and task enhancement also use the configured model. Consequently, the cost
+**Prioritize**, and task enhancement also use the configured model. Consequently, the cost
 of a planning request is not necessarily one simple completion.
 
 To control spending:
