@@ -91,8 +91,10 @@ value must still communicate the state.
 
 Normal-sized text must keep at least 4.5:1 contrast against its rendered surface in both
 themes; large text and meaningful non-text controls need at least 3:1. When tuning a
-semantic hue, check it against both the page surface and its own low-opacity tint — a value
-that passes on `background` can still fail on `bg-warning/10`. The representative rendered
+semantic hue, check it against both the page surface and its own tint up to 20%, the
+strongest tint that carries text (`bg-surplus/20` export chips). A value that passes on
+`background` can still fail on `bg-warning/15`. `muted-foreground` must also pass on `muted`
+(the gray `Badge`), and `warning` at 80% opacity (`text-warning/80`). The representative rendered
 contrast guard lives in `app/e2e/theme.e2e.ts` and runs Axe against Home, Block, Factory,
 Assistant, and Settings in light and dark modes.
 

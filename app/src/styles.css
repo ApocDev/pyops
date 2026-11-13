@@ -29,19 +29,20 @@
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
+  --muted-foreground: oklch(0.5 0.016 285.938);
   --accent: oklch(0.967 0.001 286.375);
   --accent-foreground: oklch(0.21 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.47 0.245 27.325);
+  --destructive-foreground: oklch(0.47 0.245 27.325);
   /* Status hues — the app's semantic colors (see docs/development/design.md).
-     Keep text at WCAG AA contrast against both the page and its own 10% tint.
+     Keep text at WCAG AA contrast against the page, against its own tint up to 20%
+     (the strongest tint that carries text), and, for warning, at 80% opacity.
      success = healthy/met/produced/live · warning = attention/consumed/import/behind
      info = neutral notice/stock/edit affordance · surplus = export/byproduct/positive net */
-  --success: oklch(0.5 0.14 163.225);
-  --warning: oklch(0.52 0.14 58.318);
-  --info: oklch(0.51 0.14 241.966);
-  --surplus: oklch(0.541 0.281 293.009);
+  --success: oklch(0.46 0.14 163.225);
+  --warning: oklch(0.47 0.14 58.318);
+  --info: oklch(0.48 0.14 241.966);
+  --surplus: oklch(0.52 0.281 293.009);
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
   --ring: oklch(0.705 0.015 286.067);
