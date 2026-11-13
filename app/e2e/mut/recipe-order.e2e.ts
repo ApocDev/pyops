@@ -14,8 +14,8 @@ test("recipe picker ranks unlocked recipes before cheaper future tiers", async (
   await expect(candidates.first()).toHaveAttribute("data-recipe-candidate", "seaweed-1");
   await expect(
     picker.locator('[data-recipe-candidate="seaweed-1"]'),
-  ).toContainText("unlocked now");
+  ).toContainText("Unlocked now");
   await expect(
     picker.locator('[data-recipe-candidate="seaweed-3"]'),
-  ).toContainText("available in horizon");
+  ).toContainText("Available in horizon");
 });
