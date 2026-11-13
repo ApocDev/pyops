@@ -1,0 +1,37 @@
+app/drizzle/0022_turd-selection-undo.sql
+  s_d1edb5d12c47f1::t_c4abbcde039fb8 1-16
+app/drizzle/meta/0022_snapshot.json
+  s_d1edb5d12c47f1::t_fca1623fc81bb1 1-2907
+app/drizzle/meta/_journal.json
+  s_d1edb5d12c47f1::t_c2b03a720850eb 158-164
+app/e2e/mut/turd-choice.e2e.ts
+  s_d1edb5d12c47f1::t_bb591067096cf7 1-31
+app/src/db/schema.ts
+  s_d1edb5d12c47f1::t_ffecf3903f2292 937
+app/src/lib/undo-client.ts
+  s_d1edb5d12c47f1::t_36a9d91f0c7a44 19-20,24-25
+app/src/routes/turd.tsx
+  s_d1edb5d12c47f1::t_31670a642e6d85 4-9,15,25,142-151,161-164,172,186-234,354,362-363,381-406
+app/src/server/factorio.ts
+  s_d1edb5d12c47f1::t_4fa4647c702e3a 1353-1354,1358-1365
+app/src/server/undo.server.ts
+  s_d1edb5d12c47f1::t_014b52da8825a8 12-13,22-28,90-93,117
+app/src/server/undo.test.ts
+  s_d1edb5d12c47f1::t_b0b2ad7727bc74 12-20,299-311,322
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ee9b75c3966cc52c0da142bc9b4edb46845ea0e6",
+  "prompts": {},
+  "sessions": {
+    "s_d1edb5d12c47f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92c00483-7bd7-4446-bace-ac4fa886fd2d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
