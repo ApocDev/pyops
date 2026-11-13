@@ -1,0 +1,37 @@
+app/e2e/mut/topbar-fit.e2e.ts
+  s_2e2dcdef8cc0f3::t_ff3a3b8d07954a 1-67
+app/src/components/app-nav.tsx
+  s_14060bfdc31396::t_41bf1774bde061 10,28,33,48,52-53,79,93-95,99
+app/src/components/bridge-indicator.tsx
+  s_14060bfdc31396::t_4575c0ee6da435 5,60,64
+app/src/components/horizon-menu.tsx
+  s_14060bfdc31396::t_701e736f1266a3 7,30,33-35
+app/src/components/nav-links.ts
+  s_14060bfdc31396::t_66220771831a11 72-77
+app/src/components/project-switcher.tsx
+  s_14060bfdc31396::t_bc8352307056f7 64,70,73-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "448c7caaa5caa607fcd7ed55f84cde085ccc796c",
+  "prompts": {},
+  "sessions": {
+    "s_14060bfdc31396": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a7536c5-8f37-40d8-b94e-380936ee07e0",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_2e2dcdef8cc0f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9cc91899-9788-4780-ad00-00102e37aed5",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

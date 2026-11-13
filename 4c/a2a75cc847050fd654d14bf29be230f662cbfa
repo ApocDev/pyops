@@ -1,0 +1,19 @@
+app/src/components/horizon-menu.tsx
+  s_14060bfdc31396::t_5882022b042876 31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4ca2a75cc847050fd654d14bf29be230f662cbfa",
+  "prompts": {},
+  "sessions": {
+    "s_14060bfdc31396": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a7536c5-8f37-40d8-b94e-380936ee07e0",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
