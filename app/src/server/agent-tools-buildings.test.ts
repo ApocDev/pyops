@@ -36,10 +36,13 @@ type Bill = {
 };
 
 const draft = async (input: { target: string; rate: number; recipes: string[] }): Promise<Draft> =>
-  (await submitBlock.execute!(input, { toolCallId: "test", messages: [] })) as Draft;
+  (await submitBlock.execute!(input, { toolCallId: "test", messages: [], context: {} })) as Draft;
 
 const bill = async (blocks: { target: string; rate: number; recipes: string[] }[]): Promise<Bill> =>
-  (await buildingBill.execute!({ blocks }, { toolCallId: "test", messages: [] })) as Bill;
+  (await buildingBill.execute!(
+    { blocks },
+    { toolCallId: "test", messages: [], context: {} },
+  )) as Bill;
 
 describe("solved building counts (draft buildings + buildingBill)", () => {
   let fx: TestDb;

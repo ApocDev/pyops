@@ -36,7 +36,7 @@ dev, a per-OS user-data dir for a packaged build, overridable via `PYOPS_DATA_DI
 - `server/` — server-side modules (run only on the backend):
   - `factorio.ts`, `dump.server.ts` — load/query the Factorio data dump.
   - `factory-solve.server.ts`, `cost-analysis.server.ts`, `effects.ts`, `additives.ts` — planning logic.
-  - `agent.ts`, `agent-tools.server.ts` — the AI assistant (AI SDK v6 + OpenRouter,
+  - `agent.ts`, `agent-tools.server.ts` — the AI assistant (AI SDK v7 + OpenRouter,
     read-only tools + propose-then-apply writes: draft-a-block, draft-a-plan,
     and revise a block's rate or recipe set).
   - `bridge/` — UDP bridge to the mod. `protocol.ts` defines the wire contract;

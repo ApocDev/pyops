@@ -41,7 +41,10 @@ type WhatIfResult = {
 };
 
 const run = async (overrides: { good: string; rate: number }[]): Promise<WhatIfResult> =>
-  (await whatIf.execute!({ overrides }, { toolCallId: "test", messages: [] })) as WhatIfResult;
+  (await whatIf.execute!(
+    { overrides },
+    { toolCallId: "test", messages: [], context: {} },
+  )) as WhatIfResult;
 
 describe("whatIf (#127)", () => {
   let fx: TestDb;

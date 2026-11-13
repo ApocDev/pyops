@@ -1,5 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  isStepCount,
+  streamText,
+  toUIMessageStream,
+  type UIMessage,
+} from "ai";
 
 import {
   AGENT_SYSTEM,
@@ -92,24 +99,27 @@ export const Route = createFileRoute("/api/chat")({
             conversation?.model,
             conversation?.reasoningEffort,
           ),
-          system: AGENT_SYSTEM + horizonNote,
+          instructions: AGENT_SYSTEM + horizonNote,
           messages: await convertToModelMessages(messages),
+          // A compacted conversation starts with a server-written system message
+          // holding the summary (see conversation-compaction.ts).
+          allowSystemInMessages: true,
           tools: agentTools,
           abortSignal,
-          stopWhen: stepCountIs(MAX_STEPS),
+          stopWhen: isStepCount(MAX_STEPS),
           onError: ({ error }) => console.error("[agent] stream error:", error),
-          onFinish: ({ finishReason, steps, text, usage, response }) => {
+          onEnd: ({ finishReason, steps, finalStep }) => {
+            const modelId = finalStep.response.modelId;
             console.log(
-              `[agent] finished: reason=${finishReason} steps=${steps.length} textLen=${text?.length ?? 0} tokens=${usage?.totalTokens ?? "?"} model=${response?.modelId ?? "?"}`,
+              `[agent] finished: reason=${finishReason} steps=${steps.length} textLen=${finalStep.text.length} tokens=${finalStep.usage.totalTokens ?? "?"} model=${modelId}`,
             );
             // Persist the real OpenRouter token counts so compaction + the context
             // gauge run on actuals. The aggregate `usage` SUMS every tool step's
             // prompt (each step re-sends the whole context), so it wildly overcounts
-            // the real context size — the LAST step's input+output is the true fill
+            // the real context size — the final step's input+output is the true fill
             // (that request carried the entire conversation).
-            const lastUsage = steps[steps.length - 1]?.usage;
-            const inputTokens = lastUsage?.inputTokens ?? null;
-            const outputTokens = lastUsage?.outputTokens ?? null;
+            const inputTokens = finalStep.usage.inputTokens ?? null;
+            const outputTokens = finalStep.usage.outputTokens ?? null;
             conv.recordTurnUsage(id, {
               inputTokens,
               outputTokens,
@@ -117,18 +127,22 @@ export const Route = createFileRoute("/api/chat")({
                 inputTokens == null && outputTokens == null
                   ? null
                   : (inputTokens ?? 0) + (outputTokens ?? 0),
-              modelId: response?.modelId ?? null,
+              modelId,
             });
           },
         });
 
-        return result.toUIMessageStreamResponse({
-          originalMessages: messages,
-          onFinish: ({ messages: finished, isAborted }) => {
-            conv.syncConversation(id, toStored(finished));
-            if (!isAborted && shouldGenerateTitle) void generateConversationTitle(id);
-            finishAssistantRun(id, streamId);
-          },
+        return createUIMessageStreamResponse({
+          stream: toUIMessageStream({
+            stream: result.stream,
+            tools: agentTools,
+            originalMessages: messages,
+            onEnd: ({ messages: finished, isAborted }) => {
+              conv.syncConversation(id, toStored(finished));
+              if (!isAborted && shouldGenerateTitle) void generateConversationTitle(id);
+              finishAssistantRun(id, streamId);
+            },
+          }),
           consumeSseStream: ({ stream }) => recordAssistantStream(id, streamId, stream),
         });
       },

@@ -25,7 +25,10 @@ type Result = {
 };
 
 const call = async (goods: string[]): Promise<Result> =>
-  (await productionStats.execute!({ goods }, { toolCallId: "test", messages: [] })) as Result;
+  (await productionStats.execute!(
+    { goods },
+    { toolCallId: "test", messages: [], context: {} },
+  )) as Result;
 
 describe("productionStats (synced game stats)", () => {
   let fx: TestDb;

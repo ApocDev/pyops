@@ -164,9 +164,10 @@ tool evidence, unresolved work, and commitments. If model summarization is unava
 fails, a local extractive summary prevents the request from losing all earlier context.
 
 The result is one synthetic system message followed by recent messages. Its visible text is
-sent to subsequent model calls. A separate `data-compaction` part archives the replaced
-original messages for the UI's expandable history viewer and is ignored by model-message
-conversion.
+sent to subsequent model calls. AI SDK rejects system messages inside `messages` by default,
+so the chat route sets `allowSystemInMessages` to accept this stored summary. A separate
+`data-compaction` part archives the replaced original messages for the UI's expandable
+history viewer and is ignored by model-message conversion.
 
 The compacted transcript is saved before the in-flight generation begins, so resumed runs
 and later turns use the same context.

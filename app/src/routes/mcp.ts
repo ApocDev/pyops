@@ -19,7 +19,7 @@ import { mcpTools } from "#/server/agent-tools.server.ts";
 type AiTool = {
   description?: string;
   inputSchema?: { shape?: ZodRawShape };
-  execute?: (input: unknown, options: unknown) => Promise<unknown>;
+  execute?: (input: unknown, options: unknown) => unknown;
 };
 
 // Built once and reused across requests (handleMcpRequest connects/closes a

@@ -40,10 +40,15 @@ const draft = async (input: Record<string, unknown>): Promise<Draft> =>
   (await submitBlock.execute!(input as DraftInput, {
     toolCallId: "test",
     messages: [],
+    context: {},
   })) as Draft;
 
 const plan = async (input: Record<string, unknown>): Promise<{ ok: boolean; blocks: Draft[] }> =>
-  (await submitPlan.execute!(input as PlanInput, { toolCallId: "test", messages: [] })) as {
+  (await submitPlan.execute!(input as PlanInput, {
+    toolCallId: "test",
+    messages: [],
+    context: {},
+  })) as {
     ok: boolean;
     blocks: Draft[];
   };
@@ -51,7 +56,11 @@ const plan = async (input: Record<string, unknown>): Promise<{ ok: boolean; bloc
 const bill = async (
   input: Record<string, unknown>,
 ): Promise<{ machines: { entity: string; count: number }[]; skipped: unknown[] }> =>
-  (await buildingBill.execute!(input as BillInput, { toolCallId: "test", messages: [] })) as {
+  (await buildingBill.execute!(input as BillInput, {
+    toolCallId: "test",
+    messages: [],
+    context: {},
+  })) as {
     machines: { entity: string; count: number }[];
     skipped: unknown[];
   };

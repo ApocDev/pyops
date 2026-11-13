@@ -38,7 +38,10 @@ type Result = {
 };
 
 const run = async (target: string, limit = 40): Promise<Result> =>
-  (await researchPath.execute!({ target, limit }, { toolCallId: "test", messages: [] })) as Result;
+  (await researchPath.execute!(
+    { target, limit },
+    { toolCallId: "test", messages: [], context: {} },
+  )) as Result;
 
 describe("researchPath", () => {
   let fx: TestDb;
