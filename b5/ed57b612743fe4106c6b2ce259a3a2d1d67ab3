@@ -1,0 +1,23 @@
+app/src/server/block-compute.test.ts
+  s_831e8c0c645f77::t_16dd02d72dbd17 1327-1372
+app/src/routes/block.$id.tsx
+  s_831e8c0c645f77::t_a97a0e8b4e3e6c 1147-1151
+docs/development/solver.md
+  s_831e8c0c645f77::t_581b0c7042bca5 286-290
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b5ed57b612743fe4106c6b2ce259a3a2d1d67ab3",
+  "prompts": {},
+  "sessions": {
+    "s_831e8c0c645f77": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "92b0e243-936b-46c8-807b-c4c86041ee0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
