@@ -204,11 +204,7 @@ export function GoodsSection({
                 <StatCell label="Consumed/s" w="md:w-24" className="text-warning">
                   {rateLabel(r.item, r.consumed)}
                 </StatCell>
-                <StatCell
-                  label="Net/s"
-                  w="md:w-24"
-                  className={`font-semibold ${netCell(r).color}`}
-                >
+                <StatCell label="Net/s" w="md:w-24" className={`font-semibold ${netCell(r).color}`}>
                   {rateLabel(r.item, netCell(r).net, { sign: true })}
                 </StatCell>
                 {showMet && (
