@@ -28,6 +28,7 @@ import {
   searchAll,
   type RecipeAvail,
 } from "../db/queries.server.ts";
+import { recipeDifferencesFor } from "./recipe-differences.server.ts";
 
 const BARREL_CATEGORIES = new Set(["py-barreling", "py-unbarreling", "barreling", "barrelling"]);
 
@@ -55,6 +56,8 @@ export type DepsNode = {
   avail?: Pick<RecipeAvail, "research" | "needs" | "turd">;
   /** recipe nodes: display names of the unlocking techs (empty = start-enabled) */
   unlockedBy?: string[];
+  /** recipe nodes whose display name repeats: what sets this one apart */
+  differs?: string;
 };
 
 export type DepsTree = {
@@ -441,6 +444,12 @@ export function depsTree(input: {
   const availability = recipeAvailabilities(
     [...enabledByName].map(([name, enabled]) => ({ name, enabled })),
   );
+  const differs = recipeDifferencesFor(
+    recipeIds.map((id) => ({
+      name: g.recipeName[id - g.goodCount],
+      display: g.recipeDisplay[id - g.goodCount],
+    })),
+  );
   const nodes: Record<string, DepsNode> = {};
   for (const [id, w] of walked) {
     const key = keyOf(g, id);
@@ -472,6 +481,7 @@ export function depsTree(input: {
         closure,
         avail: { research: avail.research, needs: avail.needs, turd: avail.turd },
         unlockedBy,
+        differs: differs.get(name),
       };
     }
   }
@@ -489,7 +499,13 @@ export function depsTree(input: {
 export function depsSearch(
   query: string,
   limit = 60,
-): { kind: "item" | "fluid" | "recipe"; name: string; display: string | null }[] {
+): {
+  kind: "item" | "fluid" | "recipe";
+  name: string;
+  display: string | null;
+  /** recipes whose display name repeats: what sets this one apart */
+  differs?: string;
+}[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
   const isExcluded = createExclusionMatcher();
@@ -527,7 +543,12 @@ export function depsSearch(
         !isExcluded(r.name, r.category, r.subgroup),
     )
     .map((r) => ({ kind: "recipe" as const, name: r.name, display: r.display }));
-  return [...goods, ...recipeRows]
+  const top = [...goods, ...recipeRows]
     .sort((a, b) => rank(a) - rank(b) || (a.display ?? a.name).localeCompare(b.display ?? b.name))
     .slice(0, limit);
+  const differs = recipeDifferencesFor(top.filter((r) => r.kind === "recipe"));
+  return top.map((r) => {
+    const label = r.kind === "recipe" ? differs.get(r.name) : undefined;
+    return label ? { ...r, differs: label } : r;
+  });
 }

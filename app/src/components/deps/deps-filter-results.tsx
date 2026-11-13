@@ -1,27 +1,25 @@
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { Crosshair, SquareArrowOutUpRight } from "lucide-react";
-import type { DepsDir, DepsNode, DepsTree } from "../../server/deps.ts";
+import type { DepsNode, DepsTree } from "../../server/deps.ts";
 import { Icon } from "../../lib/icons";
 import { useFilteredList } from "../../lib/use-filtered-list.ts";
 import { Button } from "#/components/ui/button.tsx";
-import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { FilterEmptyState } from "#/components/filter-empty-state.tsx";
+import { RecipeLabel } from "#/components/recipe-label.tsx";
 
 const LIMIT = 100;
 
 /** Flat filtered view of the fetched dependency tree (#87 anatomy): while a
  * filter is typed the nested tree gives way to a ranked list of matching
- * nodes, each with its closure size and an "explore from here" jump. */
+ * nodes, each with an "explore from here" jump. */
 export function DepsFilterResults({
   tree,
-  dir,
   query,
   onClear,
   onExplore,
 }: {
   tree: DepsTree;
-  dir: DepsDir;
   query: string;
   onClear: () => void;
   onExplore: (node: DepsNode) => void;
@@ -51,21 +49,10 @@ export function DepsFilterResults({
             name={n.name}
             size="sm"
           />
-          <span className="min-w-0 flex-1 truncate" title={n.display ?? n.name}>
-            {n.display ?? n.name}
-          </span>
+          <RecipeLabel display={n.display ?? n.name} differs={n.differs} className="flex-1" />
           <span className="shrink-0 text-sm text-muted-foreground">
             {n.type === "recipe" ? "recipe" : n.goodKind}
           </span>
-          {n.closure.goods + n.closure.recipes > 0 && (
-            <Tooltip
-              content={`${dir === "requires" ? "Requires" : "Required by"} ${n.closure.goods} goods · ${n.closure.recipes} recipes in total`}
-            >
-              <span className="hidden shrink-0 text-sm text-muted-foreground sm:inline">
-                {n.closure.goods} goods · {n.closure.recipes} recipes
-              </span>
-            </Tooltip>
-          )}
           <Button
             variant="ghost"
             size="icon-xs"

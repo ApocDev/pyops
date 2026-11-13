@@ -26,6 +26,7 @@ import * as projects from "./projects.server.ts";
 import * as dump from "./dump.server.ts";
 import * as cfg from "./app-config.server.ts";
 import { computeCostAnalysis } from "./cost-analysis.server.ts";
+import { recipeDifferencesFor } from "./recipe-differences.server.ts";
 import { currentDatabaseFile } from "../db/index.server.ts";
 import { applyPinnedFactory, getFactoryPins, saveFactoryPins } from "./factory-plan.server.ts";
 import {
@@ -92,6 +93,13 @@ export const browseDetailFn = createServerFn({ method: "GET" })
 export const itemDetailFn = createServerFn({ method: "GET" })
   .validator((name: string) => name)
   .handler(async ({ data }) => {
+    const producedBy = q.recipesProducing(data);
+    const consumedBy = q.recipesConsuming(data);
+    const differs = recipeDifferencesFor([...producedBy, ...consumedBy]);
+    const withDiffers = <T extends { name: string }>(r: T) => ({
+      ...r,
+      differs: differs.get(r.name),
+    });
     return {
       name: data,
       item: q.getItem(data),
@@ -101,8 +109,8 @@ export const itemDetailFn = createServerFn({ method: "GET" })
         q.getItem(data)?.spoilResult,
       ),
       cost: q.goodCosts([data]).get(data) ?? null,
-      producedBy: q.recipesProducing(data),
-      consumedBy: q.recipesConsuming(data),
+      producedBy: producedBy.map(withDiffers),
+      consumedBy: consumedBy.map(withDiffers),
     };
   });
 

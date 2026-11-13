@@ -13,6 +13,7 @@ import type { DepsDir, DepsNode } from "../../server/deps.ts";
 import { Icon } from "../../lib/icons";
 import { Button } from "#/components/ui/button.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
+import { RecipeLabel } from "#/components/recipe-label.tsx";
 
 /** The and/or caption over a node's expanded children — a good is made by ANY
  * one producer, a recipe needs ALL its ingredients. */
@@ -25,12 +26,6 @@ export function depsGroupLabel(node: DepsNode, dir: DepsDir): string {
       : `Needs all ${n} ingredient${s}`;
   return node.type === "good" ? `Used by ${n} recipe${s}` : `Makes ${n} good${s}`;
 }
-
-/** Compact closure summary for a collapsed branch ("12 goods · 4 recipes"). */
-const closureText = (node: DepsNode) =>
-  node.closure.goods + node.closure.recipes === 0
-    ? null
-    : `${node.closure.goods} goods · ${node.closure.recipes} recipes`;
 
 /** One row of the dependency tree, recursing into its children while expanded.
  * A node that reappears below itself (Py loves loops) renders as a cycle
@@ -64,7 +59,6 @@ export function DepsNodeRow({
   const frontier = !isCycle && !expandable && node.truncated;
   const open = expandable && expanded.has(nodeKey);
   const indent = 8 + Math.min(level, 8) * 16;
-  const closure = closureText(node);
 
   const lead = expandable ? (
     open ? (
@@ -79,18 +73,6 @@ export function DepsNodeRow({
   ) : (
     <span className="size-3.5 shrink-0" />
   );
-  const body = (
-    <>
-      {lead}
-      <Icon
-        kind={node.type === "recipe" ? "recipe" : (node.goodKind ?? "item")}
-        name={node.name}
-        size="sm"
-      />
-      <span className="min-w-0 truncate text-left">{node.display ?? node.name}</span>
-    </>
-  );
-
   // availability coloring (recipes): locked-behind-research or a TURD choice
   const availBadge = (() => {
     if (node.type !== "recipe" || !node.avail) return null;
@@ -130,6 +112,22 @@ export function DepsNodeRow({
     }
     return null;
   })();
+
+  const body = (
+    <>
+      {lead}
+      <Icon
+        kind={node.type === "recipe" ? "recipe" : (node.goodKind ?? "item")}
+        name={node.name}
+        size="sm"
+      />
+      <span className="flex min-w-0 flex-col">
+        <RecipeLabel display={node.display ?? node.name} differs={node.differs} />
+        {/* phones: the gate sits under the name so the name keeps the width */}
+        {availBadge && <span className="flex max-w-full sm:hidden">{availBadge}</span>}
+      </span>
+    </>
+  );
 
   return (
     <>
@@ -171,16 +169,7 @@ export function DepsNodeRow({
             <span className="shrink-0 text-sm text-info">Raw</span>
           </Tooltip>
         )}
-        {availBadge}
-        {!isCycle && closure && (
-          <Tooltip
-            content={`${dir === "requires" ? "Requires" : "Required by"} ${closure} in total`}
-          >
-            <span className="hidden shrink-0 text-sm text-muted-foreground sm:inline">
-              {closure}
-            </span>
-          </Tooltip>
-        )}
+        {availBadge && <span className="hidden min-w-0 sm:flex">{availBadge}</span>}
         <Button
           variant="ghost"
           size="icon-xs"

@@ -31,7 +31,7 @@ import { head } from "./styles.ts";
 // ingredients | products. Mobile: the columns can't fit (the first two alone need
 // 410px), so each row stacks vertically with per-section labels and the column
 // header is hidden.
-const TPL = "md:[grid-template-columns:minmax(170px,1.1fr)_minmax(240px,1.2fr)_1.4fr_1.4fr]";
+const TPL = "md:[grid-template-columns:minmax(200px,1.6fr)_minmax(240px,1fr)_1.3fr_1.3fr]";
 const GRID = `flex flex-col gap-2.5 px-3 py-3 md:grid md:items-center md:gap-4 md:py-3.5 ${TPL}`;
 const HEAD = `${head} hidden md:grid md:items-center md:gap-4 ${TPL}`;
 
@@ -230,6 +230,7 @@ export function RecipeGrid({
                 name={name}
                 row={res?.rows?.find((r) => r.recipe === name)}
                 display={res?.recipeDisplay?.[name] ?? name}
+                differs={res?.recipeDiffers?.[name]}
                 grouped={recipeGroups[name] != null}
                 off={off}
                 error={solveFailed && !off}

@@ -28,6 +28,7 @@ export type DocPin =
   /** this recipe absorbs the item's surplus (net = 0) — byproduct disposal */
   | { kind: "drain"; recipe: string; item: string };
 import { computeEffects, type BeaconConfig } from "./effects";
+import { recipeDifferencesFor } from "./recipe-differences.server.ts";
 import { pickAutoModules } from "./module-fill.server.ts";
 import { resolveLogistics, rowLogistics } from "../lib/logistics";
 import { prodScaledAmount } from "../lib/productivity";
@@ -1491,6 +1492,11 @@ export async function computeBlock(rawData: SolveInput) {
     const d = refs.getRecipe(name)?.display;
     if (d) recipeDisplay[name] = d;
   }
+  // rows whose display name repeats elsewhere ("Iron plate" ×5) get a short
+  // "what differs" line under the name
+  const recipeDiffers = Object.fromEntries(
+    recipeDifferencesFor(Object.entries(recipeDisplay).map(([name, d]) => ({ name, display: d }))),
+  );
   const itemDisp = (name: string) =>
     refs.getItem(name)?.display ?? refs.getFluid(name)?.display ?? null;
   for (const name of [
@@ -1576,6 +1582,7 @@ export async function computeBlock(rawData: SolveInput) {
     subBlocks,
     display,
     recipeDisplay,
+    recipeDiffers,
     producible,
     // the block's effective made set (explicit or migrated) — the editor
     // hydrates this into legacy docs so the next save persists it

@@ -35,9 +35,17 @@ test("Explore dependencies walks requires / required-by for a good", async ({ pa
   await first.click();
 
   // requires view: root summary + the OR group label, then expand one producer
-  await expect(page.getByText(/Requires \d+ goods via \d+ recipes/)).toBeVisible();
+  await expect(
+    page.getByText(/\d+ goods · \d+ recipes reachable across all alternatives/),
+  ).toBeVisible();
   const tree = page.locator("div.bg-card").filter({ hasText: /Made by any of \d+ recipe/ });
   await expect(tree).toBeVisible();
+  // rows carry no closure counts; producers sharing the root's name (Py has
+  // five "Iron plate" recipes) each get a "from …" line saying what differs
+  await expect(tree.getByText(/\d+ goods · \d+ recipes/)).toHaveCount(0);
+  const sameName = tree.getByRole("button", { name: /^Iron plate/ });
+  if ((await sameName.count()) > 1)
+    await expect(sameName.filter({ hasText: /from \S/ })).toHaveCount(await sameName.count());
   await tree.getByRole("button").first().click();
   await expect(page.getByText(/Needs all \d+ ingredient/).first()).toBeVisible();
 

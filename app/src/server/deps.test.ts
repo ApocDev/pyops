@@ -133,6 +133,14 @@ describe("depsTree (requires)", () => {
     expect(t.nodes["r:alt-gear"].unlockedBy).toEqual([]);
   });
 
+  it("labels recipes that share a display name by what differs", () => {
+    db.$client.exec(`UPDATE recipes SET display = 'Gear' WHERE name IN ('make-gear','alt-gear')`);
+    const t = depsTree({ kind: "good", name: "gear", dir: "requires", depth: 10 })!;
+    expect(t.nodes["r:make-gear"].differs).toBe("from Plate");
+    expect(t.nodes["r:alt-gear"].differs).toBe("from Scrap");
+    expect(t.nodes["r:smelt-plate"].differs).toBeUndefined();
+  });
+
   it("supports a recipe root", () => {
     const t = depsTree({ kind: "recipe", name: "make-gear", dir: "requires", depth: 10 })!;
     expect(t.root).toBe("r:make-gear");
@@ -231,7 +239,8 @@ describe("depsTree query shape", () => {
     });
 
     expect(largeCount).toBe(smallCount);
-    expect(largeCount).toBeLessThanOrEqual(14);
+    // includes the fixed reads behind the same-name "what differs" labels
+    expect(largeCount).toBeLessThanOrEqual(18);
   });
 });
 
@@ -286,7 +295,8 @@ describe("depsSearch", () => {
     const count = preparedStatementCount(() => {
       expect(depsSearch("gear").length).toBeGreaterThan(0);
     });
-    expect(count).toBeLessThanOrEqual(4);
+    // 4 search reads + the fixed reads behind the same-name labels
+    expect(count).toBeLessThanOrEqual(8);
   });
 
   it("keeps goods search and user-glob exclusions in parity with canonical search", () => {
