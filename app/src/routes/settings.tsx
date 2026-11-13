@@ -377,12 +377,16 @@ function ModsCard({
           sync.
         </p>
         <FilterInput value={filter} onValueChange={setFilter} placeholder="Filter mods…" />
-        <div className="max-h-80 overflow-auto border border-border">
+        {/* focusable so keyboard users can scroll the list */}
+        <div
+          tabIndex={0}
+          className="max-h-80 overflow-auto border border-border outline-none focus-visible:ring-1 focus-visible:ring-ring/50"
+        >
           {shown.map((m) => (
             <div
               key={m.name}
               className={`flex items-center gap-2 border-b border-border/50 px-2 py-1 text-sm last:border-0 ${
-                m.enabled ? "" : "opacity-50"
+                m.enabled ? "" : "text-muted-foreground"
               }`}
             >
               <span className="min-w-0 flex-1 truncate" title={m.name}>
