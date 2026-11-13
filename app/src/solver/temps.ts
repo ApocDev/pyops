@@ -21,6 +21,9 @@ import type { LpBlockInput, Pin, RecipeDef } from "./lp.ts";
  *   - fluid goals move to either their selected one-temperature pool or a
  *     full-range pool when no exact temperature is selected;
  *     share pins follow their consumer onto its pool.
+ *   - a consume goal's pool feeds every consumer pool that accepts its
+ *     temperature, and those pools are drained, so everything those recipes
+ *     take in arrives through the goal and the goal sizes them
  *
  * `fold` maps the solve's synthetic goods/recipes back for display: selector
  * rows vanish, variant/pool flows collapse onto the bare fluid name with a
@@ -187,6 +190,28 @@ export function expandTemps(
     }
   }
 
+  // consume goals: the goal pool → each consumer pool whose range overlaps it.
+  // Draining those pools (net = 0) stops them importing on their own, so the
+  // goal's `net ≤ -rate` constrains what the consumers actually take in.
+  const goalFedPools: string[] = [];
+  for (const g of goals) {
+    if (!ranged.has(g.name) || !(g.direction === "consume" || g.rate < 0)) continue;
+    const goalPool = goalPools.get(g.name)!;
+    const { lo, hi } = pools.get(goalPool)!;
+    for (const [pKey, p] of pools) {
+      if (p.fluid !== g.name || pKey === goalPool || p.hi < lo || p.lo > hi) continue;
+      const name = `${SEL}${goalPool}${SEP}${pKey}`;
+      selNames.add(name);
+      goalFedPools.push(pKey);
+      outDefs.push({
+        name,
+        energyRequired: 0,
+        ingredients: [{ kind: "fluid", name: goalPool, amount: 1 }],
+        products: [{ kind: "fluid", name: pKey, amount: 1 }],
+      });
+    }
+  }
+
   // made(F) → every variant + every pool of F (goal-pools are covered by the
   // goal constraint itself). Non-expanded marks pass through.
   const outMade: string[] = [];
@@ -208,7 +233,7 @@ export function expandTemps(
       for (const t of variants.get(g.name) ?? []) outMade.push(variantKey(g.name, t));
 
   // a drained fluid's surplus must vanish per-variant AND per-pool
-  const outDrains: string[] = [];
+  const outDrains: string[] = [...goalFedPools];
   for (const m of drains) {
     if (!ranged.has(m)) {
       outDrains.push(m);

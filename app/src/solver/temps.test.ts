@@ -236,3 +236,54 @@ test("products without explicit temperature use the fluid default", async () => 
   expect(rates["pump"]).toBeCloseTo(0.1); // 15° is within ≤101° — pooled fine
   expect(r.unmade ?? []).toEqual([]);
 });
+
+test("a consume goal on a fluid drives the recipes that consume it (#243)", async () => {
+  // Burn Kerosene as computeBlock defines it: the ingredient carries an
+  // accepted range, so it eats the ≥10° pool while the goal has no temperature
+  const burn: TempRecipeDef = {
+    name: "burn-fluid-kerosene",
+    energyRequired: 1,
+    ingredients: [{ kind: "fluid", name: "kerosene", amount: 1, minTemp: 10 }],
+    products: [{ kind: "fluid", name: "pyops-fluid-fuel", amount: 1.5 }],
+  };
+  const { input, fold } = expandTemps(
+    {
+      goals: [{ name: "kerosene", rate: -5, direction: "consume" }],
+      recipes: [burn],
+      made: [],
+      pins: [],
+    },
+    (f) => (f === "kerosene" ? 25 : null),
+  );
+  const r = await solveBlockLp(input);
+  expect(r.status).toBe("solved");
+  expect(r.unmade ?? []).toEqual([]);
+  const rates = Object.fromEntries(r.recipes.map((x) => [x.recipe, x.rate]));
+  expect(rates["burn-fluid-kerosene"]).toBeCloseTo(5);
+  // all of it arrives through the goal, not as a second, ranged import
+  const kerosene = r.imports.filter((f) => fold.bare(f.name) === "kerosene");
+  expect(kerosene).toHaveLength(1);
+  expect(kerosene[0].rate).toBeCloseTo(5);
+});
+
+test("an exact-temperature consume goal only feeds consumers that accept it", async () => {
+  // the hot turbine is cheaper, but it can't take 165° steam
+  const hot: TempRecipeDef = {
+    name: "turbine-hot",
+    energyRequired: 0.5,
+    ingredients: [{ kind: "fluid", name: "steam", amount: 1, minTemp: 500 }],
+    products: [{ kind: "fluid", name: "pyops-electricity", amount: 1 }],
+  };
+  const cold: TempRecipeDef = {
+    name: "turbine-cold",
+    energyRequired: 1,
+    ingredients: [{ kind: "fluid", name: "steam", amount: 1, minTemp: 100 }],
+    products: [{ kind: "fluid", name: "pyops-electricity", amount: 1 }],
+  };
+  const { res } = solve([hot, cold], [{ name: "steam", rate: -10, temperature: 165 }], []);
+  const r = await res;
+  expect(r.status).toBe("solved");
+  const rates = Object.fromEntries(r.recipes.map((x) => [x.recipe, x.rate]));
+  expect(rates["turbine-cold"]).toBeCloseTo(10);
+  expect(rates["turbine-hot"]).toBeCloseTo(0);
+});
