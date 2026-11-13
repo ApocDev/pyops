@@ -31,7 +31,7 @@ import { RecipeSpoilageIndicator } from "./recipe-spoilage-indicator.tsx";
 import type { ChipTempWarning } from "./temp-warnings.ts";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
-import { fmtW, num } from "./format.ts";
+import { formatPower, num } from "./format.ts";
 import { cellChip } from "./styles.ts";
 
 /** Callbacks that open the block editor's overlays from a row: pickers get the
@@ -350,13 +350,13 @@ export function RecipeRow({
                     title="Electric power draw"
                     className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-info"
                   >
-                    <Zap className="size-3.5" /> {fmtW(row.machine.powerW)}
+                    <Zap className="size-3.5" /> {formatPower(row.machine.powerW)}
                   </span>
                 )}
                 {row.machine.energySource === "heat" && (
                   <Tooltip content="Heat draw — must be delivered by a reactor in this block (heat doesn't travel between blocks)">
                     <span className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-warning">
-                      <Flame className="size-3.5" /> {fmtW(row.machine.powerW)}
+                      <Flame className="size-3.5" /> {formatPower(row.machine.powerW)}
                     </span>
                   </Tooltip>
                 )}
@@ -377,7 +377,7 @@ export function RecipeRow({
                       label
                       content={
                         row.fuel.pool
-                          ? `Fluid fuel · ${fmtW(row.fuel.perSec * 1e6)} — burns any fuel-valued fluid; add a "Burn …" recipe to choose which`
+                          ? `Fluid fuel · ${formatPower(row.fuel.perSec * 1e6)} — burns any fuel-valued fluid; add a "Burn …" recipe to choose which`
                           : row.fuel.temperature
                             ? `${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s — drained for its heat (temperature), not burned`
                             : `${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s — this machine only burns ${row.fuel.display ?? row.fuel.name}`
@@ -391,7 +391,9 @@ export function RecipeRow({
                           noTitle
                         />
                         <span className="font-semibold">
-                          {row.fuel.pool ? fmtW(row.fuel.perSec * 1e6) : num(row.fuel.perSec)}
+                          {row.fuel.pool
+                            ? formatPower(row.fuel.perSec * 1e6)
+                            : num(row.fuel.perSec)}
                         </span>
                       </span>
                     </Tooltip>

@@ -14,7 +14,7 @@ test("temporary campaign derives a finite target and can be completed and reacti
   await expect(recipePicker).toBeHidden();
 
   await page.getByRole("button", { name: "Make this block temporary", exact: true }).click();
-  const quantity = page.getByRole("button", { name: "Make 3,600", exact: true });
+  const quantity = page.getByRole("button", { name: "Make 3.6K", exact: true });
   await expect(quantity).toBeVisible();
   await quantity.click();
   const quantityInput = page.locator('input[inputmode="decimal"]:focus');

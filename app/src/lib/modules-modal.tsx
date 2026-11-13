@@ -19,6 +19,7 @@ import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { InfoHint } from "#/components/info-hint.tsx";
 import { CursorHover } from "./hover";
+import { formatPower } from "./format";
 import { Icon } from "./icons";
 import { deletedToast } from "./undo-client";
 
@@ -35,14 +36,6 @@ import { deletedToast } from "./undo-client";
 
 const pct = (x: number) => `${x > 0 ? "+" : ""}${Math.round(x * 100)}%`;
 const mult = (x: number | null | undefined) => `${Math.round((x ?? 1) * 100) / 100}×`;
-const fmtW = (w: number) =>
-  w >= 1e9
-    ? `${(w / 1e9).toFixed(2)} GW`
-    : w >= 1e6
-      ? `${(w / 1e6).toFixed(2)} MW`
-      : w >= 1e3
-        ? `${(w / 1e3).toFixed(0)} kW`
-        : `${w.toFixed(0)} W`;
 
 type ModuleInfo = {
   name: string;
@@ -452,7 +445,7 @@ function BeaconMatrix({
                       }}
                       aria-pressed={cur}
                       aria-disabled={locked}
-                      title={`${c.display ?? c.name} · ${mult(c.de)} effect · ${c.w != null ? fmtW(c.w) : "?"}${locked ? " · not unlocked yet" : ""}`}
+                      title={`${c.display ?? c.name} · ${mult(c.de)} effect · ${c.w != null ? formatPower(c.w) : "?"}${locked ? " · not unlocked yet" : ""}`}
                       className={`px-1 py-1 ${
                         locked
                           ? "cursor-not-allowed border border-destructive bg-destructive/20 font-semibold text-destructive ring-2 ring-destructive/70"
@@ -485,7 +478,7 @@ function BeaconMatrix({
               ? "cursor-not-allowed border-2 border-destructive bg-destructive/20 text-destructive ring-2 ring-destructive/70"
               : ""
           }`}
-          title={`${b.display ?? b.name} · ${mult(b.distributionEffectivity)} effect · ${b.energyUsageW != null ? fmtW(b.energyUsageW) : "?"}${b.unlocked === false ? " · not unlocked yet" : ""}`}
+          title={`${b.display ?? b.name} · ${mult(b.distributionEffectivity)} effect · ${b.energyUsageW != null ? formatPower(b.energyUsageW) : "?"}${b.unlocked === false ? " · not unlocked yet" : ""}`}
         >
           {b.display ?? b.name}
         </Button>
@@ -821,7 +814,7 @@ export function ModulesModal({
                             <span>{b?.display ?? cfg.beacon}</span>
                             <span className="text-sm text-muted-foreground">
                               {mult(b?.distributionEffectivity)}
-                              {b?.energyUsageW != null && ` · ${fmtW(b.energyUsageW)}`}
+                              {b?.energyUsageW != null && ` · ${formatPower(b.energyUsageW)}`}
                             </span>
                             {beaconLocked && (
                               <span

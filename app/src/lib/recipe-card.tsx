@@ -6,7 +6,7 @@ import { entityDetailFn, itemDetailFn, recipeDetailFn, techDetailFn } from "../s
 // hover cards. The rich hover is the wrapper `Icon` adds around a RawIcon.
 import { RawIcon as Icon, fmtSpoilTime } from "./icons";
 import { CursorCard, CursorHover } from "./hover";
-import { formatQty, formatRate } from "./format";
+import { formatPower, formatQty, formatRate } from "./format";
 import { prodScaledAmount } from "./productivity";
 import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
@@ -708,8 +708,6 @@ export function ItemHover({
   );
 }
 
-const fmtW = (w: number) =>
-  w >= 1e6 ? `${(w / 1e6).toFixed(1)} MW` : w >= 1e3 ? `${(w / 1e3).toFixed(0)} kW` : `${w} W`;
 // compact number for speeds — the shared adaptive formatter (#74)
 const fmtNum = formatQty;
 
@@ -733,7 +731,7 @@ export function EntityCard({ name, extraText }: { name: string; extraText?: Reac
       rows.push(
         <div key="power" className="flex items-center gap-1">
           <Zap className="size-3.5 shrink-0 text-warning" />
-          {fmtW(mc.energyUsageW)}
+          {formatPower(mc.energyUsageW)}
           {mc.energySource ? ` · ${mc.energySource}` : ""}
         </div>,
       );
@@ -752,7 +750,7 @@ export function EntityCard({ name, extraText }: { name: string; extraText?: Reac
       rows.push(
         <div key="dpower" className="flex items-center gap-1">
           <Zap className="size-3.5 shrink-0 text-warning" />
-          {fmtW(d.energyUsageW)}
+          {formatPower(d.energyUsageW)}
           {d.energySource ? ` · ${d.energySource}` : ""}
         </div>,
       );
@@ -771,7 +769,7 @@ export function EntityCard({ name, extraText }: { name: string; extraText?: Reac
       rows.push(
         <div key="bpower" className="flex items-center gap-1">
           <Zap className="size-3.5 shrink-0 text-warning" />
-          {fmtW(b.energyUsageW)}
+          {formatPower(b.energyUsageW)}
         </div>,
       );
   }

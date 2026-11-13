@@ -1,13 +1,13 @@
 import { useState } from "react";
 import type { RateUnit } from "../../db/schema";
 import { Input } from "#/components/ui/input.tsx";
-import { fmtPower, fmtRate, parseRateInput } from "./format.ts";
+import { formatPower, fmtRate, num, parseRateInput } from "./format.ts";
 import { TIME_UNIT_FACTOR, TimeUnitControl } from "./time-unit-control.tsx";
 
 /** Rate windows (#10): the display/input unit of a goal. The STORED rate stays
  * per-second (the solver's canonical unit) — these only convert at the UI edge. */
 
-/** A rate shown as plain text ("1.0623/s") that turns into an input on click;
+/** A rate shown as plain text ("1.06/s") that turns into an input on click;
  * commits on blur/Enter, reverts on Escape. Read-only mode just renders the text. */
 export function EditableRate({
   value,
@@ -49,7 +49,7 @@ export function EditableRate({
           }
           className={readOnly ? "text-muted-foreground" : "hover:text-info"}
         >
-          {power ? fmtPower(value) : fmtRate(value * factor)}
+          {power ? formatPower(value * 1e6) : num(value * factor)}
         </button>
         {/* watts are already per-second — no rate window on power display */}
         {!power && onUnitChange && (

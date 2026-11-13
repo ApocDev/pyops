@@ -5,7 +5,7 @@ import { Badge } from "#/components/ui/badge.tsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "#/components/ui/dialog.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Icon } from "../../lib/icons";
-import { fmtW } from "./format.ts";
+import { formatPower } from "./format.ts";
 import { rowBtn } from "./styles.ts";
 
 /** Building picker — choose which machine runs a recipe (speed / power / tier),
@@ -72,12 +72,12 @@ export function BuildingPickerDialog({
                       <Badge variant="secondary">{m.craftingSpeed}× speed</Badge>
                       {m.energySource === "electric" && (
                         <span className="flex items-center gap-1 text-sm text-info">
-                          <Zap className="size-3" /> {fmtW(m.energyUsageW ?? 0)}
+                          <Zap className="size-3" /> {formatPower(m.energyUsageW ?? 0)}
                         </span>
                       )}
                       {(m.energySource === "burner" || m.energySource === "fluid") && (
                         <span className="flex items-center gap-1 text-sm text-warning">
-                          <Flame className="size-3" /> {fmtW(m.energyUsageW ?? 0)}
+                          <Flame className="size-3" /> {formatPower(m.energyUsageW ?? 0)}
                         </span>
                       )}
                       {m.energySource === "heat" && (

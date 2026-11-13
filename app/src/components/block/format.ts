@@ -2,11 +2,12 @@
  * quantity format; the rest are page-specific compactions. */
 import { formatQty } from "../../lib/format";
 
-export { ENERGY_PSEUDO, fmtPower, quantityLabel, rateLabel } from "../../lib/format";
+export { ENERGY_PSEUDO, formatPower, quantityLabel, rateLabel } from "../../lib/format";
 
 export const num = formatQty; // adaptive precision (#74) — shared with every other table
 
-// goal-rate display: enough precision to be exact, trailing zeros trimmed
+// goal-rate edit draft: enough precision to be exact, trailing zeros trimmed.
+// Display uses `num`; this is only the text placed in the input on click.
 export const fmtRate = (n: number) => {
   if (!Number.isFinite(n) || n === 0) return "0";
   if (Math.abs(n) < 0.0001) return formatQty(n); // below toFixed(4) — sig-figs, never "0"
@@ -15,17 +16,6 @@ export const fmtRate = (n: number) => {
   if (Math.abs(n) >= 1000) return n.toFixed(0);
   return n.toFixed(4).replace(/\.?0+$/, ""); // trim only trailing DECIMAL zeros
 };
-
-export const fmtW = (w: number) =>
-  w >= 1e12
-    ? `${(w / 1e12).toFixed(2)} TW`
-    : w >= 1e9
-      ? `${(w / 1e9).toFixed(2)} GW`
-      : w >= 1e6
-        ? `${(w / 1e6).toFixed(2)} MW`
-        : w >= 1e3
-          ? `${(w / 1e3).toFixed(0)} kW`
-          : `${w.toFixed(0)} W`;
 
 export const fmtJ = (j: number) =>
   j >= 1e9

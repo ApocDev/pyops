@@ -15,7 +15,8 @@ import { InfoHint } from "#/components/info-hint.tsx";
 import { StatCell } from "#/components/stat-cell.tsx";
 import { StatSortHeader } from "#/components/stat-sort-header.tsx";
 import { Icon } from "../lib/icons";
-import { rateLabel } from "../lib/format";
+import { rateLabel, snapResidue } from "../lib/format";
+import { meaningfulImbalance } from "../lib/factory-flow";
 import { usePersistedFold, usePersistedSorting } from "../lib/use-table-prefs";
 import { statTableFeatures, type StatTableFeatures } from "../lib/stat-table";
 
@@ -87,6 +88,18 @@ function ActualCell({
       <span className={color}>{rateLabel(good, actual)}</span>
     </Tooltip>
   );
+}
+
+/** Net with solver residue snapped to 0. Color follows the balance
+ * classification, so a row the overview calls balanced stays neutral. */
+function netCell(r: GoodsRow) {
+  const net = snapResidue(r.net, Math.max(r.produced, r.consumed));
+  const color = !meaningfulImbalance(net, r.produced, r.consumed)
+    ? "text-muted-foreground"
+    : net < 0
+      ? "text-destructive"
+      : "text-surplus";
+  return { net, color };
 }
 
 /** % of demand met — the deficit list's severity color: 0% (nothing makes it)
@@ -194,15 +207,9 @@ export function GoodsSection({
                 <StatCell
                   label="Net/s"
                   w="md:w-24"
-                  className={`font-semibold ${
-                    r.net < -1e-6
-                      ? "text-destructive"
-                      : r.net > 1e-6
-                        ? "text-surplus"
-                        : "text-muted-foreground"
-                  }`}
+                  className={`font-semibold ${netCell(r).color}`}
                 >
-                  {rateLabel(r.item, r.net, { sign: true })}
+                  {rateLabel(r.item, netCell(r).net, { sign: true })}
                 </StatCell>
                 {showMet && (
                   <StatCell label="Met" w="md:w-14">

@@ -4,6 +4,7 @@ import { Calculator, FlaskConical } from "lucide-react";
 import { labOptionsFn, saveScienceBankFn, scienceBlockFn } from "../../server/science";
 import type { ScienceBank } from "../../db/schema";
 import { Icon } from "../../lib/icons";
+import { formatPower } from "../../lib/format";
 import { ModulesChip, ModulesModal } from "../../lib/modules-modal";
 import { DeriveFromTechDialog } from "./derive-from-tech-dialog";
 import { Button } from "#/components/ui/button.tsx";
@@ -22,8 +23,6 @@ import { InfoHint } from "#/components/info-hint.tsx";
 
 const perMin = (perSec: number) => perSec * 60;
 const fmt = (n: number) => (n >= 100 ? Math.round(n).toLocaleString() : n.toFixed(2));
-const fmtW = (w: number) =>
-  w >= 1e6 ? `${(w / 1e6).toFixed(2)} MW` : w >= 1e3 ? `${(w / 1e3).toFixed(0)} kW` : `${w} W`;
 
 /** The science-consumer block: one lab bank for the whole factory.
  *
@@ -206,7 +205,7 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
                     : "no productivity — drawn as entered"
                 }
               />
-              <Stat label="Power" value={fmtW(result.totalPowerW)} />
+              <Stat label="Power" value={formatPower(result.totalPowerW)} />
               <Stat
                 label="Productivity"
                 value={pct}
