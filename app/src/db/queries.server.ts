@@ -240,6 +240,7 @@ function machinesForRecipes(recipeNames: string[]) {
       fluidFuelFilter: craftingMachines.fluidFuelFilter,
       fluidFuelPerSec: craftingMachines.fluidFuelPerSec,
       fluidFuelEnergyJ: craftingMachines.fluidFuelEnergyJ,
+      effectReceiver: craftingMachines.effectReceiver,
     })
     .from(machineCategories)
     .innerJoin(craftingMachines, eq(craftingMachines.name, machineCategories.machine))
@@ -437,6 +438,7 @@ export function machinesForRecipe(recipeName: string) {
       fluidFuelFilter: craftingMachines.fluidFuelFilter,
       fluidFuelPerSec: craftingMachines.fluidFuelPerSec,
       fluidFuelEnergyJ: craftingMachines.fluidFuelEnergyJ,
+      effectReceiver: craftingMachines.effectReceiver,
     })
     .from(machineCategories)
     .innerJoin(craftingMachines, eq(craftingMachines.name, machineCategories.machine))
@@ -873,6 +875,7 @@ export function computeRecipeScenario(opts: {
       miningProd: r.kind === "mining" ? rp.mining : 0,
       maxProductivity: r.maximumProductivity,
     },
+    machine.effectReceiver,
   );
 
   const craftsPerSec = (machine.craftingSpeed * fx.speedMult) / (r.energyRequired || 0.5);

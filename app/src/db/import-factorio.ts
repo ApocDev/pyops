@@ -15,6 +15,7 @@ import { dirname, join } from "node:path";
 import { readDump } from "./read-dump.ts";
 import { synthesizePass2 } from "./synthesize.ts";
 import { temperatureFedDrain, type TempFedFluid } from "./fluid-energy.ts";
+import { parseEffectReceiver } from "./effect-receiver.ts";
 import {
   REFERENCE_DATA_FORMAT_META_KEY,
   REFERENCE_DATA_FORMAT_VERSION,
@@ -252,7 +253,7 @@ export function importFactorioDump(
     ),
     recipeCat: db.prepare(`INSERT OR IGNORE INTO recipe_categories (name) VALUES (?)`),
     machine: db.prepare(
-      `INSERT INTO crafting_machines (name,display,kind,crafting_speed,tile_width,tile_height,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,burns_fluid,fluid_fuel_filter,fluid_fuel_per_sec,fluid_fuel_energy_j) VALUES (@name,@display,@kind,@crafting_speed,@tile_width,@tile_height,@module_slots,@energy_usage_w,@energy_source,@pollution_per_min,@allowed_effects,@allowed_module_categories,@burns_fluid,@fluid_fuel_filter,@fluid_fuel_per_sec,@fluid_fuel_energy_j)`,
+      `INSERT INTO crafting_machines (name,display,kind,crafting_speed,tile_width,tile_height,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,burns_fluid,fluid_fuel_filter,fluid_fuel_per_sec,fluid_fuel_energy_j,effect_receiver) VALUES (@name,@display,@kind,@crafting_speed,@tile_width,@tile_height,@module_slots,@energy_usage_w,@energy_source,@pollution_per_min,@allowed_effects,@allowed_module_categories,@burns_fluid,@fluid_fuel_filter,@fluid_fuel_per_sec,@fluid_fuel_energy_j,@effect_receiver)`,
     ),
     machineCat: db.prepare(
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
@@ -493,6 +494,7 @@ export function importFactorioDump(
           fluid_fuel_filter: es.type === "fluid" ? (es.fluid_box?.filter ?? null) : null,
           fluid_fuel_per_sec: drain.perSec,
           fluid_fuel_energy_j: drain.energyJPerUnit,
+          effect_receiver: parseEffectReceiver(m.effect_receiver),
         });
         for (const c of cats) ins.machineCat.run(name, c);
         for (const fc of arr<string>(es.fuel_categories)) ins.machineFuel.run(name, fc);

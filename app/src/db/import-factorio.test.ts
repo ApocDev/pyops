@@ -7,6 +7,7 @@ import {
   REFERENCE_DATA_FORMAT_META_KEY,
   REFERENCE_DATA_FORMAT_VERSION,
 } from "../lib/data-format.ts";
+import { DEFAULT_EFFECT_RECEIVER } from "../server/effects.ts";
 import { importFactorioDump } from "./import-factorio.ts";
 import { type TestDb, makeTestDb } from "./test-helpers.ts";
 
@@ -123,6 +124,51 @@ describe("importFactorioDump — data format version", () => {
       .pluck()
       .get(REFERENCE_DATA_FORMAT_META_KEY);
     expect(stored).toBe(String(REFERENCE_DATA_FORMAT_VERSION));
+    db.close();
+  });
+});
+
+describe("importFactorioDump — machine effect receivers (#258)", () => {
+  it("stores each machine's effect_receiver with defaults filled in", () => {
+    const db = runImport({
+      "assembling-machine": {
+        // Py farm: assembling-machine.fawogae-plantation-mk01
+        "fawogae-plantation-mk01": {
+          crafting_categories: ["fawogae"],
+          effect_receiver: { base_effect: { speed: -1 }, speed_limits: { low: -0.9999 } },
+        },
+        "assembling-machine-1": {
+          crafting_categories: ["crafting"],
+          effect_receiver: { uses_module_effects: false, uses_beacon_effects: false },
+        },
+        plain: { crafting_categories: ["crafting"] },
+      },
+      // Py mine: mining-drill.salt-mine (synthesized into crafting_machines)
+      "mining-drill": {
+        "salt-mine": {
+          resource_categories: ["salt-rock"],
+          effect_receiver: { base_effect: { consumption: 9 } },
+        },
+      },
+    });
+    const rx = (name: string) => {
+      const v = db
+        .prepare(`SELECT effect_receiver FROM crafting_machines WHERE name = ?`)
+        .pluck()
+        .get(name) as string | null;
+      return v == null ? null : JSON.parse(v);
+    };
+    expect(rx("plain")).toBeNull();
+    expect(rx("fawogae-plantation-mk01")).toEqual({
+      ...DEFAULT_EFFECT_RECEIVER,
+      baseEffect: { ...DEFAULT_EFFECT_RECEIVER.baseEffect, speed: -1 },
+      limits: { ...DEFAULT_EFFECT_RECEIVER.limits, speed: { low: -0.9999, high: 1000 } },
+    });
+    expect(rx("assembling-machine-1")).toMatchObject({
+      usesModuleEffects: false,
+      usesBeaconEffects: false,
+    });
+    expect(rx("salt-mine").baseEffect).toMatchObject({ consumption: 9, speed: 0 });
     db.close();
   });
 });

@@ -1,0 +1,1 @@
+ALTER TABLE `crafting_machines` ADD `effect_receiver` text;
