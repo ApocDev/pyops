@@ -1,0 +1,23 @@
+app/e2e/smoke.e2e.ts
+  s_995b207560eeb0::t_ebb4efe81c8d57 126-133
+app/src/routes/__root.tsx
+  s_995b207560eeb0::t_fc45f867cfa1f7 15,61
+app/src/components/route-not-found.tsx
+  s_995b207560eeb0::t_32768928600b46 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b45a811837e38ae1eab6a1c64129b12c13c9a009",
+  "prompts": {},
+  "sessions": {
+    "s_995b207560eeb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cef9ec12-eec2-430e-8ba3-ca49ff9d4875",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
