@@ -5,6 +5,7 @@ import {
   createBlock,
   expectUndoTop,
   goto,
+  insertBlock,
   setPlanningHorizon,
   uniqueName,
 } from "./helpers";
@@ -43,7 +44,6 @@ test("a fluid-burning drill demands the Fluid fuel pool, not a picked fluid", as
   await expect(page.getByLabel(/^Fluid fuel \(MJ\) \S+ [MkG]?W/).first()).toBeVisible();
   // the pre-#25 behavior defaulted fluid burners to a petroleum-gas import — gone
   await expect(page.getByLabel(/^Petroleum gas/)).toHaveCount(0);
-  await setPlanningHorizon(page, "Now");
 });
 
 /**
@@ -54,6 +54,13 @@ test("a fluid-burning drill demands the Fluid fuel pool, not a picked fluid", as
  * coherence wiring (matched against other blocks' generic fuel imports).
  */
 test("a Fluid fuel goal designates the block as a factory-scale supplier", async ({ page }) => {
+  // The coherence wiring lists a supplier against other blocks' imports of the
+  // good, so arrange a consumer: the fluid-burning Antimony drill draws the pool.
+  insertBlock(uniqueName("Fluid fuel consumer"), {
+    recipes: ["mine-antimonium"],
+    machines: { "mine-antimonium": "antimony-drill-mk01" },
+    goals: [{ name: "antimonium-ore", rate: 1 }],
+  });
   await createBlock(page);
   const name = uniqueName("Fuel farm");
   await blockNameInput(page).fill(name);

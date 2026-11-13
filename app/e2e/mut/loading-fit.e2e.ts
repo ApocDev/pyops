@@ -29,7 +29,7 @@ test("a throughput-heavy row warns when loading access needs more buildings", as
   const buildings = page.getByRole("dialog", { name: /Building for/ });
   await buildings.getByRole("button", { name: /^Burner assembling machine MK 01/ }).click();
   await expect(buildings).toBeHidden();
-  await setGoalRate(page, "8.375");
+  await setGoalRate(page, "8.375", "8.38");
 
   // Select the same basic, unstacked inserter the estimate is expected against.
   await page.getByRole("button", { name: /^Logistics/ }).click();

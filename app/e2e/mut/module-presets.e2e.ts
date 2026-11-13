@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { addGoal, createBlock, uniqueName } from "./helpers";
+import { addGoal, createBlock, uniqueName, withDb } from "./helpers";
+
+/** A default template bakes its loadout into every new compatible row, in this
+ * spec and in any spec that runs after it, so none may be left behind. */
+const clearDefaultTemplate = () =>
+  withDb((db) => db.exec("UPDATE module_presets SET is_default = 0"));
+
+test.beforeEach(clearDefaultTemplate);
+test.afterEach(clearDefaultTemplate);
 
 /**
  * Module templates (#99): save a loadout as a preset from the modules dialog,

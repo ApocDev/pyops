@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { goto } from "./helpers";
+import { goto, withDb } from "./helpers";
+
+// The mining bonus is a Now-horizon setting; put the fixture's Future back after.
+test.afterEach(() =>
+  withDb((db) => db.exec("UPDATE meta SET value = 'future' WHERE key = 'research_mode'")),
+);
 
 test("manual mining productivity bonus persists and can be cleared", async ({ page }) => {
   await goto(page, "/settings");

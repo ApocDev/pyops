@@ -15,9 +15,10 @@ import { defineConfig, devices } from "@playwright/test";
  *    server on the app's real data dir — the active project DB, real reference
  *    data. Mod/bridge state is mocked per-spec (see bridge.e2e.ts).
  *  - `mutating` (the specs in mut/) runs against a SECOND dev server whose
- *    PYOPS_DATA_DIR points at a scratch copy of that data (e2e/.mut-data),
- *    seeded by seed-mut-data.mjs before the server boots — those specs edit
- *    blocks, delete things, create projects, with zero risk to your data.
+ *    PYOPS_DATA_DIR points at a scratch fixture project (e2e/.mut-data) that
+ *    seed-mut-data.mjs builds from the active project's reference data before
+ *    the server boots — those specs create their own blocks, edit and delete
+ *    things, create projects, with zero risk to your data.
  *
  * The seeding is chained into the mutating server's command (not a Playwright
  * globalSetup) because webServer plugins start BEFORE globalSetup runs — the

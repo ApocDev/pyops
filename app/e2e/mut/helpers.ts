@@ -1,13 +1,14 @@
 /**
  * Shared helpers for the mutating suite (mut/). Everything here talks to the
  * ISOLATED dev server (see playwright.config.ts): its PYOPS_DATA_DIR is the
- * scratch copy under e2e/.mut-data, so these tests can create/edit/delete
- * freely. Specs create the entities they mutate (with per-run unique names, so
- * a re-run against a warm server never collides) instead of depending on what
- * the copied db happens to contain.
+ * scratch `e2e` fixture project under e2e/.mut-data, which starts with
+ * reference data only (see seed-mut-data.mjs). Specs create the entities they
+ * need (with per-run unique names, so a re-run against a warm server never
+ * collides) instead of depending on what a developer's project contains.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { expect, type Page } from "@playwright/test";
 
@@ -24,6 +25,65 @@ export function activeProjectDbFile(): string {
     if (typeof parsed.active === "string" && parsed.active) active = parsed.active;
   }
   return join(MUT_DATA_DIR, "projects", `${active}.db`);
+}
+
+/** Open the scratch project's db, run `fn`, and close it again. For direct
+ * arrangements and assertions that the UI can't express cheaply. */
+export function withDb<T>(fn: (db: DatabaseSync) => T, options: { readOnly?: boolean } = {}): T {
+  const db = new DatabaseSync(activeProjectDbFile(), options);
+  try {
+    db.exec("PRAGMA busy_timeout = 5000");
+    return fn(db);
+  } finally {
+    db.close();
+  }
+}
+
+/** The subset of a block document (`blocks.data`) that specs write directly. */
+export type BlockDoc = {
+  goals: { name: string; rate: number; temperature?: number }[];
+  recipes: string[];
+  made?: string[];
+  pins?: { kind: string; recipe: string; item?: string; count?: number }[];
+  machines?: Record<string, string>;
+  fuels?: Record<string, string>;
+  fluidTemperatures?: Record<string, Record<string, number>>;
+  supplyPriority?: number;
+};
+
+/** Insert a block row straight into the scratch db and return its id. The
+ * server solves it the first time anything reads it. */
+export function insertBlock(name: string, doc: BlockDoc): number {
+  return withDb((db) =>
+    Number(
+      db.prepare("INSERT INTO blocks (name, data) VALUES (?, ?)").run(name, JSON.stringify(doc))
+        .lastInsertRowid,
+    ),
+  );
+}
+
+/** Delete every block (with its solved rows and snapshots) and the factory
+ * pins. Factory-wide views like Scenario solve every block in the project, so
+ * their specs start from an empty factory instead of whatever earlier specs
+ * left behind. */
+export function clearFactory(): void {
+  withDb((db) => {
+    for (const table of ["block_flows", "block_machines", "block_snapshots"])
+      db.exec(`DELETE FROM ${table}`);
+    db.exec("DELETE FROM blocks");
+    db.exec("DELETE FROM meta WHERE key = 'factory_pins_v1'");
+  });
+}
+
+/** Replace the factory pins (the Scenario page's demands). */
+export function setFactoryPins(pins: { good: string; kind: "item" | "fluid"; rate: number }[]) {
+  withDb((db) =>
+    db
+      .prepare(
+        "INSERT INTO meta (key, value) VALUES ('factory_pins_v1', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+      )
+      .run(JSON.stringify(pins)),
+  );
 }
 
 /** A per-run unique display name, so re-runs against a reused (still-warm)
@@ -71,11 +131,20 @@ export async function expectUndoTop(page: Page, action: RegExp): Promise<void> {
  * editor. Returns the block id from the URL. */
 export async function createBlock(page: Page): Promise<number> {
   await goto(page, "/block");
-  const previousUrl = page.url();
-  await page.getByRole("button", { name: "New block", exact: true }).click();
-  await page.waitForURL((url) => url.href !== previousUrl && /\/block\/\d+$/.test(url.pathname));
+  // /block can redirect to the last open block just after it loads, which can
+  // swallow the click; retry until the URL names a block newer than any before
+  const lastId = withDb(
+    (db) => (db.prepare("SELECT MAX(id) AS id FROM blocks").get() as { id: number | null }).id ?? 0,
+    { readOnly: true },
+  );
+  const isNew = (url: URL) => Number(/^\/block\/(\d+)$/.exec(url.pathname)?.[1]) > lastId;
+  await expect(async () => {
+    if (isNew(new URL(page.url()))) return;
+    // by title: sidebar rows of blocks still named "New block" share the name
+    await page.locator('button[title="New block"]').click();
+    await page.waitForURL(isNew, { timeout: 5_000 });
+  }).toPass({ timeout: 20_000 });
   const id = Number(new URL(page.url()).pathname.split("/").pop());
-  expect(id).toBeGreaterThan(0);
   // wait for the editor's doc store to hydrate the fresh block — editing
   // before that races the load (a fill can interleave with hydration). A rapid
   // second creation can retain the previous route's doc store until a hard
@@ -128,13 +197,14 @@ export async function setPlanningHorizon(
   await expect(dialog).toBeHidden();
 }
 
-/** Click the goal rate, type a new value, commit with Enter. */
-export async function setGoalRate(page: Page, value: string): Promise<void> {
+/** Click the goal rate, type a new value, commit with Enter. `shown` is the
+ * rounded display when it differs from what was typed. */
+export async function setGoalRate(page: Page, value: string, shown = value): Promise<void> {
   await goalRateButton(page).click();
   const input = page.locator("input:focus");
   await input.fill(value);
   await input.press("Enter");
-  await expect(goalRateButton(page)).toHaveText(value);
+  await expect(goalRateButton(page)).toHaveText(shown);
 }
 
 /** A toast by (partial) message. Toasts auto-dismiss after ~4s, so assert on

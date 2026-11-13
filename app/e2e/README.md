@@ -34,11 +34,20 @@ each (see `playwright.config.ts`):
 - **`mutating`** — the specs in `mut/`. These **edit blocks, delete things, and
   create projects**, so they get a second dev server on port 3101
   (`E2E_MUT_PORT`) whose `PYOPS_DATA_DIR` points at a scratch directory,
-  `e2e/.mut-data`. Before that server boots, `seed-mut-data.mjs` wipes the
-  scratch dir and copies the real data dir's `app-config.json` and every
-  `projects/*.db` into it (via sqlite's online-backup API, so a db the
-  read-only server holds open still copies consistently) — the mutating specs
-  see real recipes/items with **zero risk to your data**.
+  `e2e/.mut-data`. Before that server boots, `seed-mut-data.mjs` builds one
+  fixture project there, `e2e`, from your **active** project:
+  - it snapshots the db with sqlite's online-backup API, so a db the read-only
+    server holds open still copies consistently;
+  - it keeps only the reference data (recipes, items, techs, … from the game
+    dump) and empties every planning and save-synced table: blocks, folders,
+    factory pins, tasks, module templates, TURD picks, production stats;
+  - it sets a fixed research state (an early Py playthrough, Future horizon), so
+    "Unlocked now" means the same thing for everyone.
+
+  The specs see real recipes and items with **zero risk to your data**, and they
+  pass the same way whichever Py project you have active. The seed stops with
+  an error if that project's reference data is older than the app's reader;
+  re-sync it in Settings › Game data first.
 
   The seeding is chained into the mutating server's `webServer` command rather
   than a Playwright `globalSetup`, because Playwright starts webServers *before*
@@ -51,10 +60,25 @@ artifacts and intermittently surface `ECONNRESET` in Vite's browser overlay.
 
 Locally (`reuseExistingServer`) a still-running server from a previous run is
 reused **without re-seeding**, so scratch state accumulates across quick
-iterations; the mutating specs are written for that — every entity they touch is
-one they created themselves, under a per-run unique name (see `mut/helpers.ts`).
-A cold `npm test` always starts from a fresh copy. Stop any of your own `vp dev`
-before `npm install` here — an install while the server runs can corrupt things.
+iterations. A cold `npm test` always starts from a fresh fixture. Stop any of
+your own `vp dev` before `npm install` here — an install while the server runs
+can corrupt things.
+
+## Writing a mutating spec
+
+Every spec creates the planning data it needs, so it passes in any order, on a
+fresh fixture or on a warm server that earlier runs have filled:
+
+- Create blocks through the UI (`createBlock`, `addGoal`) or insert them
+  directly with `insertBlock(name, doc)`; the server solves an inserted block the
+  first time something reads it. Give anything another spec could also create a
+  `uniqueName(...)`.
+- Factory-wide views (Scenario) solve every block in the project. Their specs
+  call `clearFactory()` or `seedScenarioFactory()` (`mut/scenario-factory.ts`,
+  a small coal-processing factory with demand pins) before each test.
+- Use `withDb(...)` for direct arrangements and assertions on the scratch db.
+- Put back any project-wide setting you change, such as the planning horizon
+  (the fixture plans in Future) or a default module template.
 
 ## Suites
 

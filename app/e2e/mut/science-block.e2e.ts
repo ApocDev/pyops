@@ -57,8 +57,8 @@ test("creating a science block, typing rates, and deriving them from a technolog
 
     // 60/min at the default 60 lab-seconds per pack = 60 labs — ONE pool, not one
     // pool per pack, which is the whole reason this is not a set of recipes
-    await expect(page.getByTestId("science-stat-labs")).toContainText("60.00");
-    await expect(page.getByTestId("science-stat-total-science")).toContainText("60.00/min");
+    await expect(page.getByTestId("science-stat-labs")).toHaveText(/^Labs\s*60$/);
+    await expect(page.getByTestId("science-stat-total-science")).toContainText("60/min");
 
     // ── the technology helper writes into those same fields ──
     await page.getByRole("button", { name: "Derive from a technology" }).click();
@@ -88,7 +88,7 @@ test("creating a science block, typing rates, and deriving them from a technolog
     await page.getByRole("spinbutton", { name: "Lab-seconds per pack" }).fill("60");
     await auto.fill("60");
     await auto.blur();
-    await expect(page.getByTestId("science-stat-labs")).toContainText("60.00");
+    await expect(page.getByTestId("science-stat-labs")).toHaveText(/^Labs\s*60$/);
 
     await page.getByRole("button", { name: /^No beacons|^No modules/ }).click();
     const picker = page.getByRole("dialog");
@@ -119,7 +119,7 @@ test("creating a science block, typing rates, and deriving them from a technolog
     // productivity now shrinks the pool and the imports, and beacon buildings
     // appear — the whole reason the picker had to reach a zero-slot machine
     await expect(page.getByTestId("science-stat-productivity")).not.toContainText("0%");
-    await expect(page.getByTestId("science-stat-labs")).not.toContainText("60.00");
+    await expect(page.getByTestId("science-stat-labs")).not.toHaveText(/^Labs\s*60$/);
     await expect(page.getByText("Beacon buildings")).toBeVisible();
   } finally {
     clearScienceBlocks(file);

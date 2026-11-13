@@ -77,9 +77,10 @@ from inside `app/`:
   route scrolls sideways** at tablet/phone widths) run against the active project
   DB; the **mutating** specs in `e2e/mut/` (command palette, undo, snapshots,
   destructive-action dialogs, backup/share, project dialog) run against a second
-  dev server whose `PYOPS_DATA_DIR` is a seeded scratch copy of that data, so
-  they can edit/delete freely. See `app/e2e/README.md`. **A user-facing feature
-  ships with e2e coverage of its main flow** — extend the matching `mut/` spec
+  dev server whose `PYOPS_DATA_DIR` holds a fixture project built from the
+  active project's reference data only (no blocks, pins, or tasks), so they can
+  edit/delete freely and must create the planning data they need. See
+  `app/e2e/README.md`. **A user-facing feature ships with e2e coverage of its main flow** — extend the matching `mut/` spec
   (or add one) as part of the change, not after.
 - DB schema: edit `src/db/schema.ts`, then `vp run db:generate <name>` to write a
   migration under `drizzle/` (a name is required, so files stay meaningful).
