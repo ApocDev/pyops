@@ -189,6 +189,28 @@ describe("buildFlowGraph", () => {
     expect(node("i:ore").layer).toBe(0);
   });
 
+  it("merges a fuel that is also a recipe ingredient into one link", () => {
+    const coke = {
+      ...row("coke", [["coal", 10]], [["coke", 5]]),
+      machine: { count: 1, energySource: "burner", powerW: 1e6 },
+      fuel: { name: "coal", kind: "item", perSec: 1, burnt: { name: "coke", perSec: 1 } },
+    };
+    const g = buildFlowGraph({
+      rows: [coke],
+      imports: [{ name: "coal", kind: "item", rate: 11 }],
+      exports: [],
+      goalNames: ["coke"],
+    });
+    const ids = g.links.map((l) => l.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const coal = g.links.filter((l) => l.source === "i:coal");
+    expect(coal).toHaveLength(1);
+    expect(coal[0].rate).toBeCloseTo(11);
+    const out = g.links.filter((l) => l.source === "r:coke");
+    expect(out).toHaveLength(1);
+    expect(out[0].rate).toBeCloseTo(6);
+  });
+
   it("returns an empty graph for a block with no running rows", () => {
     const g = buildFlowGraph({ rows: [], imports: [], exports: [], goalNames: [] });
     expect(g.nodes).toEqual([]);

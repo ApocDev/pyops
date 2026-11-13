@@ -59,6 +59,19 @@ function runningFlows(r: FlowInputRow): { ingredients: Flow[]; products: Flow[] 
   return { ingredients, products };
 }
 
+/** Sum a row's flows per good, so a fuel that is also a recipe ingredient (or a
+ * burnt result that is also a product) becomes one endpoint, not two links
+ * with the same id. */
+function byGood(flows: Flow[]): Flow[] {
+  const merged = new Map<string, Flow>();
+  for (const f of flows) {
+    const seen = merged.get(f.name);
+    if (seen) seen.rate += f.rate;
+    else merged.set(f.name, { ...f });
+  }
+  return [...merged.values()];
+}
+
 /** The slice of a solve result the flow graph needs. */
 export type FlowInput = {
   rows: FlowInputRow[];
@@ -146,12 +159,12 @@ export function buildFlowGraph(input: FlowInput): FlowGraph {
 
   for (const r of rows) {
     const running = runningFlows(r);
-    for (const p of [...r.products, ...running.products]) {
+    for (const p of byGood([...r.products, ...running.products])) {
       if (p.rate <= EPS) continue;
       noteKind(p.name, p.kind);
       push(producers, p.name, recipeId(r.recipe), p.rate);
     }
-    for (const c of [...r.ingredients, ...running.ingredients]) {
+    for (const c of byGood([...r.ingredients, ...running.ingredients])) {
       if (c.rate <= EPS) continue;
       noteKind(c.name, c.kind);
       push(consumers, c.name, recipeId(r.recipe), c.rate);
