@@ -194,10 +194,17 @@ export function sciencePins(): {
   return [...pins.values()];
 }
 
-/** A force bonus as last synced from the game, or 0 if it never synced. */
-function syncedBonus(key: "research_lab_speed_bonus" | "research_lab_productivity_bonus"): number {
-  const bonus = Number(q.metaAll()[key]);
-  return Number.isFinite(bonus) ? bonus : 0;
+/** The force's lab bonuses as last synced from the game, 0 for any never synced. */
+export function syncedLabBonuses(): { speed: number; productivity: number } {
+  const m = q.metaAll();
+  const bonus = (raw: string | null | undefined) => {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  };
+  return {
+    speed: bonus(m.research_lab_speed_bonus),
+    productivity: bonus(m.research_lab_productivity_bonus),
+  };
 }
 
 /** Solve the bank: labs, beacon buildings, pack demand, upkeep and power. */
@@ -206,12 +213,13 @@ export function solveScienceBank(bank: ScienceBank): ScienceBankResult | null {
   if (!lab) return null;
   const beacons = bank.beacons ?? [];
   const moduleNames = [...(bank.modules ?? []), ...beacons.flatMap((b) => b.modules)];
+  const labBonuses = syncedLabBonuses();
   return computeScienceBank({
     lab,
     packs: bank.packs,
     labSecondsPerPack: bank.labSecondsPerPack || DEFAULT_LAB_SECONDS_PER_PACK,
-    labSpeedBonus: syncedBonus("research_lab_speed_bonus"),
-    labProductivityBonus: syncedBonus("research_lab_productivity_bonus"),
+    labSpeedBonus: labBonuses.speed,
+    labProductivityBonus: labBonuses.productivity,
     modules: bank.modules ?? [],
     beacons,
     moduleDb: q.getModules(moduleNames),

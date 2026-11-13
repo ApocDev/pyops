@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Calculator, FlaskConical } from "lucide-react";
 import { labOptionsFn, saveScienceBankFn, scienceBlockFn } from "../../server/science";
+import { researchHorizonSubscription } from "../../lib/live-query-options";
 import type { ScienceBank } from "../../db/schema";
 import { Icon } from "../../lib/icons";
 import { formatPower, formatQty } from "../../lib/format";
@@ -47,6 +48,21 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
     mutationFn: (bank: ScienceBank) => saveScienceBankFn({ data: { id: blockId, bank } }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["scienceBlock"] }),
   });
+
+  // Research can change the lab bonuses while this page is open. AppLiveQueries
+  // already polls the research horizon, which carries them, so re-solve the bank
+  // when they move instead of running a second poll.
+  const horizon = useQuery(researchHorizonSubscription);
+  const labBonuses = horizon.data
+    ? `${horizon.data.labBonuses.speed}/${horizon.data.labBonuses.productivity}`
+    : undefined;
+  const seenLabBonuses = useRef(labBonuses);
+  useEffect(() => {
+    const previous = seenLabBonuses.current;
+    seenLabBonuses.current = labBonuses;
+    if (previous !== undefined && previous !== labBonuses)
+      void qc.invalidateQueries({ queryKey: ["scienceBlock"] });
+  }, [labBonuses, qc]);
 
   // Adopt the stored bank once, then edit locally so typing stays responsive.
   useEffect(() => {

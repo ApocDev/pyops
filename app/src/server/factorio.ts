@@ -41,6 +41,7 @@ import {
   getLatestFactorySolverTrace,
 } from "./factory-debug.server.ts";
 import { APP_CONFIG_FILE, DATA_DIR, ICON_DATA_DIR, PROJECTS_DIR } from "./paths.server.ts";
+import { syncedLabBonuses } from "./science-block.server.ts";
 import { withUndoAction } from "./undo-action.server.ts";
 import { captureSnapshot } from "./snapshots.server.ts";
 import { defaultPresetLoadout, presetsForRow } from "./module-presets.server.ts";
@@ -1016,6 +1017,8 @@ export const researchHorizonFn = createServerFn({ method: "GET" }).handler(async
         ? miningProductivityBonus
         : null,
     recipeProductivityBonusCount: q.syncedRecipeProductivityBonusCount(),
+    // the science block watches these to refresh when research changes them
+    labBonuses: syncedLabBonuses(),
     // live research pushed by the in-game mod (bridge), if any
     syncedAt: m.research_synced_at ?? null,
     syncedCount: m.research_synced_count ? Number(m.research_synced_count) : null,
