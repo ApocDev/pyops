@@ -56,8 +56,11 @@ export type Pin =
     };
 
 export type LpBlockInput = {
-  /** Direction remains explicit at zero; older inputs infer it from rate's sign. */
-  goals: { name: string; rate: number; direction?: "produce" | "consume" }[];
+  /** Direction remains explicit at zero; older inputs infer it from rate's sign.
+   * `members` makes the goal one row over the summed net of several goods (the
+   * temperature expansion uses it for a fluid consume goal); `name` is then only
+   * the row's label, not a good. */
+  goals: { name: string; rate: number; direction?: "produce" | "consume"; members?: string[] }[];
   recipes: RecipeDef[];
   /** items claimed produced in-block (net ≥ 0). Produce-goal items are
    * implicitly made; listing them again is harmless. */
@@ -135,6 +138,8 @@ export type BlockModel = {
   coeff: Record<string, number[]>;
   kindOf: Record<string, string>;
   goalRate: Map<string, number>;
+  /** Each goal's row coefficients: its own good's, or its members' summed. */
+  goalCoeff: Map<string, number[]>;
 };
 
 /** constraint names are labels only — item names can hold LP-hostile chars */
@@ -173,8 +178,10 @@ export function buildModel(input: LpBlockInput): BlockModel {
   const idxOf = new Map(recipes.map((r, i) => [r.name, i]));
   const netParts = (c: number[]) => c.flatMap((v, i) => (v !== 0 ? [term(v, varOf(i))] : []));
 
+  const goalCoeff = new Map<string, number[]>();
   for (const g of goals) {
-    const c = coeff[g.name];
+    const rows = (g.members ?? [g.name]).flatMap((m) => (coeff[m] ? [coeff[m]] : []));
+    const c = rows.length ? rows[0].map((_, i) => rows.reduce((sum, r) => sum + r[i], 0)) : null;
     const consumes = g.direction === "consume" || g.rate < 0;
     if (!c || (!consumes && !produced[g.name])) {
       // a produce goal nothing makes (or a goal on an untouched item) can't be
@@ -182,6 +189,7 @@ export function buildModel(input: LpBlockInput): BlockModel {
       unmade.push(g.name);
       continue;
     }
+    goalCoeff.set(g.name, c);
     constraints.push({
       id: `goal_${cname(g.name)}`,
       parts: netParts(c),
@@ -278,7 +286,7 @@ export function buildModel(input: LpBlockInput): BlockModel {
     });
   }
 
-  return { recipes, constraints, unmade, coeff, kindOf, goalRate };
+  return { recipes, constraints, unmade, coeff, kindOf, goalRate, goalCoeff };
 }
 
 /** Assemble and solve an LP over a model's recipes: the standard objective plus
@@ -313,7 +321,7 @@ export async function runLp(
 
 export async function solveBlockLp(input: LpBlockInput): Promise<LpBlockResult> {
   const model = buildModel(input);
-  const { recipes, constraints, unmade, coeff, kindOf, goalRate } = model;
+  const { recipes, constraints, unmade, coeff, kindOf, goalRate, goalCoeff } = model;
   const n = recipes.length;
   const unmadeOut = unmade.length ? { unmade } : {};
   const empty = { recipes: [], imports: [], exports: [] };
@@ -362,7 +370,7 @@ export async function solveBlockLp(input: LpBlockInput): Promise<LpBlockResult> 
   });
   const goalSurplus = (solution: Awaited<ReturnType<typeof runLp>>) =>
     goalRows.reduce((sum, { row, weight }) => {
-      const c = coeff[row.prov.type === "goal" ? row.prov.item : ""] ?? [];
+      const c = goalCoeff.get(row.prov.type === "goal" ? row.prov.item : "") ?? [];
       const net = c.reduce(
         (total, value, index) => total + value * solution.primal(`x${index}`),
         0,

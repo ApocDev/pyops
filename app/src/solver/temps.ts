@@ -2,7 +2,7 @@ import type { LpBlockInput, Pin, RecipeDef } from "./lp.ts";
 
 /**
  * Fluid-temperature identity (#110): the full model, as a PURE transformation
- * of the solver input — the LP core is untouched.
+ * of the solver input. The LP core only adds multi-member goal rows for it.
  *
  * A real fluid is expanded when an enabled recipe produces it or declares an
  * accepted temperature range. Producer-only blocks expand too so their factory
@@ -21,6 +21,12 @@ import type { LpBlockInput, Pin, RecipeDef } from "./lp.ts";
  *   - fluid goals move to either their selected one-temperature pool or a
  *     full-range pool when no exact temperature is selected;
  *     share pins follow their consumer onto its pool.
+ *   - a consume goal is ONE row over the summed net of every identity in its
+ *     range: each produced variant inside it and each consumer pool overlapping
+ *     it. That is net consumption at the goal's temperatures, as for an item.
+ *     Out-of-range variants are outside the row; what they feed into an
+ *     overlapping pool cancels out. Boundary flows stay free, and the goal
+ *     subsumes made/drain marks on its row's goods.
  *
  * `fold` maps the solve's synthetic goods/recipes back for display: selector
  * rows vanish, variant/pool flows collapse onto the bare fluid name with a
@@ -48,6 +54,12 @@ const SEL = `${SEP}sel${SEP}`;
 
 const variantKey = (fluid: string, temp: number) => `${fluid}${SEP}@${temp}`;
 const poolKey = (fluid: string, lo: number, hi: number) => `${fluid}${SEP}pool${SEP}${lo}..${hi}`;
+/** The label of a consume goal's row. Not a good: the LP sums the row's
+ * members, so nothing ever flows under this name. */
+const consumeGoalKey = (fluid: string, lo: number, hi: number) =>
+  `${poolKey(fluid, lo, hi)}${SEP}goal`;
+/** Parses the temperature range out of a pool or consume-goal key. */
+const RANGE = new RegExp(`pool${SEP}([^${SEP}]+?)\\.\\.([^${SEP}]+)`);
 
 export type TempFold = {
   /** selector pseudo-recipes — drop from rows/rates */
@@ -68,6 +80,9 @@ export type TempFold = {
   /** Selector provenance used to turn an exported pool back into the exact
    * temperatures that physically entered it. */
   selectorOf: (recipe: string) => { fluid: string; temperature: number; pool: string } | null;
+  /** For a consumer pool in a consume goal's row: the goal's range, which its
+   * import is narrowed to at the boundary. `null` for every other good. */
+  consumeGoalRangeOf: (good: string) => { minTemp: number | null; maxTemp: number | null } | null;
 };
 
 export function expandTemps(
@@ -120,6 +135,7 @@ export function expandTemps(
         tempOf: () => null,
         qualifierOf: () => null,
         selectorOf: () => null,
+        consumeGoalRangeOf: () => null,
       },
     };
   }
@@ -159,11 +175,32 @@ export function expandTemps(
   }));
 
   const goalPools = new Map<string, string>();
+  // goods in a consume goal's row: the goal subsumes made/drain marks on them
+  const rowMembers = new Set<string>();
+  // consumer pool → the consume goal range its import is narrowed to
+  const poolGoalRange = new Map<string, { lo: number; hi: number }>();
   const outGoals = goals.map((g) => {
     const goal = baseGoal(g);
     if (!ranged.has(g.name)) return goal;
     const lo = g.temperature ?? -Infinity;
     const hi = g.temperature ?? Infinity;
+    if (g.direction === "consume" || g.rate < 0) {
+      const key = consumeGoalKey(g.name, lo, hi);
+      goalPools.set(g.name, key);
+      const members = [
+        ...[...(variants.get(g.name) ?? [])]
+          .filter((t) => t >= lo && t <= hi)
+          .map((t) => variantKey(g.name, t)),
+        ...[...pools]
+          .filter(([, p]) => p.fluid === g.name && p.hi >= lo && p.lo <= hi)
+          .map(([pKey]) => {
+            poolGoalRange.set(pKey, { lo, hi });
+            return pKey;
+          }),
+      ];
+      for (const m of members) rowMembers.add(m);
+      return { ...goal, name: key, members };
+    }
     const pool = poolOf(g.name, lo, hi);
     goalPools.set(g.name, pool);
     return { ...goal, name: pool };
@@ -187,8 +224,9 @@ export function expandTemps(
     }
   }
 
-  // made(F) → every variant + every pool of F (goal-pools are covered by the
-  // goal constraint itself). Non-expanded marks pass through.
+  // made(F) → every variant + every pool of F (goal-pools and consume-goal row
+  // members are covered by the goal constraint itself). Non-expanded marks
+  // pass through.
   const outMade: string[] = [];
   for (const m of made) {
     if (!ranged.has(m)) {
@@ -242,9 +280,9 @@ export function expandTemps(
     input: {
       goals: outGoals,
       recipes: outDefs as RecipeDef[],
-      made: [...new Set(outMade)],
+      made: [...new Set(outMade)].filter((m) => !rowMembers.has(m)),
       pins: outPins,
-      drains: [...new Set(outDrains)],
+      drains: [...new Set(outDrains)].filter((m) => !rowMembers.has(m)),
     },
     fold: {
       isSynthetic: (recipe) => selNames.has(recipe) || recipe.startsWith(SEL),
@@ -255,7 +293,7 @@ export function expandTemps(
         const rest = good.slice(i + 1);
         if (rest.startsWith("@")) return `${rest.slice(1)}°`;
         // the second separator sits between pool and the range
-        const m = new RegExp(`pool${SEP}(.+?)\\.\\.(.+)$`).exec(rest);
+        const m = RANGE.exec(rest);
         if (!m) return null;
         const [lo, hi] = [Number(m[1]), Number(m[2])];
         if (!Number.isFinite(lo) && !Number.isFinite(hi)) return null; // any temp
@@ -273,7 +311,7 @@ export function expandTemps(
             ? { mode: "exact", minTemp: temperature, maxTemp: temperature }
             : null;
         }
-        const m = new RegExp(`pool${SEP}(.+?)\\.\\.(.+)$`).exec(rest);
+        const m = RANGE.exec(rest);
         if (!m) return null;
         const lo = Number(m[1]);
         const hi = Number(m[2]);
@@ -284,6 +322,14 @@ export function expandTemps(
         };
       },
       selectorOf: (recipe) => selectors.get(recipe) ?? null,
+      consumeGoalRangeOf: (good) => {
+        const range = poolGoalRange.get(good);
+        if (!range) return null;
+        return {
+          minTemp: Number.isFinite(range.lo) ? range.lo : null,
+          maxTemp: Number.isFinite(range.hi) ? range.hi : null,
+        };
+      },
     },
   };
 }
