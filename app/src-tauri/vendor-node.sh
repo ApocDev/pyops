@@ -2,8 +2,8 @@
 # Vendor the Node runtime as the Tauri sidecar (binaries/node-<target-triple>), so a
 # packaged build needs no system Node. The binary is gitignored (per-platform,
 # ~80-120MB) — run this once before `tauri build` on a fresh checkout or new platform,
-# and again after a Node major bump (keep it matching the ABI the native modules in
-# .output/server/node_modules were built for).
+# and again after changing NODE_VERSION. The native modules in .output/server/node_modules
+# (better-sqlite3, sharp) are N-API addons, so they load on any Node in their engines range.
 #
 # Defaults to this host's triple; set TARGET_TRIPLE to vendor for a cross-compile
 # target instead (e.g. building x86_64 macOS on an arm64 runner):
