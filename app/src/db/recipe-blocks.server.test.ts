@@ -54,6 +54,7 @@ describe("recipeFocusInfo", () => {
     expect(recipeFocusInfo("smelt")).toEqual({
       display: "Smelt ore",
       good: { name: "plate", kind: "item" },
+      produced: true,
     });
   });
 
@@ -61,6 +62,7 @@ describe("recipeFocusInfo", () => {
     expect(recipeFocusInfo("void-steam")).toEqual({
       display: "void-steam",
       good: { name: "steam", kind: "fluid" },
+      produced: false,
     });
   });
 

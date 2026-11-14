@@ -21,7 +21,11 @@ const PLATE = { name: "plate", kind: "item" } as const;
 
 beforeEach(() => {
   vi.mocked(rb.blocksUsingRecipe).mockReturnValue([]);
-  vi.mocked(rb.recipeFocusInfo).mockReturnValue({ display: "Smelt ore", good: PLATE });
+  vi.mocked(rb.recipeFocusInfo).mockReturnValue({
+    display: "Smelt ore",
+    good: PLATE,
+    produced: true,
+  });
 });
 
 describe("block.focus", () => {
@@ -53,6 +57,16 @@ describe("block.focus", () => {
       count: 0,
     });
     expect(lastOpenRequest()).toMatchObject({ to: "none", label: "Smelt ore", good: PLATE });
+  });
+
+  it("offers no producer block for a void recipe's ingredient", () => {
+    vi.mocked(rb.recipeFocusInfo).mockReturnValue({
+      display: "Void steam",
+      good: { name: "steam", kind: "fluid" },
+      produced: false,
+    });
+    handleBlockFocus(req({ recipe: "void-steam" }));
+    expect(lastOpenRequest()).toMatchObject({ to: "none", label: "Void steam", good: null });
   });
 
   it("ignores a payload without a recipe", () => {

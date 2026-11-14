@@ -28,16 +28,19 @@ export function blocksUsingRecipe(recipe: string): { id: number; name: string }[
 
 /** The recipe's localized name and the good that stands for it: its main
  * product, else its first product, else (a void/sink recipe) its first
- * ingredient. Null when the recipe isn't in the reference data. */
+ * ingredient. `produced` says whether that good is a product, so callers only
+ * offer "create a block producing it" when that would plan this recipe. Null
+ * when the recipe isn't in the reference data. */
 export function recipeFocusInfo(
   recipe: string,
-): { display: string; good: FocusGood | null } | null {
+): { display: string; good: FocusGood | null; produced: boolean } | null {
   const r = getRecipe(recipe);
   if (!r) return null;
-  const pick =
-    r.products.find((p) => p.name === r.mainProduct) ?? r.products[0] ?? r.ingredients[0];
+  const product = r.products.find((p) => p.name === r.mainProduct) ?? r.products[0];
+  const pick = product ?? r.ingredients[0];
   return {
     display: r.display ?? recipe,
     good: pick ? { name: pick.name, kind: pick.kind === "fluid" ? "fluid" : "item" } : null,
+    produced: product != null,
   };
 }

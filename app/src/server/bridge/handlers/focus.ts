@@ -44,6 +44,12 @@ export function handleBlockFocus(req: BridgeRequest): BridgeResponse | null {
     if (info?.good) setOpenRequest({ to: "good", recipe, good: info.good });
     return reply({ result: "several" });
   }
-  setOpenRequest({ to: "none", label: info?.display ?? recipe, good: info?.good ?? null });
+  // only offer "create one" when its producer drawer would plan this recipe: a
+  // void recipe's stand-in good is an ingredient, and producing it is the wrong block
+  setOpenRequest({
+    to: "none",
+    label: info?.display ?? recipe,
+    good: info?.produced ? info.good : null,
+  });
   return reply({ result: "none" });
 }
