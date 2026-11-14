@@ -192,6 +192,10 @@ export const craftingMachines = sqliteTable("crafting_machines", {
   // beacons apply. Null = the prototype has none (engine defaults). Py farms and
   // creature buildings carry base speed -1; Py mines base consumption +9.
   effectReceiver: text("effect_receiver", { mode: "json" }).$type<EffectReceiver | null>(),
+  // Exempt from beacon interference (see `beacons.interference`): Py's script
+  // skips its alien-life buildings. From the dump helper's
+  // `pyops-beacon-interference` export.
+  beaconInterferenceExempt: bool("beacon_interference_exempt").notNull().default(false),
 });
 
 export const machineCategories = sqliteTable(
@@ -256,7 +260,13 @@ export const moduleLimitations = sqliteTable(
 /* Py beacon system: the vanilla beacon entity is hidden; the real choices are
  * (diet-)beacon-AM{1..5}-FM{1..5} variants, each with its own distribution
  * effectivity + power draw and 2 module slots. `profile` is the per-count
- * effectivity falloff (vanilla 1/sqrt(n)); Py enforces one beacon per machine. */
+ * effectivity falloff (vanilla 1/sqrt(n)).
+ *
+ * `interference` lists the groups a beacon occupies on a machine it reaches. Two
+ * beacons sharing a group disable the machine, and so do two copies of one
+ * beacon (lib/beacon-interference.ts). Py's AM/FM beacons carry their AM and FM
+ * levels (or the AM/FM pair, with the `future-beacons` setting off); every other
+ * beacon carries null. From the dump helper's `pyops-beacon-interference` export. */
 export const beacons = sqliteTable("beacons", {
   name: text().primaryKey(),
   display: text(),
@@ -269,6 +279,7 @@ export const beacons = sqliteTable("beacons", {
     string[] | null
   >(),
   profile: text({ mode: "json" }).$type<number[] | null>(),
+  interference: text({ mode: "json" }).$type<string[] | null>(),
 });
 
 /* ── Beacon upkeep ────────────────────────────────────────────────────────────

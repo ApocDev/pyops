@@ -219,11 +219,15 @@ into a co-located hidden beacon. Both that beacon and its modules are hidden pro
 since a script rather than a player places them — so the picker surfaces a hidden beacon or
 module only when the machine accepts a category that nothing visible carries. Matching on
 categories rather than names keeps the rule free of mod knowledge, and a normally-moddable
-machine still sees only its normal options. The dump helper reconstructs the machine, carrier and per-tier mapping — it lives in
-control-stage Lua the data stage cannot require — and exports it as mod-data, the same route
-already used for branch replacements. Synthesis turns that into a real, visible beacon named
-for the building actually placed, carrying the carrier's distribution characteristics, the
-building's own power, and only the module categories its tiers broadcast. The picker then
+machine still sees only its normal options. The dump helper reconstructs the machine and its
+per-tier mapping — it lives in control-stage Lua the data stage cannot require — and exports
+it as mod-data, the same route already used for branch replacements. Synthesis finds the
+hidden carrier from the tier modules' category: the hidden beacon that accepts that category
+and the fewest others. That picks Pyanodons' `hidden-beacon-vatbrain` over its TURD carrier,
+which also accepts vatbrains, without depending on the carrier's name. Synthesis then turns
+the mapping into a real, visible beacon named for the building actually placed, carrying the
+carrier's distribution characteristics, the building's own power, and only the module
+categories its tiers broadcast. The picker then
 offers the biocomputer rather than a hidden prototype, and the sole-carrier rescue stops
 firing because a visible beacon now covers the category.
 
@@ -231,6 +235,16 @@ Each tier's cartridge becomes beacon upkeep. The script enables the beacon only 
 craft runs, so the drain is a precondition for the effect rather than an optional cost: it
 joins the block balance per beacon building, exactly as burner fuel does, and the factory
 must source it.
+
+Pyanodons also disables a machine whose AM/FM beacons interfere. Its control script compares
+the beacons reaching a machine: with the `future-beacons` startup setting on, two of them may
+not share an AM level or an FM level; with it off, they may not share both. The dump helper
+reads the setting and exports the rule as mod-data. Each AM/FM beacon gets a list of groups
+(`AM2` and `FM3`, or the single pair `AM2-FM3`), stored in `beacons.interference`. Two
+beacons on one machine interfere when they share a group. The script's exempt alien-life
+buildings are exported with every `-mk0x` tier spelled out and stored as
+`crafting_machines.beacon_interference_exempt`. `app/src/lib/beacon-interference.ts` applies
+the rule.
 
 A lab consumes one of each pack per unit of research, so pack rates do not depend on the
 recipe's craft time and are modelled exactly. Only the building count is time-sensitive:

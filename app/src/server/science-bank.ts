@@ -21,6 +21,7 @@
  */
 import { computeEffects, type BeaconConfig, type BeaconEff, type ModuleEff } from "./effects.ts";
 import { wholeMachines } from "../lib/machine-count.ts";
+import { interferingBeacons } from "../lib/beacon-interference.ts";
 
 export type LabProto = {
   name: string;
@@ -71,6 +72,8 @@ export type ScienceBankResult = {
   packDemand: Record<string, number>;
   /** Beacon buildings needed, whole (a fraction cannot be placed). */
   beaconBuildings: { beacon: string; count: number }[];
+  /** Beacons that interfere, so Py disables the labs (lib/beacon-interference). */
+  beaconInterference: string[];
   /** Item → per-second drain from beacon upkeep. */
   upkeep: Record<string, { kind: string; perSec: number }>;
   totalPowerW: number;
@@ -152,6 +155,7 @@ export function computeScienceBank(input: ScienceBankInput): ScienceBankResult {
     labProductivityBonus: input.labProductivityBonus,
     packDemand,
     beaconBuildings,
+    beaconInterference: interferingBeacons(input.beacons, (n) => beaconDb.get(n)?.interference),
     upkeep,
     totalPowerW: labPowerW + beaconPowerW,
     unsupported,

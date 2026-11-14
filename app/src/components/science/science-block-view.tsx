@@ -156,6 +156,7 @@ export function ScienceBlockView({ blockId }: { blockId: number }) {
                   }
                 : undefined
             }
+            interference={(result?.beaconInterference.length ?? 0) > 0}
             onClick={() => setEditEffects(true)}
           />
         </div>

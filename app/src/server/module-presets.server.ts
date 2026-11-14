@@ -22,16 +22,28 @@
  */
 import * as q from "../db/queries.server.ts";
 import type { BeaconConfig } from "./effects";
+import { interferingBeacons } from "../lib/beacon-interference.ts";
 
 export type PresetLoadout = { modules: string[]; beacons: BeaconConfig[] };
 export type PresetCompat = { ok: true } | { ok: false; reason: string };
 
 /** The slice of `modulePickerData` the compatibility check reads. */
 export type PickerLike = {
-  machine: { name: string; display: string | null; moduleSlots: number };
+  machine: {
+    name: string;
+    display: string | null;
+    moduleSlots: number;
+    beaconInterferenceExempt?: boolean;
+  };
   allowProductivity: boolean;
   modules: { name: string; display?: string | null; unlocked?: boolean }[];
-  beacons: { name: string; display: string | null; unlocked?: boolean; modules: string[] }[];
+  beacons: {
+    name: string;
+    display: string | null;
+    unlocked?: boolean;
+    modules: string[];
+    interference?: string[] | null;
+  }[];
   beaconModules?: { name: string; display?: string | null; unlocked?: boolean }[];
 };
 
@@ -87,6 +99,15 @@ export function presetCompatibility(
       };
     }
   }
+  // Py disables a machine whose beacons interfere (lib/beacon-interference.ts)
+  if (
+    !picker.machine.beaconInterferenceExempt &&
+    interferingBeacons(
+      preset.beacons,
+      (n) => picker.beacons.find((x) => x.name === n)?.interference,
+    ).length
+  )
+    return { ok: false, reason: `its beacons interfere, so Py disables ${machineName}` };
   return { ok: true };
 }
 

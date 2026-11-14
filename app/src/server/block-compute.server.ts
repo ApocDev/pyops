@@ -28,6 +28,7 @@ export type DocPin =
   /** this recipe absorbs the item's surplus (net = 0) — byproduct disposal */
   | { kind: "drain"; recipe: string; item: string };
 import { computeEffects, type BeaconConfig } from "./effects";
+import { interferingBeacons } from "../lib/beacon-interference.ts";
 import { recipeDifferencesFor } from "./recipe-differences.server.ts";
 import { pickAutoModules } from "./module-fill.server.ts";
 import { resolveLogistics, rowLogistics } from "../lib/logistics";
@@ -445,6 +446,12 @@ export async function computeBlock(rawData: SolveInput) {
         (b) => beaconDb.has(b.beacon) && b.count > 0,
       );
       const turdModules = turdFor(chosen);
+      // Py disables a machine whose beacons interfere. Flagged, not modelled:
+      // the plan keeps the beacons' effects so the row shows what the player
+      // intended, and the flag says the build won't run as set up.
+      const beaconInterference = chosen?.beaconInterferenceExempt
+        ? []
+        : interferingBeacons(beaconCfgs, (n) => beaconDb.get(n)?.interference);
       const effects = computeEffects(
         r.allowProductivity,
         machineModules,
@@ -466,6 +473,7 @@ export async function computeBlock(rawData: SolveInput) {
           chosen,
           machineModules,
           beaconCfgs,
+          beaconInterference,
           turdModules,
           effects,
         },
@@ -1004,7 +1012,14 @@ export async function computeBlock(rawData: SolveInput) {
   const rows = rowRecipes.map((rr) => {
     const def = byName.get(rr.recipe)!;
     const scaled = defByName.get(rr.recipe)!;
-    const { chosen, machineModules, beaconCfgs, turdModules, effects: fx } = setup.get(rr.recipe)!;
+    const {
+      chosen,
+      machineModules,
+      beaconCfgs,
+      beaconInterference,
+      turdModules,
+      effects: fx,
+    } = setup.get(rr.recipe)!;
     const speed = (chosen?.craftingSpeed ?? 1) * fx.speedMult;
     // fractional building requirement (machine-seconds/sec ÷ speed); the UI
     // shows this and the whole-machine build target alongside it
@@ -1220,6 +1235,8 @@ export async function computeBlock(rawData: SolveInput) {
       modules: machineModules,
       turdModules: turdModules.map((m) => ({ name: m.name, display: m.display })),
       beacons: beaconCfgs,
+      /** beacons on this row that interfere, so Py disables its machines */
+      beaconInterference,
       beaconBuildings,
       beaconPowerW,
       effects: { speed: fx.speedBonus, productivity: fx.prodBonus, consumption: fx.consBonus },

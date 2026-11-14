@@ -450,6 +450,7 @@ export function RecipeRow({
                   slots={row.machine.moduleSlots ?? 0}
                   effectsAllowed={row.machine.effectsAllowed ?? true}
                   effects={row.effects}
+                  interference={row.beaconInterference.length > 0}
                   onClick={() => open.modulesPicker(name)}
                 />
                 {/* auto-fill hint: a better fill exists — click applies it */}

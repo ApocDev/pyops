@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Ban, Minus, Plus, Sparkles, SquarePlus, Star, X } from "lucide-react";
+import { Ban, Minus, Plus, Sparkles, SquarePlus, Star, TriangleAlert, X } from "lucide-react";
 import {
   deleteModulePresetFn,
   moduleInfoFn,
@@ -18,6 +18,7 @@ import { FieldLabel } from "#/components/ui/label.tsx";
 import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { InfoHint } from "#/components/info-hint.tsx";
+import { interferingBeacons } from "./beacon-interference";
 import { CursorHover } from "./hover";
 import { formatPower } from "./format";
 import { Icon } from "./icons";
@@ -75,6 +76,7 @@ export function ModulesChip({
   slots,
   effectsAllowed = true,
   effects,
+  interference = false,
   onClick,
 }: {
   modules: string[];
@@ -83,6 +85,8 @@ export function ModulesChip({
   /** Whether any effect can reach this machine at all. */
   effectsAllowed?: boolean;
   effects?: RowEffects;
+  /** The beacons interfere, so Py disables the machine. */
+  interference?: boolean;
   onClick: () => void;
 }) {
   // Module slots govern only DIRECT insertion; a beacon reaches a machine with
@@ -114,10 +118,13 @@ export function ModulesChip({
       className={`flex items-center gap-1 px-1.5 py-1 text-sm hover:bg-accent ${
         empty
           ? "border border-dashed border-border text-muted-foreground"
-          : "bg-muted/50 text-success"
+          : interference
+            ? "border border-destructive/40 bg-destructive/15 text-destructive"
+            : "bg-muted/50 text-success"
       }`}
     >
       {empty && <SquarePlus className="size-4" />}
+      {interference && <TriangleAlert className="size-4" aria-label="Beacon interference" />}
       {grouped.map(([n, c]) => (
         <span key={n} className="flex items-center">
           <Icon kind="item" name={n} size="sm" noHover />
@@ -137,7 +144,14 @@ export function ModulesChip({
   if (empty) return button;
   return (
     <CursorHover
-      card={<ModuleLoadoutCard modules={modules} beacons={beacons} effects={effects} />}
+      card={
+        <ModuleLoadoutCard
+          modules={modules}
+          beacons={beacons}
+          effects={effects}
+          interference={interference}
+        />
+      }
       z={70}
     >
       {button}
@@ -165,10 +179,12 @@ function ModuleLoadoutCard({
   modules,
   beacons,
   effects,
+  interference,
 }: {
   modules: string[];
   beacons: BeaconConfig[];
   effects?: RowEffects;
+  interference: boolean;
 }) {
   const names = useMemo(
     () => [...new Set([...modules, ...beacons.flatMap((b) => b.modules)])],
@@ -190,6 +206,12 @@ function ModuleLoadoutCard({
   return (
     <div className="w-72 border border-border bg-popover p-3 text-sm text-popover-foreground shadow-xl">
       <div className="flex items-center gap-2 font-semibold">Module loadout</div>
+      {interference && (
+        <div className="mt-0.5 flex items-center gap-1 text-destructive">
+          <TriangleAlert className="size-3.5 shrink-0" /> Beacons interfere: Py disables this
+          machine
+        </div>
+      )}
       {total.length > 0 && (
         <div className="mt-0.5 flex flex-wrap gap-x-3 text-muted-foreground">
           {total.map((t) => (
@@ -379,10 +401,13 @@ function Palette({
 function BeaconMatrix({
   beacons,
   current,
+  interferes,
   onPick,
 }: {
   beacons: BeaconInfo[];
   current: string;
+  /** Would picking this variant make the machine's beacons interfere? */
+  interferes: (name: string) => boolean;
   onPick: (name: string) => void;
 }) {
   const families = useMemo(() => {
@@ -435,6 +460,7 @@ function BeaconMatrix({
                   if (!c) return <span key={f} />;
                   const cur = c.name === current;
                   const locked = c.unlocked === false;
+                  const clash = interferes(c.name);
                   return (
                     // Raw button on purpose: a 5×5 matrix cell — the Button
                     // primitive's box would blow up the grid density.
@@ -445,13 +471,15 @@ function BeaconMatrix({
                       }}
                       aria-pressed={cur}
                       aria-disabled={locked}
-                      title={`${c.display ?? c.name} · ${mult(c.de)} effect · ${c.w != null ? formatPower(c.w) : "?"}${locked ? " · not unlocked yet" : ""}`}
+                      title={`${c.display ?? c.name} · ${mult(c.de)} effect · ${c.w != null ? formatPower(c.w) : "?"}${locked ? " · not unlocked yet" : ""}${clash ? " · interferes with this machine's beacons" : ""}`}
                       className={`px-1 py-1 ${
                         locked
                           ? "cursor-not-allowed border border-destructive bg-destructive/20 font-semibold text-destructive ring-2 ring-destructive/70"
                           : cur
                             ? "bg-primary-solid text-primary-foreground"
-                            : "bg-muted/40 hover:bg-accent"
+                            : clash
+                              ? "bg-muted/40 text-destructive line-through hover:bg-accent"
+                              : "bg-muted/40 hover:bg-accent"
                       }`}
                     >
                       {mult(c.de)}
@@ -538,6 +566,13 @@ export function ModulesModal({
     () => new Map((data?.beacons ?? []).map((b) => [b.name, b])),
     [data],
   );
+
+  // Py disables a machine whose beacons interfere; its exempt buildings never do.
+  const conflictsIn = (set: BeaconConfig[]) =>
+    data?.machine.beaconInterferenceExempt
+      ? []
+      : interferingBeacons(set, (n) => beaconByName.get(n)?.interference);
+  const conflicts = new Set(conflictsIn(beacons));
 
   const setModules = (next: string[]) => onChange(next.slice(0, slots), beacons);
   const setBeacons = (next: BeaconConfig[]) => onChange(modules, next);
@@ -787,12 +822,15 @@ export function ModulesModal({
                   >
                     + Add
                   </Button>
+                  {conflicts.size > 0 && (
+                    <span className="flex items-center gap-1 font-normal tracking-normal text-destructive">
+                      <TriangleAlert className="size-3.5 shrink-0" /> Interference: Py disables this
+                      machine
+                      <InfoHint content="Two Py beacons on one machine conflict when they share an AM or FM level (only when both match, with the future-beacons setting off). A machine can have one copy of each Py beacon." />
+                    </span>
+                  )}
                 </div>
-                {beacons.length === 0 && (
-                  <div className="text-sm text-muted-foreground">
-                    None — Py machines take one beacon each; pick AM/FM to set its strength
-                  </div>
-                )}
+                {beacons.length === 0 && <div className="text-sm text-muted-foreground">None</div>}
                 <div className="space-y-3">
                   {beacons.map((cfg, i) => {
                     const b = beaconByName.get(cfg.beacon);
@@ -802,7 +840,12 @@ export function ModulesModal({
                       .map((n) => byName.get(n))
                       .filter((x): x is ModuleInfo => !!x);
                     return (
-                      <div key={i} className="border border-border p-2">
+                      <div
+                        key={i}
+                        className={`border p-2 ${
+                          conflicts.has(cfg.beacon) ? "border-destructive/60" : "border-border"
+                        }`}
+                      >
                         <div className="mb-1.5 flex flex-wrap items-center gap-2">
                           {/* Raw button on purpose: an icon-tile chip (md sprite +
                               stats) — Button's fixed height doesn't fit it. */}
@@ -887,6 +930,11 @@ export function ModulesModal({
                             <BeaconMatrix
                               beacons={data.beacons}
                               current={cfg.beacon}
+                              interferes={(name) =>
+                                conflictsIn(
+                                  beacons.map((b, j) => (j === i ? { ...b, beacon: name } : b)),
+                                ).includes(name)
+                              }
                               onPick={(name) => {
                                 setBeaconAt(i, { ...cfg, beacon: name });
                                 setVariantFor(null);

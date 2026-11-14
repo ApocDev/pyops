@@ -249,6 +249,7 @@ function machinesForRecipes(recipeNames: string[]) {
       fluidFuelPerSec: craftingMachines.fluidFuelPerSec,
       fluidFuelEnergyJ: craftingMachines.fluidFuelEnergyJ,
       effectReceiver: craftingMachines.effectReceiver,
+      beaconInterferenceExempt: craftingMachines.beaconInterferenceExempt,
     })
     .from(machineCategories)
     .innerJoin(craftingMachines, eq(craftingMachines.name, machineCategories.machine))
@@ -448,6 +449,7 @@ export function machinesForRecipe(recipeName: string) {
       fluidFuelPerSec: craftingMachines.fluidFuelPerSec,
       fluidFuelEnergyJ: craftingMachines.fluidFuelEnergyJ,
       effectReceiver: craftingMachines.effectReceiver,
+      beaconInterferenceExempt: craftingMachines.beaconInterferenceExempt,
     })
     .from(machineCategories)
     .innerJoin(craftingMachines, eq(craftingMachines.name, machineCategories.machine))
@@ -1097,6 +1099,7 @@ export function modulePickerData(recipeName: string | null, machineName: string)
     moduleSlots: b.moduleSlots,
     energyUsageW: b.energyUsageW,
     profile: b.profile,
+    interference: b.interference,
     unlocked: unlocked.has(b.name) || ungatedModules.has(b.name),
     // fits the beacon's slots, and its transmitted effects are usable by machine+recipe
     modules: allModules
@@ -1122,7 +1125,12 @@ export function modulePickerData(recipeName: string | null, machineName: string)
   const beaconModules = allModules.filter((mod) => beaconModuleNames.has(mod.name)).map(withUnlock);
 
   return {
-    machine: { name: m.name, display: m.display, moduleSlots: m.moduleSlots },
+    machine: {
+      name: m.name,
+      display: m.display,
+      moduleSlots: m.moduleSlots,
+      beaconInterferenceExempt: m.beaconInterferenceExempt,
+    },
     allowProductivity: r.allowProductivity,
     modules: machineModules,
     beacons: beaconList,

@@ -133,6 +133,12 @@ Each recipe row shows its selected machine and required building count.
   The picker offers only modules the building accepts, in its own slots or in a beacon. A
   building with no effects allowed, such as Pyanodons' Assembling machine 2, shows no module
   control at all.
+- Pyanodons shuts a machine down when its AM/FM beacons interfere: two beacons that share an
+  AM or FM level, or two copies of one beacon. (With the `future-beacons` setting off, only
+  beacons with the same AM and FM interfere.) The module control turns red with a warning
+  icon, and the picker says **Interference: Py disables this machine**. In the AM/FM grid,
+  variants that would interfere are struck through. The alien-life buildings Pyanodons
+  exempts are never flagged.
 
 Global preferred machines, fuels, fluid temperatures, and module-fill behavior live under
 **Settings → Planning**. A choice made directly on a recipe row overrides the relevant
@@ -282,7 +288,9 @@ that research finishes—come back and derive again to move to the next target.
 Select the **Effects** control to open the same module and beacon picker recipe rows use. A
 lab with no module slots of its own can still be covered by a beacon, so the picker stays
 available; the palette is empty because nothing can be inserted directly. Pyanodons' lab
-accepts only vatbrain modules, so the picker offers no modules for ordinary beacons.
+accepts only vatbrain modules, so the picker offers no modules for ordinary beacons. Add the
+**Vatbrain biocomputer** as the beacon and choose a vatbrain tier: its 900 kW counts toward
+the bank's power, and the brain cartridges it burns show as upkeep.
 
 Set **shared by** to the number of labs each beacon building actually covers. Every lab still
 receives the full effect—the setting divides the buildings you place and their power, and it

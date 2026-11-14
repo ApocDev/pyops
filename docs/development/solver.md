@@ -327,6 +327,13 @@ beacons are expensive — Pyanodons' tiered beacons reach hundreds of megawatts 
 therefore reports whole beacon buildings separately from beacons-per-machine, since a
 fraction of a building cannot be placed.
 
+Pyanodons disables a machine whose AM/FM beacons interfere (see the data pipeline for the
+rule). The solve does not model the shutdown. It keeps the beacons' effects, so the row still
+shows what the player set up, and lists the conflicting beacons in the row's
+`beaconInterference`. More than one copy of the same AM/FM beacon on a machine always
+conflicts. The editor marks the row's module control, the science bank marks its effects
+control, and a module preset whose beacons interfere is not offered or applied by default.
+
 ### Module suggestions
 
 Module auto-fill is a separate suggestion pass, never implicit solve input. The saved block
