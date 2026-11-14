@@ -770,7 +770,15 @@ describe("computeRecipeScenario (calcRecipe) output", () => {
         VALUES ('fawogae-plantation-mk01','assembling-machine',0.15,4,200000,'electric');
       INSERT INTO machine_categories (machine, category) VALUES ('fawogae-plantation-mk01','fawogae');
       INSERT INTO modules (name, category, hidden, eff_speed, eff_productivity, eff_consumption)
-        VALUES ('efficiency-module-3','efficiency',0,0,0,-0.5);
+        VALUES ('efficiency-module-3','efficiency',0,0,0,-0.5),
+               ('heavy-module','efficiency',0,-0.5,0,-0.1);
+      INSERT INTO recipes (name, kind, category, energy_required, enabled, hidden)
+        VALUES ('compost','real','compost',1,1,0);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES ('compost',0,'item','fawogae',1);
+      INSERT INTO crafting_machines (name, kind, crafting_speed, module_slots, energy_usage_w, energy_source,
+          burns_fluid, fluid_fuel_filter, fluid_fuel_per_sec)
+        VALUES ('compost-plant','furnace',1,0,1000,'fluid',0,'sweet-syrup',0.1);
+      INSERT INTO machine_categories (machine, category) VALUES ('compost-plant','compost');
     `);
     fx.db.close();
     switchDatabase(fx.file);
@@ -792,6 +800,20 @@ describe("computeRecipeScenario (calcRecipe) output", () => {
     // 4 × -50% = -200%, which the game clamps to -80%
     expect(res.effects).toMatchObject({ energyPct: -80, energyMult: 0.2 });
     expect(res.perBuilding.powerKW).toBe(40);
+  });
+
+  it("reports the clamped speed bonus", () => {
+    const res = computeRecipeScenario({ recipe: "fawogae", fill: "heavy-module" });
+    if ("error" in res) throw new Error(res.error);
+    // 4 × -50% = -200%, which the game clamps to -80%
+    expect(res.effects).toMatchObject({ speedPct: -80, speedMult: 0.2 });
+  });
+
+  it("gives a temperature-fed machine no power figure (#290)", () => {
+    const res = computeRecipeScenario({ recipe: "compost" });
+    if ("error" in res) throw new Error(res.error);
+    // its 1 kW energy_usage_w is 1 MW ÷ effectivity 1000, a fluid-drain sizing figure
+    expect(res.perBuilding.powerKW).toBe(0);
   });
 });
 
