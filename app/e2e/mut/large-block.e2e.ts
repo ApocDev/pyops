@@ -61,7 +61,9 @@ test("a large block mounts its rows near the viewport and focuses a far row", as
 
   await goto(page, `/block/${id}`);
   const header = page.getByText(`Recipe (${picks.length})`);
-  await expect(header).toBeAttached();
+  // The first solve fills the balance card, which pushes the grid more than a
+  // screen further down, so a scroll aimed before it lands would fall short.
+  await expect(page.getByText("Solved", { exact: true })).toBeVisible();
   await expect(rows).toHaveCount(0);
 
   // scrolling toward the grid mounts every row
@@ -78,6 +80,45 @@ test("a large block mounts its rows near the viewport and focuses a far row", as
   const row = page.locator(`[data-recipe-row="${target.name}"]`);
   await expect(row).toHaveClass(/ring-primary/);
   await expect(row).toBeInViewport();
+});
+
+/** The server function a request calls: dev builds name it in the URL
+ * (`/_serverFn/<base64url JSON of {file, export}>`). */
+function serverFnName(url: URL) {
+  const id = url.pathname.split("/_serverFn/")[1];
+  if (!id) return "";
+  const { export: name } = JSON.parse(Buffer.from(id, "base64url").toString()) as {
+    export: string;
+  };
+  return name;
+}
+
+test("reaching the grid before the first solve lands mounts the rows", async ({ page }) => {
+  const { id, picks } = insertLargeBlock();
+  const rows = page.locator("[data-recipe-row]");
+  // hold the block's first solve until the grid has been reached
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route(
+    (url) => serverFnName(url).startsWith("solveBlockFn_"),
+    async (route) => {
+      await held;
+      await route.continue();
+    },
+  );
+
+  await goto(page, `/block/${id}`);
+  const header = page.getByText(`Recipe (${picks.length})`);
+  await expect(header).toBeAttached();
+  await expect(rows).toHaveCount(0);
+  await header.scrollIntoViewIfNeeded();
+  await expect(rows).toHaveCount(picks.length);
+  await expect(page.getByText("Solved", { exact: true })).toBeHidden();
+
+  // the solve landing keeps them mounted
+  release();
+  await expect(page.getByText("Solved", { exact: true })).toBeVisible();
+  await expect(rows).toHaveCount(picks.length);
 });
 
 test("the browser find shortcut mounts a large block's rows so find can match them", async ({
