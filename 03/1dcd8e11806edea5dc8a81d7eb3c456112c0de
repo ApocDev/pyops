@@ -1,0 +1,33 @@
+app/src/db/allowed-effects.ts
+  s_77b0c3d1e0c9f3::t_bfa8987b93a6e1 6-7
+app/src/db/queries.server.ts
+  s_77b0c3d1e0c9f3::t_539ee18027f61e 11,41-42,258-262,463-467,769-773,808,893-894,1021,1105,2205-2213,4714-4743
+app/src/db/queries.test.ts
+  s_77b0c3d1e0c9f3::t_8b1703337f44c7 300-301
+app/src/db/schema.ts
+  s_77b0c3d1e0c9f3::t_e398c31a60711e 9-10,283,693-694,794-795,800-802,805-812,815,828-845,981,998-1000
+app/src/server/block-compute.server.ts
+  s_77b0c3d1e0c9f3::t_4a1bb62531dd2f 10-18,34-42,44,46-47,57,197,205-207,210-215,221-229,260,265,279,281-291,301-304,306-309,316-322,374-375,442-460,516-521,538-541,550,556,562,579,583,602-603,634-639,641-646,790-792,798,815,819-821,826-833,865-879,892,897-902,904-905,916-922,927-933,941-942,946-951,1110-1114,1117-1132,1168,1179,1375-1376,1381,1408-1413,1644,1714-1721,1795-1800,1839-1841
+app/src/server/module-presets.server.ts
+  s_77b0c3d1e0c9f3::t_3362971a1c2024 70,74
+app/src/server/module-presets.test.ts
+  s_77b0c3d1e0c9f3::t_429bcbb6869486 94,107
+app/src/server/block-quality.test.ts
+  s_77b0c3d1e0c9f3::t_058056d384b769 1-183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "031dcd8e11806edea5dc8a81d7eb3c456112c0de",
+  "prompts": {},
+  "sessions": {
+    "s_77b0c3d1e0c9f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf369d21-8408-4f5d-a9f1-b8edd788122c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
