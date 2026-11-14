@@ -1,79 +1,35 @@
-import { DatabaseSync } from "node:sqlite";
 import { expect, test } from "@playwright/test";
-import { activeProjectDbFile, goto } from "./helpers";
+import { clearFactory, goto, insertBlock, uniqueName, withDb } from "./helpers";
+import { solveFactory } from "./scenario-factory";
 
 test("an import is marked only while no other enabled block produces it", async ({ page }) => {
-  const db = new DatabaseSync(activeProjectDbFile());
-  let blockId: number;
-  let item: string;
-  let producerIds: number[];
-  try {
-    db.exec("PRAGMA busy_timeout = 5000");
-    const candidate = db
-      .prepare(
-        `SELECT import_flow.block_id AS blockId, import_flow.item
-         FROM block_flows AS import_flow
-         INNER JOIN blocks AS consumer ON consumer.id = import_flow.block_id
-         WHERE consumer.enabled = 1
-           AND import_flow.role = 'import'
-           AND EXISTS (
-             SELECT 1
-             FROM block_flows AS producer_flow
-             INNER JOIN blocks AS producer ON producer.id = producer_flow.block_id
-             WHERE producer.enabled = 1
-               AND producer_flow.block_id <> import_flow.block_id
-               AND producer_flow.item = import_flow.item
-               AND producer_flow.role IN ('primary', 'stock', 'byproduct')
-           )
-         ORDER BY import_flow.block_id, import_flow.item
-         LIMIT 1`,
-      )
-      .get() as { blockId: number; item: string } | undefined;
-    expect(candidate).toBeTruthy();
-    blockId = candidate!.blockId;
-    item = candidate!.item;
-    producerIds = (
-      db
-        .prepare(
-          `SELECT DISTINCT producer_flow.block_id AS id
-           FROM block_flows AS producer_flow
-           INNER JOIN blocks AS producer ON producer.id = producer_flow.block_id
-           WHERE producer.enabled = 1
-             AND producer_flow.block_id <> ?
-             AND producer_flow.item = ?
-             AND producer_flow.role IN ('primary', 'stock', 'byproduct')`,
-        )
-        .all(blockId, item) as { id: number }[]
-    ).map((row) => row.id);
-    expect(producerIds.length).toBeGreaterThan(0);
-    const disable = db.prepare("UPDATE blocks SET enabled = 0 WHERE id = ?");
-    for (const id of producerIds) disable.run(id);
-  } finally {
-    db.close();
-  }
+  // Start from an empty factory so no block from an earlier spec supplies the import.
+  clearFactory();
+  const producerId = insertBlock(uniqueName("Plates"), {
+    goals: [{ name: "iron-plate", rate: 1 }],
+    recipes: ["iron-plate"],
+  });
+  const consumerId = insertBlock(uniqueName("Gears"), {
+    goals: [{ name: "iron-gear-wheel", rate: 1 }],
+    recipes: ["iron-gear-wheel"],
+  });
+  const setProducerEnabled = (enabled: boolean) =>
+    withDb((db) =>
+      db.prepare("UPDATE blocks SET enabled = ? WHERE id = ?").run(enabled ? 1 : 0, producerId),
+    );
 
-  try {
-    await goto(page, `/block/${blockId!}`);
-    const marker = page.locator(`[data-unsourced-import="${item!}"]`);
-    await expect(marker).toBeVisible();
+  // Saved block flows drive the marker, and inserted blocks have none until solved.
+  await solveFactory(page);
+  await goto(page, `/block/${consumerId}`);
+  // The import chip renders either way; the marker only appears without a supplier.
+  await expect(page.getByRole("button", { name: /^Iron plate / }).first()).toBeVisible();
+  await expect(page.locator('[data-unsourced-import="iron-plate"]')).toBeHidden();
 
-    const restore = new DatabaseSync(activeProjectDbFile());
-    try {
-      const enable = restore.prepare("UPDATE blocks SET enabled = 1 WHERE id = ?");
-      for (const id of producerIds!) enable.run(id);
-    } finally {
-      restore.close();
-    }
+  setProducerEnabled(false);
+  await page.reload();
+  await expect(page.locator('[data-unsourced-import="iron-plate"]')).toBeVisible();
 
-    await page.reload();
-    await expect(page.locator(`[data-unsourced-import="${item!}"]`)).toBeHidden();
-  } finally {
-    const restore = new DatabaseSync(activeProjectDbFile());
-    try {
-      const enable = restore.prepare("UPDATE blocks SET enabled = 1 WHERE id = ?");
-      for (const id of producerIds!) enable.run(id);
-    } finally {
-      restore.close();
-    }
-  }
+  setProducerEnabled(true);
+  await page.reload();
+  await expect(page.locator('[data-unsourced-import="iron-plate"]')).toBeHidden();
 });

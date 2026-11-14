@@ -248,7 +248,7 @@ async function expectLockedPicker(page: Page) {
   await expect(steam).toHaveAttribute("aria-disabled", "false");
   await expect(steam).toContainText("Unlocked now · Steam engine");
 
-  const solar = picker.getByRole("button", { name: /Solar panel power \(peak\)/ });
+  const solar = picker.getByRole("button", { name: /Solar panel power \(average\)/ });
   await expect(solar).toHaveAttribute("aria-disabled", "true");
   await expect(solar).toContainText("Building locked · Solar panel · Needs Solar energy");
   await solar.click({ force: true });
