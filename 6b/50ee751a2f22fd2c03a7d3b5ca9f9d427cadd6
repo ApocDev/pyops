@@ -1,0 +1,51 @@
+AGENTS.md
+  s_7960f47ef43ca8::t_d311b528870fe6 73-77
+app/drizzle/0028_quality-columns.sql
+  s_7960f47ef43ca8::t_523550e7641950 1-3
+app/drizzle/meta/0028_snapshot.json
+  s_7960f47ef43ca8::t_50d7eb471b3e02 1-3104
+app/drizzle/meta/_journal.json
+  s_7960f47ef43ca8::t_18c4c086ca08aa 200-206
+app/package.json
+  s_7960f47ef43ca8::t_c4a49bde6d4a39 17-18
+app/scripts/parity.ts
+  s_cb81d8a1fc8684::t_9afa11b313d612 1-207
+app/src/db/import-factorio.test.ts
+  s_7960f47ef43ca8::t_7fc1365473bfbc 131-157
+app/src/db/import-factorio.ts
+  s_7960f47ef43ca8::t_3c828e6f2db510 725-728
+app/src/db/queries.server.ts
+  s_7960f47ef43ca8::t_3baf4ab6e08599 5645-5647,5655-5660,5663-5664
+app/src/db/queries.test.ts
+  s_7960f47ef43ca8::t_333acab849610c 111,118-125
+app/src/db/schema.ts
+  s_7960f47ef43ca8::t_93f38c620988fb 843-845,861-863,881-883
+docs/development/data-pipeline.md
+  s_7960f47ef43ca8::t_bca321ef2d7605 292-305
+docs/development/solver.md
+  s_7960f47ef43ca8::t_d8f5561e3daf65 595-618
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6b50ee751a2f22fd2c03a7d3b5ca9f9d427cadd6",
+  "prompts": {},
+  "sessions": {
+    "s_7960f47ef43ca8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d985f0-12ef-4c6b-8964-1267d13b0450",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_cb81d8a1fc8684": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f3930b1-78a8-4393-b4d9-cc4d5d67f44a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
