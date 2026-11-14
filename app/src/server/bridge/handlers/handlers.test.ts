@@ -116,6 +116,27 @@ describe("handleResearch", () => {
     expect(q.setResearchHorizon).toHaveBeenLastCalledWith({ researched: ["a"], ...NO_LAB_BONUS });
   });
 
+  it("stores the worker robot bonuses outside the research change check", async () => {
+    await handleResearch(
+      req({
+        researched: ["a"],
+        worker_robots_speed_modifier: 0.65,
+        worker_robots_storage_bonus: 2,
+      }),
+    );
+    expect(q.setResearchHorizon).toHaveBeenCalledWith({ researched: ["a"], ...NO_LAB_BONUS });
+    expect(q.metaSet).toHaveBeenCalledWith("research_worker_robots_speed_bonus", "0.65");
+    expect(q.metaSet).toHaveBeenCalledWith("research_worker_robots_storage_bonus", "2");
+
+    // an older mod without the fields leaves the stored bonuses alone
+    vi.clearAllMocks();
+    await handleResearch(req({ researched: ["a"], worker_robots_speed_modifier: "bad" }));
+    expect(q.metaSet).not.toHaveBeenCalledWith(
+      "research_worker_robots_speed_bonus",
+      expect.anything(),
+    );
+  });
+
   it("re-solves on a speed-only change and not when nothing changed", async () => {
     // setResearchHorizon owns the stored-vs-incoming comparison (covered in
     // solve-generation.server.test.ts); the handler re-solves on its verdict

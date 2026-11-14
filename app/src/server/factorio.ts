@@ -928,6 +928,11 @@ export const itemWeightsFn = createServerFn({ method: "POST" })
   .validator((names: string[]) => names)
   .handler(async ({ data }) => q.itemWeights(data));
 
+/** Item stack sizes for the robot cargo cap (null → no cap). */
+export const itemStackSizesFn = createServerFn({ method: "POST" })
+  .validator((names: string[]) => names)
+  .handler(async ({ data }) => q.itemStackSizes(data));
+
 export const setLogisticsPrefsFn = createServerFn({ method: "POST" })
   .validator(
     (d: {
@@ -939,6 +944,10 @@ export const setLogisticsPrefsFn = createServerFn({ method: "POST" })
       moverKind?: "inserter" | "loader";
       stacking?: boolean;
       overrideStack?: number | null;
+      showRobots?: boolean;
+      robot?: string;
+      roboport?: string;
+      robotDistance?: number;
     }) => d,
   )
   .handler(async ({ data }) => {
@@ -950,6 +959,11 @@ export const setLogisticsPrefsFn = createServerFn({ method: "POST" })
     if (data.mover != null) q.metaSet("logistics_mover", data.mover);
     if (data.moverKind != null) q.metaSet("logistics_mover_kind", data.moverKind);
     if (data.stacking != null) q.metaSet("logistics_stacking", data.stacking ? "1" : "0");
+    if (data.showRobots != null) q.metaSet("logistics_show_robots", data.showRobots ? "1" : "0");
+    if (data.robot != null) q.metaSet("logistics_robot", data.robot);
+    if (data.roboport != null) q.metaSet("logistics_roboport", data.roboport);
+    if (data.robotDistance != null && Number.isFinite(data.robotDistance) && data.robotDistance > 0)
+      q.metaSet("logistics_robot_distance", String(data.robotDistance));
     if (data.overrideStack !== undefined)
       q.metaSet(
         "logistics_stack_override",

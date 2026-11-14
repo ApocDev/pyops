@@ -169,6 +169,8 @@ const TABLES = [
   "belts",
   "loaders",
   "inserters",
+  "logistic_robots",
+  "roboports",
   "tech_stack_bonuses",
   "tech_productivity_bonuses",
   "technologies",
@@ -195,6 +197,8 @@ const COUNT_TABLES = [
   "belts",
   "loaders",
   "inserters",
+  "logistic_robots",
+  "roboports",
   "technologies",
   "tech_unlocks",
 ];
@@ -305,6 +309,12 @@ export function importFactorioDump(
     ),
     inserter: db.prepare(
       `INSERT OR IGNORE INTO inserters (name,display,"order",rotation_speed,extension_speed,pickup_x,pickup_y,drop_x,drop_y,bulk,base_stack_bonus,max_belt_stack_size) VALUES (@name,@display,@order,@rotation_speed,@extension_speed,@pickup_x,@pickup_y,@drop_x,@drop_y,@bulk,@base_stack_bonus,@max_belt_stack_size)`,
+    ),
+    robot: db.prepare(
+      `INSERT OR IGNORE INTO logistic_robots (name,display,"order",speed,max_payload_size,max_energy_j,energy_per_move_j,energy_per_tick_j,min_to_charge,max_to_charge) VALUES (@name,@display,@order,@speed,@max_payload_size,@max_energy_j,@energy_per_move_j,@energy_per_tick_j,@min_to_charge,@max_to_charge)`,
+    ),
+    roboport: db.prepare(
+      `INSERT OR IGNORE INTO roboports (name,display,"order",charging_energy_w,logistics_radius) VALUES (@name,@display,@order,@charging_energy_w,@logistics_radius)`,
     ),
     techStack: db.prepare(
       `INSERT OR REPLACE INTO tech_stack_bonuses (technology,effect,modifier) VALUES (?,?,?)`,
@@ -623,6 +633,33 @@ export function importFactorioDump(
         bulk: it.bulk ? 1 : 0,
         base_stack_bonus: it.stack_size_bonus ?? 0,
         max_belt_stack_size: it.max_belt_stack_size ?? 1,
+      });
+    }
+    // Logistic robots and roboports for the bot-count math (#255). Defaults are
+    // the FlyingRobotPrototype ones (min_to_charge 0.2, max_to_charge 0.95).
+    for (const [name, r] of Object.entries(raw["logistic-robot"] ?? {})) {
+      if (isHidden(r)) continue;
+      ins.robot.run({
+        name,
+        display: entityDisplay(name),
+        order: r.order ?? null,
+        speed: r.speed ?? 0,
+        max_payload_size: r.max_payload_size ?? 1,
+        max_energy_j: parseSI(r.max_energy) ?? 0,
+        energy_per_move_j: parseSI(r.energy_per_move) ?? 0,
+        energy_per_tick_j: parseSI(r.energy_per_tick) ?? 0,
+        min_to_charge: r.min_to_charge ?? 0.2,
+        max_to_charge: r.max_to_charge ?? 0.95,
+      });
+    }
+    for (const [name, p] of Object.entries(raw.roboport ?? {})) {
+      if (isHidden(p)) continue;
+      ins.roboport.run({
+        name,
+        display: entityDisplay(name),
+        order: p.order ?? null,
+        charging_energy_w: parseSI(p.charging_energy) ?? 0,
+        logistics_radius: p.logistics_radius ?? 0,
       });
     }
 

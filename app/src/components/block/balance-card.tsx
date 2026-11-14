@@ -10,6 +10,7 @@ import { fmtSpoilTime, useSpoilables } from "../../lib/icons";
 import { fmtTemp } from "../../lib/format";
 import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
 import { LogiTag } from "./logi-tag.tsx";
+import { RobotStrip } from "./robot-strip.tsx";
 import { SushiPlanner, type SushiPlannerFlow } from "./sushi-planner.tsx";
 import { OutputPriorityOverride } from "./output-priority-override.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
@@ -278,6 +279,7 @@ export function BalanceCard({
         </Callout>
       ) : (
         <>
+          {res && <RobotStrip doc={doc} res={res} logi={logi} />}
           {res?.unmade?.length && !res.broken ? (
             <div className="border-b border-border px-3 py-2 text-sm text-warning">
               <div className="mb-1 flex items-center gap-1 font-semibold">
@@ -403,6 +405,7 @@ export function BalanceCard({
                             showBelts={logi.showBelts}
                             showInserters={logi.showInserters}
                             launch={logi.launchInfo(f.name, f.rate)}
+                            robots={logi.robotsFor(f)}
                           />
                         )}
                       </span>
@@ -472,6 +475,7 @@ export function BalanceCard({
                             showBelts={logi.showBelts}
                             showInserters={logi.showInserters}
                             launch={logi.launchInfo(f.name, f.rate)}
+                            robots={logi.robotsFor(f)}
                           />
                         )}
                       </span>

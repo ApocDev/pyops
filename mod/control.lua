@@ -238,6 +238,8 @@ local function send_research(player)
     mining_productivity_bonus = force.mining_drill_productivity_bonus,
     laboratory_speed_modifier = force.laboratory_speed_modifier,
     laboratory_productivity_bonus = force.laboratory_productivity_bonus,
+    worker_robots_speed_modifier = force.worker_robots_speed_modifier,
+    worker_robots_storage_bonus = force.worker_robots_storage_bonus,
     recipe_productivity_bonuses = recipe_productivity_bonuses
   })
 end

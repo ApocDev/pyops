@@ -65,6 +65,7 @@ import {
   goalFlows,
 } from "./block-compute.server.ts";
 import { DEFAULT_EFFECT_RECEIVER, type EffectReceiver } from "./effects.ts";
+import { robotFlows } from "../lib/robots.ts";
 
 /** A good's imports minus its exports across boundary rows. */
 const netImport = (flows: { role: string; rate: number }[]) =>
@@ -1563,6 +1564,30 @@ describe("count pins and produced goals (#121)", () => {
     ]);
   });
 
+  it("robots size a superseded goal from its solved output, not the requested rate", async () => {
+    // 2 pinned foundries make 2 steel/s against a 2.5/s goal: the goal sends out
+    // nothing itself and the whole 2/s leaves as the solved export (#255)
+    const res = await computeBlock({
+      goals: [{ name: "steel", rate: 2.5 }],
+      recipes: ["mk-steel", "mk-iron"],
+      pins: [{ kind: "count", recipe: "mk-steel", count: 2 }],
+    });
+    expect(res.goalOutputs).toEqual([]);
+    const flows = robotFlows(res);
+    expect(flows.map((f) => f.name)).toEqual(["steel"]);
+    expect(flows[0].rate).toBeCloseTo(2);
+  });
+
+  it("robots skip a virtual-good goal and carry only real items", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "pyops-electricity", rate: 1 }],
+      recipes: ["fixed-power", "flex-power"],
+      machines: { "fixed-power": "fixed-generator", "flex-power": "flex-generator" },
+    });
+    expect(res.goalOutputs).toEqual([{ name: "pyops-electricity", kind: "fluid", rate: 1 }]);
+    expect(robotFlows(res)).toEqual([]);
+  });
+
   it("keeps the goal binding when an unpinned producer can supply the remainder", async () => {
     const res = await computeBlock({
       goals: [{ name: "pyops-electricity", rate: 1 }],
@@ -1605,6 +1630,8 @@ describe("count pins and produced goals (#121)", () => {
     expect(res.status).toBe("solved");
     expect(res.goalSuperseded).toEqual([]);
     expect(res.rows.find((r) => r.recipe === "mk-steel")?.rate).toBeCloseTo(1.5); // goal still drives
+    // a binding goal sends out exactly its rate
+    expect(res.goalOutputs).toEqual([{ name: "steel", kind: "item", rate: 1.5 }]);
   });
 });
 

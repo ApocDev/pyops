@@ -34,6 +34,8 @@ import {
   belts,
   loaders,
   inserters,
+  logisticRobots,
+  roboports,
   techProductivityBonuses,
   techStackBonuses,
   modulePresets,
@@ -51,13 +53,13 @@ import {
 import { stripRichText } from "../lib/factorio-text.ts";
 import { computeEffects, effectsAllowed } from "../server/effects.ts";
 import type {
-  BeltProto,
   InserterBelt,
   InserterProto,
-  LoaderProto,
   LogisticsContext,
+  LogisticsOptions,
   StackBonuses,
 } from "../lib/logistics.ts";
+import { DEFAULT_ROBOT_DISTANCE, type RobotBonuses } from "../lib/robots.ts";
 import {
   placedBeltStack,
   beltsForRate,
@@ -3538,13 +3540,11 @@ export function isExcluded(...fields: (string | null | undefined)[]): boolean {
 
 /* ── Logistics (belts / loaders / inserters) for the throughput display (#21) ─── */
 
-/** Belt, loader and inserter prototypes for the logistics picker, ordered by
- * throughput. EE/excluded entities are filtered out. */
-export function logisticsOptions(): {
-  belts: BeltProto[];
-  loaders: LoaderProto[];
-  inserters: InserterProto[];
-} {
+/** Belt, loader, inserter, robot and roboport prototypes for the logistics
+ * picker, ordered by throughput. EE/excluded entities are filtered out, and so
+ * are roboports that can't charge a logistic robot (no charging power or no
+ * logistics area, like Py's construction-only zones). */
+export function logisticsOptions(): LogisticsOptions {
   const beltRows = db
     .select({ name: belts.name, display: belts.display, speed: belts.speed })
     .from(belts)
@@ -3600,7 +3600,27 @@ export function logisticsOptions(): {
         a.rotationSpeed - b.rotationSpeed ||
         (a.display ?? a.name).localeCompare(b.display ?? b.name),
     );
-  return { belts: beltRows, loaders: loaderRows, inserters: inserterRows };
+  const robotRows = db
+    .select()
+    .from(logisticRobots)
+    .all()
+    .filter((r) => !isExcluded(r.name))
+    .map(({ order: _order, ...r }) => r)
+    .sort((a, b) => a.speed - b.speed);
+  const roboportRows = db
+    .select()
+    .from(roboports)
+    .all()
+    .filter((p) => !isExcluded(p.name) && p.chargingEnergyW > 0 && p.logisticsRadius > 0)
+    .map(({ order: _order, ...p }) => p)
+    .sort((a, b) => a.chargingEnergyW - b.chargingEnergyW);
+  return {
+    belts: beltRows,
+    loaders: loaderRows,
+    inserters: inserterRows,
+    robots: robotRows,
+    roboports: roboportRows,
+  };
 }
 
 /** Rocket-lift weight per item (for launches/min), keyed by name. `null` = the item
@@ -3618,6 +3638,21 @@ export function itemWeights(names: string[]): Record<string, number | null> {
   return out;
 }
 
+/** Stack size per item, keyed by name — a robot carries at most one stack
+ * (#255). `null` = the item has no stack size in the data. */
+export function itemStackSizes(names: string[]): Record<string, number | null> {
+  const uniq = [...new Set(names)];
+  const out: Record<string, number | null> = {};
+  if (!uniq.length) return out;
+  for (const r of db
+    .select({ name: items.name, stackSize: items.stackSize })
+    .from(items)
+    .where(inArray(items.name, uniq))
+    .all())
+    out[r.name] = r.stackSize ?? null;
+  return out;
+}
+
 /** Current belt / inserter / bulk-inserter stack-size bonuses, summed over the
  * tech in effect under the research horizon: everything in FUTURE mode, live
  * research + the pack gate in NOW, the tier's pack gate for a target — the same
@@ -3632,6 +3667,21 @@ export function stackBonuses(): StackBonuses {
     else if (r.effect === "bulk-inserter") out.bulkInserter += r.modifier;
   }
   return out;
+}
+
+/** Worker robot speed and cargo bonuses, as last synced from the game by
+ * `state.research` (0 before the first sync). The game reports one live value
+ * per force, so these don't follow the research horizon. */
+export function robotBonuses(): RobotBonuses {
+  const m = metaAll();
+  const num = (v: string | null | undefined) => {
+    const n = Number(v ?? 0);
+    return Number.isFinite(n) ? n : 0;
+  };
+  return {
+    speed: num(m.research_worker_robots_speed_bonus),
+    storage: num(m.research_worker_robots_storage_bonus),
+  };
 }
 
 export type ProductivityBonuses = {
@@ -3704,8 +3754,13 @@ export function logisticsContext(): LogisticsContext {
         m.logistics_stack_override != null && m.logistics_stack_override !== ""
           ? Number(m.logistics_stack_override)
           : null,
+      showRobots: m.logistics_show_robots === "1",
+      robot: m.logistics_robot || (options.robots[0]?.name ?? ""),
+      roboport: m.logistics_roboport || (options.roboports[0]?.name ?? ""),
+      robotDistance: Number(m.logistics_robot_distance) || DEFAULT_ROBOT_DISTANCE,
     },
     bonuses: stackBonuses(),
+    robotBonuses: robotBonuses(),
     options,
     rocketLiftWeight: Number(m.rocket_lift_weight ?? 1_000_000),
     defaultItemWeight: Number(m.default_item_weight ?? 100),

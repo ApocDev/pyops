@@ -58,6 +58,8 @@ export type BlockDocState = {
   spoilRates: Record<string, number>;
   supplyPriority: number;
   supplyPriorities: Record<string, number>;
+  /** per-block robot trip distance (tiles); null = factory default (#255) */
+  robotDistance: number | null;
   rowGroups: RowGroup[];
   recipeGroups: GroupAssign;
   machines: Record<string, string>;
@@ -86,6 +88,7 @@ const EMPTY: BlockDocState = {
   spoilRates: {},
   supplyPriority: 0,
   supplyPriorities: {},
+  robotDistance: null,
   rowGroups: [],
   recipeGroups: {},
   machines: {},
@@ -113,6 +116,7 @@ export function solveInputOf(s: BlockDocState): SolveInput {
     ...(Object.keys(s.spoilRates).length ? { spoilRates: s.spoilRates } : {}),
     ...(s.supplyPriority !== 0 ? { supplyPriority: s.supplyPriority } : {}),
     ...(Object.keys(s.supplyPriorities).length ? { supplyPriorities: s.supplyPriorities } : {}),
+    ...(s.robotDistance != null ? { robotDistance: s.robotDistance } : {}),
     // adopted docs persist `made` (and never dispositions); legacy docs keep
     // shipping their dispositions so the server can derive
     ...(s.made ? { made: [...s.made].sort() } : {}),
@@ -173,6 +177,7 @@ export function createBlockDocStore() {
       spoilRates: d.spoilRates ?? {},
       supplyPriority: d.supplyPriority ?? 0,
       supplyPriorities: d.supplyPriorities ?? {},
+      robotDistance: d.robotDistance ?? null,
       machines: d.machines ?? {},
       fuels: d.fuels ?? {},
       fluidTemperatures: d.fluidTemperatures ?? {},
@@ -493,6 +498,8 @@ export function createBlockDocStore() {
       edit(() => ({ customIcon: icon })),
     setBlockName: (blockName: string) => edit(() => ({ blockName })),
     setSupplyPriority: (supplyPriority: number) => edit(() => ({ supplyPriority })),
+    /** Override this block's robot trip distance; null = factory default. */
+    setRobotDistance: (robotDistance: number | null) => edit(() => ({ robotDistance })),
     setOutputSupplyPriority: (name: string, priority: number | null) =>
       edit((s) => ({
         supplyPriorities:

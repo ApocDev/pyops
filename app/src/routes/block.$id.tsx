@@ -9,6 +9,7 @@ import {
   extractRecipeBlockFn,
   fluidGoalDefaultFn,
   goodInfoFn,
+  itemStackSizesFn,
   itemWeightsFn,
   loadBlockFn,
   moduleSuggestionsFn,
@@ -28,6 +29,7 @@ import { toast } from "../lib/toast-store";
 import { epochSeconds } from "../lib/undo-client";
 import { blockActionName } from "../lib/undo-names";
 import { launchesForRate, resolveLogistics } from "../lib/logistics";
+import { DEFAULT_ROBOT_DISTANCE, resolveRobots, robotCarries, robotsForRate } from "../lib/robots";
 import { logisticsContextSubscription } from "../lib/live-query-options";
 import { recordRecent } from "../lib/recents";
 import { createCoalescedRunner } from "../lib/coalesced-runner";
@@ -560,10 +562,21 @@ function Block({ blockId }: { blockId: number }) {
   const logistics = useQuery(logisticsContextSubscription);
   const logiPrefs = logistics.data?.prefs;
   const logiAny =
-    !!logiPrefs && (logiPrefs.showBelts || logiPrefs.showInserters || logiPrefs.showRockets);
+    !!logiPrefs &&
+    (logiPrefs.showBelts ||
+      logiPrefs.showInserters ||
+      logiPrefs.showRockets ||
+      logiPrefs.showRobots);
   const logiResolved = logiAny && logistics.data ? resolveLogistics(logistics.data) : null;
   const showBelts = !!logiPrefs?.showBelts;
   const showInserters = !!logiPrefs?.showInserters;
+  // Robot counts (#255): the block's own trip distance wins over the default.
+  const robotDistanceOverride = s.robotDistance;
+  const defaultRobotDistance = logiPrefs?.robotDistance ?? DEFAULT_ROBOT_DISTANCE;
+  const robotsResolved =
+    logiPrefs?.showRobots && logistics.data
+      ? resolveRobots(logistics.data.options, logiPrefs, logistics.data.robotBonuses)
+      : null;
 
   const add = (name: string) => {
     const alreadyAdded = recipes.includes(name);
@@ -761,6 +774,32 @@ function Block({ blockId }: { blockId: number }) {
     };
   };
 
+  // Robot counts (#255): a robot carries at most one stack, so the cargo cap
+  // needs each item's stack size. Counts wait for it rather than flash high.
+  const robots = robotsResolved && {
+    resolved: robotsResolved,
+    distance: robotDistanceOverride ?? defaultRobotDistance,
+  };
+  const stackSizesQ = useQuery({
+    queryKey: ["itemStackSizes", itemNames],
+    queryFn: () => itemStackSizesFn({ data: itemNames }),
+    enabled: !!robots && itemNames.length > 0,
+    staleTime: 60_000,
+  });
+  const robotsFor = (flow: { name: string; kind: string; rate: number }) => {
+    if (!robots || !robotCarries(flow) || !stackSizesQ.data) return null;
+    return {
+      count: robotsForRate(
+        flow.rate,
+        robots.resolved,
+        robots.distance,
+        stackSizesQ.data[flow.name] ?? undefined,
+      ),
+      robot: robots.resolved.robot,
+      distance: robots.distance,
+    };
+  };
+
   const producible = new Set(res?.producible ?? []); // imports a recipe could make in-block
   const fuelSet = new Set(res?.fuelItems ?? []); // items consumed as fuel (folded into the balance)
   const linkOf = (name: string): ItemLink =>
@@ -785,6 +824,9 @@ function Block({ blockId }: { blockId: number }) {
     showBelts,
     showInserters,
     launchInfo,
+    robots,
+    robotsFor,
+    defaultRobotDistance,
   };
 
   // The block's face (#40): the explicit pick when set, else the first goal's icon.
