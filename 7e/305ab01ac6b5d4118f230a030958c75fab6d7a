@@ -1,0 +1,14 @@
+AGENTS.md
+  h_3ea7e994213848 157-160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7e305ab01ac6b5d4118f230a030958c75fab6d7a",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
