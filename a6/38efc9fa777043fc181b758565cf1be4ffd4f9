@@ -1,0 +1,23 @@
+app/src/server/effects.test.ts
+  s_38d6129e2b3c5e::t_f98ddca4a6fd5b 365
+app/src/server/effects.ts
+  s_38d6129e2b3c5e::t_06c82ce3cab203 200-201
+app/src/lib/modules-modal.test.tsx
+  s_38d6129e2b3c5e::t_dfd2447164ffbb 1-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a638efc9fa777043fc181b758565cf1be4ffd4f9",
+  "prompts": {},
+  "sessions": {
+    "s_38d6129e2b3c5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d28cf111-dd80-4b4a-b15e-eed3f1f6c533",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
