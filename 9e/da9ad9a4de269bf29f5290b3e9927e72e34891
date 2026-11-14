@@ -1,0 +1,77 @@
+app/e2e/README.md
+  s_fe782a229fe9b1::t_1b555765bde8b5 133-135
+app/e2e/mut/game-focus.e2e.ts
+  s_5b66b496e7f554::t_25a4167eb73fa1 1-91
+app/src/components/factory/recipe-users.tsx
+  s_fe782a229fe9b1::t_521d62567a98fa 1-64
+app/src/components/game-open-block.test.tsx
+  s_fe782a229fe9b1::t_c9f365a72da2c0 8,11-12,27,29,39,50,56,59-60,64-87
+app/src/components/game-open-block.tsx
+  s_fe782a229fe9b1::t_b57daeb15a22f5 6,9-20,27,32-52
+app/src/db/recipe-blocks.server.test.ts
+  s_5b66b496e7f554::t_e0f02e33727697 1-70
+app/src/db/recipe-blocks.server.ts
+  s_fe782a229fe9b1::t_c5f8de35932dbb 1-43
+app/src/routes/factory.tsx
+  s_fe782a229fe9b1::t_6293471a206a69 4,38,45-48,50-54,78,80-94,574-575,588,757
+app/src/server/bridge/fns.ts
+  s_fe782a229fe9b1::t_6228296d4edf11 12,18-21
+app/src/server/bridge/handlers.ts
+  s_fe782a229fe9b1::t_e58ba469ea3238 20,58-60
+app/src/server/bridge/handlers/blocks.test.ts
+  s_fe782a229fe9b1::t_17681ee22819a2 22,212,214
+app/src/server/bridge/handlers/blocks.ts
+  s_fe782a229fe9b1::t_44a56a43230544 22,161
+app/src/server/bridge/handlers/focus.test.ts
+  s_fe782a229fe9b1::t_ec9b2e3350bdc8 1-64
+app/src/server/bridge/handlers/focus.ts
+  s_fe782a229fe9b1::t_18326ca8ae66da 1-49
+app/src/server/bridge/protocol.ts
+  s_fe782a229fe9b1::t_9c35d7b3ecad8e 13
+app/src/server/recipe-blocks-fns.ts
+  s_fe782a229fe9b1::t_11dd2ef81b2c70 1-16
+docs/development/bridge.md
+  s_fe782a229fe9b1::t_818bd7cd959b7f 127,146-147,261-291
+docs/guide/in-game-link.md
+  s_fe782a229fe9b1::t_c1a8a91105b1dc 177-194
+mod/control.lua
+  s_fe782a229fe9b1::t_3f1c3194034eac 24,756-771,813-815,1028-1053,1072-1080
+mod/data.lua
+  s_fe782a229fe9b1::t_c25808d53beb14 31-39
+mod/locale/en/pyops.cfg
+  s_fe782a229fe9b1::t_d52b57381159a2 5,32-35
+app/src/server/bridge/open-request.ts
+  s_f8a6f5e0dd408c::t_d9b3f85a16a91d 1-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9eda9ad9a4de269bf29f5290b3e9927e72e34891",
+  "prompts": {},
+  "sessions": {
+    "s_5b66b496e7f554": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8f57074c-fedc-4146-9dc6-69aaa2f3cc56",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f8a6f5e0dd408c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3a5d3a4d-f7d5-4feb-b32d-f1628e5ab72d",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_fe782a229fe9b1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cc7ac7c1-677e-4fca-ae19-c7276461698b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
