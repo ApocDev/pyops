@@ -38,7 +38,7 @@ test("temporary campaign derives a finite target and can be completed and reacti
   await expect(ironImport.locator("[data-campaign-rate]")).toHaveText("0.022/s");
   const balance = page.locator('[data-slot="card"]').filter({ hasText: "Block balance" });
   await expect(balance.getByText(/^avg /)).toHaveCount(0);
-  await expect(balance.getByText("<0.01", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/· 5 crafts total$/)).toBeVisible();
 
   await page.getByRole("combobox", { name: "Campaign confidence" }).click();
   await page.getByRole("option", { name: "90% confidence" }).click();
