@@ -247,9 +247,10 @@ A count or capacity pin on a row bounds its total rate across all its columns. B
 pin fixes only the total, it never supersedes a goal on one quality: the goal stays binding,
 and the pinned buildings must make it from that quality's column. A goal is superseded only
 when every column that produces its (good, quality) is a single-quality row with its own
-count pin. A share pin
+count pin. An item share pin
 names a (good, quality): the row's column at that quality takes its share of that quality's
-production. A pin over several columns doesn't count as a fixed intake when another share
+production. A fluid has no quality, so a fluid share pin splits the row's intake summed over
+all its columns. A pin over several columns doesn't count as a fixed intake when another share
 pin uses the "remaining" base.
 
 ### The split

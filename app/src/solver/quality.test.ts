@@ -300,3 +300,66 @@ describe("quality loops through the LP", () => {
     expect(total).toBeCloseTo(3, 6);
   });
 });
+
+describe("fluid share pins on quality rows", () => {
+  // Gears that also eat lubricant. Fluids never carry quality, so a share pin on
+  // lubricant names no quality and must cover every column of the row.
+  const lubed: QualityRecipeDef = {
+    ...gear,
+    ingredients: [...gear.ingredients, { kind: "fluid", name: "lubricant", amount: 10 }],
+  };
+  const lubricant: QualityRecipeDef = {
+    name: "lubricant",
+    energyRequired: 1,
+    ingredients: [],
+    products: [{ kind: "fluid", name: "lubricant", amount: 10 }],
+  };
+  const widget: QualityRecipeDef = {
+    name: "widget",
+    energyRequired: 1,
+    ingredients: [{ kind: "fluid", name: "lubricant", amount: 10 }],
+    products: [{ kind: "item", name: "widget", amount: 1 }],
+  };
+  const sharePin = { kind: "share" as const, recipe: lubed.name, item: "lubricant", share: 0.25 };
+
+  test("targets the only column of a rare-only row and spans a range row", () => {
+    const pinsFor = (levels: string[]) =>
+      expandQualities(
+        { ...noInput, recipes: [lubed], pins: [sharePin] },
+        new Map([[lubed.name, { levels, effect: 0 }]]),
+        ladder,
+      ).input.pins;
+    expect(pinsFor(["rare"])).toEqual([{ ...sharePin, recipe: "iron-gear-wheel@rare" }]);
+    expect(pinsFor(["normal", "uncommon", "rare"])).toEqual([
+      {
+        ...sharePin,
+        members: ["iron-gear-wheel", "iron-gear-wheel@uncommon", "iron-gear-wheel@rare"],
+      },
+    ]);
+  });
+
+  test("splits the row's summed intake across its columns", async () => {
+    // widgets eat 30 lubricant; the gear row takes a quarter of all lubricant,
+    // so its two columns eat 10 together: 0.6 uncommon crafts (6) + 0.4 normal (4)
+    const { input } = expandQualities(
+      {
+        goals: [
+          { name: "widget", rate: 3 },
+          { name: "iron-gear-wheel", rate: 0.6, quality: "uncommon" },
+        ],
+        recipes: [lubed, lubricant, widget],
+        made: ["lubricant"],
+        drains: [],
+        pins: [sharePin],
+      },
+      new Map([[lubed.name, { levels: ["normal", "uncommon"], effect: 0 }]]),
+      ladder,
+    );
+    const result = await solveBlockLp(input);
+    expect(result.status).toBe("solved");
+    const rate = (column: string) => result.recipes.find((r) => r.recipe === column)?.rate ?? 0;
+    expect(rate("iron-gear-wheel@uncommon")).toBeCloseTo(0.6, 6);
+    expect(rate("iron-gear-wheel")).toBeCloseTo(0.4, 6);
+    expect(rate("lubricant")).toBeCloseTo(4, 6);
+  });
+});

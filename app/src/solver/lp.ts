@@ -47,7 +47,9 @@ export type Pin =
   /** "this consumer takes `share` of `item`'s production" — base "remaining"
    * applies the share after rate-pinned consumers' fixed intake is subtracted.
    * `ofItems` overrides the production base (used by the temperature expansion:
-   * the consumer eats a pool good, but the base is the real variants) */
+   * the consumer eats a pool good, but the base is the real variants).
+   * `members` makes the consumer the SUM of several recipes' intake (a quality
+   * row eating a fluid, which every quality column shares) */
   | {
       kind: "share";
       item: string;
@@ -55,6 +57,7 @@ export type Pin =
       share: number;
       base?: "total" | "remaining";
       ofItems?: string[];
+      members?: string[];
     };
 
 export type LpBlockInput = {
@@ -265,24 +268,29 @@ export function buildModel(input: LpBlockInput): BlockModel {
   }
   for (const p of pins) {
     if (p.kind !== "share") continue;
-    const i = idxOf.get(p.recipe);
-    const c = coeff[p.item];
-    if (i == null || !c) continue;
-    const intake = recipes[i].ingredients.find((g) => g.name === p.item)?.amount ?? 0;
-    if (intake <= 0) continue;
+    if (!coeff[p.item]) continue;
+    const members = p.members ?? [p.recipe];
+    const intakes = members.flatMap((r) => {
+      const i = idxOf.get(r);
+      if (i == null) return [];
+      const amount = recipes[i].ingredients.find((g) => g.name === p.item)?.amount ?? 0;
+      return amount > 0 ? [{ i, amount }] : [];
+    });
+    if (!intakes.length) continue;
+    const i = intakes[0].i;
     // consumption_r = share × (total production − rate-pinned consumers' intake)
     let fixedConsumed = 0;
     if ((p.base ?? "remaining") === "remaining") {
       for (const [rec, rate] of fixedRate) {
-        if (rec === p.recipe) continue;
+        if (members.includes(rec)) continue;
         const ri = idxOf.get(rec)!;
         const ringr = recipes[ri].ingredients.find((g) => g.name === p.item)?.amount ?? 0;
         fixedConsumed += ringr * rate;
       }
     }
-    // intake·x_i − share·Σ prod_coef·x = −share·fixedConsumed
+    // Σ intake·x_member − share·Σ prod_coef·x = −share·fixedConsumed
     const baseItems = new Set(p.ofItems ?? [p.item]);
-    const parts = [term(intake, varOf(i))];
+    const parts = intakes.map((c) => term(c.amount, varOf(c.i)));
     recipes.forEach((r, j) => {
       const prod = r.products.reduce(
         (s, pr) => (baseItems.has(pr.name) ? s + pr.amount * (pr.probability ?? 1) : s),

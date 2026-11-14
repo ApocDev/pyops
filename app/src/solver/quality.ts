@@ -19,7 +19,9 @@ import type { TempComponent, TempRecipeDef } from "./temps.ts";
  *     `iron-plate@rare` are separate LP goods (YAFC-CE
  *     `ProductionTable.cs:486,513`);
  *   - goals, made marks and drains already name a (good, quality) key, and a
- *     count or capacity pin on a row bounds the sum of its columns.
+ *     count or capacity pin on a row bounds the sum of its columns. A share
+ *     pin names a quality column, except on a fluid (or fixed-quality fuel),
+ *     where it splits the row's summed intake.
  *
  * A quality loop needs nothing else: recycling recipes are ordinary recipes in
  * the dump, so "craft at normal..epic, recycle at normal..epic, drain the
@@ -261,6 +263,19 @@ export function expandQualities<G extends Goal>(
 
   const pins = input.pins.flatMap(({ quality, ...pin }): Pin[] => {
     if (pin.kind === "share") {
+      // a fluid (or fixed-quality fuel) is the same good in every column, so
+      // the share is of the row's summed intake
+      const shared = input.recipes
+        .find((r) => r.name === pin.recipe)
+        ?.ingredients.some((c) => c.name === pin.item && (c.kind !== "item" || c.fixedQuality));
+      const cols = columns.get(pin.recipe);
+      if (shared && cols) {
+        return [
+          cols.length === 1
+            ? { ...pin, recipe: cols[0] }
+            : { ...pin, recipe: cols[0], members: cols },
+        ];
+      }
       const column = qualityKey(pin.recipe, quality);
       if (!rowOfColumn.has(column)) return []; // the row doesn't run at that quality
       return [{ ...pin, recipe: column, item: qualityKey(pin.item, quality) }];
