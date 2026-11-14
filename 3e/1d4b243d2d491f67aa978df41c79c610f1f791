@@ -1,0 +1,33 @@
+app/src/db/queries.server.ts
+  s_3e5ce8d5c98a70::t_c946dd459c4714 906-908,934-935,941-943
+app/src/db/synthesize.test.ts
+  s_3e5ce8d5c98a70::t_b2e123caa11609 288-323
+app/src/db/synthesize.ts
+  s_3e5ce8d5c98a70::t_656e4e77b0d4b0 472-481,485-494,506-507,512-518
+app/src/lib/data-format.ts
+  s_3e5ce8d5c98a70::t_d26576ed5e8a53 9
+app/src/server/block-compute.server.ts
+  s_3e5ce8d5c98a70::t_5abc025b019ffa 1016-1019,1021-1024
+app/src/server/block-compute.test.ts
+  s_3e5ce8d5c98a70::t_c11807e823f8c2 757-797,1257-1258
+docs/development/data-pipeline.md
+  s_3e5ce8d5c98a70::t_e2a59176a477a4 252-259,285-287
+docs/guide/blocks.md
+  s_3e5ce8d5c98a70::t_1e4a20ce2c85b9 173-174,233-235
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3e1d4b243d2d491f67aa978df41c79c610f1f791",
+  "prompts": {},
+  "sessions": {
+    "s_3e5ce8d5c98a70": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79a1abd0-6765-4e0a-bffa-c981fdc04872",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
