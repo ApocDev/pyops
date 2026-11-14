@@ -1,0 +1,23 @@
+app/src/db/effect-receiver.ts
+  s_1a424bc7af55de::t_c90591237f8fc2 25-27,32-33,35-37,42-43
+app/src/db/import-factorio.test.ts
+  s_1a424bc7af55de::t_f74516c1950202 1181-1182,1235,1237-1239
+docs/development/data-pipeline.md
+  s_1a424bc7af55de::t_90f8eec430e053 357-358
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2f84df4c0e08fd656e9794c3bab85836a211e3ab",
+  "prompts": {},
+  "sessions": {
+    "s_1a424bc7af55de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e62b95c2-e0a3-43d7-bfde-713547843745",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
