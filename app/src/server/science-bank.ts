@@ -18,6 +18,13 @@
  * Its research productivity bonus (LuaForce.laboratory_productivity_bonus) adds
  * to module productivity, the way LuaEntity.productivity_bonus sums force and
  * module bonuses into one figure.
+ *
+ * Quality (#266) changes only how many packs the work eats. A rare pack lasts
+ * `tool_durability_multiplier` (1 + level by default) times as long, as YAFC-CE
+ * counts one quality pack as level + 1 normal ones
+ * (ProductionTable.ScienceDecomposition.cs:8-25), and a lab that opts in drains
+ * packs at its quality's `science_pack_drain_multiplier`. Lab speed and slots
+ * arrive already scaled by the lab's quality.
  */
 import { computeEffects, type BeaconConfig, type BeaconEff, type ModuleEff } from "./effects.ts";
 import { wholeMachines } from "../lib/machine-count.ts";
@@ -34,6 +41,9 @@ export type LabProto = {
   allowedEffects: string[] | null;
   allowedModuleCategories: string[] | null;
   inputs: string[] | null;
+  /** LabPrototype quality flags (#265) */
+  qualityAffectsModuleSlots?: boolean;
+  usesQualityDrainModifier?: boolean;
 };
 
 export type ScienceBankInput = {
@@ -46,13 +56,21 @@ export type ScienceBankInput = {
   labSpeedBonus: number;
   /** the force's research productivity bonus from technologies (0 = none) */
   labProductivityBonus: number;
+  /** module keys for the effects (quality keys for non-normal modules) */
   modules: string[];
   beacons: BeaconConfig[];
+  /** `beacons` with beacon and module names at their quality keys, for the
+   * effects only; buildings, upkeep and interference read `beacons`.
+   * Absent = `beacons`. */
+  effectBeacons?: BeaconConfig[];
   moduleDb: Map<string, ModuleEff>;
   beaconDb: Map<string, BeaconEff>;
   /** beacon+module → what one beacon building consumes to keep running */
   upkeepDb?: Map<string, { item: string; kind: string; perSec: number }>;
   upkeepKey?: (beacon: string, module: string) => string;
+  /** A pack key → the base pack prototype and the share of a normal pack's
+   * consumption it costs (drain ÷ durability). Absent = every pack is normal. */
+  packQuality?: (pack: string) => { name: string; demand: number };
 };
 
 export type ScienceBankResult = {
@@ -88,7 +106,7 @@ export function computeScienceBank(input: ScienceBankInput): ScienceBankResult {
   const fx = computeEffects(
     true,
     input.modules,
-    input.beacons,
+    input.effectBeacons ?? input.beacons,
     moduleDb,
     beaconDb,
     [],
@@ -98,9 +116,10 @@ export function computeScienceBank(input: ScienceBankInput): ScienceBankResult {
   );
   const prodMult = fx.prodMult + input.labProductivityBonus;
 
+  const packOf = input.packQuality ?? ((pack: string) => ({ name: pack, demand: 1 }));
   const accepted = lab.inputs?.length ? new Set(lab.inputs) : null;
   const unsupported = Object.keys(input.packs)
-    .filter((p) => (input.packs[p] ?? 0) > 0 && accepted && !accepted.has(p))
+    .filter((p) => (input.packs[p] ?? 0) > 0 && accepted && !accepted.has(packOf(p).name))
     .sort();
 
   // ONE pool. Every pack is eaten by the same labs, so the pool follows the
@@ -113,7 +132,7 @@ export function computeScienceBank(input: ScienceBankInput): ScienceBankResult {
   let totalPerSec = 0;
   for (const [pack, rate] of Object.entries(input.packs)) {
     if (!(rate > 0)) continue;
-    packDemand[pack] = rate / prodMult;
+    packDemand[pack] = (rate * packOf(pack).demand) / prodMult;
     totalPerSec += rate;
   }
   const labs =

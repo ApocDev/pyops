@@ -717,7 +717,9 @@ export type Goal = {
 export type ScienceBank = {
   /** Lab prototype (see the `labs` table). */
   lab: string;
-  /** Pack → packs per second, AFTER effects. These ARE the block's goals: typed
+  /** Pack → packs per second, AFTER effects. A key is a quality key
+   * (lib/quality.ts): `automation-science-pack@rare` is a rare pack (#266).
+   * These ARE the block's goals: typed
    * directly, so a hand-tuned or mixed-research plan needs nothing else. The
    * "derive from a technology" helper only computes them and writes them here;
    * no technology is stored, so a plan cannot rot when one is renamed or
@@ -734,6 +736,9 @@ export type ScienceBank = {
   labSecondsPerPack: number;
   /** Modules in each lab's own slots (Pyanodons' lab has none; others do). */
   modules?: string[];
+  /** Quality of the labs and of their own modules (#266; absent = normal). */
+  labQuality?: string;
+  moduleQuality?: string;
   /** Beacons affecting each lab. `shared` carries how many labs one beacon
    * building serves, which is what sizes a vatbrain bank. */
   beacons?: BeaconConfig[];

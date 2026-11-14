@@ -1,4 +1,6 @@
+import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
+import { qualityRow } from "../db/quality-import.ts";
 import { type TestDb, makeTestDb } from "../db/test-helpers.ts";
 import { switchDatabase } from "../db/index.server.ts";
 import {
@@ -100,5 +102,63 @@ describe("the science block is a singleton", () => {
 
   it("returns null when the chosen lab is gone", () => {
     expect(solveScienceBank({ lab: "vanished", packs: {}, labSecondsPerPack: 60 })).toBeNull();
+  });
+});
+
+describe("quality in the science bank (#266)", () => {
+  // Factorio 2.1's quality mod: rare is level 2, so a rare pack lasts
+  // tool_durability 1 + 2 = 3 times as long and a rare lab researches at
+  // default_multiplier 1 + 0.3 × 2 = 1.6; a lab with
+  // uses_quality_drain_modifier drains rare packs at 98/100.
+  beforeEach(() => {
+    const raw = new Database(fx.file);
+    const insert = raw.prepare(
+      `INSERT INTO qualities (name, level, next, next_probability, chain_probability,
+         lab_research_speed_multiplier, science_pack_drain_multiplier, tool_durability_multiplier)
+       VALUES (@name, @level, @next, @next_probability, @chain_probability,
+         @lab_research_speed_multiplier, @science_pack_drain_multiplier, @tool_durability_multiplier)`,
+    );
+    for (const [name, q] of [
+      ["normal", { level: 0, next: "uncommon", next_probability: 1, chain_probability: 0.1 }],
+      [
+        "uncommon",
+        { level: 1, next: "rare", next_probability: 1, science_pack_drain_multiplier: 0.99 },
+      ],
+      ["rare", { level: 2, next_probability: 1, science_pack_drain_multiplier: 0.98 }],
+    ] as const) {
+      const row = qualityRow(name, q, null, false);
+      insert.run({
+        name,
+        level: row.level,
+        next: row.next,
+        next_probability: row.next_probability,
+        chain_probability: row.chain_probability,
+        lab_research_speed_multiplier: row.lab_research_speed_multiplier,
+        science_pack_drain_multiplier: row.science_pack_drain_multiplier,
+        tool_durability_multiplier: row.tool_durability_multiplier,
+      });
+    }
+    raw.prepare(`UPDATE labs SET uses_quality_drain_modifier = 1 WHERE name = 'biolab'`).run();
+    raw.close();
+  });
+
+  it("counts a rare pack as three normal ones and speeds up a rare lab", () => {
+    const normalLab = solveScienceBank({
+      lab: "lab",
+      packs: { "automation-science-pack@rare": 1 },
+      labSecondsPerPack: 60,
+    })!;
+    expect(normalLab.unsupported).toEqual([]);
+    expect(normalLab.labs).toBeCloseTo(60, 6); // the work is the same
+    expect(normalLab.packDemand["automation-science-pack@rare"]).toBeCloseTo(1 / 3, 9);
+
+    const rareBiolab = solveScienceBank({
+      lab: "biolab",
+      labQuality: "rare",
+      packs: { "automation-science-pack@rare": 1 },
+      labSecondsPerPack: 60,
+    })!;
+    expect(rareBiolab.labs).toBeCloseTo(60 / (3 * 1.6), 6);
+    expect(rareBiolab.packDemand["automation-science-pack@rare"]).toBeCloseTo(0.98 / 3, 9);
   });
 });
