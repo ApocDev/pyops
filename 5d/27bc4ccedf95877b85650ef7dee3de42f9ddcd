@@ -1,0 +1,21 @@
+app/scripts/parity-diff.test.ts
+  s_995b207560eeb0::t_1281093e79e813 2,57-76
+app/scripts/parity.ts
+  s_995b207560eeb0::t_ede8b7e89da43a 18-25,27,60-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5d27bc4ccedf95877b85650ef7dee3de42f9ddcd",
+  "prompts": {},
+  "sessions": {
+    "s_995b207560eeb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cef9ec12-eec2-430e-8ba3-ca49ff9d4875",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
