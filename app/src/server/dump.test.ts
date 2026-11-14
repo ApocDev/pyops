@@ -1,11 +1,16 @@
-import { describe, expect, it } from "vite-plus/test";
+import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import {
   type ModEntry,
   diffMods,
   evaluateDumpReuse,
   helperModFingerprint,
   modVersionsFromEntries,
+  readDumpProvenance,
   redumpNeeded,
+  writeDumpProvenance,
 } from "./dump.server.ts";
 
 const mod = (name: string, version: string | null, enabled = true): ModEntry => ({
@@ -121,13 +126,15 @@ describe("evaluateDumpReuse", () => {
     dump: DUMP,
     importedDumpMtimeMs: DUMP.mtimeMs,
     helperFingerprint: "abc123",
-    recordedHelperFingerprint: "abc123",
+    provenance: { helperFingerprint: "abc123", dumpMtimeMs: DUMP.mtimeMs },
+    projectHelperFingerprint: "abc123",
     modsChanged: false,
   };
 
-  it("is safe when the dump matches the recorded helper and the mods held still", () => {
+  it("is safe when the dump matches the current helper and the mods held still", () => {
     const r = evaluateDumpReuse(base);
     expect(r).toMatchObject({ available: true, safe: true, reason: null });
+    expect(r.dumpHelperFingerprint).toBe("abc123");
     expect(r.sizeBytes).toBe(106_000_000);
     expect(new Date(r.dumpedAt!).getTime()).toBe(DUMP.mtimeMs);
   });
@@ -156,8 +163,47 @@ describe("evaluateDumpReuse", () => {
     expect(r.reason).toMatch(/enabled mods changed/);
   });
 
+  // Another project took this dump with the current helper. This project still
+  // records the helper of the older dump it imported, which says nothing about this file.
+  it("trusts the dump's sidecar over another project's stale stamp", () => {
+    const r = evaluateDumpReuse({
+      ...base,
+      importedDumpMtimeMs: DUMP.mtimeMs - 60_000,
+      projectHelperFingerprint: "old999",
+    });
+    expect(r).toMatchObject({ helperChanged: false, helperUnknown: false, safe: true });
+    expect(r.newerThanImport).toBe(true);
+  });
+
+  it("refuses when the sidecar says an older helper made the dump", () => {
+    const r = evaluateDumpReuse({
+      ...base,
+      provenance: { helperFingerprint: "old999", dumpMtimeMs: DUMP.mtimeMs },
+    });
+    expect(r).toMatchObject({ dumpHelperFingerprint: "old999", helperChanged: true, safe: false });
+  });
+
+  it("ignores a sidecar left by an earlier dump and falls back to the project stamp", () => {
+    const r = evaluateDumpReuse({
+      ...base,
+      provenance: { helperFingerprint: "abc123", dumpMtimeMs: DUMP.mtimeMs - 60_000 },
+      projectHelperFingerprint: "old999",
+    });
+    expect(r).toMatchObject({ dumpHelperFingerprint: "old999", helperChanged: true });
+  });
+
+  it("treats the helper as unknown without a sidecar when this project imported another dump", () => {
+    const r = evaluateDumpReuse({
+      ...base,
+      provenance: null,
+      importedDumpMtimeMs: DUMP.mtimeMs - 60_000,
+      projectHelperFingerprint: "old999",
+    });
+    expect(r).toMatchObject({ helperUnknown: true, helperChanged: false, safe: true });
+  });
+
   it("treats a missing helper fingerprint as unknown rather than changed", () => {
-    const r = evaluateDumpReuse({ ...base, recordedHelperFingerprint: null });
+    const r = evaluateDumpReuse({ ...base, provenance: null, projectHelperFingerprint: null });
     expect(r).toMatchObject({ helperUnknown: true, helperChanged: false, safe: true });
   });
 
@@ -167,6 +213,35 @@ describe("evaluateDumpReuse", () => {
     ).toBe(true);
     expect(evaluateDumpReuse({ ...base, importedDumpMtimeMs: null }).newerThanImport).toBe(true);
     expect(evaluateDumpReuse(base).newerThanImport).toBe(false);
+  });
+});
+
+describe("dump provenance sidecar", () => {
+  let dir: string;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "pyops-dump-"));
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("records the helper with the dump's mtime and reads it back", async () => {
+    await writeFile(join(dir, "data-raw-dump.json"), "{}");
+    const mtime = new Date(1_700_000_000_123);
+    await utimes(join(dir, "data-raw-dump.json"), mtime, mtime);
+    await writeDumpProvenance(dir, "abc123");
+    expect(await readDumpProvenance(dir)).toEqual({
+      helperFingerprint: "abc123",
+      dumpMtimeMs: 1_700_000_000_123,
+    });
+  });
+
+  it("reads nothing when there is no sidecar or it is malformed", async () => {
+    expect(await readDumpProvenance(dir)).toBeNull();
+    await writeFile(join(dir, "pyops-dump-provenance.json"), '{"helperFingerprint":1}');
+    expect(await readDumpProvenance(dir)).toBeNull();
+    await writeFile(join(dir, "pyops-dump-provenance.json"), "not json");
+    expect(await readDumpProvenance(dir)).toBeNull();
   });
 });
 

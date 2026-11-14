@@ -532,11 +532,13 @@ export type DumpReuse = {
   /** The file is newer than the dump this project last imported — reusing it
    * brings in game data the project has not seen, not just a re-read. */
   newerThanImport: boolean;
+  /** The helper fingerprint that shaped the dump on disk, or null when unknown. */
+  dumpHelperFingerprint: string | null;
   /** The helper mod changed since the dump was taken, so the file was patched by
    * a different version than the one we ship now. */
   helperChanged: boolean;
-  /** No helper fingerprint was recorded for this dump (imported before this was
-   * tracked). Not blocking — just unattributable. */
+  /** No helper fingerprint is known for this dump (made before it was tracked).
+   * Not blocking — just unattributable. */
   helperUnknown: boolean;
   /** The enabled mod set changed since the last sync (existing drift signal). */
   modsChanged: boolean;
@@ -546,19 +548,65 @@ export type DumpReuse = {
   reason: string | null;
 };
 
+/** What the helper wrote next to a dump it produced: its fingerprint and the
+ * dump's mtime. The dump is shared by every project, so this lives with the
+ * file rather than in any one project's meta. */
+export type DumpProvenance = { helperFingerprint: string; dumpMtimeMs: number };
+
+const DUMP_FILE = "data-raw-dump.json";
+const DUMP_PROVENANCE_FILE = "pyops-dump-provenance.json";
+
+/** Record which helper produced the dump in `dir`. Called right after
+ * `--dump-data`, so the stored mtime is that dump's. */
+export async function writeDumpProvenance(dir: string, helperFingerprint: string): Promise<void> {
+  const { mtimeMs } = await stat(join(dir, DUMP_FILE));
+  const provenance: DumpProvenance = { helperFingerprint, dumpMtimeMs: Math.round(mtimeMs) };
+  await writeFile(join(dir, DUMP_PROVENANCE_FILE), JSON.stringify(provenance));
+}
+
+/** The provenance sidecar in `dir`, or null when there is none (dumps made
+ * before it existed) or it can't be read. */
+export async function readDumpProvenance(dir: string): Promise<DumpProvenance | null> {
+  try {
+    const raw = JSON.parse(await readFile(join(dir, DUMP_PROVENANCE_FILE), "utf8")) as Partial<
+      Record<keyof DumpProvenance, unknown>
+    >;
+    const { helperFingerprint, dumpMtimeMs } = raw;
+    return typeof helperFingerprint === "string" && typeof dumpMtimeMs === "number"
+      ? { helperFingerprint, dumpMtimeMs }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Pure core of the reuse check — the server supplies the filesystem and meta
- * readings so the decision itself stays testable. */
+ * readings so the decision itself stays testable.
+ *
+ * The dump's helper fingerprint comes from the sidecar when its mtime matches
+ * the file on disk. Without one (a dump made before the sidecar existed, or by
+ * something else), the project's own stamp counts only if this project imported
+ * that same file; otherwise the helper is unknown. */
 export function evaluateDumpReuse(input: {
   dump: { mtimeMs: number; sizeBytes: number } | null;
   importedDumpMtimeMs: number | null;
   helperFingerprint: string;
-  recordedHelperFingerprint: string | null;
+  provenance: DumpProvenance | null;
+  projectHelperFingerprint: string | null;
   modsChanged: boolean;
 }): DumpReuse {
-  const { dump, helperFingerprint, recordedHelperFingerprint, modsChanged } = input;
-  const helperUnknown = dump != null && recordedHelperFingerprint == null;
+  const { dump, helperFingerprint, provenance, modsChanged } = input;
+  const isThisDump = (mtimeMs: number | null | undefined) =>
+    dump != null && mtimeMs != null && Math.round(mtimeMs) === Math.round(dump.mtimeMs);
+  const dumpHelperFingerprint =
+    provenance && isThisDump(provenance.dumpMtimeMs)
+      ? provenance.helperFingerprint
+      : isThisDump(input.importedDumpMtimeMs)
+        ? input.projectHelperFingerprint
+        : null;
+  const helperUnknown = dump != null && dumpHelperFingerprint == null;
   const helperChanged =
-    recordedHelperFingerprint != null && recordedHelperFingerprint !== helperFingerprint;
+    dumpHelperFingerprint != null && dumpHelperFingerprint !== helperFingerprint;
   const newerThanImport =
     dump != null && (input.importedDumpMtimeMs == null || dump.mtimeMs > input.importedDumpMtimeMs);
   const reason = !dump
@@ -573,6 +621,7 @@ export function evaluateDumpReuse(input: {
     dumpedAt: dump ? new Date(dump.mtimeMs).toISOString() : null,
     sizeBytes: dump?.sizeBytes ?? null,
     newerThanImport,
+    dumpHelperFingerprint,
     helperChanged,
     helperUnknown,
     modsChanged,
@@ -583,9 +632,10 @@ export function evaluateDumpReuse(input: {
 
 /** Whether the dump already on disk can be re-imported without re-running the game. */
 export async function dumpReuseStatus(): Promise<DumpReuse> {
+  const outputDir = factorioScriptOutputDir();
   let dump: { mtimeMs: number; sizeBytes: number } | null = null;
   try {
-    const s = await stat(join(factorioScriptOutputDir(), "data-raw-dump.json"));
+    const s = await stat(join(outputDir, DUMP_FILE));
     dump = { mtimeMs: s.mtimeMs, sizeBytes: s.size };
   } catch {
     dump = null; // never dumped, or a different script-output dir
@@ -603,7 +653,8 @@ export async function dumpReuseStatus(): Promise<DumpReuse> {
     dump,
     importedDumpMtimeMs: Number.isFinite(recordedMtime) ? recordedMtime : null,
     helperFingerprint: helperModFingerprint(),
-    recordedHelperFingerprint: metaMap.dump_helper_fingerprint ?? null,
+    provenance: await readDumpProvenance(outputDir),
+    projectHelperFingerprint: metaMap.dump_helper_fingerprint ?? null,
     modsChanged,
   });
 }
@@ -792,9 +843,13 @@ export function startDataSync(opts: { icons?: boolean; reuseDump?: boolean } = {
 
   void (async () => {
     try {
+      // The helper that shaped the dump being imported: ours for a fresh dump,
+      // whatever the dump's provenance says (possibly unknown) for a reuse.
+      let dumpHelper: string | null = helperModFingerprint();
       if (reuseDump) {
         // No game involved: nothing to lock, nothing to patch, nothing to restore.
         const reuse = await dumpReuseStatus();
+        dumpHelper = reuse.dumpHelperFingerprint;
         if (!reuse.available) {
           state.phase = "error";
           state.error = reuse.reason ?? "No dump found on disk.";
@@ -826,6 +881,7 @@ export function startDataSync(opts: { icons?: boolean; reuseDump?: boolean } = {
         try {
           step("dump-data", "factorio --dump-data (with planner integration)");
           await factorio("--dump-data");
+          await writeDumpProvenance(factorioScriptOutputDir(), helperModFingerprint());
           step("dump-locale", "factorio --dump-prototype-locale");
           await factorio("--dump-prototype-locale");
           if (icons) {
@@ -840,7 +896,7 @@ export function startDataSync(opts: { icons?: boolean; reuseDump?: boolean } = {
       }
       step("import", "importing dump into sqlite");
       const summary = importFactorioDump({
-        dumpPath: join(factorioScriptOutputDir(), "data-raw-dump.json"),
+        dumpPath: join(factorioScriptOutputDir(), DUMP_FILE),
         dbUrl: currentDatabaseFile(),
       });
       state.log.push(
@@ -874,13 +930,13 @@ export function startDataSync(opts: { icons?: boolean; reuseDump?: boolean } = {
 
       const fp = await modListFingerprint();
       const mods = await readMods();
-      // Dump provenance: which file we read and which helper shaped it, so a later
-      // "reuse the dump on disk" can tell whether it still describes this game.
-      // On a reuse run these re-stamp the same values, which is what we want —
-      // the dump is unchanged, only our reading of it advanced.
+      // Which dump this project imported and which helper shaped it. The sidecar
+      // next to the dump is what reuse checks first; this stamp is the fallback
+      // for dumps made before the sidecar existed. A reuse re-stamps the dump's
+      // own helper, never ours, and clears it when that is unknown.
       let dumpMtimeMs: number | null = null;
       try {
-        dumpMtimeMs = (await stat(join(factorioScriptOutputDir(), "data-raw-dump.json"))).mtimeMs;
+        dumpMtimeMs = (await stat(join(factorioScriptOutputDir(), DUMP_FILE))).mtimeMs;
       } catch {
         dumpMtimeMs = null; // imported from an explicit path elsewhere
       }
@@ -890,13 +946,14 @@ export function startDataSync(opts: { icons?: boolean; reuseDump?: boolean } = {
           // full provenance: name + version + enabled for every mod (see readMods)
           { key: "mod_list", value: JSON.stringify(mods) },
           { key: "synced_at", value: new Date().toISOString() },
-          { key: "dump_helper_fingerprint", value: helperModFingerprint() },
+          ...(dumpHelper != null ? [{ key: "dump_helper_fingerprint", value: dumpHelper }] : []),
           ...(dumpMtimeMs != null
             ? [{ key: "dump_mtime", value: String(Math.round(dumpMtimeMs)) }]
             : []),
         ])
         .onConflictDoUpdate({ target: meta.key, set: { value: sql`excluded.value` } })
         .run();
+      if (dumpHelper == null) db.delete(meta).where(eq(meta.key, "dump_helper_fingerprint")).run();
       state.log.push(`recorded ${mods.length} mods`);
       // Reference tables, machines, modules, technologies, and synthetic recipes
       // are all solver inputs. Advance SQLite's projection generation only after
