@@ -1,0 +1,19 @@
+app/src/lib/data-format.ts
+  s_995b207560eeb0::t_73dead57b37021 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "89344c455248ebd5de7c8f6d732dcf8fa35d522c",
+  "prompts": {},
+  "sessions": {
+    "s_995b207560eeb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cef9ec12-eec2-430e-8ba3-ca49ff9d4875",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
