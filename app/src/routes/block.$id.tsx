@@ -64,6 +64,11 @@ import { SnapshotSheet } from "../components/block/snapshot-sheet.tsx";
 import { GoalCard } from "../components/block/goal-card.tsx";
 import { BalanceCard } from "../components/block/balance-card.tsx";
 import { RecipeGrid } from "../components/block/recipe-grid.tsx";
+import {
+  currentFills,
+  suggestionInputs,
+  type SuggestionResult,
+} from "../components/block/module-suggestions.ts";
 import type { RowOverlayOpeners } from "../components/block/recipe-row.tsx";
 import { BlockFlowView } from "../components/block/block-flow-view.tsx";
 import type { LogiView } from "../components/block/solve-view.ts";
@@ -406,13 +411,20 @@ function Block({ blockId }: { blockId: number }) {
       })),
     [coreSolve],
   );
+  const suggestionKeys = useMemo(
+    () => suggestionInputs(solvedInput ?? {}, suggestionRows),
+    [solvedInput, suggestionRows],
+  );
   const suggest =
     !!solvedInput &&
     coreSolve?.status === "solved" &&
     coreSolve.rows.some((row) => (row.machine?.moduleSlots ?? 0) > 0);
   const moduleSuggestions = useQuery({
     queryKey: ["moduleSuggestions", blockId, solvedInput, suggestionRows],
-    queryFn: () => moduleSuggestionsFn({ data: { data: solvedInput!, rows: suggestionRows } }),
+    queryFn: async (): Promise<SuggestionResult> => ({
+      inputs: suggestionKeys,
+      fills: await moduleSuggestionsFn({ data: { data: solvedInput!, rows: suggestionRows } }),
+    }),
     enabled: suggest,
     staleTime: Infinity,
     // Each key embeds one saved doc + its rates; discard the previous payload
@@ -420,6 +432,7 @@ function Block({ blockId }: { blockId: number }) {
     gcTime: 0,
     // Hold the last suggestions while the next solve's suggestions load, so
     // unchanged rows don't drop their hint and re-render twice per edit (#154).
+    // `currentFills` drops the held fill of any row whose inputs changed.
     placeholderData: keepPreviousData,
   });
   // Each solve and suggestion fetch returns fresh objects. Sharing the parts
@@ -429,7 +442,7 @@ function Block({ blockId }: { blockId: number }) {
   const res = useMemo(() => {
     if (!coreSolve) return undefined;
     // a disabled query still reports the held placeholder, so gate on `suggest`
-    const suggestions = (suggest ? moduleSuggestions.data : undefined) ?? {};
+    const suggestions = suggest ? currentFills(moduleSuggestions.data, suggestionKeys) : {};
     return replaceEqualDeep(prevRes.current, {
       ...coreSolve,
       rows: coreSolve.rows.map((row) => ({
@@ -437,7 +450,7 @@ function Block({ blockId }: { blockId: number }) {
         suggestedModules: suggestions[row.recipe],
       })),
     });
-  }, [coreSolve, suggest, moduleSuggestions.data]);
+  }, [coreSolve, suggest, moduleSuggestions.data, suggestionKeys]);
   useEffect(() => {
     prevRes.current = res;
   }, [res]);
