@@ -132,8 +132,8 @@ Each recipe row shows its selected machine and required building count.
 - Use the module control to fill module slots or override the block's preferred defaults.
   The picker offers only modules the building and recipe accept, in its own slots or in a
   beacon. A building with no effects allowed, such as Pyanodons' Assembling machine 2, shows
-  no module control at all. Quality modules are never offered, because PyOps does not model
-  quality output.
+  no module control at all. Quality modules are not offered yet, because the planner can't
+  show quality output.
 - Pyanodons shuts a machine down when its AM/FM beacons interfere: two beacons that share an
   AM or FM level, or two copies of one beacon. (With the `future-beacons` setting off, only
   beacons with the same AM and FM interfere.) The module control turns red with a warning

@@ -144,10 +144,11 @@ The importer converts Factorio's flexible prototype shapes into stable relationa
   Boilers, generators, pumps, reactors, and agricultural towers are not effect receivers
   and store `[]`;
 - each module's quality effect (`eff_quality`) and each recipe's `allow_quality` (engine
-  default true). Quality output is not modelled, so these only gate module choice: a
-  module with a positive quality effect never reaches a machine whose `allowed_effects`
-  lacks quality, and the pickers, templates, and auto-fill never offer one. Pyanodons has
-  no module with a positive quality effect, so this changes nothing there;
+  default true). The solver splits products by quality (see
+  [Quality](./solver.md#quality)). A module with a positive quality effect never reaches a
+  machine whose `allowed_effects` lacks quality. Until the planner shows quality, the
+  pickers, templates, and auto-fill never offer one. Pyanodons has no module with a positive
+  quality effect, so this changes nothing there;
 - each electric machine's and lab's constant drain (`drain_w`). The dump only has a `drain`
   key when the prototype sets one; otherwise the engine default applies, which is
   `energy_usage / 30` for crafting machines (assembling machines, furnaces, rocket silos) and
@@ -155,7 +156,7 @@ The importer converts Factorio's flexible prototype shapes into stable relationa
 - each crafting machine's, mining drill's, and lab's effect receiver: its base effect, effect
   limits, and whether modules and beacons apply (engine defaults filled in; null when the
   prototype sets none). Quality's base effect and limits are stored too (default limits
-  0 to 1000), though nothing reads them yet;
+  0 to 1000);
 - each recipe's `allow_speed`, `allow_consumption`, and `allow_pollution` (engine default
   true). Module placement does not read them yet;
 - quality prototypes and the other quality fields (see [Quality data](#quality-data));
@@ -306,11 +307,11 @@ duplicate recipes.
 
 ### Quality identity
 
-The solver does not model quality, but the stored data has room for it. Normal quality is
-always written as no quality at all. `block_flows`, `block_machines`, and `built_machines`
-have a nullable `quality` column, and null means normal, so every Py row reads the same as
-before. Block documents have no quality field, so every existing document reads as
-all-normal.
+Normal quality is always written as no quality at all. `block_flows`, `block_machines`, and
+`built_machines` have a nullable `quality` column, and null means normal, so every Py row
+reads the same as before. Block documents name other qualities with optional fields and
+`name@quality` keys (see [Quality](./solver.md#quality)), so a document without them reads
+as all-normal.
 
 The importer records whether the dump has quality in the `has_quality` metadata key, which
 `dataCapabilities()` reports as `hasQuality`. It is true only when the dump's `normal`
@@ -320,8 +321,8 @@ A project imported before the key existed reports `hasQuality: false` until its 
 
 ### Quality data
 
-The importer reads everything quality needs from the dump, but the solver does not use it
-yet. A dump only holds the values a mod set, so the importer fills in Factorio 2.1's
+The importer reads everything the quality solver needs from the dump. A dump only holds the
+values a mod set, so the importer fills in Factorio 2.1's
 documented defaults (`QualityPrototype` and `RecipePrototype` in
 `doc-html/prototype-api.json`). `db/quality-import.ts` holds those rules.
 

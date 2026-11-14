@@ -15,6 +15,7 @@ The main implementation lives under `app/src/solver/`:
 - `lp.ts` builds and solves the HiGHS model;
 - `diagnose.ts` explains infeasible constraints;
 - `temps.ts` expands temperature-sensitive fluid identities;
+- `quality.ts` expands quality ranges and splits products by quality;
 - `subblock.ts` composes separately solved row groups;
 - `migrate.ts` normalizes persisted block documents at the solver boundary.
 
@@ -196,6 +197,136 @@ qualifier columns. Factory Overview presents those contracts as separate localiz
 fluid has multiple producible temperatures, without inventing fluid prototypes. Its drill-down
 queries compare the same normalized qualifier key, so a one-point consumer range matches its exact
 producer but a wider range remains a different connection.
+
+## Quality
+
+Quality is a second pure input transform, `expandQualities` in `quality.ts`. It runs before
+composed sub-blocks and the temperature expansion. The LP core gains only one thing for it:
+a count or capacity pin can bound the sum of several columns.
+
+### Identity
+
+A good at a quality is a quality key, written by `lib/quality.ts`. Normal is the bare name.
+Any other quality is `name@quality`, such as `iron-plate@rare`. The same key is the solver's
+internal good name, so `iron-plate` and `iron-plate@rare` are separate LP goods with
+separate balances. Fluids never carry quality.
+
+The block document names qualities the same way:
+
+| Field                             | Meaning                                                            |
+| --------------------------------- | ------------------------------------------------------------------ |
+| `rowQuality[recipe].min` / `.max` | The qualities the row runs at. Missing means normal only.          |
+| `rowQuality[recipe].machine`      | The row's machine quality.                                         |
+| `rowQuality[recipe].modules`      | The quality of the modules in the machine's own slots.             |
+| `beacons[…].quality`              | The beacon building's quality.                                     |
+| `beacons[…].moduleQuality`        | The quality of the modules in that beacon.                         |
+| `goals[…].quality`                | An item goal's quality.                                            |
+| `made` entries                    | Quality keys: `iron-plate` is normal only, `iron-plate@rare` rare. |
+| drain and share pins: `quality`   | The quality of the pinned item.                                    |
+
+Every field defaults to normal, so a Py document has none of them and reads as before.
+
+### Range rows
+
+One block row covers a range of qualities with one machine and module setup. The transform
+gives each quality in the range its own LP column: `recipe` at normal and `recipe@rare`
+above it. The LP picks each column's rate, and the result folds the columns back onto the
+row. The row reports one rate and one machine count, plus `qualityRates` with each
+quality's share. A recipe whose `can_set_quality` is false, such as a fluid-only recipe or
+a synthetic one, runs at normal only.
+
+A column at quality q eats its item ingredients at exactly q. A consumer at q needs exactly
+q, so there are no ranges, pools, or selectors as there are for temperatures. A burner's
+fuel and burnt result stay normal whatever the row's quality.
+
+A count or capacity pin on a row bounds its total rate across all its columns. A share pin
+names a (good, quality): the row's column at that quality takes its share of that quality's
+production. A pin over several columns doesn't count as a fixed intake when another share
+pin uses the "remaining" base.
+
+### The split
+
+A column's item products split over its quality and the levels above it. With total
+quality effect Q, the chance of at least one step up from quality q is
+`min(1, Q × next_probability(q))`. Each further step multiplies by the `chain_probability`
+of the quality just reached. The exact shares are the differences. Productivity applies
+first, so the split takes the productivity-scaled amount.
+
+Four normal quality module 3s give Q = 0.1. In Factorio 2.1 every level has
+`next_probability` 1 and `chain_probability` 0.1, so a normal craft comes out 90% normal,
+9% uncommon, 0.9% rare, 0.09% epic, and 0.01% legendary.
+
+Chances past the best quality the research horizon unlocks land on that quality. A quality
+is unlocked when an `unlock-quality` technology for it is within the horizon, or when no
+technology unlocks it. In Future mode every quality is unlocked.
+
+This follows YAFC-CE (`ProductionTableContent.cs:548-588`) with one difference. YAFC-CE
+clamps each cumulative chance to 1 after the chain factor. Factorio's `chain_probability` is
+a conditional chance after a step up, so PyOps clamps only the first step. The two differ
+only when `Q × next_probability > 1`.
+
+### Effects
+
+`computeEffects` sums each module's quality effect like the other effects. A recipe with
+`allow_quality = false` drops module and beacon quality, and the machine's base quality
+applies either way. The total clamps to the machine's `quality_limits` (low 0 by default)
+and floors at 0, since PyOps doesn't model quality going down.
+
+Entity quality uses the imported multipliers, not YAFC-CE's hard-coded 30% and 0.2 per level
+(`server/quality-effects.ts`):
+
+- A module's effects scale by the quality's module multiplier for each effect, weighted by
+  the module's `<effect>_quality_multiplier`. By default only the beneficial side scales, so
+  a quality module's −5% speed stays −5%. The result floors to whole percent, and the quality
+  effect floors to the import's `quality_effect_step` (0.01% for Factorio 2.1). A legendary
+  quality module 3 gives 0.025 × 2.5 = 6.25%.
+- A beacon gains `distribution_effectivity_bonus_per_quality_level` per level, its power
+  scales by `beacon_power_usage_multiplier`, and its slots grow when it opts in.
+- A crafting machine's speed scales by its per-quality override or the quality's
+  `crafting_machine_speed_multiplier`. Its energy use and slots change only when it opts in.
+  Drills, labs, boilers, and generators keep their base values.
+
+A module or beacon at a quality is looked up under its quality key, so `computeEffects`
+reads a legendary module like any other.
+
+### Quality loops
+
+A loop needs no special code. Recycling recipes are ordinary recipes in the dump, and the
+LP already solves cycles. For rare gears from normal plates:
+
+1. Run the gear row at normal to rare and the recycling row at normal to uncommon.
+2. Put the goal on `iron-gear-wheel` at rare.
+3. Drain normal and uncommon gears, so the recycler eats them.
+4. Mark `iron-plate@uncommon` and `iron-plate@rare` made, so recycled plates stay in the
+   loop instead of being imported.
+
+Normal plates stay free and import. `solver/quality.test.ts` derives this loop's steady
+state by hand and checks the LP against it.
+
+### Science packs and labs
+
+A quality science pack lasts `tool_durability_multiplier` times as long (1 + level by
+default), so a science bank pack keyed `automation-science-pack@rare` costs a third of the
+packs for the same research. YAFC-CE counts it the same way, as level + 1 normal packs. The
+bank's `labQuality` scales research speed by `lab_research_speed_multiplier`. A lab with
+`uses_quality_drain_modifier` also drains packs at `science_pack_drain_multiplier`.
+
+### Results and persistence
+
+Boundary flows keep the quality key through the solve and the post-solve fuel and power
+accounting. `boundaryFlows` splits it when caching: `block_flows` stores the item and a
+`quality` column, null for normal. `block_machines.quality` holds the row's machine quality.
+A row has one machine quality across its range, so the table's key stays (block, machine,
+recipe). Display names for quality goods read "Iron gear wheel (Rare)".
+
+### What isn't modelled yet
+
+- The planner UI for quality: range controls, quality pickers, badges, and per-quality
+  factory rollups. Until then module pickers, templates, and auto-fill don't offer quality
+  modules, and factory views add every quality of an item together.
+- Quality going down (`previous_probability`), and products' `quality_min`, `quality_max`,
+  and `quality_change`. Only Space Age uses the last three.
+- Cost analysis prices every quality at normal, as YAFC-CE does.
 
 ## Solve outcomes and diagnosis
 
@@ -584,6 +715,9 @@ Keep solver tests close to the mathematical layer:
 - `lp.test.ts` for constraints, cycles, boundary flows, and deterministic outcomes;
 - `diagnose.test.ts` for provenance and repair sets;
 - `temps.test.ts` for temperature expansion and folding;
+- `quality.test.ts` for the quality split, range expansion, and a hand-derived recycler loop;
+- `quality-effects.test.ts` and `block-quality.test.ts` for entity quality and a quality block
+  solved end to end;
 - `subblock.test.ts` for nested contracts and flat-equivalence cases;
 - focused compute/effects tests for machines, fuels, modules, research, and cached results;
 - `factory-plan.test.ts` for pins, reachability, imports, and validated apply;
