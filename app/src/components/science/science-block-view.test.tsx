@@ -29,6 +29,7 @@ const result = (labSpeedBonus: number) => ({
   labProductivityBonus: 0,
   packDemand: { "automation-science-pack": 1 },
   beaconBuildings: [],
+  beaconInterference: [],
   upkeep: {},
   totalPowerW: 0,
   unsupported: [],

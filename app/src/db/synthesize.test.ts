@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
-import { ELECTRICITY, FLUID_FUEL, HEAT, synthesizePass2 } from "./synthesize.ts";
+import { ELECTRICITY, FLUID_FUEL, HEAT, effectCarrier, synthesizePass2 } from "./synthesize.ts";
 import { type TestDb, makeTestDb } from "./test-helpers.ts";
 
 let fx: TestDb;
@@ -604,22 +604,59 @@ describe("synthesizePass2 fluid fuel (#25)", () => {
   });
 });
 
+describe("effectCarrier", () => {
+  // the hidden beacons of current Py, as data-raw dumps them
+  const beacons = {
+    "hidden-beacon-vatbrain": { hidden: true, allowed_module_categories: ["vatbrain"] },
+    "hidden-beacon-turd": {
+      hidden: true,
+      allowed_module_categories: ["productivity", "speed", "vatbrain", "fawogae"],
+    },
+    "beacon-AM1-FM1": { allowed_module_categories: ["vatbrain"] },
+  };
+
+  it("picks the narrowest hidden beacon that accepts the broadcast categories", () => {
+    expect(effectCarrier(beacons, ["vatbrain"])).toBe("hidden-beacon-vatbrain");
+  });
+
+  it("finds an older carrier name the same way", () => {
+    const { "hidden-beacon-vatbrain": _, ...rest } = beacons;
+    expect(
+      effectCarrier(
+        { ...rest, "hidden-beacon": { hidden: true, allowed_module_categories: ["vatbrain"] } },
+        ["vatbrain"],
+      ),
+    ).toBe("hidden-beacon");
+  });
+
+  it("returns null when no hidden beacon accepts the categories", () => {
+    expect(effectCarrier(beacons, ["sap-mk01"])).toBeNull();
+    expect(effectCarrier(beacons, [])).toBeNull();
+  });
+});
+
 describe("synthesizePass2 effect beacons", () => {
   const seedCarrier = () =>
     fx.db.exec(`INSERT INTO beacons
       (name, display, distribution_effectivity, module_slots, energy_usage_w, hidden,
        allowed_effects, allowed_module_categories, profile)
-      VALUES ('hidden-beacon','Hidden beacon',1,1,1,1,NULL,'["vatbrain"]',NULL)`);
+      VALUES ('hidden-beacon-vatbrain','Hidden beacon',1,1,1,1,NULL,'["vatbrain"]',NULL)`);
 
   const withExport = {
     ...raw,
+    beacon: {
+      "hidden-beacon-vatbrain": { hidden: true, allowed_module_categories: ["vatbrain"] },
+    },
+    module: {
+      "vatbrain-1": { category: "vatbrain" },
+      "vatbrain-4": { category: "vatbrain" },
+    },
     "mod-data": {
       "pyops-effect-beacons": {
         data: {
           beacons: [
             {
               machine: "vat-brain",
-              beacon: "hidden-beacon",
               energy_usage: 900_000,
               crafting_speed: 1,
               tiers: [

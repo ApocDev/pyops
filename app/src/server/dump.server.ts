@@ -235,15 +235,15 @@ end
 -- a module effect through a script-spawned beacon. Pyanodons' Vatbrain
 -- biocomputer is one: it runs a brain-food recipe that consumes a cartridge and
 -- yields no product, and while that craft runs a script enables a hidden beacon
--- holding the matching vatbrain module. The machine->beacon->tier mapping lives
--- in control-stage Lua that the data stage cannot require, so it is reconstructed
--- here from prototypes and exported as mod-data. Everything downstream then reads
--- plain data instead of knowing anything about Py.
+-- holding the matching vatbrain module. The machine->tier mapping lives in
+-- control-stage Lua that the data stage cannot require, so it is reconstructed
+-- here from prototypes and exported as mod-data. The importer finds the hidden
+-- carrier beacon itself, from the tier modules' category, because Py has renamed
+-- it before (hidden-beacon, then hidden-beacon-vatbrain).
 local effect_beacons = {}
 do
     local host = data.raw["assembling-machine"]["vat-brain"]
-    local carrier = data.raw.beacon["hidden-beacon"]
-    if host and carrier then
+    if host then
         -- recipes this machine can run that yield nothing: its "fuel" options
         local cats = {}
         for _, c in pairs(host.crafting_categories or {}) do cats[c] = true end
@@ -273,7 +273,6 @@ do
         if #tiers > 0 then
             table.insert(effect_beacons, {
                 machine = "vat-brain",
-                beacon = "hidden-beacon",
                 energy_usage = host.energy_usage,
                 crafting_speed = host.crafting_speed or 1,
                 tiers = tiers,
@@ -284,6 +283,52 @@ end
 if #effect_beacons > 0 then
     data:extend {{type = "mod-data", name = "pyops-effect-beacons", data = {beacons = effect_beacons}}}
     log("pyops-dump: exported " .. #effect_beacons .. " effect beacon(s)")
+end
+
+-- Beacon interference: Py's control script (pycoalprocessing scripts/beacons.lua,
+-- beacon_check) disables a machine that two conflicting (diet-)beacon-AMx-FMy
+-- reach. With the startup setting future-beacons on, two such beacons conflict
+-- when they share an AM level or an FM level; with it off, only when they share
+-- both. Exported as plain data: each beacon lists the groups it occupies, and two
+-- beacons on one machine conflict when they share a group. The exempt list
+-- mirrors the script's blacklist (alien-life buildings); the script matches it
+-- with the -mk0x suffix stripped, so every tier of those buildings is listed.
+if mods["pycoalprocessing"] then
+    local setting = settings.startup["future-beacons"]
+    local future = setting ~= nil and setting.value == true
+    local groups = {}
+    for _, prefix in pairs({"beacon", "diet-beacon"}) do
+        for am = 1, 5 do
+            for fm = 1, 5 do
+                local name = prefix .. "-AM" .. am .. "-FM" .. fm
+                if data.raw.beacon[name] then
+                    groups[name] = future and {"AM" .. am, "FM" .. fm} or {"AM" .. am .. "-FM" .. fm}
+                end
+            end
+        end
+    end
+    local blacklist = {}
+    for _, name in pairs({
+        "antelope-enclosure", "arqad-hive", "arthurian-pen", "auog-paddock", "cridren-enclosure",
+        "dhilmos-pool", "dingrits-pack", "fish-farm", "kmauts-enclosure", "mukmoux-pasture",
+        "phadai-enclosure", "phagnot-corral", "prandium-lab", "ez-ranch", "rc", "scrondrix-pen",
+        "simik-den", "trits-reef", "ulric-corral", "vonix-den", "vrauks-paddock", "xenopen",
+        "xyhiphoe-pool", "zipir-reef", "cadaveric-arum", "fwf", "grods-swamp",
+        "guar-gum-plantation", "kicalk-plantation", "moondrop-greenhouse", "moss-farm",
+        "ralesia-plantation", "rennea-plantation", "sap-extractor", "seaweed-crop",
+        "sponge-culture", "tuuphra-plantation", "yotoi-aloe-orchard", "bhoddos-culture",
+        "fawogae-plantation", "navens-culture", "yaedols-culture",
+    }) do blacklist[name] = true end
+    local exempt = {}
+    for _, type_name in pairs({"assembling-machine", "furnace", "rocket-silo", "mining-drill", "lab"}) do
+        for name in pairs(data.raw[type_name] or {}) do
+            if blacklist[(name:gsub("%-mk..+", ""))] then table.insert(exempt, name) end
+        end
+    end
+    if next(groups) then
+        data:extend {{type = "mod-data", name = "pyops-beacon-interference", data = {beacons = groups, exempt = exempt}}}
+        log("pyops-dump: exported beacon interference (future-beacons " .. tostring(future) .. ")")
+    end
 end
 `;
 

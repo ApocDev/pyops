@@ -755,3 +755,117 @@ describe("importFactorioDump — meta is not the importer's to clear", () => {
     db.close();
   });
 });
+
+describe("importFactorioDump — Py beacon exports", () => {
+  // Current Py prototypes, trimmed: the Vatbrain biocomputer, its hidden carrier
+  // `hidden-beacon-vatbrain`, the TURD carrier (which also accepts vatbrains), one
+  // AM/FM beacon, and the dump helper's two mod-data exports.
+  const raw = {
+    "assembling-machine": {
+      "vat-brain": {
+        crafting_categories: ["vat"],
+        crafting_speed: 1,
+        energy_usage: "900kW",
+        energy_source: { type: "electric" },
+      },
+      "chemical-plant": {
+        crafting_categories: ["chemistry"],
+        crafting_speed: 1,
+        energy_usage: "210kW",
+        energy_source: { type: "electric" },
+      },
+      "fawogae-plantation-mk02": {
+        crafting_categories: ["fawogae"],
+        crafting_speed: 1,
+        energy_usage: "100kW",
+        energy_source: { type: "electric" },
+      },
+    },
+    beacon: {
+      "hidden-beacon-vatbrain": {
+        hidden: true,
+        module_slots: 1,
+        energy_usage: "1W",
+        distribution_effectivity: 1,
+        allowed_module_categories: ["vatbrain"],
+      },
+      "hidden-beacon-turd": {
+        hidden: true,
+        module_slots: 1,
+        energy_usage: "1W",
+        distribution_effectivity: 1,
+        allowed_module_categories: ["productivity", "speed", "vatbrain", "fawogae"],
+      },
+      "beacon-AM2-FM2": {
+        module_slots: 2,
+        energy_usage: "4MW",
+        distribution_effectivity: 0.8,
+        allowed_module_categories: ["productivity", "speed"],
+      },
+    },
+    module: {
+      "vatbrain-4": { category: "vatbrain", hidden: true, effect: { productivity: 1 } },
+    },
+    "mod-data": {
+      "pyops-effect-beacons": {
+        data: {
+          beacons: [
+            {
+              machine: "vat-brain",
+              energy_usage: "900kW",
+              crafting_speed: 1,
+              tiers: [
+                {
+                  recipe: "brain-food-04",
+                  module: "vatbrain-4",
+                  item: "brain-cartridge-04",
+                  energy: 20,
+                },
+              ],
+            },
+          ],
+        },
+      },
+      "pyops-beacon-interference": {
+        data: {
+          beacons: { "beacon-AM2-FM2": ["AM2", "FM2"] },
+          exempt: ["fawogae-plantation-mk02"],
+        },
+      },
+    },
+  };
+
+  it("builds the vat-brain beacon from the derived carrier, with power and upkeep", () => {
+    const db = runImport(raw);
+    expect(
+      db
+        .prepare(
+          `SELECT hidden, energy_usage_w w, module_slots slots, distribution_effectivity de,
+                  allowed_module_categories amc FROM beacons WHERE name = 'vat-brain'`,
+        )
+        .get(),
+    ).toEqual({ hidden: 0, w: 900_000, slots: 1, de: 1, amc: '["vatbrain"]' });
+    expect(db.prepare(`SELECT module, item, per_sec perSec FROM beacon_upkeep`).all()).toEqual([
+      { module: "vatbrain-4", item: "brain-cartridge-04", perSec: 0.05 },
+    ]);
+    db.close();
+  });
+
+  it("stores interference groups and exempt machines", () => {
+    const db = runImport(raw);
+    const groups = db.prepare(`SELECT name, interference FROM beacons ORDER BY name`).all();
+    expect(groups).toEqual([
+      { name: "beacon-AM2-FM2", interference: '["AM2","FM2"]' },
+      { name: "hidden-beacon-turd", interference: null },
+      { name: "hidden-beacon-vatbrain", interference: null },
+      { name: "vat-brain", interference: null },
+    ]);
+    const exempt = db
+      .prepare(
+        `SELECT name FROM crafting_machines WHERE beacon_interference_exempt = 1 ORDER BY name`,
+      )
+      .all();
+    expect(exempt).toEqual([{ name: "fawogae-plantation-mk02" }]);
+    db.close();
+  });
+});

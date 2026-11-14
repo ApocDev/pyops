@@ -1734,6 +1734,19 @@ describe("modulePickerData sole-carrier rescue", () => {
     const p = modulePickerData("research-pack", "lab")!;
     expect(p.beacons.find((b) => b.name === "hidden-beacon")?.modules).not.toContain("vatspeed");
   });
+
+  it("offers the vat-brain beacon instead of its hidden carrier once it is imported", () => {
+    seed();
+    // the importer's promoted beacon: visible, vatbrain-only, the building's power
+    db.run(sql`
+      INSERT INTO beacons (name, display, distribution_effectivity, module_slots, energy_usage_w, hidden, allowed_module_categories)
+      VALUES ('vat-brain','Vatbrain biocomputer',1,1,900000,0,'["vatbrain"]')
+    `);
+    const p = modulePickerData("research-pack", "lab")!;
+    const vat = p.beacons.find((b) => b.name === "vat-brain");
+    expect(vat).toMatchObject({ energyUsageW: 900_000, modules: ["vatbrain-4"] });
+    expect(p.beacons.map((b) => b.name)).not.toContain("hidden-beacon");
+  });
 });
 
 describe("goodOrderRank", () => {

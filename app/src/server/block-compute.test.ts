@@ -1643,6 +1643,57 @@ describe("computeBlock beacon upkeep and sharing", () => {
   });
 });
 
+// Py disables a machine whose AM/FM beacons interfere. Groups as the dump helper
+// exports them with future-beacons on; the farm is on Py's exempt list.
+describe("computeBlock beacon interference", () => {
+  let fx: TestDb;
+
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    fx.db.exec(`
+      INSERT INTO items (name, display) VALUES ('plate','Plate'),('spd','Speed module');
+      INSERT INTO crafting_machines (name, display, kind, crafting_speed, module_slots, energy_usage_w,
+                                     energy_source, beacon_interference_exempt)
+      VALUES ('plant','Chemical plant','assembling-machine',1,3,210000,'electric',0),
+             ('farm','Farm','assembling-machine',1,2,100000,'electric',1);
+      INSERT INTO machine_categories (machine, category) VALUES ('plant','chem'),('farm','grow');
+      INSERT INTO recipes (name, display, kind, category, energy_required, enabled, hidden, allow_productivity)
+      VALUES ('make-plate','Plate','real','chem',1,1,0,0),('grow-plate','Plate','real','grow',1,1,0,0);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount)
+      VALUES ('make-plate',0,'item','plate',1),('grow-plate',0,'item','plate',1);
+      INSERT INTO modules (name, display, category, hidden, tier, eff_speed, eff_productivity, eff_consumption)
+      VALUES ('spd','Speed module','speed',0,3,0.5,0,0.7);
+      INSERT INTO beacons (name, display, distribution_effectivity, module_slots, energy_usage_w,
+                           hidden, interference)
+      VALUES ('beacon-AM2-FM2','Beacon AM2 FM2',0.8,2,4000000,0,'["AM2","FM2"]'),
+             ('beacon-AM2-FM3','Beacon AM2 FM3',0.4,2,8000000,0,'["AM2","FM3"]'),
+             ('beacon-AM3-FM3','Beacon AM3 FM3',1.8,2,8000000,0,'["AM3","FM3"]');
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+  afterEach(() => fx.cleanup());
+
+  const solve = (recipe: string, beacons: string[]) =>
+    computeBlock({
+      goals: [{ name: "plate", rate: 1 }],
+      recipes: [recipe],
+      beacons: { [recipe]: beacons.map((beacon) => ({ beacon, modules: ["spd"], count: 1 })) },
+    });
+
+  it("flags beacons that share an AM level, and leaves a clean pair alone", async () => {
+    const bad = await solve("make-plate", ["beacon-AM2-FM2", "beacon-AM2-FM3"]);
+    expect(bad.rows[0]!.beaconInterference).toEqual(["beacon-AM2-FM2", "beacon-AM2-FM3"]);
+    const ok = await solve("make-plate", ["beacon-AM2-FM2", "beacon-AM3-FM3"]);
+    expect(ok.rows[0]!.beaconInterference).toEqual([]);
+  });
+
+  it("never flags a machine Py exempts", async () => {
+    const r = await solve("grow-plate", ["beacon-AM2-FM2", "beacon-AM2-FM3"]);
+    expect(r.rows[0]!.beaconInterference).toEqual([]);
+  });
+});
+
 describe("burnt result of an imported fuel feeding an in-block recipe", () => {
   let fx: TestDb;
 

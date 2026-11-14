@@ -87,6 +87,25 @@ const normResults = (src: { results?: unknown; result?: string; count?: number }
   return [];
 };
 
+/** The hidden beacon a script places to broadcast an effect building's modules:
+ * among hidden beacons accepting every one of `categories`, the one accepting the
+ * fewest categories overall. Derived rather than named because Py renames it
+ * (`hidden-beacon`, now `hidden-beacon-vatbrain`), and Py's TURD carrier also
+ * accepts vatbrain modules alongside ~60 other categories. */
+export function effectCarrier(
+  beacons: Record<string, any> | undefined,
+  categories: string[],
+): string | null {
+  if (!categories.length) return null;
+  let best: { name: string; size: number } | null = null;
+  for (const [name, b] of Object.entries(beacons ?? {})) {
+    const accepts = arr<string>(b?.allowed_module_categories);
+    if (!b?.hidden || !categories.every((c) => accepts.includes(c))) continue;
+    if (!best || accepts.length < best.size) best = { name, size: accepts.length };
+  }
+  return best?.name ?? null;
+}
+
 export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Record<string, number> {
   const { display, parseSI } = ctx;
 
@@ -822,12 +841,12 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
     /* ── effect beacons ────────────────────────────────────────────────────────
        A machine that produces nothing and exists only to broadcast a module
        effect through a script-spawned beacon. The dump helper reconstructs the
-       machine → beacon → tier mapping (it lives in control-stage Lua the data
-       stage cannot reach) and exports it as mod-data; here it becomes a REAL,
+       machine → tier mapping (it lives in control-stage Lua the data stage
+       cannot reach) and exports it as mod-data; here it becomes a REAL,
        non-hidden beacon named for the building you actually place, carrying the
        hidden carrier's distribution characteristics and the building's own power.
 
-       Two consequences fall out. The picker stops offering "Hidden beacon" and
+       Two consequences fall out. The picker stops offering the hidden carrier and
        offers the biocomputer instead, because the visible beacon now covers the
        vatbrain category and the sole-carrier rescue no longer fires. And each
        tier's cartridge becomes upkeep: the script enables the beacon only while
@@ -837,40 +856,28 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       db
         .prepare(
           `SELECT distribution_effectivity de, module_slots slots, allowed_effects ae,
-                  allowed_module_categories amc, profile FROM beacons WHERE name = ?`,
+                  profile FROM beacons WHERE name = ?`,
         )
         .get(name) as
-        | {
-            de: number | null;
-            slots: number;
-            ae: string | null;
-            amc: string | null;
-            profile: string | null;
-          }
+        | { de: number | null; slots: number; ae: string | null; profile: string | null }
         | undefined;
     for (const spec of arr<any>(
       (raw as Record<string, any>)["mod-data"]?.["pyops-effect-beacons"]?.data?.beacons,
     )) {
-      const carrier = spec?.beacon ? carrierOf(spec.beacon) : undefined;
-      if (!spec?.machine || !carrier) continue;
-      // Narrow to the categories this building actually broadcasts. The hidden
-      // carrier is a generic prototype accepting every category in the game, but
-      // the biocomputer only ever holds the module its selected recipe grants —
-      // inheriting the carrier's list would offer it as a home for any module.
+      if (!spec?.machine) continue;
+      // The categories this building actually broadcasts. The biocomputer only
+      // ever holds the module its selected recipe grants, so the promoted beacon
+      // accepts exactly these, never the carrier's wider list.
       const tierCategories = [
         ...new Set(
           arr<any>(spec.tiers)
-            .map(
-              (tier) =>
-                (
-                  db.prepare(`SELECT category FROM modules WHERE name = ?`).get(tier?.module) as
-                    | { category: string | null }
-                    | undefined
-                )?.category,
-            )
+            .map((tier) => raw.module?.[tier?.module]?.category as string | undefined)
             .filter((c): c is string => !!c),
         ),
       ];
+      const carrierName = effectCarrier(raw.beacon, tierCategories);
+      const carrier = carrierName ? carrierOf(carrierName) : undefined;
+      if (!carrier) continue;
       ins.beacon.run(
         spec.machine,
         display(spec.machine),
@@ -878,7 +885,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
         carrier.slots,
         parseSI(spec.energy_usage),
         carrier.ae,
-        tierCategories.length ? JSON.stringify(tierCategories) : carrier.amc,
+        JSON.stringify(tierCategories),
         carrier.profile,
       );
       for (const tier of arr<any>(spec.tiers)) {
@@ -889,6 +896,21 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       }
       counts.effectBeacons++;
     }
+
+    /* ── beacon interference ───────────────────────────────────────────────────
+       The dump helper reduces Py's interference rule to groups per beacon plus
+       a list of exempt machines (see lib/beacon-interference.ts). Applied after
+       every machine row exists, since this pass replaces some of them. */
+    const interference = (raw as Record<string, any>)["mod-data"]?.["pyops-beacon-interference"]
+      ?.data;
+    const setInterference = db.prepare(`UPDATE beacons SET interference = ? WHERE name = ?`);
+    for (const [name, groups] of Object.entries<unknown>(interference?.beacons ?? {})) {
+      if (arr(groups).length) setInterference.run(JSON.stringify(arr(groups)), name);
+    }
+    const setExempt = db.prepare(
+      `UPDATE crafting_machines SET beacon_interference_exempt = 1 WHERE name = ?`,
+    );
+    for (const name of arr<string>(interference?.exempt)) setExempt.run(name);
   });
 
   tx();

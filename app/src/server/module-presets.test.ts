@@ -233,6 +233,39 @@ describe("presetCompatibility", () => {
     );
     expect(res.ok).toBe(false);
   });
+  it("rejects a beacon set that Py's interference rule would disable", () => {
+    const beacon = (name: string, interference: string[]) => ({
+      name,
+      display: name,
+      modules: ["speed-module"],
+      interference,
+    });
+    const beacons = [
+      beacon("beacon-AM2-FM2", ["AM2", "FM2"]),
+      beacon("beacon-AM2-FM3", ["AM2", "FM3"]),
+    ];
+    const plant = picker(
+      { name: "chemical-plant", display: "Chemical plant", moduleSlots: 3 },
+      [],
+      {
+        beacons,
+      },
+    );
+    const pair = {
+      modules: [],
+      beacons: [
+        { beacon: "beacon-AM2-FM2", modules: ["speed-module"], count: 1 },
+        { beacon: "beacon-AM2-FM3", modules: ["speed-module"], count: 1 },
+      ],
+    };
+    expect(presetCompatibility(pair, plant, FACTS)).toEqual({
+      ok: false,
+      reason: "its beacons interfere, so Py disables Chemical plant",
+    });
+    // Py's exempt buildings ignore interference
+    const exempt = { ...plant, machine: { ...plant.machine, beaconInterferenceExempt: true } };
+    expect(presetCompatibility(pair, exempt, FACTS)).toEqual({ ok: true });
+  });
 });
 
 describe("defaultPresetLoadout", () => {

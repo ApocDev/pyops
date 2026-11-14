@@ -125,6 +125,8 @@ export type BeaconEff = {
   moduleSlots: number;
   energyUsageW: number | null;
   profile: number[] | null;
+  /** interference groups (lib/beacon-interference.ts); absent = none */
+  interference?: string[] | null;
 };
 
 /** Research-driven productivity for one recipe row (#92). */
