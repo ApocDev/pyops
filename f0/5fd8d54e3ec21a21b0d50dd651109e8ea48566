@@ -1,0 +1,21 @@
+app/e2e/mut/game-focus.e2e.ts
+  s_995b207560eeb0::t_5b758c893e78ee 92-107
+app/src/components/ui/toast.tsx
+  s_995b207560eeb0::t_b1f123208c8596 74-76,81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f05fd8d54e3ec21a21b0d50dd651109e8ea48566",
+  "prompts": {},
+  "sessions": {
+    "s_995b207560eeb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cef9ec12-eec2-430e-8ba3-ca49ff9d4875",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
