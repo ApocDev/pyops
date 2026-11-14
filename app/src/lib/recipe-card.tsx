@@ -438,6 +438,9 @@ type DiffInput = RecipeComp & { ignoredByProductivity?: number | null };
 // Always-on module effects a TURD choice grants; applied to the chosen recipe's
 // output rate (speed scales all outputs, productivity skips ignored ones).
 type RateBonus = { speed: number; prod: number };
+// The bonus as one recipe receives it: a recipe that disallows productivity
+// blocks the module's productivity, as in computeEffects.
+type AppliedBonus = RateBonus & { allowProductivity: boolean };
 
 const compAmount = (c: RecipeComp) =>
   c.amount ?? (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0);
@@ -457,13 +460,14 @@ type DiffCell = {
 /** Map a recipe's inputs/outputs by good, tagging each with its per-second rate
  * (only meaningful for outputs, where amount ÷ crafting time is the yield). `bonus`
  * is the chosen recipe's always-on module effects: speed scales every output,
- * productivity only the non-ignored ones (barrels/catalysts don't get duplicated).
+ * productivity only the non-ignored ones (barrels/catalysts don't get duplicated),
+ * and none on a recipe that disallows productivity.
  * Pass null for the base side (or a recipe the module doesn't touch). */
 function ioByName(
   comps: DiffInput[],
   time: number,
   withRate: boolean,
-  bonus: RateBonus | null,
+  bonus: AppliedBonus | null,
 ): Map<string, DiffCell> {
   const m = new Map<string, DiffCell>();
   for (const c of comps) {
@@ -472,7 +476,12 @@ function ioByName(
       const speedMult = bonus ? 1 + bonus.speed : 1;
       // productivity scales only the non-ignored part of the output (#93)
       const amount = bonus
-        ? prodScaledAmount(compAmount(c), 1 + bonus.prod, c.ignoredByProductivity)
+        ? prodScaledAmount(
+            compAmount(c),
+            1 + (bonus.allowProductivity ? bonus.prod : 0),
+            c.ignoredByProductivity,
+            bonus.allowProductivity,
+          )
         : compAmount(c);
       rate = ((amount * (c.probability ?? 1)) / time) * speedMult;
     }
@@ -563,7 +572,7 @@ function DiffGroup({
   timeA: number;
   timeB: number;
   rate: boolean;
-  bonusB?: RateBonus | null;
+  bonusB?: AppliedBonus | null;
 }) {
   const am = ioByName(a, timeA, rate, null);
   const bm = ioByName(b, timeB, rate, bonusB);
@@ -657,7 +666,7 @@ export function RecipeDiffCard({ a, b, bonus }: { a: string; b: string; bonus?: 
                   timeA={ta}
                   timeB={tb}
                   rate
-                  bonusB={bonus ?? null}
+                  bonusB={bonus ? { ...bonus, allowProductivity: rb.allowProductivity } : null}
                 />
               </div>
               {bonusParts.length > 0 && (

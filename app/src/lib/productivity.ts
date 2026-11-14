@@ -8,6 +8,11 @@
  * just 1); coal-liquefaction outputs 90 heavy-oil with 25 ignored (its own 25
  * heavy-oil catalyst input), so productivity scales only the net 65.
  *
+ * The amount only counts on a recipe that allows productivity. Factorio 2.1's
+ * ItemProductPrototype / FluidProductPrototype docs: "This value is ignored when
+ * allow_productivity is `false`." Such a recipe still gets the machine's base
+ * productivity (see `computeEffects`), and that bonus boosts the whole product.
+ *
  * Shared by the solver defs (block-compute), the what-if scenario (queries), and
  * the recipe-diff card, so every surface agrees.
  */
@@ -15,14 +20,16 @@
 /** Expected per-craft output of one product under a productivity multiplier:
  * `ignored + (amount − ignored) × prodMult`, with `ignored` clamped to
  * `[0, amount]` (a min/max product's average can sit below its ignored amount —
- * the bonus part never goes negative). `amount` is the average rolled amount;
+ * the bonus part never goes negative) and treated as 0 when the recipe
+ * disallows productivity. `amount` is the average rolled amount;
  * probability is NOT applied here (it multiplies base and bonus alike, so
  * callers keep it as a separate factor). */
 export function prodScaledAmount(
   amount: number,
   prodMult: number,
   ignoredByProductivity: number | null | undefined,
+  allowProductivity: boolean,
 ): number {
-  const ignored = Math.min(Math.max(ignoredByProductivity ?? 0, 0), amount);
+  const ignored = allowProductivity ? Math.min(Math.max(ignoredByProductivity ?? 0, 0), amount) : 0;
   return ignored + (amount - ignored) * prodMult;
 }

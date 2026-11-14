@@ -335,6 +335,13 @@ After import, `app/src/server/cost-analysis.server.ts` runs a YAFC-style linear 
 assigns intrinsic costs to goods and recipes. Cost is explanatory metadata used for
 comparison and prioritization; it does not choose the user's block recipe chain.
 
+Barrel fill and empty recipes get a 100× logistics penalty, so fluids are never priced
+through a barrel round trip and those recipes sort last in the recipe picker.
+`app/src/lib/barreling.ts` finds them by Pyanodons' barrel categories (`py-barreling`,
+`py-unbarreling`) or by vanilla's `fill-barrel` and `empty-barrel` subgroups, since vanilla
+barrel recipes import as plain `crafting`. The dependency explorer and the goal shortcut use
+the same check.
+
 Cost analysis runs before saved blocks are refreshed so every downstream reader sees one
 coherent reference-data generation.
 

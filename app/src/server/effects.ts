@@ -14,7 +14,9 @@
  * -0.9999`: unmoduled they barely run, and each +1 speed module adds 1× (10
  * fawogae modules = 10×, not 11×). Base productivity applies even on a
  * recipe that disallows productivity (only module, beacon and TURD productivity
- * are blocked there). Productivity clamps to its limits before
+ * are blocked there), and there it boosts the whole of each product: Factorio
+ * ignores `ignored_by_productivity` on such a recipe (see `prodScaledAmount`).
+ * Productivity clamps to its limits before
  * research is added, then to [0, recipe maximum_productivity] (+300% by
  * default; Py raises it to 1e6 on nearly every recipe).
  *

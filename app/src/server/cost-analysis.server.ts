@@ -13,8 +13,10 @@
  * Deliberate deviations from YAFC:
  *  - imported building footprints are not yet used by this cost model → constant size
  *  - no fuel-as-ingredient refinement, no pollution term, flat mining penalty
- *  - barrel fill/empty recipes get a heavy logistics penalty so fluids are
- *    never priced through barrel round-trips (and the recipes sort last)
+ *  - barrel fill/empty recipes (`isBarrelingRecipe`: Py's barrel categories
+ *    or vanilla's fill-barrel/empty-barrel subgroups) get a heavy logistics
+ *    penalty so fluids are never priced through barrel round-trips (and the
+ *    recipes sort last)
  *
  * Results land in the cost_analysis table: goods cost + per-recipe execution
  * cost (ingredients + logistics), plus two practicality measures per recipe
@@ -31,6 +33,7 @@
 import Database from "better-sqlite3";
 import highsLoader from "highs";
 
+import { isBarrelingRecipe } from "../lib/barreling.ts";
 import { configureSqliteConnection } from "./provision.ts";
 
 // YAFC constants (CostAnalysis.cs)
@@ -46,12 +49,11 @@ const MINING_PENALTY = 1.5;
 const BARREL_PENALTY = 100; // the user's call: barrels are an escape hatch, not an economy
 const SIZE = 5; // constant stand-in for building footprint
 
-const BARREL_CATEGORIES = new Set(["py-barreling", "py-unbarreling", "barreling", "barrelling"]);
-
 type RecipeRow = {
   name: string;
   kind: string;
   category: string | null;
+  subgroup: string | null;
   energyRequired: number | null;
   hidden: number;
   sourceEntity: string | null;
@@ -68,7 +70,7 @@ export async function computeCostAnalysis(dbFile: string): Promise<CostSummary> 
   // tech — creative/editor content like Editor Extensions)
   const recipes = db
     .prepare(
-      `SELECT r.name, r.kind, r.category, r.energy_required energyRequired, r.hidden, r.source_entity sourceEntity
+      `SELECT r.name, r.kind, r.category, r.subgroup, r.energy_required energyRequired, r.hidden, r.source_entity sourceEntity
        FROM recipes r
        WHERE r.hidden = 0
          AND (r.enabled = 1
@@ -143,7 +145,7 @@ export async function computeCostAnalysis(dbFile: string): Promise<CostSummary> 
     for (const c of prod) cost += c.amount * (c.kind === "fluid" ? COST_PER_FLUID : COST_PER_ITEM);
     for (const c of ing) cost += c.amount * (c.kind === "fluid" ? COST_PER_FLUID : COST_PER_ITEM);
     if (r.kind === "mining") cost *= MINING_PENALTY;
-    if (BARREL_CATEGORIES.has(r.category ?? "")) cost *= BARREL_PENALTY;
+    if (isBarrelingRecipe(r)) cost *= BARREL_PENALTY;
     logistics.set(r.name, cost);
 
     // Σ prod×c − Σ ing×c ≤ logistics  (terms merged per good)

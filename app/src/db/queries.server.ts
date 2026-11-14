@@ -891,7 +891,7 @@ export function computeRecipeScenario(opts: {
     // productivity scales only the non-ignored part of each product (#93)
     perSec:
       craftsPerSec *
-      prodScaledAmount(avgAmount(p), fx.prodMult, p.ignoredByProductivity) *
+      prodScaledAmount(avgAmount(p), fx.prodMult, p.ignoredByProductivity, r.allowProductivity) *
       (p.probability ?? 1),
   }));
   const inputs = r.ingredients.map((c) => ({

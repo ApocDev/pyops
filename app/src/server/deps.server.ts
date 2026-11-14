@@ -28,9 +28,8 @@ import {
   searchAll,
   type RecipeAvail,
 } from "../db/queries.server.ts";
+import { isBarrelingRecipe } from "../lib/barreling.ts";
 import { recipeDifferencesFor } from "./recipe-differences.server.ts";
-
-const BARREL_CATEGORIES = new Set(["py-barreling", "py-unbarreling", "barreling", "barrelling"]);
 
 export type DepsDir = "requires" | "requiredBy";
 export type DepsRootKind = "good" | "recipe";
@@ -103,10 +102,7 @@ function loadGraph(): Graph {
     .from(recipes)
     .where(eq(recipes.hidden, false))
     .all()
-    .filter(
-      (r) =>
-        !BARREL_CATEGORIES.has(r.category ?? "") && !isExcluded(r.name, r.category, r.subgroup),
-    );
+    .filter((r) => !isBarrelingRecipe(r) && !isExcluded(r.name, r.category, r.subgroup));
 
   const itemDisplay = new Map(
     db
@@ -539,7 +535,7 @@ export function depsSearch(
           .toLowerCase()
           .includes(nq) ||
           (r.display ?? "").toLowerCase().includes(q)) &&
-        !BARREL_CATEGORIES.has(r.category ?? "") &&
+        !isBarrelingRecipe(r) &&
         !isExcluded(r.name, r.category, r.subgroup),
     )
     .map((r) => ({ kind: "recipe" as const, name: r.name, display: r.display }));
