@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { goto, insertBlock, uniqueName, withDb } from "./helpers";
+import { expect, test, type Page } from "@playwright/test";
+import { goalRateButton, goto, insertBlock, uniqueName, withDb } from "./helpers";
 
 /**
  * Large blocks render lazily (#154): when the goals push the recipe grid far
@@ -7,11 +7,12 @@ import { goto, insertBlock, uniqueName, withDb } from "./helpers";
  * focus request from the flow view mounts them and brings its row into view
  * (#276).
  */
-test("a large block mounts its rows near the viewport and focuses a far row", async ({ page }) => {
-  // A mall-shaped block: one goal per recipe, enough goals to push the grid
-  // well past the mount distance below a 900px viewport. Single-product item
-  // recipes that never feed each other, so every row sizes from its own goal
-  // and the block always solves.
+
+/** A mall-shaped block: one goal per recipe, enough goals to push the grid
+ * well past the mount distance below a 900px viewport. Single-product item
+ * recipes that never feed each other, so every row sizes from its own goal
+ * and the block always solves. */
+function insertLargeBlock() {
   const candidates = withDb(
     (db) =>
       db
@@ -42,6 +43,20 @@ test("a large block mounts its rows near the viewport and focuses a far row", as
     goals: picks.map((p) => ({ name: p.product, rate: 0.01 })),
     recipes: picks.map((p) => p.name),
   });
+  return { id, picks };
+}
+
+/** Distinct keys the dev build's render tally saw since the last reset, by
+ * prefix (`goal`, `row`, `import`, `export`; see app/src/lib/render-count.ts). */
+async function renderedKeys(page: Page) {
+  const keys = await page.evaluate(() =>
+    Object.keys((window as { __pyopsRenders?: Record<string, number> }).__pyopsRenders ?? {}),
+  );
+  return (prefix: string) => keys.filter((k) => k.startsWith(`${prefix}:`)).length;
+}
+
+test("a large block mounts its rows near the viewport and focuses a far row", async ({ page }) => {
+  const { id, picks } = insertLargeBlock();
   const rows = page.locator("[data-recipe-row]");
 
   await goto(page, `/block/${id}`);
@@ -63,4 +78,74 @@ test("a large block mounts its rows near the viewport and focuses a far row", as
   const row = page.locator(`[data-recipe-row="${target.name}"]`);
   await expect(row).toHaveClass(/ring-primary/);
   await expect(row).toBeInViewport();
+});
+
+test("the browser find shortcut mounts a large block's rows so find can match them", async ({
+  page,
+}) => {
+  const { id, picks } = insertLargeBlock();
+  const rows = page.locator("[data-recipe-row]");
+  await goto(page, `/block/${id}`);
+  await expect(page.getByText("Solved", { exact: true })).toBeVisible();
+  // window.find (non-standard, so untyped) runs the browser's find-in-page
+  // search: (text, caseSensitive, backwards, wrapAround)
+  type Find = (
+    text: string,
+    caseSensitive: boolean,
+    backwards: boolean,
+    wrapAround: boolean,
+  ) => boolean;
+  const last = picks.at(-1)!.display;
+  const find = () =>
+    page.evaluate((text) => (window as { find?: Find }).find!(text, false, false, true), last);
+  await expect(rows).toHaveCount(0);
+  expect(await find()).toBe(false);
+
+  await page.keyboard.press("ControlOrMeta+f");
+  await expect(rows).toHaveCount(picks.length);
+  expect(await find()).toBe(true);
+});
+
+/** Edit the nth goal's rate and wait until the save (which returns the new
+ * solve the editor applies) lands on the undo stack. */
+async function editGoalRate(page: Page, n: number, value: string) {
+  const label = await page
+    .locator("[data-goal]")
+    .nth(n)
+    .getByRole("button", { name: /^Add a recipe that makes / })
+    .getAttribute("aria-label");
+  const display = label!.replace("Add a recipe that makes ", "");
+  await goalRateButton(page).nth(n).click();
+  const input = page.locator("input:focus");
+  await input.fill(value);
+  await input.press("Enter");
+  await expect(
+    page.locator("nav").getByRole("button", { name: `Undo: Set "${display}" rate` }),
+  ).toBeVisible({ timeout: 15_000 });
+}
+
+test("a goal edit re-renders only what it changed, not every tile, row and chip", async ({
+  page,
+}) => {
+  const { id, picks } = insertLargeBlock();
+  await goto(page, `/block/${id}`);
+  await expect(page.getByText("Solved", { exact: true })).toBeVisible();
+  await page.getByText(`Recipe (${picks.length})`).scrollIntoViewIfNeeded();
+  await expect(page.locator("[data-recipe-row]")).toHaveCount(picks.length);
+  // a first edit lets the page's remaining first-load queries settle
+  await editGoalRate(page, 9, "0.02");
+
+  await page.evaluate(() => {
+    (window as { __pyopsRenders?: Record<string, number> }).__pyopsRenders = {};
+  });
+  await editGoalRate(page, 10, "0.02");
+
+  // The edited goal's tile and recipe row, plus the boundary chips its recipe
+  // touches (about 1 tile, 2 rows, 3 chips). Rendering everything again would
+  // be 80 tiles, 80 rows, and about 180 chips.
+  const count = await renderedKeys(page);
+  expect(count("goal")).toBeGreaterThan(0); // the tally is live
+  expect(count("goal")).toBeLessThanOrEqual(5);
+  expect(count("row")).toBeLessThanOrEqual(5);
+  expect(count("import") + count("export")).toBeLessThanOrEqual(12);
 });

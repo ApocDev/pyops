@@ -222,15 +222,21 @@ on mobile.
 The block editor's recipe grid renders lazily so large blocks open fast. Its rows mount
 in a transition once the grid comes within 1000px of the block's scroll viewport
 (`data-block-scroll`), and each row uses `content-visibility: auto`, so the browser skips
-layout and paint for rows off screen. Three rules follow. To scroll to a row, set the
+layout and paint for rows off screen. The browser's find shortcut (`mod+f`) mounts the rows
+at once, so find-in-page can match them. Three rules follow. To scroll to a row, set the
 editor's `focusRecipe` rather than querying `[data-recipe-row]`: it mounts the rows, lays
 them all out, and re-aims the scroll while rows above the target still grow. Content
 inside a row is clipped to the row, so popovers, menus, and hover cards opened from a row
-must portal out (the shared primitives do). `RecipeRow` is memoized, so an edit
-re-renders only the rows whose props changed. Keep every prop passed to it
+must portal out (the shared primitives do). `RecipeRow`, the Goal card's `GoalTile`, and
+the Block balance card's `BalanceImport` and `BalanceExport` are memoized, so an edit
+re-renders only the pieces whose props changed. Keep every prop passed to them
 reference-stable: the editor shares unchanged parts of each solve with the previous one
 (`replaceEqualDeep`) and memoizes the callbacks and lookups it hands down. A new object
-or inline callback per render re-renders every row.
+or inline callback per render re-renders every piece. Structural sharing matches array
+items by index, so a list the solve sorts by rate (the imports and exports) gets new item
+objects whenever an item moves; pass such items' fields as primitives. In dev builds each
+memoized piece counts its renders in `window.__pyopsRenders` (`app/src/lib/render-count.ts`),
+and the large-block e2e uses that tally to fail if an edit re-renders every piece again.
 
 ### Keyboard shortcuts
 

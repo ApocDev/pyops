@@ -1,18 +1,17 @@
+import { memo, useMemo } from "react";
 import { useStore } from "@tanstack/react-store";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CircleAlert, Cloud, Lock, Timer } from "lucide-react";
-import { Button } from "#/components/ui/button.tsx";
+import { AlertTriangle, Cloud } from "lucide-react";
 import { Callout } from "#/components/ui/callout.tsx";
 import { Card, CardHeader, CardTitle } from "#/components/ui/card.tsx";
-import { Input } from "#/components/ui/input.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
-import { fmtSpoilTime, useSpoilables } from "../../lib/icons";
+import { useSpoilables } from "../../lib/icons";
 import { fmtTemp } from "../../lib/format";
 import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
-import { LogiTag } from "./logi-tag.tsx";
 import { RobotStrip } from "./robot-strip.tsx";
 import { SushiPlanner, type SushiPlannerFlow } from "./sushi-planner.tsx";
-import { OutputPriorityOverride } from "./output-priority-override.tsx";
+import { BalanceImport } from "./balance-import.tsx";
+import { BalanceExport } from "./balance-export.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
 import { num } from "./format.ts";
@@ -22,8 +21,11 @@ import { producedImportsFn } from "../../server/block-flow-status.ts";
  * (IIS) cards on an infeasible solve, unmade/temperature warnings, and the
  * imports/exports chip lists with the
  * sizing-lock controls. Electricity and heat aren't summarised here — both
- * surface as their own import chips (pyops-electricity / pyops-heat). */
-export function BalanceCard({
+ * surface as their own import chips (pyops-electricity / pyops-heat).
+ *
+ * Memoized with its import and export chips (#154): the editor keeps every
+ * prop reference-stable, so an edit re-renders only the chips it changed. */
+export const BalanceCard = memo(function BalanceCard({
   blockId,
   doc,
   res,
@@ -69,7 +71,9 @@ export function BalanceCard({
   const spoilables = useSpoilables();
   const showImports = !!res && (res.displayImports.length > 0 || res.displayExports.length === 0);
   const showExports = !!res?.displayExports.length;
-  const importNames = res?.displayImports.map((flow) => flow.name) ?? [];
+  // Sorted: the solve lists imports by rate, and a reorder would otherwise
+  // start a new query, dropping every chip's indicator until it loads (#154).
+  const importNames = res?.displayImports.map((flow) => flow.name).sort() ?? [];
   const producedImports = useQuery({
     queryKey: ["producedImports", blockId, importNames],
     queryFn: () => producedImportsFn({ data: { blockId, goods: importNames } }),
@@ -83,7 +87,7 @@ export function BalanceCard({
   // max(production, consumption) across the rows (that identity covers all
   // three roles); boundary-only goods (e.g. a stock goal with no row) are
   // topped up from the import/export lists.
-  const sushiFlows: SushiPlannerFlow[] = (() => {
+  const sushiFlows = useMemo((): SushiPlannerFlow[] => {
     const solid = (f: { name: string; kind: string }) =>
       f.kind === "item" && !f.name.startsWith("pyops-");
     const prod = new Map<string, number>();
@@ -125,7 +129,7 @@ export function BalanceCard({
       })
       .filter((f) => f.rate > 1e-9)
       .sort((a, b) => b.rate - a.rate);
-  })();
+  }, [res]);
   return (
     <Card className="lg:col-span-2">
       <CardHeader className="justify-between">
@@ -331,84 +335,26 @@ export function BalanceCard({
                 <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
                   {res.displayImports.length ? (
                     res.qualifiedDisplayImports.map((f) => (
-                      <span
+                      <BalanceImport
                         key={`${f.name}:${f.temperatureMode ?? ""}:${f.minTemp ?? ""}:${f.maxTemp ?? ""}`}
-                        className="group flex w-max shrink-0 flex-col items-start gap-1.5"
-                      >
-                        <span className="inline-flex items-center gap-1.5">
-                          <ItemChip
-                            name={f.name}
-                            kind={f.kind}
-                            display={res.display?.[f.name]}
-                            rate={f.rate}
-                            total={campaign ? f.rate * campaign.duration : undefined}
-                            temp={f.temp}
-                            link="import"
-                            craftable={producible.has(f.name)}
-                            fuel={fuelSet.has(f.name)}
-                            indicatorLabel={
-                              producedImports.isSuccess && !producedElsewhere.has(f.name)
-                                ? "Not produced by another enabled block"
-                                : undefined
-                            }
-                            indicator={
-                              producedImports.isSuccess && !producedElsewhere.has(f.name) ? (
-                                <Tooltip content="No other enabled block currently exports this. It may still be an intentional raw or external input.">
-                                  <span
-                                    data-unsourced-import={f.name}
-                                    className="flex shrink-0 text-warning/80"
-                                  >
-                                    <CircleAlert className="size-3.5" />
-                                  </span>
-                                </Tooltip>
-                              ) : undefined
-                            }
-                            onClick={() => onMakeFor(f.name)}
-                            onContext={(e) =>
-                              onCtxMenu(e, { name: f.name, kind: f.kind, link: "import" })
-                            }
-                          />
-                          {/* Locked-as-block-driver state (set via right-click → "Size block by this
-                            input"): edit its rate inline + an unlock control. The toggle itself
-                            lives in the context menu, so non-locked rows stay uncluttered. */}
-                          {lockedInput === f.name && (
-                            <>
-                              <Tooltip content="Locked rate — the block is sized to consume this much of this input">
-                                <Input
-                                  type="number"
-                                  value={lockedRate}
-                                  step="0.01"
-                                  min="0"
-                                  autoFocus
-                                  onChange={(e) => onLockedRateChange(Number(e.target.value) || 0)}
-                                  className="h-7 w-16 border-info/60 px-1"
-                                />
-                              </Tooltip>
-                              <Button
-                                variant="ghost"
-                                size="icon-xs"
-                                onClick={onUnlock}
-                                title="Unlock — the Goal rate is editable again"
-                                className="text-info"
-                              >
-                                <Lock className="size-3.5" />
-                              </Button>
-                            </>
-                          )}
-                        </span>
-                        {logi.resolved && f.kind === "item" && (
-                          <LogiTag
-                            resolved={logi.resolved}
-                            rate={f.rate}
-                            machineCount={0}
-                            direction="input"
-                            showBelts={logi.showBelts}
-                            showInserters={logi.showInserters}
-                            launch={logi.launchInfo(f.name, f.rate)}
-                            robots={logi.robotsFor(f)}
-                          />
-                        )}
-                      </span>
+                        name={f.name}
+                        kind={f.kind}
+                        rate={f.rate}
+                        temp={f.temp}
+                        display={res.display?.[f.name]}
+                        total={campaign ? f.rate * campaign.duration : undefined}
+                        craftable={producible.has(f.name)}
+                        fuel={fuelSet.has(f.name)}
+                        unsourced={producedImports.isSuccess && !producedElsewhere.has(f.name)}
+                        locked={lockedInput === f.name}
+                        // only the locked chip shows the rate, so the others skip its edits
+                        lockedRate={lockedInput === f.name ? lockedRate : 0}
+                        onLockedRateChange={onLockedRateChange}
+                        onUnlock={onUnlock}
+                        logi={logi}
+                        onMakeFor={onMakeFor}
+                        onCtxMenu={onCtxMenu}
+                      />
                     ))
                   ) : (
                     <span className="text-sm text-muted-foreground">None</span>
@@ -420,67 +366,27 @@ export function BalanceCard({
               <div>
                 <div className="mb-1 text-sm font-semibold text-surplus">Exports</div>
                 <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-                  {res.qualifiedDisplayExports.map((f) => {
-                    const incidental = res.incidentalSpoilage.filter((s) => s.result === f.name);
-                    return (
-                      <span
-                        key={`${f.name}:${f.temperatureMode ?? ""}:${f.minTemp ?? ""}:${f.maxTemp ?? ""}`}
-                        className="flex w-max shrink-0 flex-col items-start gap-1.5"
-                      >
-                        <ItemChip
-                          name={f.name}
-                          kind={f.kind}
-                          display={res.display?.[f.name]}
-                          rate={f.rate}
-                          total={campaign ? f.rate * campaign.duration : undefined}
-                          temp={f.temp}
-                          link="export"
-                          fuel={fuelSet.has(f.name)}
-                          incidental={incidental.length > 0}
-                          onClick={() => onUseFor(f.name)}
-                          onContext={(e) =>
-                            onCtxMenu(e, { name: f.name, kind: f.kind, link: "export" })
-                          }
-                        />
-                        <OutputPriorityOverride
-                          inherited={supplyPriority}
-                          value={supplyPriorities[f.name]}
-                          onChange={(priority) => {
-                            doc.setOutputSupplyPriority(f.name, priority);
-                            doc.note(
-                              priority == null
-                                ? `Inherit block supply priority for "${res.display?.[f.name] ?? f.name}"`
-                                : `Override supply priority for "${res.display?.[f.name] ?? f.name}"`,
-                            );
-                          }}
-                        />
-                        {/* incidental-spoil risk (#20): a SURPLUS spoilable is the
-                            one that actually sits around long enough to rot — stacked
-                            under the chip so it doesn't widen the export grid */}
-                        {spoilables[f.name] != null && (
-                          <button
-                            aria-label={`Estimate incidental spoilage for ${res.display?.[f.name] ?? f.name}`}
-                            onClick={() => onOpenSpoilDialog(f.name)}
-                            className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning hover:brightness-110"
-                          >
-                            <Timer className="size-3.5" /> {fmtSpoilTime(spoilables[f.name])}
-                          </button>
-                        )}
-                        {logi.resolved && f.kind === "item" && (
-                          <LogiTag
-                            resolved={logi.resolved}
-                            rate={f.rate}
-                            machineCount={0}
-                            direction="output"
-                            showBelts={logi.showBelts}
-                            showInserters={logi.showInserters}
-                            launch={logi.launchInfo(f.name, f.rate)}
-                            robots={logi.robotsFor(f)}
-                          />
-                        )}
-                      </span>
-                    );
-                  })}
+                  {res.qualifiedDisplayExports.map((f) => (
+                    <BalanceExport
+                      key={`${f.name}:${f.temperatureMode ?? ""}:${f.minTemp ?? ""}:${f.maxTemp ?? ""}`}
+                      doc={doc}
+                      name={f.name}
+                      kind={f.kind}
+                      rate={f.rate}
+                      temp={f.temp}
+                      display={res.display?.[f.name]}
+                      total={campaign ? f.rate * campaign.duration : undefined}
+                      fuel={fuelSet.has(f.name)}
+                      incidental={res.incidentalSpoilage.some((s) => s.result === f.name)}
+                      inheritedPriority={supplyPriority}
+                      priority={supplyPriorities[f.name]}
+                      spoilTicks={spoilables[f.name]}
+                      logi={logi}
+                      onUseFor={onUseFor}
+                      onCtxMenu={onCtxMenu}
+                      onOpenSpoilDialog={onOpenSpoilDialog}
+                    />
+                  ))}
                 </div>
               </div>
             )}
@@ -489,4 +395,4 @@ export function BalanceCard({
       )}
     </Card>
   );
-}
+});

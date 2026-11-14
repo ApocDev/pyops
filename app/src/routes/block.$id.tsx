@@ -550,23 +550,26 @@ function Block({ blockId }: { blockId: number }) {
     [],
   );
 
-  const setCampaignActive = async (active: boolean) => {
-    doc.setCampaignCompletedAt(active ? null : new Date().toISOString());
-    doc.note(active ? "Reactivate temporary campaign" : "Complete temporary campaign");
-    await persist();
-    setBlockEnabled(active);
-    await setBlockEnabledFn({ data: { blockId, enabled: active } });
-    await Promise.all([
-      qc.invalidateQueries({ queryKey: ["blocks"] }),
-      qc.invalidateQueries({ queryKey: ["factory"] }),
-      qc.invalidateQueries({ queryKey: ["factoryScenarioSnapshot"] }),
-    ]);
-    toast({
-      message: active
-        ? "Temporary campaign reactivated."
-        : "Temporary campaign completed and removed from factory planning.",
-    });
-  };
+  const setCampaignActive = useCallback(
+    async (active: boolean) => {
+      doc.setCampaignCompletedAt(active ? null : new Date().toISOString());
+      doc.note(active ? "Reactivate temporary campaign" : "Complete temporary campaign");
+      await persist();
+      setBlockEnabled(active);
+      await setBlockEnabledFn({ data: { blockId, enabled: active } });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["blocks"] }),
+        qc.invalidateQueries({ queryKey: ["factory"] }),
+        qc.invalidateQueries({ queryKey: ["factoryScenarioSnapshot"] }),
+      ]);
+      toast({
+        message: active
+          ? "Temporary campaign reactivated."
+          : "Temporary campaign completed and removed from factory planning.",
+      });
+    },
+    [doc, persist, blockId, qc],
+  );
 
   // Report this (active) block's live emptiness so closing its tab can discard an
   // untouched "New block" without racing the unmount auto-save above. Cleared on
@@ -763,14 +766,17 @@ function Block({ blockId }: { blockId: number }) {
 
   // good → kind (item|fluid), gathered from every flow/recipe in the solve so goal
   // icons render correctly even for fluid goals (the target isn't in imports/exports).
-  const kindMap = new Map<string, string>();
-  for (const r of res?.rows ?? []) {
-    for (const p of r.products) kindMap.set(p.name, p.kind);
-    for (const c of r.ingredients) kindMap.set(c.name, c.kind);
-  }
-  for (const f of [...(res?.imports ?? []), ...(res?.exports ?? [])]) kindMap.set(f.name, f.kind);
-  const kindOf = (name: string) =>
-    (kindMap.get(name) ?? goalInfo.data?.[name]?.kind ?? "item") as "item" | "fluid";
+  // Memoized: the goal and balance cards take it as a prop (#154).
+  const kindOf = useMemo(() => {
+    const kindMap = new Map<string, string>();
+    for (const r of res?.rows ?? []) {
+      for (const p of r.products) kindMap.set(p.name, p.kind);
+      for (const c of r.ingredients) kindMap.set(c.name, c.kind);
+    }
+    for (const f of [...(res?.imports ?? []), ...(res?.exports ?? [])]) kindMap.set(f.name, f.kind);
+    return (name: string) =>
+      (kindMap.get(name) ?? goalInfo.data?.[name]?.kind ?? "item") as "item" | "fluid";
+  }, [res, goalInfo.data]);
 
   // Rocket launches/min (#22) — opt-in, niche. Fetch weights for every item shown,
   // then `launchInfo` turns a flow rate into launches/min (default weight if unset).
@@ -824,10 +830,11 @@ function Block({ blockId }: { blockId: number }) {
     [robots, stackSizesQ.data],
   );
 
-  // The values below feed every recipe row. They stay reference-stable across
-  // renders that don't change them, so the memoized rows can skip re-rendering.
+  // The values below feed every recipe row and the goal and balance cards. They
+  // stay reference-stable across renders that don't change them, so the
+  // memoized rows, tiles, and chips can skip re-rendering.
   const producible = useMemo(() => new Set(res?.producible ?? []), [res?.producible]); // imports a recipe could make in-block
-  const fuelSet = new Set(res?.fuelItems ?? []); // items consumed as fuel (folded into the balance)
+  const fuelSet = useMemo(() => new Set(res?.fuelItems ?? []), [res?.fuelItems]); // items consumed as fuel (folded into the balance)
   // Per-item link state from the solve, so each chip can show whether it's the
   // goal, an unmade input (import), a surplus (export), or balanced in-block.
   // Keyed on the names only: a solve that just moves rates keeps the same linkOf.
@@ -864,8 +871,19 @@ function Block({ blockId }: { blockId: number }) {
     [],
   );
   const { makeFor, useFor, ctxMenu: openCtxMenu } = open;
-  const quickRecipeFor = (name: string, mode: "produce" | "consume") =>
-    setPickFor({ name, mode, quick: true });
+  const quickRecipeFor = useCallback(
+    (name: string, mode: "produce" | "consume") => setPickFor({ name, mode, quick: true }),
+    [],
+  );
+  const openGoalMenu = useCallback(
+    (e: { clientX: number; clientY: number }, name: string) =>
+      setGoalMenu({ x: e.clientX, y: e.clientY, name }),
+    [],
+  );
+  const openGoalPicker = useCallback(() => setGoalPicker({}), []);
+  const unlockInput = useCallback(() => setLockedInput(null), []);
+  const completeCampaign = useCallback(() => void setCampaignActive(false), [setCampaignActive]);
+  const reactivateCampaign = useCallback(() => void setCampaignActive(true), [setCampaignActive]);
   // logistics readout bundle (#21/#22) threaded to every chip row; `launchInfo`
   // turns a flow rate into rocket launches/min (default weight if unset)
   const logi: LogiView = useMemo(
@@ -987,14 +1005,14 @@ function Block({ blockId }: { blockId: number }) {
           kindOf={kindOf}
           lockedInput={lockedInput}
           logi={logi}
-          onGoalMenu={(e, name) => setGoalMenu({ x: e.clientX, y: e.clientY, name })}
+          onGoalMenu={openGoalMenu}
           onMakeFor={makeFor}
           onUseFor={useFor}
           onQuickRecipeFor={quickRecipeFor}
-          onOpenGoalPicker={() => setGoalPicker({})}
+          onOpenGoalPicker={openGoalPicker}
           blockEnabled={blockEnabled}
-          onCompleteCampaign={() => void setCampaignActive(false)}
-          onReactivateCampaign={() => void setCampaignActive(true)}
+          onCompleteCampaign={completeCampaign}
+          onReactivateCampaign={reactivateCampaign}
         />
         <BalanceCard
           blockId={blockId}
@@ -1007,7 +1025,7 @@ function Block({ blockId }: { blockId: number }) {
           lockedInput={lockedInput}
           lockedRate={lockedRate}
           onLockedRateChange={setLockedRate}
-          onUnlock={() => setLockedInput(null)}
+          onUnlock={unlockInput}
           logi={logi}
           onMakeFor={makeFor}
           onUseFor={useFor}
