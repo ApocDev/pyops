@@ -1,0 +1,77 @@
+app/drizzle/0026_beacon-interference.sql
+  s_1a9eaa16abbcbb::t_45ee9896c49efe 1-2
+app/drizzle/meta/0026_snapshot.json
+  s_1a9eaa16abbcbb::t_7037b993946223 1-2950
+app/drizzle/meta/_journal.json
+  s_1a9eaa16abbcbb::t_b5d535dd869b07 186-192
+app/src/components/block/recipe-row.tsx
+  s_1a9eaa16abbcbb::t_218ec76e6916a0 453
+app/src/components/science/science-block-view.test.tsx
+  s_1a9eaa16abbcbb::t_3dda6729ed0173 32
+app/src/components/science/science-block-view.tsx
+  s_1a9eaa16abbcbb::t_4016afd6bd71c2 159
+app/src/db/import-factorio.test.ts
+  s_1a9eaa16abbcbb::t_76d32ff844a792 758-871
+app/src/db/queries.server.ts
+  s_1a9eaa16abbcbb::t_93fdfd5ed1684d 252,452,1097,1123-1128
+app/src/db/queries.test.ts
+  s_1a9eaa16abbcbb::t_d59d088fd1aade 1737-1749
+app/src/db/schema.ts
+  s_1a9eaa16abbcbb::t_92a24350384ddc 195-198,263-269,282
+app/src/db/synthesize.test.ts
+  s_1a9eaa16abbcbb::t_d8f6d932367faa 2,607-637,643,647-653
+app/src/db/synthesize.ts
+  s_1a9eaa16abbcbb::t_97280862ffa01e 90-108,844-845,849,859,862,867-870,874,878-880,888,899-913
+app/src/lib/beacon-interference.test.ts
+  s_3e5ce8d5c98a70::t_dccbf65b136f18 1-61
+app/src/lib/beacon-interference.ts
+  s_3e5ce8d5c98a70::t_57ff44fa864399 1-31
+app/src/lib/data-format.ts
+  s_1a9eaa16abbcbb::t_b87386bc77a1b5 9
+app/src/lib/modules-modal.tsx
+  s_1a9eaa16abbcbb::t_92349f406a4ecf 3,21,79,88-89,121-123,127,147-154,182,187,209-214,404,409-410,463,474,480-482,570-576,825-831,833,843-848,933-937
+app/src/server/block-compute.server.ts
+  s_1a9eaa16abbcbb::t_088d20dd8340ac 31,449-454,476,1015-1022,1238-1239
+app/src/server/block-compute.test.ts
+  s_1a9eaa16abbcbb::t_163b182a9cc532 1646-1696
+app/src/server/dump.server.ts
+  s_1a9eaa16abbcbb::t_e2d058bdc56faa 238-242,246,287-332
+app/src/server/effects.ts
+  s_1a9eaa16abbcbb::t_274059bb255299 128-129
+app/src/server/module-presets.server.ts
+  s_1a9eaa16abbcbb::t_45744f728f1277 25,32-37,40-46,102-110
+app/src/server/module-presets.test.ts
+  s_1a9eaa16abbcbb::t_bb5f3293d092f1 236-268
+app/src/server/science-bank.ts
+  s_1a9eaa16abbcbb::t_0ca1bd1b51b649 24,75-76,158
+docs/development/data-pipeline.md
+  s_1a9eaa16abbcbb::t_f83f7a2d41af70 222-230,239-248
+docs/development/solver.md
+  s_1a9eaa16abbcbb::t_03b0024d6b3c0c 330-336
+docs/guide/blocks.md
+  s_1a9eaa16abbcbb::t_5da5dc60b224e4 136-141,291-293
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2777da389b4fec46edb1f53a092f8e61905185f1",
+  "prompts": {},
+  "sessions": {
+    "s_1a9eaa16abbcbb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f1348268-cc39-476e-9791-f9d417a769b6",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_3e5ce8d5c98a70": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79a1abd0-6765-4e0a-bffa-c981fdc04872",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
