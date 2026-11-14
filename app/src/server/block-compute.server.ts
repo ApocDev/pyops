@@ -294,6 +294,9 @@ export type SolveInput = {
   supplyPriority?: number;
   /** optional exported-good overrides; missing entries inherit supplyPriority */
   supplyPriorities?: Record<string, number>;
+  /** one-way robot trip distance in tiles for this block's bot counts (#255);
+   * absent = the factory-wide default. Display only, never part of the solve. */
+  robotDistance?: number;
   /** legacy per-item overrides (pre-#91 docs) — migrated to `made` on read; new
    * docs never write this */
   dispositions?: Record<string, Disposition>;

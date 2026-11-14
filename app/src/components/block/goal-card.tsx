@@ -321,6 +321,7 @@ export function GoalCard({
                             showBelts={logi.showBelts}
                             showInserters={logi.showInserters}
                             launch={logi.launchInfo(g, Math.abs(goal.rate))}
+                            robots={logi.robots}
                           />
                         )}
                         {/* supply-push note (#121): a count pin on this goal's producer

@@ -194,6 +194,20 @@ varies, the count takes the slower case. It can ask for a few more input inserte
 need, and it is never more than about 3% optimistic. Cranes need the most margin: one whose pickup point sits upstream of
 its body (turned the other way along the belt) runs 10–30% faster than the count assumes.
 
+With **Logistics → Robots** switched on, each item the block imports or exports, including a
+goal, shows the logistic robots that move it. The **Block balance** card adds a strip with the
+block's total. Pick the robot and the roboport it charges at in the **Robots** section of the
+**Logistics** dialog, and set **Trip distance** to the usual one-way flight in tiles, from the
+provider chest to the requester chest. A robot carries a full load out and flies back empty.
+The count includes the detour to a roboport and the time a charging pad takes to refill the
+robot. Busy roboports can queue robots, so treat the count as slightly low. Robot speed and
+cargo research come from your save over the in-game link; without the link the count assumes
+none.
+
+A block far from the rest of the factory can use its own distance. Select **Set distance** in
+its robot strip and enter the tiles. The override saves with the block and shows a blue border.
+Select **Default** to go back to the factory distance. Fluids get no robot count.
+
 When **Logistics → Inserters / loaders** is enabled, an amber hammer and a second count can
 appear beneath the solved building count. It is the suggested physical build count: the
 selected movers, item inputs and outputs, fuel, burnt results, and active fluid connections

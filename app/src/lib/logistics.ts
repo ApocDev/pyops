@@ -25,6 +25,8 @@
  *   per drop and carry only whole stacks of that size).
  */
 
+import type { RobotBonuses, RobotProto, RoboportProto } from "./robots";
+
 export type BeltProto = { name: string; display: string | null; speed: number };
 export type LoaderProto = BeltProto;
 export type InserterProto = {
@@ -406,17 +408,24 @@ export type LogisticsPrefs = {
   moverKind: "inserter" | "loader";
   stacking: boolean; // apply researched stack bonuses
   overrideStack: number | null; // manual belt placed-stack override (null = auto)
+  showRobots: boolean; // bot counts on a block's boundary chips (#255)
+  robot: string; // selected logistic robot name
+  roboport: string; // selected roboport name (charging)
+  robotDistance: number; // factory-wide one-way trip distance, tiles; a block can override it
 };
 
 export type LogisticsOptions = {
   belts: BeltProto[];
   loaders: LoaderProto[];
   inserters: InserterProto[];
+  robots: RobotProto[];
+  roboports: RoboportProto[];
 };
 
 export type LogisticsContext = {
   prefs: LogisticsPrefs;
   bonuses: StackBonuses;
+  robotBonuses: RobotBonuses;
   options: LogisticsOptions;
   rocketLiftWeight: number; // utility-constants.default.rocket_lift_weight
   defaultItemWeight: number; // weight assumed when an item has none set in the data

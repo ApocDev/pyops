@@ -3,6 +3,7 @@
  * readout bundle threaded to every chip row (#21/#22). */
 import type { computeBlock } from "../../server/block-compute.server.ts";
 import type { ResolvedLogistics } from "../../lib/logistics";
+import type { ResolvedRobots } from "../../lib/robots";
 
 type ComputedBlockResult = Awaited<ReturnType<typeof computeBlock>>;
 type CoreSolveResult = Omit<ComputedBlockResult, "recipes">;
@@ -21,4 +22,9 @@ export type LogiView = {
   showBelts: boolean;
   showInserters: boolean;
   launchInfo: (name: string, rate: number) => { perMin: number; defaulted: boolean } | null;
+  /** robot counts on the boundary chips (#255): the picks, and this block's
+   * trip distance (its override, else the factory default). Null = off. */
+  robots: { resolved: ResolvedRobots; distance: number } | null;
+  /** the factory-wide trip distance, for the override strip */
+  defaultRobotDistance: number;
 };

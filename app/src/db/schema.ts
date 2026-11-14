@@ -673,6 +673,9 @@ export type BlockData = {
   /** Optional per-good overrides for multiproduct blocks. Missing entries
    * inherit the block-wide supplyPriority. */
   supplyPriorities?: Record<string, number>;
+  /** One-way robot trip distance in tiles for this block's bot counts (#255).
+   * Absent = the factory-wide default from the Logistics dialog. */
+  robotDistance?: number;
   // Legacy per-item overrides (pre-#91). New docs write `made`/`pins` instead;
   // a doc carrying only dispositions has its made set derived server-side on
   // solve and adopted by the editor (lazy migration).

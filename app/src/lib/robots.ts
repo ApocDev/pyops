@@ -45,6 +45,29 @@ export type RoboportProto = {
  * `worker_robots_storage_bonus` (extra items per trip). */
 export type RobotBonuses = { speed: number; storage: number };
 
+/** Default one-way trip distance (tiles) until the player sets one. */
+export const DEFAULT_ROBOT_DISTANCE = 60;
+
+/** The robot and roboport the counts are sized against, plus the force bonuses. */
+export type ResolvedRobots = {
+  robot: RobotProto;
+  roboport: RoboportProto | undefined;
+  bonuses: RobotBonuses;
+};
+
+/** Pick the selected robot and roboport, falling back to the first of each.
+ * Null when the data has no logistic robot. */
+export function resolveRobots(
+  options: { robots: RobotProto[]; roboports: RoboportProto[] },
+  picks: { robot: string; roboport: string },
+  bonuses: RobotBonuses,
+): ResolvedRobots | null {
+  const robot = options.robots.find((r) => r.name === picks.robot) ?? options.robots[0];
+  if (!robot) return null;
+  const roboport = options.roboports.find((p) => p.name === picks.roboport) ?? options.roboports[0];
+  return { robot, roboport, bonuses };
+}
+
 /** Flight speed in tiles/second with the force speed bonus. */
 export function robotSpeed(r: RobotProto, b: RobotBonuses): number {
   return r.speed * 60 * (1 + Math.max(0, b.speed));

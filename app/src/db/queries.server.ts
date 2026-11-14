@@ -34,6 +34,8 @@ import {
   belts,
   loaders,
   inserters,
+  logisticRobots,
+  roboports,
   techProductivityBonuses,
   techStackBonuses,
   modulePresets,
@@ -51,14 +53,13 @@ import {
 import { stripRichText } from "../lib/factorio-text.ts";
 import { computeEffects, effectsAllowed } from "../server/effects.ts";
 import type {
-  BeltProto,
   InserterBelt,
   InserterProto,
-  LoaderProto,
   LogisticsContext,
+  LogisticsOptions,
   StackBonuses,
 } from "../lib/logistics.ts";
-import type { RobotBonuses } from "../lib/robots.ts";
+import { DEFAULT_ROBOT_DISTANCE, type RobotBonuses } from "../lib/robots.ts";
 import {
   placedBeltStack,
   beltsForRate,
@@ -3539,13 +3540,11 @@ export function isExcluded(...fields: (string | null | undefined)[]): boolean {
 
 /* ── Logistics (belts / loaders / inserters) for the throughput display (#21) ─── */
 
-/** Belt, loader and inserter prototypes for the logistics picker, ordered by
- * throughput. EE/excluded entities are filtered out. */
-export function logisticsOptions(): {
-  belts: BeltProto[];
-  loaders: LoaderProto[];
-  inserters: InserterProto[];
-} {
+/** Belt, loader, inserter, robot and roboport prototypes for the logistics
+ * picker, ordered by throughput. EE/excluded entities are filtered out, and so
+ * are roboports that can't charge a logistic robot (no charging power or no
+ * logistics area, like Py's construction-only zones). */
+export function logisticsOptions(): LogisticsOptions {
   const beltRows = db
     .select({ name: belts.name, display: belts.display, speed: belts.speed })
     .from(belts)
@@ -3601,7 +3600,27 @@ export function logisticsOptions(): {
         a.rotationSpeed - b.rotationSpeed ||
         (a.display ?? a.name).localeCompare(b.display ?? b.name),
     );
-  return { belts: beltRows, loaders: loaderRows, inserters: inserterRows };
+  const robotRows = db
+    .select()
+    .from(logisticRobots)
+    .all()
+    .filter((r) => !isExcluded(r.name))
+    .map(({ order: _order, ...r }) => r)
+    .sort((a, b) => a.speed - b.speed);
+  const roboportRows = db
+    .select()
+    .from(roboports)
+    .all()
+    .filter((p) => !isExcluded(p.name) && p.chargingEnergyW > 0 && p.logisticsRadius > 0)
+    .map(({ order: _order, ...p }) => p)
+    .sort((a, b) => a.chargingEnergyW - b.chargingEnergyW);
+  return {
+    belts: beltRows,
+    loaders: loaderRows,
+    inserters: inserterRows,
+    robots: robotRows,
+    roboports: roboportRows,
+  };
 }
 
 /** Rocket-lift weight per item (for launches/min), keyed by name. `null` = the item
@@ -3720,8 +3739,13 @@ export function logisticsContext(): LogisticsContext {
         m.logistics_stack_override != null && m.logistics_stack_override !== ""
           ? Number(m.logistics_stack_override)
           : null,
+      showRobots: m.logistics_show_robots === "1",
+      robot: m.logistics_robot || (options.robots[0]?.name ?? ""),
+      roboport: m.logistics_roboport || (options.roboports[0]?.name ?? ""),
+      robotDistance: Number(m.logistics_robot_distance) || DEFAULT_ROBOT_DISTANCE,
     },
     bonuses: stackBonuses(),
+    robotBonuses: robotBonuses(),
     options,
     rocketLiftWeight: Number(m.rocket_lift_weight ?? 1_000_000),
     defaultItemWeight: Number(m.default_item_weight ?? 100),

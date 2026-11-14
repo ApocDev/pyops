@@ -12,10 +12,12 @@ import {
   inserterThroughput,
   resolveLogistics,
 } from "../lib/logistics";
+import { resolveRobots, robotTrip } from "../lib/robots";
 import { formatQty } from "../lib/format";
 import { Icon, IconProvider } from "../lib/icons";
 import { InfoHint } from "./info-hint";
 import { LogisticsHelpButton } from "./logistics-help";
+import { RobotDistanceInput } from "./robot-distance-input";
 import { Button } from "#/components/ui/button.tsx";
 import {
   Dialog,
@@ -42,7 +44,13 @@ export function LogisticsMenu() {
     ? (d.options.belts.find((b) => b.name === d.prefs.belt)?.name ?? d.prefs.belt)
     : null;
   const moverName = d?.prefs.mover ?? null;
-  const enabled = d ? d.prefs.showBelts || d.prefs.showInserters || d.prefs.showRockets : false;
+  const robotName =
+    d?.prefs.showRobots && d.options.robots.length
+      ? (d.options.robots.find((r) => r.name === d.prefs.robot) ?? d.options.robots[0]).name
+      : null;
+  const enabled = d
+    ? d.prefs.showBelts || d.prefs.showInserters || d.prefs.showRockets || d.prefs.showRobots
+    : false;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -50,12 +58,13 @@ export function LogisticsMenu() {
         <Button
           variant="ghost"
           className="h-full gap-1.5 px-3 font-normal text-muted-foreground hover:bg-muted/50"
-          title="Logistics — belts, inserters & rockets needed per row"
+          title="Logistics — belts, inserters, robots and rockets needed per row"
         >
           <IconProvider>
             <span className="flex items-center gap-1.5">
               {moverName && <Icon kind="entity" name={moverName} size="sm" noTitle />}
               {beltName && <Icon kind="entity" name={beltName} size="sm" noTitle />}
+              {robotName && <Icon kind="entity" name={robotName} size="sm" noTitle />}
             </span>
           </IconProvider>
           <span className={enabled ? "text-foreground" : ""}>
@@ -114,6 +123,14 @@ export function LogisticsPicker() {
         : "?";
     return `${i.display ?? i.name} (${i.name}) · hand ${hand} · ≈${rate("pickup")}/s belt → machine · ≈${rate("drop")}/s machine → belt${i.bulk ? " · bulk" : ""}`;
   };
+  const robots = resolveRobots(d.options, d.prefs, d.robotBonuses);
+  // one robot's rate at the factory distance, with the selected roboport's charging
+  const robotTip = (r: (typeof d.options.robots)[number]) =>
+    `${r.display ?? r.name} (${r.name}) · ≈${fmt(robotTrip(r, d.robotBonuses, d.prefs.robotDistance, robots?.roboport).itemsPerSecond)}/s per robot at ${fmt(d.prefs.robotDistance)} tiles`;
+  const bonusParts = [
+    d.robotBonuses.speed > 0 && `+${fmt(d.robotBonuses.speed * 100)}% speed`,
+    d.robotBonuses.storage > 0 && `+${fmt(d.robotBonuses.storage)} cargo`,
+  ].filter(Boolean);
   const beltTip = (name: string, disp: string | null, speed: number) =>
     `${disp ?? name} (${name}) · ${fmt(beltItemsPerSecond(speed, resolved.placedStack))}/s on a full belt`;
 
@@ -149,6 +166,15 @@ export function LogisticsPicker() {
                 <span className="text-foreground">Rockets</span>
               </label>
             </Tooltip>
+            {robots && (
+              <label className="flex items-center gap-2">
+                <Switch
+                  checked={d.prefs.showRobots}
+                  onCheckedChange={(v) => save.mutate({ showRobots: v })}
+                />
+                <span className="text-foreground">Robots</span>
+              </label>
+            )}
           </div>
         </div>
 
@@ -252,6 +278,56 @@ export function LogisticsPicker() {
             </>
           )}
         </div>
+
+        {robots && (
+          <div className="space-y-1.5 border-t border-border pt-3">
+            <FieldLabel className="flex items-center gap-1.5">
+              Robots
+              <InfoHint content="Logistic robots to move each import and export: full loads, out and back over the trip distance, plus detours to charge at the selected roboport. A block can set its own distance." />
+            </FieldLabel>
+            <div className="flex flex-wrap gap-1.5">
+              {d.options.robots.map((r) => (
+                <Button
+                  key={r.name}
+                  variant="toggle"
+                  aria-pressed={robots.robot.name === r.name}
+                  onClick={() => save.mutate({ robot: r.name })}
+                  title={robotTip(r)}
+                >
+                  <Icon kind="entity" name={r.name} size="sm" noHover />
+                  <span>{r.display ?? r.name}</span>
+                </Button>
+              ))}
+            </div>
+            {d.options.roboports.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {d.options.roboports.map((p) => (
+                  <Button
+                    key={p.name}
+                    variant="toggle"
+                    aria-pressed={robots.roboport?.name === p.name}
+                    onClick={() => save.mutate({ roboport: p.name })}
+                    title={`${p.display ?? p.name} (${p.name}) · charges at ${fmt(p.chargingEnergyW / 1000)} kW`}
+                  >
+                    <Icon kind="entity" name={p.name} size="sm" noHover />
+                    <span>{p.display ?? p.name}</span>
+                  </Button>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-1 text-sm">
+              <span className="text-foreground">Trip distance</span>
+              <RobotDistanceInput
+                label="Robot trip distance"
+                value={d.prefs.robotDistance}
+                onCommit={(robotDistance) => save.mutate({ robotDistance })}
+              />
+              {bonusParts.length > 0 && (
+                <span className="text-muted-foreground">{bonusParts.join(" · ")}</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </IconProvider>
   );

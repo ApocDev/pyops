@@ -28,6 +28,7 @@ import { toast } from "../lib/toast-store";
 import { epochSeconds } from "../lib/undo-client";
 import { blockActionName } from "../lib/undo-names";
 import { launchesForRate, resolveLogistics } from "../lib/logistics";
+import { DEFAULT_ROBOT_DISTANCE, resolveRobots } from "../lib/robots";
 import { logisticsContextSubscription } from "../lib/live-query-options";
 import { recordRecent } from "../lib/recents";
 import { createCoalescedRunner } from "../lib/coalesced-runner";
@@ -560,10 +561,21 @@ function Block({ blockId }: { blockId: number }) {
   const logistics = useQuery(logisticsContextSubscription);
   const logiPrefs = logistics.data?.prefs;
   const logiAny =
-    !!logiPrefs && (logiPrefs.showBelts || logiPrefs.showInserters || logiPrefs.showRockets);
+    !!logiPrefs &&
+    (logiPrefs.showBelts ||
+      logiPrefs.showInserters ||
+      logiPrefs.showRockets ||
+      logiPrefs.showRobots);
   const logiResolved = logiAny && logistics.data ? resolveLogistics(logistics.data) : null;
   const showBelts = !!logiPrefs?.showBelts;
   const showInserters = !!logiPrefs?.showInserters;
+  // Robot counts (#255): the block's own trip distance wins over the default.
+  const robotDistanceOverride = s.robotDistance;
+  const defaultRobotDistance = logiPrefs?.robotDistance ?? DEFAULT_ROBOT_DISTANCE;
+  const robotsResolved =
+    logiPrefs?.showRobots && logistics.data
+      ? resolveRobots(logistics.data.options, logiPrefs, logistics.data.robotBonuses)
+      : null;
 
   const add = (name: string) => {
     const alreadyAdded = recipes.includes(name);
@@ -785,6 +797,11 @@ function Block({ blockId }: { blockId: number }) {
     showBelts,
     showInserters,
     launchInfo,
+    robots: robotsResolved && {
+      resolved: robotsResolved,
+      distance: robotDistanceOverride ?? defaultRobotDistance,
+    },
+    defaultRobotDistance,
   };
 
   // The block's face (#40): the explicit pick when set, else the first goal's icon.

@@ -25,6 +25,13 @@ export function LogisticsHelpButton({ className }: { className?: string }) {
         warnings. Its own ? drawer explains the model.
       </p>
       <p>
+        <b className="text-foreground">Robots</b> shows the logistic robots each import and export
+        needs, and the block total in the balance card. A robot carries a full load out over the
+        trip distance and flies back empty, and stops to charge at the selected roboport. Set the
+        trip distance here for the whole factory; a far-off block can set its own in its balance
+        card. Speed and cargo research come from the game over the bridge.
+      </p>
+      <p>
         <b className="text-foreground">Stacking</b> — belt-stack and inserter-capacity research from
         the planning horizon raise throughput. Cranes count the upgraded tier that research swaps
         in. The belt-stack override pins the belt's placed stack size; leave it blank to follow
