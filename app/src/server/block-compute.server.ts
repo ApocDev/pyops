@@ -624,6 +624,7 @@ export async function computeBlock(rawData: SolveInput) {
                 (c.amountMin != null && c.amountMax != null ? (c.amountMin + c.amountMax) / 2 : 0),
               fx.prodMult,
               c.ignoredByProductivity,
+              r.allowProductivity,
             ) * (c.name === HEAT ? heatMult : 1),
         })),
         // ash/burnt result from self-fuel (not productivity-scaled — it's from burning)

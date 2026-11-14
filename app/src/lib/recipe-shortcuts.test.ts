@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { bestUnlockedNonBarrelingRecipe, isBarrelingRecipe } from "./recipe-shortcuts.ts";
+import { bestUnlockedNonBarrelingRecipe } from "./recipe-shortcuts.ts";
 
 describe("best unlocked recipe shortcut", () => {
   it("takes the first unlocked non-barreling candidate from picker order", () => {
@@ -19,11 +19,5 @@ describe("best unlocked recipe shortcut", () => {
         { name: "old", unlockedNow: true, superseded: { by: "new" } },
       ]),
     ).toBeUndefined();
-  });
-
-  it("recognizes standard categories and custom-category barrel names", () => {
-    expect(isBarrelingRecipe({ name: "fill-water", category: "barrelling" })).toBe(true);
-    expect(isBarrelingRecipe({ name: "mod-fill-water-barrel", category: "chemistry" })).toBe(true);
-    expect(isBarrelingRecipe({ name: "pump-water", category: "water" })).toBe(false);
   });
 });

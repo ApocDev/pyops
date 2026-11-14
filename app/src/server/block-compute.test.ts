@@ -64,6 +64,7 @@ import {
   editorBlockResult,
   goalFlows,
 } from "./block-compute.server.ts";
+import { DEFAULT_EFFECT_RECEIVER, type EffectReceiver } from "./effects.ts";
 
 /** A good's imports minus its exports across boundary rows. */
 const netImport = (flows: { role: string; rate: number }[]) =>
@@ -670,6 +671,10 @@ describe("incidental spoilage stays outside the nominal block solve", () => {
 
 describe("per-product ignored_by_productivity (#93)", () => {
   let fx: TestDb;
+  const BASE_PROD_RECEIVER: EffectReceiver = {
+    ...DEFAULT_EFFECT_RECEIVER,
+    baseEffect: { ...DEFAULT_EFFECT_RECEIVER.baseEffect, productivity: 0.2 },
+  };
 
   beforeEach(async () => {
     fx = await makeTestDb();
@@ -697,6 +702,18 @@ describe("per-product ignored_by_productivity (#93)", () => {
       -- speed-neutral productivity module so prodMult is the only effect (2× = +20%)
       INSERT INTO modules (name, category, hidden, eff_speed, eff_productivity, eff_consumption)
         VALUES ('prod-module','productivity',0,0,0.1,0.4);
+      -- the same recipe with productivity disallowed, in a machine with +20% base productivity
+      INSERT INTO recipes (name, kind, category, energy_required, allow_productivity, enabled, hidden)
+        VALUES ('no-prod-liquefaction','real','base-prod',5,0,1,0);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount)
+        SELECT 'no-prod-liquefaction', idx, kind, name, amount FROM recipe_ingredients
+        WHERE recipe = 'coal-liquefaction';
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount, ignored_by_productivity)
+        SELECT 'no-prod-liquefaction', idx, kind, name, amount, ignored_by_productivity
+        FROM recipe_products WHERE recipe = 'coal-liquefaction';
+      INSERT INTO crafting_machines (name, kind, crafting_speed, module_slots, energy_usage_w, energy_source, effect_receiver)
+        VALUES ('base-prod-refinery','assembling-machine',1,0,420000,'electric','${JSON.stringify(BASE_PROD_RECEIVER)}');
+      INSERT INTO machine_categories (machine, category) VALUES ('base-prod-refinery','base-prod');
     `);
     fx.db.close();
     switchDatabase(fx.file);
@@ -739,6 +756,18 @@ describe("per-product ignored_by_productivity (#93)", () => {
     expect(out["heavy-oil"]).toBeCloseTo(20.6);
     expect(out["light-oil"]).toBeCloseTo(4.8);
     expect(out["petroleum-gas"]).toBeCloseTo(2.4);
+  });
+
+  it("base productivity on a no-productivity recipe boosts the whole product", async () => {
+    const res = await computeBlock({
+      goals: [{ name: "light-oil", rate: 24 }],
+      recipes: ["no-prod-liquefaction"],
+    });
+    const row = res.rows.find((r) => r.recipe === "no-prod-liquefaction")!;
+    expect(row.rate).toBeCloseTo(1);
+    const rates = Object.fromEntries(row.products.map((p) => [p.name, p.rate]));
+    // ignored_by_productivity doesn't apply here: 90 × 1.2 = 108, not 103
+    expect(rates["heavy-oil"]).toBeCloseTo(108);
   });
 
   it("without productivity the base amounts are untouched", async () => {

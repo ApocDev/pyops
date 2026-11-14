@@ -310,7 +310,9 @@ therefore add `+5%` to `+20%` to composting recipes.
 
 Productivity clamps to its limits before research productivity is added, then to zero and
 the recipe's maximum. `ignored_by_productivity` is an amount of output
-that remains unscaled; only the remainder receives the multiplier.
+that remains unscaled; only the remainder receives the multiplier. Factorio ignores it on a
+recipe that disallows productivity, so there the machine's base productivity boosts the whole
+product.
 
 Technology-derived recipe and mining productivity enter the same effects stage. Future
 planning derives bonuses from the allowed technology set. **Now** mode can use exact force
