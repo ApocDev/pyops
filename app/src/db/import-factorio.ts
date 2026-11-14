@@ -281,7 +281,7 @@ export function importFactorioDump(
       `INSERT INTO recipe_products (recipe,idx,kind,name,amount,amount_min,amount_max,probability,temperature,ignored_by_productivity) VALUES (@recipe,@idx,@kind,@name,@amount,@amount_min,@amount_max,@probability,@temperature,@ignored_by_productivity)`,
     ),
     item: db.prepare(
-      `INSERT OR IGNORE INTO items (name,display,subgroup,"order",stack_size,weight,fuel_value_j,fuel_categories,spoil_result,spoil_ticks,burnt_result,plant_result) VALUES (@name,@display,@subgroup,@order,@stack_size,@weight,@fuel_value_j,@fuel_categories,@spoil_result,@spoil_ticks,@burnt_result,@plant_result)`,
+      `INSERT OR IGNORE INTO items (name,display,type,subgroup,"order",stack_size,weight,fuel_value_j,fuel_categories,spoil_result,spoil_ticks,burnt_result,plant_result) VALUES (@name,@display,@type,@subgroup,@order,@stack_size,@weight,@fuel_value_j,@fuel_categories,@spoil_result,@spoil_ticks,@burnt_result,@plant_result)`,
     ),
     fluid: db.prepare(
       `INSERT INTO fluids (name,display,subgroup,"order",default_temperature,max_temperature,fuel_value_j,heat_capacity_j) VALUES (@name,@display,@subgroup,@order,@default_temperature,@max_temperature,@fuel_value_j,@heat_capacity_j)`,
@@ -352,7 +352,7 @@ export function importFactorioDump(
     ),
     meta: db.prepare(`INSERT OR REPLACE INTO meta (key,value) VALUES (?,?)`),
     quality: db.prepare<QualityRow>(
-      `INSERT INTO qualities (name,display,level,next,next_probability,chain_probability,hidden,module_speed_multiplier,module_productivity_multiplier,module_consumption_multiplier,module_pollution_multiplier,module_quality_multiplier,crafting_machine_speed_multiplier,crafting_machine_energy_usage_multiplier,crafting_machine_module_slots_bonus,beacon_power_usage_multiplier,beacon_module_slots_bonus,lab_research_speed_multiplier,lab_module_slots_bonus,mining_drill_module_slots_bonus,science_pack_drain_multiplier,tool_durability_multiplier) VALUES (@name,@display,@level,@next,@next_probability,@chain_probability,@hidden,@module_speed_multiplier,@module_productivity_multiplier,@module_consumption_multiplier,@module_pollution_multiplier,@module_quality_multiplier,@crafting_machine_speed_multiplier,@crafting_machine_energy_usage_multiplier,@crafting_machine_module_slots_bonus,@beacon_power_usage_multiplier,@beacon_module_slots_bonus,@lab_research_speed_multiplier,@lab_module_slots_bonus,@mining_drill_module_slots_bonus,@science_pack_drain_multiplier,@tool_durability_multiplier)`,
+      `INSERT INTO qualities (name,display,level,default_multiplier,next,next_probability,chain_probability,hidden,module_speed_multiplier,module_productivity_multiplier,module_consumption_multiplier,module_pollution_multiplier,module_quality_multiplier,crafting_machine_speed_multiplier,crafting_machine_energy_usage_multiplier,crafting_machine_module_slots_bonus,beacon_power_usage_multiplier,beacon_module_slots_bonus,lab_research_speed_multiplier,lab_module_slots_bonus,mining_drill_module_slots_bonus,science_pack_drain_multiplier,tool_durability_multiplier,science_capacity_multiplier) VALUES (@name,@display,@level,@default_multiplier,@next,@next_probability,@chain_probability,@hidden,@module_speed_multiplier,@module_productivity_multiplier,@module_consumption_multiplier,@module_pollution_multiplier,@module_quality_multiplier,@crafting_machine_speed_multiplier,@crafting_machine_energy_usage_multiplier,@crafting_machine_module_slots_bonus,@beacon_power_usage_multiplier,@beacon_module_slots_bonus,@lab_research_speed_multiplier,@lab_module_slots_bonus,@mining_drill_module_slots_bonus,@science_pack_drain_multiplier,@tool_durability_multiplier,@science_capacity_multiplier)`,
     ),
     turdRepl: db.prepare(
       `INSERT OR IGNORE INTO turd_replacements (sub_tech, old_recipe, new_recipe) VALUES (?,?,?)`,
@@ -449,6 +449,7 @@ export function importFactorioDump(
         ins.item.run({
           name,
           display: localeByKind.item?.names?.[name] ?? productDisplay[name] ?? null,
+          type,
           subgroup: it.subgroup ?? null,
           order: it.order ?? null,
           stack_size: it.stack_size ?? null,
@@ -789,9 +790,11 @@ export function importFactorioDump(
     // (`data.raw.quality.normal.next`). A recycler alone doesn't mean it: Py
     // ships one with normal as the only quality.
     ins.meta.run("has_quality", raw.quality?.normal?.next ? "1" : "0");
-    // the precision the solver floors a module's quality effect to (2.0 vs 2.1),
-    // and what decided the scale (the base version, or the field fallback)
+    // the precision the solver floors a module's quality effect and its other
+    // effects to (2.0 vs 2.1), and what decided the scale (the base version,
+    // or the field fallback)
     ins.meta.run("quality_effect_step", String(quality.effectStep));
+    ins.meta.run("module_effect_step", String(quality.moduleStep));
     ins.meta.run("quality_scale_basis", quality.basis);
   });
 

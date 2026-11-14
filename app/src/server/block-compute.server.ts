@@ -448,7 +448,7 @@ export async function computeBlock(rawData: SolveInput) {
   const qualityNames = new Set(qualityCtx.ladder.slice(1).map((step) => step.name));
   const bonusesOf = (quality: string | undefined) =>
     quality && quality !== NORMAL_QUALITY ? (qualityCtx.byName.get(quality) ?? null) : null;
-  const qualityFx = qualityEffectLookups(moduleDb, beaconDb, bonusesOf, qualityCtx.effectStep);
+  const qualityFx = qualityEffectLookups(moduleDb, beaconDb, bonusesOf, qualityCtx.steps);
   const qualityRank = (quality: string) =>
     qualityCtx.ladder.findIndex((step) => step.name === quality);
   // a row asking for a quality the horizon hasn't unlocked plans at the best
@@ -833,7 +833,11 @@ export async function computeBlock(rawData: SolveInput) {
   // item products by the row's quality effect, and key goods per (good,
   // quality) — a pure input transformation like the temperature one below. It
   // returns the input untouched when nothing has quality (every Py block).
-  const { input: expandedQualityInput, fold: qualityFold } = expandQualities(
+  const {
+    input: expandedQualityInput,
+    fold: qualityFold,
+    ignoredPins,
+  } = expandQualities(
     { goals: requestedGoals, recipes: defs, made, pins, drains },
     new Map<string, RowRun>(
       defs.map((d) => {
@@ -860,17 +864,27 @@ export async function computeBlock(rawData: SolveInput) {
   // consume goal is never superseded: pinned producers don't fix what it takes.
   //
   // This runs on the quality-expanded columns, per (good, quality) key (#266).
-  // A count pin fixes one column only when its row runs at a single quality; on
-  // a quality-range row it fixes the row's total, so any mix of qualities can
-  // fill it and a quality goal it feeds stays binding.
-  const fixedColumns = new Set(
-    (data.pins ?? []).flatMap((pin) => {
-      if (pin.kind !== "count") return [];
-      const columns = qualityFold.columnsOf(pin.recipe);
-      return columns.length === 1 ? columns : [];
-    }),
+  // A count pin fixes the row's total rate. That fixes a good's output only
+  // when every column of the row makes the same amount of it: always on a
+  // single-quality row, and on a quality-range row for a fluid or a
+  // fixed-quality product. An item split by quality can come from any mix of
+  // columns, so a quality goal it feeds stays binding.
+  const countPinned = new Set(
+    (data.pins ?? []).flatMap((pin) => (pin.kind === "count" ? [pin.recipe] : [])),
   );
   const columnDefs = new Map(expandedQualityInput.recipes.map((d) => [d.name, d]));
+  const netOf = (column: string, good: string) => {
+    const def = columnDefs.get(column);
+    const sum = (cs: QualityComponent[] | undefined) =>
+      (cs ?? []).reduce((s, c) => (c.name === good ? s + c.amount : s), 0);
+    return sum(def?.products) - sum(def?.ingredients);
+  };
+  const fixesGood = (column: string, good: string) => {
+    const { recipe } = qualityFold.rowOf(column);
+    if (!countPinned.has(recipe)) return false;
+    const amounts = qualityFold.columnsOf(recipe).map((c) => netOf(c, good));
+    return amounts.every((a) => a === amounts[0]);
+  };
   const goalKey = (goal: { name: string; quality?: string }) => qualityKey(goal.name, goal.quality);
   const supersededGoals = new Map<string, { recipe: string; column: string; count: number }>();
   for (const p of data.pins ?? []) {
@@ -881,7 +895,7 @@ export async function computeBlock(rawData: SolveInput) {
           def.products.some((product) => product.name === prod && product.amount > 0),
         );
         const outputIsFullyPinned =
-          producers.length > 0 && producers.every((def) => fixedColumns.has(def.name));
+          producers.length > 0 && producers.every((def) => fixesGood(def.name, prod));
         if (
           outputIsFullyPinned &&
           requestedGoals.some((t) => goalKey(t) === prod && t.rate != null && !goalConsumes(t)) &&
@@ -1886,6 +1900,9 @@ export async function computeBlock(rawData: SolveInput) {
     unmadeTemp,
     // goals whose rate a count pin superseded (#121) — the soft supply-push note
     goalSuperseded,
+    // share pins at a quality their row doesn't run at (#266): left out of the
+    // solve and reported here, so the relaxation isn't silent
+    ignoredPins,
     diagnosis,
     power,
     fuelItems,

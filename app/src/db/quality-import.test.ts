@@ -12,6 +12,7 @@ describe("resolveQualityScale", () => {
       basis: "base 2.1.24",
       effectScale: 1,
       effectStep: 0.0001,
+      moduleStep: 0.0001,
     });
     expect(resolveQualityScale(noChain, "2.1.7").legacy).toBe(false);
     expect(resolveQualityScale(modern, "2.0.76")).toMatchObject({
@@ -19,6 +20,7 @@ describe("resolveQualityScale", () => {
       basis: "base 2.0.76",
       effectScale: 0.1,
       effectStep: 0.001,
+      moduleStep: 0.01,
     });
     // 2.1.0 to 2.1.6 still had the old scale
     expect(resolveQualityScale(modern, "2.1.6").legacy).toBe(true);

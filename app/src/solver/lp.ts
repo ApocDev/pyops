@@ -15,8 +15,13 @@ import highsLoader from "highs";
  *   - every other item is free: consumption imports, incidental byproduct
  *     production offsets the import, surplus exports. A byproduct is never
  *     scaled up to cover demand.
- *   - pins constrain single recipes (rate =, rate ≤) or item fan-out (a
- *     consumer takes a share of the item's production).
+ *   - pins constrain a recipe's rate (rate =, rate ≤) or item fan-out (a
+ *     consumer takes a share of the item's production). With `members`, a
+ *     rate or cap pin bounds the sum of several recipes' rates and a share
+ *     pin's consumer is their summed intake (a quality row's columns,
+ *     solver/quality.ts). A "remaining" share base subtracts rate-pinned
+ *     consumers' intake: a constant when every pinned column eats the same
+ *     amount, otherwise a term over the pinned columns' rates.
  * Objective: minimize machine-seconds (Σ energyRequired × rate) with a tiny
  * epsilon per recipe so zero-cost synthetic recipes (burning, venting) cannot
  * create non-unique optima. Same input → identical output.

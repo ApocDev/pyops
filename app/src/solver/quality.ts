@@ -4,7 +4,11 @@ import type { TempComponent, TempRecipeDef } from "./temps.ts";
 
 /**
  * Quality (#266) as a PURE transformation of the solver input, in the style of
- * `temps.ts`. The LP core only gains multi-column rate pins for it.
+ * `temps.ts`. The LP core gains only pins over several columns (`members`)
+ * for it: a count or capacity pin bounds the sum of a row's columns, a share
+ * pin's consumer can be that sum, and a "remaining" share base subtracts a
+ * multi-column pin's intake as a term over the column rates when the columns
+ * eat different amounts.
  *
  * A block row carries a quality range: one recipe row that runs at every
  * quality from `min` to `max`, with one machine and module setup. This
@@ -21,7 +25,8 @@ import type { TempComponent, TempRecipeDef } from "./temps.ts";
  *   - goals, made marks and drains already name a (good, quality) key, and a
  *     count or capacity pin on a row bounds the sum of its columns. A share
  *     pin names a quality column, except on a fluid (or fixed-quality fuel),
- *     where it splits the row's summed intake.
+ *     where it splits the row's summed intake. A share pin at a quality its
+ *     row doesn't run at is reported in `ignoredPins`, never dropped silently.
  *
  * A quality loop needs nothing else: recycling recipes are ordinary recipes in
  * the dump, so "craft at normal..epic, recycle at normal..epic, drain the
@@ -146,6 +151,17 @@ export type RowQuality = { levels: string[]; effect: number };
  * it splits; its consumer column is the row's run at that quality. */
 export type QualityPin = Pin & { quality?: string };
 
+/** A share pin the transform couldn't apply: its row doesn't run at the pin's
+ * quality. `locked` means the quality is above the best one the research
+ * horizon unlocks (the row's range was capped below it); `range` means the
+ * row's range simply leaves it out. The block reports these to the user. */
+export type IgnoredPin = {
+  recipe: string;
+  item: string;
+  quality: string | null;
+  reason: "range" | "locked";
+};
+
 type Goal = {
   name: string;
   rate: number;
@@ -189,6 +205,7 @@ export function expandQualities<G extends Goal>(
     drains: string[];
   };
   fold: QualityFold;
+  ignoredPins: IgnoredPin[];
 } {
   const named = new Set(ladder.filter((q) => q.name !== NORMAL_QUALITY).map((q) => q.name));
   const levelsOf = (recipe: string) => rows.get(recipe)?.levels ?? [NORMAL_QUALITY];
@@ -227,6 +244,7 @@ export function expandQualities<G extends Goal>(
         drains: input.drains,
       },
       fold: identityFold,
+      ignoredPins: [],
     };
   }
 
@@ -261,6 +279,8 @@ export function expandQualities<G extends Goal>(
     });
   });
 
+  const rank = (name: string) => ladder.findIndex((q) => q.name === name);
+  const ignoredPins: IgnoredPin[] = [];
   const pins = input.pins.flatMap(({ quality, ...pin }): Pin[] => {
     if (pin.kind === "share") {
       // a fluid (or fixed-quality fuel) is the same good in every column, so
@@ -277,7 +297,21 @@ export function expandQualities<G extends Goal>(
         ];
       }
       const column = qualityKey(pin.recipe, quality);
-      if (!rowOfColumn.has(column)) return []; // the row doesn't run at that quality
+      if (!rowOfColumn.has(column)) {
+        // the row doesn't run at that quality: report it rather than solve as
+        // if the pin weren't there. A pin on a row that left the block is
+        // dropped quietly, as it is without quality.
+        if (cols) {
+          const level = quality ?? NORMAL_QUALITY;
+          ignoredPins.push({
+            recipe: pin.recipe,
+            item: pin.item,
+            quality: level === NORMAL_QUALITY ? null : level,
+            reason: top != null && rank(level) > rank(top) ? "locked" : "range",
+          });
+        }
+        return [];
+      }
       return [{ ...pin, recipe: column, item: qualityKey(pin.item, quality) }];
     }
     const cols = columns.get(pin.recipe);
@@ -303,5 +337,6 @@ export function expandQualities<G extends Goal>(
       columnsOf: (recipe) => columns.get(recipe) ?? [recipe],
       goodOf: (good) => splitQualityKey(good, named),
     },
+    ignoredPins,
   };
 }

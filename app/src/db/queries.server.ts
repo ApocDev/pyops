@@ -4714,8 +4714,8 @@ export function createBlockSolveContext(recipeNames: string[]) {
     /** The quality chain for this solve (#266): each quality in chain order,
      * the rows by name (for their bonuses), the best quality the research
      * horizon unlocks (upgrade chances past it land there, as YAFC-CE's
-     * `Quality.MaxAccessible`), and the precision scaled module quality
-     * effects floor to. A quality no technology unlocks counts as unlocked. */
+     * `Quality.MaxAccessible`), and the precisions scaled module effects
+     * floor to. A quality no technology unlocks counts as unlocked. */
     qualities: () => {
       const rows = db.select().from(qualities).all();
       const ladder = qualityLadder(rows);
@@ -4733,12 +4733,16 @@ export function createBlockSolveContext(recipeNames: string[]) {
         if (!unlocked(q.name)) break;
         top = q.name;
       }
-      const step = Number(metaAll().quality_effect_step);
+      const m = metaAll();
+      const step = (key: string) => {
+        const value = Number(m[key]);
+        return Number.isFinite(value) && value > 0 ? value : 0.0001;
+      };
       return {
         ladder,
         byName: new Map(rows.map((row) => [row.name, row])),
         top,
-        effectStep: Number.isFinite(step) && step > 0 ? step : 0.0001,
+        steps: { quality: step("quality_effect_step"), module: step("module_effect_step") },
       };
     },
     productivityBonuses: (): ProductivityBonuses => {

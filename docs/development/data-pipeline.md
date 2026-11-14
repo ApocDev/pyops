@@ -327,15 +327,19 @@ documented defaults (`QualityPrototype` and `RecipePrototype` in
 `doc-html/prototype-api.json`). `db/quality-import.ts` holds those rules.
 
 - `qualities` has one row per quality prototype: `level`, `next`, `next_probability`,
-  `chain_probability`, `hidden`, and the multipliers and bonuses the planner needs. With
-  `default_multiplier` = 1 + 0.3 × level, the module, crafting speed, and lab speed
-  multipliers default to it. Slot bonuses default to the level, `tool_durability_multiplier`
-  to 1 + level, `chain_probability` to `next_probability` × 0.1 clamped to [0, 1], and the
-  rest to 1. The Py dump has only `normal` (no `next`) and the engine's hidden
+  `chain_probability`, `hidden`, `default_multiplier`, and the multipliers and bonuses the
+  planner needs. `default_multiplier` defaults to 1 + 0.3 × level and scales power
+  buildings. The module, crafting speed, and lab speed multipliers default to it. Slot
+  bonuses default to the level, `tool_durability_multiplier` and
+  `science_capacity_multiplier` to 1 + level, `chain_probability` to `next_probability` ×
+  0.1 clamped to [0, 1], and the rest to 1. The Py dump has only `normal` (no `next`) and the engine's hidden
   `quality-unknown` placeholder. The quality mod adds uncommon, rare, epic, and legendary.
 - `modules` stores each module's `<effect>_quality_multiplier`: how much of the module
   quality's multiplier each effect gets. Unset, it is 1 for a beneficial effect (positive
   speed, productivity, and quality; negative consumption and pollution) and 0 for a penalty.
+- `items.type` keeps each item's prototype type, so a science pack's quality uses
+  `tool_durability_multiplier` when it is a `tool` and `science_capacity_multiplier` when it
+  is a plain `item`.
 - `tech_quality_unlocks` records `unlock-quality` technology effects, so the research horizon
   can tell which qualities are reachable.
 - Machines store the flags that opt into quality bonuses. `crafting_machines` has
@@ -363,8 +367,9 @@ Module quality effects, a receiver's base quality effect, and the `quality_limit
 receiver sets are divided by 10. Unset bounds keep their 2.1 defaults. Each
 quality's `next_probability` is multiplied by 10, and its raw value becomes the chain
 probability, since 2.0 used it for every further step. The engine also floors a module's
-quality-scaled quality effect more coarsely in 2.0. The importer records that precision in
-the `quality_effect_step` metadata key: 0.0001 for 2.1 and 0.001 for 2.0.
+quality-scaled effects more coarsely before 2.1.7. The importer records those precisions in
+two metadata keys: `quality_effect_step` for the quality effect (0.0001 for 2.1, 0.001
+before) and `module_effect_step` for the other effects (0.0001 for 2.1, 0.01 before).
 
 ### Energy goods
 

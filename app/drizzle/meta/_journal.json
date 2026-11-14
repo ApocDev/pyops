@@ -218,6 +218,13 @@
       "when": 1794629091327,
       "tag": "0030_quality-prototypes",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1794693286189,
+      "tag": "0031_quality-power-science",
+      "breakpoints": true
     }
   ]
 }

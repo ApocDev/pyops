@@ -201,8 +201,11 @@ producer but a wider range remains a different connection.
 ## Quality
 
 Quality is a second pure input transform, `expandQualities` in `quality.ts`. It runs before
-composed sub-blocks and the temperature expansion. The LP core gains only one thing for it:
-a count or capacity pin can bound the sum of several columns.
+composed sub-blocks and the temperature expansion. The LP core gains only pins over several
+columns (`members`) for it. A count or capacity pin can bound the sum of a row's columns, and
+a share pin's consumer can be the row's summed intake. A "remaining" share base subtracts a
+multi-column count pin's intake, as a constant when the columns eat the same amount and as a
+term over their rates when they don't.
 
 ### Identity
 
@@ -243,13 +246,19 @@ A composed sub-block's goals name a (good, quality) like block goals. Its member
 rows' quality columns, and its boundary contract keeps quality keys, so the parent links the
 module's output per quality.
 
-A count or capacity pin on a row bounds its total rate across all its columns. Because such a
-pin fixes only the total, it never supersedes a goal on one quality: the goal stays binding,
-and the pinned buildings must make it from that quality's column. A goal is superseded only
-when every column that produces its (good, quality) is a single-quality row with its own
-count pin. An item share pin
-names a (good, quality): the row's column at that quality takes its share of that quality's
-production. A fluid has no quality, so a fluid share pin splits the row's intake summed over
+A count or capacity pin on a row bounds its total rate across all its columns. Such a pin
+fixes a good's output only when every column of the row makes the same amount of it: always
+on a single-quality row, and on a range row for a fluid or a fixed-quality product. A goal
+is superseded only when every column that produces its (good, quality) belongs to a
+count-pinned row that fixes it that way. An item split by quality can come from any mix of
+columns, so a count pin never supersedes a goal on one quality: the goal stays binding, and
+the pinned buildings must make it from that quality's column.
+
+An item share pin names a (good, quality): the row's column at that quality takes its share
+of that quality's production. A share pin at a quality its row doesn't run at, including one
+above the best unlocked quality, can't apply. The block leaves it out of the solve and lists
+it in `ignoredPins` with the reason (`range` or `locked`), so the result never quietly drops
+it. A fluid has no quality, so a fluid share pin splits the row's intake summed over
 all its columns. Another share pin's "remaining" base subtracts a count-pinned row's intake.
 When every column eats the same amount, as with a fluid, that intake is a constant. An item is
 eaten at each column's own quality, so its intake stays a term over the columns' rates.
@@ -294,14 +303,21 @@ Entity quality uses the imported multipliers, not YAFC-CE's hard-coded 30% and 0
 
 - A module's effects scale by the quality's module multiplier for each effect, weighted by
   the module's `<effect>_quality_multiplier`. By default only the beneficial side scales, so
-  a quality module's −5% speed stays −5%. The result floors to whole percent, and the quality
-  effect floors to the import's `quality_effect_step` (0.01% for Factorio 2.1). A legendary
-  quality module 3 gives 0.025 × 2.5 = 6.25%.
+  a quality module's −5% speed stays −5%. Each result floors to the import's precision:
+  `module_effect_step` for speed, productivity, consumption, and pollution, and
+  `quality_effect_step` for quality. Both are 0.01% for Factorio 2.1, so an uncommon
+  productivity module 1 gives 4% × 1.3 = 5.2%. An older dump floors to whole percent and
+  0.1%. A legendary quality module 3 gives 0.025 × 2.5 = 6.25%.
 - A beacon gains `distribution_effectivity_bonus_per_quality_level` per level, its power
   scales by `beacon_power_usage_multiplier`, and its slots grow when it opts in.
 - A crafting machine's speed scales by its per-quality override or the quality's
   `crafting_machine_speed_multiplier`. Its energy use and slots change only when it opts in.
-  Drills, labs, boilers, and generators keep their base values.
+- A power building's output and energy use scale by the quality's `default_multiplier`
+  (1.3 for uncommon up to 2.5 for legendary). That covers boilers and heat exchangers, steam
+  engines and turbines, burner generators, fuel reactors, solar panels, and offshore pumps,
+  as YAFC-CE's `Entity.Power` does (`DataClasses.cs:608-611`). A legendary boiler makes
+  4.5 MW of steam and burns 2.5 times the fuel. Mining drills and labs keep their base
+  values.
 
 A module or beacon at a quality is looked up under its quality key, so `computeEffects`
 reads a legendary module like any other.
@@ -324,8 +340,10 @@ state by hand and checks the LP against it.
 
 A science bank's pack rate is research throughput, in normal packs' worth of research per
 second. Lab count and power follow throughput only. The packs consumed are what changes: a
-quality science pack carries `tool_durability_multiplier` times the research (1 + level by
-default), and a lab drains every pack at the same speed. So 1/s of
+quality science pack carries more research. A `tool`-type pack scales by its quality's
+`tool_durability_multiplier`. A plain-item pack, as every vanilla pack is from Factorio
+2.1.18 on, scales by `science_capacity_multiplier`. Both are 1 + level by default, and a lab drains
+every pack at the same speed. So 1/s of
 `automation-science-pack@rare` needs the same labs as 1/s of normal packs, but only a third
 of the packs. YAFC-CE counts it the same way, as level + 1 normal packs. The
 bank's `labQuality` scales research speed by `lab_research_speed_multiplier`. A lab with

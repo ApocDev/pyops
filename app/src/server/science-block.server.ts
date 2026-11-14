@@ -255,7 +255,7 @@ export function solveScienceBank(bank: ScienceBank): ScienceBankResult | null {
     q.getModules(moduleNames),
     q.getBeacons(beacons.map((b) => b.beacon)),
     bonusesOf,
-    qualityCtx.effectStep,
+    qualityCtx.steps,
   );
   const result = computeScienceBank({
     lab,
@@ -270,10 +270,15 @@ export function solveScienceBank(bank: ScienceBank): ScienceBankResult | null {
     beaconDb: qualityFx.beacons,
     packQuality: (pack) => {
       const { name, quality } = splitQualityKey(pack, qualityNames);
-      const durability = quality
-        ? (qualityCtx.byName.get(quality)?.toolDurabilityMultiplier ?? 1)
-        : 1;
-      return { name, demand: drain / durability };
+      // a `tool` pack's research scales by `tool_durability_multiplier`; a
+      // plain-item pack (Factorio 2.1.18+) by `science_capacity_multiplier`
+      const row = quality ? qualityCtx.byName.get(quality) : undefined;
+      const capacity = !row
+        ? 1
+        : q.getItem(name)?.type === "tool"
+          ? row.toolDurabilityMultiplier
+          : row.scienceCapacityMultiplier;
+      return { name, demand: drain / capacity };
     },
     upkeepDb: new Map(
       [...q.getBeaconUpkeep(beacons.map((b) => b.beacon))].map(([key, u]) => [

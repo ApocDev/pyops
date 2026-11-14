@@ -1051,6 +1051,9 @@ const QUALITY_MOD = {
     "quality-module": { category: "quality", effect: { quality: 0.01, speed: -0.05 } },
     "quality-module-3": { category: "quality", effect: { quality: 0.025, speed: -0.05 } },
   },
+  // a 2.1.18+ science pack is a plain item; a mod's pack can still be a tool
+  item: { "automation-science-pack": { science_capacity: 1 } },
+  tool: { "py-science-pack-1": { durability: 1 } },
   technology: {
     "quality-module": {
       effects: [
@@ -1088,11 +1091,13 @@ describe("importFactorioDump — quality prototypes (#265)", () => {
       tool_durability_multiplier: 1,
     });
     // uncommon sets only its beacon power and drain; the rest are defaults
-    // from level 1: default_multiplier 1.3, slot bonuses 1, durability 2
+    // from level 1: default_multiplier 1.3, slot bonuses 1, durability and
+    // science capacity 2
     expect(q("uncommon")).toEqual({
       name: "uncommon",
       display: null,
       level: 1,
+      default_multiplier: 1.3,
       next: "rare",
       next_probability: 1,
       chain_probability: 0.1,
@@ -1112,6 +1117,7 @@ describe("importFactorioDump — quality prototypes (#265)", () => {
       mining_drill_module_slots_bonus: 1,
       science_pack_drain_multiplier: 0.99,
       tool_durability_multiplier: 2,
+      science_capacity_multiplier: 2,
     });
     // the top of the chain: no next, so no chance to go further
     expect(q("legendary")).toMatchObject({
@@ -1122,7 +1128,9 @@ describe("importFactorioDump — quality prototypes (#265)", () => {
       chain_probability: 0,
       crafting_machine_speed_multiplier: 2.5,
       beacon_module_slots_bonus: 5,
+      default_multiplier: 2.5,
       tool_durability_multiplier: 6,
+      science_capacity_multiplier: 6,
     });
     expect(q("quality-unknown")).toMatchObject({ hidden: 1, next: null });
 
@@ -1141,6 +1149,15 @@ describe("importFactorioDump — quality prototypes (#265)", () => {
     expect(
       db.prepare(`SELECT value FROM meta WHERE key = 'quality_effect_step'`).pluck().get(),
     ).toBe("0.0001");
+    expect(
+      db.prepare(`SELECT value FROM meta WHERE key = 'module_effect_step'`).pluck().get(),
+    ).toBe("0.0001");
+    expect(
+      all(db, `SELECT name, type FROM items WHERE name LIKE '%science%' ORDER BY name`),
+    ).toEqual([
+      { name: "automation-science-pack", type: "item" },
+      { name: "py-science-pack-1", type: "tool" },
+    ]);
     db.close();
   });
 
@@ -1273,6 +1290,7 @@ describe("importFactorioDump — quality prototypes (#265)", () => {
     expect(rx.limits.quality.low).toBe(0);
     expect(rx.limits.speed).toEqual({ low: -0.8, high: 1000 });
     expect(metaValue(db, "quality_effect_step")).toBe("0.001");
+    expect(metaValue(db, "module_effect_step")).toBe("0.01");
     expect(metaValue(db, "quality_scale_basis")).toBe("base 2.0.76");
     db.close();
   });

@@ -22,6 +22,10 @@ export type QualityScale = {
   /** Precision the engine floors a quality-scaled module's quality effect to,
    * in 2.1 units: 0.01% in 2.1, 0.1% before. Recorded as `quality_effect_step`. */
   effectStep: number;
+  /** Precision the engine floors a module's other quality-scaled effects to:
+   * 0.01% in 2.1 ("Module effects now have resolution of 0.01%", 2.1.7),
+   * whole percent before. Recorded as `module_effect_step`. */
+  moduleStep: number;
 };
 
 /** The first version on the 2.1 quality scale. 2.1.7 divided every prototype
@@ -58,6 +62,7 @@ export function resolveQualityScale(raw: Raw, baseVersion?: string | null): Qual
         : "base version unknown; normal.chain_probability check",
     effectScale: legacy ? 0.1 : 1,
     effectStep: legacy ? 0.001 : 0.0001,
+    moduleStep: legacy ? 0.01 : 0.0001,
   };
 }
 
@@ -81,6 +86,7 @@ export function qualityRow(
     name,
     display,
     level,
+    default_multiplier: multiplier,
     next: typeof q.next === "string" ? q.next : null,
     next_probability: legacy ? next * 10 : next,
     chain_probability: legacy ? next : num(q.chain_probability, clamp01(next * 0.1)),
@@ -100,6 +106,7 @@ export function qualityRow(
     mining_drill_module_slots_bonus: num(q.mining_drill_module_slots_bonus, level),
     science_pack_drain_multiplier: num(q.science_pack_drain_multiplier, 1),
     tool_durability_multiplier: num(q.tool_durability_multiplier, 1 + level),
+    science_capacity_multiplier: num(q.science_capacity_multiplier, 1 + level),
   };
 }
 
