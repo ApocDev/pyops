@@ -1,0 +1,19 @@
+app/e2e/mut/large-block.e2e.ts
+  s_9fc63726703b30::t_827669c0065539 64-66,85-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "174926a0a54b0e57c51feaab987e63284002e435",
+  "prompts": {},
+  "sessions": {
+    "s_9fc63726703b30": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02db569b-f201-411a-b8c3-2dbe6f7ee864",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
