@@ -5,13 +5,14 @@ import { Icon } from "../../lib/icons";
 import { fmtCount } from "./format.ts";
 
 /** Compact per-item logistics readout under a chip: belts to carry the row's whole
- * flow of this item, devices (inserters/loaders) to move it in/out of ONE building,
- * and — when rockets are on — rocket launches/min. Devices are omitted on
+ * flow of this item, devices (inserters/loaders) to move it in/out of ONE building
+ * (`input` = belt → building, `output` = building → belt), and — when rockets are on — rocket launches/min. Devices are omitted on
  * building-less rows; `launch` is omitted unless the rocket toggle is on. */
 export function LogiTag({
   resolved,
   rate,
   machineCount,
+  direction,
   showBelts,
   showInserters,
   launch,
@@ -19,12 +20,13 @@ export function LogiTag({
   resolved: ResolvedLogistics;
   rate: number;
   machineCount: number;
+  direction: "input" | "output";
   showBelts: boolean;
   showInserters: boolean;
   launch?: { perMin: number; defaulted: boolean } | null;
 }) {
   if (!(rate > 1e-9)) return null;
-  const r = rowLogistics(resolved, rate, machineCount);
+  const r = rowLogistics(resolved, rate, machineCount, direction);
   if (!r) return null;
   const beltOn = showBelts;
   const insOn = showInserters && machineCount > 1e-9; // per-building → rows only

@@ -8,9 +8,10 @@ export function LogisticsHelpButton({ className }: { className?: string }) {
       <p>
         With the readout on, each block row shows how many <b className="text-foreground">belts</b>{" "}
         carry that item across the row, and how many{" "}
-        <b className="text-foreground">inserters or loaders</b> it takes to feed one building at the
-        planned rate. It's a quick feasibility check: when the inserter count gets silly, reach for
-        loaders or direct insertion.
+        <b className="text-foreground">inserters or loaders</b> it takes to move it in or out of one
+        building at the planned rate. Ingredients count inserters taking from the belt; products
+        count inserters dropping onto it, which is slower for big hands. It's a quick feasibility
+        check: when the inserter count gets silly, reach for loaders or direct insertion.
       </p>
       <p>
         Pick the belt and inserter/loader tier to size against. Hover an option to see its effective
@@ -25,8 +26,9 @@ export function LogisticsHelpButton({ className }: { className?: string }) {
       </p>
       <p>
         <b className="text-foreground">Stacking</b> — belt-stack and inserter-capacity research from
-        the planning horizon raise throughput. The belt-stack override pins the placed stack size
-        (it applies to belts only); leave it blank to follow research.
+        the planning horizon raise throughput. Cranes count the upgraded tier that research swaps
+        in. The belt-stack override pins the belt's placed stack size; leave it blank to follow
+        research.
       </p>
     </HelpButton>
   );

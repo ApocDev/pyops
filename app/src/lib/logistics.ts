@@ -6,13 +6,23 @@
  * come from the belts/loaders/inserters tables; the current stack bonuses are
  * derived from the research horizon by the query layer and passed in here.
  *
- * Inserter throughput is the swing model from `inserter-throughput-lib`
- * (the in-game-validated community reference), reduced to the inventory→inventory
- * case — i.e. an inserter feeding a machine/chest. That branch is the library's
- * *accurate* (non-estimate) path: `extra_drop_ticks` and `extra_pickup_ticks` are
- * both 0, so throughput is linear in hand stack size and constant per prototype.
- * Belt-item chasing (which only makes inserters faster) is omitted, so the number
- * is a slight, safe under-estimate for belt-fed machines.
+ * Inserter throughput is a reduced port of `inserter-throughput-lib` 2.1.0's
+ * `estimate_inserter_speed`, checked against Factorio 2.1 measurements (#282).
+ * A row's input inserters take from a belt and drop into the building; its
+ * output inserters take from the building and drop onto a belt.
+ *
+ * - Swing: each half swing is the library's `ceil(...)` minus one tick. That fits
+ *   every chest-to-chest measurement in 2.1.
+ * - Belt → building: the library's non-chasing pickup path (one tick per extra
+ *   grab) plus its belt-refill cap, counted in belt stacks rather than items.
+ *   About four belt slots are in reach before the hand waits for more (the
+ *   library assumes eight; 2.1 measurements fit four), and past that it grabs
+ *   at most one stack per 3 ticks on fast belts. The library's chasing
+ *   estimate is 18–36% slow in 2.1, so it is not used. Chasing makes a fast
+ *   inserter with a small hand about 11% faster than this model.
+ * - Building → belt: the library's drop path, counted in the stacks the inserter
+ *   places (belt-stacking inserters drop `min(max_belt_stack_size, belt stack)`
+ *   per drop and carry only whole stacks of that size).
  */
 
 export type BeltProto = { name: string; display: string | null; speed: number };
@@ -27,8 +37,12 @@ export type InserterProto = {
   dropX: number;
   dropY: number;
   bulk: boolean; // bulk inserter → bulk-inserter-capacity bonus (else inserter-stack bonus)
-  baseStackBonus: number; // prototype inserter_stack_size_bonus
+  baseStackBonus: number; // prototype stack_size_bonus
   maxBeltStackSize: number; // per-inserter belt-stacking cap (when dropping onto a belt)
+  /** Stack bonuses of the tiers the game swaps this inserter for as capacity
+   * research completes (pycranes' `crane-mk3` → `crane-mk3u1`…), base tier first.
+   * Absent for ordinary inserters. */
+  upgradeStackBonuses?: number[];
 };
 
 /** Stack bonuses summed from the in-effect tech set (see queries.stackBonuses). */
@@ -211,9 +225,10 @@ function orientation(x: number, y: number): number {
   return ((o % 1) + 1) % 1;
 }
 
-/** Ticks for one pickup→drop swing (one direction). The cycle to deliver a hand of
- * items is two of these. From inserter-throughput-lib's non-chasing path:
- * max(extension ticks, rotation ticks, 1). */
+/** Ticks for one half swing (pickup → drop, or back). The full cycle is two of
+ * these plus any belt pickup/drop ticks. inserter-throughput-lib uses
+ * max(ceil(extension ticks), ceil(rotation ticks), 1); Factorio 2.1 is one tick
+ * faster per half (a basic inserter cycles in 48 ticks, not 50). */
 export function inserterSwingTicks(p: InserterProto): number {
   const fromLen = vlen(p.pickupX, p.pickupY);
   const toLen = vlen(p.dropX, p.dropY);
@@ -221,25 +236,97 @@ export function inserterSwingTicks(p: InserterProto): number {
   let diff = Math.abs(orientation(p.pickupX, p.pickupY) - orientation(p.dropX, p.dropY));
   if (diff > 0.5) diff = 1 - diff; // rotate the short way
   const rotTicks = Math.ceil(diff / p.rotationSpeed);
-  return Math.max(extTicks, rotTicks, 1);
+  return Math.max(1, Math.max(extTicks, rotTicks) - 1);
 }
 
-/** Hand stack size (items carried per swing): base + the applicable researched
- * bonus (bulk inserters use the bulk-capacity bonus, others the inserter-stack one). */
+/** The stack bonus in effect at the given research bonus. An inserter with
+ * auto-upgrade tiers uses the highest tier research has reached: in pycranes each
+ * tier's bonus is the base plus a whole number of steps, and the step count equals
+ * the research bonus that selects it (crane-mk3 is 5, 10, 15, 20… at bulk
+ * capacity +0, +1, +2, +3…). */
+function stackBonusAt(p: InserterProto, research: number): number {
+  const tiers = p.upgradeStackBonuses;
+  if (!tiers || tiers.length < 2) return p.baseStackBonus;
+  const step = tiers[1] - tiers[0];
+  if (!(step > 0)) return p.baseStackBonus;
+  let bonus = tiers[0];
+  for (const t of tiers) if ((t - tiers[0]) / step <= research + 1e-9) bonus = t;
+  return bonus;
+}
+
+/** Hand stack size (items carried per swing): 1 + the prototype bonus + the
+ * applicable researched bonus (bulk inserters use the bulk-capacity bonus, others
+ * the inserter-stack one). */
 export function inserterHandStack(p: InserterProto, b: StackBonuses): number {
-  const bonus = p.bulk ? b.bulkInserter : b.inserter;
-  return Math.max(1, 1 + p.baseStackBonus + bonus);
+  const research = p.bulk ? b.bulkInserter : b.inserter;
+  return Math.max(1, 1 + stackBonusAt(p, research) + research);
 }
 
-/** Items/second an inserter moves into a machine/chest at the given hand stack. */
-export function inserterThroughput(p: InserterProto, handStack: number): number {
-  const cycleTicks = inserterSwingTicks(p) * 2;
-  return cycleTicks > 0 ? (60 / cycleTicks) * handStack : 0;
+/** The belt at one end of an inserter's swing; the other end is a building or
+ * chest. `placedStack` is the belt's item stack size (belt-stack research). */
+export type InserterBelt = { end: "pickup" | "drop"; speed: number; placedStack: number };
+
+/** Belt slots in the hand's reach when it arrives at a full belt. Grabbing past
+ * these waits for the belt to bring more. inserter-throughput-lib uses 8; 4 fits
+ * 2.1 measurements of a Py stack inserter (6 grabs) and a bulk crane (8 grabs)
+ * on a stacked yellow belt. */
+const BELT_PICKUP_REACH = 4;
+
+/** Past its reach, a hand grabs at most one belt stack per this many ticks, even
+ * when the belt brings them faster (2.1 measurements: 3.15 ticks on a fast belt,
+ * 2.67 on an express belt, against 2 and 1.33 for both lanes' flow). */
+const MIN_TICKS_PER_BELT_GRAB = 3;
+
+/** Extra ticks to take `grabs` belt stacks: one tick per grab after the first,
+ * or the time for both lanes to bring the stacks beyond reach, whichever is longer
+ * (inserter-throughput-lib's non-chasing pickup + `cap_extra_pickup_ticks_to_belt_speed`). */
+function extraPickupTicks(grabs: number, speed: number): number {
+  if (grabs <= 1) return 0;
+  // items sit 0.25 tiles apart on each of two lanes
+  const ticksPerStack = Math.max(0.25 / speed / 2, MIN_TICKS_PER_BELT_GRAB);
+  return Math.max(grabs - 1, Math.ceil((grabs - BELT_PICKUP_REACH) * ticksPerStack));
+}
+
+/** Extra ticks to place `drops` stacks on one belt lane: each needs the previous
+ * one to move a slot along (inserter-throughput-lib's `calculate_extra_drop_ticks`). */
+function extraDropTicks(drops: number, speed: number): number {
+  if (drops <= 1) return 0;
+  if (drops === 2) return 1;
+  return Math.max(drops - 1, Math.floor((0.25 / speed) * (drops - 2)));
+}
+
+/** Items/second one inserter moves at the given hand stack: chest to chest when
+ * `belt` is omitted, else from or onto that belt. */
+export function inserterThroughput(
+  p: InserterProto,
+  handStack: number,
+  belt?: InserterBelt,
+): number {
+  const swing = inserterSwingTicks(p) * 2;
+  if (!belt) return (60 / swing) * handStack;
+  if (!(belt.speed > 0)) return 0;
+  const beltStack = Math.max(1, belt.placedStack);
+  if (belt.end === "pickup") {
+    const ticks = swing + extraPickupTicks(Math.ceil(handStack / beltStack), belt.speed);
+    // can't take more than the belt brings (both lanes)
+    return Math.min((60 / ticks) * handStack, beltItemsPerSecond(belt.speed, beltStack));
+  }
+  // A belt-stacking inserter drops whole stacks and carries only whole stacks.
+  const dropStack = p.maxBeltStackSize > 1 ? Math.min(p.maxBeltStackSize, beltStack) : 1;
+  const carried = handStack >= dropStack ? handStack - (handStack % dropStack) : handStack;
+  const ticks = swing + extraDropTicks(Math.ceil(carried / dropStack), belt.speed);
+  // drops land on one lane
+  return Math.min((60 / ticks) * carried, beltItemsPerSecond(belt.speed, dropStack) / 2);
 }
 
 /** Inserters needed to move `rate` items/s in or out of one building (fractional). */
-export function insertersForRate(rate: number, p: InserterProto, handStack: number): number {
-  const per = inserterThroughput(p, handStack);
+export function insertersForRate(
+  rate: number,
+  p: InserterProto,
+  handStack: number,
+  belt?: InserterBelt,
+): number {
+  const per = inserterThroughput(p, handStack, belt);
   return per > 0 ? rate / per : Infinity;
 }
 
@@ -321,11 +408,14 @@ export function resolveLogistics(ctx: LogisticsContext): ResolvedLogistics {
 export type RowLogistics = { belts: number; devices: number; deviceKind: "inserter" | "loader" };
 
 /** Belts to carry `rate` of one item across the whole row, and devices (inserters
- * or loaders) to move it in/out of ONE building (rate ÷ building count). */
+ * or loaders) to move it in/out of ONE building (rate ÷ building count). An
+ * `input` is taken off the selected belt into the building; an `output` is
+ * dropped from the building onto it. */
 export function rowLogistics(
   r: ResolvedLogistics,
   rate: number,
   machineCount: number,
+  direction: "input" | "output",
 ): RowLogistics | null {
   if (!r.belt) return null;
   const belts = beltsForRate(rate, r.belt, r.placedStack);
@@ -347,7 +437,11 @@ export function rowLogistics(
   if (!r.inserter) return null;
   return {
     belts,
-    devices: insertersForRate(perBuilding, r.inserter, r.handStack),
+    devices: insertersForRate(perBuilding, r.inserter, r.handStack, {
+      end: direction === "input" ? "pickup" : "drop",
+      speed: r.belt.speed,
+      placedStack: r.placedStack,
+    }),
     deviceKind: "inserter",
   };
 }

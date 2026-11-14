@@ -171,6 +171,16 @@ power, scaled by its modules and beacons, plus a fixed drain that modules never 
 crafting machines drain 1/30 of their working power. The drain counts once for every building
 you place, so a `5.2` row pays drain on six machines, because an idle machine still draws it.
 
+With **Logistics** belts or inserters switched on, each item on a recipe row shows the belts
+that carry the row's whole flow and the inserters or loaders one building needs. Ingredient
+counts assume inserters take items off the selected belt; product counts assume they drop
+items onto it. Dropping onto a belt is slower for large hands, so a row often needs more
+output inserters than input inserters. Hand sizes include the inserter's built-in bonus and
+the stack research in the planning horizon. A crane counts as the upgraded tier that
+research swaps in, so **Crane MK 03** with bulk capacity +3 carries 24 items. These rates
+follow in-game measurements; a fast inserter picking from a belt runs about 10% faster than
+the count assumes.
+
 When **Logistics → Inserters / loaders** is enabled, an amber hammer and a second count can
 appear beneath the solved building count. It is the suggested physical build count: the
 selected movers, item inputs and outputs, fuel, burnt results, and active fluid connections

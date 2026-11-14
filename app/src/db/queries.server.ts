@@ -52,6 +52,7 @@ import { stripRichText } from "../lib/factorio-text.ts";
 import { computeEffects, effectsAllowed } from "../server/effects.ts";
 import type {
   BeltProto,
+  InserterBelt,
   InserterProto,
   LoaderProto,
   LogisticsContext,
@@ -3557,42 +3558,31 @@ export function logisticsOptions(): {
       baseStackBonus: i.baseStackBonus,
       maxBeltStackSize: i.maxBeltStackSize,
     }));
-  // Py's Crane mod ships per-upgrade-tier entities (crane-mk3, crane-mk3u1…u8) that
-  // are throughput-identical, so collapse to one option per (display + kinematics)
-  // signature, preferring the canonical entity (no trailing "uN" upgrade suffix).
-  const sig = (i: (typeof allInserters)[number]) =>
-    [
-      i.display ?? i.name,
-      i.rotationSpeed,
-      i.extensionSpeed,
-      i.pickupX,
-      i.pickupY,
-      i.dropX,
-      i.dropY,
-      Number(i.bulk),
-      i.baseStackBonus,
-      i.maxBeltStackSize,
-    ].join("|");
-  const isUpgradeVariant = (name: string) => /u\d+$/.test(name);
-  const bySig = new Map<string, (typeof allInserters)[number]>();
+  // pycranes ships auto-upgrade tiers (crane-mk3u1…u8) that the game swaps in for
+  // a placed crane-mk3 as capacity research completes. They aren't buildable, so
+  // fold them into their base entity's `upgradeStackBonuses`; the hand-size math
+  // then picks the tier research has reached.
+  const byName = new Map(allInserters.map((i) => [i.name, i]));
+  const baseOf = new Map<string, string>(); // upgrade tier → its base entity
   for (const i of allInserters) {
-    const cur = bySig.get(sig(i));
-    // keep a canonical (non-upgrade) name over an upgrade variant; else the shorter.
-    if (
-      !cur ||
-      (isUpgradeVariant(cur.name) && !isUpgradeVariant(i.name)) ||
-      (isUpgradeVariant(cur.name) === isUpgradeVariant(i.name) && i.name.length < cur.name.length)
-    ) {
-      bySig.set(sig(i), i);
-    }
+    const base = byName.get(i.name.replace(/u\d+$/, ""));
+    if (base && base !== i && base.display === i.display) baseOf.set(i.name, base.name);
   }
-  const inserterRows = [...bySig.values()].sort(
-    // hand stack first (bulk capacity), then swing speed — a stable, sensible order
-    (a, b) =>
-      Number(a.bulk) - Number(b.bulk) ||
-      a.rotationSpeed - b.rotationSpeed ||
-      (a.display ?? a.name).localeCompare(b.display ?? b.name),
-  );
+  const inserterRows = allInserters
+    .filter((i) => !baseOf.has(i.name))
+    .map((i) => {
+      const up = allInserters.filter((t) => baseOf.get(t.name) === i.name);
+      if (!up.length) return i;
+      const bonuses = [i, ...up].map((t) => t.baseStackBonus).sort((a, b) => a - b);
+      return { ...i, upgradeStackBonuses: bonuses };
+    })
+    .sort(
+      // hand stack first (bulk capacity), then swing speed — a stable, sensible order
+      (a, b) =>
+        Number(a.bulk) - Number(b.bulk) ||
+        a.rotationSpeed - b.rotationSpeed ||
+        (a.display ?? a.name).localeCompare(b.display ?? b.name),
+    );
   return { belts: beltRows, loaders: loaderRows, inserters: inserterRows };
 }
 
@@ -3715,7 +3705,15 @@ export type LogisticsForGood =
       beltStack: number; // effective placed-stack from current research (belts + loaders)
       bonuses: StackBonuses;
       belts: { belt: string; display: string | null; count: number; saturation: number }[];
-      inserters: { inserter: string; display: string | null; handStack: number; count: number }[];
+      /** belt the inserter counts take from / drop onto: the fastest unlocked tier */
+      inserterBelt: string | null;
+      inserters: {
+        inserter: string;
+        display: string | null;
+        handStack: number;
+        fromBelt: number; // whole inserters taking the rate off the belt into one building
+        toBelt: number; // whole inserters dropping the rate from one building onto the belt
+      }[];
       loaders: { loader: string; display: string | null; count: number }[];
       note?: string;
     };
@@ -3729,8 +3727,9 @@ export type LogisticsForGood =
  * unlocked belt tier's whole-belt count + saturation (how full the built belts
  * run — the direct "can one yellow belt feed this?" answer), and every
  * unlocked inserter/loader's whole-device count to move the rate through one
- * feed point. Stack sizes reflect the researched belt/inserter/bulk-inserter
- * bonuses (`stackBonuses`), the same math `resolveLogistics`/`rowLogistics`
+ * feed point (inserters both off and onto the fastest unlocked belt). Stack
+ * sizes reflect the researched belt/inserter/bulk-inserter bonuses
+ * (`stackBonuses`), the same math `resolveLogistics`/`rowLogistics`
  * use for the block editor's per-row readout (#21) — evaluated across every
  * unlocked tier instead of the user's one selected pick. Fluids short-circuit
  * to a note: pipe throughput isn't modelled (#126). */
@@ -3775,16 +3774,25 @@ export function logisticsForGood(good: string, rate: number): LogisticsForGood |
       return { loader: l.name, display: l.display, count: Math.max(0, Math.ceil(need - 1e-9)) };
     });
 
+  const inserterBelt = options.belts.filter((b) => unlocked.has(b.name)).at(-1);
+  const wholeInserters = (
+    i: InserterProto,
+    handStack: number,
+    end: InserterBelt["end"],
+  ): number => {
+    const belt = inserterBelt && { end, speed: inserterBelt.speed, placedStack };
+    return Math.max(0, Math.ceil(insertersForRate(rate, i, handStack, belt) - 1e-9));
+  };
   const inserters = options.inserters
     .filter((i) => unlocked.has(i.name))
     .map((i) => {
       const handStack = inserterHandStack(i, bonuses);
-      const need = insertersForRate(rate, i, handStack);
       return {
         inserter: i.name,
         display: i.display,
         handStack,
-        count: Math.max(0, Math.ceil(need - 1e-9)),
+        fromBelt: wholeInserters(i, handStack, "pickup"),
+        toBelt: wholeInserters(i, handStack, "drop"),
       };
     });
 
@@ -3803,6 +3811,7 @@ export function logisticsForGood(good: string, rate: number): LogisticsForGood |
     beltStack: placedStack,
     bonuses,
     belts,
+    inserterBelt: inserterBelt?.name ?? null,
     inserters,
     loaders,
     ...(notes.length ? { note: notes.join("; ") } : {}),

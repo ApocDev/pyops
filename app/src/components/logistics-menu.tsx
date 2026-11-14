@@ -3,6 +3,8 @@ import { useState } from "react";
 import { setLogisticsPrefsFn } from "../server/factorio";
 import { logisticsContextSubscription } from "../lib/live-query-options";
 import {
+  type InserterBelt,
+  type InserterProto,
   type LogisticsPrefs,
   MAX_BELT_STACK,
   beltItemsPerSecond,
@@ -97,6 +99,21 @@ export function LogisticsPicker() {
   // throughput-per-option for the hover tooltips, at the current stacking
   const fmt = formatQty; // adaptive precision (#74)
   const effBonuses = d.prefs.stacking ? d.bonuses : { belt: 0, inserter: 0, bulkInserter: 0 };
+  // per-inserter rates off and onto the selected belt (a row's inputs and outputs)
+  const inserterTip = (i: InserterProto) => {
+    const hand = inserterHandStack(i, effBonuses);
+    const rate = (end: InserterBelt["end"]) =>
+      resolved.belt
+        ? fmt(
+            inserterThroughput(i, hand, {
+              end,
+              speed: resolved.belt.speed,
+              placedStack: resolved.placedStack,
+            }),
+          )
+        : "?";
+    return `${i.display ?? i.name} (${i.name}) · hand ${hand} · ≈${rate("pickup")}/s belt → machine · ≈${rate("drop")}/s machine → belt${i.bulk ? " · bulk" : ""}`;
+  };
   const beltTip = (name: string, disp: string | null, speed: number) =>
     `${disp ?? name} (${name}) · ${fmt(beltItemsPerSecond(speed, resolved.placedStack))}/s on a full belt`;
 
@@ -159,7 +176,7 @@ export function LogisticsPicker() {
         <div className="space-y-1.5 border-t border-border pt-3">
           <FieldLabel className="flex items-center gap-1.5">
             Inserter / loader
-            <InfoHint content="The device feeding each building. Hover an option for its per-device rate into a machine." />
+            <InfoHint content="The device moving items in and out of each building. Hover an option for its per-device rate off the belt (inputs) and onto it (outputs)." />
           </FieldLabel>
           <div className="flex flex-wrap gap-1.5">
             {d.options.inserters.map((i) => (
@@ -168,9 +185,7 @@ export function LogisticsPicker() {
                 variant="toggle"
                 aria-pressed={d.prefs.moverKind === "inserter" && d.prefs.mover === i.name}
                 onClick={() => save.mutate({ mover: i.name, moverKind: "inserter" })}
-                title={`${i.display ?? i.name} (${i.name}) · ≈${fmt(
-                  inserterThroughput(i, inserterHandStack(i, effBonuses)),
-                )}/s into a machine${i.bulk ? " · bulk" : ""}`}
+                title={inserterTip(i)}
               >
                 <Icon kind="entity" name={i.name} size="sm" noHover />
                 <span>{i.display ?? i.name}</span>

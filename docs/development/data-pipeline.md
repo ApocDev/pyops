@@ -279,7 +279,12 @@ folded into stored energy use.
 ### Logistics and research effects
 
 Belts, loaders, and inserters store only the prototype fields needed by
-`app/src/lib/logistics.ts`. Crafting machines also store tile dimensions derived from their
+`app/src/lib/logistics.ts`. An inserter's `base_stack_bonus` is the prototype's
+`stack_size_bonus`. pycranes' auto-upgrade tiers (`crane-mk3u1` through `crane-mk3u8`)
+import as their own rows; `logisticsOptions` folds them into the base crane, and the
+hand-size math uses the tier the research bonus selects. The inserter throughput model
+(swing ticks, belt pickup, belt drop) and its in-game calibration are described in that
+module's header. Crafting machines also store tile dimensions derived from their
 selection or collision box. The block editor combines those dimensions with whole mover
 counts, fuel/byproduct access, and active fluid connections to warn when loading access needs
 more physical buildings than production capacity alone.

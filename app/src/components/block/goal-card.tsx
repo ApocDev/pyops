@@ -317,6 +317,7 @@ export function GoalCard({
                             resolved={logi.resolved}
                             rate={Math.abs(goal.rate)}
                             machineCount={0}
+                            direction="output"
                             showBelts={logi.showBelts}
                             showInserters={logi.showInserters}
                             launch={logi.launchInfo(g, Math.abs(goal.rate))}
