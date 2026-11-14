@@ -170,6 +170,8 @@ A row's power is what those buildings draw in game. Each electric machine draws 
 power, scaled by its modules and beacons, plus a fixed drain that modules never change. Most
 crafting machines drain 1/30 of their working power. The drain counts once for every building
 you place, so a `5.2` row pays drain on six machines, because an idle machine still draws it.
+A machine that runs on a heated fluid, such as Py's compost plant on sweet syrup, shows no
+power figure. Its fuel chip shows the fluid it drains instead.
 
 With **Logistics** belts or inserters switched on, each item on a recipe row shows the belts
 that carry the row's whole flow and the inserters or loaders one building needs. Ingredient
@@ -228,6 +230,9 @@ saved position with it.
 Variable generators show their average planned output and their minimum–maximum range on
 the electricity product chip. Building counts and block balances use the displayed average;
 the range shows how far live generation can move as the underlying surface condition changes.
+Solar panels plan at their Nauvis full-day average, 70% of their noon rating, with a range
+from nothing at night to the full rating at noon. The average assumes the night's shortfall
+is covered elsewhere; it does not size accumulators.
 
 ::: warning A solved block is not necessarily self-contained
 A block can solve while importing ingredients. This is intentional: the block boundary

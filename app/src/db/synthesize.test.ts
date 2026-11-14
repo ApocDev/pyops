@@ -261,7 +261,6 @@ describe("synthesizePass2 variable generators", () => {
           placeable_by: { item: "tidal-mk01" },
           solar_coefficient_property: "py-wind-speed",
         },
-        "ordinary-panel": { production: 60_000 },
       },
     };
 
@@ -280,18 +279,47 @@ describe("synthesizePass2 variable generators", () => {
       ),
     ).toMatchObject({ amount: 1.2, min: 0.4, max: 2 });
     expect(
-      get<{ amount: number; min: number | null; max: number | null }>(
-        `SELECT amount, amount_min min, amount_max max FROM recipe_products
-         WHERE recipe = 'generate-ordinary-panel' AND name = ?`,
-        ELECTRICITY,
-      ),
-    ).toMatchObject({ amount: 0.06, min: null, max: null });
-    expect(
       get(`SELECT name FROM recipes WHERE name = 'generate-multiblade-turbine-mk01-blank'`),
     ).toBeUndefined();
     expect(
       get(`SELECT machine FROM machine_categories WHERE category = 'generate:tidal-mk01-solar'`),
     ).toMatchObject({ machine: "tidal-mk01" });
+  });
+
+  // Factorio's default day/night thresholds average 70% sun over a day; the
+  // test save measured 71.3% for `solar-panel` and `solar-panel-mk01` (#296).
+  it("plans solar panels at the day average with night and noon as the range", () => {
+    const solarRaw = {
+      "surface-property": { "solar-power": { default_value: 100 } },
+      planet: { nauvis: { surface_properties: { "day-night-cycle": 25_200 } } },
+      "solar-panel": {
+        "solar-panel": { production: 60_000 },
+        "anti-solar": { production: 100_000_000, performance_at_day: 0, performance_at_night: 1 },
+      },
+    };
+
+    synthesizePass2(fx.db, solarRaw, ctx);
+
+    const power = (recipe: string) =>
+      get<{ display: string; amount: number; min: number; max: number }>(
+        `SELECT r.display, p.amount, p.amount_min min, p.amount_max max
+         FROM recipes r JOIN recipe_products p ON p.recipe = r.name
+         WHERE r.name = ? AND p.name = ?`,
+        recipe,
+        ELECTRICITY,
+      );
+    expect(power("generate-solar-panel")).toEqual({
+      display: "solar-panel power (average)",
+      amount: expect.closeTo(0.042, 9),
+      min: 0,
+      max: 0.06,
+    });
+    // Night-only output averages the 30% of the day without full sun.
+    expect(power("generate-anti-solar")).toMatchObject({
+      amount: expect.closeTo(30, 9),
+      min: 0,
+      max: 100,
+    });
   });
 });
 

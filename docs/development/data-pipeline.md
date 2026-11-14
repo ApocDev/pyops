@@ -249,6 +249,14 @@ Generators receive one synthetic recipe for each usable input temperature becaus
 depends on available thermal energy. Temperature-fed machines store the drain information
 required to turn their heat source into a real solver flow.
 
+Ordinary solar panels plan at their full-day average: `performance_at_night` blended toward
+`performance_at_day` by the day's average sunlight, scaled by Nauvis' `solar-power`
+percentage. The day/night thresholds (`dusk`, `evening`, `morning`, `dawn`) are runtime
+surface values that the data dump doesn't contain, so the import uses Factorio's defaults
+(0.25, 0.45, 0.55, 0.75). Full sun until dusk and from dawn, darkness from evening to
+morning, and linear fades between them average 0.7. The recipe keeps the night output as its
+minimum and the noon output as its maximum.
+
 Solar-panel prototypes with a custom `solar_coefficient_property` use the matching Nauvis
 surface property as their planning multiplier. When the mod also publishes matching
 `-min` and `-max` properties, the synthetic recipe retains that range while the solver uses
@@ -274,7 +282,9 @@ boundary flow because a designated supplier block can cover it.
 Filtered fluid energy sources remain tied to their required fluid. Temperature-fed sources
 derive usable joules per unit and either a fixed drain or an energy-following drain from the
 prototype's fluid box and energy-source fields. Burner and fluid-source effectivity is
-folded into stored energy use.
+folded into stored energy use. For a temperature-fed source that folded figure only sizes the
+fluid drain (Py's compost plant: 1 MW at effectivity 1000 stores 1 kW), so its block row
+reports the drain as fuel and a power draw of zero.
 
 ### Logistics and research effects
 

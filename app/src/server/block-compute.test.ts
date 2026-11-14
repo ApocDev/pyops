@@ -754,6 +754,47 @@ describe("per-product ignored_by_productivity (#93)", () => {
   });
 });
 
+describe("computeRecipeScenario (calcRecipe) output", () => {
+  let fx: TestDb;
+
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    // A slow Py farm: 0.15 speed ÷ 100 s = 0.0015 crafts/s, 7 fawogae per craft.
+    fx.db.exec(`
+      INSERT INTO recipes (name, kind, category, energy_required, enabled, hidden)
+        VALUES ('fawogae','real','fawogae',100,1,0);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
+        ('fawogae',0,'item','fawogae',7);
+      INSERT INTO items (name, display) VALUES ('fawogae','Fawogae');
+      INSERT INTO crafting_machines (name, kind, crafting_speed, module_slots, energy_usage_w, energy_source)
+        VALUES ('fawogae-plantation-mk01','assembling-machine',0.15,4,200000,'electric');
+      INSERT INTO machine_categories (machine, category) VALUES ('fawogae-plantation-mk01','fawogae');
+      INSERT INTO modules (name, category, hidden, eff_speed, eff_productivity, eff_consumption)
+        VALUES ('efficiency-module-3','efficiency',0,0,0,-0.5);
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+
+  afterEach(() => fx.cleanup());
+
+  it("keeps significant figures on slow rates (#291)", () => {
+    const res = computeRecipeScenario({ recipe: "fawogae" });
+    if ("error" in res) throw new Error(res.error);
+    // fixed 3 decimals would read 0.002 and 0.011
+    expect(res.perBuilding.craftsPerSec).toBe(0.0015);
+    expect(res.perBuilding.outputs[0]?.perSec).toBe(0.0105);
+  });
+
+  it("reports the clamped consumption bonus (#292)", () => {
+    const res = computeRecipeScenario({ recipe: "fawogae", fill: "efficiency-module-3" });
+    if ("error" in res) throw new Error(res.error);
+    // 4 × -50% = -200%, which the game clamps to -80%
+    expect(res.effects).toMatchObject({ energyPct: -80, energyMult: 0.2 });
+    expect(res.perBuilding.powerKW).toBe(40);
+  });
+});
+
 describe("computeBlock reactor neighbour bonus (#94)", () => {
   let fx: TestDb;
 
@@ -1213,6 +1254,8 @@ describe("temperature-fed fluid energy sources (#114)", () => {
     expect(row.fuel).toMatchObject({ name: "sweet-syrup", temperature: true });
     expect(row.fuel!.perSec).toBeCloseTo(1);
     expect(plain.imports.find((f) => f.name === "sweet-syrup")?.rate).toBeCloseTo(1);
+    // the stored 1 kW is 1 MW ÷ effectivity 1000, not a real draw (#290)
+    expect(row.machine?.powerW).toBe(0);
 
     // −40% consumption → 0.6 kW per plant → 0.6 sweet-syrup/s total
     const moduled = await computeBlock({

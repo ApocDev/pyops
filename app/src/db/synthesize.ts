@@ -469,17 +469,29 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       });
       counts.generating++;
     }
-    // Solar-panel prototypes: ordinary panels are represented at peak (the
-    // day/night average depends on the surface). Mods can instead point
-    // `solar_coefficient_property` at a custom surface property. Factorio then
-    // multiplies production by that property's value and ignores the normal
-    // solar-power curve. Py uses this for wind/tidal machines and puts a planner
-    // average on Nauvis (`py-wind-speed = 60`) alongside explicit `-min`/`-max`
-    // bounds. Preserve all three: the LP plans against the average while the UI
-    // can show the operating range.
+    // Solar-panel prototypes. Ordinary panels follow the day/night curve: output
+    // blends `performance_at_night` (default 0) toward `performance_at_day`
+    // (default 1) by the sun's strength, scaled by the surface's `solar-power`
+    // percentage. They plan at the full-day average, with night and noon as the
+    // range. Mods can instead point `solar_coefficient_property` at a custom
+    // surface property. Factorio then multiplies production by that property's
+    // value and ignores the normal solar-power curve. Py uses this for wind/tidal
+    // machines and puts a planner average on Nauvis (`py-wind-speed = 60`)
+    // alongside explicit `-min`/`-max` bounds. Preserve all three: the LP plans
+    // against the average while the UI can show the operating range.
     const nauvisProperties = raw.planet?.nauvis?.surface_properties ?? {};
     const finite = (value: unknown): number | null =>
       typeof value === "number" && Number.isFinite(value) ? value : null;
+    const solarPower =
+      (finite(nauvisProperties["solar-power"]) ??
+        finite(raw["surface-property"]?.["solar-power"]?.default_value) ??
+        100) / 100;
+    // The day/night thresholds are runtime surface values, not prototype data,
+    // so the dump can't carry them. Factorio's defaults (daytime 0 = noon):
+    // full sun until dusk, fading to dark by evening, dark until morning, full
+    // again from dawn. Linear fades give a full-day average of about 0.7.
+    const [dusk, evening, morning, dawn] = [0.25, 0.45, 0.55, 0.75];
+    const sunDayAverage = dusk + (1 - dawn) + (evening - dusk) / 2 + (dawn - morning) / 2;
     for (const [name, s] of Object.entries(raw["solar-panel"] ?? {})) {
       const placeableItem = typeof s.placeable_by?.item === "string" ? s.placeable_by.item : name;
       // Py swaps several wind turbines to a visually blank entity at runtime.
@@ -491,13 +503,19 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       if (!peak) continue;
       const coefficient =
         typeof s.solar_coefficient_property === "string" ? s.solar_coefficient_property : null;
+      const atDay = (finite(s.performance_at_day) ?? 1) * solarPower;
+      const atNight = (finite(s.performance_at_night) ?? 0) * solarPower;
       const plannerCoefficient = coefficient
         ? (finite(nauvisProperties[coefficient]) ??
           finite(raw["surface-property"]?.[coefficient]?.default_value) ??
           1)
-        : 1;
-      const minCoefficient = coefficient ? finite(nauvisProperties[`${coefficient}-min`]) : null;
-      const maxCoefficient = coefficient ? finite(nauvisProperties[`${coefficient}-max`]) : null;
+        : atNight + (atDay - atNight) * sunDayAverage;
+      const minCoefficient = coefficient
+        ? finite(nauvisProperties[`${coefficient}-min`])
+        : Math.min(atDay, atNight);
+      const maxCoefficient = coefficient
+        ? finite(nauvisProperties[`${coefficient}-max`])
+        : Math.max(atDay, atNight);
       const hasRange =
         minCoefficient != null &&
         maxCoefficient != null &&

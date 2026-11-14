@@ -1013,9 +1013,15 @@ export async function computeBlock(rawData: SolveInput) {
     // electric drain is a flat per-building draw that modules never touch, and a
     // placed machine keeps drawing it while idle, so it's charged on the whole
     // machines you build: 2.3 machines' worth of work runs on 3 buildings.
+    // A temperature-fed source (#114) stores its draw divided by effectivity
+    // (Py's compost plant: 1 MW / 1000 = 1 kW), a figure that only sizes the
+    // fluid drain. Its row reports that drain as fuel and no power figure.
+    const fueling = chosen?.energySource === "fluid" ? fluidFueling(chosen) : null;
     const powerW =
-      (chosen?.energyUsageW ?? 0) * count * fx.consMult +
-      (chosen?.drainW ?? 0) * (count > 0 ? wholeMachines(count) : 0);
+      fueling?.mode === "temperature"
+        ? 0
+        : (chosen?.energyUsageW ?? 0) * count * fx.consMult +
+          (chosen?.drainW ?? 0) * (count > 0 ? wholeMachines(count) : 0);
     const pollutionPerMin =
       (chosen?.pollutionPerMin ?? 0) * Math.max(0, count) * fx.consMult * fx.pollutionMult;
     totalPollutionPerMin += pollutionPerMin;
@@ -1062,7 +1068,6 @@ export async function computeBlock(rawData: SolveInput) {
        * ingredient — never folded post-hoc) — no per-row pick */
       temperature?: boolean;
     } | null = null;
-    const fueling = chosen?.energySource === "fluid" ? fluidFueling(chosen) : null;
     const burns =
       chosen?.energySource === "burner" ||
       (fueling && fueling.mode !== "none" && fueling.mode !== "temperature");
