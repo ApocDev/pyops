@@ -130,6 +130,9 @@ Mutating (`mut/`, against the isolated server):
   descriptive name (the nav affordance's tooltip), Ctrl+Z reverts it inside the
   open editor and the revert survives a reload; the empty stack toasts
   "Nothing to undo".
+- **`game-focus.e2e.ts`** — the in-game focus hotkey, played by a fake mod over
+  the real UDP bridge: `block.focus` with one matching block opens it, several
+  open the Factory drawer listing them, none shows the "create one" toast.
 - **`snapshots.e2e.ts`** — the block history drawer: manual labelled snapshot,
   the snapshot-vs-current diff (from → to), restore rehydrating the editor, and
   the automatic "before restore" point.

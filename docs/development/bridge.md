@@ -124,6 +124,7 @@ handlers:
 | `block.list`     | Returns the enabled blocks for the in-game Blocks tab (see below)                                              |
 | `block.show`     | Pushes `cmd.show_block` for the block `id` a board slot was clicked for                                        |
 | `block.open`     | Records the block `id` to open; the web UI follows it through bridge status                                    |
+| `block.focus`    | Matches the hovered machine's `recipe` to blocks, records where the web UI goes, and replies `block.focused`   |
 | `bridge.result`  | Resolves an awaiting app-to-mod request by `request_id`                                                        |
 
 Live-state messages are snapshots, not patches. The mod sends the complete canonical set
@@ -142,6 +143,8 @@ Once a peer is known, `sendToPeer()` can push commands to Factorio:
 - `request.sync` asks the mod to send complete live state;
 - `block.list` replaces the Blocks tab's data, both as the reply to the mod's request and
   as an unsolicited push when the list changed;
+- `block.focused` answers `block.focus` with the match result, which the mod shows as
+  flying text;
 - `cmd.show_block` and `cmd.hide_block` control the production summary panel;
 - `cmd.locate` delegates supported entity searches to Factory Search;
 - `cmd.blueprint` places a generated blueprint on the player's cursor when safe;
@@ -255,11 +258,37 @@ catches a machine switching between two of the block's recipes, which leaves `ha
 unchanged. `rev` catches an edit to the block's plan, and through the solve generation, a
 research or TURD change that re-solved blocks without touching their edit time.
 
-`block.open` (shift-click, or the sheet's title-bar button) is stored in app memory and
-returned as `openBlock` from the bridge status server function. The web UI's
-`GameOpenBlock` listener navigates to `/block/$id` for any request newer than its mount
-time and newer than the last one it followed. Requests from before the page loaded are
-ignored, and one that arrives before the first status read still opens.
+`block.open` (shift-click, or the sheet's title-bar button) is stored in app memory
+(`server/bridge/open-request.ts`) and returned as `openRequest` from the bridge status
+server function. The web UI's `GameOpenBlock` listener acts on any request newer than its
+mount time and newer than the last one it followed. Requests from before the page loaded
+are ignored, and one that arrives before the first status read still opens.
+
+### Focus hotkey
+
+The focus hotkey (`pyops-focus-block`, `Ctrl + Shift + O` by default) is the reverse of
+locate. On key press the mod reads `player.selected` and sends `block.focus` with the
+recipe it runs. A crafting machine, furnace, or rocket silo sends its set recipe. A mining
+drill sends the synthetic `mine-<resource>` recipe for the resource under it, the same key
+`state.built` uses. Anything else, or an idle machine, gets a flying-text hint and sends
+nothing.
+
+Blocks are plans, not regions of the map, so the app matches by recipe alone and never
+guesses a "closest" block. It looks for enabled blocks that have the recipe as an active
+row (`db/recipe-blocks.server.ts`) and records one of three requests:
+
+| Blocks running it | `openRequest.to` | Web UI                                                                     |
+| ----------------- | ---------------- | -------------------------------------------------------------------------- |
+| One               | `block`          | Opens `/block/$id`                                                         |
+| Several           | `good`           | Opens `/factory?good=…&kind=…&recipe=…`: the resource drawer for the good  |
+| None              | `none`           | Shows a toast; its **Create one** action opens that good's resource drawer |
+
+The good is the recipe's main product, else its first product, else its first ingredient.
+With a `recipe`, the resource drawer also lists every block running it, including blocks
+that use the good only internally and so have no boundary flow for it.
+
+The app replies `block.focused` with `result` (`block`, `several`, or `none`), `count`, and
+the opened block's name, and the mod shows that as flying text at the cursor.
 
 ### Tasks
 

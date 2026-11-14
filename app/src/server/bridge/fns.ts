@@ -9,15 +9,16 @@ import * as b from "./server.ts";
 import { requestFromMod } from "./inspect.ts";
 import { factorioLaunchInfo, launchFactorio } from "../factorio-launch.server.ts";
 import { lastSushiTrace } from "./handlers/sushi.ts";
-import { lastOpenBlockRequest } from "./handlers/blocks.ts";
+import { lastOpenRequest } from "./open-request.ts";
 
 /** Ensure the bridge is listening and return its status. Calling this from the
  * UI (polled) is what starts the socket — idempotent and HMR-safe. */
 export const bridgeStatusFn = createServerFn({ method: "GET" }).handler(async () => {
   b.ensureBridge();
-  // openBlock: the game's latest "open this block in PyOps" request, which the
-  // web UI follows (see GameOpenBlock).
-  return { ...b.bridgeStatus(), openBlock: lastOpenBlockRequest() };
+  // openRequest: the game's latest "show this in PyOps" request (a block, a
+  // good's resource view, or a create nudge), which the web UI follows (see
+  // GameOpenBlock).
+  return { ...b.bridgeStatus(), openRequest: lastOpenRequest() };
 });
 
 /** Ask the connected mod to push its current state now (research, …). Returns

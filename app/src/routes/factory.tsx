@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Cloud, MapPin, Plus, RefreshCw, X, Zap } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   blockChangeReportFn,
   blocksForGoodFn,
@@ -35,13 +35,23 @@ import { countNoun } from "../lib/delete-copy";
 import { GoodsSection } from "#/components/goods-table.tsx";
 import { SyncStatus } from "#/components/sync-status.tsx";
 import { MachinesCard } from "#/components/factory/machines-card.tsx";
+import { RecipeUsers } from "#/components/factory/recipe-users.tsx";
 import {
   factoryFlowKey,
   factoryFlowTemperature,
   meaningfulImbalance,
 } from "../lib/factory-flow.ts";
 
+/** `good`/`kind` open that good's resource view; `recipe` also lists the
+ * blocks running it. The game's focus hotkey links here (see GameOpenBlock). */
+type FactorySearch = { good?: string; kind?: "item" | "fluid"; recipe?: string };
+
 export const Route = createFileRoute("/factory")({
+  validateSearch: (s: Record<string, unknown>): FactorySearch => ({
+    ...(typeof s.good === "string" && s.good ? { good: s.good } : {}),
+    ...(s.kind === "item" || s.kind === "fluid" ? { kind: s.kind } : {}),
+    ...(typeof s.recipe === "string" && s.recipe ? { recipe: s.recipe } : {}),
+  }),
   component: () => (
     <IconProvider>
       <FactoryPage />
@@ -65,7 +75,23 @@ function FactoryPage() {
     minTemp?: number | null;
     maxTemp?: number | null;
     hasTemperatureVariants?: boolean;
+    recipe?: string;
   } | null>(null);
+  const focus = Route.useSearch();
+  const navigate = useNavigate();
+  // A good linked in (the game's focus hotkey): open its drawer across every
+  // temperature, then drop it from the URL so the next link opens again.
+  useEffect(() => {
+    if (!focus.good) return;
+    setSelected({
+      item: focus.good,
+      kind: focus.kind ?? "item",
+      flowKey: focus.good,
+      hasTemperatureVariants: false,
+      recipe: focus.recipe,
+    });
+    void navigate({ to: "/factory", search: {}, replace: true });
+  }, [focus.good, focus.kind, focus.recipe, navigate]);
   const [recomputing, setRecomputing] = useState(false);
   const [recomputed, setRecomputed] = useState<string | null>(null);
   const totals = useQuery({ queryKey: ["factoryTotals"], queryFn: () => factoryTotalsFn() });
@@ -545,7 +571,8 @@ function ChangeReport({ data }: { data: ChangeReportData }) {
 
 /** Slide-over panel for one resource: which blocks make it (primary/byproduct) and
  * which consume it (import), each at its rate — plus a shortcut to draft a new block
- * that produces it. The reverse of the aggregate ledger: who's actually on each end. */
+ * that produces it. The reverse of the aggregate ledger: who's actually on each end.
+ * With a `recipe` (the game's focus hotkey), it also lists the blocks running it. */
 function ResourceDrawer({
   flow,
   onClose,
@@ -558,6 +585,7 @@ function ResourceDrawer({
     minTemp?: number | null;
     maxTemp?: number | null;
     hasTemperatureVariants?: boolean;
+    recipe?: string;
   };
   onClose: () => void;
 }) {
@@ -726,6 +754,7 @@ function ResourceDrawer({
             />
           ) : (
             <>
+              {flow.recipe && <RecipeUsers recipe={flow.recipe} />}
               <List
                 title="Produced by"
                 rows={detail.data?.producers ?? []}

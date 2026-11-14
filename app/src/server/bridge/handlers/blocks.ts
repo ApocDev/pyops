@@ -19,6 +19,7 @@ import { currentSolveGeneration } from "../../../db/solve-generation.server.ts";
 import { showBlockInGame } from "../../block-compute.server.ts";
 import type { BridgeRequest, BridgeResponse } from "../protocol.ts";
 import { sendToPeer } from "../server.ts";
+import { setOpenRequest } from "../open-request.ts";
 
 type ListedBlock = ReturnType<typeof q.listBlocks>[number];
 type Group = ReturnType<typeof q.listGroups>[number];
@@ -154,17 +155,9 @@ export async function handleBlockShow(req: BridgeRequest): Promise<null> {
   return null;
 }
 
-export type OpenBlockRequest = { id: number; at: number };
-let lastOpen: OpenBlockRequest | null = null;
-
 /** `block.open` — remember the block to open; the web UI navigates to it. */
 export function handleBlockOpen(req: BridgeRequest): null {
   const id = blockId(req);
-  if (id !== null) lastOpen = { id, at: Date.now() };
+  if (id !== null) setOpenRequest({ to: "block", id });
   return null;
-}
-
-/** The latest open-in-web request from the game, if any this app session. */
-export function lastOpenBlockRequest(): OpenBlockRequest | null {
-  return lastOpen;
 }

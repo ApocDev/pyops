@@ -17,6 +17,7 @@ import {
   handleBlockShow,
   pushBlockListIfChanged,
 } from "./handlers/blocks.ts";
+import { handleBlockFocus } from "./handlers/focus.ts";
 import { handleModResult } from "./inspect.ts";
 
 export type BridgeHandler = (
@@ -54,6 +55,9 @@ const handlers: Record<string, BridgeHandler> = {
   "block.list": handleBlockList,
   "block.show": handleBlockShow,
   "block.open": handleBlockOpen,
+  // The in-game focus hotkey sent the hovered machine's recipe: open the block
+  // that runs it (or the choices, or a create nudge) in the web UI.
+  "block.focus": handleBlockFocus,
   // A reply to an app→mod inspect request (correlated by request_id). Fire-and-forget
   // here — handleModResult resolves the pending promise; no response goes back.
   "bridge.result": (req) => {

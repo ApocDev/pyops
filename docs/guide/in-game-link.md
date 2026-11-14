@@ -174,6 +174,24 @@ The **Open in game** button on a block's page in PyOps opens the same sheet.
 Shift-click a slot, or use the arrow button on the build sheet's title bar. Any open PyOps
 window switches to that block's page within a few seconds.
 
+### Jump from a machine to its block
+
+Hover a machine in the world and press `Ctrl + Shift + O` (**PyOps: open the hovered
+machine's block** in Factorio's controls settings). PyOps looks for the blocks that run
+that machine's recipe. A mining drill counts as running the mining recipe for the ore
+under it.
+
+- **One block runs it**: the open PyOps window switches to that block.
+- **Several blocks run it**: PyOps opens **Factory → Overview** with the drawer for the
+  recipe's main product. The drawer lists every block running the recipe, so pick the one
+  you meant.
+- **No block runs it**: PyOps shows a "No block plans … yet" notice. Select **Create one**
+  to open that product's drawer, which has a button to start a new block.
+
+Flying text at the cursor says which of these happened. Machines with no recipe set, labs,
+and other buildings show a hint instead. PyOps matches by recipe only. Blocks are plans,
+not areas of the map, so it never guesses which of several blocks a machine belongs to.
+
 ### Capture and read tasks
 
 The **Tasks** tab lists the project's tasks with their status and priority. Select one to

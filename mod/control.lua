@@ -21,7 +21,7 @@ local BUTTON_NAME = "pyops_button"
 local SHORTCUT_NAME = "pyops-toggle-panel"
 -- Bridge wire contract. Keep in lockstep with PROTOCOL_VERSION in the app's
 -- src/server/bridge/protocol.ts — each side warns if the other reports a different one.
-local PROTOCOL_VERSION = 10
+local PROTOCOL_VERSION = 11
 
 local function get_player(event)
   if not event.player_index then
@@ -753,6 +753,22 @@ local function on_block_list(player, payload)
   end
 end
 
+-- The app matched the focus hotkey's recipe (block.focused): say what it did.
+local function on_block_focused(player, payload)
+  local result = payload and payload.result
+  local text
+  if result == "block" then
+    text = {"pyops.focus-block", payload.block or ""}
+  elseif result == "several" then
+    text = {"pyops.focus-several", tostring(payload.count or 0)}
+  elseif result == "none" then
+    text = {"pyops.focus-none"}
+  else
+    return
+  end
+  player.create_local_flying_text({ text = text, create_at_cursor = true })
+end
+
 local function handle_bridge_response(player, response)
   if not response or not response.type then
     set_status(player, {"pyops.status-error", "invalid response"})
@@ -794,6 +810,9 @@ local function handle_bridge_response(player, response)
   elseif response.type == "block.list" then
     -- the app sent the enabled blocks (on request, or because they changed)
     on_block_list(player, response.payload)
+  elseif response.type == "block.focused" then
+    -- the app answered the focus hotkey (opened a block, the choices, or a nudge)
+    on_block_focused(player, response.payload)
   elseif response.type == "task.captured" then
     -- the app confirmed a task was filed → pull the refreshed list
     local payload = response.payload or {}
@@ -1006,6 +1025,32 @@ script.on_event("pyops-toggle-panel", function(event)
   toggle_panel(get_player(event))
 end)
 
+-- The recipe the focus hotkey sends for an entity, named the way blocks name it:
+-- a drill runs the synthetic `mine-<resource>` recipe (as in send_built_machines),
+-- a crafting machine its set recipe. Nil for anything else or an idle machine.
+local function focus_recipe(entity)
+  if entity.type == "mining-drill" then
+    local ok, target = pcall(function()
+      return entity.mining_target
+    end)
+    return ok and target and target.valid and ("mine-" .. target.name) or nil
+  end
+  return recipe_of(entity)
+end
+
+-- Focus hotkey: send the hovered machine's recipe. The app opens the block that
+-- runs it in the web UI (or the choices, or a create nudge) and replies
+-- block.focused. Blocks aren't places, so only the recipe goes, not a position.
+local function focus_selected(player)
+  local entity = player.selected
+  local recipe = entity and entity.valid and focus_recipe(entity)
+  if not recipe then
+    player.create_local_flying_text({ text = {"pyops.focus-no-recipe"}, create_at_cursor = true })
+  elseif not send_request(player, "block.focus", { recipe = recipe }) then
+    player.create_local_flying_text({ text = {"pyops.status-no-udp"}, create_at_cursor = true })
+  end
+end
+
 -- pcall'd: after a control-only reload (game.reload_mods) the data stage hasn't
 -- run, so a freshly added custom-input prototype may not exist yet — skip the
 -- hotkeys then (the remote interface still works) instead of crashing the load.
@@ -1022,6 +1067,15 @@ pcall(function()
       Sushi.untrace(player)
     end
   end)
+end)
+
+-- pcall'd on its own (like the pipette below) so a missing prototype after a
+-- control-only reload can't keep the other hotkeys from binding.
+pcall(script.on_event, "pyops-focus-block", function(event)
+  local player = get_player(event)
+  if player then
+    focus_selected(player)
+  end
 end)
 
 -- Tooling entry (dev/MCP screenshots): open or close the PyOps panel.
