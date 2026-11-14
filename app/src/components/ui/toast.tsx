@@ -71,12 +71,14 @@ function ToastItem({ entry }: { entry: ToastEntry }) {
 
 /** The toast outlet — mount exactly once (in the root shell). Newest toast at
  * the bottom, nearest the corner. The container ignores pointer events so an
- * empty/waning stack never blocks clicks on the page under it. */
+ * empty/waning stack never blocks clicks on the page under it. It stacks one
+ * level above dialogs and sheets (z-50): an open drawer sits in the same
+ * bottom-right corner and would otherwise hide the toast. */
 export function Toaster() {
   const queue = useStore(toastStore);
   if (queue.length === 0) return null;
   return (
-    <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+    <div className="pointer-events-none fixed right-4 bottom-4 z-[60] flex flex-col items-end gap-2">
       {queue.map((entry) => (
         <ToastItem key={entry.id} entry={entry} />
       ))}

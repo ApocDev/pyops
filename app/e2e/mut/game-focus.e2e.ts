@@ -89,3 +89,19 @@ test("no block running the recipe nudges to create one", async ({ page }) => {
   await expect(page.getByRole("dialog").getByRole("button", { name: /New block/ })).toBeVisible();
   await expect(page).toHaveURL(/\/factory$/);
 });
+
+test("the nudge toast shows above an open factory drawer", async ({ page }) => {
+  insertBlock(uniqueName("Gears A"), { goals: [], recipes: ["iron-gear-wheel"] });
+  insertBlock(uniqueName("Gears B"), { goals: [], recipes: ["iron-gear-wheel"] });
+  await openApp(page);
+  // several → the drawer opens in the same bottom-right corner as toasts
+  expect(await focus("iron-gear-wheel")).toMatchObject({ result: "several" });
+  await expect(page.getByRole("dialog").getByText(/^Running .* \(2\)$/)).toBeVisible({
+    timeout: 15_000,
+  });
+  expect(await focus("pipe")).toMatchObject({ result: "none" });
+  const nudge = toast(page, /^No block plans .+ yet/);
+  await expect(nudge).toBeVisible({ timeout: 15_000 });
+  // a trial click fails if the drawer covers the button
+  await nudge.getByRole("button", { name: "Create one" }).click({ trial: true, timeout: 5_000 });
+});
