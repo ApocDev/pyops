@@ -176,6 +176,13 @@
       "when": 1794603365023,
       "tag": "0024_conversation-turn-cost",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1794615006450,
+      "tag": "0025_electric-drain",
+      "breakpoints": true
     }
   ]
 }

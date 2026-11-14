@@ -69,6 +69,7 @@ export function labOptions(): LabOption[] {
       researchingSpeed: l.researchingSpeed,
       moduleSlots: l.moduleSlots,
       energyUsageW: l.energyUsageW,
+      drainW: l.drainW,
       allowedEffects: l.allowedEffects,
       allowedModuleCategories: l.allowedModuleCategories,
       inputs: l.inputs,

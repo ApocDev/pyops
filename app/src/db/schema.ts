@@ -147,6 +147,10 @@ export const craftingMachines = sqliteTable("crafting_machines", {
   moduleSlots: integer("module_slots").notNull().default(0),
   energyUsageW: real("energy_usage_w"),
   energySource: text("energy_source"), // electric | burner | ...
+  // Constant electric drain in W, drawn idle or working and never scaled by
+  // modules (db/electric-drain.ts resolves the engine default). Null when the
+  // energy source isn't an electric input, and on imports before the column.
+  drainW: real("drain_w"),
   pollutionPerMin: real("pollution_per_min"), // emissions_per_minute.pollution at base speed (#23)
   // module eligibility (empty/null = no restriction): which effect kinds the
   // machine accepts, and which module categories fit its slots (Py creature
@@ -315,6 +319,7 @@ export const labs = sqliteTable("labs", {
   moduleSlots: integer("module_slots").notNull().default(0),
   energyUsageW: real("energy_usage_w"),
   energySource: text("energy_source"), // electric | burner | ...
+  drainW: real("drain_w"), // constant electric drain in W (see crafting_machines)
   pollutionPerMin: real("pollution_per_min"),
   allowedEffects: text("allowed_effects", { mode: "json" }).$type<string[] | null>(),
   allowedModuleCategories: text("allowed_module_categories", { mode: "json" }).$type<

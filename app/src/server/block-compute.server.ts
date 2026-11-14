@@ -35,6 +35,7 @@ import { prodScaledAmount } from "../lib/productivity";
 import { reactorHeatMultiplier, REACTOR_LAYOUT_DEFAULT, type ReactorLayout } from "../lib/reactor";
 import { goalConsumes, goalNames, normalizeBlockData } from "../lib/goals";
 import { fmtTemp, fmtTempRange } from "../lib/format";
+import { wholeMachines } from "../lib/machine-count";
 import type { Goal, TemporaryCampaign } from "../db/schema.ts";
 import * as q from "../db/queries.server.ts";
 import {
@@ -1007,7 +1008,13 @@ export async function computeBlock(rawData: SolveInput) {
     // fractional building requirement (machine-seconds/sec ÷ speed); the UI
     // shows this and the whole-machine build target alongside it
     const count = rr.machines1x / speed;
-    const powerW = (chosen?.energyUsageW ?? 0) * count * fx.consMult;
+    // Working draw scales with the fractional count and consumption effects. The
+    // electric drain is a flat per-building draw that modules never touch, and a
+    // placed machine keeps drawing it while idle, so it's charged on the whole
+    // machines you build: 2.3 machines' worth of work runs on 3 buildings.
+    const powerW =
+      (chosen?.energyUsageW ?? 0) * count * fx.consMult +
+      (chosen?.drainW ?? 0) * (count > 0 ? wholeMachines(count) : 0);
     const pollutionPerMin =
       (chosen?.pollutionPerMin ?? 0) * Math.max(0, count) * fx.consMult * fx.pollutionMult;
     totalPollutionPerMin += pollutionPerMin;

@@ -127,6 +127,10 @@ The importer converts Factorio's flexible prototype shapes into stable relationa
 - recipes, ingredients, products, categories, unlocks, and technologies;
 - items, fluids, machines, mining drills, modules, beacons, labs, and fuels;
 - energy-source details, pollution, crafting categories, and allowed effects;
+- each electric machine's and lab's constant drain (`drain_w`). The dump only has a `drain`
+  key when the prototype sets one; otherwise the engine default applies, which is
+  `energy_usage / 30` for crafting machines (assembling machines, furnaces, rocket silos) and
+  zero for labs, mining drills, and other types. Null for non-electric sources;
 - each crafting machine's, mining drill's, and lab's effect receiver: its base effect, effect
   limits, and whether modules and beacons apply (engine defaults filled in; null when the
   prototype sets none);

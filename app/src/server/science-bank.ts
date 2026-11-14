@@ -20,6 +20,7 @@
  * module bonuses into one figure.
  */
 import { computeEffects, type BeaconConfig, type BeaconEff, type ModuleEff } from "./effects.ts";
+import { wholeMachines } from "../lib/machine-count.ts";
 
 export type LabProto = {
   name: string;
@@ -27,6 +28,8 @@ export type LabProto = {
   researchingSpeed: number;
   moduleSlots: number;
   energyUsageW: number | null;
+  /** constant electric drain per lab in W (null = none) */
+  drainW: number | null;
   allowedEffects: string[] | null;
   allowedModuleCategories: string[] | null;
   inputs: string[] | null;
@@ -123,7 +126,10 @@ export function computeScienceBank(input: ScienceBankInput): ScienceBankResult {
     }
   }
 
-  const labPowerW = (lab.energyUsageW ?? 0) * labs * fx.consMult;
+  // drain is per placed lab, idle or not, and modules don't scale it
+  const labPowerW =
+    (lab.energyUsageW ?? 0) * labs * fx.consMult +
+    (lab.drainW ?? 0) * (labs > 0 ? wholeMachines(labs) : 0);
   const beaconPowerW = fx.beaconPowerPerMachineW * labs;
   return {
     labs,
