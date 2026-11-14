@@ -36,6 +36,11 @@ Tauri's `externalBin` configuration. The bundle also carries:
 - Drizzle migrations;
 - the Companion mod source.
 
+`beforeBuildCommand` runs `vp build`, then `src-tauri/prune-prebuilds.mjs`. Nitro's file
+trace copies every platform's `better-sqlite3` prebuilt binary into `.output`, and
+linuxdeploy fails on the foreign Linux ones when it builds the AppImage. The script keeps
+only the binary for `TAURI_ENV_TARGET_TRIPLE` and fails the build if that one is missing.
+
 In a packaged build, Rust starts the Node sidecar with the bundled server entry and explicit
 paths:
 

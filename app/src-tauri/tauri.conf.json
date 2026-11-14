@@ -5,7 +5,7 @@
   "identifier": "com.apocdev.pyops",
   "build": {
     "beforeDevCommand": "PORT=34115 HOST=127.0.0.1 node .output/server/index.mjs",
-    "beforeBuildCommand": "vp build",
+    "beforeBuildCommand": "vp build && node src-tauri/prune-prebuilds.mjs",
     "frontendDist": "../.output/public",
     "devUrl": "http://localhost:34115"
   },
