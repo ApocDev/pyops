@@ -138,9 +138,14 @@ The importer converts Factorio's flexible prototype shapes into stable relationa
 - energy-source details, pollution, crafting categories, and allowed effects. A stored
   `allowed_effects` of null means every effect and `[]` means none. A prototype that sets
   the key, even to an empty table, is taken as written. A missing key falls back to its
-  type's default: none for crafting machines, every effect for labs and mining drills
-  (quality is not modelled). Boilers, generators, pumps, reactors, and agricultural towers
-  are not effect receivers and store `[]`;
+  type's default: none for crafting machines, every effect for labs and mining drills.
+  Boilers, generators, pumps, reactors, and agricultural towers are not effect receivers
+  and store `[]`;
+- each module's quality effect (`eff_quality`) and each recipe's `allow_quality` (engine
+  default true). Quality output is not modelled, so these only gate module choice: a
+  module with a positive quality effect never reaches a machine whose `allowed_effects`
+  lacks quality, and the pickers, templates, and auto-fill never offer one. Pyanodons has
+  no module with a positive quality effect, so this changes nothing there;
 - each electric machine's and lab's constant drain (`drain_w`). The dump only has a `drain`
   key when the prototype sets one; otherwise the engine default applies, which is
   `energy_usage / 30` for crafting machines (assembling machines, furnaces, rocket silos) and

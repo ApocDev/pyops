@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
 import { parseEffectReceiver } from "../db/effect-receiver";
-import { computeEffects, type BeaconEff, type EffectReceiver, type ModuleEff } from "./effects";
+import {
+  computeEffects,
+  effectsAllowed,
+  type BeaconEff,
+  type EffectReceiver,
+  type ModuleEff,
+} from "./effects";
 
 const MODS = new Map<string, ModuleEff>([
   // vanilla-ish reference values
@@ -401,5 +407,38 @@ describe("computeEffects — receiver allowed effects and module categories", ()
     const turd = [{ effSpeed: 0.5, effProductivity: 0, effConsumption: 0 }];
     const r = computeEffects(true, [], [], PY_MODS, PY_BEACONS, turd, undefined, null, noSpeed);
     expect(r.speedMult).toBe(1);
+  });
+});
+
+describe("effectsAllowed — quality (#260)", () => {
+  // Factorio 2.1.24 data: quality-module-3 {quality 0.025, speed -0.05},
+  // speed-module {speed 0.2, consumption 0.5, quality -0.01}. With the quality
+  // mod, the pumpjack allows consumption, speed, productivity and pollution only.
+  const qualityModule = {
+    effSpeed: -0.05,
+    effProductivity: 0,
+    effConsumption: 0,
+    effQuality: 0.025,
+  };
+  const speedModule = { effSpeed: 0.2, effProductivity: 0, effConsumption: 0.5, effQuality: -0.01 };
+  const pumpjack = ["consumption", "speed", "productivity", "pollution"];
+
+  it("refuses a quality module where the machine does not allow quality", () => {
+    expect(effectsAllowed(qualityModule, pumpjack)).toBe(false);
+    expect(effectsAllowed(qualityModule, [...pumpjack, "quality"])).toBe(true);
+    expect(effectsAllowed(qualityModule, null)).toBe(true);
+  });
+
+  it("does not let a harmful quality effect block a speed module", () => {
+    expect(effectsAllowed(speedModule, pumpjack)).toBe(true);
+  });
+
+  it("leaves Py modules alone: their quality effect is 0 or absent", () => {
+    // Py dump: every Py module sets effect.quality = 0; Py machines never allow quality
+    const pySpeed = { effSpeed: 1, effProductivity: 0, effConsumption: 1.5, effQuality: 0 };
+    expect(effectsAllowed(pySpeed, pumpjack)).toBe(true);
+    expect(effectsAllowed({ effSpeed: 1, effProductivity: 0, effConsumption: 1.5 }, pumpjack)).toBe(
+      true,
+    );
   });
 });

@@ -375,7 +375,38 @@ end
 -- normalized PER MINUTE for item/fluid stats, so /60 gives per-second.
 local STATS_PRECISION = defines.flow_precision_index.one_minute
 
-local function accumulate_flow(stats, kind, acc)
+-- Item stats keep one series per quality, and a bare name reads normal quality
+-- only (ItemWithQualityID). These are the qualities to sum into each item's bare
+-- name. `quality-unknown` is the engine's placeholder for an unrecognised
+-- quality; no item is made at it. On Py this is just { "normal" }.
+local function item_qualities()
+  local out = {}
+  for name in pairs(prototypes.quality) do
+    if name ~= "quality-unknown" then
+      out[#out + 1] = name
+    end
+  end
+  return out
+end
+
+-- Per-second flow of one good. `qualities` is nil for fluids, which have none.
+local function flow_rate(stats, name, category, qualities)
+  if not qualities then
+    return stats.get_flow_count({
+      name = name, category = category, precision_index = STATS_PRECISION, count = false
+    }) / 60
+  end
+  local total = 0
+  for _, quality in ipairs(qualities) do
+    total = total + stats.get_flow_count({
+      name = { name = name, quality = quality },
+      category = category, precision_index = STATS_PRECISION, count = false
+    })
+  end
+  return total / 60
+end
+
+local function accumulate_flow(stats, kind, acc, qualities)
   if not stats then
     return
   end
@@ -389,12 +420,8 @@ local function accumulate_flow(stats, kind, acc)
   end
 
   for name in pairs(names) do
-    local produced = stats.get_flow_count({
-      name = name, category = "input", precision_index = STATS_PRECISION, count = false
-    }) / 60
-    local consumed = stats.get_flow_count({
-      name = name, category = "output", precision_index = STATS_PRECISION, count = false
-    }) / 60
+    local produced = flow_rate(stats, name, "input", qualities)
+    local consumed = flow_rate(stats, name, "output", qualities)
     if produced > 1e-6 or consumed > 1e-6 then
       local e = acc[name]
       if not e then
@@ -417,8 +444,9 @@ local function send_stats(player)
   end
 
   local acc = {}
+  local qualities = item_qualities()
   for _, surface in pairs(game.surfaces) do
-    accumulate_flow(force.get_item_production_statistics(surface), "item", acc)
+    accumulate_flow(force.get_item_production_statistics(surface), "item", acc, qualities)
     accumulate_flow(force.get_fluid_production_statistics(surface), "fluid", acc)
   end
 

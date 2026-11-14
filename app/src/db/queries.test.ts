@@ -35,6 +35,9 @@ import {
   metaSet,
   modulesFittingMachine,
   modulePickerData,
+  getModules,
+  modulePlacementFilter,
+  placeableModules,
   productivityBonuses,
   recipeCandidates,
   recipeCandidatesBatch,
@@ -281,6 +284,55 @@ describe("modulePickerData availability", () => {
     const names = modulesFittingMachine("assembler").map((m) => m.name);
     expect(names).toContain("speed-1");
     expect(names).not.toContain("ee-super-speed-module");
+  });
+});
+
+describe("quality modules (#260)", () => {
+  // Factorio 2.1.24 with the quality mod: quality-module {quality 0.01, speed
+  // -0.05}, speed-module {speed 0.2, quality -0.01}, and basic-oil-processing
+  // sets allow_quality = false. Quality output isn't modelled, so the planner
+  // never offers a quality module.
+  const seed = () => {
+    db.run(sql`
+      INSERT INTO recipes (name, kind, category, energy_required, allow_quality) VALUES
+        ('basic-oil-processing','real','oil-processing',5,0),
+        ('iron-gear-wheel','real','crafting',0.5,1)
+    `);
+    db.run(sql`
+      INSERT INTO crafting_machines (name, kind, crafting_speed, module_slots) VALUES
+        ('quality-assembler','assembling-machine',1,4)
+    `);
+    db.run(sql`
+      INSERT INTO modules (name, display, category, eff_speed, eff_consumption, eff_quality) VALUES
+        ('speed-module','Speed module','speed',0.2,0.5,-0.01),
+        ('quality-module','Quality module','quality',-0.05,0,0.01)
+    `);
+  };
+  const names = (rows: { name: string }[]) => rows.map((m) => m.name);
+
+  it("keeps quality modules out of the picker, auto-fill pool and machine details", () => {
+    seed();
+    expect(names(placeableModules())).toEqual(["speed-module"]);
+    expect(names(modulePickerData("iron-gear-wheel", "quality-assembler")!.modules)).toEqual([
+      "speed-module",
+    ]);
+    expect(names(modulesFittingMachine("quality-assembler"))).toEqual(["speed-module"]);
+  });
+
+  it("refuses a quality module on a recipe that forbids quality", () => {
+    seed();
+    const quality = getModules(["quality-module"]).get("quality-module")!;
+    const machine = { allowedModuleCategories: null, allowedEffects: null };
+    const recipe = { allowedModuleCategories: null, allowProductivity: false };
+    expect(modulePlacementFilter(machine, { ...recipe, allowQuality: true })(quality)).toBe(true);
+    expect(modulePlacementFilter(machine, { ...recipe, allowQuality: false })(quality)).toBe(false);
+  });
+
+  it("still offers ordinary modules on a recipe that forbids quality (Py: 897 recipes)", () => {
+    seed();
+    expect(names(modulePickerData("basic-oil-processing", "quality-assembler")!.modules)).toEqual([
+      "speed-module",
+    ]);
   });
 });
 

@@ -753,6 +753,25 @@ function categoryAllowed(m: ModuleRow, cats: string[] | null | undefined): boole
   return !cats?.length || cats.includes(m.category ?? "");
 }
 
+/** Quality output is not modelled yet (#24): a quality module would plan as
+ * nothing but its speed penalty. Planners don't offer one until it is. No Py
+ * module has a positive quality effect except Editor Extensions' (excluded). */
+function qualityUnmodelled(m: ModuleRow): boolean {
+  return m.effQuality > 0;
+}
+
+/** The recipe-side effect gates: productivity and quality modules only go where
+ * the recipe allows that effect. */
+function recipeAllowsModule(
+  m: ModuleRow,
+  recipe: { allowProductivity: boolean; allowQuality: boolean },
+): boolean {
+  return (
+    (m.effProductivity <= 0 || recipe.allowProductivity) &&
+    (m.effQuality <= 0 || recipe.allowQuality)
+  );
+}
+
 /** The HAND-PLACEABLE modules that fit a machine's slots — what you actually put in
  * this building. Py's creature buildings lock their slots to their own module
  * category (e.g. a Vrauk paddock only takes 'vrauks' modules → the Vrauk speed
@@ -772,6 +791,7 @@ export function modulesFittingMachine(machineName: string) {
     .filter(
       (mod) =>
         !isExcluded(mod.name, mod.category) &&
+        !qualityUnmodelled(mod) &&
         categoryAllowed(mod, m.allowedModuleCategories) &&
         effectsAllowed(mod, m.allowedEffects),
     )
@@ -856,10 +876,14 @@ export function computeRecipeScenario(opts: {
         name,
         reason: `category '${mod.category}' not accepted (slots take ${JSON.stringify(machine.allowedModuleCategories ?? "any")})`,
       });
+    if (qualityUnmodelled(mod))
+      return void rejected.push({ name, reason: "quality output isn't modelled yet" });
     if (!effectsAllowed(mod, machine.allowedEffects))
       return void rejected.push({ name, reason: "effect not allowed by this machine" });
     if (mod.effProductivity > 0 && !r.allowProductivity)
       return void rejected.push({ name, reason: "recipe doesn't allow productivity" });
+    if (mod.effQuality > 0 && !r.allowQuality)
+      return void rejected.push({ name, reason: "recipe doesn't allow quality" });
     return true;
   });
 
@@ -970,9 +994,9 @@ export function computeRecipeScenario(opts: {
 
 /** Every hand-placeable module, one table scan. Hidden modules are TURD
  * internals — game-inserted, never hand-placed — and EE/user-excluded modules
- * are not planner-usable. block-compute fetches this once per solve and filters
- * per row, instead of paying modulePickerData's full-table rescan for every
- * recipe. */
+ * and quality modules are not planner-usable. block-compute fetches this once
+ * per solve and filters per row, instead of paying modulePickerData's
+ * full-table rescan for every recipe. */
 export function placeableModules() {
   return db
     .select()
@@ -980,7 +1004,7 @@ export function placeableModules() {
     .where(eq(modules.hidden, false))
     .orderBy(modules.category, modules.tier, modules.name)
     .all()
-    .filter((mod) => !isExcluded(mod.name, mod.category));
+    .filter((mod) => !isExcluded(mod.name, mod.category) && !qualityUnmodelled(mod));
 }
 
 /** The picker's placement rules for one (machine, recipe) pair, as a reusable
@@ -989,25 +1013,31 @@ export function placeableModules() {
  * module the picker wouldn't offer. */
 export function modulePlacementFilter(
   machine: { allowedModuleCategories: string[] | null; allowedEffects: string[] | null },
-  recipe: { allowedModuleCategories: string[] | null; allowProductivity: boolean },
+  recipe: {
+    allowedModuleCategories: string[] | null;
+    allowProductivity: boolean;
+    allowQuality: boolean;
+  },
 ): (mod: ModuleRow) => boolean {
   return (mod) =>
     categoryAllowed(mod, machine.allowedModuleCategories) &&
     categoryAllowed(mod, recipe.allowedModuleCategories) &&
     effectsAllowed(mod, machine.allowedEffects) &&
-    (mod.effProductivity <= 0 || recipe.allowProductivity);
+    recipeAllowsModule(mod, recipe);
 }
 
 export function modulePickerData(recipeName: string | null, machineName: string) {
   // A null recipe means "this machine, no recipe" — the science block's lab bank,
   // which runs research rather than a recipe. Only the machine's own restrictions
-  // apply then; there is no recipe to forbid productivity or narrow categories.
+  // apply then; there is no recipe to forbid productivity or quality or narrow
+  // categories.
   const r =
     recipeName == null
-      ? { allowProductivity: true, allowedModuleCategories: null }
+      ? { allowProductivity: true, allowQuality: true, allowedModuleCategories: null }
       : db
           .select({
             allowProductivity: recipes.allowProductivity,
+            allowQuality: recipes.allowQuality,
             allowedModuleCategories: recipes.allowedModuleCategories,
           })
           .from(recipes)
@@ -1057,7 +1087,8 @@ export function modulePickerData(recipeName: string | null, machineName: string)
             mod.category != null &&
             machineCategories.has(mod.category) &&
             !visibleCategories.has(mod.category) &&
-            !isExcluded(mod.name, mod.category),
+            !isExcluded(mod.name, mod.category) &&
+            !qualityUnmodelled(mod),
         )
     : [];
   const allModules = [...visibleModules, ...soleModules];
@@ -1085,7 +1116,6 @@ export function modulePickerData(recipeName: string | null, machineName: string)
     ...row,
     unlocked: unlocked.has(row.name) || ungatedModules.has(row.name),
   });
-  const prodOk = (mod: ModuleRow) => mod.effProductivity <= 0 || r.allowProductivity;
   // A machine with no slots can hold nothing, so its palette must be empty — the
   // eligibility filter answers "may this module affect the machine", which is
   // also true of modules that can only ever arrive by beacon. Offering those here
@@ -1117,7 +1147,7 @@ export function modulePickerData(recipeName: string | null, machineName: string)
           categoryAllowed(mod, r.allowedModuleCategories) &&
           effectsAllowed(mod, b.allowedEffects) &&
           effectsAllowed(mod, m.allowedEffects) &&
-          prodOk(mod),
+          recipeAllowsModule(mod, r),
       )
       .map((mod) => mod.name),
   }));
@@ -3283,6 +3313,7 @@ export function moduleInfo(names: string[]) {
       effSpeed: modules.effSpeed,
       effProductivity: modules.effProductivity,
       effConsumption: modules.effConsumption,
+      effQuality: modules.effQuality,
     })
     .from(modules)
     .where(inArray(modules.name, names))

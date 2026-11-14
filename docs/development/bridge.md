@@ -117,7 +117,7 @@ handlers:
 | `state.research` | Replaces the researched set, recipe/mining productivity, lab speed/productivity, and worker robot bonuses      |
 | `state.turd`     | Replaces synchronized TURD selections and refreshes affected solves                                            |
 | `state.built`    | Replaces placed-machine counts used by built-versus-required views                                             |
-| `state.stats`    | Replaces current production and consumption rates                                                              |
+| `state.stats`    | Replaces current production and consumption rates; each item's rate sums every quality                         |
 | `sushi.trace`    | Stores the most recent measured sushi-loop geometry                                                            |
 | `task.capture`   | Creates a project task from the in-game capture dialog                                                         |
 | `task.list`      | Returns the complete task list for the in-game panel                                                           |

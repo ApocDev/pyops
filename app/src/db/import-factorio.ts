@@ -247,7 +247,7 @@ export function importFactorioDump(
 
   const ins = {
     recipe: db.prepare(
-      `INSERT INTO recipes (name,display,kind,category,energy_required,enabled,hidden,allow_productivity,maximum_productivity,allowed_module_categories,main_product,subgroup,"order",source_entity) VALUES (@name,@display,@kind,@category,@energy_required,@enabled,@hidden,@allow_productivity,@maximum_productivity,@allowed_module_categories,@main_product,@subgroup,@order,@source_entity)`,
+      `INSERT INTO recipes (name,display,kind,category,energy_required,enabled,hidden,allow_productivity,allow_quality,maximum_productivity,allowed_module_categories,main_product,subgroup,"order",source_entity) VALUES (@name,@display,@kind,@category,@energy_required,@enabled,@hidden,@allow_productivity,@allow_quality,@maximum_productivity,@allowed_module_categories,@main_product,@subgroup,@order,@source_entity)`,
     ),
     ing: db.prepare(
       `INSERT INTO recipe_ingredients (recipe,idx,kind,name,amount,min_temp,max_temp) VALUES (@recipe,@idx,@kind,@name,@amount,@min_temp,@max_temp)`,
@@ -282,7 +282,7 @@ export function importFactorioDump(
       `INSERT OR IGNORE INTO drill_resource_categories (drill,resource_category) VALUES (?,?)`,
     ),
     module: db.prepare(
-      `INSERT INTO modules (name,display,category,hidden,tier,eff_speed,eff_productivity,eff_consumption,eff_pollution) VALUES (@name,@display,@category,@hidden,@tier,@eff_speed,@eff_productivity,@eff_consumption,@eff_pollution)`,
+      `INSERT INTO modules (name,display,category,hidden,tier,eff_speed,eff_productivity,eff_consumption,eff_pollution,eff_quality) VALUES (@name,@display,@category,@hidden,@tier,@eff_speed,@eff_productivity,@eff_consumption,@eff_pollution,@eff_quality)`,
     ),
     moduleLim: db.prepare(`INSERT OR IGNORE INTO module_limitations (module,recipe) VALUES (?,?)`),
     beacon: db.prepare(
@@ -352,6 +352,7 @@ export function importFactorioDump(
         enabled: r.enabled === false ? 0 : 1,
         hidden: r.hidden ? 1 : 0,
         allow_productivity: r.allow_productivity ? 1 : 0,
+        allow_quality: r.allow_quality === false ? 0 : 1,
         maximum_productivity:
           typeof r.maximum_productivity === "number" ? r.maximum_productivity : null,
         allowed_module_categories: jsonList(r.allowed_module_categories),
@@ -547,6 +548,7 @@ export function importFactorioDump(
         eff_productivity: e.productivity ?? 0,
         eff_consumption: e.consumption ?? 0,
         eff_pollution: e.pollution ?? 0,
+        eff_quality: e.quality ?? 0,
       });
       for (const rec of arr<string>(mod.limitation)) ins.moduleLim.run(name, rec);
     }

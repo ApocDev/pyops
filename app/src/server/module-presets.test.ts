@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   presetCompatibility,
   defaultPresetLoadout,
+  type ModuleFacts,
   type PickerLike,
 } from "./module-presets.server.ts";
 
@@ -22,7 +23,7 @@ const mockInfo = vi.mocked(q.moduleInfo);
  *   productivity-module   category productivity  eff_productivity 0.1
  *   efficiency-module     category efficiency    eff_consumption -0.3
  *   auog                  category auog          eff_speed 1.0        */
-const FACTS = new Map([
+const FACTS: ModuleFacts = new Map([
   ["speed-module", { display: "Speed module", effProductivity: 0 }],
   ["productivity-module", { display: "Productivity module", effProductivity: 0.1 }],
   ["efficiency-module", { display: "Efficiency module", effProductivity: 0 }],
@@ -88,6 +89,23 @@ describe("presetCompatibility", () => {
     });
     const res = presetCompatibility({ modules: ["speed-module"], beacons: [] }, paddock, FACTS);
     expect(res.ok).toBe(false);
+  });
+
+  it("says a quality module is refused because quality isn't modelled", () => {
+    // quality-module (Factorio 2.1.24: quality 0.01, speed -0.05) is never in the
+    // picker's accepted set, whatever the machine allows
+    const assembler = picker({ name: "assembler", display: "Assembler", moduleSlots: 4 }, [
+      "speed-module",
+    ]);
+    const facts: ModuleFacts = new Map([
+      ...FACTS,
+      ["quality-module", { display: "Quality module", effProductivity: 0, effQuality: 0.01 }],
+    ]);
+    const res = presetCompatibility({ modules: ["quality-module"], beacons: [] }, assembler, facts);
+    expect(res).toEqual({
+      ok: false,
+      reason: "quality output isn't modelled yet (Quality module)",
+    });
   });
 
   it("calls out allow_productivity as the specific reason", () => {
@@ -293,6 +311,7 @@ describe("defaultPresetLoadout", () => {
         effSpeed: 0,
         effProductivity: FACTS.get(name)?.effProductivity ?? 0,
         effConsumption: 0,
+        effQuality: 0,
       })),
     );
     // pumpjack-mk04-like row: 4 slots, prod not transmitted (dump allowed_effects
