@@ -1,0 +1,35 @@
+app/src/db/schema.ts
+  s_77b0c3d1e0c9f3::t_b633904b1168fe 661-664,724-729
+app/src/server/block-compute.server.ts
+  s_77b0c3d1e0c9f3::t_5707f463f8445d 12,454-457,523-529,552-558,582-588,765,778,786-787,828-897,902-908,913-914,1223,1429-1431
+app/src/server/block-quality.test.ts
+  s_77b0c3d1e0c9f3::t_3aa303357903a4 14-15,151,164,179-180,184-189,192-274
+app/src/server/science-bank.test.ts
+  s_77b0c3d1e0c9f3::t_81febbfe2603af 272-291
+app/src/server/science-bank.ts
+  s_77b0c3d1e0c9f3::t_67bdf297f41a24 22-34,58-59,108-110
+app/src/server/science-block.server.test.ts
+  s_77b0c3d1e0c9f3::t_8aa9ba0a32a817 163-184
+app/src/server/science-block.server.ts
+  s_77b0c3d1e0c9f3::t_565ff4afe8fe4e 18,229-241,260,286
+app/src/solver/quality.ts
+  s_77b0c3d1e0c9f3::t_8a05600db00e8f 72-84
+docs/development/solver.md
+  s_77b0c3d1e0c9f3::t_a8a0efbe3f29e1 242-246,267-271,319-324
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "23e915cb2078f2a57886a6346705e36250094e8e",
+  "prompts": {},
+  "sessions": {
+    "s_77b0c3d1e0c9f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf369d21-8408-4f5d-a9f1-b8edd788122c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
