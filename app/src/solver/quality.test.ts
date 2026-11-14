@@ -386,4 +386,40 @@ describe("fluid share pins on quality rows", () => {
     expect(result.status).toBe("solved");
     expect(result.recipes.find((r) => r.recipe === widget.name)?.rate).toBeCloseTo(1.25, 6);
   });
+
+  test("a count-pinned range row's item intake comes off a remaining share", async () => {
+    // 100 normal plates/s; the gear row is pinned at 10 crafts over
+    // normal..uncommon and a goal of 10 normal gears forces all ten to normal,
+    // eating 20 plates; a second consumer takes 25% of the remaining 80
+    const src: QualityRecipeDef = {
+      name: "plate-src",
+      energyRequired: 1,
+      ingredients: [],
+      products: [{ kind: "item", name: "iron-plate", amount: 100 }],
+    };
+    const chest: QualityRecipeDef = {
+      name: "chest",
+      energyRequired: 1,
+      ingredients: [{ kind: "item", name: "iron-plate", amount: 8 }],
+      products: [{ kind: "item", name: "chest", amount: 1 }],
+    };
+    const { input } = expandQualities(
+      {
+        goals: [{ name: "iron-gear-wheel", rate: 10, quality: "normal" }],
+        recipes: [src, gear, chest],
+        made: [],
+        drains: [],
+        pins: [
+          { kind: "rate", recipe: src.name, rate: 1 },
+          { kind: "rate", recipe: gear.name, rate: 10 },
+          { kind: "share", recipe: chest.name, item: "iron-plate", share: 0.25 },
+        ],
+      },
+      new Map([[gear.name, { levels: ["normal", "uncommon"], effect: 0 }]]),
+      ladder,
+    );
+    const result = await solveBlockLp(input);
+    expect(result.status).toBe("solved");
+    expect(result.recipes.find((r) => r.recipe === chest.name)?.rate).toBeCloseTo(2.5, 6);
+  });
 });

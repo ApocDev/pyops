@@ -279,21 +279,26 @@ export function buildModel(input: LpBlockInput): BlockModel {
     const i = intakes[0].i;
     const intakeOf = (j: number) =>
       recipes[j].ingredients.find((g) => g.name === p.item)?.amount ?? 0;
+    const parts = intakes.map((c) => term(c.amount, varOf(c.i)));
     // consumption_r = share × (total production − rate-pinned consumers' intake)
     let fixedConsumed = 0;
     if ((p.base ?? "remaining") === "remaining") {
       for (const fixed of fixedRates) {
         if (fixed.cols.some((j) => intakes.some((c) => c.i === j))) continue;
-        // a pin over several columns fixes only their sum, so their intake is a
-        // known constant only when every column eats the same amount (a fluid
-        // on a quality row; an item differs by quality per column)
+        // a pin over several columns fixes only their sum. When every column
+        // eats the same amount (one column, or a fluid on a quality row) the
+        // intake is a constant; otherwise (an item, eaten at each column's own
+        // quality) it stays an LP term
         const amounts = fixed.cols.map(intakeOf);
         if (amounts.every((a) => a === amounts[0])) fixedConsumed += amounts[0] * fixed.rate;
+        else
+          fixed.cols.forEach((j, k) => {
+            if (amounts[k] > 0) parts.push(term(p.share * amounts[k], varOf(j)));
+          });
       }
     }
-    // Σ intake·x_member − share·Σ prod_coef·x = −share·fixedConsumed
+    // Σ intake·x_member + share·Σ pinned intake·x − share·Σ prod_coef·x = −share·fixedConsumed
     const baseItems = new Set(p.ofItems ?? [p.item]);
-    const parts = intakes.map((c) => term(c.amount, varOf(c.i)));
     recipes.forEach((r, j) => {
       const prod = r.products.reduce(
         (s, pr) => (baseItems.has(pr.name) ? s + pr.amount * (pr.probability ?? 1) : s),
