@@ -1,0 +1,47 @@
+app/e2e/mut/large-block.e2e.ts
+  s_cb81d8a1fc8684::t_f9640ca7c7b781 1-2,10-15,46-59,82-151
+app/src/components/block/balance-card.tsx
+  s_cb81d8a1fc8684::t_7f1525742ec351 1,4,8,13-14,24-28,74-76,90,132,338,340-357,369-389,398
+app/src/components/block/balance-export.tsx
+  s_cb81d8a1fc8684::t_49ff019fd6d4f2 1-121
+app/src/components/block/balance-import.tsx
+  s_cb81d8a1fc8684::t_1f21a379b36f7c 1-133
+app/src/components/block/goal-tile.tsx
+  s_cb81d8a1fc8684::t_8da5b672985d66 1-276
+app/src/components/block/recipe-grid.tsx
+  s_cb81d8a1fc8684::t_ef2d92af24430f 29,132-140
+app/src/lib/render-count.ts
+  s_995b207560eeb0::t_c3efb7159cce89 1-17
+app/src/routes/block.$id.tsx
+  s_cb81d8a1fc8684::t_16ae32679323f4 553-572,769-779,833-835,837,874-886,1008,1012,1014-1015,1028
+app/src/components/block/goal-card.tsx
+  s_cb81d8a1fc8684::t_959a7b5d26b911 1,18,21,24,28-32,38-42,77-78,80-83,128,133-168,198
+app/src/components/block/recipe-row.tsx
+  s_cb81d8a1fc8684::t_4620b9423b2867 22,128
+docs/development/design.md
+  s_cb81d8a1fc8684::t_f5fe319fc4195d 225-226,230-232,235-239
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f083d2429adf5e2f1bc484eaa1ec5c1a89117822",
+  "prompts": {},
+  "sessions": {
+    "s_995b207560eeb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cef9ec12-eec2-430e-8ba3-ca49ff9d4875",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_cb81d8a1fc8684": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f3930b1-78a8-4393-b4d9-cc4d5d67f44a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
