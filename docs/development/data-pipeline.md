@@ -183,7 +183,11 @@ probability, temperature, productivity exclusions, and the original range remain
 where the solver or UI needs them. The parser accepts the prototype variants Factorio may
 emit, including recipe category arrays and singular categories. For Factorio 2.1 products it
 stores the effective chance: the independent probability multiplied by the width of the shared
-probability range. Legacy dumps with a single probability field remain supported.
+probability range. Legacy dumps with a single probability field remain supported. A product's
+`extra_count_fraction`, the chance of one more item per craft, is added to its stored amount
+(and to both ends of a range), so the stored amount is the expected yield. The recycler mod
+writes most recycling results this way, and Pyanodons' bhoddos spore breeding mk02 to mk04
+yield 6 spores plus 0.4, 0.3, and 0.75.
 
 Localized display names come from the locale dumps. When a recipe or machine inherits its
 name from a product or placeable item, the importer uses that localized prototype name as a

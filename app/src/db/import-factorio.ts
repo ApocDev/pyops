@@ -110,6 +110,9 @@ function productProbability(c: Component): number {
   const max = typeof shared?.max === "number" ? shared.max : 1;
   return independent * Math.max(0, max - min);
 }
+/** A product's `extra_count_fraction` (default 0). */
+const extraCount = (c: Component) =>
+  typeof c.extra_count_fraction === "number" ? c.extra_count_fraction : 0;
 /** Lua serializes an empty table as `{}` (object), not `[]`. Coerce to array. */
 const arr = <T = any>(x: unknown): T[] => (Array.isArray(x) ? (x as T[]) : []);
 /** Non-empty string list → JSON text; empty/missing → NULL (= "no restriction").
@@ -417,9 +420,13 @@ export function importFactorioDump(
             idx: i,
             kind: c.type ?? "item",
             name: c.name,
-            amount: c.amount ?? null,
-            amount_min: (c.amount_min as number) ?? null,
-            amount_max: (c.amount_max as number) ?? null,
+            // `extra_count_fraction` is the chance of one more item per craft
+            // (ItemProductPrototype), so the expected yield gains it whole. The
+            // recycler mod writes most of its results this way: ¼ of 2 iron
+            // plates is amount 0 plus 0.5 (`recycler/recycling.lua:116-123`).
+            amount: c.amount == null ? null : c.amount + extraCount(c),
+            amount_min: c.amount_min == null ? null : (c.amount_min as number) + extraCount(c),
+            amount_max: c.amount_max == null ? null : (c.amount_max as number) + extraCount(c),
             probability: productProbability(c),
             temperature: (c.temperature as number) ?? null,
             // Factorio 2.0: an AMOUNT (the catalytic part of the product that

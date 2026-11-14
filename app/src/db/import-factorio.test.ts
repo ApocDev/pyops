@@ -116,6 +116,41 @@ describe("importFactorioDump — Factorio 2.1 product probability", () => {
   });
 });
 
+describe("importFactorioDump — extra_count_fraction", () => {
+  it("adds the extra-item chance to the expected amount (recycler results)", () => {
+    // recycler/recycling.lua:116-123 for a 2-plate, 1-gear recipe: ¼ × 2 = 0.5
+    // → amount 0, extra_count_fraction 0.5
+    const db = runImport({
+      recipe: {
+        "iron-gear-wheel-recycling": {
+          category: "recycling",
+          ingredients: [{ type: "item", name: "iron-gear-wheel", amount: 1 }],
+          results: [
+            { type: "item", name: "iron-plate", amount: 0, extra_count_fraction: 0.5 },
+            {
+              type: "item",
+              name: "ranged",
+              amount_min: 1,
+              amount_max: 3,
+              extra_count_fraction: 0.25,
+            },
+            { type: "item", name: "plain", amount: 2 },
+          ],
+        },
+      },
+    });
+    const rows = db
+      .prepare(`SELECT name, amount, amount_min, amount_max FROM recipe_products ORDER BY idx`)
+      .all();
+    expect(rows).toEqual([
+      { name: "iron-plate", amount: 0.5, amount_min: null, amount_max: null },
+      { name: "ranged", amount: null, amount_min: 1.25, amount_max: 3.25 },
+      { name: "plain", amount: 2, amount_min: null, amount_max: null },
+    ]);
+    db.close();
+  });
+});
+
 describe("importFactorioDump — data format version", () => {
   it("records the reader version after a successful two-pass import", () => {
     const db = runImport({ recipe: {} });
