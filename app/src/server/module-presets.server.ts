@@ -47,9 +47,12 @@ export type PickerLike = {
   beaconModules?: { name: string; display?: string | null; unlocked?: boolean }[];
 };
 
-/** Display + productivity for modules that might be OUTSIDE the accepted sets
- * (the picker data only carries rows for modules it accepts). */
-export type ModuleFacts = ReadonlyMap<string, { display: string | null; effProductivity: number }>;
+/** Display + productivity/quality for modules that might be OUTSIDE the accepted
+ * sets (the picker data only carries rows for modules it accepts). */
+export type ModuleFacts = ReadonlyMap<
+  string,
+  { display: string | null; effProductivity: number; effQuality?: number }
+>;
 
 /** Is this loadout applicable to the machine+recipe the picker data describes?
  * Reasons are user-facing (localized names), for the disabled preset chips. */
@@ -64,6 +67,14 @@ export function presetCompatibility(
     picker.modules.find((m) => m.name === n) ?? picker.beaconModules?.find((m) => m.name === n);
   const prodBlocked = (n: string) =>
     !picker.allowProductivity && (facts.get(n)?.effProductivity ?? 0) > 0;
+  // the picker never offers a quality module (quality output isn't modelled, #24)
+  const qualityBlocked = (n: string) => (facts.get(n)?.effQuality ?? 0) > 0;
+  const rejectReason = (n: string, otherwise: string) =>
+    qualityBlocked(n)
+      ? `quality output isn't modelled yet (${disp(n)})`
+      : prodBlocked(n)
+        ? `this recipe does not accept productivity (${disp(n)})`
+        : otherwise;
 
   if (preset.modules.length) {
     if (picker.machine.moduleSlots <= 0)
@@ -73,12 +84,7 @@ export function presetCompatibility(
       const mod = pickedModule(n);
       if (mod?.unlocked === false) return { ok: false, reason: `${disp(n)} is not unlocked yet` };
       if (accepted.has(n)) continue;
-      return {
-        ok: false,
-        reason: prodBlocked(n)
-          ? `this recipe does not accept productivity (${disp(n)})`
-          : `${disp(n)} does not fit ${machineName}`,
-      };
+      return { ok: false, reason: rejectReason(n, `${disp(n)} does not fit ${machineName}`) };
     }
   }
   for (const b of preset.beacons) {
@@ -93,9 +99,10 @@ export function presetCompatibility(
       if (accepted.has(n)) continue;
       return {
         ok: false,
-        reason: prodBlocked(n)
-          ? `this recipe does not accept productivity (${disp(n)})`
-          : `${disp(n)} does not work in ${bk.display ?? bk.name} for ${machineName}`,
+        reason: rejectReason(
+          n,
+          `${disp(n)} does not work in ${bk.display ?? bk.name} for ${machineName}`,
+        ),
       };
     }
   }

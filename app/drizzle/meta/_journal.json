@@ -197,6 +197,13 @@
       "when": 1794623694586,
       "tag": "0027_logistic-robots",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1794627337133,
+      "tag": "0028_quality-effect-and-allow",
+      "breakpoints": true
     }
   ]
 }

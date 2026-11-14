@@ -38,7 +38,8 @@
 export type EffectKind = "speed" | "productivity" | "consumption" | "pollution";
 
 /** A machine's EffectReceiver, with the engine defaults filled in. Quality and
- * surface effects aren't modelled (Py has neither), so their parts are left out. */
+ * surface effects aren't modelled (Py has neither), so their parts are left out.
+ * A module's quality effect only gates where it may go (`effectsAllowed`). */
 export type EffectReceiver = {
   baseEffect: Record<EffectKind, number>;
   limits: Record<EffectKind, { low: number; high: number }>;
@@ -86,6 +87,7 @@ export type ModuleEff = {
   effProductivity: number;
   effConsumption: number;
   effPollution?: number;
+  effQuality?: number;
   category?: string | null;
 };
 
@@ -110,6 +112,7 @@ export function effectsAllowed(m: ModuleEff, allowed: string[] | null | undefine
   if (m.effProductivity > 0 && !allowed.includes("productivity")) return false;
   if (m.effConsumption < 0 && !allowed.includes("consumption")) return false;
   if ((m.effPollution ?? 0) < 0 && !allowed.includes("pollution")) return false;
+  if ((m.effQuality ?? 0) > 0 && !allowed.includes("quality")) return false;
   return true;
 }
 

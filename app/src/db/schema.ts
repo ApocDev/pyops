@@ -71,6 +71,9 @@ export const recipes = sqliteTable(
     enabled: bool("enabled").notNull().default(true),
     hidden: bool("hidden").notNull().default(false),
     allowProductivity: bool("allow_productivity").notNull().default(false),
+    // RecipePrototype.allow_quality (engine default true). The quality mod turns it
+    // off on oil processing and cracking; Py turns it off on 897 recipes.
+    allowQuality: bool("allow_quality").notNull().default(true),
     // RecipePrototype.maximum_productivity — caps total productivity (null = engine
     // default +300%). Py raises it to 1e6 on nearly every recipe (10344/10392).
     maximumProductivity: real("maximum_productivity"),
@@ -246,6 +249,9 @@ export const modules = sqliteTable("modules", {
   effProductivity: real("eff_productivity").notNull().default(0),
   effConsumption: real("eff_consumption").notNull().default(0),
   effPollution: real("eff_pollution").notNull().default(0),
+  // ModulePrototype effect.quality. Imported so planners can refuse quality
+  // modules; quality output itself is not modelled yet (#24).
+  effQuality: real("eff_quality").notNull().default(0),
 });
 
 export const moduleLimitations = sqliteTable(

@@ -99,6 +99,9 @@ chain is cheapest, shortest, or best for your playthrough.
   throughput and layout are not simulated.
 - Spatial layout, train schedules, circuit behavior, and construction time are outside the
   production solver.
+- Quality is not modelled. On a mod set with the quality mod, module pickers, templates,
+  and auto-fill don't offer quality modules, and live production stats add every quality
+  of an item into one rate.
 - Live save state and in-game actions require the Companion mod and UDP bridge. The core
   planner remains available without them.
 - Assistant access requires OpenRouter or an OpenAI-compatible endpoint such as LiteLLM.

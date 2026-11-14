@@ -128,6 +128,33 @@ describe("importFactorioDump — data format version", () => {
   });
 });
 
+describe("importFactorioDump — quality effect and allow_quality (#260)", () => {
+  it("stores each module's quality effect and each recipe's allow_quality", () => {
+    const db = runImport({
+      recipe: {
+        // the quality mod sets allow_quality = false; absent means the engine default, true
+        "basic-oil-processing": { allow_quality: false, results: [] },
+        "iron-gear-wheel": { results: [] },
+      },
+      module: {
+        "quality-module": { category: "quality", effect: { quality: 0.01, speed: -0.05 } },
+        "speed-module": { category: "speed", effect: { speed: 0.2, quality: -0.01 } },
+        "efficiency-module": { category: "efficiency", effect: { consumption: -0.3 } },
+      },
+    });
+    expect(db.prepare(`SELECT name, allow_quality FROM recipes ORDER BY name`).all()).toEqual([
+      { name: "basic-oil-processing", allow_quality: 0 },
+      { name: "iron-gear-wheel", allow_quality: 1 },
+    ]);
+    expect(db.prepare(`SELECT name, eff_quality FROM modules ORDER BY name`).all()).toEqual([
+      { name: "efficiency-module", eff_quality: 0 },
+      { name: "quality-module", eff_quality: 0.01 },
+      { name: "speed-module", eff_quality: -0.01 },
+    ]);
+    db.close();
+  });
+});
+
 describe("importFactorioDump — machine effect receivers (#258)", () => {
   it("stores each machine's effect_receiver with defaults filled in", () => {
     const db = runImport({
