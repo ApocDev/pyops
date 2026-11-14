@@ -362,4 +362,28 @@ describe("fluid share pins on quality rows", () => {
     expect(rate("iron-gear-wheel")).toBeCloseTo(0.4, 6);
     expect(rate("lubricant")).toBeCloseTo(4, 6);
   });
+
+  test("a count-pinned range row's fluid intake comes off a remaining share", async () => {
+    // 100 lubricant/s; the gear row is pinned at 5 crafts over normal..uncommon,
+    // eating 50/s whatever the split; widgets take 25% of the remaining 50
+    const goals: { name: string; rate: number }[] = [];
+    const { input } = expandQualities(
+      {
+        goals,
+        recipes: [lubed, lubricant, widget],
+        made: [],
+        drains: [],
+        pins: [
+          { kind: "rate", recipe: lubricant.name, rate: 10 },
+          { kind: "rate", recipe: lubed.name, rate: 5 },
+          { kind: "share", recipe: widget.name, item: "lubricant", share: 0.25 },
+        ],
+      },
+      new Map([[lubed.name, { levels: ["normal", "uncommon"], effect: 0 }]]),
+      ladder,
+    );
+    const result = await solveBlockLp(input);
+    expect(result.status).toBe("solved");
+    expect(result.recipes.find((r) => r.recipe === widget.name)?.rate).toBeCloseTo(1.25, 6);
+  });
 });

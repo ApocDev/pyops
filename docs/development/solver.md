@@ -250,8 +250,9 @@ when every column that produces its (good, quality) is a single-quality row with
 count pin. An item share pin
 names a (good, quality): the row's column at that quality takes its share of that quality's
 production. A fluid has no quality, so a fluid share pin splits the row's intake summed over
-all its columns. A pin over several columns doesn't count as a fixed intake when another share
-pin uses the "remaining" base.
+all its columns. A count pin over several columns fixes only their total, so another share pin's
+"remaining" base subtracts its intake only when every column eats the same amount. That holds
+for a fluid but not for an item, which each column eats at its own quality.
 
 ### The split
 

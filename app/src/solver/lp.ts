@@ -236,7 +236,8 @@ export function buildModel(input: LpBlockInput): BlockModel {
     });
   }
 
-  const fixedRate = new Map<string, number>();
+  /** rate-pinned consumers: the LP indices of a pin's columns and their summed rate */
+  const fixedRates: { cols: number[]; rate: number }[] = [];
   for (const p of pins) {
     if (p.kind !== "rate" && p.kind !== "cap") continue;
     const cols = (p.members ?? [p.recipe]).flatMap((r) => {
@@ -246,9 +247,7 @@ export function buildModel(input: LpBlockInput): BlockModel {
     if (!cols.length) continue;
     const parts = cols.map((i) => term(1, varOf(i)));
     if (p.kind === "rate") {
-      // a pin over several columns fixes only their sum, so no one column's
-      // intake is a known constant for a "remaining" share base
-      if (!p.members) fixedRate.set(p.recipe, p.rate);
+      fixedRates.push({ cols, rate: p.rate });
       constraints.push({
         id: `pin_${cols[0]}`,
         parts,
@@ -278,14 +277,18 @@ export function buildModel(input: LpBlockInput): BlockModel {
     });
     if (!intakes.length) continue;
     const i = intakes[0].i;
+    const intakeOf = (j: number) =>
+      recipes[j].ingredients.find((g) => g.name === p.item)?.amount ?? 0;
     // consumption_r = share × (total production − rate-pinned consumers' intake)
     let fixedConsumed = 0;
     if ((p.base ?? "remaining") === "remaining") {
-      for (const [rec, rate] of fixedRate) {
-        if (members.includes(rec)) continue;
-        const ri = idxOf.get(rec)!;
-        const ringr = recipes[ri].ingredients.find((g) => g.name === p.item)?.amount ?? 0;
-        fixedConsumed += ringr * rate;
+      for (const fixed of fixedRates) {
+        if (fixed.cols.some((j) => intakes.some((c) => c.i === j))) continue;
+        // a pin over several columns fixes only their sum, so their intake is a
+        // known constant only when every column eats the same amount (a fluid
+        // on a quality row; an item differs by quality per column)
+        const amounts = fixed.cols.map(intakeOf);
+        if (amounts.every((a) => a === amounts[0])) fixedConsumed += amounts[0] * fixed.rate;
       }
     }
     // Σ intake·x_member − share·Σ prod_coef·x = −share·fixedConsumed
