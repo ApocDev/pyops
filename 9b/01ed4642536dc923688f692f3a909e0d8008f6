@@ -1,0 +1,18 @@
+app/src-tauri/prune-prebuilds.mjs
+  h_3ea7e994213848 1-28
+app/src-tauri/tauri.conf.json
+  h_3ea7e994213848 8
+docs/development/desktop.md
+  h_3ea7e994213848 39-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9b01ed4642536dc923688f692f3a909e0d8008f6",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
