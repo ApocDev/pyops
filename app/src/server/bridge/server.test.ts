@@ -1,6 +1,8 @@
-// Pin the bridge to a test-only UDP port before importing server.ts (it reads the
-// port at module load). Keeps this off 37657 so it can't collide with a real mod.
-process.env.PYOPS_BRIDGE_PORT = "37662";
+// Let the OS pick a free UDP port (0) before importing server.ts (it reads the
+// port at module load), so this never collides with a real mod on 37657 or with
+// another checkout running the same test at once. The bound port is read back
+// once the socket is listening.
+process.env.PYOPS_BRIDGE_PORT = "0";
 
 import dgram from "node:dgram";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
@@ -48,13 +50,14 @@ function expectSilence(sock: dgram.Socket, raw: Buffer | string, ms = 300): Prom
 }
 
 beforeAll(async () => {
-  const r = ensureBridge();
-  PORT = r.port;
+  ensureBridge();
   // wait for the socket to actually bind
   for (let i = 0; i < 50 && bridgeStatus().status !== "listening"; i++) {
     await new Promise((res) => setTimeout(res, 20));
   }
   expect(bridgeStatus().status).toBe("listening");
+  PORT = bridgeStatus().port;
+  expect(PORT).toBeGreaterThan(0);
 });
 
 afterAll(() => {
