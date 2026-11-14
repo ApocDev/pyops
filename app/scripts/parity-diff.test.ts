@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vite-plus/test";
@@ -50,6 +50,26 @@ describe("parity diff", () => {
       );
       expect(run.stdout).toContain(`flows + ${JSON.stringify(ash)}`);
       expect(run.status).toBe(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses to write a snapshot over the source db, even through a symlink", () => {
+    const dir = mkdtempSync(join(tmpdir(), "pyops-parity-test-"));
+    try {
+      const db = join(dir, "project.db");
+      const out = join(dir, "out.json");
+      writeFileSync(db, "not really a db");
+      symlinkSync(db, out);
+      const run = spawnSync(
+        process.execPath,
+        ["--import", "tsx", join(import.meta.dirname, "parity.ts"), "snapshot", db, out],
+        { encoding: "utf8" },
+      );
+      expect(run.status).not.toBe(0);
+      expect(run.stderr).toContain("refusing to write the snapshot over the source db");
+      expect(readFileSync(db, "utf8")).toBe("not really a db");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

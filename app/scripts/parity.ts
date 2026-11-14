@@ -15,9 +15,16 @@
  * from the same project db, then diff them. See docs/development/solver.md.
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import Database from "better-sqlite3";
 import { type BlockSnapshot, type Row, type Snapshot, diffSnapshots } from "./parity-diff.ts";
 
@@ -50,6 +57,12 @@ function gitCommit(): string {
 }
 
 async function snapshot(source: string, out: string) {
+  // Never overwrite the project being read: <out> naming the same file (even
+  // through a symlink) would replace the database with JSON.
+  const real = (p: string) => (existsSync(p) ? realpathSync(p) : resolve(p));
+  if (real(out) === real(source)) {
+    throw new Error(`refusing to write the snapshot over the source db: ${out}`);
+  }
   const dir = mkdtempSync(join(tmpdir(), "pyops-parity-"));
   const copy = join(dir, "project.db");
   try {
