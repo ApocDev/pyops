@@ -19,6 +19,7 @@ const generation = await import("../../../db/solve-generation.server.ts");
 const compute = await import("../../block-compute.server.ts");
 const server = await import("../server.ts");
 const blocks = await import("./blocks.ts");
+const { lastOpenRequest } = await import("../open-request.ts");
 
 type Listed = ReturnType<typeof q.listBlocks>[number];
 type Group = ReturnType<typeof q.listGroups>[number];
@@ -208,8 +209,8 @@ describe("block.show / block.open", () => {
 
   it("records the latest open request for the web UI", () => {
     blocks.handleBlockOpen(req("block.open", { id: 1.5 }));
-    expect(blocks.lastOpenBlockRequest()).toBeNull();
+    expect(lastOpenRequest()).toBeNull();
     blocks.handleBlockOpen(req("block.open", { id: 7 }));
-    expect(blocks.lastOpenBlockRequest()).toMatchObject({ id: 7 });
+    expect(lastOpenRequest()).toMatchObject({ to: "block", id: 7 });
   });
 });

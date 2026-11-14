@@ -28,6 +28,15 @@ data:extend({
     consuming = "none",
     action = "lua"
   },
+  -- Focus: open the block that runs the hovered machine's recipe in the web app.
+  -- A key press reads `player.selected` (the reverse of the web's locate).
+  {
+    type = "custom-input",
+    name = "pyops-focus-block",
+    key_sequence = "CONTROL + SHIFT + O",
+    consuming = "none",
+    action = "lua"
+  },
   -- Mirrors the smart-pipette (Q) key so the summary panel can pipette the good /
   -- building under the cursor. Linked (no own key) — it fires alongside the normal
   -- pipette, which still works everywhere else.
