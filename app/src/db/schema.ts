@@ -152,9 +152,10 @@ export const craftingMachines = sqliteTable("crafting_machines", {
   // energy source isn't an electric input, and on imports before the column.
   drainW: real("drain_w"),
   pollutionPerMin: real("pollution_per_min"), // emissions_per_minute.pollution at base speed (#23)
-  // module eligibility (empty/null = no restriction): which effect kinds the
-  // machine accepts, and which module categories fit its slots (Py creature
-  // buildings only take their own creature modules)
+  // module eligibility: which effect kinds the machine accepts (null = every
+  // effect, [] = none; see db/allowed-effects.ts), and which module categories it
+  // takes (null = any; Py creature buildings only take their own creature
+  // modules). Both apply to beacon modules too.
   allowedEffects: text("allowed_effects", { mode: "json" }).$type<string[] | null>(),
   allowedModuleCategories: text("allowed_module_categories", { mode: "json" }).$type<
     string[] | null

@@ -130,6 +130,9 @@ Each recipe row shows its selected machine and required building count.
 - A "… burns to" recipe shows **No building**. It stands in for fuel burned in some burner
   elsewhere. To tie the result to a real boiler or furnace, choose the fuel on that row.
 - Use the module control to fill module slots or override the block's preferred defaults.
+  The picker offers only modules the building accepts, in its own slots or in a beacon. A
+  building with no effects allowed, such as Pyanodons' Assembling machine 2, shows no module
+  control at all.
 
 Global preferred machines, fuels, fluid temperatures, and module-fill behavior live under
 **Settings → Planning**. A choice made directly on a recipe row overrides the relevant
@@ -263,7 +266,8 @@ that research finishes—come back and derive again to move to the next target.
 
 Select the **Effects** control to open the same module and beacon picker recipe rows use. A
 lab with no module slots of its own can still be covered by a beacon, so the picker stays
-available; the palette is empty because nothing can be inserted directly.
+available; the palette is empty because nothing can be inserted directly. Pyanodons' lab
+accepts only vatbrain modules, so the picker offers no modules for ordinary beacons.
 
 Set **shared by** to the number of labs each beacon building actually covers. Every lab still
 receives the full effect—the setting divides the buildings you place and their power, and it

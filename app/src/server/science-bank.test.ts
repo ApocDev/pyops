@@ -16,12 +16,17 @@ const LAB: LabProto = {
 };
 
 const MODS = new Map<string, ModuleEff>([
-  ["vatbrain-4", { effSpeed: 0, effProductivity: 1, effConsumption: 4 }],
+  ["vatbrain-4", { effSpeed: 0, effProductivity: 1, effConsumption: 4, category: "vatbrain" }],
+  ["speed-module-3", { effSpeed: 1, effProductivity: 0, effConsumption: 1.5, category: "speed" }],
 ]);
 const BEACONS = new Map<string, BeaconEff>([
   [
     "vat-brain",
     { distributionEffectivity: 1, moduleSlots: 1, energyUsageW: 900_000, profile: null },
+  ],
+  [
+    "beacon",
+    { distributionEffectivity: 1.5, moduleSlots: 2, energyUsageW: 480_000, profile: null },
   ],
 ]);
 
@@ -168,6 +173,18 @@ describe("computeScienceBank — effects", () => {
     expect(boosted.productivityMult).toBeCloseTo(2);
     expect(boosted.packDemand["automation-science-pack"]).toBeCloseTo(20 / 60, 6);
     expect(boosted.labs).toBeCloseTo(plain.labs / 2, 6);
+  });
+
+  // Measured in game: Py's lab next to a beacon with 2 × speed-module-3 kept
+  // effects {} and researched at its unbeaconed rate.
+  it("ignores a speed beacon, since the lab allows no speed", () => {
+    const plain = bank({ packs: { "automation-science-pack": 40 / 60 } });
+    const beaconed = bank({
+      packs: { "automation-science-pack": 40 / 60 },
+      beacons: [{ beacon: "beacon", modules: ["speed-module-3", "speed-module-3"], count: 1 }],
+    });
+    expect(beaconed.speedMult).toBe(1);
+    expect(beaconed.labs).toBeCloseTo(plain.labs, 9);
   });
 
   it("charges beacon upkeep per building, so sharing reduces the drain", () => {

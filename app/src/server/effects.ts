@@ -25,6 +25,12 @@
  * research adds an uncapped bonus on mining recipes (resources are not
  * recipes, so no maximum_productivity cap applies — in-game mining
  * productivity routinely exceeds +300%).
+ *
+ * A module only reaches a receiver that accepts it (see `moduleReaches`): its
+ * category must be one the receiver takes, and every BENEFICIAL effect it has
+ * must be in the receiver's `allowed_effects`. A blocked module adds nothing, not
+ * even its other effects. The same gate applies to modules in the machine's own
+ * slots, in beacons, and in the TURD hidden beacon.
  */
 
 export type EffectKind = "speed" | "productivity" | "consumption" | "pollution";
@@ -78,7 +84,42 @@ export type ModuleEff = {
   effProductivity: number;
   effConsumption: number;
   effPollution?: number;
+  category?: string | null;
 };
+
+/** Which modules a machine or lab accepts. `allowedEffects` null = every effect,
+ * `[]` = none (the importer resolves a prototype's missing key to its type's
+ * default). `allowedModuleCategories` null or empty = any category. */
+export type ModuleReceiver = {
+  allowedEffects: string[] | null;
+  allowedModuleCategories: string[] | null;
+};
+
+/** Whether every beneficial effect of a module is allowed. Measured in game
+ * (Factorio 2.1): a beacon with productivity-module-3 (speed -0.75) next to a
+ * fluid-drill-mk01 (allows consumption + productivity, not speed) gave the
+ * drill productivity +0.9, consumption +6 AND speed -0.8. So a disallowed
+ * harmful side effect neither blocks the module nor gets filtered out, while a
+ * disallowed benefit (speed on Py's lab, anything on assembling-machine-2)
+ * blocks the whole module. */
+export function effectsAllowed(m: ModuleEff, allowed: string[] | null | undefined): boolean {
+  if (!allowed) return true;
+  if (m.effSpeed > 0 && !allowed.includes("speed")) return false;
+  if (m.effProductivity > 0 && !allowed.includes("productivity")) return false;
+  if (m.effConsumption < 0 && !allowed.includes("consumption")) return false;
+  if ((m.effPollution ?? 0) < 0 && !allowed.includes("pollution")) return false;
+  return true;
+}
+
+/** Whether a module, from a slot or any beacon, affects this receiver at all.
+ * Measured in game: Py's sap-extractor-mk01 (categories sap-mk01..04 only)
+ * ignored a beacon with speed modules although it allows the speed effect. */
+export function moduleReaches(m: ModuleEff, rx: ModuleReceiver | null | undefined): boolean {
+  if (!rx) return true;
+  const cats = rx.allowedModuleCategories;
+  if (cats?.length && !cats.includes(m.category ?? "")) return false;
+  return effectsAllowed(m, rx.allowedEffects);
+}
 export type BeaconEff = {
   distributionEffectivity: number | null;
   moduleSlots: number;
@@ -96,11 +137,15 @@ export type ResearchProductivity = {
   maxProductivity: number | null;
 };
 
-function sumEffects(names: string[], moduleDb: Map<string, ModuleEff>) {
+function sumEffects(
+  names: string[],
+  moduleDb: Map<string, ModuleEff>,
+  accepts: ModuleReceiver | null,
+) {
   const s = { speed: 0, prod: 0, cons: 0, poll: 0 };
   for (const n of names) {
     const m = moduleDb.get(n);
-    if (!m) continue;
+    if (!m || !moduleReaches(m, accepts)) continue;
     s.speed += m.effSpeed;
     s.prod += m.effProductivity;
     s.cons += m.effConsumption;
@@ -119,15 +164,18 @@ export function computeEffects(
   extraModules: ModuleEff[] = [],
   research?: ResearchProductivity,
   receiver: EffectReceiver | null = null,
+  // the machine's allowed effects and module categories (null = accepts all)
+  accepts: ModuleReceiver | null = null,
 ): Effects {
   const rx = receiver ?? DEFAULT_EFFECT_RECEIVER;
-  const own = sumEffects(rx.usesModuleEffects ? machineModules : [], moduleDb);
+  const own = sumEffects(rx.usesModuleEffects ? machineModules : [], moduleDb, accepts);
   let { speed, prod, cons, poll } = own;
   speed += rx.baseEffect.speed;
   cons += rx.baseEffect.consumption;
   poll += rx.baseEffect.pollution;
   // the TURD bonus arrives through a hidden beacon
   for (const m of rx.usesBeaconEffects ? extraModules : []) {
+    if (!moduleReaches(m, accepts)) continue;
     speed += m.effSpeed;
     prod += m.effProductivity;
     cons += m.effConsumption;
@@ -137,7 +185,7 @@ export function computeEffects(
   for (const cfg of beaconCfgs) {
     const b = beaconDb.get(cfg.beacon);
     if (!b || cfg.count <= 0) continue;
-    const inBeacon = sumEffects(cfg.modules.slice(0, b.moduleSlots), moduleDb);
+    const inBeacon = sumEffects(cfg.modules.slice(0, b.moduleSlots), moduleDb, accepts);
     // n same-type beacons: n × effectivity × profile[n] × (modules in one beacon)
     const falloff = b.profile?.length ? b.profile[Math.min(cfg.count, b.profile.length) - 1] : 1;
     const mult = rx.usesBeaconEffects ? (b.distributionEffectivity ?? 1) * falloff * cfg.count : 0;

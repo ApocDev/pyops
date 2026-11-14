@@ -126,7 +126,12 @@ The importer converts Factorio's flexible prototype shapes into stable relationa
 
 - recipes, ingredients, products, categories, unlocks, and technologies;
 - items, fluids, machines, mining drills, modules, beacons, labs, and fuels;
-- energy-source details, pollution, crafting categories, and allowed effects;
+- energy-source details, pollution, crafting categories, and allowed effects. A stored
+  `allowed_effects` of null means every effect and `[]` means none. A prototype that sets
+  the key, even to an empty table, is taken as written. A missing key falls back to its
+  type's default: none for crafting machines, every effect for labs and mining drills
+  (quality is not modelled). Boilers, generators, pumps, reactors, and agricultural towers
+  are not effect receivers and store `[]`;
 - each electric machine's and lab's constant drain (`drain_w`). The dump only has a `drain`
   key when the prototype sets one; otherwise the engine default applies, which is
   `energy_usage / 30` for crafting machines (assembling machines, furnaces, rocket silos) and

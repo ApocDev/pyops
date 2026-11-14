@@ -80,7 +80,19 @@ export type ScienceBankResult = {
 
 export function computeScienceBank(input: ScienceBankInput): ScienceBankResult {
   const { lab, moduleDb, beaconDb } = input;
-  const fx = computeEffects(true, input.modules, input.beacons, moduleDb, beaconDb);
+  // the lab's allowed effects and categories gate every module: Py's lab takes
+  // only vatbrains (productivity, consumption, pollution) and ignores speed
+  const fx = computeEffects(
+    true,
+    input.modules,
+    input.beacons,
+    moduleDb,
+    beaconDb,
+    [],
+    undefined,
+    null,
+    lab,
+  );
   const prodMult = fx.prodMult + input.labProductivityBonus;
 
   const accepted = lab.inputs?.length ? new Set(lab.inputs) : null;

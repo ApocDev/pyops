@@ -567,7 +567,11 @@ export function ModulesModal({
   if (effects?.speed) fx.push(`${pct(effects.speed)} speed`);
   if (effects?.productivity) fx.push(`${pct(effects.productivity)} productivity`);
   if (effects?.consumption) fx.push(`${pct(effects.consumption)} energy`);
-  const firstUnlockedBeacon = data?.beacons.find((b) => b.unlocked !== false)?.name ?? null;
+  // A beacon helps only when a module it can hold reaches this machine. Py's sap
+  // extractor takes only sap modules, so no visible beacon can affect it.
+  const beaconFits = data?.beacons.some((b) => b.modules.length > 0) ?? false;
+  const firstUnlockedBeacon =
+    data?.beacons.find((b) => b.unlocked !== false && b.modules.length > 0)?.name ?? null;
 
   return (
     <Dialog
@@ -776,7 +780,9 @@ export function ModulesModal({
                     title={
                       firstUnlockedBeacon
                         ? "Add a beacon affecting each machine"
-                        : "No unlocked beacons are available under the current horizon"
+                        : beaconFits
+                          ? "No unlocked beacons are available under the current horizon"
+                          : "No beacon can carry a module this machine accepts"
                     }
                   >
                     + Add

@@ -274,7 +274,21 @@ selected building and all applicable effects.
 - consumption changes electrical or fuel demand;
 - pollution changes the row and block pollution budget.
 
-Each machine's effect receiver shapes that sum, following Factorio's `EffectReceiver`
+A module counts only when it reaches the machine. Its category must be in the machine's
+`allowed_module_categories`, and each beneficial effect it has must be in the machine's
+`allowed_effects`. Otherwise the module adds nothing, not even its other effects. The rule is
+the same for the machine's own slots, every beacon, and the TURD hidden beacon. Measured in
+game:
+
+- Pyanodons' Assembling machine 2 allows no effects. A speed or efficiency beacon next to it
+  changes nothing.
+- Pyanodons' lab disallows speed, so a speed beacon adds neither speed nor its consumption.
+  Vatbrains still apply, because productivity, consumption, and pollution are all allowed.
+- The sap extractor allows speed but takes only sap modules, so a speed beacon does nothing.
+- A harmful side effect never blocks a module and is never filtered out. A beacon with
+  productivity modules next to a fluid drill that disallows speed still slows the drill.
+
+Each machine's effect receiver then shapes the sum, following Factorio's `EffectReceiver`
 prototype:
 
 - the machine's `base_effect` adds into the sum like one more module;
