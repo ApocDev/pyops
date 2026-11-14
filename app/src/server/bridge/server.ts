@@ -83,6 +83,8 @@ function create(): BridgeRuntime {
   socket.on("listening", () => {
     runtime.status = "listening";
     runtime.error = null;
+    // the bound port: differs from PORT when it was 0 (OS-assigned, tests)
+    runtime.port = socket.address().port;
   });
 
   socket.on("error", (err) => {
