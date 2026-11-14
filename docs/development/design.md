@@ -220,12 +220,17 @@ right-aligned on desktop. Do not preserve a wide desktop row by forcing horizont
 on mobile.
 
 The block editor's recipe grid renders lazily so large blocks open fast. Its rows mount
-once the grid comes within 1000px of the block's scroll viewport (`data-block-scroll`),
-and each row uses `content-visibility: auto`, so the browser skips layout and paint for
-rows off screen. Two rules follow. To scroll to a row, set the editor's `focusRecipe`
-rather than querying `[data-recipe-row]`: it mounts the rows and lays them all out so
-the scroll lands on the target. Content inside a row is clipped to the row, so popovers,
-menus, and hover cards opened from a row must portal out (the shared primitives do).
+in a transition once the grid comes within 1000px of the block's scroll viewport
+(`data-block-scroll`), and each row uses `content-visibility: auto`, so the browser skips
+layout and paint for rows off screen. Three rules follow. To scroll to a row, set the
+editor's `focusRecipe` rather than querying `[data-recipe-row]`: it mounts the rows, lays
+them all out, and re-aims the scroll while rows above the target still grow. Content
+inside a row is clipped to the row, so popovers, menus, and hover cards opened from a row
+must portal out (the shared primitives do). `RecipeRow` is memoized, so an edit
+re-renders only the rows whose props changed. Keep every prop passed to it
+reference-stable: the editor shares unchanged parts of each solve with the previous one
+(`replaceEqualDeep`) and memoizes the callbacks and lookups it hands down. A new object
+or inline callback per render re-renders every row.
 
 ### Keyboard shortcuts
 

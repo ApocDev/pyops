@@ -1,4 +1,13 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useStore } from "@tanstack/react-store";
 import {
   DndContext,
@@ -23,7 +32,6 @@ import type { LogiView, SolveResult } from "./solve-view.ts";
 import { GroupHeaderRow } from "./group-header-row.tsx";
 import { MissingRecipeRow } from "./missing-recipe-row.tsx";
 import { RecipeRow, type RowOverlayOpeners } from "./recipe-row.tsx";
-import { rowTempWarnings } from "./temp-warnings.ts";
 import type { Link as ItemLink } from "./item-chip.tsx";
 import { head } from "./styles.ts";
 
@@ -43,6 +51,11 @@ const SPACER = "h-[calc(var(--rows)*470px)] md:h-[calc(var(--rows)*190px)]";
 // rendered yet has only a placeholder height. While a focus request scrolls to a
 // row, lay every row out for real so the scroll lands on the target.
 const FOCUSING = "[&_[data-recipe-row]]:[content-visibility:visible]";
+// Stable sensor options: new objects each render would hand dnd-kit new
+// activators, which re-renders every sortable row.
+const POINTER = { activationConstraint: { distance: 6 } };
+const KEYBOARD = { coordinateGetter: sortableKeyboardCoordinates };
+const NO_SPOILAGE: SolveResult["incidentalSpoilage"] = [];
 
 /** The recipe grid: each row's I/O at the solved rate, with drag-reorder,
  * sub-block headers (#7), disable toggles (#73) and click-to-confirm removal.
@@ -106,7 +119,9 @@ export function RecipeGrid({
     }
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries.some((e) => e.isIntersecting)) setNearView(true);
+        // a transition renders the rows in slices, so the scroll that brings
+        // the grid near doesn't stall on mounting all of them at once
+        if (entries.some((e) => e.isIntersecting)) startTransition(() => setNearView(true));
       },
       { root, rootMargin: `${MOUNT_PX}px 0px` },
     );
@@ -132,29 +147,39 @@ export function RecipeGrid({
       return next;
     });
   // Recipe removal is a click-to-confirm: the first click on × arms the row (× →
-  // "remove?"), the second removes it. Removing loses the row's machine/fuel/module
-  // picks, so a lone misclick shouldn't destroy it. Auto-disarms after a few seconds.
+  // "remove?"), the second removes it (in the row). Removing loses the row's
+  // machine/fuel/module picks, so a lone misclick shouldn't destroy it.
+  // Auto-disarms after a few seconds.
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const removeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const requestRemove = (name: string) => {
+  const armRemove = useCallback((name: string | null) => {
     if (removeTimer.current) clearTimeout(removeTimer.current);
-    if (confirmRemove === name) {
-      setConfirmRemove(null);
-      doc.dropRecipe(name);
-      // label the save for the undo stack (#90) — display name when solved
-      doc.note(`Remove recipe "${res?.recipeDisplay?.[name] ?? name}"`);
-      return;
-    }
     setConfirmRemove(name);
-    removeTimer.current = setTimeout(() => setConfirmRemove(null), 3000);
-  };
+    if (name) removeTimer.current = setTimeout(() => setConfirmRemove(null), 3000);
+  }, []);
   useEffect(() => () => void (removeTimer.current && clearTimeout(removeTimer.current)), []);
+
+  // Bring a focused row (#101) to the middle of the viewport. Rows can still
+  // grow after the table remounts, which leaves a smooth scroll short of its
+  // target (#276), so aim again whenever the grid resizes during the focus.
+  const cardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const card = cardRef.current;
+    const row =
+      focusRecipe && card?.querySelector(`[data-recipe-row="${CSS.escape(focusRecipe)}"]`);
+    if (!card || !row) return;
+    const aim = () => row.scrollIntoView({ block: "center", behavior: "smooth" });
+    aim();
+    const ro = new ResizeObserver(aim);
+    ro.observe(card);
+    return () => ro.disconnect();
+  }, [focusRecipe]);
 
   // Drag-reorder of recipe rows via dnd-kit. PointerSensor covers mouse + touch; the
   // small activation distance keeps a tap/click on the grip from registering as a drag.
   const recipeSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(PointerSensor, POINTER),
+    useSensor(KeyboardSensor, KEYBOARD),
   );
   // Reorder is display/authoring only — the solver is order-independent. Sub-blocks
   // (#7) make it three cases: drag a group header to move the whole span; drop a row
@@ -197,9 +222,10 @@ export function RecipeGrid({
   // renders a header at its first member's position; members follow (contiguous
   // by invariant) unless the group is folded, in which case they're skipped and
   // the header shows the chain's net flows instead. Empty until the rows mount.
-  type RowEntry = { type: "group"; group: RowGroup } | { type: "recipe"; name: string };
-  const rowSeq: RowEntry[] = [];
-  if (mounted) {
+  // Memoized: a new `sortableIds` array re-renders every sortable row.
+  const rowSeq = useMemo(() => {
+    const seq: ({ type: "group"; group: RowGroup } | { type: "recipe"; name: string })[] = [];
+    if (!mounted) return seq;
     const byId = new Map(rowGroups.map((g) => [g.id, g]));
     const seen = new Set<number>();
     for (const name of recipes) {
@@ -207,16 +233,20 @@ export function RecipeGrid({
       if (g) {
         if (!seen.has(g.id)) {
           seen.add(g.id);
-          rowSeq.push({ type: "group", group: g });
+          seq.push({ type: "group", group: g });
         }
-        if (!foldedGroups[g.id]) rowSeq.push({ type: "recipe", name });
-      } else rowSeq.push({ type: "recipe", name });
+        if (!foldedGroups[g.id]) seq.push({ type: "recipe", name });
+      } else seq.push({ type: "recipe", name });
     }
-  }
-  const sortableIds = rowSeq.map((e) => (e.type === "group" ? `grp:${e.group.id}` : e.name));
+    return seq;
+  }, [mounted, recipes, rowGroups, recipeGroups, foldedGroups]);
+  const sortableIds = useMemo(
+    () => rowSeq.map((e) => (e.type === "group" ? `grp:${e.group.id}` : e.name)),
+    [rowSeq],
+  );
 
   return (
-    <Card className={focusRecipe ? FOCUSING : undefined}>
+    <Card ref={cardRef} className={focusRecipe ? FOCUSING : undefined}>
       <div className={HEAD}>
         <span>Recipe ({recipes.length})</span>
         <span>Machines</span>
@@ -285,21 +315,17 @@ export function RecipeGrid({
                 error={solveFailed && !off}
                 gridClass={GRID}
                 confirmRemove={confirmRemove === name}
-                onRequestRemove={() => requestRemove(name)}
+                onArmRemove={armRemove}
                 linkOf={linkOf}
                 producible={producible}
                 logi={logi}
                 open={open}
                 moduleHints={!!res?.moduleHints}
-                incidentalSpoilage={res?.incidentalSpoilage ?? []}
+                incidentalSpoilage={res?.incidentalSpoilage ?? NO_SPOILAGE}
                 goodDisplay={res?.display}
+                recipeDisplay={res?.recipeDisplay}
                 highlight={focusRecipe === name}
-                tempWarnings={rowTempWarnings(
-                  res?.tempWarnings,
-                  res?.display,
-                  res?.recipeDisplay,
-                  name,
-                )}
+                tempWarnings={res?.tempWarnings}
               />
             );
           })}

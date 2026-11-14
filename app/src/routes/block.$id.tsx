@@ -1,6 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  keepPreviousData,
+  replaceEqualDeep,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@tanstack/react-store";
 import { ActiveEditorRefContext } from "./block";
 import { createBlockDocStore, solveInputOf } from "../components/block/doc-store.ts";
@@ -58,6 +64,7 @@ import { SnapshotSheet } from "../components/block/snapshot-sheet.tsx";
 import { GoalCard } from "../components/block/goal-card.tsx";
 import { BalanceCard } from "../components/block/balance-card.tsx";
 import { RecipeGrid } from "../components/block/recipe-grid.tsx";
+import type { RowOverlayOpeners } from "../components/block/recipe-row.tsx";
 import { BlockFlowView } from "../components/block/block-flow-view.tsx";
 import type { LogiView } from "../components/block/solve-view.ts";
 import { usePageEntity } from "../lib/page-context.ts";
@@ -399,29 +406,41 @@ function Block({ blockId }: { blockId: number }) {
       })),
     [coreSolve],
   );
+  const suggest =
+    !!solvedInput &&
+    coreSolve?.status === "solved" &&
+    coreSolve.rows.some((row) => (row.machine?.moduleSlots ?? 0) > 0);
   const moduleSuggestions = useQuery({
     queryKey: ["moduleSuggestions", blockId, solvedInput, suggestionRows],
     queryFn: () => moduleSuggestionsFn({ data: { data: solvedInput!, rows: suggestionRows } }),
-    enabled:
-      !!solvedInput &&
-      coreSolve?.status === "solved" &&
-      coreSolve.rows.some((row) => (row.machine?.moduleSlots ?? 0) > 0),
+    enabled: suggest,
     staleTime: Infinity,
     // Each key embeds one saved doc + its rates; discard the previous payload
     // immediately when the next coalesced save supersedes it.
     gcTime: 0,
+    // Hold the last suggestions while the next solve's suggestions load, so
+    // unchanged rows don't drop their hint and re-render twice per edit (#154).
+    placeholderData: keepPreviousData,
   });
+  // Each solve and suggestion fetch returns fresh objects. Sharing the parts
+  // that didn't change with the previous result keeps them reference-equal, so
+  // memoized recipe rows only re-render when their own numbers move (#154).
+  const prevRes = useRef<unknown>(undefined);
   const res = useMemo(() => {
     if (!coreSolve) return undefined;
-    const suggestions = moduleSuggestions.data ?? {};
-    return {
+    // a disabled query still reports the held placeholder, so gate on `suggest`
+    const suggestions = (suggest ? moduleSuggestions.data : undefined) ?? {};
+    return replaceEqualDeep(prevRes.current, {
       ...coreSolve,
       rows: coreSolve.rows.map((row) => ({
         ...row,
         suggestedModules: suggestions[row.recipe],
       })),
-    };
-  }, [coreSolve, moduleSuggestions.data]);
+    });
+  }, [coreSolve, suggest, moduleSuggestions.data]);
+  useEffect(() => {
+    prevRes.current = res;
+  }, [res]);
   // Legacy-doc migration (#91): a pre-#91 doc has no `made` set, so the server
   // derives one from its old dispositions and echoes it on the result. Adopt it
   // (clean — no save churn); the next real edit persists the new shape.
@@ -567,16 +586,22 @@ function Block({ blockId }: { blockId: number }) {
       logiPrefs.showInserters ||
       logiPrefs.showRockets ||
       logiPrefs.showRobots);
-  const logiResolved = logiAny && logistics.data ? resolveLogistics(logistics.data) : null;
+  const logiResolved = useMemo(
+    () => (logiAny && logistics.data ? resolveLogistics(logistics.data) : null),
+    [logiAny, logistics.data],
+  );
   const showBelts = !!logiPrefs?.showBelts;
   const showInserters = !!logiPrefs?.showInserters;
   // Robot counts (#255): the block's own trip distance wins over the default.
   const robotDistanceOverride = s.robotDistance;
   const defaultRobotDistance = logiPrefs?.robotDistance ?? DEFAULT_ROBOT_DISTANCE;
-  const robotsResolved =
-    logiPrefs?.showRobots && logistics.data
-      ? resolveRobots(logistics.data.options, logiPrefs, logistics.data.robotBonuses)
-      : null;
+  const robotsResolved = useMemo(
+    () =>
+      logiPrefs?.showRobots && logistics.data
+        ? resolveRobots(logistics.data.options, logiPrefs, logistics.data.robotBonuses)
+        : null,
+    [logiPrefs, logistics.data],
+  );
 
   const add = (name: string) => {
     const alreadyAdded = recipes.includes(name);
@@ -662,10 +687,6 @@ function Block({ blockId }: { blockId: number }) {
   // or every row's at once from the toolbar. Suggestions are derived lazily
   // from solved rates but NEVER applied by the server — these clicks are the
   // only apply paths.
-  const applyModuleFill = (recipe: string) => {
-    const r = res?.rows?.find((x) => x.recipe === recipe);
-    if (r?.suggestedModules) doc.applyModuleFills({ [recipe]: r.suggestedModules });
-  };
   const suggestedRows = (res?.rows ?? []).filter((r) => r.suggestedModules);
   const autoFillAll = () => {
     if (!suggestedRows.length) return;
@@ -727,11 +748,6 @@ function Block({ blockId }: { blockId: number }) {
         ? "border-warning/70 text-warning focus-visible:ring-warning/40"
         : "";
 
-  // Per-item link state from the solve, so each chip can show whether it's the
-  // goal, an unmade input (import), a surplus (export), or balanced in-block.
-  const importSet = new Set(res?.imports.map((f) => f.name));
-  const exportSet = new Set(res?.displayExports.map((f) => f.name));
-  const goalSet = new Set(goalNames);
   // good → kind (item|fluid), gathered from every flow/recipe in the solve so goal
   // icons render correctly even for fluid goals (the target isn't in imports/exports).
   const kindMap = new Map<string, string>();
@@ -764,70 +780,111 @@ function Block({ blockId }: { blockId: number }) {
     enabled: rocketOn && itemNames.length > 0,
     staleTime: 60_000,
   });
-  const launchInfo = (name: string, rate: number) => {
-    if (!rocketOn || !logistics.data) return null;
-    const raw = weightsQ.data?.[name];
-    const weight = raw ?? logistics.data.defaultItemWeight;
-    return {
-      perMin: launchesForRate(rate, weight, logistics.data.rocketLiftWeight),
-      defaulted: raw == null,
-    };
-  };
 
   // Robot counts (#255): a robot carries at most one stack, so the cargo cap
   // needs each item's stack size. Counts wait for it rather than flash high.
-  const robots = robotsResolved && {
-    resolved: robotsResolved,
-    distance: robotDistanceOverride ?? defaultRobotDistance,
-  };
+  const robotDistance = robotDistanceOverride ?? defaultRobotDistance;
+  const robots = useMemo(
+    () => robotsResolved && { resolved: robotsResolved, distance: robotDistance },
+    [robotsResolved, robotDistance],
+  );
   const stackSizesQ = useQuery({
     queryKey: ["itemStackSizes", itemNames],
     queryFn: () => itemStackSizesFn({ data: itemNames }),
     enabled: !!robots && itemNames.length > 0,
     staleTime: 60_000,
   });
-  const robotsFor = (flow: { name: string; kind: string; rate: number }) => {
-    if (!robots || !robotCarries(flow) || !stackSizesQ.data) return null;
-    return {
-      count: robotsForRate(
-        flow.rate,
-        robots.resolved,
-        robots.distance,
-        stackSizesQ.data[flow.name] ?? undefined,
-      ),
-      robot: robots.resolved.robot,
-      distance: robots.distance,
-    };
-  };
+  const robotsFor = useCallback(
+    (flow: { name: string; kind: string; rate: number }) => {
+      if (!robots || !robotCarries(flow) || !stackSizesQ.data) return null;
+      return {
+        count: robotsForRate(
+          flow.rate,
+          robots.resolved,
+          robots.distance,
+          stackSizesQ.data[flow.name] ?? undefined,
+        ),
+        robot: robots.resolved.robot,
+        distance: robots.distance,
+      };
+    },
+    [robots, stackSizesQ.data],
+  );
 
-  const producible = new Set(res?.producible ?? []); // imports a recipe could make in-block
+  // The values below feed every recipe row. They stay reference-stable across
+  // renders that don't change them, so the memoized rows can skip re-rendering.
+  const producible = useMemo(() => new Set(res?.producible ?? []), [res?.producible]); // imports a recipe could make in-block
   const fuelSet = new Set(res?.fuelItems ?? []); // items consumed as fuel (folded into the balance)
-  const linkOf = (name: string): ItemLink =>
-    goalSet.has(name)
-      ? "target"
-      : importSet.has(name)
-        ? "import"
-        : exportSet.has(name)
-          ? "export"
-          : "linked";
-  const makeFor = (name: string) => setPickFor({ name, mode: "produce" });
-  const useFor = (name: string) => setPickFor({ name, mode: "consume" });
+  // Per-item link state from the solve, so each chip can show whether it's the
+  // goal, an unmade input (import), a surplus (export), or balanced in-block.
+  // Keyed on the names only: a solve that just moves rates keeps the same linkOf.
+  const goalKey = goalNames.join("\n");
+  const importKey = (res?.imports ?? []).map((f) => f.name).join("\n");
+  const exportKey = (res?.displayExports ?? []).map((f) => f.name).join("\n");
+  const linkOf = useMemo(() => {
+    const goalSet = new Set(goalKey.split("\n"));
+    const importSet = new Set(importKey.split("\n"));
+    const exportSet = new Set(exportKey.split("\n"));
+    return (name: string): ItemLink =>
+      goalSet.has(name)
+        ? "target"
+        : importSet.has(name)
+          ? "import"
+          : exportSet.has(name)
+            ? "export"
+            : "linked";
+  }, [goalKey, importKey, exportKey]);
+  // Overlay openers for the recipe rows. Only state setters inside, so one
+  // object serves every render.
+  const open: RowOverlayOpeners = useMemo(
+    () => ({
+      makeFor: (name) => setPickFor({ name, mode: "produce" }),
+      useFor: (name) => setPickFor({ name, mode: "consume" }),
+      ctxMenu: (e, d) => setCtxMenu({ x: e.clientX, y: e.clientY, ...d }),
+      rowMenu: (e, name) => setRowMenu({ x: e.clientX, y: e.clientY, name }),
+      machinePicker: setPickMachineFor,
+      fuelPicker: setPickFuelFor,
+      modulesPicker: setPickModulesFor,
+      pinsFor: setPinFor,
+      spoilageFor: setSpoilDialog,
+    }),
+    [],
+  );
+  const { makeFor, useFor, ctxMenu: openCtxMenu } = open;
   const quickRecipeFor = (name: string, mode: "produce" | "consume") =>
     setPickFor({ name, mode, quick: true });
-  const openCtxMenu = (
-    e: { clientX: number; clientY: number },
-    d: { name: string; kind: string; link: ItemLink },
-  ) => setCtxMenu({ x: e.clientX, y: e.clientY, ...d });
-  // logistics readout bundle (#21/#22) threaded to every chip row
-  const logi: LogiView = {
-    resolved: logiResolved,
-    showBelts,
-    showInserters,
-    launchInfo,
-    robots,
-    robotsFor,
-    defaultRobotDistance,
-  };
+  // logistics readout bundle (#21/#22) threaded to every chip row; `launchInfo`
+  // turns a flow rate into rocket launches/min (default weight if unset)
+  const logi: LogiView = useMemo(
+    () => ({
+      resolved: logiResolved,
+      showBelts,
+      showInserters,
+      launchInfo: (name, rate) => {
+        if (!rocketOn || !logistics.data) return null;
+        const raw = weightsQ.data?.[name];
+        const weight = raw ?? logistics.data.defaultItemWeight;
+        return {
+          perMin: launchesForRate(rate, weight, logistics.data.rocketLiftWeight),
+          defaulted: raw == null,
+        };
+      },
+      robots,
+      robotsFor,
+      defaultRobotDistance,
+    }),
+    [
+      logiResolved,
+      showBelts,
+      showInserters,
+      rocketOn,
+      logistics.data,
+      weightsQ.data,
+      robots,
+      robotsFor,
+      defaultRobotDistance,
+    ],
+  );
 
   // The block's face (#40): the explicit pick when set, else the first goal's icon.
   const blockIcon =
@@ -996,18 +1053,7 @@ function Block({ blockId }: { blockId: number }) {
           producible={producible}
           logi={logi}
           focusRecipe={focusRecipe}
-          open={{
-            makeFor,
-            useFor,
-            ctxMenu: openCtxMenu,
-            rowMenu: (e, name) => setRowMenu({ x: e.clientX, y: e.clientY, name }),
-            machinePicker: setPickMachineFor,
-            fuelPicker: setPickFuelFor,
-            modulesPicker: setPickModulesFor,
-            applyModuleFill,
-            pinsFor: setPinFor,
-            spoilageFor: setSpoilDialog,
-          }}
+          open={open}
           renamingGroup={renamingGroup}
           onRenamingGroupChange={setRenamingGroup}
         />
