@@ -152,7 +152,11 @@ The importer converts Factorio's flexible prototype shapes into stable relationa
   zero for labs, mining drills, and other types. Null for non-electric sources;
 - each crafting machine's, mining drill's, and lab's effect receiver: its base effect, effect
   limits, and whether modules and beacons apply (engine defaults filled in; null when the
-  prototype sets none);
+  prototype sets none). Quality's base effect and limits are stored too (default limits
+  0 to 1000), though nothing reads them yet;
+- each recipe's `allow_speed`, `allow_consumption`, and `allow_pollution` (engine default
+  true). Module placement does not read them yet;
+- quality prototypes and the other quality fields (see [Quality data](#quality-data));
 - logistics prototypes and technology-driven stack bonuses;
 - productivity effects, TURD replacements, and rocket constants.
 
@@ -307,6 +311,47 @@ The importer records whether the dump has quality in the `has_quality` metadata 
 quality has a `next` level, which only the quality mod sets. A recycler is not enough: the
 Py dump has the `recycler` furnace and its recycling recipes, but normal is its only quality.
 A project imported before the key existed reports `hasQuality: false` until its next sync.
+
+### Quality data
+
+The importer reads everything quality needs from the dump, but the solver does not use it
+yet. A dump only holds the values a mod set, so the importer fills in Factorio 2.1's
+documented defaults (`QualityPrototype` and `RecipePrototype` in
+`doc-html/prototype-api.json`). `db/quality-import.ts` holds those rules.
+
+- `qualities` has one row per quality prototype: `level`, `next`, `next_probability`,
+  `chain_probability`, `hidden`, and the multipliers and bonuses the planner needs. With
+  `default_multiplier` = 1 + 0.3 × level, the module, crafting speed, and lab speed
+  multipliers default to it. Slot bonuses default to the level, `tool_durability_multiplier`
+  to 1 + level, `chain_probability` to `next_probability` × 0.1 clamped to [0, 1], and the
+  rest to 1. The Py dump has only `normal` (no `next`) and the engine's hidden
+  `quality-unknown` placeholder. The quality mod adds uncommon, rare, epic, and legendary.
+- `modules` stores each module's `<effect>_quality_multiplier`: how much of the module
+  quality's multiplier each effect gets. Unset, it is 1 for a beneficial effect (positive
+  speed, productivity, and quality; negative consumption and pollution) and 0 for a penalty.
+- `tech_quality_unlocks` records `unlock-quality` technology effects, so the research horizon
+  can tell which qualities are reachable.
+- Machines store the flags that opt into quality bonuses. `crafting_machines` has
+  `quality_affects_module_slots`, `quality_affects_energy_usage`, and the per-quality override
+  maps `crafting_speed_quality_multiplier`, `energy_usage_quality_multiplier`, and
+  `module_slots_quality_bonus`. These are false or null on the drill, lab, boiler, and
+  generator rows pass 2 adds. `mining_drills` and `beacons` have `quality_affects_module_slots`,
+  and `beacons` also has `distribution_effectivity_bonus_per_quality_level` (0.2 on vanilla
+  and Py beacons). `labs` has `quality_affects_module_slots` and `uses_quality_drain_modifier`.
+- `recipes.can_set_quality` says whether a recipe can run above normal. Unset, it is true
+  for a parameter recipe or one with an item ingredient that sets none of `quality_min`,
+  `quality_max`, and `quality_change`. So a recipe with only fluid ingredients runs at normal,
+  though quality modules can still upgrade its products. Synthetic recipes from pass 2,
+  including research, are always false. Fluids never have quality.
+
+Factorio 2.1.7 divided every prototype quality effect by 10, multiplied `next_probability`
+by 10, and added `chain_probability`. The base game sets `chain_probability` on `normal` from
+then on, so a dump whose `normal` lacks it is read as a 2.0 dump and brought to the 2.1
+scale. Module quality effects and a receiver's base quality effect are divided by 10. Each
+quality's `next_probability` is multiplied by 10, and its raw value becomes the chain
+probability, since 2.0 used it for every further step. The engine also floors a module's
+quality-scaled quality effect more coarsely in 2.0. The importer records that precision in
+the `quality_effect_step` metadata key: 0.0001 for 2.1 and 0.001 for 2.0.
 
 ### Energy goods
 

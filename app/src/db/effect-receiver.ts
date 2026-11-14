@@ -1,30 +1,40 @@
 import {
   DEFAULT_EFFECT_RECEIVER,
-  type EffectKind,
   type EffectReceiver,
+  type ReceiverEffectKind,
 } from "../server/effects.ts";
 
-const KINDS: EffectKind[] = ["speed", "productivity", "consumption", "pollution"];
+const KINDS: ReceiverEffectKind[] = [
+  "speed",
+  "productivity",
+  "consumption",
+  "pollution",
+  "quality",
+];
 const num = (v: unknown, fallback: number) => (typeof v === "number" ? v : fallback);
 
 /** The dump's `effect_receiver` (EffectReceiver prototype), every field optional. */
 type RawReceiver = {
-  base_effect?: Partial<Record<EffectKind, unknown>>;
+  base_effect?: Partial<Record<ReceiverEffectKind, unknown>>;
   uses_module_effects?: unknown;
   uses_beacon_effects?: unknown;
-} & Partial<Record<`${EffectKind}_limits`, { low?: unknown; high?: unknown }>>;
+} & Partial<Record<`${ReceiverEffectKind}_limits`, { low?: unknown; high?: unknown }>>;
 
 /** A crafting machine's or mining drill's raw `effect_receiver` → the JSON
  * stored in `crafting_machines.effect_receiver`, with unset fields at their
- * prototype defaults. Null when the prototype has none (all defaults). */
-export function parseEffectReceiver(raw: unknown): string | null {
+ * prototype defaults. Null when the prototype has none (all defaults).
+ * `qualityScale` brings a 2.0 dump's base quality effect to the 2.1 scale
+ * (see `qualityEffectScale`). */
+export function parseEffectReceiver(raw: unknown, qualityScale = 1): string | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as RawReceiver;
   const d = DEFAULT_EFFECT_RECEIVER;
+  const baseEffect = Object.fromEntries(
+    KINDS.map((k) => [k, num(r.base_effect?.[k], d.baseEffect[k])]),
+  ) as EffectReceiver["baseEffect"];
+  baseEffect.quality *= qualityScale;
   const rx: EffectReceiver = {
-    baseEffect: Object.fromEntries(
-      KINDS.map((k) => [k, num(r.base_effect?.[k], d.baseEffect[k])]),
-    ) as EffectReceiver["baseEffect"],
+    baseEffect,
     limits: Object.fromEntries(
       KINDS.map((k) => [
         k,

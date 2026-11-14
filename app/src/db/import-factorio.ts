@@ -19,6 +19,15 @@ import { parseEffectReceiver } from "./effect-receiver.ts";
 import { electricDrainW } from "./electric-drain.ts";
 import { resolveAllowedEffects, type EffectReceiverType } from "./allowed-effects.ts";
 import {
+  canSetQuality,
+  isLegacyQualityDump,
+  moduleQualityMultipliers,
+  qualityEffectScale,
+  qualityEffectStep,
+  qualityRow,
+  type QualityRow,
+} from "./quality-import.ts";
+import {
   REFERENCE_DATA_FORMAT_META_KEY,
   REFERENCE_DATA_FORMAT_VERSION,
 } from "../lib/data-format.ts";
@@ -112,6 +121,13 @@ const jsonList = (x: unknown): string | null => {
   return a.length ? JSON.stringify(a) : null;
 };
 
+/** A per-quality override map (`crafting_speed_quality_multiplier` and the
+ * like, QualityID → number) → JSON text; NULL when unset or empty. */
+const qualityMap = (x: unknown): string | null =>
+  x && typeof x === "object" && !Array.isArray(x) && Object.keys(x).length
+    ? JSON.stringify(x)
+    : null;
+
 /** Resolved `allowed_effects` → JSON text; NULL = every effect, "[]" = none. */
 const allowedEffectsJson = (x: unknown, type: EffectReceiverType): string | null => {
   const fx = resolveAllowedEffects(x, type);
@@ -177,7 +193,9 @@ const TABLES = [
   "tech_unlocks",
   "tech_ingredients",
   "tech_prerequisites",
+  "tech_quality_unlocks",
   "turd_replacements",
+  "qualities",
 ];
 
 const COUNT_TABLES = [
@@ -201,6 +219,7 @@ const COUNT_TABLES = [
   "roboports",
   "technologies",
   "tech_unlocks",
+  "qualities",
 ];
 
 export type ImportSummary = {
@@ -247,7 +266,7 @@ export function importFactorioDump(
 
   const ins = {
     recipe: db.prepare(
-      `INSERT INTO recipes (name,display,kind,category,energy_required,enabled,hidden,allow_productivity,allow_quality,maximum_productivity,allowed_module_categories,main_product,subgroup,"order",source_entity) VALUES (@name,@display,@kind,@category,@energy_required,@enabled,@hidden,@allow_productivity,@allow_quality,@maximum_productivity,@allowed_module_categories,@main_product,@subgroup,@order,@source_entity)`,
+      `INSERT INTO recipes (name,display,kind,category,energy_required,enabled,hidden,allow_productivity,allow_quality,allow_speed,allow_consumption,allow_pollution,can_set_quality,maximum_productivity,allowed_module_categories,main_product,subgroup,"order",source_entity) VALUES (@name,@display,@kind,@category,@energy_required,@enabled,@hidden,@allow_productivity,@allow_quality,@allow_speed,@allow_consumption,@allow_pollution,@can_set_quality,@maximum_productivity,@allowed_module_categories,@main_product,@subgroup,@order,@source_entity)`,
     ),
     ing: db.prepare(
       `INSERT INTO recipe_ingredients (recipe,idx,kind,name,amount,min_temp,max_temp) VALUES (@recipe,@idx,@kind,@name,@amount,@min_temp,@max_temp)`,
@@ -267,7 +286,7 @@ export function importFactorioDump(
     ),
     recipeCat: db.prepare(`INSERT OR IGNORE INTO recipe_categories (name) VALUES (?)`),
     machine: db.prepare(
-      `INSERT INTO crafting_machines (name,display,kind,crafting_speed,tile_width,tile_height,module_slots,energy_usage_w,energy_source,drain_w,pollution_per_min,allowed_effects,allowed_module_categories,burns_fluid,fluid_fuel_filter,fluid_fuel_per_sec,fluid_fuel_energy_j,effect_receiver) VALUES (@name,@display,@kind,@crafting_speed,@tile_width,@tile_height,@module_slots,@energy_usage_w,@energy_source,@drain_w,@pollution_per_min,@allowed_effects,@allowed_module_categories,@burns_fluid,@fluid_fuel_filter,@fluid_fuel_per_sec,@fluid_fuel_energy_j,@effect_receiver)`,
+      `INSERT INTO crafting_machines (name,display,kind,crafting_speed,tile_width,tile_height,module_slots,energy_usage_w,energy_source,drain_w,pollution_per_min,allowed_effects,allowed_module_categories,burns_fluid,fluid_fuel_filter,fluid_fuel_per_sec,fluid_fuel_energy_j,effect_receiver,quality_affects_module_slots,quality_affects_energy_usage,crafting_speed_quality_multiplier,energy_usage_quality_multiplier,module_slots_quality_bonus) VALUES (@name,@display,@kind,@crafting_speed,@tile_width,@tile_height,@module_slots,@energy_usage_w,@energy_source,@drain_w,@pollution_per_min,@allowed_effects,@allowed_module_categories,@burns_fluid,@fluid_fuel_filter,@fluid_fuel_per_sec,@fluid_fuel_energy_j,@effect_receiver,@quality_affects_module_slots,@quality_affects_energy_usage,@crafting_speed_quality_multiplier,@energy_usage_quality_multiplier,@module_slots_quality_bonus)`,
     ),
     machineCat: db.prepare(
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
@@ -276,20 +295,20 @@ export function importFactorioDump(
       `INSERT OR IGNORE INTO machine_fuel_categories (machine,fuel_category) VALUES (?,?)`,
     ),
     drill: db.prepare(
-      `INSERT INTO mining_drills (name,mining_speed,module_slots,energy_usage_w,energy_source) VALUES (@name,@mining_speed,@module_slots,@energy_usage_w,@energy_source)`,
+      `INSERT INTO mining_drills (name,mining_speed,module_slots,energy_usage_w,energy_source,quality_affects_module_slots) VALUES (@name,@mining_speed,@module_slots,@energy_usage_w,@energy_source,@quality_affects_module_slots)`,
     ),
     drillCat: db.prepare(
       `INSERT OR IGNORE INTO drill_resource_categories (drill,resource_category) VALUES (?,?)`,
     ),
     module: db.prepare(
-      `INSERT INTO modules (name,display,category,hidden,tier,eff_speed,eff_productivity,eff_consumption,eff_pollution,eff_quality) VALUES (@name,@display,@category,@hidden,@tier,@eff_speed,@eff_productivity,@eff_consumption,@eff_pollution,@eff_quality)`,
+      `INSERT INTO modules (name,display,category,hidden,tier,eff_speed,eff_productivity,eff_consumption,eff_pollution,eff_quality,speed_quality_multiplier,productivity_quality_multiplier,consumption_quality_multiplier,pollution_quality_multiplier,quality_quality_multiplier) VALUES (@name,@display,@category,@hidden,@tier,@eff_speed,@eff_productivity,@eff_consumption,@eff_pollution,@eff_quality,@speed_quality_multiplier,@productivity_quality_multiplier,@consumption_quality_multiplier,@pollution_quality_multiplier,@quality_quality_multiplier)`,
     ),
     moduleLim: db.prepare(`INSERT OR IGNORE INTO module_limitations (module,recipe) VALUES (?,?)`),
     beacon: db.prepare(
-      `INSERT INTO beacons (name,display,distribution_effectivity,module_slots,energy_usage_w,hidden,allowed_effects,allowed_module_categories,profile) VALUES (@name,@display,@distribution_effectivity,@module_slots,@energy_usage_w,@hidden,@allowed_effects,@allowed_module_categories,@profile)`,
+      `INSERT INTO beacons (name,display,distribution_effectivity,module_slots,energy_usage_w,hidden,allowed_effects,allowed_module_categories,profile,quality_affects_module_slots,distribution_effectivity_bonus_per_quality_level) VALUES (@name,@display,@distribution_effectivity,@module_slots,@energy_usage_w,@hidden,@allowed_effects,@allowed_module_categories,@profile,@quality_affects_module_slots,@distribution_effectivity_bonus_per_quality_level)`,
     ),
     lab: db.prepare(
-      `INSERT INTO labs (name,display,researching_speed,module_slots,energy_usage_w,energy_source,drain_w,pollution_per_min,allowed_effects,allowed_module_categories,inputs,hidden,tile_width,tile_height) VALUES (@name,@display,@researching_speed,@module_slots,@energy_usage_w,@energy_source,@drain_w,@pollution_per_min,@allowed_effects,@allowed_module_categories,@inputs,@hidden,@tile_width,@tile_height)`,
+      `INSERT INTO labs (name,display,researching_speed,module_slots,energy_usage_w,energy_source,drain_w,pollution_per_min,allowed_effects,allowed_module_categories,inputs,hidden,tile_width,tile_height,quality_affects_module_slots,uses_quality_drain_modifier) VALUES (@name,@display,@researching_speed,@module_slots,@energy_usage_w,@energy_source,@drain_w,@pollution_per_min,@allowed_effects,@allowed_module_categories,@inputs,@hidden,@tile_width,@tile_height,@quality_affects_module_slots,@uses_quality_drain_modifier)`,
     ),
     tech: db.prepare(
       `INSERT INTO technologies (name,display,description,"order",unit_count,unit_time,research_trigger,enabled,is_turd) VALUES (@name,@display,@description,@order,@unit_count,@unit_time,@research_trigger,@enabled,@is_turd)`,
@@ -298,6 +317,9 @@ export function importFactorioDump(
       `INSERT OR IGNORE INTO tech_prerequisites (technology,prerequisite) VALUES (?,?)`,
     ),
     techUnlock: db.prepare(`INSERT OR IGNORE INTO tech_unlocks (technology,recipe) VALUES (?,?)`),
+    techQuality: db.prepare(
+      `INSERT OR IGNORE INTO tech_quality_unlocks (technology,quality) VALUES (?,?)`,
+    ),
     techIng: db.prepare(
       `INSERT OR IGNORE INTO tech_ingredients (technology,name,amount) VALUES (?,?,?)`,
     ),
@@ -323,10 +345,16 @@ export function importFactorioDump(
       `INSERT OR REPLACE INTO tech_productivity_bonuses (technology,recipe,modifier) VALUES (?,?,?)`,
     ),
     meta: db.prepare(`INSERT OR REPLACE INTO meta (key,value) VALUES (?,?)`),
+    quality: db.prepare<QualityRow>(
+      `INSERT INTO qualities (name,display,level,next,next_probability,chain_probability,hidden,module_speed_multiplier,module_productivity_multiplier,module_consumption_multiplier,module_pollution_multiplier,module_quality_multiplier,crafting_machine_speed_multiplier,crafting_machine_energy_usage_multiplier,crafting_machine_module_slots_bonus,beacon_power_usage_multiplier,beacon_module_slots_bonus,lab_research_speed_multiplier,lab_module_slots_bonus,mining_drill_module_slots_bonus,science_pack_drain_multiplier,tool_durability_multiplier) VALUES (@name,@display,@level,@next,@next_probability,@chain_probability,@hidden,@module_speed_multiplier,@module_productivity_multiplier,@module_consumption_multiplier,@module_pollution_multiplier,@module_quality_multiplier,@crafting_machine_speed_multiplier,@crafting_machine_energy_usage_multiplier,@crafting_machine_module_slots_bonus,@beacon_power_usage_multiplier,@beacon_module_slots_bonus,@lab_research_speed_multiplier,@lab_module_slots_bonus,@mining_drill_module_slots_bonus,@science_pack_drain_multiplier,@tool_durability_multiplier)`,
+    ),
     turdRepl: db.prepare(
       `INSERT OR IGNORE INTO turd_replacements (sub_tech, old_recipe, new_recipe) VALUES (?,?,?)`,
     ),
   };
+
+  // A 2.0 dump stores quality effects 10× larger; normalize to the 2.1 scale.
+  const qualityScale = qualityEffectScale(raw);
 
   const load = db.transaction(() => {
     for (const t of TABLES) db.prepare(`DELETE FROM ${t}`).run();
@@ -334,6 +362,7 @@ export function importFactorioDump(
     // recipes (+ ingredients, products)
     for (const [name, r] of Object.entries(raw.recipe ?? {})) {
       const results = arr(r.results).map(normComponent);
+      const ingredients = arr(r.ingredients).map(normComponent);
       const mainProduct =
         r.main_product && r.main_product !== ""
           ? r.main_product
@@ -353,6 +382,10 @@ export function importFactorioDump(
         hidden: r.hidden ? 1 : 0,
         allow_productivity: r.allow_productivity ? 1 : 0,
         allow_quality: r.allow_quality === false ? 0 : 1,
+        allow_speed: r.allow_speed === false ? 0 : 1,
+        allow_consumption: r.allow_consumption === false ? 0 : 1,
+        allow_pollution: r.allow_pollution === false ? 0 : 1,
+        can_set_quality: canSetQuality(r, ingredients) ? 1 : 0,
         maximum_productivity:
           typeof r.maximum_productivity === "number" ? r.maximum_productivity : null,
         allowed_module_categories: jsonList(r.allowed_module_categories),
@@ -361,19 +394,17 @@ export function importFactorioDump(
         order: r.order ?? null,
         source_entity: null,
       });
-      arr(r.ingredients)
-        .map(normComponent)
-        .forEach((c: Component, i: number) =>
-          ins.ing.run({
-            recipe: name,
-            idx: i,
-            kind: c.type ?? "item",
-            name: c.name,
-            amount: c.amount ?? 0,
-            min_temp: (c.minimum_temperature as number) ?? null,
-            max_temp: (c.maximum_temperature as number) ?? null,
-          }),
-        );
+      ingredients.forEach((c: Component, i: number) =>
+        ins.ing.run({
+          recipe: name,
+          idx: i,
+          kind: c.type ?? "item",
+          name: c.name,
+          amount: c.amount ?? 0,
+          min_temp: (c.minimum_temperature as number) ?? null,
+          max_temp: (c.maximum_temperature as number) ?? null,
+        }),
+      );
       arr(r.results)
         .map(normComponent)
         .forEach((c: Component, i: number) =>
@@ -516,7 +547,12 @@ export function importFactorioDump(
           fluid_fuel_filter: es.type === "fluid" ? (es.fluid_box?.filter ?? null) : null,
           fluid_fuel_per_sec: drain.perSec,
           fluid_fuel_energy_j: drain.energyJPerUnit,
-          effect_receiver: parseEffectReceiver(m.effect_receiver),
+          effect_receiver: parseEffectReceiver(m.effect_receiver, qualityScale),
+          quality_affects_module_slots: m.quality_affects_module_slots === true ? 1 : 0,
+          quality_affects_energy_usage: m.quality_affects_energy_usage === true ? 1 : 0,
+          crafting_speed_quality_multiplier: qualityMap(m.crafting_speed_quality_multiplier),
+          energy_usage_quality_multiplier: qualityMap(m.energy_usage_quality_multiplier),
+          module_slots_quality_bonus: qualityMap(m.module_slots_quality_bonus),
         });
         for (const c of cats) ins.machineCat.run(name, c);
         for (const fc of arr<string>(es.fuel_categories)) ins.machineFuel.run(name, fc);
@@ -531,6 +567,7 @@ export function importFactorioDump(
         module_slots: d.module_slots ?? 0,
         energy_usage_w: parseSI(d.energy_usage),
         energy_source: d.energy_source?.type ?? null,
+        quality_affects_module_slots: d.quality_affects_module_slots === true ? 1 : 0,
       });
       for (const rc of arr<string>(d.resource_categories)) ins.drillCat.run(name, rc);
     }
@@ -548,7 +585,8 @@ export function importFactorioDump(
         eff_productivity: e.productivity ?? 0,
         eff_consumption: e.consumption ?? 0,
         eff_pollution: e.pollution ?? 0,
-        eff_quality: e.quality ?? 0,
+        eff_quality: (e.quality ?? 0) * qualityScale,
+        ...moduleQualityMultipliers(mod, e),
       });
       for (const rec of arr<string>(mod.limitation)) ins.moduleLim.run(name, rec);
     }
@@ -565,6 +603,9 @@ export function importFactorioDump(
         allowed_effects: jsonList(b.allowed_effects),
         allowed_module_categories: jsonList(b.allowed_module_categories),
         profile: Array.isArray(b.profile) && b.profile.length ? JSON.stringify(b.profile) : null,
+        quality_affects_module_slots: b.quality_affects_module_slots === true ? 1 : 0,
+        distribution_effectivity_bonus_per_quality_level:
+          b.distribution_effectivity_bonus_per_quality_level ?? 0,
       });
     }
 
@@ -589,6 +630,8 @@ export function importFactorioDump(
         hidden: l.hidden === true || arr<string>(l.flags).includes("hidden") ? 1 : 0,
         tile_width: boxTiles(placedBox, "x"),
         tile_height: boxTiles(placedBox, "y"),
+        quality_affects_module_slots: l.quality_affects_module_slots === true ? 1 : 0,
+        uses_quality_drain_modifier: l.uses_quality_drain_modifier === true ? 1 : 0,
       });
     }
 
@@ -692,6 +735,7 @@ export function importFactorioDump(
       const prodAcc: Record<string, number> = {};
       for (const eff of arr<any>(t.effects)) {
         if (eff?.type === "unlock-recipe" && eff.recipe) ins.techUnlock.run(name, eff.recipe);
+        if (eff?.type === "unlock-quality" && eff.quality) ins.techQuality.run(name, eff.quality);
         const key = STACK_EFFECT[eff?.type];
         if (key && typeof eff.modifier === "number")
           stackAcc[key] = (stackAcc[key] ?? 0) + eff.modifier;
@@ -713,6 +757,11 @@ export function importFactorioDump(
       }
     }
 
+    // qualities, with the 2.1 defaults the raw dump leaves out
+    const legacy = isLegacyQualityDump(raw);
+    for (const [name, q] of Object.entries(raw.quality ?? {}))
+      ins.quality.run(qualityRow(name, q, localeByKind.quality?.names?.[name] ?? null, legacy));
+
     // TURD recipe replacements smuggled through the dump by the helper mod
     for (const rep of arr<any>(raw["mod-data"]?.["pyops-turd-replacements"]?.data?.replacements)) {
       if (rep?.sub && rep.old && rep.new) ins.turdRepl.run(rep.sub, rep.old, rep.new);
@@ -728,6 +777,8 @@ export function importFactorioDump(
     // (`data.raw.quality.normal.next`). A recycler alone doesn't mean it: Py
     // ships one with normal as the only quality.
     ins.meta.run("has_quality", raw.quality?.normal?.next ? "1" : "0");
+    // the precision the solver floors a module's quality effect to (2.0 vs 2.1)
+    ins.meta.run("quality_effect_step", String(qualityEffectStep(raw)));
   });
 
   const t0 = Date.now();

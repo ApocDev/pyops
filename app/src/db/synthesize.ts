@@ -30,6 +30,7 @@ import { temperatureFedDrain, type TempFedDrain } from "./fluid-energy.ts";
 import { parseEffectReceiver } from "./effect-receiver.ts";
 import { electricDrainW } from "./electric-drain.ts";
 import { resolveAllowedEffects } from "./allowed-effects.ts";
+import { qualityEffectScale } from "./quality-import.ts";
 
 export const ELECTRICITY = "pyops-electricity";
 export const HEAT = "pyops-heat";
@@ -108,6 +109,7 @@ export function effectCarrier(
 
 export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Record<string, number> {
   const { display, parseSI } = ctx;
+  const qualityScale = qualityEffectScale(raw);
 
   const ins = {
     recipe: db.prepare(
@@ -263,7 +265,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       m.fluidFuelFilter ?? null,
       m.fluidFuelPerSec ?? null,
       m.fluidFuelEnergyJ ?? null,
-      parseEffectReceiver(m.effectReceiver),
+      parseEffectReceiver(m.effectReceiver, qualityScale),
     );
     ins.machineCat.run(m.name, m.category);
     for (const fc of m.fuelCategories ?? []) ins.machineFuel.run(m.name, fc);

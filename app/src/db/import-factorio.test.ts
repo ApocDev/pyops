@@ -964,3 +964,384 @@ describe("importFactorioDump — Py beacon exports", () => {
     db.close();
   });
 });
+
+/* The quality mod as Factorio 2.1.24 ships it, trimmed to what the importer
+ * reads. `normal` is base's (base/prototypes/categories/quality.lua) with the
+ * quality mod's `next` (quality/prototypes/base-data-updates.lua:1) and
+ * `hidden = false` (quality/data.lua); the other tiers are
+ * quality/prototypes/quality.lua; the modules quality/prototypes/item.lua; the
+ * `unlock-quality` effects quality/prototypes/technology.lua. */
+const QUALITY_MOD = {
+  quality: {
+    normal: {
+      level: 0,
+      next: "uncommon",
+      next_probability: 1,
+      chain_probability: 0.1,
+      hidden: false,
+    },
+    uncommon: {
+      level: 1,
+      next: "rare",
+      next_probability: 1,
+      chain_probability: 0.1,
+      beacon_power_usage_multiplier: 5 / 6,
+      science_pack_drain_multiplier: 99 / 100,
+    },
+    rare: {
+      level: 2,
+      next: "epic",
+      next_probability: 1,
+      chain_probability: 0.1,
+      beacon_power_usage_multiplier: 4 / 6,
+      science_pack_drain_multiplier: 98 / 100,
+    },
+    epic: {
+      level: 3,
+      next: "legendary",
+      next_probability: 1,
+      chain_probability: 0.1,
+      beacon_power_usage_multiplier: 3 / 6,
+      science_pack_drain_multiplier: 97 / 100,
+    },
+    legendary: {
+      level: 5,
+      beacon_power_usage_multiplier: 1 / 6,
+      science_pack_drain_multiplier: 95 / 100,
+    },
+    // core/prototypes/unknown.lua
+    "quality-unknown": { level: 0, hidden: true },
+  },
+  module: {
+    "quality-module": { category: "quality", effect: { quality: 0.01, speed: -0.05 } },
+    "quality-module-3": { category: "quality", effect: { quality: 0.025, speed: -0.05 } },
+  },
+  technology: {
+    "quality-module": {
+      effects: [
+        { type: "unlock-recipe", recipe: "quality-module" },
+        { type: "unlock-quality", quality: "uncommon" },
+        { type: "unlock-quality", quality: "rare" },
+      ],
+    },
+    "epic-quality": { effects: [{ type: "unlock-quality", quality: "epic" }] },
+    "legendary-quality": { effects: [{ type: "unlock-quality", quality: "legendary" }] },
+  },
+};
+
+describe("importFactorioDump — quality prototypes (#265)", () => {
+  const all = (db: Database.Database, sql: string) => db.prepare(sql).all();
+
+  it("imports the quality mod's tiers with the 2.1 defaults filled in", () => {
+    writeFileSync(
+      join(dumpDir, "quality-locale.json"),
+      JSON.stringify({ names: { normal: "Normal", legendary: "Legendary" } }),
+    );
+    const db = runImport(QUALITY_MOD);
+    const q = (name: string) =>
+      db.prepare(`SELECT * FROM qualities WHERE name = ?`).get(name) as Record<string, unknown>;
+
+    expect(q("normal")).toMatchObject({
+      display: "Normal",
+      level: 0,
+      next: "uncommon",
+      next_probability: 1,
+      chain_probability: 0.1,
+      hidden: 0,
+      module_quality_multiplier: 1,
+      crafting_machine_module_slots_bonus: 0,
+      tool_durability_multiplier: 1,
+    });
+    // uncommon sets only its beacon power and drain; the rest are defaults
+    // from level 1: default_multiplier 1.3, slot bonuses 1, durability 2
+    expect(q("uncommon")).toEqual({
+      name: "uncommon",
+      display: null,
+      level: 1,
+      next: "rare",
+      next_probability: 1,
+      chain_probability: 0.1,
+      hidden: 0,
+      module_speed_multiplier: 1.3,
+      module_productivity_multiplier: 1.3,
+      module_consumption_multiplier: 1.3,
+      module_pollution_multiplier: 1.3,
+      module_quality_multiplier: 1.3,
+      crafting_machine_speed_multiplier: 1.3,
+      crafting_machine_energy_usage_multiplier: 1,
+      crafting_machine_module_slots_bonus: 1,
+      beacon_power_usage_multiplier: 5 / 6,
+      beacon_module_slots_bonus: 1,
+      lab_research_speed_multiplier: 1.3,
+      lab_module_slots_bonus: 1,
+      mining_drill_module_slots_bonus: 1,
+      science_pack_drain_multiplier: 0.99,
+      tool_durability_multiplier: 2,
+    });
+    // the top of the chain: no next, so no chance to go further
+    expect(q("legendary")).toMatchObject({
+      display: "Legendary",
+      level: 5,
+      next: null,
+      next_probability: 0,
+      chain_probability: 0,
+      crafting_machine_speed_multiplier: 2.5,
+      beacon_module_slots_bonus: 5,
+      tool_durability_multiplier: 6,
+    });
+    expect(q("quality-unknown")).toMatchObject({ hidden: 1, next: null });
+
+    expect(
+      all(db, `SELECT technology, quality FROM tech_quality_unlocks ORDER BY quality`),
+    ).toEqual([
+      { technology: "epic-quality", quality: "epic" },
+      { technology: "legendary-quality", quality: "legendary" },
+      { technology: "quality-module", quality: "rare" },
+      { technology: "quality-module", quality: "uncommon" },
+    ]);
+    expect(all(db, `SELECT name, eff_quality FROM modules ORDER BY name`)).toEqual([
+      { name: "quality-module", eff_quality: 0.01 },
+      { name: "quality-module-3", eff_quality: 0.025 },
+    ]);
+    expect(
+      db.prepare(`SELECT value FROM meta WHERE key = 'quality_effect_step'`).pluck().get(),
+    ).toBe("0.0001");
+    db.close();
+  });
+
+  it("defaults each module effect to scale with quality only when it helps", () => {
+    const db = runImport({
+      module: {
+        "quality-module": { category: "quality", effect: { quality: 0.01, speed: -0.05 } },
+        // base speed module 1: speed +0.2, consumption +0.5, quality -0.01
+        "speed-module": {
+          category: "speed",
+          effect: { speed: 0.2, consumption: 0.5, quality: -0.01 },
+        },
+        "efficiency-module": { category: "efficiency", effect: { consumption: -0.3 } },
+        "productivity-module": {
+          category: "productivity",
+          effect: { productivity: 0.04, consumption: 0.4, pollution: 0.05, speed: -0.05 },
+          pollution_quality_multiplier: 0.5,
+        },
+      },
+    });
+    expect(
+      db
+        .prepare(
+          `SELECT name, speed_quality_multiplier s, productivity_quality_multiplier pr, consumption_quality_multiplier c, pollution_quality_multiplier po, quality_quality_multiplier q FROM modules ORDER BY name`,
+        )
+        .all(),
+    ).toEqual([
+      { name: "efficiency-module", s: 0, pr: 0, c: 1, po: 0, q: 0 },
+      { name: "productivity-module", s: 0, pr: 1, c: 0, po: 0.5, q: 0 },
+      { name: "quality-module", s: 0, pr: 0, c: 0, po: 0, q: 1 },
+      { name: "speed-module", s: 1, pr: 0, c: 0, po: 0, q: 0 },
+    ]);
+    db.close();
+  });
+
+  it("uses a quality's own values over the defaults", () => {
+    const db = runImport({
+      quality: {
+        normal: { level: 0, next: "shiny", next_probability: 1, chain_probability: 0.1 },
+        shiny: {
+          level: 2,
+          next_probability: 0.5,
+          default_multiplier: 1.5,
+          module_quality_multiplier: 3,
+          lab_module_slots_bonus: 0,
+        },
+      },
+    });
+    expect(db.prepare(`SELECT * FROM qualities WHERE name = 'shiny'`).get()).toMatchObject({
+      chain_probability: 0.05, // clamp(next_probability × 0.1, 0, 1)
+      module_speed_multiplier: 1.5,
+      module_quality_multiplier: 3,
+      lab_module_slots_bonus: 0,
+      crafting_machine_module_slots_bonus: 2,
+    });
+    db.close();
+  });
+
+  it("rescales a 2.0 dump's quality values to the 2.1 scale", () => {
+    // Factorio 2.0: no chain_probability, next_probability 0.1, and quality
+    // effects 10× larger (quality module 1 = 0.1, speed modules -0.1)
+    const db = runImport({
+      quality: {
+        normal: { level: 0, next: "uncommon", next_probability: 0.1 },
+        uncommon: { level: 1, next_probability: 0.1 },
+      },
+      module: {
+        "quality-module": { category: "quality", effect: { quality: 0.1, speed: -0.05 } },
+        "speed-module": { category: "speed", effect: { speed: 0.2, quality: -0.1 } },
+      },
+      "assembling-machine": {
+        refinery: {
+          crafting_categories: ["crafting"],
+          effect_receiver: { base_effect: { quality: 0.5 } },
+        },
+      },
+    });
+    expect(
+      all(db, `SELECT name, next_probability, chain_probability FROM qualities ORDER BY level`),
+    ).toEqual([
+      { name: "normal", next_probability: 1, chain_probability: 0.1 },
+      { name: "uncommon", next_probability: 1, chain_probability: 0.1 },
+    ]);
+    const modules = all(db, `SELECT name, eff_quality FROM modules ORDER BY name`) as {
+      eff_quality: number;
+    }[];
+    expect(modules.map((m) => m.eff_quality)).toEqual([
+      expect.closeTo(0.01, 12),
+      expect.closeTo(-0.01, 12),
+    ]);
+    const rx = JSON.parse(
+      db
+        .prepare(`SELECT effect_receiver FROM crafting_machines WHERE name = 'refinery'`)
+        .pluck()
+        .get() as string,
+    );
+    expect(rx.baseEffect.quality).toBeCloseTo(0.05, 12);
+    expect(
+      db.prepare(`SELECT value FROM meta WHERE key = 'quality_effect_step'`).pluck().get(),
+    ).toBe("0.001");
+    db.close();
+  });
+});
+
+describe("importFactorioDump — recipe quality and effect flags (#265)", () => {
+  it("stores allow_* flags and can_set_quality with the engine defaults", () => {
+    const item = (name: string, extra = {}) => ({ type: "item", name, amount: 1, ...extra });
+    const fluid = (name: string) => ({ type: "fluid", name, amount: 10 });
+    const db = runImport({
+      recipe: {
+        gear: { ingredients: [item("iron-plate")], results: [] },
+        legacy: { ingredients: [["iron-plate", 2]], results: [] },
+        "fluid-only": { ingredients: [fluid("water")], allow_speed: false, results: [] },
+        mixed: { ingredients: [fluid("water"), item("iron-plate")], results: [] },
+        // space-age's space platform foundation pins its ingredient to normal
+        pinned: {
+          ingredients: [item("steel-plate", { quality_min: "normal", quality_max: "normal" })],
+          allow_consumption: false,
+          allow_pollution: false,
+          results: [],
+        },
+        empty: { ingredients: [], results: [] },
+        param: { parameter: true, results: [] },
+        forced: { ingredients: [fluid("water")], can_set_quality: true, results: [] },
+      },
+    });
+    expect(
+      db
+        .prepare(
+          `SELECT name, can_set_quality q, allow_speed s, allow_consumption c, allow_pollution p FROM recipes WHERE kind = 'real' ORDER BY name`,
+        )
+        .all(),
+    ).toEqual([
+      { name: "empty", q: 0, s: 1, c: 1, p: 1 },
+      { name: "fluid-only", q: 0, s: 0, c: 1, p: 1 },
+      { name: "forced", q: 1, s: 1, c: 1, p: 1 },
+      { name: "gear", q: 1, s: 1, c: 1, p: 1 },
+      { name: "legacy", q: 1, s: 1, c: 1, p: 1 },
+      { name: "mixed", q: 1, s: 1, c: 1, p: 1 },
+      { name: "param", q: 1, s: 1, c: 1, p: 1 },
+      { name: "pinned", q: 0, s: 1, c: 0, p: 0 },
+    ]);
+    db.close();
+  });
+
+  it("leaves synthetic recipes at normal", () => {
+    const db = runImport({
+      "mining-drill": { drill: { resource_categories: ["basic-solid"] } },
+      resource: { ore: { minable: { result: "ore" } } },
+    });
+    const synthetic = db
+      .prepare(`SELECT DISTINCT can_set_quality FROM recipes WHERE kind != 'real'`)
+      .pluck()
+      .all();
+    expect(synthetic).toEqual([0]);
+    db.close();
+  });
+});
+
+describe("importFactorioDump — entity quality fields (#265)", () => {
+  it("stores the quality flags and per-quality overrides machines opt into", () => {
+    const db = runImport({
+      "assembling-machine": {
+        tuned: {
+          crafting_categories: ["crafting"],
+          quality_affects_module_slots: true,
+          quality_affects_energy_usage: true,
+          crafting_speed_quality_multiplier: { uncommon: 1.5 },
+          energy_usage_quality_multiplier: { uncommon: 0.9 },
+          module_slots_quality_bonus: { uncommon: 2 },
+          effect_receiver: { base_effect: { quality: 0.1 }, quality_limits: { low: -1 } },
+        },
+        plain: { crafting_categories: ["crafting"] },
+      },
+      "mining-drill": {
+        drill: { resource_categories: ["basic-solid"], quality_affects_module_slots: true },
+      },
+      beacon: {
+        // base/prototypes/entity/entities.lua: the vanilla beacon
+        beacon: { distribution_effectivity_bonus_per_quality_level: 0.2 },
+        plain: {},
+      },
+      lab: {
+        lab: { inputs: [], quality_affects_module_slots: true, uses_quality_drain_modifier: true },
+        plain: { inputs: [] },
+      },
+    });
+    const machine = (name: string) =>
+      db
+        .prepare(
+          `SELECT quality_affects_module_slots, quality_affects_energy_usage, crafting_speed_quality_multiplier, energy_usage_quality_multiplier, module_slots_quality_bonus FROM crafting_machines WHERE name = ?`,
+        )
+        .get(name);
+    expect(machine("tuned")).toEqual({
+      quality_affects_module_slots: 1,
+      quality_affects_energy_usage: 1,
+      crafting_speed_quality_multiplier: '{"uncommon":1.5}',
+      energy_usage_quality_multiplier: '{"uncommon":0.9}',
+      module_slots_quality_bonus: '{"uncommon":2}',
+    });
+    expect(machine("plain")).toEqual({
+      quality_affects_module_slots: 0,
+      quality_affects_energy_usage: 0,
+      crafting_speed_quality_multiplier: null,
+      energy_usage_quality_multiplier: null,
+      module_slots_quality_bonus: null,
+    });
+    const rx = JSON.parse(
+      db
+        .prepare(`SELECT effect_receiver FROM crafting_machines WHERE name = 'tuned'`)
+        .pluck()
+        .get() as string,
+    );
+    expect(rx.baseEffect.quality).toBe(0.1);
+    expect(rx.limits.quality).toEqual({ low: -1, high: 1000 });
+
+    const rows = (sql: string) => db.prepare(sql).all();
+    expect(rows(`SELECT name, quality_affects_module_slots q FROM mining_drills`)).toEqual([
+      { name: "drill", q: 1 },
+    ]);
+    expect(
+      rows(
+        `SELECT name, distribution_effectivity_bonus_per_quality_level b, quality_affects_module_slots q FROM beacons ORDER BY name`,
+      ),
+    ).toEqual([
+      { name: "beacon", b: 0.2, q: 0 },
+      { name: "plain", b: 0, q: 0 },
+    ]);
+    expect(
+      rows(
+        `SELECT name, quality_affects_module_slots q, uses_quality_drain_modifier d FROM labs ORDER BY name`,
+      ),
+    ).toEqual([
+      { name: "lab", q: 1, d: 1 },
+      { name: "plain", q: 0, d: 0 },
+    ]);
+    db.close();
+  });
+});
