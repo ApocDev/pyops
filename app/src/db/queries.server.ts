@@ -903,6 +903,9 @@ export function computeRecipeScenario(opts: {
 
   const mainName = r.mainProduct ?? r.products[0]?.name ?? null;
   const mainRate = outputs.find((o) => o.good === mainName)?.perSec ?? outputs[0]?.perSec ?? 0;
+  // Rates keep 4 significant figures: slow Py farms run at ~0.0015 crafts/s,
+  // which fixed decimals would round away.
+  const sig = (n: number) => Number(n.toPrecision(4));
 
   return {
     recipe: r.name,
@@ -928,15 +931,16 @@ export function computeRecipeScenario(opts: {
     effects: {
       speedPct: Math.round(fx.speedBonus * 1000) / 10,
       productivityPct: Math.round(fx.prodBonus * 1000) / 10,
-      energyPct: Math.round(fx.consBonus * 1000) / 10,
+      // the clamped bonus the multiplier uses (4 × efficiency-3 reads -80, not -200)
+      energyPct: Math.round((fx.consMult - 1) * 1000) / 10,
       speedMult: Math.round(fx.speedMult * 1000) / 1000,
       prodMult: Math.round(fx.prodMult * 1000) / 1000,
       energyMult: Math.round(fx.consMult * 1000) / 1000,
     },
     perBuilding: {
-      craftsPerSec: Math.round(craftsPerSec * 1000) / 1000,
-      outputs: outputs.map((o) => ({ ...o, perSec: Math.round(o.perSec * 1000) / 1000 })),
-      inputs: inputs.map((i) => ({ ...i, perSec: Math.round(i.perSec * 1000) / 1000 })),
+      craftsPerSec: sig(craftsPerSec),
+      outputs: outputs.map((o) => ({ ...o, perSec: sig(o.perSec) })),
+      inputs: inputs.map((i) => ({ ...i, perSec: sig(i.perSec) })),
       powerKW: Math.round(powerW / 10) / 100,
     },
     target:
