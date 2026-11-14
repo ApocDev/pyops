@@ -270,7 +270,9 @@ only when `Q × next_probability > 1`.
 `computeEffects` sums each module's quality effect like the other effects. A recipe with
 `allow_quality = false` drops module and beacon quality, and the machine's base quality
 applies either way. The total clamps to the machine's `quality_limits` (low 0 by default)
-and floors at 0, since PyOps doesn't model quality going down.
+and floors at 0, since PyOps doesn't model quality going down. A row whose quality effect
+can't upgrade anything reports `qualityUseless`: it has no item product, or it runs only at
+the best unlocked quality.
 
 Entity quality uses the imported multipliers, not YAFC-CE's hard-coded 30% and 0.2 per level
 (`server/quality-effects.ts`):

@@ -448,6 +448,8 @@ export async function computeBlock(rawData: SolveInput) {
   const bonusesOf = (quality: string | undefined) =>
     quality && quality !== NORMAL_QUALITY ? (qualityCtx.byName.get(quality) ?? null) : null;
   const qualityFx = qualityEffectLookups(moduleDb, beaconDb, bonusesOf, qualityCtx.effectStep);
+  const qualityRank = (quality: string) =>
+    qualityCtx.ladder.findIndex((step) => step.name === quality);
   /** The qualities a row runs at: its range as a slice of the chain. A recipe
    * that can't set quality (fluid-only ingredients, synthetic recipes) runs at
    * normal only, though its products can still upgrade. */
@@ -1177,6 +1179,7 @@ export async function computeBlock(rawData: SolveInput) {
     const {
       chosen,
       machineQuality,
+      qualityLevels,
       machineModules,
       beaconCfgs,
       beaconInterference,
@@ -1374,6 +1377,14 @@ export async function computeBlock(rawData: SolveInput) {
       rate: rr.rate,
       // each quality's share of the rate, for a row that runs above normal
       ...(rr.qualityRates ? { qualityRates: rr.qualityRates } : {}),
+      // a quality effect that can't upgrade anything: no item product, or the
+      // row only runs at the best unlocked quality (YAFC-CE's UselessQuality,
+      // RecipeParameters.cs:170-176)
+      ...(fx.qualityBonus > 0 &&
+      (!def.products.some((p) => p.kind === "item") ||
+        qualityLevels.every((level) => qualityRank(level) >= qualityRank(qualityCtx.top)))
+        ? { qualityUseless: true }
+        : {}),
       spoil,
       reactor,
       machine: chosen && {

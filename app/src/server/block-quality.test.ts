@@ -179,5 +179,21 @@ describe("computeBlock with quality", () => {
     expect(byproducts[0].rate).toBeCloseTo(0.025 / 0.75, 6);
     expect(byproducts[1].rate).toBeCloseTo(0.225 / 0.75, 6);
     expect(r.display["iron-gear-wheel@uncommon"]).toBe("Iron gear wheel (Uncommon)");
+    expect("qualityUseless" in row).toBe(false);
+  });
+
+  it("flags quality modules that can't upgrade anything", async () => {
+    // rare is the best unlocked quality, so a rare-only row has nowhere to go
+    const r = await computeBlock({
+      goals: [{ name: "iron-gear-wheel", rate: 1, quality: "rare" }],
+      recipes: ["iron-gear-wheel"],
+      machines: { "iron-gear-wheel": "assembling-machine-3" },
+      modules: { "iron-gear-wheel": quality4 },
+      rowQuality: { "iron-gear-wheel": { min: "rare", max: "rare" } },
+    });
+    const row = r.rows[0];
+    expect(row.qualityUseless).toBe(true);
+    expect(row.rate).toBeCloseTo(1, 6);
+    expect(row.qualityRates).toEqual([{ quality: "rare", rate: row.rate }]);
   });
 });
