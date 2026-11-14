@@ -13,13 +13,13 @@
  *
  * - Swing: each half swing is the library's `ceil(...)` minus one tick. That fits
  *   every chest-to-chest measurement in 2.1.
- * - Belt → building: the library's non-chasing pickup path (one tick per extra
- *   grab) plus its belt-refill cap, counted in belt stacks rather than items.
- *   About four belt slots are in reach before the hand waits for more (the
- *   library assumes eight; 2.1 measurements fit four), and past that it grabs
- *   at most one stack per 3 ticks on fast belts. The library's chasing
- *   estimate is 18–36% slow in 2.1, so it is not used. Chasing makes a fast
- *   inserter with a small hand about 11% faster than this model.
+ * - Belt → building: fitted to Factorio 2.1 measurements (#294), since the
+ *   library's chasing estimate is 17–65% slow in 2.1 and it has no belt stacks.
+ *   The hand takes one belt stack per grab, so the cost depends on grabs
+ *   (hand ÷ belt stack), belt speed and arm shape, not on stack size itself.
+ *   The fit never over-estimates a measured case by more than 3% and is about
+ *   7% low on average for fast arms (see `extraPickupTicks`). Chasing makes a
+ *   hand that needs a single grab up to 11% faster than this model.
  * - Building → belt: the library's drop path, counted in the stacks the inserter
  *   places (belt-stacking inserters drop `min(max_belt_stack_size, belt stack)`
  *   per drop and carry only whole stacks of that size).
@@ -266,25 +266,74 @@ export function inserterHandStack(p: InserterProto, b: StackBonuses): number {
  * chest. `placedStack` is the belt's item stack size (belt-stack research). */
 export type InserterBelt = { end: "pickup" | "drop"; speed: number; placedStack: number };
 
-/** Belt slots in the hand's reach when it arrives at a full belt. Grabbing past
- * these waits for the belt to bring more. inserter-throughput-lib uses 8; 4 fits
- * 2.1 measurements of a Py stack inserter (6 grabs) and a bulk crane (8 grabs)
- * on a stacked yellow belt. */
-const BELT_PICKUP_REACH = 4;
+/** Grabs a hand takes almost free of extra time before it waits on the belt. */
+const BELT_PICKUP_REACH = 2.5;
 
-/** Past its reach, a hand grabs at most one belt stack per this many ticks, even
- * when the belt brings them faster (2.1 measurements: 3.15 ticks on a fast belt,
- * 2.67 on an express belt, against 2 and 1.33 for both lanes' flow). */
-const MIN_TICKS_PER_BELT_GRAB = 3;
+/** Past its reach, a fast hand needs at least this many ticks per grab, even when
+ * the belt brings stacks faster (hand-limited on fast and express belts). */
+const MIN_TICKS_PER_BELT_GRAB = 3.6;
 
-/** Extra ticks to take `grabs` belt stacks: one tick per grab after the first,
- * or the time for both lanes to bring the stacks beyond reach, whichever is longer
- * (inserter-throughput-lib's non-chasing pickup + `cap_extra_pickup_ticks_to_belt_speed`). */
-function extraPickupTicks(grabs: number, speed: number): number {
-  if (grabs <= 1) return 0;
-  // items sit 0.25 tiles apart on each of two lanes
-  const ticksPerStack = Math.max(0.25 / speed / 2, MIN_TICKS_PER_BELT_GRAB);
-  return Math.max(grabs - 1, Math.ceil((grabs - BELT_PICKUP_REACH) * ticksPerStack));
+/** Ticks per grab inside the reach: about one for an arm that points straight at
+ * the belt, 3.4 for an offset arm (pycranes' pickup sits 0.5 tiles to the side),
+ * which has to extend as well as turn to follow items along the belt. */
+const STRAIGHT_ARM_GRAB_TICKS = 1;
+const OFFSET_ARM_GRAB_TICKS = 3.4;
+
+/** Belt-pickup ticks per swing that slow arms pay even for a single grab (they
+ * can't chase items the way fast arms do), phased in as slowness goes from 1 to 2
+ * (see `pickupSlowness`). */
+const SLOW_ARM_PICKUP_TICKS = 2;
+
+/** How much slower than a fast inserter's (0.1 tiles/tick) this arm extends,
+ * raised to 1.25: the basic inserter and crane-mk1 (0.035) scale by 3.7,
+ * the long-handed inserter (0.05) by 2.4. The exponent covers crane-mk1, whose
+ * offset arm can barely keep up with items on a yellow belt. */
+function pickupSlowness(p: InserterProto): number {
+  return Math.max(1, 0.1 / p.extensionSpeed) ** 1.25;
+}
+
+/**
+ * Extra ticks per swing to take `grabs` belt stacks, beyond the chest-to-chest
+ * swing. Every inserter chases belt items in 2.1, so the hand's path depends on
+ * the arm, the belt speed and where items sit; the game settles into cycles that
+ * are whole multiples of the belt's slot period, which makes the true curve
+ * lumpy. This is a smooth fit that stays on the safe (slow) side:
+ *
+ *   slowness × max(grabTicks × (grabs − 1), (grabs − 2.5) × max(slotTicks, 3.6))
+ *   + 2 × min(1, slowness − 1)
+ *
+ * `slotTicks` is how often both lanes of a full belt bring a new stack.
+ *
+ * Fitted to 213 belt → chest setups (iron plate, Factorio 2.1, Py, 50–72 s of
+ * game time each, every belt tile verified full): transport, fast and express
+ * belts at belt stack 1, 2 and 3; hands of 1–16 on the Py stack inserter, 2–96
+ * on cranes mk1–mk4 in both orientations, plus bulk, fast, basic, long-handed
+ * and short cranes. Grabs, not stack size, set the cost: a Py stack inserter
+ * holding 16 on a stack-2 belt (8 grabs) cycles exactly like one holding 8 on
+ * an unstacked belt. Sample extra ticks per swing (transport / fast / express):
+ *
+ * | Inserter (grabs)   | Measured        | Model          |
+ * | ------------------ | --------------- | -------------- |
+ * | Py stack (4)       | 2 / 2 / 2       | 6 / 5.4 / 5.4  |
+ * | Py stack (6)       | 8.9 / 14 / 10.1 | 14 / 12.6 / 12.6 |
+ * | Py stack (16)      | 48 / 42 / 38    | 54 / 49 / 49   |
+ * | Bulk (4)           | 4 / 4 / 2.7     | 6 / 5.4 / 5.4  |
+ * | crane-mk3 (8)      | 18 / 19 / 18    | 24 / 24 / 24   |
+ * | crane-mk3 (24)     | 81 / 69 / 65    | 86 / 78 / 78   |
+ * | crane-mk1 (7)      | 74 / 38 / 26    | 81 / 81 / 81   |
+ *
+ * A crane whose pickup sits upstream of its pivot (rotated 180°) is 10–30%
+ * faster than this; the model assumes the slower, downstream orientation.
+ */
+function extraPickupTicks(p: InserterProto, grabs: number, speed: number): number {
+  const slotTicks = 0.125 / speed; // items sit 0.25 tiles apart on each of two lanes
+  const grabTicks = p.pickupX === 0 ? STRAIGHT_ARM_GRAB_TICKS : OFFSET_ARM_GRAB_TICKS;
+  const k = pickupSlowness(p);
+  const wait = Math.max(
+    grabTicks * (grabs - 1),
+    (grabs - BELT_PICKUP_REACH) * Math.max(slotTicks, MIN_TICKS_PER_BELT_GRAB),
+  );
+  return k * Math.max(0, wait) + SLOW_ARM_PICKUP_TICKS * Math.min(1, k - 1);
 }
 
 /** Extra ticks to place `drops` stacks on one belt lane: each needs the previous
@@ -307,7 +356,7 @@ export function inserterThroughput(
   if (!(belt.speed > 0)) return 0;
   const beltStack = Math.max(1, belt.placedStack);
   if (belt.end === "pickup") {
-    const ticks = swing + extraPickupTicks(Math.ceil(handStack / beltStack), belt.speed);
+    const ticks = swing + extraPickupTicks(p, Math.ceil(handStack / beltStack), belt.speed);
     // can't take more than the belt brings (both lanes)
     return Math.min((60 / ticks) * handStack, beltItemsPerSecond(belt.speed, beltStack));
   }
