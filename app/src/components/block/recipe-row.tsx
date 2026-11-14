@@ -19,6 +19,7 @@ import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { RecipeHover } from "../../lib/recipe-card";
 import { fmtSpoilTime, Icon, useSpoilables } from "../../lib/icons";
 import { ModulesChip } from "../../lib/modules-modal";
+import { countRender } from "../../lib/render-count.ts";
 import { EditableCount } from "./editable-count.tsx";
 import { FluidTemperaturePicker } from "./fluid-temperature-picker.tsx";
 import { IncidentalSpoilageChip } from "./incidental-spoilage-chip.tsx";
@@ -124,6 +125,7 @@ export const RecipeRow = memo(function RecipeRow({
   goodDisplay?: Readonly<Record<string, string>>;
   recipeDisplay?: Readonly<Record<string, string>>;
 }) {
+  countRender(`row:${name}`);
   const spoilables = useSpoilables();
   const campaign = useStore(doc.store, (s) => s.campaign);
   // Debounce the suggestion hint (#117): the suggested fill recomputes per

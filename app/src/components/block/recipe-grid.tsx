@@ -26,6 +26,7 @@ import {
 } from "@dnd-kit/sortable";
 import { Card } from "#/components/ui/card.tsx";
 import { InfoHint } from "#/components/info-hint.tsx";
+import { useHotkey } from "../../lib/hotkeys";
 import { moveGroupSpan, resolveGroupAfterMove, type RowGroup } from "../../lib/row-groups";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
@@ -128,6 +129,15 @@ export function RecipeGrid({
     io.observe(el);
     return () => io.disconnect();
   }, [nearView, focusRecipe, hasRecipes]);
+  // Browser find-in-page can only match rows that exist. Mount them when the
+  // find shortcut opens the find bar (left to the browser), outside a
+  // transition, so they're in the page before the first typed character.
+  useHotkey("mod+f", () => setNearView(true), {
+    description: "Find in page (shows every recipe row first)",
+    enabled: !nearView,
+    allowInInputs: true,
+    preventDefault: false,
+  });
 
   // Sub-block fold state is a view preference — localStorage, not the doc, so
   // folding doesn't churn auto-save.
