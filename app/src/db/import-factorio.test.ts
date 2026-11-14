@@ -173,6 +173,54 @@ describe("importFactorioDump — machine effect receivers (#258)", () => {
   });
 });
 
+describe("importFactorioDump — electric drain", () => {
+  it("applies the engine default for crafting machines and honors explicit keys", () => {
+    // Shapes and values from Py's dump; the in-game drain is in each comment.
+    const db = runImport({
+      "assembling-machine": {
+        // no drain key, 333.33 kW in game (energy_usage / 30)
+        "automated-factory-mk04": {
+          crafting_categories: ["crafting"],
+          energy_usage: "10MW",
+          energy_source: { type: "electric", usage_priority: "secondary-input" },
+        },
+        // explicit key, 400 kW in game
+        "dino-dig-site": {
+          crafting_categories: ["dino"],
+          energy_usage: "1W",
+          energy_source: { type: "electric", drain: "400kW" },
+        },
+        // burner sources have no drain
+        "burner-assembler": {
+          crafting_categories: ["crafting"],
+          energy_usage: "100kW",
+          energy_source: { type: "burner", fuel_categories: ["chemical"] },
+        },
+      },
+      // no drain key, 0 in game: the default is for crafting machines only
+      "mining-drill": {
+        "electric-mining-drill": {
+          resource_categories: ["basic-solid"],
+          energy_usage: "90kW",
+          energy_source: { type: "electric" },
+        },
+      },
+      lab: {
+        lab: { energy_usage: "60kW", energy_source: { type: "electric" }, inputs: [] },
+      },
+    });
+    const drain = (table: string, name: string) =>
+      db.prepare(`SELECT drain_w FROM ${table} WHERE name = ?`).pluck().get(name);
+    expect(drain("crafting_machines", "automated-factory-mk04")).toBeCloseTo(10_000_000 / 30, 3);
+    expect(drain("crafting_machines", "dino-dig-site")).toBe(400_000);
+    expect(drain("crafting_machines", "burner-assembler")).toBeNull();
+    expect(drain("crafting_machines", "electric-mining-drill")).toBe(0);
+    expect(drain("crafting_machines", "lab")).toBe(0);
+    expect(drain("labs", "lab")).toBe(0);
+    db.close();
+  });
+});
+
 describe("importFactorioDump — machine footprints", () => {
   it("derives placed tile dimensions from array and named selection boxes", () => {
     const db = runImport({

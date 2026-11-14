@@ -28,6 +28,7 @@
 import type Database from "better-sqlite3";
 import { temperatureFedDrain, type TempFedDrain } from "./fluid-energy.ts";
 import { parseEffectReceiver } from "./effect-receiver.ts";
+import { electricDrainW } from "./electric-drain.ts";
 
 export const ELECTRICITY = "pyops-electricity";
 export const HEAT = "pyops-heat";
@@ -102,7 +103,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       `INSERT OR IGNORE INTO fluids (name,display,default_temperature,heat_capacity_j) VALUES (?,?,NULL,NULL)`,
     ),
     machine: db.prepare(
-      `INSERT OR REPLACE INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,neighbour_bonus,burns_fluid,fluid_fuel_filter,fluid_fuel_per_sec,fluid_fuel_energy_j,effect_receiver) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT OR REPLACE INTO crafting_machines (name,display,kind,crafting_speed,module_slots,energy_usage_w,energy_source,drain_w,pollution_per_min,allowed_effects,allowed_module_categories,neighbour_bonus,burns_fluid,fluid_fuel_filter,fluid_fuel_per_sec,fluid_fuel_energy_j,effect_receiver) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     ),
     machineCat: db.prepare(
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
@@ -202,6 +203,8 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
     moduleSlots?: number;
     energyUsageW?: number | null;
     energySource?: string | null;
+    /** constant electric drain in W (see electric-drain.ts) */
+    drainW?: number | null;
     fuelCategories?: string[];
     /** Effect kinds the machine accepts. Matters for labs, which take
      * productivity/consumption/pollution but NOT speed — without it a speed
@@ -231,6 +234,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       m.moduleSlots ?? 0,
       m.energyUsageW ?? null,
       m.energySource ?? null,
+      m.drainW ?? null,
       m.pollutionPerMin ?? 0,
       m.allowedEffects?.length ? JSON.stringify(m.allowedEffects) : null,
       m.allowedModuleCategories?.length ? JSON.stringify(m.allowedModuleCategories) : null,
@@ -296,6 +300,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
           // fuel draw = energy / effectivity (Py's mo-mine dumps effectivity 8)
           energyUsageW: usage != null ? usage / es.eff : null,
           energySource: d.energy_source?.type ?? null,
+          drainW: electricDrainW("mining-drill", d.energy_source, usage, parseSI),
           fuelCategories: arr<string>(d.energy_source?.fuel_categories),
           allowedModuleCategories: arr<string>(d.allowed_module_categories),
           category: `mine:${rc}`,
@@ -632,6 +637,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
           speed: (2 * radius + 1) ** 2 - 1, // parallel growth cells
           energyUsageW: usage != null ? usage / es.eff : null,
           energySource: t.energy_source?.type ?? null,
+          drainW: electricDrainW("agricultural-tower", t.energy_source, usage, parseSI),
           fuelCategories: arr<string>(t.energy_source?.fuel_categories),
           category: "plant:agriculture",
           pollutionPerMin: t.energy_source?.emissions_per_minute?.pollution ?? 0,
@@ -705,6 +711,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
           moduleSlots: s.module_slots ?? 0,
           energyUsageW: usage != null ? usage / es.eff : null,
           energySource: s.energy_source?.type ?? null,
+          drainW: electricDrainW("rocket-silo", s.energy_source, usage, parseSI),
           fuelCategories: arr<string>(s.energy_source?.fuel_categories),
           category: cat,
           pollutionPerMin: s.energy_source?.emissions_per_minute?.pollution ?? 0,
@@ -781,6 +788,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
         moduleSlots: lab.module_slots ?? 0,
         energyUsageW: parseSI(lab.energy_usage),
         energySource: es.type ?? null,
+        drainW: electricDrainW("lab", es, parseSI(lab.energy_usage), parseSI),
         pollutionPerMin: es.emissions_per_minute?.pollution ?? 0,
         allowedEffects: lab.allowed_effects ?? null,
         allowedModuleCategories: lab.allowed_module_categories ?? null,

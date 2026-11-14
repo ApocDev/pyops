@@ -1656,3 +1656,69 @@ describe("burnt result of an imported fuel feeding an in-block recipe", () => {
     expect(r.imports.find((f) => f.name === "coal")?.rate).toBeCloseTo(2, 9);
   });
 });
+
+describe("electric drain in block power", () => {
+  let fx: TestDb;
+
+  // Py's automated-factory-mk04 as the dump describes it: crafting_speed 4,
+  // 4 slots, 10 MW, no `drain` key, so the import applies the engine default
+  // energy_usage / 30 = 333.33 kW. Modules are Py's real tier-3 effects.
+  beforeEach(async () => {
+    fx = await makeTestDb();
+    fx.db.exec(`
+      INSERT INTO items (name, display) VALUES ('ore','Ore'),('plate','Plate');
+      INSERT INTO crafting_machines
+        (name, display, kind, crafting_speed, module_slots, energy_usage_w, energy_source, drain_w)
+      VALUES ('automated-factory-mk04','Automated factory MK 04','assembling-machine',4,4,
+              10000000,'electric',10000000.0/30);
+      INSERT INTO machine_categories (machine, category) VALUES ('automated-factory-mk04','crafting');
+      INSERT INTO recipes (name, display, kind, category, energy_required, enabled, hidden, allow_productivity)
+      VALUES ('plate','Plate','real','crafting',1,1,0,0);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES ('plate',0,'item','ore',1);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES ('plate',0,'item','plate',1);
+      INSERT INTO modules (name, display, category, hidden, tier, eff_speed, eff_productivity, eff_consumption)
+      VALUES ('speed-module-3','Speed module 3','speed',0,3,1,0,1.5),
+             ('efficiency-module-3','Efficiency module 3','efficiency',0,3,0,0,-0.5);
+    `);
+    fx.db.close();
+    switchDatabase(fx.file);
+  });
+  afterEach(() => fx.cleanup());
+
+  /** Solve `rate` plates/s on the mk04 with the given module loadout. */
+  const solve = (rate: number, modules: string[] = []) =>
+    computeBlock({
+      goals: [{ name: "plate", rate }],
+      recipes: ["plate"],
+      machines: { plate: "automated-factory-mk04" },
+      modules: { plate: modules },
+    } as never);
+
+  // The in-game measurements from one working machine on its own network.
+  it.each([
+    { label: "no modules", rate: 4, modules: [], kW: 10_333.33 },
+    {
+      label: "4x speed-module-3",
+      rate: 20,
+      modules: Array(4).fill("speed-module-3"),
+      kW: 70_333.33,
+    },
+    {
+      label: "4x efficiency-module-3, clamped to -80%",
+      rate: 4,
+      modules: Array(4).fill("efficiency-module-3"),
+      kW: 2_333.33,
+    },
+  ])("one machine with $label draws $kW kW", async ({ rate, modules, kW }) => {
+    const r = await solve(rate, modules);
+    expect(r.rows[0]!.machine!.count).toBeCloseTo(1, 6);
+    expect(r.power.totalW / 1000).toBeCloseTo(kW, 1);
+  });
+
+  it("charges the drain on whole buildings, since an idle one still draws it", async () => {
+    // 2.5 machines of work on 3 placed buildings
+    const r = await solve(10);
+    expect(r.rows[0]!.machine!.count).toBeCloseTo(2.5, 6);
+    expect(r.power.totalW).toBeCloseTo(2.5 * 10_000_000 + 3 * (10_000_000 / 30), 0);
+  });
+});

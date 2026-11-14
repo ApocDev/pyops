@@ -163,6 +163,11 @@ Fractional building counts are exact capacity requirements. `0.5` means half of 
 machine's capacity; `5.2` means five machines are insufficient and six provide spare
 capacity. PyOps leaves the construction decision visible instead of rounding the solve.
 
+A row's power is what those buildings draw in game. Each electric machine draws its working
+power, scaled by its modules and beacons, plus a fixed drain that modules never change. Most
+crafting machines drain 1/30 of their working power. The drain counts once for every building
+you place, so a `5.2` row pays drain on six machines, because an idle machine still draws it.
+
 When **Logistics → Inserters / loaders** is enabled, an amber hammer and a second count can
 appear beneath the solved building count. It is the suggested physical build count: the
 selected movers, item inputs and outputs, fuel, burnt results, and active fluid connections

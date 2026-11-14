@@ -238,6 +238,7 @@ function machinesForRecipes(recipeNames: string[]) {
       moduleSlots: craftingMachines.moduleSlots,
       energyUsageW: craftingMachines.energyUsageW,
       energySource: craftingMachines.energySource,
+      drainW: craftingMachines.drainW,
       pollutionPerMin: craftingMachines.pollutionPerMin,
       allowedEffects: craftingMachines.allowedEffects,
       allowedModuleCategories: craftingMachines.allowedModuleCategories,
@@ -436,6 +437,7 @@ export function machinesForRecipe(recipeName: string) {
       moduleSlots: craftingMachines.moduleSlots,
       energyUsageW: craftingMachines.energyUsageW,
       energySource: craftingMachines.energySource,
+      drainW: craftingMachines.drainW,
       pollutionPerMin: craftingMachines.pollutionPerMin,
       allowedEffects: craftingMachines.allowedEffects,
       allowedModuleCategories: craftingMachines.allowedModuleCategories,
@@ -899,7 +901,9 @@ export function computeRecipeScenario(opts: {
     display: c.display ?? c.name,
     perSec: craftsPerSec * (c.amount ?? 0),
   }));
-  const powerW = (machine.energyUsageW ?? 0) * fx.consMult + fx.beaconPowerPerMachineW;
+  // drain is a constant per building, unscaled by modules
+  const powerW =
+    (machine.energyUsageW ?? 0) * fx.consMult + (machine.drainW ?? 0) + fx.beaconPowerPerMachineW;
 
   const mainName = r.mainProduct ?? r.products[0]?.name ?? null;
   const mainRate = outputs.find((o) => o.good === mainName)?.perSec ?? outputs[0]?.perSec ?? 0;

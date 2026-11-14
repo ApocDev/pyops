@@ -16,6 +16,7 @@ import { readDump } from "./read-dump.ts";
 import { synthesizePass2 } from "./synthesize.ts";
 import { temperatureFedDrain, type TempFedFluid } from "./fluid-energy.ts";
 import { parseEffectReceiver } from "./effect-receiver.ts";
+import { electricDrainW } from "./electric-drain.ts";
 import {
   REFERENCE_DATA_FORMAT_META_KEY,
   REFERENCE_DATA_FORMAT_VERSION,
@@ -253,7 +254,7 @@ export function importFactorioDump(
     ),
     recipeCat: db.prepare(`INSERT OR IGNORE INTO recipe_categories (name) VALUES (?)`),
     machine: db.prepare(
-      `INSERT INTO crafting_machines (name,display,kind,crafting_speed,tile_width,tile_height,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,burns_fluid,fluid_fuel_filter,fluid_fuel_per_sec,fluid_fuel_energy_j,effect_receiver) VALUES (@name,@display,@kind,@crafting_speed,@tile_width,@tile_height,@module_slots,@energy_usage_w,@energy_source,@pollution_per_min,@allowed_effects,@allowed_module_categories,@burns_fluid,@fluid_fuel_filter,@fluid_fuel_per_sec,@fluid_fuel_energy_j,@effect_receiver)`,
+      `INSERT INTO crafting_machines (name,display,kind,crafting_speed,tile_width,tile_height,module_slots,energy_usage_w,energy_source,drain_w,pollution_per_min,allowed_effects,allowed_module_categories,burns_fluid,fluid_fuel_filter,fluid_fuel_per_sec,fluid_fuel_energy_j,effect_receiver) VALUES (@name,@display,@kind,@crafting_speed,@tile_width,@tile_height,@module_slots,@energy_usage_w,@energy_source,@drain_w,@pollution_per_min,@allowed_effects,@allowed_module_categories,@burns_fluid,@fluid_fuel_filter,@fluid_fuel_per_sec,@fluid_fuel_energy_j,@effect_receiver)`,
     ),
     machineCat: db.prepare(
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
@@ -275,7 +276,7 @@ export function importFactorioDump(
       `INSERT INTO beacons (name,display,distribution_effectivity,module_slots,energy_usage_w,hidden,allowed_effects,allowed_module_categories,profile) VALUES (@name,@display,@distribution_effectivity,@module_slots,@energy_usage_w,@hidden,@allowed_effects,@allowed_module_categories,@profile)`,
     ),
     lab: db.prepare(
-      `INSERT INTO labs (name,display,researching_speed,module_slots,energy_usage_w,energy_source,pollution_per_min,allowed_effects,allowed_module_categories,inputs,hidden,tile_width,tile_height) VALUES (@name,@display,@researching_speed,@module_slots,@energy_usage_w,@energy_source,@pollution_per_min,@allowed_effects,@allowed_module_categories,@inputs,@hidden,@tile_width,@tile_height)`,
+      `INSERT INTO labs (name,display,researching_speed,module_slots,energy_usage_w,energy_source,drain_w,pollution_per_min,allowed_effects,allowed_module_categories,inputs,hidden,tile_width,tile_height) VALUES (@name,@display,@researching_speed,@module_slots,@energy_usage_w,@energy_source,@drain_w,@pollution_per_min,@allowed_effects,@allowed_module_categories,@inputs,@hidden,@tile_width,@tile_height)`,
     ),
     tech: db.prepare(
       `INSERT INTO technologies (name,display,description,"order",unit_count,unit_time,research_trigger,enabled,is_turd) VALUES (@name,@display,@description,@order,@unit_count,@unit_time,@research_trigger,@enabled,@is_turd)`,
@@ -484,6 +485,7 @@ export function importFactorioDump(
           module_slots: m.module_slots ?? 0,
           energy_usage_w: usage != null ? usage / effectivity : null,
           energy_source: es.type ?? null,
+          drain_w: electricDrainW(kind, es, usage, parseSI),
           pollution_per_min: es.emissions_per_minute?.pollution ?? 0,
           allowed_effects: jsonList(m.allowed_effects),
           allowed_module_categories: jsonList(m.allowed_module_categories),
@@ -558,6 +560,7 @@ export function importFactorioDump(
         module_slots: l.module_slots ?? 0,
         energy_usage_w: parseSI(l.energy_usage),
         energy_source: es.type ?? null,
+        drain_w: electricDrainW("lab", es, parseSI(l.energy_usage), parseSI),
         pollution_per_min: es.emissions_per_minute?.pollution ?? 0,
         allowed_effects: jsonList(l.allowed_effects),
         allowed_module_categories: jsonList(l.allowed_module_categories),
