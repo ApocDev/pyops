@@ -197,7 +197,8 @@ export function computeEffects(
     // range gets the full bonus however many neighbours also sit in it. Power is
     // a property of the BUILDING, so a shared beacon's draw splits across the
     // machines it serves — charging each one a full copy overstates a shared bank
-    // by the sharing factor.
+    // by the sharing factor. A beacon draws its power even when none of its
+    // modules reach this machine, so an ineffective beacon still costs power.
     beaconPowerPerMachineW += ((b.energyUsageW ?? 0) * cfg.count) / Math.max(1, cfg.shared ?? 1);
   }
   // a recipe that disallows productivity blocks module, beacon and TURD

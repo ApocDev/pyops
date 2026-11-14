@@ -362,6 +362,7 @@ describe("computeEffects — receiver allowed effects and module categories", ()
       const r = fx(am2, [], beacon(mod, mod));
       expect(r.speedMult).toBe(1);
       expect(r.consMult).toBe(1);
+      expect(r.beaconPowerPerMachineW).toBe(480_000); // it still draws power
     }
   });
 
