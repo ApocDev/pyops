@@ -1,0 +1,27 @@
+AGENTS.md
+  s_77b0c3d1e0c9f3::t_c0333c88de97cf 56-58
+docs/development/data-pipeline.md
+  s_77b0c3d1e0c9f3::t_dd05844d6b76ea 147-151,159,306-310,320-321
+docs/development/solver.md
+  s_77b0c3d1e0c9f3::t_8721a96c7e6b10 18,201-330,718-720
+docs/guide/blocks.md
+  s_77b0c3d1e0c9f3::t_f0ccabaa482fd7 135-136
+docs/reference/concepts-and-limitations.md
+  s_77b0c3d1e0c9f3::t_069b89e1f44f4a 102-105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ba68f3dd03d7fadc2324af342695105d2ee8a469",
+  "prompts": {},
+  "sessions": {
+    "s_77b0c3d1e0c9f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf369d21-8408-4f5d-a9f1-b8edd788122c",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
