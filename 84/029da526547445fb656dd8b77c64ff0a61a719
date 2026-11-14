@@ -1,0 +1,43 @@
+AGENTS.md
+  s_1a424bc7af55de::t_d29b6ac034bb85 55-57
+app/drizzle/0030_quality-prototypes.sql
+  s_1a424bc7af55de::t_bd8df49eaa391e 1-50
+app/drizzle/meta/0030_snapshot.json
+  s_1a424bc7af55de::t_add0ab9e0d01a1 1-3484
+app/drizzle/meta/_journal.json
+  s_1a424bc7af55de::t_4138aae482282f 214-220
+app/src/db/effect-receiver.ts
+  s_1a424bc7af55de::t_7fcf0d493584d9 4,7-13,18,21,25-28,32-35,37
+app/src/db/import-factorio.test.ts
+  s_1a424bc7af55de::t_a2a058aab79e6a 967-1347
+app/src/db/import-factorio.ts
+  s_1a424bc7af55de::t_a4bef8f0b56cf3 21-29,124-130,196,198,222,269,289,298,304,308,311,320-322,348-350,356-358,365,385-388,397-407,550-555,570,588-589,606-608,633-634,738,760-764,780-781
+app/src/db/quality-import.ts
+  s_1a424bc7af55de::t_6293515999f721 1-114
+app/src/db/schema.ts
+  s_1a424bc7af55de::t_0dc100d28c7959 9-10,78-87,213-228,258-260,282-284,286-293,328-336,399-402,548-558,570-608
+app/src/db/synthesize.ts
+  s_1a424bc7af55de::t_d9ce8c3e87dee4 33,112,268
+app/src/lib/data-format.ts
+  s_1a424bc7af55de::t_55888c8fbdda72 9
+app/src/server/effects.ts
+  s_1a424bc7af55de::t_b4a7e5f7d7f89a 40-46,48-49,57,63
+docs/development/data-pipeline.md
+  s_1a424bc7af55de::t_bc2a3207109b2e 155-159,315-355
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "84029da526547445fb656dd8b77c64ff0a61a719",
+  "prompts": {},
+  "sessions": {
+    "s_1a424bc7af55de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e62b95c2-e0a3-43d7-bfde-713547843745",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
