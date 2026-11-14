@@ -897,9 +897,13 @@ export function computeRecipeScenario(opts: {
     display: c.display ?? c.name,
     perSec: craftsPerSec * (c.amount ?? 0),
   }));
-  // drain is a constant per building, unscaled by modules
+  // drain is a constant per building, unscaled by modules. A temperature-fed
+  // fluid source (Py's compost plant) stores its draw ÷ effectivity, which only
+  // sizes the fluid drain, so it gets no power figure — as in computeBlock.
+  const temperatureFed = machine.energySource === "fluid" && machine.burnsFluid === 0;
   const powerW =
-    (machine.energyUsageW ?? 0) * fx.consMult + (machine.drainW ?? 0) + fx.beaconPowerPerMachineW;
+    (temperatureFed ? 0 : (machine.energyUsageW ?? 0) * fx.consMult + (machine.drainW ?? 0)) +
+    fx.beaconPowerPerMachineW;
 
   const mainName = r.mainProduct ?? r.products[0]?.name ?? null;
   const mainRate = outputs.find((o) => o.good === mainName)?.perSec ?? outputs[0]?.perSec ?? 0;
@@ -929,7 +933,8 @@ export function computeRecipeScenario(opts: {
       : null,
     beacons: beaconCfgs.length ? beaconCfgs : undefined,
     effects: {
-      speedPct: Math.round(fx.speedBonus * 1000) / 10,
+      // clamped like energyPct: the game floors speed at -80%
+      speedPct: Math.round((fx.speedMult - 1) * 1000) / 10,
       productivityPct: Math.round(fx.prodBonus * 1000) / 10,
       // the clamped bonus the multiplier uses (4 × efficiency-3 reads -80, not -200)
       energyPct: Math.round((fx.consMult - 1) * 1000) / 10,
