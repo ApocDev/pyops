@@ -37,12 +37,16 @@
 
 export type EffectKind = "speed" | "productivity" | "consumption" | "pollution";
 
-/** A machine's EffectReceiver, with the engine defaults filled in. Quality and
- * surface effects aren't modelled (Py has neither), so their parts are left out.
- * A module's quality effect only gates where it may go (`effectsAllowed`). */
+/** The effects a receiver stores: the modelled kinds plus quality. Quality is
+ * imported (base effect and limits) but the solver doesn't read it yet (#24). */
+export type ReceiverEffectKind = EffectKind | "quality";
+
+/** A machine's EffectReceiver, with the engine defaults filled in. Surface
+ * effects aren't modelled (Py has none), so their parts are left out. A
+ * module's quality effect only gates where it may go (`effectsAllowed`). */
 export type EffectReceiver = {
-  baseEffect: Record<EffectKind, number>;
-  limits: Record<EffectKind, { low: number; high: number }>;
+  baseEffect: Record<ReceiverEffectKind, number>;
+  limits: Record<ReceiverEffectKind, { low: number; high: number }>;
   usesModuleEffects: boolean;
   usesBeaconEffects: boolean;
 };
@@ -50,12 +54,13 @@ export type EffectReceiver = {
 /** EffectReceiver prototype defaults (prototype-api: EffectReceiver). Machines
  * without an `effect_receiver` in the dump store null and use these. */
 export const DEFAULT_EFFECT_RECEIVER: EffectReceiver = {
-  baseEffect: { speed: 0, productivity: 0, consumption: 0, pollution: 0 },
+  baseEffect: { speed: 0, productivity: 0, consumption: 0, pollution: 0, quality: 0 },
   limits: {
     speed: { low: -0.8, high: 1000 },
     productivity: { low: -0.8, high: 1000 },
     consumption: { low: -0.8, high: 1000 },
     pollution: { low: -0.8, high: 1000 },
+    quality: { low: 0, high: 1000 },
   },
   usesModuleEffects: true,
   usesBeaconEffects: true,

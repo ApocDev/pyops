@@ -23,7 +23,7 @@
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { eq, sql } from "drizzle-orm";
 
@@ -534,6 +534,8 @@ export type DumpReuse = {
   newerThanImport: boolean;
   /** The helper fingerprint that shaped the dump on disk, or null when unknown. */
   dumpHelperFingerprint: string | null;
+  /** The `base` mod version the dump on disk was taken with, or null when unknown. */
+  dumpBaseVersion: string | null;
   /** The helper mod changed since the dump was taken, so the file was patched by
    * a different version than the one we ship now. */
   helperChanged: boolean;
@@ -548,19 +550,33 @@ export type DumpReuse = {
   reason: string | null;
 };
 
-/** What the helper wrote next to a dump it produced: its fingerprint and the
- * dump's mtime. The dump is shared by every project, so this lives with the
- * file rather than in any one project's meta. */
-export type DumpProvenance = { helperFingerprint: string; dumpMtimeMs: number };
+/** What the sync wrote next to a dump it produced: the helper's fingerprint,
+ * the dump's mtime, and the game's `base` mod version (null when it couldn't be
+ * read, or in a sidecar written before it was recorded). The dump is shared by
+ * every project, so this lives with the file rather than in any one project's
+ * meta. */
+export type DumpProvenance = {
+  helperFingerprint: string;
+  dumpMtimeMs: number;
+  baseVersion: string | null;
+};
 
 const DUMP_FILE = "data-raw-dump.json";
 const DUMP_PROVENANCE_FILE = "pyops-dump-provenance.json";
 
-/** Record which helper produced the dump in `dir`. Called right after
- * `--dump-data`, so the stored mtime is that dump's. */
-export async function writeDumpProvenance(dir: string, helperFingerprint: string): Promise<void> {
+/** Record which helper and game version produced the dump in `dir`. Called
+ * right after `--dump-data`, so the stored mtime is that dump's. */
+export async function writeDumpProvenance(
+  dir: string,
+  helperFingerprint: string,
+  baseVersion: string | null,
+): Promise<void> {
   const { mtimeMs } = await stat(join(dir, DUMP_FILE));
-  const provenance: DumpProvenance = { helperFingerprint, dumpMtimeMs: Math.round(mtimeMs) };
+  const provenance: DumpProvenance = {
+    helperFingerprint,
+    dumpMtimeMs: Math.round(mtimeMs),
+    baseVersion,
+  };
   await writeFile(join(dir, DUMP_PROVENANCE_FILE), JSON.stringify(provenance));
 }
 
@@ -571,13 +587,36 @@ export async function readDumpProvenance(dir: string): Promise<DumpProvenance | 
     const raw = JSON.parse(await readFile(join(dir, DUMP_PROVENANCE_FILE), "utf8")) as Partial<
       Record<keyof DumpProvenance, unknown>
     >;
-    const { helperFingerprint, dumpMtimeMs } = raw;
+    const { helperFingerprint, dumpMtimeMs, baseVersion } = raw;
     return typeof helperFingerprint === "string" && typeof dumpMtimeMs === "number"
-      ? { helperFingerprint, dumpMtimeMs }
+      ? {
+          helperFingerprint,
+          dumpMtimeMs,
+          baseVersion: typeof baseVersion === "string" ? baseVersion : null,
+        }
       : null;
   } catch {
     return null;
   }
+}
+
+/** The game's `base` mod version, from `data/base/info.json` in the install
+ * that holds `bin`. The Linux and Windows binary is `<install>/bin/x64/factorio`
+ * and the macOS one `<app>/Contents/MacOS/factorio` with data in
+ * `Contents/data`, so look two and one levels up. `readMods` can't supply it:
+ * base lives in the install, not the mods dir. Null when it can't be read. */
+export async function readBaseVersion(bin: string): Promise<string | null> {
+  for (const up of ["../..", ".."]) {
+    try {
+      const info = JSON.parse(
+        await readFile(join(dirname(bin), up, "data", "base", "info.json"), "utf8"),
+      ) as { version?: unknown };
+      if (typeof info.version === "string") return info.version;
+    } catch {
+      /* not this layout */
+    }
+  }
+  return null;
 }
 
 /** Pure core of the reuse check — the server supplies the filesystem and meta
@@ -598,12 +637,12 @@ export function evaluateDumpReuse(input: {
   const { dump, helperFingerprint, provenance, modsChanged } = input;
   const isThisDump = (mtimeMs: number | null | undefined) =>
     dump != null && mtimeMs != null && Math.round(mtimeMs) === Math.round(dump.mtimeMs);
-  const dumpHelperFingerprint =
-    provenance && isThisDump(provenance.dumpMtimeMs)
-      ? provenance.helperFingerprint
-      : isThisDump(input.importedDumpMtimeMs)
-        ? input.projectHelperFingerprint
-        : null;
+  const ownProvenance = provenance && isThisDump(provenance.dumpMtimeMs) ? provenance : null;
+  const dumpHelperFingerprint = ownProvenance
+    ? ownProvenance.helperFingerprint
+    : isThisDump(input.importedDumpMtimeMs)
+      ? input.projectHelperFingerprint
+      : null;
   const helperUnknown = dump != null && dumpHelperFingerprint == null;
   const helperChanged =
     dumpHelperFingerprint != null && dumpHelperFingerprint !== helperFingerprint;
@@ -622,6 +661,7 @@ export function evaluateDumpReuse(input: {
     sizeBytes: dump?.sizeBytes ?? null,
     newerThanImport,
     dumpHelperFingerprint,
+    dumpBaseVersion: ownProvenance?.baseVersion ?? null,
     helperChanged,
     helperUnknown,
     modsChanged,
@@ -846,10 +886,15 @@ export function startDataSync(opts: { icons?: boolean; reuseDump?: boolean } = {
       // The helper that shaped the dump being imported: ours for a fresh dump,
       // whatever the dump's provenance says (possibly unknown) for a reuse.
       let dumpHelper: string | null = helperModFingerprint();
+      // The base version the dump was taken with, which decides its quality
+      // scale (see resolveQualityScale). Unknown for a reused dump whose sidecar
+      // predates it, and then the importer falls back to reading the dump.
+      let baseVersion: string | null = null;
       if (reuseDump) {
         // No game involved: nothing to lock, nothing to patch, nothing to restore.
         const reuse = await dumpReuseStatus();
         dumpHelper = reuse.dumpHelperFingerprint;
+        baseVersion = reuse.dumpBaseVersion;
         if (!reuse.available) {
           state.phase = "error";
           state.error = reuse.reason ?? "No dump found on disk.";
@@ -881,7 +926,8 @@ export function startDataSync(opts: { icons?: boolean; reuseDump?: boolean } = {
         try {
           step("dump-data", "factorio --dump-data (with planner integration)");
           await factorio("--dump-data");
-          await writeDumpProvenance(factorioScriptOutputDir(), helperModFingerprint());
+          baseVersion = await readBaseVersion(factorioBin());
+          await writeDumpProvenance(factorioScriptOutputDir(), helperModFingerprint(), baseVersion);
           step("dump-locale", "factorio --dump-prototype-locale");
           await factorio("--dump-prototype-locale");
           if (icons) {
@@ -898,9 +944,13 @@ export function startDataSync(opts: { icons?: boolean; reuseDump?: boolean } = {
       const summary = importFactorioDump({
         dumpPath: join(factorioScriptOutputDir(), DUMP_FILE),
         dbUrl: currentDatabaseFile(),
+        baseVersion,
       });
       state.log.push(
         `imported ${summary.counts.recipes} recipes / ${summary.counts.items} items with data reader v${summary.dataFormatVersion} in ${summary.ms}ms`,
+      );
+      state.log.push(
+        `quality scale: ${summary.qualityScale.legacy ? "2.0, converted to 2.1" : "2.1"} (${summary.qualityScale.basis})`,
       );
       if (icons) {
         step("atlas", "rebuilding icon atlas");

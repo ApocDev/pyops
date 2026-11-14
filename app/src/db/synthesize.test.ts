@@ -120,6 +120,7 @@ const launchRaw = {
 const ctx = {
   display: () => null,
   parseSI: (s: unknown) => (typeof s === "number" ? s : null),
+  qualityScale: 1,
 };
 
 const get = <T = Record<string, unknown>>(sql: string, ...args: unknown[]) =>

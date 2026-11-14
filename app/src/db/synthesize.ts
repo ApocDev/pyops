@@ -53,6 +53,8 @@ type Ctx = {
   /** localized display for an entity/item/fluid name */
   display: (name: string) => string | null;
   parseSI: (s: unknown) => number | null;
+  /** factor bringing quality effects to the 2.1 scale (`QualityScale.effectScale`) */
+  qualityScale: number;
 };
 
 const arr = <T = any>(x: unknown): T[] => (Array.isArray(x) ? (x as T[]) : []);
@@ -107,7 +109,7 @@ export function effectCarrier(
 }
 
 export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Record<string, number> {
-  const { display, parseSI } = ctx;
+  const { display, parseSI, qualityScale } = ctx;
 
   const ins = {
     recipe: db.prepare(
@@ -263,7 +265,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       m.fluidFuelFilter ?? null,
       m.fluidFuelPerSec ?? null,
       m.fluidFuelEnergyJ ?? null,
-      parseEffectReceiver(m.effectReceiver),
+      parseEffectReceiver(m.effectReceiver, qualityScale),
     );
     ins.machineCat.run(m.name, m.category);
     for (const fc of m.fuelCategories ?? []) ins.machineFuel.run(m.name, fc);

@@ -52,8 +52,9 @@ dev, a per-OS user-data dir for a packaged build, overridable via `PYOPS_DATA_DI
 - `db/` — Drizzle ORM over `better-sqlite3`. `schema.ts` is the source of truth;
   `import-factorio.ts` loads the dump; `synthesize.ts` builds pass-2 synthetic
   recipes (mining/boiling/burning/spoiling/planting/rocket-launch, temperature
-  variants). Quality is intentionally not modelled (Py has none); fluid
-  temperatures **are**.
+  variants). Quality prototypes and fields are imported (`quality-import.ts`),
+  but the solver doesn't model quality yet (Py has none); fluid temperatures
+  **are**.
 - `lib/`, `components/` — React UI (shadcn/Radix + Tailwind v4).
 
 ## Build & verify (the `app/` toolchain)

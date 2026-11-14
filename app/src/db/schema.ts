@@ -6,7 +6,8 @@ const bool = (name?: string) => integer(name as string, { mode: "boolean" });
 
 /* ── Factorio reference data (pass 1: real prototypes) ─────────────────────────
  * Loaded from `data-raw-dump.json` by src/db/import-factorio.ts.
- * Quality is intentionally not modelled (Py has none). Fluid temperatures ARE:
+ * Quality prototypes and fields are imported, but the solver doesn't model
+ * quality yet (#24; Py has none). Fluid temperatures ARE modelled:
  * ingredients carry a min/max range, products an exact temperature.
  * Synthetic recipes (mining/boiling/burning/spoiling) + temp variants = pass 2.
  */
@@ -74,6 +75,16 @@ export const recipes = sqliteTable(
     // RecipePrototype.allow_quality (engine default true). The quality mod turns it
     // off on oil processing and cracking; Py turns it off on 897 recipes.
     allowQuality: bool("allow_quality").notNull().default(true),
+    // RecipePrototype.allow_speed / allow_consumption / allow_pollution (engine
+    // default true). Imported only; module placement doesn't read them yet.
+    allowSpeed: bool("allow_speed").notNull().default(true),
+    allowConsumption: bool("allow_consumption").notNull().default(true),
+    allowPollution: bool("allow_pollution").notNull().default(true),
+    // RecipePrototype.can_set_quality: whether the recipe can run above normal.
+    // False means it only runs at normal, though quality modules can still
+    // upgrade its products. Real recipes get the engine default when unset
+    // (db/quality-import.ts); synthetic recipes keep this column default.
+    canSetQuality: bool("can_set_quality").notNull().default(false),
     // RecipePrototype.maximum_productivity — caps total productivity (null = engine
     // default +300%). Py raises it to 1e6 on nearly every recipe (10344/10392).
     maximumProductivity: real("maximum_productivity"),
@@ -199,6 +210,22 @@ export const craftingMachines = sqliteTable("crafting_machines", {
   // skips its alien-life buildings. From the dump helper's
   // `pyops-beacon-interference` export.
   beaconInterferenceExempt: bool("beacon_interference_exempt").notNull().default(false),
+  // CraftingMachinePrototype quality fields; false/null on the synthesized
+  // drills, labs, boilers and generators. The flags opt into the quality's
+  // `crafting_machine_module_slots_bonus` / `crafting_machine_energy_usage_multiplier`.
+  // The maps override a quality's default per quality name (null = no overrides).
+  qualityAffectsModuleSlots: bool("quality_affects_module_slots").notNull().default(false),
+  qualityAffectsEnergyUsage: bool("quality_affects_energy_usage").notNull().default(false),
+  craftingSpeedQualityMultiplier: text("crafting_speed_quality_multiplier", {
+    mode: "json",
+  }).$type<Record<string, number> | null>(),
+  energyUsageQualityMultiplier: text("energy_usage_quality_multiplier", {
+    mode: "json",
+  }).$type<Record<string, number> | null>(),
+  moduleSlotsQualityBonus: text("module_slots_quality_bonus", { mode: "json" }).$type<Record<
+    string,
+    number
+  > | null>(),
 });
 
 export const machineCategories = sqliteTable(
@@ -228,6 +255,9 @@ export const miningDrills = sqliteTable("mining_drills", {
   moduleSlots: integer("module_slots").notNull().default(0),
   energyUsageW: real("energy_usage_w"),
   energySource: text("energy_source"),
+  // MiningDrillPrototype.quality_affects_module_slots: adds the quality's
+  // `mining_drill_module_slots_bonus`.
+  qualityAffectsModuleSlots: bool("quality_affects_module_slots").notNull().default(false),
 });
 
 export const drillResourceCategories = sqliteTable(
@@ -249,9 +279,18 @@ export const modules = sqliteTable("modules", {
   effProductivity: real("eff_productivity").notNull().default(0),
   effConsumption: real("eff_consumption").notNull().default(0),
   effPollution: real("eff_pollution").notNull().default(0),
-  // ModulePrototype effect.quality. Imported so planners can refuse quality
-  // modules; quality output itself is not modelled yet (#24).
+  // ModulePrototype effect.quality, on the Factorio 2.1 scale (a 2.0 dump's
+  // value is divided by 10). Imported so planners can refuse quality modules;
+  // quality output itself is not modelled yet (#24).
   effQuality: real("eff_quality").notNull().default(0),
+  // ModulePrototype `<effect>_quality_multiplier`: how much of the module
+  // quality's multiplier each effect gets (1 = all, 0 = none). Unset, it is 1
+  // for a beneficial effect and 0 for a penalty (db/quality-import.ts).
+  speedQualityMultiplier: real("speed_quality_multiplier").notNull().default(0),
+  productivityQualityMultiplier: real("productivity_quality_multiplier").notNull().default(0),
+  consumptionQualityMultiplier: real("consumption_quality_multiplier").notNull().default(0),
+  pollutionQualityMultiplier: real("pollution_quality_multiplier").notNull().default(0),
+  qualityQualityMultiplier: real("quality_quality_multiplier").notNull().default(0),
 });
 
 export const moduleLimitations = sqliteTable(
@@ -286,6 +325,15 @@ export const beacons = sqliteTable("beacons", {
   >(),
   profile: text({ mode: "json" }).$type<number[] | null>(),
   interference: text({ mode: "json" }).$type<string[] | null>(),
+  // BeaconPrototype quality fields: the flag adds the quality's
+  // `beacon_module_slots_bonus`; effectivity rises by the bonus per level
+  // (vanilla and Py beacons: 0.2).
+  qualityAffectsModuleSlots: bool("quality_affects_module_slots").notNull().default(false),
+  distributionEffectivityBonusPerQualityLevel: real(
+    "distribution_effectivity_bonus_per_quality_level",
+  )
+    .notNull()
+    .default(0),
 });
 
 /* ── Beacon upkeep ────────────────────────────────────────────────────────────
@@ -348,6 +396,10 @@ export const labs = sqliteTable("labs", {
   hidden: bool("hidden").notNull().default(false),
   tileWidth: integer("tile_width"),
   tileHeight: integer("tile_height"),
+  // LabPrototype quality fields: the first adds the quality's
+  // `lab_module_slots_bonus`, the second applies its `science_pack_drain_multiplier`.
+  qualityAffectsModuleSlots: bool("quality_affects_module_slots").notNull().default(false),
+  usesQualityDrainModifier: bool("uses_quality_drain_modifier").notNull().default(false),
 });
 
 /* ── Logistics prototypes (belts, loaders, inserters) ─────────────────────────
@@ -493,6 +545,17 @@ export const techUnlocks = sqliteTable(
   (t) => [primaryKey({ columns: [t.technology, t.recipe] }), index("tu_recipe_idx").on(t.recipe)],
 );
 
+/** Qualities a technology unlocks (`unlock-quality` effects), so the research
+ * horizon can tell which qualities are reachable. */
+export const techQualityUnlocks = sqliteTable(
+  "tech_quality_unlocks",
+  {
+    technology: text().notNull(),
+    quality: text().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.technology, t.quality] })],
+);
+
 /** Science packs required to research a technology (from unit.ingredients). */
 export const techIngredients = sqliteTable(
   "tech_ingredients",
@@ -503,6 +566,45 @@ export const techIngredients = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.technology, t.name] }), index("ti_tech_idx").on(t.technology)],
 );
+
+/* ── Qualities ────────────────────────────────────────────────────────────────
+ * QualityPrototype rows, with every multiplier and bonus the planner needs. The
+ * raw dump only holds values a mod set, so the importer fills the rest with the
+ * Factorio 2.1 defaults (db/quality-import.ts): `default_multiplier` =
+ * 1 + 0.3 × level, slot bonuses = level, and so on. Effect values use the 2.1
+ * scale; a 2.0 dump is rescaled on import. Normal links to the next level only
+ * with the quality mod; Py has just `normal` and the engine's hidden
+ * `quality-unknown` placeholder. */
+export const qualities = sqliteTable("qualities", {
+  name: text().primaryKey(),
+  display: text(),
+  level: integer().notNull().default(0),
+  next: text(), // the next quality up, null at the top of the chain
+  // chance of the first step up per 100% quality effect
+  nextProbability: real("next_probability").notNull().default(0),
+  // chance of each further step up after reaching this quality
+  chainProbability: real("chain_probability").notNull().default(0),
+  hidden: bool("hidden").notNull().default(false),
+  moduleSpeedMultiplier: real("module_speed_multiplier").notNull().default(1),
+  moduleProductivityMultiplier: real("module_productivity_multiplier").notNull().default(1),
+  moduleConsumptionMultiplier: real("module_consumption_multiplier").notNull().default(1),
+  modulePollutionMultiplier: real("module_pollution_multiplier").notNull().default(1),
+  moduleQualityMultiplier: real("module_quality_multiplier").notNull().default(1),
+  craftingMachineSpeedMultiplier: real("crafting_machine_speed_multiplier").notNull().default(1),
+  craftingMachineEnergyUsageMultiplier: real("crafting_machine_energy_usage_multiplier")
+    .notNull()
+    .default(1),
+  craftingMachineModuleSlotsBonus: integer("crafting_machine_module_slots_bonus")
+    .notNull()
+    .default(0),
+  beaconPowerUsageMultiplier: real("beacon_power_usage_multiplier").notNull().default(1),
+  beaconModuleSlotsBonus: integer("beacon_module_slots_bonus").notNull().default(0),
+  labResearchSpeedMultiplier: real("lab_research_speed_multiplier").notNull().default(1),
+  labModuleSlotsBonus: integer("lab_module_slots_bonus").notNull().default(0),
+  miningDrillModuleSlotsBonus: integer("mining_drill_module_slots_bonus").notNull().default(0),
+  sciencePackDrainMultiplier: real("science_pack_drain_multiplier").notNull().default(1),
+  toolDurabilityMultiplier: real("tool_durability_multiplier").notNull().default(1),
+});
 
 export const meta = sqliteTable("meta", {
   key: text().primaryKey(),

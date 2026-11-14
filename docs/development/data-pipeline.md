@@ -118,8 +118,10 @@ helper patches prototypes during the dump, its edits are part of the file's mean
 
 Every project reads the same dump file, so the helper's fingerprint is stored with the file.
 Right after `--dump-data`, the sync writes `pyops-dump-provenance.json` next to
-`data-raw-dump.json`, holding a fingerprint of the helper's sources and the dump's
-modification time. The reuse check trusts that sidecar only when its time matches the file
+`data-raw-dump.json`, holding a fingerprint of the helper's sources, the dump's
+modification time, and the game's `base` mod version. The sync reads that version from
+`data/base/info.json` in the install that holds the game binary, because `base` is not in
+the mods folder. The reuse check trusts that sidecar only when its time matches the file
 on disk. Without a matching sidecar, as for a dump made before the sidecar existed, it falls
 back to the fingerprint the project stamped into `meta`, but only if that project imported
 this same file. Otherwise the helper is unknown, which warns but does not block reuse.
@@ -152,7 +154,11 @@ The importer converts Factorio's flexible prototype shapes into stable relationa
   zero for labs, mining drills, and other types. Null for non-electric sources;
 - each crafting machine's, mining drill's, and lab's effect receiver: its base effect, effect
   limits, and whether modules and beacons apply (engine defaults filled in; null when the
-  prototype sets none);
+  prototype sets none). Quality's base effect and limits are stored too (default limits
+  0 to 1000), though nothing reads them yet;
+- each recipe's `allow_speed`, `allow_consumption`, and `allow_pollution` (engine default
+  true). Module placement does not read them yet;
+- quality prototypes and the other quality fields (see [Quality data](#quality-data));
 - logistics prototypes and technology-driven stack bonuses;
 - productivity effects, TURD replacements, and rocket constants.
 
@@ -307,6 +313,53 @@ The importer records whether the dump has quality in the `has_quality` metadata 
 quality has a `next` level, which only the quality mod sets. A recycler is not enough: the
 Py dump has the `recycler` furnace and its recycling recipes, but normal is its only quality.
 A project imported before the key existed reports `hasQuality: false` until its next sync.
+
+### Quality data
+
+The importer reads everything quality needs from the dump, but the solver does not use it
+yet. A dump only holds the values a mod set, so the importer fills in Factorio 2.1's
+documented defaults (`QualityPrototype` and `RecipePrototype` in
+`doc-html/prototype-api.json`). `db/quality-import.ts` holds those rules.
+
+- `qualities` has one row per quality prototype: `level`, `next`, `next_probability`,
+  `chain_probability`, `hidden`, and the multipliers and bonuses the planner needs. With
+  `default_multiplier` = 1 + 0.3 × level, the module, crafting speed, and lab speed
+  multipliers default to it. Slot bonuses default to the level, `tool_durability_multiplier`
+  to 1 + level, `chain_probability` to `next_probability` × 0.1 clamped to [0, 1], and the
+  rest to 1. The Py dump has only `normal` (no `next`) and the engine's hidden
+  `quality-unknown` placeholder. The quality mod adds uncommon, rare, epic, and legendary.
+- `modules` stores each module's `<effect>_quality_multiplier`: how much of the module
+  quality's multiplier each effect gets. Unset, it is 1 for a beneficial effect (positive
+  speed, productivity, and quality; negative consumption and pollution) and 0 for a penalty.
+- `tech_quality_unlocks` records `unlock-quality` technology effects, so the research horizon
+  can tell which qualities are reachable.
+- Machines store the flags that opt into quality bonuses. `crafting_machines` has
+  `quality_affects_module_slots`, `quality_affects_energy_usage`, and the per-quality override
+  maps `crafting_speed_quality_multiplier`, `energy_usage_quality_multiplier`, and
+  `module_slots_quality_bonus`. These are false or null on the drill, lab, boiler, and
+  generator rows pass 2 adds. `mining_drills` and `beacons` have `quality_affects_module_slots`,
+  and `beacons` also has `distribution_effectivity_bonus_per_quality_level` (0.2 on vanilla
+  and Py beacons). `labs` has `quality_affects_module_slots` and `uses_quality_drain_modifier`.
+- `recipes.can_set_quality` says whether a recipe can run above normal. Unset, it is true
+  for a parameter recipe or one with an item ingredient that sets none of `quality_min`,
+  `quality_max`, and `quality_change`. So a recipe with only fluid ingredients runs at normal,
+  though quality modules can still upgrade its products. Synthetic recipes from pass 2,
+  including research, are always false. Fluids never have quality.
+
+Factorio 2.1.7 divided every prototype quality effect by 10, multiplied `next_probability`
+by 10, and added `chain_probability`. A dump taken with a `base` version older than 2.1.7 is
+brought to the 2.1 scale. The importer gets that version from the dump's provenance sidecar.
+When no version is known, such as a reused dump whose sidecar predates the field, it falls
+back to the dump itself: the base game sets `chain_probability` on `normal` from 2.1.7 on, so
+a `normal` without it reads as the older scale. A mod set could drop that field, which is why
+the version decides whenever there is one. The `quality_scale_basis` metadata key and the sync
+log record which path decided, and `factorio_version` holds the base version or `unknown`.
+Module quality effects, a receiver's base quality effect, and the `quality_limits` bounds a
+receiver sets are divided by 10. Unset bounds keep their 2.1 defaults. Each
+quality's `next_probability` is multiplied by 10, and its raw value becomes the chain
+probability, since 2.0 used it for every further step. The engine also floors a module's
+quality-scaled quality effect more coarsely in 2.0. The importer records that precision in
+the `quality_effect_step` metadata key: 0.0001 for 2.1 and 0.001 for 2.0.
 
 ### Energy goods
 
