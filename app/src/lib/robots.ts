@@ -7,8 +7,9 @@
  * `worker_robots_storage_bonus`).
  *
  * The trip model: a robot flies `distance` tiles loaded and the same distance
- * back empty, carrying a full payload of one item each trip. Pickup and drop
- * ticks are ignored.
+ * back empty, carrying a full payload of one item each trip. A payload is at
+ * most one stack, so an item with a small stack size rides in smaller loads.
+ * Pickup and drop ticks are ignored.
  *
  * The charging model is rough on purpose. A robot leaves to charge when its
  * battery falls to `min_to_charge` and refills to `max_to_charge`, so each
@@ -73,9 +74,11 @@ export function robotSpeed(r: RobotProto, b: RobotBonuses): number {
   return r.speed * 60 * (1 + Math.max(0, b.speed));
 }
 
-/** Items carried per trip with the force cargo bonus. */
-export function robotPayload(r: RobotProto, b: RobotBonuses): number {
-  return Math.max(1, r.maxPayloadSize + Math.max(0, Math.floor(b.storage)));
+/** Items carried per trip: the prototype payload plus the force cargo bonus,
+ * capped at one stack of the item when its stack size is known. */
+export function robotPayload(r: RobotProto, b: RobotBonuses, stackSize?: number): number {
+  const payload = r.maxPayloadSize + Math.max(0, Math.floor(b.storage));
+  return Math.max(1, stackSize != null && stackSize > 0 ? Math.min(payload, stackSize) : payload);
 }
 
 /** Seconds and joules to fly `tiles` tiles. */
@@ -97,14 +100,16 @@ export type RobotTrip = {
 
 /** One robot's round trip over `distance` tiles each way. Pass a roboport to
  * add the charging detour and pad time; omit it for the flight-only lower
- * bound. A robot that can't reach a roboport on one charge moves nothing. */
+ * bound. A robot that can't reach a roboport on one charge moves nothing.
+ * `stackSize` caps the payload at one stack of the carried item. */
 export function robotTrip(
   r: RobotProto,
   b: RobotBonuses,
   distance: number,
   roboport?: RoboportProto,
+  stackSize?: number,
 ): RobotTrip {
-  const payload = robotPayload(r, b);
+  const payload = robotPayload(r, b, stackSize);
   const v = robotSpeed(r, b);
   if (!(v > 0)) return { payload, flightSeconds: Infinity, chargeSeconds: 0, itemsPerSecond: 0 };
   const trip = flight(r, v, 2 * Math.max(0, distance));
@@ -127,15 +132,37 @@ export function robotTrip(
   };
 }
 
-/** Robots needed to move `rate` items/s over `distance` tiles (fractional). */
+/** Robots needed to move `rate` items/s of one item over `distance` tiles
+ * (fractional), with the selected robot and roboport. */
 export function robotsForRate(
   rate: number,
-  r: RobotProto,
-  b: RobotBonuses,
+  robots: ResolvedRobots,
   distance: number,
-  roboport?: RoboportProto,
+  stackSize?: number,
 ): number {
   if (!(rate > 0)) return 0;
-  const per = robotTrip(r, b, distance, roboport).itemsPerSecond;
+  const { robot, bonuses, roboport } = robots;
+  const per = robotTrip(robot, bonuses, distance, roboport, stackSize).itemsPerSecond;
   return per > 0 ? rate / per : Infinity;
+}
+
+type Flow = { name: string; kind: string; rate: number };
+
+/** Goods a logistic robot can carry: real items. Fluids and PyOps' virtual
+ * goods (`pyops-electricity`, `pyops-heat`, …) never count. */
+export const robotCarries = (f: { name: string; kind: string }) =>
+  f.kind === "item" && !f.name.startsWith("pyops-");
+
+/** The solved flows robots move across a block's boundary: imports, surplus
+ * exports, and what each produce goal actually sends out (`goalOutputs`). A
+ * goal a count pin superseded sends out 0 there, because its whole output is
+ * already in the exports. Only goods robots carry are kept. */
+export function robotFlows(res: {
+  imports: Flow[];
+  displayExports: Flow[];
+  goalOutputs: Flow[];
+}): Flow[] {
+  return [...res.imports, ...res.displayExports, ...res.goalOutputs].filter(
+    (f) => robotCarries(f) && f.rate > 0,
+  );
 }

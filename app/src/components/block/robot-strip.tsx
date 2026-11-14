@@ -4,44 +4,33 @@ import { X } from "lucide-react";
 import { Button } from "#/components/ui/button.tsx";
 import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { Icon } from "../../lib/icons";
-import { robotsForRate } from "../../lib/robots";
+import { robotFlows } from "../../lib/robots";
 import { RobotDistanceInput } from "../robot-distance-input.tsx";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
 
 /** The block's robot total and its trip-distance override (#255), as a strip at
- * the top of the Balance card. The total covers every item crossing the block
- * boundary: imports, surplus exports, and produced goals. */
+ * the top of the Balance card. The total covers the solved item flows crossing
+ * the block boundary (`robotFlows`), the same rates the chips under each item
+ * use. */
 export function RobotStrip({
   doc,
   res,
   logi,
-  kindOf,
 }: {
   doc: BlockDocStore;
   res: SolveResult;
   logi: LogiView;
-  kindOf: (name: string) => "item" | "fluid";
 }) {
   const override = useStore(doc.store, (s) => s.robotDistance);
-  const goals = useStore(doc.store, (s) => s.goals);
   const [editing, setEditing] = useState(false);
   const robots = logi.robots;
   if (!robots) return null;
 
-  const item = (f: { name: string; kind: string }) =>
-    f.kind === "item" && !f.name.startsWith("pyops-");
-  const rates = [
-    ...res.imports.filter(item).map((f) => f.rate),
-    ...res.displayExports.filter(item).map((f) => f.rate),
-    ...goals.filter((g) => g.rate > 0 && kindOf(g.name) === "item").map((g) => g.rate),
-  ];
-  if (!rates.length) return null;
-  const { robot, roboport, bonuses } = robots.resolved;
-  const total = rates.reduce(
-    (sum, rate) => sum + robotsForRate(rate, robot, bonuses, robots.distance, roboport),
-    0,
-  );
+  const counts = robotFlows(res).map(logi.robotsFor);
+  if (!counts.length || counts.some((c) => c == null)) return null;
+  const { robot, roboport } = robots.resolved;
+  const total = counts.reduce((sum, c) => sum + (c?.count ?? 0), 0);
   const whole = Number.isFinite(total) ? Math.ceil(total - 1e-9) : Infinity;
 
   const setDistance = (tiles: number | null) => {

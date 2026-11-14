@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   type RobotProto,
   type RoboportProto,
+  robotFlows,
   robotPayload,
   robotSpeed,
   robotTrip,
@@ -27,12 +28,21 @@ const PORT: RoboportProto = {
   logisticsRadius: 30,
 };
 const NO_BONUS = { speed: 0, storage: 0 };
+const BOTS = { robot: MK01, roboport: PORT, bonuses: NO_BONUS };
 
 describe("robot bonuses", () => {
   it("applies the force speed modifier and cargo bonus", () => {
     expect(robotSpeed(MK01, NO_BONUS)).toBeCloseTo(4.8);
     expect(robotSpeed(MK01, { speed: 0.5, storage: 0 })).toBeCloseTo(7.2);
     expect(robotPayload(MK01, { speed: 0, storage: 2 })).toBe(5);
+  });
+
+  it("caps a load at one stack of the item", () => {
+    expect(robotPayload(MK01, { speed: 0, storage: 2 }, 1)).toBe(1);
+    expect(robotPayload(MK01, NO_BONUS, 200)).toBe(3);
+    // a stack-size-1 item needs three times the MK 01 bots of a stackable one
+    const stackable = robotsForRate(1, BOTS, 50, 50);
+    expect(robotsForRate(1, BOTS, 50, 1)).toBeCloseTo(stackable * 3);
   });
 });
 
@@ -73,11 +83,32 @@ describe("robotTrip", () => {
 
 describe("robotsForRate", () => {
   it("scales with rate and distance and drops with the bonuses", () => {
-    const near = robotsForRate(1, MK01, NO_BONUS, 25, PORT);
-    const far = robotsForRate(1, MK01, NO_BONUS, 50, PORT);
+    const near = robotsForRate(1, BOTS, 25);
+    const far = robotsForRate(1, BOTS, 50);
     expect(far).toBeGreaterThan(near * 1.9);
-    expect(robotsForRate(2, MK01, NO_BONUS, 50, PORT)).toBeCloseTo(far * 2);
-    expect(robotsForRate(1, MK01, { speed: 1, storage: 3 }, 50, PORT)).toBeLessThan(far / 2);
-    expect(robotsForRate(0, MK01, NO_BONUS, 50, PORT)).toBe(0);
+    expect(robotsForRate(2, BOTS, 50)).toBeCloseTo(far * 2);
+    expect(robotsForRate(1, { ...BOTS, bonuses: { speed: 1, storage: 3 } }, 50)).toBeLessThan(
+      far / 2,
+    );
+    expect(robotsForRate(0, BOTS, 50)).toBe(0);
+  });
+});
+
+describe("robotFlows", () => {
+  it("keeps solved item flows and drops fluids and virtual goods", () => {
+    const flows = robotFlows({
+      imports: [
+        { name: "iron-plate", kind: "item", rate: 2 },
+        { name: "water", kind: "fluid", rate: 50 },
+        { name: "pyops-electricity", kind: "fluid", rate: 3 },
+        { name: "pyops-combinator-planner", kind: "item", rate: 1 },
+      ],
+      displayExports: [{ name: "steel-plate", kind: "item", rate: 1.5 }],
+      goalOutputs: [
+        { name: "gear", kind: "item", rate: 1 },
+        { name: "pyops-heat", kind: "fluid", rate: 4 },
+      ],
+    });
+    expect(flows.map((f) => f.name)).toEqual(["iron-plate", "steel-plate", "gear"]);
   });
 });

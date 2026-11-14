@@ -3638,6 +3638,21 @@ export function itemWeights(names: string[]): Record<string, number | null> {
   return out;
 }
 
+/** Stack size per item, keyed by name — a robot carries at most one stack
+ * (#255). `null` = the item has no stack size in the data. */
+export function itemStackSizes(names: string[]): Record<string, number | null> {
+  const uniq = [...new Set(names)];
+  const out: Record<string, number | null> = {};
+  if (!uniq.length) return out;
+  for (const r of db
+    .select({ name: items.name, stackSize: items.stackSize })
+    .from(items)
+    .where(inArray(items.name, uniq))
+    .all())
+    out[r.name] = r.stackSize ?? null;
+  return out;
+}
+
 /** Current belt / inserter / bulk-inserter stack-size bonuses, summed over the
  * tech in effect under the research horizon: everything in FUTURE mode, live
  * research + the pack gate in NOW, the tier's pack gate for a target — the same

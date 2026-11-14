@@ -321,7 +321,16 @@ export function GoalCard({
                             showBelts={logi.showBelts}
                             showInserters={logi.showInserters}
                             launch={logi.launchInfo(g, Math.abs(goal.rate))}
-                            robots={logi.robots}
+                            robots={logi.robotsFor({
+                              name: g,
+                              kind,
+                              // the solved rate: a consume goal's import, else what
+                              // the goal actually sends out (0 once a pin supersedes it)
+                              rate:
+                                (consumes ? res?.imports : res?.goalOutputs)?.find(
+                                  (flow) => flow.name === g,
+                                )?.rate ?? 0,
+                            })}
                           />
                         )}
                         {/* supply-push note (#121): a count pin on this goal's producer

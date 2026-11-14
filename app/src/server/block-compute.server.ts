@@ -1615,9 +1615,20 @@ export async function computeBlock(rawData: SolveInput) {
     }),
   );
 
+  // What each produce goal actually sends out of the block: the solver's floor,
+  // which is 0 for a goal a count pin superseded or one nothing makes. Surplus
+  // above the floor is already in `exports`, so the two never overlap. The bot
+  // counts (#255) size from these solved rates, not the doc's requested ones.
+  const goalOutputs = goals.flatMap((g) =>
+    g.direction !== "consume" && g.rate > 0 && !allUnmade.includes(g.name)
+      ? [{ name: g.name, kind: refs.getFluid(g.name) ? "fluid" : "item", rate: g.rate }]
+      : [],
+  );
+
   return {
     ...result,
     imports,
+    goalOutputs,
     qualifiedImports,
     displayImports,
     qualifiedDisplayImports,

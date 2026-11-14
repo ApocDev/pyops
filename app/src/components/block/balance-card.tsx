@@ -279,7 +279,7 @@ export function BalanceCard({
         </Callout>
       ) : (
         <>
-          {res && <RobotStrip doc={doc} res={res} logi={logi} kindOf={kindOf} />}
+          {res && <RobotStrip doc={doc} res={res} logi={logi} />}
           {res?.unmade?.length && !res.broken ? (
             <div className="border-b border-border px-3 py-2 text-sm text-warning">
               <div className="mb-1 flex items-center gap-1 font-semibold">
@@ -405,7 +405,7 @@ export function BalanceCard({
                             showBelts={logi.showBelts}
                             showInserters={logi.showInserters}
                             launch={logi.launchInfo(f.name, f.rate)}
-                            robots={logi.robots}
+                            robots={logi.robotsFor(f)}
                           />
                         )}
                       </span>
@@ -475,7 +475,7 @@ export function BalanceCard({
                             showBelts={logi.showBelts}
                             showInserters={logi.showInserters}
                             launch={logi.launchInfo(f.name, f.rate)}
-                            robots={logi.robots}
+                            robots={logi.robotsFor(f)}
                           />
                         )}
                       </span>

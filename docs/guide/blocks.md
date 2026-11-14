@@ -199,6 +199,7 @@ goal, shows the logistic robots that move it. The **Block balance** card adds a 
 block's total. Pick the robot and the roboport it charges at in the **Robots** section of the
 **Logistics** dialog, and set **Trip distance** to the usual one-way flight in tiles, from the
 provider chest to the requester chest. A robot carries a full load out and flies back empty.
+A load is never more than one stack, so an item with a small stack size needs more robots.
 The count includes the detour to a roboport and the time a charging pad takes to refill the
 robot. Busy roboports can queue robots, so treat the count as slightly low. Robot speed and
 cargo research come from your save over the in-game link; without the link the count assumes

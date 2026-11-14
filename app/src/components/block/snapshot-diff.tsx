@@ -251,6 +251,20 @@ export function SnapshotDiffView({
         </DiffSection>
       )}
 
+      {diff.robotDistance && (
+        <DiffSection title="Robots">
+          <Row
+            left="Trip distance"
+            right={
+              <FromTo
+                from={robotDistanceLabel(diff.robotDistance.from)}
+                to={robotDistanceLabel(diff.robotDistance.to)}
+              />
+            }
+          />
+        </DiffSection>
+      )}
+
       {diff.spoilRates.length > 0 && (
         <DiffSection title="Incidental spoilage estimates">
           {diff.spoilRates.map((c) => (
@@ -270,6 +284,9 @@ export function SnapshotDiffView({
     </div>
   );
 }
+
+const robotDistanceLabel = (tiles: number | null) =>
+  tiles == null ? "Factory default" : `${tiles} tiles`;
 
 const campaignLabel = (campaign: TemporaryCampaign) => {
   const hours = +(campaign.duration / 3600).toFixed(2);

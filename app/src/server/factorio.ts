@@ -928,6 +928,11 @@ export const itemWeightsFn = createServerFn({ method: "POST" })
   .validator((names: string[]) => names)
   .handler(async ({ data }) => q.itemWeights(data));
 
+/** Item stack sizes for the robot cargo cap (null → no cap). */
+export const itemStackSizesFn = createServerFn({ method: "POST" })
+  .validator((names: string[]) => names)
+  .handler(async ({ data }) => q.itemStackSizes(data));
+
 export const setLogisticsPrefsFn = createServerFn({ method: "POST" })
   .validator(
     (d: {

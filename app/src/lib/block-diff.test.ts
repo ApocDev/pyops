@@ -70,6 +70,20 @@ describe("diffBlockDocs", () => {
     });
   });
 
+  it("a robot distance override, set or cleared, counts as a change", () => {
+    expect(diffBlockDocs(base(), base()).robotDistance).toBeNull();
+    const set = diffBlockDocs(base(), base({ robotDistance: 140 }));
+    expect(set.robotDistance).toEqual({ from: null, to: 140 });
+    expect(set.unchanged).toBe(false);
+    expect(
+      diffBlockDocs(base({ robotDistance: 140 }), base({ robotDistance: 200 })).robotDistance,
+    ).toEqual({ from: 140, to: 200 });
+    expect(diffBlockDocs(base({ robotDistance: 140 }), base()).robotDistance).toEqual({
+      from: 140,
+      to: null,
+    });
+  });
+
   it("recipes: added, removed, and enabled/disabled toggles", () => {
     const from = base({ recipes: ["a", "b", "c"], disabledRecipes: ["b"] });
     const to = base({ recipes: ["b", "c", "d"], disabledRecipes: ["c"] });

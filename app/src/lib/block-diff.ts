@@ -1,7 +1,8 @@
 /**
  * Block-doc diff (#85): what changed between two block definitions — goals
  * added/removed/re-rated, recipes added/removed/toggled, per-recipe pick changes
- * (machine/fuel/modules/beacons), disposition and spoil-plan changes. Pure — no
+ * (machine/fuel/modules/beacons), disposition and spoil-plan changes, and the
+ * robot trip distance override. Pure — no
  * db, no React — so the snapshot drawer and its tests share one implementation.
  *
  * Both inputs are assumed normalized (`normalizeBlockData`); callers hold the
@@ -52,6 +53,8 @@ export type BlockDiff = {
   /** pin changes (#91), keyed per recipe (count/cap) or recipe « item (share) */
   pins: ValueChange<string>[];
   spoilRates: ValueChange<number>[];
+  /** the block's robot trip distance override (#255); null = factory default */
+  robotDistance: { from: number | null; to: number | null } | null;
   /** true when nothing above holds a change */
   unchanged: boolean;
 };
@@ -153,9 +156,13 @@ export function diffBlockDocs(from: BlockData, to: BlockData): BlockDiff {
   const pinsA = Object.fromEntries((from.pins ?? []).map((p) => [pinKey(p), pinVal(p)]));
   const pinsB = Object.fromEntries((to.pins ?? []).map((p) => [pinKey(p), pinVal(p)]));
   const pins = diffMap(pinsA, pinsB);
+  const rdFrom = from.robotDistance ?? null;
+  const rdTo = to.robotDistance ?? null;
+  const robotDistance = rdFrom === rdTo ? null : { from: rdFrom, to: rdTo };
 
   const unchanged =
     (campaign ? 1 : 0) +
+      (robotDistance ? 1 : 0) +
       goals.added.length +
       goals.removed.length +
       goals.changed.length +
@@ -170,7 +177,18 @@ export function diffBlockDocs(from: BlockData, to: BlockData): BlockDiff {
       spoilRates.length ===
     0;
 
-  return { campaign, goals, recipes, picks, dispositions, made, pins, spoilRates, unchanged };
+  return {
+    campaign,
+    goals,
+    recipes,
+    picks,
+    dispositions,
+    made,
+    pins,
+    spoilRates,
+    robotDistance,
+    unchanged,
+  };
 }
 
 /** Every internal name a diff references, split by NAMESPACE — `recipes` (recipe
