@@ -110,11 +110,11 @@ jobs:
             bundles: "deb,appimage"
             target: linux-x86_64
             updater: "*.AppImage"
-          - platform: macos-14 # macOS Apple Silicon (app.tar.gz = updater artifact)
+          - platform: macos-15 # macOS Apple Silicon (app.tar.gz = updater artifact)
             bundles: "app,dmg"
             target: darwin-aarch64
             updater: "*.app.tar.gz"
-          - platform: macos-14 # macOS Intel — cross-compiled on arm64, since the
+          - platform: macos-15 # macOS Intel — cross-compiled on arm64, since the
             bundles: "app,dmg" # macos-13 (Intel) runners are deprecated and badly
             target: darwin-x86_64 # queue-starved. arm64 runners are plentiful.
             updater: "*.app.tar.gz"
