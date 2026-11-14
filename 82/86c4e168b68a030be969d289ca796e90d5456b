@@ -1,0 +1,63 @@
+app/drizzle/0027_logistic-robots.sql
+  s_f8a6f5e0dd408c::t_08189a679ce37b 1-20
+app/drizzle/meta/0027_snapshot.json
+  s_f8a6f5e0dd408c::t_e256df6f50d93f 1-3083
+app/drizzle/meta/_journal.json
+  s_f8a6f5e0dd408c::t_6c27c5098e5768 193-199
+app/src/db/import-factorio.test.ts
+  s_f8a6f5e0dd408c::t_0bb5cfc03295e1 309-349
+app/src/db/import-factorio.ts
+  s_f8a6f5e0dd408c::t_9cd058ce6191c5 172-173,200-201,313-318,638-664
+app/src/db/queries.server.ts
+  s_f8a6f5e0dd408c::t_738f421bdd027f 61,3638-3652
+app/src/db/schema.ts
+  s_fe782a229fe9b1::t_025fb3829fac7d 386-411
+app/src/lib/data-format.ts
+  s_f8a6f5e0dd408c::t_9ad0933d63f2a0 9
+app/src/lib/robots.test.ts
+  s_f8a6f5e0dd408c::t_6237ed44cbd5cd 1-83
+app/src/lib/robots.ts
+  s_f8a6f5e0dd408c::t_5be01a4e6cf7f2 1-118
+app/src/server/bridge/handlers/handlers.test.ts
+  s_5b66b496e7f554::t_2d564e7135c320 119-139
+app/src/server/bridge/handlers/research.ts
+  s_f8a6f5e0dd408c::t_c67deab96c3687 6-8,22-23,67-75
+docs/development/bridge.md
+  s_f8a6f5e0dd408c::t_dd7eee0e92ade0 117
+docs/development/data-pipeline.md
+  s_f8a6f5e0dd408c::t_8780d368d42896 316-323
+mod/control.lua
+  s_5b66b496e7f554::t_bb425c2dc6f35b 241-242
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8286c4e168b68a030be969d289ca796e90d5456b",
+  "prompts": {},
+  "sessions": {
+    "s_5b66b496e7f554": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8f57074c-fedc-4146-9dc6-69aaa2f3cc56",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f8a6f5e0dd408c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3a5d3a4d-f7d5-4feb-b32d-f1628e5ab72d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_fe782a229fe9b1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cc7ac7c1-677e-4fca-ae19-c7276461698b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

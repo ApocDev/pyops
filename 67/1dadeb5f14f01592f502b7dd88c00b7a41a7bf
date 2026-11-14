@@ -1,0 +1,51 @@
+app/src/components/block/balance-card.tsx
+  s_f8a6f5e0dd408c::t_afc0e155b565dc 282,408,478
+app/src/components/block/goal-card.tsx
+  s_f8a6f5e0dd408c::t_ab2267e1a383f0 324-333
+app/src/components/block/logi-tag.tsx
+  s_f8a6f5e0dd408c::t_1ab75105b6cfb4 6,13,31,38-39,47,51,72,74-75
+app/src/components/block/robot-strip.tsx
+  s_f8a6f5e0dd408c::t_74b97946af733b 7,13-15,30-33
+app/src/components/block/snapshot-diff.tsx
+  s_f8a6f5e0dd408c::t_c65d0d9828856b 254-267,288-290
+app/src/components/block/solve-view.ts
+  s_f8a6f5e0dd408c::t_093cc217ebf24b 6-10,29-30,32-34
+app/src/components/logistics-help.tsx
+  s_f8a6f5e0dd408c::t_0c842fed23e853 29-32
+app/src/db/queries.server.ts
+  s_f8a6f5e0dd408c::t_ad9652310b1d40 3641-3655
+app/src/lib/block-diff.test.ts
+  s_f8a6f5e0dd408c::t_85099e47d579ab 73-86
+app/src/lib/block-diff.ts
+  s_f8a6f5e0dd408c::t_18d5eb1cec0744 4-5,56-57,159-161,165,180-191
+app/src/lib/robots.test.ts
+  s_f8a6f5e0dd408c::t_cae69a180bc182 5,31,39-46,86-87,89-112
+app/src/lib/robots.ts
+  s_f8a6f5e0dd408c::t_436e3f7f2d4224 10-12,77-81,103-104,110,112,135-136,139,141,144-145,148-168
+app/src/routes/block.$id.tsx
+  s_f8a6f5e0dd408c::t_de4a3314731e86 12,32,777-802,827-828
+app/src/server/block-compute.server.ts
+  s_f8a6f5e0dd408c::t_98a0bacff0eafe 1618-1627,1631
+app/src/server/block-compute.test.ts
+  s_f8a6f5e0dd408c::t_dd4b250258074a 68,1567-1590,1633-1634
+app/src/server/factorio.ts
+  s_f8a6f5e0dd408c::t_87b00a9abfd8ba 931-935
+docs/guide/blocks.md
+  s_f8a6f5e0dd408c::t_e09fd724768f14 202
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "671dadeb5f14f01592f502b7dd88c00b7a41a7bf",
+  "prompts": {},
+  "sessions": {
+    "s_f8a6f5e0dd408c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3a5d3a4d-f7d5-4feb-b32d-f1628e5ab72d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}

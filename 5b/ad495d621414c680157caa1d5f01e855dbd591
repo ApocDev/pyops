@@ -1,0 +1,63 @@
+app/e2e/mut/robots.e2e.ts
+  s_5b66b496e7f554::t_045cb7b3e26b10 1-81
+app/src/components/block/balance-card.tsx
+  s_f8a6f5e0dd408c::t_57c08ca8785b50 13,282,408,478
+app/src/components/block/doc-store.ts
+  s_f8a6f5e0dd408c::t_3ed82b996477ea 61-62,91,119,180,501-502
+app/src/components/block/goal-card.tsx
+  s_f8a6f5e0dd408c::t_a9a269b2485bb7 324
+app/src/components/block/logi-tag.tsx
+  s_f8a6f5e0dd408c::t_e101af86444f2a 4,11-13,22,31,35-36,38-47,55,59,80-85
+app/src/components/block/robot-strip.tsx
+  s_f8a6f5e0dd408c::t_51fa0890c9a35b 1-102
+app/src/components/block/solve-view.ts
+  s_f8a6f5e0dd408c::t_2c7813a0843609 6,25-29
+app/src/components/logistics-help.tsx
+  s_f8a6f5e0dd408c::t_189e5231fb73ed 27-33
+app/src/components/logistics-menu.tsx
+  s_f8a6f5e0dd408c::t_36007473cdfc20 15,20,47-53,61,67,126-133,169-177,281-330
+app/src/components/robot-distance-input.tsx
+  s_f8a6f5e0dd408c::t_884b4eed180665 1-67
+app/src/db/queries.server.ts
+  s_f8a6f5e0dd408c::t_97f581fa800054 37-38,59,62,3543-3547,3603-3623,3742-3745,3748
+app/src/db/schema.ts
+  s_f8a6f5e0dd408c::t_d578ec7a1e4ff6 676-678
+app/src/lib/data-format.ts
+  s_f8a6f5e0dd408c::t_fc88b2071dce6b 9
+app/src/lib/logistics.ts
+  s_f8a6f5e0dd408c::t_4b2e3c0712cbd5 28-29,411-414,421-422,428
+app/src/lib/robots.ts
+  s_f8a6f5e0dd408c::t_3a74cd597c8894 48-70
+app/src/routes/block.$id.tsx
+  s_f8a6f5e0dd408c::t_80bb73918971d1 31,564-568,572-578,800-804
+app/src/server/block-compute.server.ts
+  s_f8a6f5e0dd408c::t_7e72945f68553c 297-299
+app/src/server/factorio.ts
+  s_f8a6f5e0dd408c::t_b8422fe57d6ae2 942-945,957-961
+docs/guide/blocks.md
+  s_f8a6f5e0dd408c::t_f7ca2e69c779a4 197-210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5bad495d621414c680157caa1d5f01e855dbd591",
+  "prompts": {},
+  "sessions": {
+    "s_5b66b496e7f554": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8f57074c-fedc-4146-9dc6-69aaa2f3cc56",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f8a6f5e0dd408c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3a5d3a4d-f7d5-4feb-b32d-f1628e5ab72d",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
