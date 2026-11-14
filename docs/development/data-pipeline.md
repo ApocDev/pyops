@@ -294,6 +294,20 @@ item named by `placeable_by`, so building research gates hidden child entities c
 Alternate `-blank` runtime states that point to the same placeable item are not exposed as
 duplicate recipes.
 
+### Quality identity
+
+The solver does not model quality, but the stored data has room for it. Normal quality is
+always written as no quality at all. `block_flows`, `block_machines`, and `built_machines`
+have a nullable `quality` column, and null means normal, so every Py row reads the same as
+before. Block documents have no quality field, so every existing document reads as
+all-normal.
+
+The importer records whether the dump has quality in the `has_quality` metadata key, which
+`dataCapabilities()` reports as `hasQuality`. It is true only when the dump's `normal`
+quality has a `next` level, which only the quality mod sets. A recycler is not enough: the
+Py dump has the `recycler` furnace and its recycling recipes, but normal is its only quality.
+A project imported before the key existed reports `hasQuality: false` until its next sync.
+
 ### Energy goods
 
 Electricity, heat, and fungible fluid-fuel energy use synthetic goods measured in

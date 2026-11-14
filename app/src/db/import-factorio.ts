@@ -724,6 +724,10 @@ export function importFactorioDump(
     const uc = raw["utility-constants"]?.default ?? {};
     ins.meta.run("rocket_lift_weight", String(uc.rocket_lift_weight ?? 1_000_000));
     ins.meta.run("default_item_weight", String(uc.default_item_weight ?? 100));
+    // Quality is live only when the quality mod links normal to a next level
+    // (`data.raw.quality.normal.next`). A recycler alone doesn't mean it: Py
+    // ships one with normal as the only quality.
+    ins.meta.run("has_quality", raw.quality?.normal?.next ? "1" : "0");
   });
 
   const t0 = Date.now();

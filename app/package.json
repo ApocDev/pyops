@@ -14,7 +14,8 @@
     "test": "vp test run",
     "db:generate": "node scripts/db-generate.mjs",
     "db:studio": "drizzle-kit studio",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "parity": "tsx scripts/parity.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.90",

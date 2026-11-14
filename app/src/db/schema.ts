@@ -846,6 +846,9 @@ export const blockFlows = sqliteTable(
     temperatureMode: text("temperature_mode").$type<"exact" | "range">(),
     minTemp: real("min_temp"),
     maxTemp: real("max_temp"),
+    /** Quality of an item flow. Null is normal; it is the only value until the
+     * solver models quality (#24). */
+    quality: text(),
   },
   (t) => [index("bf_item_role_idx").on(t.item, t.role), index("bf_block_idx").on(t.blockId)],
 );
@@ -861,6 +864,9 @@ export const blockMachines = sqliteTable(
     machine: text().notNull(),
     recipe: text().notNull(), // the recipe this machine count is for
     count: real().notNull(),
+    /** Machine quality. Null is normal and the only value written today; the
+     * primary key widens to include it once quality is solved (#24). */
+    quality: text(),
   },
   (t) => [
     primaryKey({ columns: [t.blockId, t.machine, t.recipe] }),
@@ -878,6 +884,9 @@ export const builtMachines = sqliteTable(
     name: text().notNull(),
     recipe: text().notNull(),
     count: integer().notNull(),
+    /** Machine quality. Null is normal and the only value written today; the
+     * primary key widens to include it once the bridge syncs quality (#24). */
+    quality: text(),
   },
   (t) => [primaryKey({ columns: [t.name, t.recipe] })],
 );

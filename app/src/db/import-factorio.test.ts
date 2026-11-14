@@ -155,6 +155,33 @@ describe("importFactorioDump — quality effect and allow_quality (#260)", () =>
   });
 });
 
+describe("importFactorioDump — quality capability", () => {
+  const hasQuality = (raw: Record<string, unknown>) => {
+    const db = runImport(raw);
+    const row = db.prepare(`SELECT value FROM meta WHERE key = 'has_quality'`).get() as {
+      value: string;
+    };
+    db.close();
+    return row.value;
+  };
+
+  it("is on only when normal quality links to a next level", () => {
+    expect(
+      hasQuality({ quality: { normal: { level: 0, next: "uncommon" }, uncommon: { level: 1 } } }),
+    ).toBe("1");
+  });
+
+  it("stays off for a lone normal quality, even with a recycler (Py)", () => {
+    expect(
+      hasQuality({
+        quality: { normal: { level: 0 } },
+        furnace: { recycler: { crafting_speed: 1 } },
+      }),
+    ).toBe("0");
+    expect(hasQuality({})).toBe("0");
+  });
+});
+
 describe("importFactorioDump — machine effect receivers (#258)", () => {
   it("stores each machine's effect_receiver with defaults filled in", () => {
     const db = runImport({

@@ -70,6 +70,11 @@ from inside `app/`:
   `vp check`**, including pre-existing lint in files you touch.
 - `vp test` — run the Vitest suite (e.g. `block.test.ts`, `effects.test.ts`,
   `icons.test.tsx`).
+- `vp run parity snapshot <copy.db> <out.json>` / `vp run parity diff <base.json> <head.json>`
+  — the Py parity check: re-solves every block of a project copy and diffs the cached
+  solve between two code versions. Any change that must leave Py results alone (every
+  quality stage of #24) runs it on a copy of a full Py project against `main` before
+  merging and puts the result in the PR. See `docs/development/solver.md`.
 - `vp dev` / `pnpm dev` — dev server on port 3000.
 - `cd app/e2e && npm install && npm test` — the standalone Playwright E2E suite (its
   own package, isolated from the app's nightly toolchain pins). Read-only specs

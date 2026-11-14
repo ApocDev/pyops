@@ -592,3 +592,28 @@ Keep solver tests close to the mathematical layer:
 When changing a user gesture, test both the persisted document mapping and the resulting LP
 constraint. Run `vp test` and `vp check`, then exercise the corresponding editor flow and
 its infeasible or edge state through Playwright.
+
+### Py parity check
+
+A change that must not move Py results, such as each quality stage, runs the parity check on
+a full Py project before merging. `app/scripts/parity.ts` re-solves every block and compares
+each block's solve status, electricity, pollution, `block_flows`, and `block_machines`
+between two code versions. Values must match exactly.
+
+The snapshot command copies the project database to a temporary file and solves the copy, so
+the source file is only read. Point it at a copy anyway when the project is someone's real
+data. Take the base snapshot from a detached `main` worktree and the head snapshot from your
+branch, using the same database, then diff them. Run each from that checkout's `app/`:
+
+```sh
+git worktree add --detach ../pyops-main origin/main
+(cd ../pyops-main/app && vp install && vp run parity snapshot /path/to/copy.db /tmp/base.json)
+vp run parity snapshot /path/to/copy.db /tmp/head.json
+vp run parity diff /tmp/base.json /tmp/head.json
+```
+
+`diff` prints each changed block with the changed values, `-` for rows only in the base, and
+`+` for rows only in the head. The cache tables allow duplicate rows, so it compares row
+counts too and marks an extra copy with `(×n)`. It exits 1 when anything differs. Columns that are null on
+every row are left out of the snapshot, so a new nullable column does not count as a change.
+Two snapshots of the same code and database are identical, so any difference is real.

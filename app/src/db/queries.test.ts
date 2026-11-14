@@ -111,14 +111,21 @@ describe("goodGraphCounts", () => {
 
 describe("dataCapabilities", () => {
   it("reports hasTurd false when the dataset has no TURD techs", () => {
-    expect(dataCapabilities()).toEqual({ hasTurd: false });
+    expect(dataCapabilities()).toEqual({ hasTurd: false, hasQuality: false });
   });
 
   it("reports hasTurd true once a TURD master tech is present", () => {
     db.run(
       sql`INSERT INTO technologies (name, unit_count, enabled, is_turd) VALUES ('t-master', 1, 1, 1)`,
     );
-    expect(dataCapabilities()).toEqual({ hasTurd: true });
+    expect(dataCapabilities()).toEqual({ hasTurd: true, hasQuality: false });
+  });
+
+  it("reports hasQuality from the importer's has_quality meta key", () => {
+    metaSet("has_quality", "0");
+    expect(dataCapabilities().hasQuality).toBe(false);
+    metaSet("has_quality", "1");
+    expect(dataCapabilities().hasQuality).toBe(true);
   });
 });
 
