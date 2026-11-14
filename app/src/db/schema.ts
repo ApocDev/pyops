@@ -6,8 +6,8 @@ const bool = (name?: string) => integer(name as string, { mode: "boolean" });
 
 /* ── Factorio reference data (pass 1: real prototypes) ─────────────────────────
  * Loaded from `data-raw-dump.json` by src/db/import-factorio.ts.
- * Quality prototypes and fields are imported, but the solver doesn't model
- * quality yet (#24; Py has none). Fluid temperatures ARE modelled:
+ * Quality prototypes and fields are imported, and the block solver models
+ * quality (#266; Py has none). Fluid temperatures ARE modelled:
  * ingredients carry a min/max range, products an exact temperature.
  * Synthetic recipes (mining/boiling/burning/spoiling) + temp variants = pass 2.
  */
@@ -280,8 +280,7 @@ export const modules = sqliteTable("modules", {
   effConsumption: real("eff_consumption").notNull().default(0),
   effPollution: real("eff_pollution").notNull().default(0),
   // ModulePrototype effect.quality, on the Factorio 2.1 scale (a 2.0 dump's
-  // value is divided by 10). Imported so planners can refuse quality modules;
-  // quality output itself is not modelled yet (#24).
+  // value is divided by 10). The solver splits products by it (#266).
   effQuality: real("eff_quality").notNull().default(0),
   // ModulePrototype `<effect>_quality_multiplier`: how much of the module
   // quality's multiplier each effect gets (1 = all, 0 = none). Unset, it is 1
@@ -659,6 +658,10 @@ export type BeaconConfig = {
    * overstates a shared bank by the sharing factor, which is severe when the
    * beacon is expensive (Py's tiered beacons reach 625 MW each). */
   shared?: number;
+  /** quality of the beacon building (#266; absent = normal) */
+  quality?: string;
+  /** quality of the modules in it (#266; absent = normal) */
+  moduleQuality?: string;
 };
 
 /** One output goal of a block: a good the block is sized to produce at `rate`
@@ -691,6 +694,8 @@ export type Goal = {
   temperature?: number;
   /** Stable intent when rate is zero. Older documents infer this from the sign. */
   direction?: "produce" | "consume";
+  /** Quality of an item goal (#266). Missing means normal; fluids have none. */
+  quality?: string;
   unit?: RateUnit;
   stock?: number; // "keep N on hand" — presence makes this a stock goal
   window?: number; // refill window in seconds (default 600); rate = stock / window
@@ -716,7 +721,12 @@ export type Goal = {
 export type ScienceBank = {
   /** Lab prototype (see the `labs` table). */
   lab: string;
-  /** Pack → packs per second, AFTER effects. These ARE the block's goals: typed
+  /** Pack → research throughput: normal packs' worth of research per second,
+   * what a technology's cost per second asks for. Lab count and power follow
+   * it; the packs actually consumed are fewer with productivity, a quality
+   * pack's durability, or a lab's drain multiplier (server/science-bank.ts). A
+   * key is a quality key (lib/quality.ts): `automation-science-pack@rare` is a
+   * rare pack (#266). These ARE the block's goals: typed
    * directly, so a hand-tuned or mixed-research plan needs nothing else. The
    * "derive from a technology" helper only computes them and writes them here;
    * no technology is stored, so a plan cannot rot when one is renamed or
@@ -733,6 +743,9 @@ export type ScienceBank = {
   labSecondsPerPack: number;
   /** Modules in each lab's own slots (Pyanodons' lab has none; others do). */
   modules?: string[];
+  /** Quality of the labs and of their own modules (#266; absent = normal). */
+  labQuality?: string;
+  moduleQuality?: string;
   /** Beacons affecting each lab. `shared` carries how many labs one beacon
    * building serves, which is what sizes a vatbrain bank. */
   beacons?: BeaconConfig[];
@@ -790,17 +803,28 @@ export type BlockData = {
   dispositions?: Record<string, string>;
   // Items this block claims in-block production for (#91): net ≥ 0 in the
   // solve — production covers consumption, surplus exports, imports forbidden.
+  // Each entry is a quality key (lib/quality.ts): the bare name is normal,
+  // `name@rare` marks only rare (#266).
   made?: string[];
   // Per-row pins (#91), in building counts: count = always run exactly N
   // buildings; cap = at most N (built ceiling); share = this consumer takes a
   // fraction of the item's production (base "remaining" = after count-pinned
-  // consumers' fixed intake; default).
+  // consumers' fixed intake; default). A count or cap pin bounds a row's total
+  // buildings across its qualities; share and drain pins name the item's
+  // quality (missing = normal, #266).
   pins?: (
     | { kind: "count" | "cap"; recipe: string; count: number }
-    | { kind: "share"; recipe: string; item: string; share: number; base?: "total" | "remaining" }
+    | {
+        kind: "share";
+        recipe: string;
+        item: string;
+        share: number;
+        base?: "total" | "remaining";
+        quality?: string;
+      }
     // drain: this recipe absorbs the item's surplus (net = 0 on the item) —
     // the byproduct-disposal gesture; the recipe names the designated sink
-    | { kind: "drain"; recipe: string; item: string }
+    | { kind: "drain"; recipe: string; item: string; quality?: string }
   )[];
   machines?: Record<string, string>; // recipe → chosen machine
   fuels?: Record<string, string>; // recipe → chosen fuel
@@ -813,6 +837,24 @@ export type BlockData = {
   reactorLayouts?: Record<string, { x: number; y: number }>;
   modules?: Record<string, string[]>; // recipe → modules in the machine's slots
   beacons?: Record<string, BeaconConfig[]>; // recipe → beacons affecting each machine
+  /** Per-row quality (#266). A missing row runs at normal with a normal
+   * machine and modules, which is every Py row. */
+  rowQuality?: Record<string, RowQuality>;
+};
+
+/** One recipe row's quality settings (#266). One row covers a range of
+ * qualities with one machine and module setup; the solver gives each quality
+ * in the range its own rate (solver/quality.ts). Every field defaults to
+ * normal. */
+export type RowQuality = {
+  /** lowest quality the row runs at */
+  min?: string;
+  /** highest quality the row runs at */
+  max?: string;
+  /** quality of the row's machine */
+  machine?: string;
+  /** quality of the modules in the machine's own slots */
+  modules?: string;
 };
 
 export const blocks = sqliteTable("blocks", {
@@ -948,8 +990,7 @@ export const blockFlows = sqliteTable(
     temperatureMode: text("temperature_mode").$type<"exact" | "range">(),
     minTemp: real("min_temp"),
     maxTemp: real("max_temp"),
-    /** Quality of an item flow. Null is normal; it is the only value until the
-     * solver models quality (#24). */
+    /** Quality of an item flow (#266). Null is normal. */
     quality: text(),
   },
   (t) => [index("bf_item_role_idx").on(t.item, t.role), index("bf_block_idx").on(t.blockId)],
@@ -966,8 +1007,9 @@ export const blockMachines = sqliteTable(
     machine: text().notNull(),
     recipe: text().notNull(), // the recipe this machine count is for
     count: real().notNull(),
-    /** Machine quality. Null is normal and the only value written today; the
-     * primary key widens to include it once quality is solved (#24). */
+    /** Machine quality (#266). Null is normal. A block row has one machine
+     * and one machine quality across its quality range, so the key stays
+     * (block, machine, recipe). */
     quality: text(),
   },
   (t) => [

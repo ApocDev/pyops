@@ -3,8 +3,8 @@ export type EffectReceiverType = "crafting-machine" | "lab" | "mining-drill";
 
 /** The effects a prototype receives when `allowed_effects` is missing (Factorio
  * 2.1 prototype docs). Crafting machines get none; labs get all but quality and
- * mining drills get all, both stored as null ("every effect") since quality isn't
- * modelled (Py has none). */
+ * mining drills get all, both stored as null ("every effect"). A lab makes no
+ * products for quality to upgrade, so letting quality through changes nothing. */
 const DEFAULTS: Record<EffectReceiverType, string[] | null> = {
   "crafting-machine": [],
   lab: null,

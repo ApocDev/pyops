@@ -46,7 +46,12 @@ export const syntheticSubId = (name: string): number | null =>
 /** One composed group to solve as a module. `members` are the LIVE member recipe
  * names (present in the parent `defs`, i.e. not disabled). `made === undefined`
  * means "auto": every good any member produces is claimed in-block, so the module
- * makes its own intermediates and imports only true raws. */
+ * makes its own intermediates and imports only true raws.
+ *
+ * Goods are opaque names here. With quality (#266) the caller passes the
+ * quality-expanded columns as members and quality keys (`iron-gear-wheel@rare`)
+ * as goal names and made marks, and the contract keeps those keys, so the
+ * parent links the module's output per (good, quality). */
 export type ComposedGroup = {
   id: number;
   name: string;

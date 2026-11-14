@@ -14,6 +14,9 @@ import { db } from "../db/index.server.ts";
 import { blocks, fluids, items, labs, technologies, techIngredients } from "../db/schema.ts";
 import type { ScienceBank } from "../db/schema.ts";
 import * as q from "../db/queries.server.ts";
+import { NORMAL_QUALITY, splitQualityKey } from "../lib/quality.ts";
+import { capQuality } from "../solver/quality.ts";
+import { qualityEffectLookups } from "./quality-effects.ts";
 import {
   computeScienceBank,
   ratesForTech,
@@ -73,6 +76,8 @@ export function labOptions(): LabOption[] {
       allowedEffects: l.allowedEffects,
       allowedModuleCategories: l.allowedModuleCategories,
       inputs: l.inputs,
+      qualityAffectsModuleSlots: l.qualityAffectsModuleSlots,
+      usesQualityDrainModifier: l.usesQualityDrainModifier,
     }));
 }
 
@@ -210,21 +215,66 @@ export function syncedLabBonuses(): { speed: number; productivity: number } {
 
 /** Solve the bank: labs, beacon buildings, pack demand, upkeep and power. */
 export function solveScienceBank(bank: ScienceBank): ScienceBankResult | null {
-  const lab = labOptions().find((l) => l.name === bank.lab);
-  if (!lab) return null;
+  const baseLab = labOptions().find((l) => l.name === bank.lab);
+  if (!baseLab) return null;
   const beacons = bank.beacons ?? [];
   const moduleNames = [...(bank.modules ?? []), ...beacons.flatMap((b) => b.modules)];
   const labBonuses = syncedLabBonuses();
-  return computeScienceBank({
+
+  // Quality (#266): the lab's own quality scales its research speed and, when
+  // it opts in, its slots and pack drain; modules and beacons scale like a
+  // block row's. At normal everything reads as before.
+  const qualityCtx = q.createBlockSolveContext([]).qualities();
+  const qualityNames = new Set(qualityCtx.ladder.slice(1).map((step) => step.name));
+  // a quality the research horizon hasn't unlocked plans at the best unlocked
+  // one, and the result says so
+  const capAtTop = (quality: string | undefined) =>
+    capQuality(qualityCtx.ladder, qualityCtx.top, quality);
+  const qualityCapped = [
+    bank.labQuality,
+    bank.moduleQuality,
+    ...beacons.flatMap((b) => [b.quality, b.moduleQuality]),
+  ].some((quality) => quality != null && capAtTop(quality) !== quality);
+  const bonusesOf = (asked: string | undefined) => {
+    const quality = capAtTop(asked);
+    return quality && quality !== NORMAL_QUALITY ? (qualityCtx.byName.get(quality) ?? null) : null;
+  };
+  const labQuality = bonusesOf(bank.labQuality);
+  const lab = labQuality
+    ? {
+        ...baseLab,
+        researchingSpeed: baseLab.researchingSpeed * labQuality.labResearchSpeedMultiplier,
+        moduleSlots:
+          baseLab.moduleSlots +
+          (baseLab.qualityAffectsModuleSlots ? labQuality.labModuleSlotsBonus : 0),
+      }
+    : baseLab;
+  const drain =
+    labQuality && baseLab.usesQualityDrainModifier ? labQuality.sciencePackDrainMultiplier : 1;
+  const qualityFx = qualityEffectLookups(
+    q.getModules(moduleNames),
+    q.getBeacons(beacons.map((b) => b.beacon)),
+    bonusesOf,
+    qualityCtx.effectStep,
+  );
+  const result = computeScienceBank({
     lab,
     packs: bank.packs,
     labSecondsPerPack: bank.labSecondsPerPack || DEFAULT_LAB_SECONDS_PER_PACK,
     labSpeedBonus: labBonuses.speed,
     labProductivityBonus: labBonuses.productivity,
-    modules: bank.modules ?? [],
+    modules: (bank.modules ?? []).map((m) => qualityFx.moduleAt(m, bank.moduleQuality)),
     beacons,
-    moduleDb: q.getModules(moduleNames),
-    beaconDb: q.getBeacons(beacons.map((b) => b.beacon)),
+    effectBeacons: beacons.map(qualityFx.beaconConfigAt),
+    moduleDb: qualityFx.modules,
+    beaconDb: qualityFx.beacons,
+    packQuality: (pack) => {
+      const { name, quality } = splitQualityKey(pack, qualityNames);
+      const durability = quality
+        ? (qualityCtx.byName.get(quality)?.toolDurabilityMultiplier ?? 1)
+        : 1;
+      return { name, demand: drain / durability };
+    },
     upkeepDb: new Map(
       [...q.getBeaconUpkeep(beacons.map((b) => b.beacon))].map(([key, u]) => [
         key,
@@ -233,4 +283,5 @@ export function solveScienceBank(bank: ScienceBank): ScienceBankResult | null {
     ),
     upkeepKey: q.upkeepKey,
   });
+  return qualityCapped ? { ...result, qualityCapped: true } : result;
 }

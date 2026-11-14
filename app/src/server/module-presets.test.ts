@@ -91,7 +91,7 @@ describe("presetCompatibility", () => {
     expect(res.ok).toBe(false);
   });
 
-  it("says a quality module is refused because quality isn't modelled", () => {
+  it("says a quality module is refused until the planner shows quality", () => {
     // quality-module (Factorio 2.1.24: quality 0.01, speed -0.05) is never in the
     // picker's accepted set, whatever the machine allows
     const assembler = picker({ name: "assembler", display: "Assembler", moduleSlots: 4 }, [
@@ -104,7 +104,7 @@ describe("presetCompatibility", () => {
     const res = presetCompatibility({ modules: ["quality-module"], beacons: [] }, assembler, facts);
     expect(res).toEqual({
       ok: false,
-      reason: "quality output isn't modelled yet (Quality module)",
+      reason: "the planner doesn't show quality output yet (Quality module)",
     });
   });
 

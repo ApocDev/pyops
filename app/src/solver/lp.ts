@@ -38,14 +38,18 @@ export type RecipeDef = {
 /** Per-recipe or per-edge constraint, in solver units (executions/sec — the
  * caller converts building counts via per-building craft rates). */
 export type Pin =
-  /** "always run at exactly this rate" — supply-push (fixed building count) */
-  | { kind: "rate"; recipe: string; rate: number }
+  /** "always run at exactly this rate" — supply-push (fixed building count).
+   * `members` makes it bound the SUM of several recipes' rates (a quality row's
+   * per-quality columns, solver/quality.ts); `recipe` is then its first member. */
+  | { kind: "rate"; recipe: string; rate: number; members?: string[] }
   /** "at most this rate" — a built-capacity ceiling; solver fits inside */
-  | { kind: "cap"; recipe: string; rate: number }
+  | { kind: "cap"; recipe: string; rate: number; members?: string[] }
   /** "this consumer takes `share` of `item`'s production" — base "remaining"
    * applies the share after rate-pinned consumers' fixed intake is subtracted.
    * `ofItems` overrides the production base (used by the temperature expansion:
-   * the consumer eats a pool good, but the base is the real variants) */
+   * the consumer eats a pool good, but the base is the real variants).
+   * `members` makes the consumer the SUM of several recipes' intake (a quality
+   * row eating a fluid, which every quality column shares) */
   | {
       kind: "share";
       item: string;
@@ -53,6 +57,7 @@ export type Pin =
       share: number;
       base?: "total" | "remaining";
       ofItems?: string[];
+      members?: string[];
     };
 
 export type LpBlockInput = {
@@ -231,25 +236,29 @@ export function buildModel(input: LpBlockInput): BlockModel {
     });
   }
 
-  const fixedRate = new Map<string, number>();
+  /** rate-pinned consumers: the LP indices of a pin's columns and their summed rate */
+  const fixedRates: { cols: number[]; rate: number }[] = [];
   for (const p of pins) {
+    if (p.kind !== "rate" && p.kind !== "cap") continue;
+    const cols = (p.members ?? [p.recipe]).flatMap((r) => {
+      const i = idxOf.get(r);
+      return i == null ? [] : [i];
+    });
+    if (!cols.length) continue;
+    const parts = cols.map((i) => term(1, varOf(i)));
     if (p.kind === "rate") {
-      const i = idxOf.get(p.recipe);
-      if (i == null) continue;
-      fixedRate.set(p.recipe, p.rate);
+      fixedRates.push({ cols, rate: p.rate });
       constraints.push({
-        id: `pin_${i}`,
-        parts: [term(1, varOf(i))],
+        id: `pin_${cols[0]}`,
+        parts,
         op: "=",
         rhs: p.rate,
         prov: { type: "pin-rate", recipe: p.recipe, rate: p.rate },
       });
-    } else if (p.kind === "cap") {
-      const i = idxOf.get(p.recipe);
-      if (i == null) continue;
+    } else {
       constraints.push({
-        id: `cap_${i}`,
-        parts: [term(1, varOf(i))],
+        id: `cap_${cols[0]}`,
+        parts,
         op: "<=",
         rhs: p.rate,
         prov: { type: "pin-cap", recipe: p.recipe, rate: p.rate },
@@ -258,24 +267,38 @@ export function buildModel(input: LpBlockInput): BlockModel {
   }
   for (const p of pins) {
     if (p.kind !== "share") continue;
-    const i = idxOf.get(p.recipe);
-    const c = coeff[p.item];
-    if (i == null || !c) continue;
-    const intake = recipes[i].ingredients.find((g) => g.name === p.item)?.amount ?? 0;
-    if (intake <= 0) continue;
+    if (!coeff[p.item]) continue;
+    const members = p.members ?? [p.recipe];
+    const intakes = members.flatMap((r) => {
+      const i = idxOf.get(r);
+      if (i == null) return [];
+      const amount = recipes[i].ingredients.find((g) => g.name === p.item)?.amount ?? 0;
+      return amount > 0 ? [{ i, amount }] : [];
+    });
+    if (!intakes.length) continue;
+    const i = intakes[0].i;
+    const intakeOf = (j: number) =>
+      recipes[j].ingredients.find((g) => g.name === p.item)?.amount ?? 0;
+    const parts = intakes.map((c) => term(c.amount, varOf(c.i)));
     // consumption_r = share × (total production − rate-pinned consumers' intake)
     let fixedConsumed = 0;
     if ((p.base ?? "remaining") === "remaining") {
-      for (const [rec, rate] of fixedRate) {
-        if (rec === p.recipe) continue;
-        const ri = idxOf.get(rec)!;
-        const ringr = recipes[ri].ingredients.find((g) => g.name === p.item)?.amount ?? 0;
-        fixedConsumed += ringr * rate;
+      for (const fixed of fixedRates) {
+        if (fixed.cols.some((j) => intakes.some((c) => c.i === j))) continue;
+        // a pin over several columns fixes only their sum. When every column
+        // eats the same amount (one column, or a fluid on a quality row) the
+        // intake is a constant; otherwise (an item, eaten at each column's own
+        // quality) it stays an LP term
+        const amounts = fixed.cols.map(intakeOf);
+        if (amounts.every((a) => a === amounts[0])) fixedConsumed += amounts[0] * fixed.rate;
+        else
+          fixed.cols.forEach((j, k) => {
+            if (amounts[k] > 0) parts.push(term(p.share * amounts[k], varOf(j)));
+          });
       }
     }
-    // intake·x_i − share·Σ prod_coef·x = −share·fixedConsumed
+    // Σ intake·x_member + share·Σ pinned intake·x − share·Σ prod_coef·x = −share·fixedConsumed
     const baseItems = new Set(p.ofItems ?? [p.item]);
-    const parts = [term(intake, varOf(i))];
     recipes.forEach((r, j) => {
       const prod = r.products.reduce(
         (s, pr) => (baseItems.has(pr.name) ? s + pr.amount * (pr.probability ?? 1) : s),

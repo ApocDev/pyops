@@ -67,11 +67,11 @@ export function presetCompatibility(
     picker.modules.find((m) => m.name === n) ?? picker.beaconModules?.find((m) => m.name === n);
   const prodBlocked = (n: string) =>
     !picker.allowProductivity && (facts.get(n)?.effProductivity ?? 0) > 0;
-  // the picker never offers a quality module (quality output isn't modelled, #24)
+  // the picker never offers a quality module until the planner shows quality (#267)
   const qualityBlocked = (n: string) => (facts.get(n)?.effQuality ?? 0) > 0;
   const rejectReason = (n: string, otherwise: string) =>
     qualityBlocked(n)
-      ? `quality output isn't modelled yet (${disp(n)})`
+      ? `the planner doesn't show quality output yet (${disp(n)})`
       : prodBlocked(n)
         ? `this recipe does not accept productivity (${disp(n)})`
         : otherwise;

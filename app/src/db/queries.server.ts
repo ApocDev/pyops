@@ -8,6 +8,7 @@
  * comes later via the mod bridge.
  */
 import { createHash } from "node:crypto";
+import { qualityLadder } from "../solver/quality.ts";
 import { and, eq, inArray, isNotNull, ne, sql, type AnyColumn } from "drizzle-orm";
 import { db } from "./index.server.ts";
 import {
@@ -37,6 +38,8 @@ import {
   logisticRobots,
   roboports,
   techProductivityBonuses,
+  techQualityUnlocks,
+  qualities,
   techStackBonuses,
   modulePresets,
   blocks,
@@ -252,6 +255,11 @@ function machinesForRecipes(recipeNames: string[]) {
       fluidFuelEnergyJ: craftingMachines.fluidFuelEnergyJ,
       effectReceiver: craftingMachines.effectReceiver,
       beaconInterferenceExempt: craftingMachines.beaconInterferenceExempt,
+      qualityAffectsModuleSlots: craftingMachines.qualityAffectsModuleSlots,
+      qualityAffectsEnergyUsage: craftingMachines.qualityAffectsEnergyUsage,
+      craftingSpeedQualityMultiplier: craftingMachines.craftingSpeedQualityMultiplier,
+      energyUsageQualityMultiplier: craftingMachines.energyUsageQualityMultiplier,
+      moduleSlotsQualityBonus: craftingMachines.moduleSlotsQualityBonus,
     })
     .from(machineCategories)
     .innerJoin(craftingMachines, eq(craftingMachines.name, machineCategories.machine))
@@ -452,6 +460,11 @@ export function machinesForRecipe(recipeName: string) {
       fluidFuelEnergyJ: craftingMachines.fluidFuelEnergyJ,
       effectReceiver: craftingMachines.effectReceiver,
       beaconInterferenceExempt: craftingMachines.beaconInterferenceExempt,
+      qualityAffectsModuleSlots: craftingMachines.qualityAffectsModuleSlots,
+      qualityAffectsEnergyUsage: craftingMachines.qualityAffectsEnergyUsage,
+      craftingSpeedQualityMultiplier: craftingMachines.craftingSpeedQualityMultiplier,
+      energyUsageQualityMultiplier: craftingMachines.energyUsageQualityMultiplier,
+      moduleSlotsQualityBonus: craftingMachines.moduleSlotsQualityBonus,
     })
     .from(machineCategories)
     .innerJoin(craftingMachines, eq(craftingMachines.name, machineCategories.machine))
@@ -753,10 +766,11 @@ function categoryAllowed(m: ModuleRow, cats: string[] | null | undefined): boole
   return !cats?.length || cats.includes(m.category ?? "");
 }
 
-/** Quality output is not modelled yet (#24): a quality module would plan as
- * nothing but its speed penalty. Planners don't offer one until it is. No Py
- * module has a positive quality effect except Editor Extensions' (excluded). */
-function qualityUnmodelled(m: ModuleRow): boolean {
+/** The solver splits a quality module's output across qualities (#266), but
+ * the planner can't show quality goods, goals or row ranges until #267. Until
+ * then planners don't offer a quality module. No Py module has a positive
+ * quality effect except Editor Extensions' (excluded). */
+function qualityModuleHidden(m: ModuleRow): boolean {
   return m.effQuality > 0;
 }
 
@@ -791,7 +805,7 @@ export function modulesFittingMachine(machineName: string) {
     .filter(
       (mod) =>
         !isExcluded(mod.name, mod.category) &&
-        !qualityUnmodelled(mod) &&
+        !qualityModuleHidden(mod) &&
         categoryAllowed(mod, m.allowedModuleCategories) &&
         effectsAllowed(mod, m.allowedEffects),
     )
@@ -876,8 +890,8 @@ export function computeRecipeScenario(opts: {
         name,
         reason: `category '${mod.category}' not accepted (slots take ${JSON.stringify(machine.allowedModuleCategories ?? "any")})`,
       });
-    if (qualityUnmodelled(mod))
-      return void rejected.push({ name, reason: "quality output isn't modelled yet" });
+    if (qualityModuleHidden(mod))
+      return void rejected.push({ name, reason: "the planner doesn't show quality output yet" });
     if (!effectsAllowed(mod, machine.allowedEffects))
       return void rejected.push({ name, reason: "effect not allowed by this machine" });
     if (mod.effProductivity > 0 && !r.allowProductivity)
@@ -1004,7 +1018,7 @@ export function placeableModules() {
     .where(eq(modules.hidden, false))
     .orderBy(modules.category, modules.tier, modules.name)
     .all()
-    .filter((mod) => !isExcluded(mod.name, mod.category) && !qualityUnmodelled(mod));
+    .filter((mod) => !isExcluded(mod.name, mod.category) && !qualityModuleHidden(mod));
 }
 
 /** The picker's placement rules for one (machine, recipe) pair, as a reusable
@@ -1088,7 +1102,7 @@ export function modulePickerData(recipeName: string | null, machineName: string)
             machineCategories.has(mod.category) &&
             !visibleCategories.has(mod.category) &&
             !isExcluded(mod.name, mod.category) &&
-            !qualityUnmodelled(mod),
+            !qualityModuleHidden(mod),
         )
     : [];
   const allModules = [...visibleModules, ...soleModules];
@@ -2188,8 +2202,16 @@ export type BlockFlow = {
   temperatureMode?: "exact" | "range" | null;
   minTemp?: number | null;
   maxTemp?: number | null;
+  /** quality above normal (#266); absent or null = normal */
+  quality?: string | null;
 };
-export type BlockMachine = { machine: string; recipe: string; count: number };
+export type BlockMachine = {
+  machine: string;
+  recipe: string;
+  count: number;
+  /** machine quality above normal (#266) */
+  quality?: string | null;
+};
 /** Insert or update a block + replace its cached I/O flows (one transaction).
  *
  * Passing `null` for `flows`/`machines`/`electricityW` PRESERVES the existing
@@ -4689,6 +4711,36 @@ export function createBlockSolveContext(recipeNames: string[]) {
   };
 
   return {
+    /** The quality chain for this solve (#266): each quality in chain order,
+     * the rows by name (for their bonuses), the best quality the research
+     * horizon unlocks (upgrade chances past it land there, as YAFC-CE's
+     * `Quality.MaxAccessible`), and the precision scaled module quality
+     * effects floor to. A quality no technology unlocks counts as unlocked. */
+    qualities: () => {
+      const rows = db.select().from(qualities).all();
+      const ladder = qualityLadder(rows);
+      const unlocks = db.select().from(techQualityUnlocks).all();
+      const unlocked = (name: string) => {
+        const techs = unlocks.filter((u) => u.quality === name);
+        return (
+          horizon.mode === "future" ||
+          !techs.length ||
+          techs.some((u) => missingPacks(u.technology).length === 0)
+        );
+      };
+      let top = ladder[0].name;
+      for (const q of ladder.slice(1)) {
+        if (!unlocked(q.name)) break;
+        top = q.name;
+      }
+      const step = Number(metaAll().quality_effect_step);
+      return {
+        ladder,
+        byName: new Map(rows.map((row) => [row.name, row])),
+        top,
+        effectStep: Number.isFinite(step) && step > 0 ? step : 0.0001,
+      };
+    },
     productivityBonuses: (): ProductivityBonuses => {
       const out: ProductivityBonuses = { mining: 0, recipes: new Map() };
       const m = metaAll();

@@ -37,13 +37,12 @@
 
 export type EffectKind = "speed" | "productivity" | "consumption" | "pollution";
 
-/** The effects a receiver stores: the modelled kinds plus quality. Quality is
- * imported (base effect and limits) but the solver doesn't read it yet (#24). */
+/** The effects a receiver stores: the four above plus quality, which doesn't
+ * scale the machine but splits its products across qualities (#266). */
 export type ReceiverEffectKind = EffectKind | "quality";
 
 /** A machine's EffectReceiver, with the engine defaults filled in. Surface
- * effects aren't modelled (Py has none), so their parts are left out. A
- * module's quality effect only gates where it may go (`effectsAllowed`). */
+ * effects aren't modelled (Py has none), so their parts are left out. */
 export type EffectReceiver = {
   baseEffect: Record<ReceiverEffectKind, number>;
   limits: Record<ReceiverEffectKind, { low: number; high: number }>;
@@ -73,6 +72,10 @@ export type BeaconConfig = {
   count: number;
   /** machines each beacon building serves (absent/1 = one beacon per machine) */
   shared?: number;
+  /** quality of the beacon building (#266; absent = normal) */
+  quality?: string;
+  /** quality of the modules in it (#266; absent = normal) */
+  moduleQuality?: string;
 };
 
 export type Effects = {
@@ -84,6 +87,9 @@ export type Effects = {
   consMult: number;
   /** pollution effect multiplier (#23) — clamps like consumption */
   pollutionMult: number;
+  /** total quality effect after the receiver's limits (low 0 by default): the
+   * chance scale for product quality upgrades (solver/quality.ts) */
+  qualityBonus: number;
   beaconPowerPerMachineW: number;
 };
 
@@ -154,7 +160,7 @@ function sumEffects(
   moduleDb: Map<string, ModuleEff>,
   accepts: ModuleReceiver | null,
 ) {
-  const s = { speed: 0, prod: 0, cons: 0, poll: 0 };
+  const s = { speed: 0, prod: 0, cons: 0, poll: 0, qual: 0 };
   for (const n of names) {
     const m = moduleDb.get(n);
     if (!m || !moduleReaches(m, accepts)) continue;
@@ -162,6 +168,7 @@ function sumEffects(
     s.prod += m.effProductivity;
     s.cons += m.effConsumption;
     s.poll += m.effPollution ?? 0;
+    s.qual += m.effQuality ?? 0;
   }
   return s;
 }
@@ -178,10 +185,12 @@ export function computeEffects(
   receiver: EffectReceiver | null = null,
   // the machine's allowed effects and module categories (null = accepts all)
   accepts: ModuleReceiver | null = null,
+  // RecipePrototype.allow_quality: false drops module and beacon quality
+  allowQuality = true,
 ): Effects {
   const rx = receiver ?? DEFAULT_EFFECT_RECEIVER;
   const own = sumEffects(rx.usesModuleEffects ? machineModules : [], moduleDb, accepts);
-  let { speed, prod, cons, poll } = own;
+  let { speed, prod, cons, poll, qual } = own;
   speed += rx.baseEffect.speed;
   cons += rx.baseEffect.consumption;
   poll += rx.baseEffect.pollution;
@@ -192,6 +201,7 @@ export function computeEffects(
     prod += m.effProductivity;
     cons += m.effConsumption;
     poll += m.effPollution ?? 0;
+    qual += m.effQuality ?? 0;
   }
   let beaconPowerPerMachineW = 0;
   for (const cfg of beaconCfgs) {
@@ -205,6 +215,7 @@ export function computeEffects(
     prod += inBeacon.prod * mult;
     cons += inBeacon.cons * mult;
     poll += inBeacon.poll * mult;
+    qual += inBeacon.qual * mult;
     // Effects above are per-machine and unaffected by sharing: every machine in
     // range gets the full bonus however many neighbours also sit in it. Power is
     // a property of the BUILDING, so a shared beacon's draw splits across the
@@ -219,6 +230,12 @@ export function computeEffects(
   // allowed) gained bonus_progress 0.0664 over 1.328 crafts (= 1.328 × 0.05)
   if (!allowProductivity) prod = 0;
   prod += rx.baseEffect.productivity;
+  // allow_quality works the same way, and the machine's base quality applies
+  // either way, as YAFC-CE adds it after the modules (RecipeParameters.cs:182)
+  // (a receiver imported before #265 has no quality keys: engine defaults)
+  if (!allowQuality) qual = 0;
+  qual += rx.baseEffect.quality ?? 0;
+  const qualityLimits = rx.limits.quality ?? DEFAULT_EFFECT_RECEIVER.limits.quality;
   const clamp = (v: number, k: EffectKind) =>
     Math.min(rx.limits[k].high, Math.max(rx.limits[k].low, v));
   // the receiver's limit applies before research; tech-granted recipe
@@ -236,6 +253,9 @@ export function computeEffects(
     prodMult: 1 + prod,
     consMult: 1 + clamp(cons, "consumption"),
     pollutionMult: 1 + clamp(poll, "pollution"),
+    // a negative total would lower quality (previous_probability), which isn't
+    // modelled, so the chance scale floors at 0 like YAFC-CE's qualityMod
+    qualityBonus: Math.max(0, Math.min(qualityLimits.high, Math.max(qualityLimits.low, qual))),
     beaconPowerPerMachineW,
   };
 }

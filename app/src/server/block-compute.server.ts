@@ -7,8 +7,16 @@
  * stays client-importable while this module imports the query layer statically.
  */
 import type { Disposition } from "../solver/migrate";
-import { expandTemps, type TempComponent, type TempRecipeDef } from "../solver/temps";
-import { solveBlockLp, type LpBlockInput, type Pin } from "../solver/lp";
+import { expandTemps } from "../solver/temps";
+import {
+  capQuality,
+  expandQualities,
+  type QualityComponent,
+  type QualityPin,
+  type QualityRecipeDef,
+  type RowQuality as RowRun,
+} from "../solver/quality";
+import { solveBlockLp, type LpBlockInput } from "../solver/lp";
 import {
   composeSubBlocks,
   isSyntheticSubName,
@@ -24,10 +32,20 @@ import type { TemperatureQualifier } from "../solver/temperature-flow";
  * per-building craft rate, so module/beacon changes re-derive the rate. */
 export type DocPin =
   | { kind: "count" | "cap"; recipe: string; count: number }
-  | { kind: "share"; recipe: string; item: string; share: number; base?: "total" | "remaining" }
+  | {
+      kind: "share";
+      recipe: string;
+      item: string;
+      share: number;
+      base?: "total" | "remaining";
+      /** the item's quality (#266; absent = normal) */
+      quality?: string;
+    }
   /** this recipe absorbs the item's surplus (net = 0) — byproduct disposal */
-  | { kind: "drain"; recipe: string; item: string };
+  | { kind: "drain"; recipe: string; item: string; quality?: string };
 import { computeEffects, type BeaconConfig } from "./effects";
+import { machineAtQuality, qualityEffectLookups } from "./quality-effects";
+import { NORMAL_QUALITY, qualityKey, splitQualityKey } from "../lib/quality";
 import { interferingBeacons } from "../lib/beacon-interference.ts";
 import { recipeDifferencesFor } from "./recipe-differences.server.ts";
 import { pickAutoModules } from "./module-fill.server.ts";
@@ -37,7 +55,7 @@ import { reactorHeatMultiplier, REACTOR_LAYOUT_DEFAULT, type ReactorLayout } fro
 import { goalConsumes, goalNames, normalizeBlockData } from "../lib/goals";
 import { fmtTemp, fmtTempRange } from "../lib/format";
 import { wholeMachines } from "../lib/machine-count";
-import type { Goal, TemporaryCampaign } from "../db/schema.ts";
+import type { Goal, RowQuality, TemporaryCampaign } from "../db/schema.ts";
 import * as q from "../db/queries.server.ts";
 import {
   currentSolveGeneration,
@@ -177,6 +195,7 @@ export function boundaryFlows(
     rate: number;
     direction?: "produce" | "consume";
     stock?: boolean;
+    quality?: string;
   }[],
   r: {
     exports: { name: string; kind: string; rate: number }[];
@@ -184,14 +203,31 @@ export function boundaryFlows(
     qualifiedImports?: ({ name: string; kind: string; rate: number } & TemperatureQualifier)[];
     qualifiedExports?: ({ name: string; kind: string; rate: number } & TemperatureQualifier)[];
     qualifiedGoals?: Record<string, ({ rate: number } & TemperatureQualifier)[]>;
+    /** non-normal quality names: a flow named `item@rare` is stored as item +
+     * quality (#266) */
+    qualityNames?: string[];
   },
 ) {
+  const named = new Set(r.qualityNames ?? []);
+  /** A flow's cache identity: its item plus a quality column above normal. */
+  const identity = (name: string) => {
+    const { name: item, quality } = splitQualityKey(name, named);
+    return quality ? { item, quality } : { item };
+  };
   const goalRows = goals
     .filter((g) => g.direction !== "consume" && g.rate >= 0)
     .flatMap((g) => {
       const qualified = r.qualifiedGoals?.[g.name];
       if (!qualified?.length)
-        return [{ item: g.name, kind: g.kind, role: g.stock ? "stock" : "primary", rate: g.rate }];
+        return [
+          {
+            item: g.name,
+            kind: g.kind,
+            role: g.stock ? "stock" : "primary",
+            rate: g.rate,
+            ...(g.quality ? { quality: g.quality } : {}),
+          },
+        ];
       const total = qualified.reduce((sum, flow) => sum + flow.rate, 0);
       let assigned = 0;
       return qualified.map((flow, index) => {
@@ -222,12 +258,12 @@ export function boundaryFlows(
     ...goalRows,
     ...(r.qualifiedExports ?? r.exports).map(({ name, ...f }) => ({
       ...f,
-      item: name,
+      ...identity(name),
       role: "byproduct",
     })),
     ...(r.qualifiedImports ?? r.imports).map(({ name, ...f }) => ({
       ...f,
-      item: name,
+      ...identity(name),
       role: "import",
     })),
   ];
@@ -241,14 +277,19 @@ export function goalFlows(data: SolveInput): {
   rate: number;
   direction?: "produce" | "consume";
   stock?: boolean;
+  quality?: string;
 }[] {
-  return data.goals.map((g) => ({
-    name: g.name,
-    kind: q.getFluid(g.name) ? "fluid" : "item",
-    rate: g.rate,
-    direction: g.direction ?? (g.rate < 0 ? "consume" : "produce"),
-    stock: g.stock != null,
-  }));
+  return data.goals.map((g) => {
+    const fluid = !!q.getFluid(g.name);
+    return {
+      name: g.name,
+      kind: fluid ? "fluid" : "item",
+      rate: g.rate,
+      direction: g.direction ?? (g.rate < 0 ? "consume" : "produce"),
+      stock: g.stock != null,
+      ...(g.quality && g.quality !== NORMAL_QUALITY && !fluid ? { quality: g.quality } : {}),
+    };
+  });
 }
 
 /** Machine requirement to cache for a solved block: how many of each machine the
@@ -258,16 +299,28 @@ export function goalFlows(data: SolveInput): {
  * `buildings` field, `buildingBill`), which reuse it against `computeBlock`'s
  * solved rows instead of re-deriving machine counts. */
 export function machineReqs(
-  rows: { recipe: string; machine?: { name: string; count: number } | null }[],
+  rows: {
+    recipe: string;
+    machine?: { name: string; count: number; quality?: string } | null;
+  }[],
 ) {
-  const totals = new Map<string, { machine: string; recipe: string; count: number }>();
+  const totals = new Map<
+    string,
+    { machine: string; recipe: string; count: number; quality?: string }
+  >();
   for (const row of rows) {
     if (!row.machine || row.machine.count <= 0) continue;
     const key = `${row.machine.name} ${row.recipe}`;
     const cur = totals.get(key);
     if (cur) cur.count += row.machine.count;
     else
-      totals.set(key, { machine: row.machine.name, recipe: row.recipe, count: row.machine.count });
+      totals.set(key, {
+        machine: row.machine.name,
+        recipe: row.recipe,
+        count: row.machine.count,
+        // machine quality (#266); absent = normal
+        ...(row.machine.quality ? { quality: row.machine.quality } : {}),
+      });
   }
   return [...totals.values()];
 }
@@ -319,6 +372,8 @@ export type SolveInput = {
   reactorLayouts?: Record<string, ReactorLayout>;
   modules?: Record<string, string[]>; // recipe → modules in the machine's slots
   beacons?: Record<string, BeaconConfig[]>; // recipe → beacons affecting each machine
+  /** per-row quality range and machine/module quality (#266; absent = normal) */
+  rowQuality?: Record<string, RowQuality>;
 };
 
 /** Core block computation (solve → machines/fuel/power, fuel/ash folded into the
@@ -385,6 +440,31 @@ export async function computeBlock(rawData: SolveInput) {
       .map((b) => b.beacon),
   );
 
+  // Quality (#266): the chain, and the module/beacon/machine variants the doc's
+  // quality settings ask for. A module or beacon at a quality is looked up under
+  // its quality key, so computeEffects reads it like any other. Normal (and an
+  // unknown quality) leaves everything as it is.
+  const qualityCtx = refs.qualities();
+  const qualityNames = new Set(qualityCtx.ladder.slice(1).map((step) => step.name));
+  const bonusesOf = (quality: string | undefined) =>
+    quality && quality !== NORMAL_QUALITY ? (qualityCtx.byName.get(quality) ?? null) : null;
+  const qualityFx = qualityEffectLookups(moduleDb, beaconDb, bonusesOf, qualityCtx.effectStep);
+  const qualityRank = (quality: string) =>
+    qualityCtx.ladder.findIndex((step) => step.name === quality);
+  // a row asking for a quality the horizon hasn't unlocked plans at the best
+  // unlocked one and reports `qualityCapped`
+  const capAtTop = (quality: string | undefined) =>
+    capQuality(qualityCtx.ladder, qualityCtx.top, quality);
+  /** The qualities a row runs at: its range as a slice of the chain. A recipe
+   * that can't set quality (fluid-only ingredients, synthetic recipes) runs at
+   * normal only, though its products can still upgrade. */
+  const rowLevels = (setting: RowQuality | undefined, canSetQuality: boolean) => {
+    const names = qualityCtx.ladder.map((step) => step.name);
+    const lo = names.indexOf(setting?.min ?? NORMAL_QUALITY);
+    const hi = names.indexOf(setting?.max ?? setting?.min ?? NORMAL_QUALITY);
+    return canSetQuality && lo >= 0 && hi >= lo ? names.slice(lo, hi + 1) : [NORMAL_QUALITY];
+  };
+
   // Py TURD: the selected upgrades insert hidden modules into their buildings
   // (via an internal 1:1 beacon — no slot cost). A module applies when the
   // machine's slot categories accept its category, and — for the per-tier
@@ -440,7 +520,18 @@ export async function computeBlock(rawData: SolveInput) {
           ? machines.filter((m) => unlockedMachines.has(m.name))
           : machines;
       const fallback = pickDefaultMachine(pool);
-      const chosen = machines.find((m) => m.name === data.machines?.[r.name]) ?? fallback ?? null;
+      const askedQuality = data.rowQuality?.[r.name];
+      const rowQuality = askedQuality && {
+        min: capAtTop(askedQuality.min),
+        max: capAtTop(askedQuality.max),
+        machine: capAtTop(askedQuality.machine),
+        modules: capAtTop(askedQuality.modules),
+      };
+      const baseMachine =
+        machines.find((m) => m.name === data.machines?.[r.name]) ?? fallback ?? null;
+      const machineBonuses = bonusesOf(rowQuality?.machine);
+      const chosen =
+        baseMachine && machineBonuses ? machineAtQuality(baseMachine, machineBonuses) : baseMachine;
       const manual = data.modules?.[r.name];
       const machineModules = (manual ?? [])
         .filter((n) => moduleDb.has(n))
@@ -457,10 +548,16 @@ export async function computeBlock(rawData: SolveInput) {
         : interferingBeacons(beaconCfgs, (n) => beaconDb.get(n)?.interference);
       const effects = computeEffects(
         r.allowProductivity,
-        machineModules,
-        beaconCfgs,
-        moduleDb,
-        beaconDb,
+        machineModules.map((m) => qualityFx.moduleAt(m, rowQuality?.modules)),
+        beaconCfgs.map((b) =>
+          qualityFx.beaconConfigAt({
+            ...b,
+            quality: capAtTop(b.quality),
+            moduleQuality: capAtTop(b.moduleQuality),
+          }),
+        ),
+        qualityFx.modules,
+        qualityFx.beacons,
         turdModules,
         {
           recipeProd: researchProd.recipes.get(r.name) ?? 0,
@@ -469,16 +566,26 @@ export async function computeBlock(rawData: SolveInput) {
         },
         chosen?.effectReceiver,
         chosen,
+        r.allowQuality,
       );
       return [
         r.name,
         {
           chosen,
+          machineQuality: machineBonuses?.name ?? null,
           machineModules,
           beaconCfgs,
           beaconInterference,
           turdModules,
           effects,
+          qualityLevels: rowLevels(rowQuality, r.canSetQuality),
+          qualityCapped: [
+            askedQuality?.min,
+            askedQuality?.max,
+            askedQuality?.machine,
+            askedQuality?.modules,
+            ...beaconCfgs.flatMap((b) => [b.quality, b.moduleQuality]),
+          ].some((quality) => quality != null && capAtTop(quality) !== quality),
         },
       ] as const;
     }),
@@ -495,11 +602,11 @@ export async function computeBlock(rawData: SolveInput) {
     ...(data.made ?? []),
   ]);
   const selfFueled = new Set<string>(); // recipes whose fuel is modeled in the LP (skip the post-hoc fold)
-  const defs: TempRecipeDef[] = fetched.map((r) => {
+  const defs: QualityRecipeDef[] = fetched.map((r) => {
     const s = setup.get(r.name)!;
     const fx = s.effects;
     const chosen = s.chosen;
-    const ingredients: TempComponent[] = r.ingredients.map((c) => {
+    const ingredients: QualityComponent[] = r.ingredients.map((c) => {
       const selected = data.fluidTemperatures?.[r.name]?.[c.name];
       const fluid = c.kind === "fluid" ? refs.getFluid(c.name) : null;
       const acceptedMin = c.minTemp ?? fluid?.defaultTemperature ?? null;
@@ -518,7 +625,8 @@ export async function computeBlock(rawData: SolveInput) {
         maxTemp: validSelection ? selected : c.maxTemp,
       };
     });
-    const extraProducts: TempComponent[] = [];
+    // fuel and its burnt result stay normal whatever the row's quality (#266)
+    const extraProducts: QualityComponent[] = [];
     // Self-fueling burners: when a machine burns a fuel this block PRODUCES (e.g. a
     // burner-mining-drill mining raw-coal while burning raw-coal), model the burn in
     // the LP — a fuel ingredient (+ its ash product) per execution. The solver then
@@ -549,9 +657,19 @@ export async function computeBlock(rawData: SolveInput) {
         const fuelPerExec =
           (chosen.energyUsageW * fx.consMult * energyRequired) / (speed * pick.fuelValueJ);
         if (fuelPerExec > 0) {
-          ingredients.push({ kind: pick.kind, name: pick.name, amount: fuelPerExec });
+          ingredients.push({
+            kind: pick.kind,
+            name: pick.name,
+            amount: fuelPerExec,
+            fixedQuality: true,
+          });
           if (pick.burntResult)
-            extraProducts.push({ kind: "item", name: pick.burntResult, amount: fuelPerExec });
+            extraProducts.push({
+              kind: "item",
+              name: pick.burntResult,
+              amount: fuelPerExec,
+              fixedQuality: true,
+            });
           selfFueled.add(r.name);
         }
       }
@@ -644,6 +762,88 @@ export async function computeBlock(rawData: SolveInput) {
   // Explicit doc state wins; a legacy doc (no `made`) derives it from its old
   // dispositions via the migration mapping the parity report validated. The
   // derived set is echoed back on the result so the editor persists it.
+  /** An item goal's quality (#266): non-normal only, and fluids have none. */
+  const goalQuality = (goal: Goal) =>
+    goal.quality && goal.quality !== NORMAL_QUALITY && !refs.getFluid(goal.name)
+      ? goal.quality
+      : undefined;
+  const requestedGoals = targets.map((t) => {
+    const producedTemperatures = fluidTemperatureOptions.get(t.name) ?? [];
+    const temperature =
+      t.temperature != null &&
+      Number.isFinite(t.temperature) &&
+      producedTemperatures.includes(t.temperature)
+        ? t.temperature
+        : undefined;
+    const quality = goalQuality(t);
+    return {
+      name: t.name,
+      rate: t.rate,
+      direction: t.direction ?? (t.rate < 0 ? "consume" : "produce"),
+      ...(temperature != null ? { temperature } : {}),
+      ...(quality != null ? { quality } : {}),
+    };
+  });
+  const made =
+    data.made ??
+    migrateToLpInput({ targets: requestedGoals, recipes: defs, dispositions: data.dispositions })
+      .made ??
+    [];
+  // doc pins are in buildings; convert to executions/sec with the row's real
+  // per-building craft rate (speed × speed-effects ÷ energy) so pins follow
+  // module/machine changes. Rows whose recipe left the block are ignored.
+  const craftRate = (recipe: string) => {
+    const s = setup.get(recipe);
+    const def = defs.find((d) => d.name === recipe);
+    if (!s || !def) return null;
+    const speed = (s.chosen?.craftingSpeed ?? 1) * s.effects.speedMult;
+    return speed / Math.max(1e-9, def.energyRequired ?? 0.5);
+  };
+  const pins: QualityPin[] = [];
+  // drain pins constrain the ITEM (net = 0), not a recipe rate — collected
+  // separately; the recipe on the pin is provenance for the UI badge
+  const drains = [
+    ...new Set(
+      (data.pins ?? []).flatMap((p) => (p.kind === "drain" ? [qualityKey(p.item, p.quality)] : [])),
+    ),
+  ];
+  for (const p of data.pins ?? []) {
+    if (p.kind === "drain") continue;
+    if (p.kind === "share") {
+      pins.push({
+        kind: "share",
+        item: p.item,
+        recipe: p.recipe,
+        share: p.share,
+        base: p.base,
+        ...(p.quality ? { quality: p.quality } : {}),
+      });
+      continue;
+    }
+    const perBuilding = craftRate(p.recipe);
+    if (perBuilding == null) continue;
+    pins.push({
+      kind: p.kind === "count" ? "rate" : "cap",
+      recipe: p.recipe,
+      rate: p.count * perBuilding,
+    });
+  }
+  const defaultTemp = (f: string) => refs.getFluid(f)?.defaultTemperature ?? null;
+  // Quality (#266): give each row one LP column per quality it runs at, split
+  // item products by the row's quality effect, and key goods per (good,
+  // quality) — a pure input transformation like the temperature one below. It
+  // returns the input untouched when nothing has quality (every Py block).
+  const { input: expandedQualityInput, fold: qualityFold } = expandQualities(
+    { goals: requestedGoals, recipes: defs, made, pins, drains },
+    new Map<string, RowRun>(
+      defs.map((d) => {
+        const s = setup.get(d.name)!;
+        return [d.name, { levels: s.qualityLevels, effect: s.effects.qualityBonus }];
+      }),
+    ),
+    qualityCtx.ladder,
+    qualityCtx.top,
+  );
   // Supply-push (#121): when every recipe that can produce a pinned goal has an
   // exact COUNT pin, those counts completely determine the output, so the goal's
   // rate stops forcing a conflicting total. Without this the two fight — 2
@@ -658,97 +858,63 @@ export async function computeBlock(rawData: SolveInput) {
   // The doc goal is untouched (naming, rollups); when all producers are fixed,
   // only the solver floor is relaxed and `goalSuperseded` reports the gap. A
   // consume goal is never superseded: pinned producers don't fix what it takes.
-  const productsByRecipe = new Map(defs.map((d) => [d.name, d.products.map((p) => p.name)]));
-  const countPinnedRecipes = new Set(
-    (data.pins ?? []).flatMap((pin) => (pin.kind === "count" ? [pin.recipe] : [])),
+  //
+  // This runs on the quality-expanded columns, per (good, quality) key (#266).
+  // A count pin fixes one column only when its row runs at a single quality; on
+  // a quality-range row it fixes the row's total, so any mix of qualities can
+  // fill it and a quality goal it feeds stays binding.
+  const fixedColumns = new Set(
+    (data.pins ?? []).flatMap((pin) => {
+      if (pin.kind !== "count") return [];
+      const columns = qualityFold.columnsOf(pin.recipe);
+      return columns.length === 1 ? columns : [];
+    }),
   );
-  const producersByGoal = new Map(
-    targets.map((target) => [
-      target.name,
-      defs.flatMap((def) =>
-        def.products.some((product) => product.name === target.name && product.amount > 0)
-          ? [def.name]
-          : [],
-      ),
-    ]),
-  );
-  const supersededGoals = new Map<string, { recipe: string; count: number }>();
+  const columnDefs = new Map(expandedQualityInput.recipes.map((d) => [d.name, d]));
+  const goalKey = (goal: { name: string; quality?: string }) => qualityKey(goal.name, goal.quality);
+  const supersededGoals = new Map<string, { recipe: string; column: string; count: number }>();
   for (const p of data.pins ?? []) {
     if (p.kind !== "count") continue;
-    for (const prod of productsByRecipe.get(p.recipe) ?? []) {
-      const producers = producersByGoal.get(prod) ?? [];
-      const outputIsFullyPinned =
-        producers.length > 0 && producers.every((recipe) => countPinnedRecipes.has(recipe));
-      if (
-        outputIsFullyPinned &&
-        targets.some((t) => t.name === prod && t.rate != null && !goalConsumes(t)) &&
-        !supersededGoals.has(prod)
-      )
-        supersededGoals.set(prod, { recipe: p.recipe, count: p.count });
+    for (const column of qualityFold.columnsOf(p.recipe)) {
+      for (const { name: prod } of columnDefs.get(column)?.products ?? []) {
+        const producers = expandedQualityInput.recipes.filter((def) =>
+          def.products.some((product) => product.name === prod && product.amount > 0),
+        );
+        const outputIsFullyPinned =
+          producers.length > 0 && producers.every((def) => fixedColumns.has(def.name));
+        if (
+          outputIsFullyPinned &&
+          requestedGoals.some((t) => goalKey(t) === prod && t.rate != null && !goalConsumes(t)) &&
+          !supersededGoals.has(prod)
+        )
+          supersededGoals.set(prod, { recipe: p.recipe, column, count: p.count });
+      }
     }
   }
-  const goals = targets.map((t) => {
-    const producedTemperatures = fluidTemperatureOptions.get(t.name) ?? [];
-    const temperature =
-      t.temperature != null &&
-      Number.isFinite(t.temperature) &&
-      producedTemperatures.includes(t.temperature)
-        ? t.temperature
-        : undefined;
-    return {
-      name: t.name,
-      rate: supersededGoals.has(t.name) ? 0 : t.rate,
-      direction: t.direction ?? (t.rate < 0 ? "consume" : "produce"),
-      ...(temperature != null ? { temperature } : {}),
-    };
-  });
-  const made =
-    data.made ??
-    migrateToLpInput({ targets: goals, recipes: defs, dispositions: data.dispositions }).made ??
-    [];
-  // doc pins are in buildings; convert to executions/sec with the row's real
-  // per-building craft rate (speed × speed-effects ÷ energy) so pins follow
-  // module/machine changes. Rows whose recipe left the block are ignored.
-  const craftRate = (recipe: string) => {
-    const s = setup.get(recipe);
-    const def = defs.find((d) => d.name === recipe);
-    if (!s || !def) return null;
-    const speed = (s.chosen?.craftingSpeed ?? 1) * s.effects.speedMult;
-    return speed / Math.max(1e-9, def.energyRequired ?? 0.5);
+  const supersede = <G extends { name: string; rate: number }>(goal: G, key: string): G =>
+    supersededGoals.has(key) ? { ...goal, rate: 0 } : goal;
+  const goals = requestedGoals.map((goal) => supersede(goal, goalKey(goal)));
+  const qualityInput = {
+    ...expandedQualityInput,
+    goals: expandedQualityInput.goals.map((goal) => supersede(goal, goal.name)),
   };
-  const pins: Pin[] = [];
-  // drain pins constrain the ITEM (net = 0), not a recipe rate — collected
-  // separately; the recipe on the pin is provenance for the UI badge
-  const drains = [
-    ...new Set((data.pins ?? []).flatMap((p) => (p.kind === "drain" ? [p.item] : []))),
-  ];
-  for (const p of data.pins ?? []) {
-    if (p.kind === "drain") continue;
-    if (p.kind === "share") {
-      pins.push({ kind: "share", item: p.item, recipe: p.recipe, share: p.share, base: p.base });
-      continue;
-    }
-    const perBuilding = craftRate(p.recipe);
-    if (perBuilding == null) continue;
-    pins.push({
-      kind: p.kind === "count" ? "rate" : "cap",
-      recipe: p.recipe,
-      rate: p.count * perBuilding,
-    });
-  }
   // Gap report for each superseded goal: what the pinned buildings actually make
   // (exact, since a count pin fixes the rate) vs the original target, and how many
   // whole buildings the target WOULD need — the UI shows this as a soft note so
   // the relaxation isn't silent ("2 foundries make 0.13/s; 0.14/s needs 3").
-  const goalSuperseded = [...supersededGoals].flatMap(([item, { recipe, count }]) => {
-    const goalRate = targets.find((t) => t.name === item)?.rate ?? 0;
-    const def = defs.find((d) => d.name === recipe);
-    const perCraft = def?.products.filter((c) => c.name === item).reduce((s, c) => s + c.amount, 0);
+  const goalSuperseded = [...supersededGoals].flatMap(([key, { recipe, column, count }]) => {
+    const target = requestedGoals.find((t) => goalKey(t) === key);
+    const goalRate = target?.rate ?? 0;
+    const perCraft = columnDefs
+      .get(column)
+      ?.products.filter((c) => c.name === key)
+      .reduce((s, c) => s + c.amount, 0);
     const perBuilding = (perCraft ?? 0) * (craftRate(recipe) ?? 0);
     if (perBuilding <= 0) return [];
     return [
       {
-        item,
+        item: target?.name ?? key,
+        ...(target?.quality ? { quality: target.quality } : {}),
         goalRate,
         pinnedCount: count,
         actualRate: perBuilding * count,
@@ -756,7 +922,6 @@ export async function computeBlock(rawData: SolveInput) {
       },
     ];
   });
-  const defaultTemp = (f: string) => refs.getFluid(f)?.defaultTemperature ?? null;
   // Sub-blocks v2 (#76): a COMPOSED group is solved as its own module and pulled
   // out of the parent solve, replaced by a synthetic recipe carrying only its
   // boundary contract (net imports → net exports). Member recipes and pins route
@@ -769,15 +934,25 @@ export async function computeBlock(rawData: SolveInput) {
       name: g.name,
       members: Object.entries(data.recipeGroups ?? {})
         .filter(([, gid]) => gid === g.id)
-        .map(([r]) => r),
-      goals: (g.goals ?? []).map((x) => ({ name: x.name, rate: x.rate })),
+        .flatMap(([r]) => qualityFold.columnsOf(r)),
+      // a module goal names a (good, quality) like a block goal, so it sizes
+      // the member column that makes that quality (#266)
+      goals: (g.goals ?? []).map((x) => ({
+        name: qualityKey(x.name, goalQuality(x)),
+        rate: x.rate,
+      })),
       ...(g.made ? { made: g.made } : {}),
     }));
   const compose = composedGroups.length
-    ? await composeSubBlocks({ defs, groups: composedGroups, pins, defaultTemp })
+    ? await composeSubBlocks({
+        defs: qualityInput.recipes,
+        groups: composedGroups,
+        pins: qualityInput.pins,
+        defaultTemp,
+      })
     : {
-        parentDefs: defs,
-        parentPins: pins,
+        parentDefs: qualityInput.recipes,
+        parentPins: qualityInput.pins,
         subs: [] as SubBlockSolve[],
         memberGroupOf: new Map<string, number>(),
       };
@@ -788,13 +963,24 @@ export async function computeBlock(rawData: SolveInput) {
   // parent consumer. Not persisted: the block's own `made` (echoed for migration)
   // is unchanged.
   const parentMade = compose.subs.length
-    ? [...new Set([...made, ...composedGroups.flatMap((g) => g.goals.map((x) => x.name))])]
-    : made;
+    ? [
+        ...new Set([
+          ...qualityInput.made,
+          ...composedGroups.flatMap((g) => g.goals.map((x) => x.name)),
+        ]),
+      ]
+    : qualityInput.made;
   // Fluid-temperature identity (#110): expand ranged fluids into variant/pool
   // goods with selector pseudo-recipes — a pure input transformation; the LP
   // core is untouched. `fold` maps synthetic goods/recipes back for display.
   const { input: expandedInput, fold } = expandTemps(
-    { goals, recipes: compose.parentDefs, made: parentMade, pins: compose.parentPins, drains },
+    {
+      goals: qualityInput.goals,
+      recipes: compose.parentDefs,
+      made: parentMade,
+      pins: compose.parentPins,
+      drains: qualityInput.drains,
+    },
     defaultTemp,
   );
   const lpInput: LpBlockInput = expandedInput;
@@ -802,14 +988,17 @@ export async function computeBlock(rawData: SolveInput) {
   // root-cause cards for the balance card — every member is a clickable gesture.
   // Fold synthetic goods back to the bare fluid (the doc's made marks are bare
   // names, so actions work) and keep the temperature as a display qualifier.
+  // A quality good keeps its quality key, which is the doc's made-mark form,
+  // and a pin names its row rather than one quality's column.
   const diagnosis: (DiagnosisCard & {
     members: { qualifier?: string | null }[];
   })[] = (rawResult.status === "infeasible" ? await diagnoseBlock(lpInput) : []).map((c) => ({
-    members: c.members.map((m) => ({
-      ...m,
-      prov: "item" in m.prov ? { ...m.prov, item: fold.bare(m.prov.item) } : m.prov,
-      qualifier: "item" in m.prov ? fold.tempOf(m.prov.item) : null,
-    })),
+    members: c.members.map((m) => {
+      let prov = m.prov;
+      if ("item" in prov) prov = { ...prov, item: fold.bare(prov.item) };
+      if ("recipe" in prov) prov = { ...prov, recipe: qualityFold.rowOf(prov.recipe).recipe };
+      return { ...m, prov, qualifier: "item" in m.prov ? fold.tempOf(m.prov.item) : null };
+    }),
   }));
   // fold the solve result: selector rows vanish; variant/pool flows merge onto
   // the bare fluid name; unmade keeps the temp qualifier via the display map.
@@ -968,10 +1157,29 @@ export async function computeBlock(rawData: SolveInput) {
     }
     for (const u of sub.unmade) subUnmade.push(u);
   }
-  const solvedRecipes = [
+  // Quality columns fold back onto their block row: one row, one machine
+  // count, with each quality's run rate kept alongside (#266).
+  type SolvedColumn = { recipe: string; rate: number; machines1x: number };
+  const columnsByRow = new Map<string, { quality: string | null; column: SolvedColumn }[]>();
+  for (const column of [
     ...parentRecipes.filter((r) => !isSyntheticSubName(r.recipe)),
     ...memberRows,
-  ];
+  ]) {
+    const { recipe, quality } = qualityFold.rowOf(column.recipe);
+    columnsByRow.set(recipe, [...(columnsByRow.get(recipe) ?? []), { quality, column }]);
+  }
+  const solvedRecipes: (SolvedColumn & {
+    qualityRates?: { quality: string | null; rate: number }[];
+  })[] = [...columnsByRow].map(([recipe, cols]) =>
+    cols.length === 1 && cols[0].quality == null
+      ? cols[0].column
+      : {
+          recipe,
+          rate: cols.reduce((sum, c) => sum + c.column.rate, 0),
+          machines1x: cols.reduce((sum, c) => sum + c.column.machines1x, 0),
+          qualityRates: cols.map((c) => ({ quality: c.quality, rate: c.column.rate })),
+        },
+  );
   const allUnmade = [...new Set([...unmadeBare, ...subUnmade])];
   const result = {
     ...rawResult,
@@ -1007,7 +1215,7 @@ export async function computeBlock(rawData: SolveInput) {
   // enabled recipe the solver omitted. These are editor metadata only: the raw
   // result, boundary flows, and persistence still use `result.recipes`.
   const resultRecipeNames = new Set(result.recipes.map((r) => r.recipe));
-  const rowRecipes = [
+  const rowRecipes: (typeof solvedRecipes)[number][] = [
     ...result.recipes,
     ...fetched
       .filter((recipe) => !resultRecipeNames.has(recipe.name))
@@ -1018,6 +1226,9 @@ export async function computeBlock(rawData: SolveInput) {
     const scaled = defByName.get(rr.recipe)!;
     const {
       chosen,
+      machineQuality,
+      qualityLevels,
+      qualityCapped,
       machineModules,
       beaconCfgs,
       beaconInterference,
@@ -1213,10 +1424,24 @@ export async function computeBlock(rawData: SolveInput) {
       // recipe kind (real | burning | …) so machineless rows can say why
       kind: def.kind,
       rate: rr.rate,
+      // each quality's share of the rate, for a row that runs above normal
+      ...(rr.qualityRates ? { qualityRates: rr.qualityRates } : {}),
+      // a quality effect that can't upgrade anything: no item product, or the
+      // row only runs at the best unlocked quality (YAFC-CE's UselessQuality,
+      // RecipeParameters.cs:170-176)
+      ...(fx.qualityBonus > 0 &&
+      (!def.products.some((p) => p.kind === "item") ||
+        qualityLevels.every((level) => qualityRank(level) >= qualityRank(qualityCtx.top)))
+        ? { qualityUseless: true }
+        : {}),
+      // the doc asked for a quality the research horizon hasn't unlocked; the
+      // row plans at the best unlocked one instead
+      ...(qualityCapped ? { qualityCapped: true } : {}),
       spoil,
       reactor,
       machine: chosen && {
         name: chosen.name,
+        ...(machineQuality ? { quality: machineQuality } : {}),
         display: chosen.display,
         energySource: chosen.energySource,
         count,
@@ -1243,7 +1468,12 @@ export async function computeBlock(rawData: SolveInput) {
       beaconInterference,
       beaconBuildings,
       beaconPowerW,
-      effects: { speed: fx.speedBonus, productivity: fx.prodBonus, consumption: fx.consBonus },
+      effects: {
+        speed: fx.speedBonus,
+        productivity: fx.prodBonus,
+        consumption: fx.consBonus,
+        ...(fx.qualityBonus > 0 ? { quality: fx.qualityBonus } : {}),
+      },
       ingredients: def.ingredients.map((c) => {
         const fluid = c.kind === "fluid" ? refs.getFluid(c.name) : null;
         const acceptedMin = c.minTemp ?? fluid?.defaultTemperature ?? null;
@@ -1474,7 +1704,7 @@ export async function computeBlock(rawData: SolveInput) {
   // Which imports are craftable in-block (a recipe exists to make them) vs. true
   // raws (nothing produces them — you must supply them). Drives the import tint.
   const producible = imports
-    .filter((f) => refs.recipesProducing(f.name).length > 0)
+    .filter((f) => refs.recipesProducing(splitQualityKey(f.name, qualityNames).name).length > 0)
     .map((f) => f.name);
 
   // Surface incompatible enabled producer→consumer routes. Temperature identity
@@ -1544,8 +1774,14 @@ export async function computeBlock(rawData: SolveInput) {
   const recipeDiffers = Object.fromEntries(
     recipeDifferencesFor(Object.entries(recipeDisplay).map(([name, d]) => ({ name, display: d }))),
   );
-  const itemDisp = (name: string) =>
-    refs.getItem(name)?.display ?? refs.getFluid(name)?.display ?? null;
+  // a quality good (#266) reads "Iron plate (Rare)" until the planner draws
+  // quality badges (#267)
+  const itemDisp = (key: string) => {
+    const { name, quality } = splitQualityKey(key, qualityNames);
+    const base = refs.getItem(name)?.display ?? refs.getFluid(name)?.display ?? null;
+    if (!quality) return base;
+    return `${base ?? name} (${qualityCtx.byName.get(quality)?.display ?? quality})`;
+  };
   for (const name of [
     ...goalNames(data),
     ...imports.map((f) => f.name),
@@ -1619,11 +1855,12 @@ export async function computeBlock(rawData: SolveInput) {
   // which is 0 for a goal a count pin superseded or one nothing makes. Surplus
   // above the floor is already in `exports`, so the two never overlap. The bot
   // counts (#255) size from these solved rates, not the doc's requested ones.
-  const goalOutputs = goals.flatMap((g) =>
-    g.direction !== "consume" && g.rate > 0 && !allUnmade.includes(g.name)
-      ? [{ name: g.name, kind: refs.getFluid(g.name) ? "fluid" : "item", rate: g.rate }]
-      : [],
-  );
+  const goalOutputs = goals.flatMap((g) => {
+    const name = qualityKey(g.name, g.quality);
+    return g.direction !== "consume" && g.rate > 0 && !allUnmade.includes(name)
+      ? [{ name, kind: refs.getFluid(g.name) ? "fluid" : "item", rate: g.rate }]
+      : [];
+  });
 
   return {
     ...result,
@@ -1662,6 +1899,9 @@ export async function computeBlock(rawData: SolveInput) {
     // module-suggestion hints are a per-project preference (Settings). The
     // editor resolves suggestion rows lazily; this gates the ambient icon.
     moduleHints,
+    // the project's non-normal quality names, so boundaryFlows can split a
+    // flow's quality key into its item and quality (#266)
+    qualityNames: [...qualityNames],
   };
 }
 
