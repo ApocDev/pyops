@@ -269,3 +269,23 @@ describe("computeScienceBank — edges", () => {
     expect(r.packDemand).toEqual({});
   });
 });
+
+describe("computeScienceBank — quality packs", () => {
+  // A rate is research throughput, so a rare pack (level 2: tool durability
+  // 1 + 2 = 3) changes only how many packs that research eats.
+  const durability3 = (pack: string) =>
+    pack.endsWith("@rare")
+      ? { name: pack.slice(0, -"@rare".length), demand: 1 / 3 }
+      : { name: pack, demand: 1 };
+
+  it("sizes labs and power by throughput and cuts only the rare pack demand", () => {
+    const normal = bank({ packs: { "automation-science-pack": 1 }, packQuality: durability3 });
+    const rare = bank({ packs: { "automation-science-pack@rare": 1 }, packQuality: durability3 });
+    expect(rare.labs).toBeCloseTo(normal.labs, 12);
+    expect(rare.labs).toBeCloseTo(60, 9); // 1/s × 60 lab-seconds per pack
+    expect(rare.totalPowerW).toBeCloseTo(normal.totalPowerW, 6);
+    expect(rare.unsupported).toEqual([]);
+    expect(normal.packDemand["automation-science-pack"]).toBeCloseTo(1, 12);
+    expect(rare.packDemand["automation-science-pack@rare"]).toBeCloseTo(1 / 3, 12);
+  });
+});

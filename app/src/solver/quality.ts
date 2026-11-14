@@ -69,6 +69,19 @@ export function qualityLadder(rows: QualityStep[]): QualityStep[] {
   return ladder;
 }
 
+/** `quality` capped at `top`, the best quality the research horizon unlocks: a
+ * plan can't assume a machine, module or craft at a quality the player can't
+ * make yet. Normal, unknown names and undefined pass through. */
+export function capQuality<Q extends string | undefined>(
+  ladder: QualityStep[],
+  top: string,
+  quality: Q,
+): Q | string {
+  if (quality == null) return quality;
+  const rank = (name: string) => ladder.findIndex((q) => q.name === name);
+  return rank(quality) > rank(top) ? top : quality;
+}
+
 /**
  * How one craft's item product splits across qualities: each entry is the
  * expected share that comes out at that quality, and the shares sum to 1.

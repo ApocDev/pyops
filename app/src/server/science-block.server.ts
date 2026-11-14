@@ -15,6 +15,7 @@ import { blocks, fluids, items, labs, technologies, techIngredients } from "../d
 import type { ScienceBank } from "../db/schema.ts";
 import * as q from "../db/queries.server.ts";
 import { NORMAL_QUALITY, splitQualityKey } from "../lib/quality.ts";
+import { capQuality } from "../solver/quality.ts";
 import { qualityEffectLookups } from "./quality-effects.ts";
 import {
   computeScienceBank,
@@ -225,8 +226,19 @@ export function solveScienceBank(bank: ScienceBank): ScienceBankResult | null {
   // block row's. At normal everything reads as before.
   const qualityCtx = q.createBlockSolveContext([]).qualities();
   const qualityNames = new Set(qualityCtx.ladder.slice(1).map((step) => step.name));
-  const bonusesOf = (quality: string | undefined) =>
-    quality && quality !== NORMAL_QUALITY ? (qualityCtx.byName.get(quality) ?? null) : null;
+  // a quality the research horizon hasn't unlocked plans at the best unlocked
+  // one, and the result says so
+  const capAtTop = (quality: string | undefined) =>
+    capQuality(qualityCtx.ladder, qualityCtx.top, quality);
+  const qualityCapped = [
+    bank.labQuality,
+    bank.moduleQuality,
+    ...beacons.flatMap((b) => [b.quality, b.moduleQuality]),
+  ].some((quality) => quality != null && capAtTop(quality) !== quality);
+  const bonusesOf = (asked: string | undefined) => {
+    const quality = capAtTop(asked);
+    return quality && quality !== NORMAL_QUALITY ? (qualityCtx.byName.get(quality) ?? null) : null;
+  };
   const labQuality = bonusesOf(bank.labQuality);
   const lab = labQuality
     ? {
@@ -245,7 +257,7 @@ export function solveScienceBank(bank: ScienceBank): ScienceBankResult | null {
     bonusesOf,
     qualityCtx.effectStep,
   );
-  return computeScienceBank({
+  const result = computeScienceBank({
     lab,
     packs: bank.packs,
     labSecondsPerPack: bank.labSecondsPerPack || DEFAULT_LAB_SECONDS_PER_PACK,
@@ -271,4 +283,5 @@ export function solveScienceBank(bank: ScienceBank): ScienceBankResult | null {
     ),
     upkeepKey: q.upkeepKey,
   });
+  return qualityCapped ? { ...result, qualityCapped: true } : result;
 }

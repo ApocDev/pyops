@@ -160,5 +160,27 @@ describe("quality in the science bank (#266)", () => {
     })!;
     expect(rareBiolab.labs).toBeCloseTo(60 / (3 * 1.6), 6);
     expect(rareBiolab.packDemand["automation-science-pack@rare"]).toBeCloseTo(0.98 / 3, 9);
+    expect(rareBiolab.qualityCapped).toBeUndefined();
+  });
+
+  it("plans a lab quality the research horizon hasn't unlocked at the best unlocked one", () => {
+    // rare needs a pack the horizon doesn't have, so uncommon is the top
+    const raw = new Database(fx.file);
+    raw.exec(`
+      INSERT INTO tech_quality_unlocks (technology, quality) VALUES ('rare-quality','rare');
+      INSERT INTO tech_ingredients (technology, name, amount)
+        VALUES ('rare-quality','space-science-pack',1);
+      INSERT INTO meta (key, value) VALUES ('research_mode','now'),('available_science_packs','[]');
+    `);
+    raw.close();
+    const result = solveScienceBank({
+      lab: "biolab",
+      labQuality: "rare",
+      packs: { "automation-science-pack": 1 },
+      labSecondsPerPack: 60,
+    })!;
+    expect(result.qualityCapped).toBe(true);
+    expect(result.labs).toBeCloseTo(60 / (3 * 1.3), 6); // uncommon: 1 + 0.3
+    expect(result.packDemand["automation-science-pack"]).toBeCloseTo(0.99, 9);
   });
 });

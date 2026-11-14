@@ -11,6 +11,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import { switchDatabase } from "../db/index.server.ts";
 import { qualityRow } from "../db/quality-import.ts";
 import { type TestDb, makeTestDb } from "../db/test-helpers.ts";
+import Database from "better-sqlite3";
+import { setResearchHorizon } from "../db/queries.server.ts";
 import { boundaryFlows, computeBlock, goalFlows, machineReqs } from "./block-compute.server.ts";
 
 const QUALITIES: [string, Record<string, unknown>][] = [
@@ -146,6 +148,7 @@ describe("computeBlock with quality", () => {
   });
 
   it("scales a legendary machine and modules and exports the upgraded share", async () => {
+    setResearchHorizon({ mode: "future" }); // every quality unlocked
     const doc = {
       goals: [{ name: "iron-gear-wheel", rate: 1 }],
       recipes: ["iron-gear-wheel"],
@@ -158,7 +161,7 @@ describe("computeBlock with quality", () => {
     const row = r.rows[0];
     // legendary quality module 3: 0.025 × 2.5 = 6.25%, four of them = 25%
     expect(row.effects.quality).toBeCloseTo(0.25);
-    // normal 0.75, uncommon 0.225, rare 0.025 (epic and legendary are locked)
+    // normal 0.75, uncommon 0.225, rare 0.0225, epic 0.00225, legendary 0.00025
     expect(row.rate).toBeCloseTo(1 / 0.75, 6);
     expect(row.machine?.craftingSpeed).toBeCloseTo(3.125); // 1.25 × 2.5
     expect(row.machine?.count).toBeCloseTo((row.rate * 0.5) / (3.125 * 0.8), 6);
@@ -173,13 +176,102 @@ describe("computeBlock with quality", () => {
 
     const byproducts = boundaryFlows(goalFlows(doc), r).filter((f) => f.role === "byproduct");
     expect(byproducts.map((f) => [f.item, "quality" in f ? f.quality : null])).toEqual([
+      ["iron-gear-wheel", "epic"],
+      ["iron-gear-wheel", "legendary"],
       ["iron-gear-wheel", "rare"],
       ["iron-gear-wheel", "uncommon"],
     ]);
-    expect(byproducts[0].rate).toBeCloseTo(0.025 / 0.75, 6);
-    expect(byproducts[1].rate).toBeCloseTo(0.225 / 0.75, 6);
+    expect(byproducts.map((f) => f.rate * 0.75)).toEqual([
+      expect.closeTo(0.00225, 9),
+      expect.closeTo(0.00025, 9),
+      expect.closeTo(0.0225, 9),
+      expect.closeTo(0.225, 9),
+    ]);
     expect(r.display["iron-gear-wheel@uncommon"]).toBe("Iron gear wheel (Uncommon)");
     expect("qualityUseless" in row).toBe(false);
+    expect("qualityCapped" in row).toBe(false);
+  });
+
+  it("caps qualities the research horizon hasn't unlocked and flags the row", async () => {
+    // rare is the best unlocked quality here, so legendary and epic asks plan
+    // exactly like rare ones
+    const db = new Database(fx.file);
+    db.exec(`INSERT INTO beacons (name, distribution_effectivity, module_slots, energy_usage_w,
+               distribution_effectivity_bonus_per_quality_level)
+             VALUES ('beacon', 1.5, 2, 480000, 0.2)`);
+    db.close();
+    const doc = (machine: string, modules: string, top: string) => ({
+      goals: [{ name: "iron-gear-wheel", rate: 1 }],
+      recipes: ["iron-gear-wheel"],
+      machines: { "iron-gear-wheel": "assembling-machine-3" },
+      modules: { "iron-gear-wheel": quality4 },
+      beacons: {
+        "iron-gear-wheel": [
+          {
+            beacon: "beacon",
+            modules: ["quality-module-3", "quality-module-3"],
+            count: 1,
+            quality: machine,
+            moduleQuality: modules,
+          },
+        ],
+      },
+      rowQuality: { "iron-gear-wheel": { min: "normal", max: top, machine, modules } },
+    });
+    const capped = (await computeBlock(doc("legendary", "epic", "legendary"))).rows[0];
+    const rare = (await computeBlock(doc("rare", "rare", "rare"))).rows[0];
+    expect(capped.qualityCapped).toBe(true);
+    expect("qualityCapped" in rare).toBe(false);
+    // rare modules: 0.025 × 1.6 = 4%; four in the machine plus two in a rare
+    // beacon (1.5 + 2 × 0.2 = 1.9 effectivity) = 0.16 + 0.152
+    expect(rare.effects.quality).toBeCloseTo(0.312, 9);
+    expect(capped.effects.quality).toBeCloseTo(rare.effects.quality!, 12);
+    expect(capped.machine?.craftingSpeed).toBeCloseTo(2, 12); // 1.25 × 1.6
+    expect(capped.machine?.quality).toBe("rare");
+    expect(capped.qualityRates?.map((q) => q.quality)).toEqual([null, "uncommon", "rare"]);
+    expect(capped.rate).toBeCloseTo(rare.rate, 9);
+    expect(capped.machine?.count).toBeCloseTo(rare.machine!.count, 9);
+  });
+
+  it("keeps a quality goal binding when a count pin spans the row's qualities", async () => {
+    // one assembling machine 3, no modules: 1.25 / 0.5 s = 2.5 crafts/s in
+    // total, which normal crafts alone could fill. The pin fixes only that
+    // total, so the rare goal must still be met from the rare column.
+    const r = await computeBlock({
+      goals: [{ name: "iron-gear-wheel", rate: 0.5, quality: "rare" }],
+      recipes: ["iron-gear-wheel"],
+      machines: { "iron-gear-wheel": "assembling-machine-3" },
+      rowQuality: { "iron-gear-wheel": { min: "normal", max: "rare" } },
+      pins: [{ kind: "count" as const, recipe: "iron-gear-wheel", count: 1 }],
+    });
+    expect(r.status).toBe("solved");
+    expect(r.goalSuperseded).toEqual([]);
+    const row = r.rows[0];
+    expect(row.rate).toBeCloseTo(2.5, 6);
+    const rare = row.qualityRates?.find((q) => q.quality === "rare")?.rate ?? 0;
+    expect(rare).toBeGreaterThanOrEqual(0.5 - 1e-6);
+  });
+
+  it("supersedes a quality goal whose only producer is a pinned single-quality row", async () => {
+    const r = await computeBlock({
+      goals: [{ name: "iron-gear-wheel", rate: 3, quality: "rare" }],
+      recipes: ["iron-gear-wheel"],
+      machines: { "iron-gear-wheel": "assembling-machine-3" },
+      rowQuality: { "iron-gear-wheel": { min: "rare", max: "rare" } },
+      pins: [{ kind: "count" as const, recipe: "iron-gear-wheel", count: 1 }],
+    });
+    expect(r.status).toBe("solved");
+    expect(r.goalSuperseded).toEqual([
+      {
+        item: "iron-gear-wheel",
+        quality: "rare",
+        goalRate: 3,
+        pinnedCount: 1,
+        actualRate: 2.5,
+        buildingsForGoal: 2,
+      },
+    ]);
+    expect(r.rows[0].rate).toBeCloseTo(2.5, 6);
   });
 
   it("flags quality modules that can't upgrade anything", async () => {

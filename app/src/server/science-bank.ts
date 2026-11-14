@@ -19,12 +19,19 @@
  * to module productivity, the way LuaEntity.productivity_bonus sums force and
  * module bonuses into one figure.
  *
- * Quality (#266) changes only how many packs the work eats. A rare pack lasts
- * `tool_durability_multiplier` (1 + level by default) times as long, as YAFC-CE
- * counts one quality pack as level + 1 normal ones
- * (ProductionTable.ScienceDecomposition.cs:8-25), and a lab that opts in drains
- * packs at its quality's `science_pack_drain_multiplier`. Lab speed and slots
- * arrive already scaled by the lab's quality.
+ * An entered pack rate is research THROUGHPUT, in normal packs' worth of
+ * research per second (what `ratesForTech` writes: a technology's cost per
+ * second). Lab count and power follow throughput only. `packDemand` is what the
+ * factory must supply to deliver it, so productivity and pack quality lower it
+ * and nothing else.
+ *
+ * Quality (#266) therefore changes only the packs consumed. A rare pack carries
+ * `tool_durability_multiplier` (1 + level by default) times the research, and a
+ * lab drains every pack at the same speed, so the same research takes the same
+ * labs and a third of the rare packs. YAFC-CE counts one quality pack as
+ * level + 1 normal ones the same way (ProductionTable.ScienceDecomposition.cs:8-25).
+ * A lab that opts in drains packs at its quality's `science_pack_drain_multiplier`.
+ * Lab speed and slots arrive already scaled by the lab's quality.
  */
 import { computeEffects, type BeaconConfig, type BeaconEff, type ModuleEff } from "./effects.ts";
 import { wholeMachines } from "../lib/machine-count.ts";
@@ -48,7 +55,8 @@ export type LabProto = {
 
 export type ScienceBankInput = {
   lab: LabProto;
-  /** pack → packs per second, after effects (the block's goals) */
+  /** pack → research throughput in normal packs' worth per second (the
+   * block's goals); see the module comment */
   packs: Record<string, number>;
   /** seconds of lab time per single pack at speed 1 */
   labSecondsPerPack: number;
@@ -97,6 +105,9 @@ export type ScienceBankResult = {
   totalPowerW: number;
   /** Packs requested that this lab does not accept. */
   unsupported: string[];
+  /** The bank asked for a lab, module or beacon quality the research horizon
+   * hasn't unlocked; it was planned at the best unlocked one (#266). */
+  qualityCapped?: boolean;
 };
 
 export function computeScienceBank(input: ScienceBankInput): ScienceBankResult {

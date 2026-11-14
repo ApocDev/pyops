@@ -9,6 +9,7 @@
 import type { Disposition } from "../solver/migrate";
 import { expandTemps } from "../solver/temps";
 import {
+  capQuality,
   expandQualities,
   type QualityComponent,
   type QualityPin,
@@ -450,6 +451,10 @@ export async function computeBlock(rawData: SolveInput) {
   const qualityFx = qualityEffectLookups(moduleDb, beaconDb, bonusesOf, qualityCtx.effectStep);
   const qualityRank = (quality: string) =>
     qualityCtx.ladder.findIndex((step) => step.name === quality);
+  // a row asking for a quality the horizon hasn't unlocked plans at the best
+  // unlocked one and reports `qualityCapped`
+  const capAtTop = (quality: string | undefined) =>
+    capQuality(qualityCtx.ladder, qualityCtx.top, quality);
   /** The qualities a row runs at: its range as a slice of the chain. A recipe
    * that can't set quality (fluid-only ingredients, synthetic recipes) runs at
    * normal only, though its products can still upgrade. */
@@ -515,7 +520,13 @@ export async function computeBlock(rawData: SolveInput) {
           ? machines.filter((m) => unlockedMachines.has(m.name))
           : machines;
       const fallback = pickDefaultMachine(pool);
-      const rowQuality = data.rowQuality?.[r.name];
+      const askedQuality = data.rowQuality?.[r.name];
+      const rowQuality = askedQuality && {
+        min: capAtTop(askedQuality.min),
+        max: capAtTop(askedQuality.max),
+        machine: capAtTop(askedQuality.machine),
+        modules: capAtTop(askedQuality.modules),
+      };
       const baseMachine =
         machines.find((m) => m.name === data.machines?.[r.name]) ?? fallback ?? null;
       const machineBonuses = bonusesOf(rowQuality?.machine);
@@ -538,7 +549,13 @@ export async function computeBlock(rawData: SolveInput) {
       const effects = computeEffects(
         r.allowProductivity,
         machineModules.map((m) => qualityFx.moduleAt(m, rowQuality?.modules)),
-        beaconCfgs.map(qualityFx.beaconConfigAt),
+        beaconCfgs.map((b) =>
+          qualityFx.beaconConfigAt({
+            ...b,
+            quality: capAtTop(b.quality),
+            moduleQuality: capAtTop(b.moduleQuality),
+          }),
+        ),
         qualityFx.modules,
         qualityFx.beacons,
         turdModules,
@@ -562,6 +579,13 @@ export async function computeBlock(rawData: SolveInput) {
           turdModules,
           effects,
           qualityLevels: rowLevels(rowQuality, r.canSetQuality),
+          qualityCapped: [
+            askedQuality?.min,
+            askedQuality?.max,
+            askedQuality?.machine,
+            askedQuality?.modules,
+            ...beaconCfgs.flatMap((b) => [b.quality, b.moduleQuality]),
+          ].some((quality) => quality != null && capAtTop(quality) !== quality),
         },
       ] as const;
     }),
@@ -738,50 +762,7 @@ export async function computeBlock(rawData: SolveInput) {
   // Explicit doc state wins; a legacy doc (no `made`) derives it from its old
   // dispositions via the migration mapping the parity report validated. The
   // derived set is echoed back on the result so the editor persists it.
-  // Supply-push (#121): when every recipe that can produce a pinned goal has an
-  // exact COUNT pin, those counts completely determine the output, so the goal's
-  // rate stops forcing a conflicting total. Without this the two fight — 2
-  // foundries make 0.133/s, a 0.14/s goal needs 2.1, and an exact-count pin plus a
-  // ≥-floor can't both hold → a spurious infeasibility over a rounding sliver.
-  //
-  // A mixed-source goal is different: an exact producer establishes its fixed
-  // contribution while any unpinned producer can supply the remainder. Keep the
-  // goal binding in that case (e.g. 800 kW of pinned fish turbines plus an
-  // unpinned steam chain for the rest of a 1 MW goal). CAP pins also leave the
-  // goal binding: their ceiling should produce an honest shortfall diagnosis.
-  // The doc goal is untouched (naming, rollups); when all producers are fixed,
-  // only the solver floor is relaxed and `goalSuperseded` reports the gap. A
-  // consume goal is never superseded: pinned producers don't fix what it takes.
-  const productsByRecipe = new Map(defs.map((d) => [d.name, d.products.map((p) => p.name)]));
-  const countPinnedRecipes = new Set(
-    (data.pins ?? []).flatMap((pin) => (pin.kind === "count" ? [pin.recipe] : [])),
-  );
-  const producersByGoal = new Map(
-    targets.map((target) => [
-      target.name,
-      defs.flatMap((def) =>
-        def.products.some((product) => product.name === target.name && product.amount > 0)
-          ? [def.name]
-          : [],
-      ),
-    ]),
-  );
-  const supersededGoals = new Map<string, { recipe: string; count: number }>();
-  for (const p of data.pins ?? []) {
-    if (p.kind !== "count") continue;
-    for (const prod of productsByRecipe.get(p.recipe) ?? []) {
-      const producers = producersByGoal.get(prod) ?? [];
-      const outputIsFullyPinned =
-        producers.length > 0 && producers.every((recipe) => countPinnedRecipes.has(recipe));
-      if (
-        outputIsFullyPinned &&
-        targets.some((t) => t.name === prod && t.rate != null && !goalConsumes(t)) &&
-        !supersededGoals.has(prod)
-      )
-        supersededGoals.set(prod, { recipe: p.recipe, count: p.count });
-    }
-  }
-  const goals = targets.map((t) => {
+  const requestedGoals = targets.map((t) => {
     const producedTemperatures = fluidTemperatureOptions.get(t.name) ?? [];
     const temperature =
       t.temperature != null &&
@@ -794,7 +775,7 @@ export async function computeBlock(rawData: SolveInput) {
       t.quality && t.quality !== NORMAL_QUALITY && !refs.getFluid(t.name) ? t.quality : undefined;
     return {
       name: t.name,
-      rate: supersededGoals.has(t.name) ? 0 : t.rate,
+      rate: t.rate,
       direction: t.direction ?? (t.rate < 0 ? "consume" : "produce"),
       ...(temperature != null ? { temperature } : {}),
       ...(quality != null ? { quality } : {}),
@@ -802,7 +783,8 @@ export async function computeBlock(rawData: SolveInput) {
   });
   const made =
     data.made ??
-    migrateToLpInput({ targets: goals, recipes: defs, dispositions: data.dispositions }).made ??
+    migrateToLpInput({ targets: requestedGoals, recipes: defs, dispositions: data.dispositions })
+      .made ??
     [];
   // doc pins are in buildings; convert to executions/sec with the row's real
   // per-building craft rate (speed × speed-effects ÷ energy) so pins follow
@@ -843,33 +825,13 @@ export async function computeBlock(rawData: SolveInput) {
       rate: p.count * perBuilding,
     });
   }
-  // Gap report for each superseded goal: what the pinned buildings actually make
-  // (exact, since a count pin fixes the rate) vs the original target, and how many
-  // whole buildings the target WOULD need — the UI shows this as a soft note so
-  // the relaxation isn't silent ("2 foundries make 0.13/s; 0.14/s needs 3").
-  const goalSuperseded = [...supersededGoals].flatMap(([item, { recipe, count }]) => {
-    const goalRate = targets.find((t) => t.name === item)?.rate ?? 0;
-    const def = defs.find((d) => d.name === recipe);
-    const perCraft = def?.products.filter((c) => c.name === item).reduce((s, c) => s + c.amount, 0);
-    const perBuilding = (perCraft ?? 0) * (craftRate(recipe) ?? 0);
-    if (perBuilding <= 0) return [];
-    return [
-      {
-        item,
-        goalRate,
-        pinnedCount: count,
-        actualRate: perBuilding * count,
-        buildingsForGoal: Math.ceil(goalRate / perBuilding - 1e-9),
-      },
-    ];
-  });
   const defaultTemp = (f: string) => refs.getFluid(f)?.defaultTemperature ?? null;
   // Quality (#266): give each row one LP column per quality it runs at, split
   // item products by the row's quality effect, and key goods per (good,
   // quality) — a pure input transformation like the temperature one below. It
   // returns the input untouched when nothing has quality (every Py block).
-  const { input: qualityInput, fold: qualityFold } = expandQualities(
-    { goals, recipes: defs, made, pins, drains },
+  const { input: expandedQualityInput, fold: qualityFold } = expandQualities(
+    { goals: requestedGoals, recipes: defs, made, pins, drains },
     new Map<string, RowRun>(
       defs.map((d) => {
         const s = setup.get(d.name)!;
@@ -879,6 +841,84 @@ export async function computeBlock(rawData: SolveInput) {
     qualityCtx.ladder,
     qualityCtx.top,
   );
+  // Supply-push (#121): when every recipe that can produce a pinned goal has an
+  // exact COUNT pin, those counts completely determine the output, so the goal's
+  // rate stops forcing a conflicting total. Without this the two fight — 2
+  // foundries make 0.133/s, a 0.14/s goal needs 2.1, and an exact-count pin plus a
+  // ≥-floor can't both hold → a spurious infeasibility over a rounding sliver.
+  //
+  // A mixed-source goal is different: an exact producer establishes its fixed
+  // contribution while any unpinned producer can supply the remainder. Keep the
+  // goal binding in that case (e.g. 800 kW of pinned fish turbines plus an
+  // unpinned steam chain for the rest of a 1 MW goal). CAP pins also leave the
+  // goal binding: their ceiling should produce an honest shortfall diagnosis.
+  // The doc goal is untouched (naming, rollups); when all producers are fixed,
+  // only the solver floor is relaxed and `goalSuperseded` reports the gap. A
+  // consume goal is never superseded: pinned producers don't fix what it takes.
+  //
+  // This runs on the quality-expanded columns, per (good, quality) key (#266).
+  // A count pin fixes one column only when its row runs at a single quality; on
+  // a quality-range row it fixes the row's total, so any mix of qualities can
+  // fill it and a quality goal it feeds stays binding.
+  const fixedColumns = new Set(
+    (data.pins ?? []).flatMap((pin) => {
+      if (pin.kind !== "count") return [];
+      const columns = qualityFold.columnsOf(pin.recipe);
+      return columns.length === 1 ? columns : [];
+    }),
+  );
+  const columnDefs = new Map(expandedQualityInput.recipes.map((d) => [d.name, d]));
+  const goalKey = (goal: { name: string; quality?: string }) => qualityKey(goal.name, goal.quality);
+  const supersededGoals = new Map<string, { recipe: string; column: string; count: number }>();
+  for (const p of data.pins ?? []) {
+    if (p.kind !== "count") continue;
+    for (const column of qualityFold.columnsOf(p.recipe)) {
+      for (const { name: prod } of columnDefs.get(column)?.products ?? []) {
+        const producers = expandedQualityInput.recipes.filter((def) =>
+          def.products.some((product) => product.name === prod && product.amount > 0),
+        );
+        const outputIsFullyPinned =
+          producers.length > 0 && producers.every((def) => fixedColumns.has(def.name));
+        if (
+          outputIsFullyPinned &&
+          requestedGoals.some((t) => goalKey(t) === prod && t.rate != null && !goalConsumes(t)) &&
+          !supersededGoals.has(prod)
+        )
+          supersededGoals.set(prod, { recipe: p.recipe, column, count: p.count });
+      }
+    }
+  }
+  const supersede = <G extends { name: string; rate: number }>(goal: G, key: string): G =>
+    supersededGoals.has(key) ? { ...goal, rate: 0 } : goal;
+  const goals = requestedGoals.map((goal) => supersede(goal, goalKey(goal)));
+  const qualityInput = {
+    ...expandedQualityInput,
+    goals: expandedQualityInput.goals.map((goal) => supersede(goal, goal.name)),
+  };
+  // Gap report for each superseded goal: what the pinned buildings actually make
+  // (exact, since a count pin fixes the rate) vs the original target, and how many
+  // whole buildings the target WOULD need — the UI shows this as a soft note so
+  // the relaxation isn't silent ("2 foundries make 0.13/s; 0.14/s needs 3").
+  const goalSuperseded = [...supersededGoals].flatMap(([key, { recipe, column, count }]) => {
+    const target = requestedGoals.find((t) => goalKey(t) === key);
+    const goalRate = target?.rate ?? 0;
+    const perCraft = columnDefs
+      .get(column)
+      ?.products.filter((c) => c.name === key)
+      .reduce((s, c) => s + c.amount, 0);
+    const perBuilding = (perCraft ?? 0) * (craftRate(recipe) ?? 0);
+    if (perBuilding <= 0) return [];
+    return [
+      {
+        item: target?.name ?? key,
+        ...(target?.quality ? { quality: target.quality } : {}),
+        goalRate,
+        pinnedCount: count,
+        actualRate: perBuilding * count,
+        buildingsForGoal: Math.ceil(goalRate / perBuilding - 1e-9),
+      },
+    ];
+  });
   // Sub-blocks v2 (#76): a COMPOSED group is solved as its own module and pulled
   // out of the parent solve, replaced by a synthetic recipe carrying only its
   // boundary contract (net imports → net exports). Member recipes and pins route
@@ -1180,6 +1220,7 @@ export async function computeBlock(rawData: SolveInput) {
       chosen,
       machineQuality,
       qualityLevels,
+      qualityCapped,
       machineModules,
       beaconCfgs,
       beaconInterference,
@@ -1385,6 +1426,9 @@ export async function computeBlock(rawData: SolveInput) {
         qualityLevels.every((level) => qualityRank(level) >= qualityRank(qualityCtx.top)))
         ? { qualityUseless: true }
         : {}),
+      // the doc asked for a quality the research horizon hasn't unlocked; the
+      // row plans at the best unlocked one instead
+      ...(qualityCapped ? { qualityCapped: true } : {}),
       spoil,
       reactor,
       machine: chosen && {

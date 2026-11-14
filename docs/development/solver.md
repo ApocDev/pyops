@@ -239,7 +239,11 @@ A column at quality q eats its item ingredients at exactly q. A consumer at q ne
 q, so there are no ranges, pools, or selectors as there are for temperatures. A burner's
 fuel and burnt result stay normal whatever the row's quality.
 
-A count or capacity pin on a row bounds its total rate across all its columns. A share pin
+A count or capacity pin on a row bounds its total rate across all its columns. Because such a
+pin fixes only the total, it never supersedes a goal on one quality: the goal stays binding,
+and the pinned buildings must make it from that quality's column. A goal is superseded only
+when every column that produces its (good, quality) is a single-quality row with its own
+count pin. A share pin
 names a (good, quality): the row's column at that quality takes its share of that quality's
 production. A pin over several columns doesn't count as a fixed intake when another share
 pin uses the "remaining" base.
@@ -259,6 +263,11 @@ Four normal quality module 3s give Q = 0.1. In Factorio 2.1 every level has
 Chances past the best quality the research horizon unlocks land on that quality. A quality
 is unlocked when an `unlock-quality` technology for it is within the horizon, or when no
 technology unlocks it. In Future mode every quality is unlocked.
+
+A plan can't assume equipment or crafts at a quality the player can't make yet. A row's
+range, machine quality, module quality, and beacon qualities are capped at the best
+unlocked quality, and a row that asked for more reports `qualityCapped`. The science bank
+caps its lab, module, and beacon qualities the same way.
 
 This follows YAFC-CE (`ProductionTableContent.cs:548-588`) with one difference. YAFC-CE
 clamps each cumulative chance to 1 after the chain factor. Factorio's `chain_probability` is
@@ -307,9 +316,12 @@ state by hand and checks the LP against it.
 
 ### Science packs and labs
 
-A quality science pack lasts `tool_durability_multiplier` times as long (1 + level by
-default), so a science bank pack keyed `automation-science-pack@rare` costs a third of the
-packs for the same research. YAFC-CE counts it the same way, as level + 1 normal packs. The
+A science bank's pack rate is research throughput, in normal packs' worth of research per
+second. Lab count and power follow throughput only. The packs consumed are what changes: a
+quality science pack carries `tool_durability_multiplier` times the research (1 + level by
+default), and a lab drains every pack at the same speed. So 1/s of
+`automation-science-pack@rare` needs the same labs as 1/s of normal packs, but only a third
+of the packs. YAFC-CE counts it the same way, as level + 1 normal packs. The
 bank's `labQuality` scales research speed by `lab_research_speed_multiplier`. A lab with
 `uses_quality_drain_modifier` also drains packs at `science_pack_drain_multiplier`.
 

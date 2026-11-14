@@ -658,6 +658,10 @@ export type BeaconConfig = {
    * overstates a shared bank by the sharing factor, which is severe when the
    * beacon is expensive (Py's tiered beacons reach 625 MW each). */
   shared?: number;
+  /** quality of the beacon building (#266; absent = normal) */
+  quality?: string;
+  /** quality of the modules in it (#266; absent = normal) */
+  moduleQuality?: string;
 };
 
 /** One output goal of a block: a good the block is sized to produce at `rate`
@@ -717,9 +721,12 @@ export type Goal = {
 export type ScienceBank = {
   /** Lab prototype (see the `labs` table). */
   lab: string;
-  /** Pack → packs per second, AFTER effects. A key is a quality key
-   * (lib/quality.ts): `automation-science-pack@rare` is a rare pack (#266).
-   * These ARE the block's goals: typed
+  /** Pack → research throughput: normal packs' worth of research per second,
+   * what a technology's cost per second asks for. Lab count and power follow
+   * it; the packs actually consumed are fewer with productivity, a quality
+   * pack's durability, or a lab's drain multiplier (server/science-bank.ts). A
+   * key is a quality key (lib/quality.ts): `automation-science-pack@rare` is a
+   * rare pack (#266). These ARE the block's goals: typed
    * directly, so a hand-tuned or mixed-research plan needs nothing else. The
    * "derive from a technology" helper only computes them and writes them here;
    * no technology is stored, so a plan cannot rot when one is renamed or
