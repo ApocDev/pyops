@@ -1,0 +1,23 @@
+app/src/solver/lp.ts
+  s_995b207560eeb0::t_d1303540ee99be 239-240,250,280-281,285-291
+app/src/solver/quality.test.ts
+  s_995b207560eeb0::t_4e402c549e6fc0 365-388
+docs/development/solver.md
+  s_995b207560eeb0::t_be945fed3d7b07 253-255
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3410b2e83cc4faaf1f5e73a63044c866cb40242",
+  "prompts": {},
+  "sessions": {
+    "s_995b207560eeb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cef9ec12-eec2-430e-8ba3-ca49ff9d4875",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
