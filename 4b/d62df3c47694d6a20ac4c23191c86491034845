@@ -1,0 +1,25 @@
+app/src/db/import-factorio.test.ts
+  s_77b0c3d1e0c9f3::t_f562fb67a57f03 119-153
+app/src/db/import-factorio.ts
+  s_77b0c3d1e0c9f3::t_a711e500f199af 113-115,423-429
+app/src/lib/data-format.ts
+  s_77b0c3d1e0c9f3::t_728c509eaf191a 9
+docs/development/data-pipeline.md
+  s_77b0c3d1e0c9f3::t_2679d2cf7367e3 186-190
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4bd62df3c47694d6a20ac4c23191c86491034845",
+  "prompts": {},
+  "sessions": {
+    "s_77b0c3d1e0c9f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf369d21-8408-4f5d-a9f1-b8edd788122c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
