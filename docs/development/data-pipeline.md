@@ -118,8 +118,10 @@ helper patches prototypes during the dump, its edits are part of the file's mean
 
 Every project reads the same dump file, so the helper's fingerprint is stored with the file.
 Right after `--dump-data`, the sync writes `pyops-dump-provenance.json` next to
-`data-raw-dump.json`, holding a fingerprint of the helper's sources and the dump's
-modification time. The reuse check trusts that sidecar only when its time matches the file
+`data-raw-dump.json`, holding a fingerprint of the helper's sources, the dump's
+modification time, and the game's `base` mod version. The sync reads that version from
+`data/base/info.json` in the install that holds the game binary, because `base` is not in
+the mods folder. The reuse check trusts that sidecar only when its time matches the file
 on disk. Without a matching sidecar, as for a dump made before the sidecar existed, it falls
 back to the fingerprint the project stamped into `meta`, but only if that project imported
 this same file. Otherwise the helper is unknown, which warns but does not block reuse.
@@ -345,9 +347,14 @@ documented defaults (`QualityPrototype` and `RecipePrototype` in
   including research, are always false. Fluids never have quality.
 
 Factorio 2.1.7 divided every prototype quality effect by 10, multiplied `next_probability`
-by 10, and added `chain_probability`. The base game sets `chain_probability` on `normal` from
-then on, so a dump whose `normal` lacks it is read as a 2.0 dump and brought to the 2.1
-scale. Module quality effects and a receiver's base quality effect are divided by 10. Each
+by 10, and added `chain_probability`. A dump taken with a `base` version older than 2.1.7 is
+brought to the 2.1 scale. The importer gets that version from the dump's provenance sidecar.
+When no version is known, such as a reused dump whose sidecar predates the field, it falls
+back to the dump itself: the base game sets `chain_probability` on `normal` from 2.1.7 on, so
+a `normal` without it reads as the older scale. A mod set could drop that field, which is why
+the version decides whenever there is one. The `quality_scale_basis` metadata key and the sync
+log record which path decided, and `factorio_version` holds the base version or `unknown`.
+Module quality effects and a receiver's base quality effect are divided by 10. Each
 quality's `next_probability` is multiplied by 10, and its raw value becomes the chain
 probability, since 2.0 used it for every further step. The engine also floors a module's
 quality-scaled quality effect more coarsely in 2.0. The importer records that precision in

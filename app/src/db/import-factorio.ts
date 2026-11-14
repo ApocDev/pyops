@@ -3,8 +3,8 @@
  * into the SQLite db. REAL prototypes only — synthetic recipes (mining/boiling/burning/
  * spoiling/planting/rocket-launch) and fluid temperature variants come in pass 2.
  *
- * `importFactorioDump({ dumpPath, dbUrl })` is called in-process by the server-side
- * data sync (src/server/dump.ts).
+ * `importFactorioDump({ dumpPath, dbUrl, baseVersion })` is called in-process by the
+ * server-side data sync (src/server/dump.server.ts).
  *
  * Idempotent: clears the reference tables and re-inserts. Uses raw better-sqlite3
  * prepared statements in one transaction (fast for ~10k recipes / ~60k rows).
@@ -20,12 +20,11 @@ import { electricDrainW } from "./electric-drain.ts";
 import { resolveAllowedEffects, type EffectReceiverType } from "./allowed-effects.ts";
 import {
   canSetQuality,
-  isLegacyQualityDump,
   moduleQualityMultipliers,
-  qualityEffectScale,
-  qualityEffectStep,
   qualityRow,
+  resolveQualityScale,
   type QualityRow,
+  type QualityScale,
 } from "./quality-import.ts";
 import {
   REFERENCE_DATA_FORMAT_META_KEY,
@@ -228,12 +227,16 @@ export type ImportSummary = {
   ms: number;
   dataFormatVersion: number;
   counts: Record<string, number>;
+  /** How the dump's quality values were read (2.0 scale converted, or 2.1). */
+  qualityScale: QualityScale;
 };
 
 /** Parse the dump (+ sibling *-locale.json files) and replace the reference
- * tables in one transaction. Safe to call from the running server. */
+ * tables in one transaction. Safe to call from the running server.
+ * `baseVersion` is the `base` mod version the dump was taken with, when the
+ * sync knows it; it decides whether quality values need the 2.0 rescale. */
 export function importFactorioDump(
-  opts: { dumpPath?: string; dbUrl?: string } = {},
+  opts: { dumpPath?: string; dbUrl?: string; baseVersion?: string | null } = {},
 ): ImportSummary {
   const DUMP = opts.dumpPath ?? join(factorioScriptOutputDir(), "data-raw-dump.json");
   const DB_URL = opts.dbUrl ?? process.env.DATABASE_URL ?? join(PROJECTS_DIR, "default.db");
@@ -354,7 +357,8 @@ export function importFactorioDump(
   };
 
   // A 2.0 dump stores quality effects 10× larger; normalize to the 2.1 scale.
-  const qualityScale = qualityEffectScale(raw);
+  const quality = resolveQualityScale(raw, opts.baseVersion);
+  const qualityScale = quality.effectScale;
 
   const load = db.transaction(() => {
     for (const t of TABLES) db.prepare(`DELETE FROM ${t}`).run();
@@ -758,16 +762,17 @@ export function importFactorioDump(
     }
 
     // qualities, with the 2.1 defaults the raw dump leaves out
-    const legacy = isLegacyQualityDump(raw);
     for (const [name, q] of Object.entries(raw.quality ?? {}))
-      ins.quality.run(qualityRow(name, q, localeByKind.quality?.names?.[name] ?? null, legacy));
+      ins.quality.run(
+        qualityRow(name, q, localeByKind.quality?.names?.[name] ?? null, quality.legacy),
+      );
 
     // TURD recipe replacements smuggled through the dump by the helper mod
     for (const rep of arr<any>(raw["mod-data"]?.["pyops-turd-replacements"]?.data?.replacements)) {
       if (rep?.sub && rep.old && rep.new) ins.turdRepl.run(rep.sub, rep.old, rep.new);
     }
 
-    ins.meta.run("factorio_version", String(raw.recipe ? "" : "") || "unknown");
+    ins.meta.run("factorio_version", opts.baseVersion ?? "unknown");
     ins.meta.run("imported_from", DUMP);
     // rocket-logistics constants (utility-constants.default) for the launches/min display
     const uc = raw["utility-constants"]?.default ?? {};
@@ -777,8 +782,10 @@ export function importFactorioDump(
     // (`data.raw.quality.normal.next`). A recycler alone doesn't mean it: Py
     // ships one with normal as the only quality.
     ins.meta.run("has_quality", raw.quality?.normal?.next ? "1" : "0");
-    // the precision the solver floors a module's quality effect to (2.0 vs 2.1)
-    ins.meta.run("quality_effect_step", String(qualityEffectStep(raw)));
+    // the precision the solver floors a module's quality effect to (2.0 vs 2.1),
+    // and what decided the scale (the base version, or the field fallback)
+    ins.meta.run("quality_effect_step", String(quality.effectStep));
+    ins.meta.run("quality_scale_basis", quality.basis);
   });
 
   const t0 = Date.now();
@@ -791,6 +798,7 @@ export function importFactorioDump(
       productDisplay[name] ??
       null,
     parseSI,
+    qualityScale,
   });
   // Record compatibility only after both importer passes complete. A failed
   // upgrade therefore keeps the previous version stale and prompts another sync.
@@ -804,5 +812,6 @@ export function importFactorioDump(
     ms: Date.now() - t0,
     dataFormatVersion: REFERENCE_DATA_FORMAT_VERSION,
     counts: { ...counts, ...synthetic },
+    qualityScale: quality,
   };
 }

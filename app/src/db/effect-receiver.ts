@@ -24,7 +24,7 @@ type RawReceiver = {
  * stored in `crafting_machines.effect_receiver`, with unset fields at their
  * prototype defaults. Null when the prototype has none (all defaults).
  * `qualityScale` brings a 2.0 dump's base quality effect to the 2.1 scale
- * (see `qualityEffectScale`). */
+ * (see `resolveQualityScale`). */
 export function parseEffectReceiver(raw: unknown, qualityScale = 1): string | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as RawReceiver;

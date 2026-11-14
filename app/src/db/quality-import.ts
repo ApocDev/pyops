@@ -10,24 +10,56 @@ type Raw = Record<string, Record<string, any>>;
 const num = (v: unknown, fallback: number) => (typeof v === "number" ? v : fallback);
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
-/** Factorio 2.1.7 divided every prototype quality effect by 10, multiplied
- * `next_probability` by 10, and added `chain_probability` (data/changelog.txt).
- * Base sets `chain_probability` on `normal` from then on, so a dump whose
- * `normal` lacks it uses the older (2.0) scale. A dump with no `normal` has no
- * quality to rescale. */
-export function isLegacyQualityDump(raw: Raw): boolean {
-  const normal = raw.quality?.normal;
-  return normal != null && normal.chain_probability === undefined;
+/** Which quality scale a dump uses, and how the importer brings it to 2.1's. */
+export type QualityScale = {
+  /** The dump predates Factorio 2.1.7's quality rescale, so it is converted. */
+  legacy: boolean;
+  /** What decided `legacy`, recorded as the `quality_scale_basis` meta key. */
+  basis: string;
+  /** Factor for quality effects (module `effect.quality`, a receiver's
+   * `base_effect.quality`): 0.1 for a legacy dump, else 1. */
+  effectScale: number;
+  /** Precision the engine floors a quality-scaled module's quality effect to,
+   * in 2.1 units: 0.01% in 2.1, 0.1% before. Recorded as `quality_effect_step`. */
+  effectStep: number;
+};
+
+/** The first version on the 2.1 quality scale. 2.1.7 divided every prototype
+ * quality effect by 10, multiplied `next_probability` by 10, and added
+ * `chain_probability` (data/changelog.txt). */
+const RESCALE_VERSION = [2, 1, 7];
+
+/** True when `version` ("2.0.76") is older than 2.1.7; null when it doesn't parse. */
+function predatesRescale(version: string): boolean | null {
+  const m = /^(\d+)\.(\d+)\.(\d+)/.exec(version.trim());
+  if (!m) return null;
+  for (let i = 0; i < 3; i++) {
+    const part = Number(m[i + 1]);
+    if (part !== RESCALE_VERSION[i]) return part < RESCALE_VERSION[i];
+  }
+  return false;
 }
 
-/** Factor that brings a dump's quality effects (module `effect.quality`, a
- * receiver's `base_effect.quality`) to the 2.1 scale. */
-export const qualityEffectScale = (raw: Raw) => (isLegacyQualityDump(raw) ? 0.1 : 1);
-
-/** Precision the engine floors a quality-scaled module's quality effect to:
- * 0.01% in 2.1, 0.1% in 2.0 (in 2.1 units). Stored as the `quality_effect_step`
- * meta key for the solver. */
-export const qualityEffectStep = (raw: Raw) => (isLegacyQualityDump(raw) ? 0.001 : 0.0001);
+/** Decide a dump's quality scale. `baseVersion` is the `base` mod version the
+ * dump was taken with (the sync records it next to the dump) and decides when
+ * known. Without it, fall back to the dump itself: base sets
+ * `chain_probability` on `normal` from 2.1.7 on, so a `normal` without it reads
+ * as the older scale. A modded 2.1 dump could drop that field, which is why the
+ * version wins whenever there is one. */
+export function resolveQualityScale(raw: Raw, baseVersion?: string | null): QualityScale {
+  const byVersion = baseVersion ? predatesRescale(baseVersion) : null;
+  const normal = raw.quality?.normal;
+  const legacy = byVersion ?? (normal != null && normal.chain_probability === undefined);
+  return {
+    legacy,
+    basis:
+      byVersion != null
+        ? `base ${baseVersion}`
+        : "base version unknown; normal.chain_probability check",
+    effectScale: legacy ? 0.1 : 1,
+    effectStep: legacy ? 0.001 : 0.0001,
+  };
+}
 
 /** One `qualities` row (snake_case, ready for the insert). */
 export type QualityRow = ReturnType<typeof qualityRow>;

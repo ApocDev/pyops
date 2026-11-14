@@ -30,7 +30,6 @@ import { temperatureFedDrain, type TempFedDrain } from "./fluid-energy.ts";
 import { parseEffectReceiver } from "./effect-receiver.ts";
 import { electricDrainW } from "./electric-drain.ts";
 import { resolveAllowedEffects } from "./allowed-effects.ts";
-import { qualityEffectScale } from "./quality-import.ts";
 
 export const ELECTRICITY = "pyops-electricity";
 export const HEAT = "pyops-heat";
@@ -54,6 +53,8 @@ type Ctx = {
   /** localized display for an entity/item/fluid name */
   display: (name: string) => string | null;
   parseSI: (s: unknown) => number | null;
+  /** factor bringing quality effects to the 2.1 scale (`QualityScale.effectScale`) */
+  qualityScale: number;
 };
 
 const arr = <T = any>(x: unknown): T[] => (Array.isArray(x) ? (x as T[]) : []);
@@ -108,8 +109,7 @@ export function effectCarrier(
 }
 
 export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Record<string, number> {
-  const { display, parseSI } = ctx;
-  const qualityScale = qualityEffectScale(raw);
+  const { display, parseSI, qualityScale } = ctx;
 
   const ins = {
     recipe: db.prepare(

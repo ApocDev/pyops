@@ -1,4 +1,4 @@
-import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
@@ -8,6 +8,7 @@ import {
   evaluateDumpReuse,
   helperModFingerprint,
   modVersionsFromEntries,
+  readBaseVersion,
   readDumpProvenance,
   redumpNeeded,
   writeDumpProvenance,
@@ -126,7 +127,7 @@ describe("evaluateDumpReuse", () => {
     dump: DUMP,
     importedDumpMtimeMs: DUMP.mtimeMs,
     helperFingerprint: "abc123",
-    provenance: { helperFingerprint: "abc123", dumpMtimeMs: DUMP.mtimeMs },
+    provenance: { helperFingerprint: "abc123", dumpMtimeMs: DUMP.mtimeMs, baseVersion: "2.1.24" },
     projectHelperFingerprint: "abc123",
     modsChanged: false,
   };
@@ -178,7 +179,7 @@ describe("evaluateDumpReuse", () => {
   it("refuses when the sidecar says an older helper made the dump", () => {
     const r = evaluateDumpReuse({
       ...base,
-      provenance: { helperFingerprint: "old999", dumpMtimeMs: DUMP.mtimeMs },
+      provenance: { helperFingerprint: "old999", dumpMtimeMs: DUMP.mtimeMs, baseVersion: null },
     });
     expect(r).toMatchObject({ dumpHelperFingerprint: "old999", helperChanged: true, safe: false });
   });
@@ -186,10 +187,20 @@ describe("evaluateDumpReuse", () => {
   it("ignores a sidecar left by an earlier dump and falls back to the project stamp", () => {
     const r = evaluateDumpReuse({
       ...base,
-      provenance: { helperFingerprint: "abc123", dumpMtimeMs: DUMP.mtimeMs - 60_000 },
+      provenance: {
+        helperFingerprint: "abc123",
+        dumpMtimeMs: DUMP.mtimeMs - 60_000,
+        baseVersion: "2.1.24",
+      },
       projectHelperFingerprint: "old999",
     });
     expect(r).toMatchObject({ dumpHelperFingerprint: "old999", helperChanged: true });
+    // the stale sidecar's base version isn't this dump's either
+    expect(r.dumpBaseVersion).toBeNull();
+  });
+
+  it("reports the base version from the dump's own sidecar", () => {
+    expect(evaluateDumpReuse(base).dumpBaseVersion).toBe("2.1.24");
   });
 
   it("treats the helper as unknown without a sidecar when this project imported another dump", () => {
@@ -229,10 +240,23 @@ describe("dump provenance sidecar", () => {
     await writeFile(join(dir, "data-raw-dump.json"), "{}");
     const mtime = new Date(1_700_000_000_123);
     await utimes(join(dir, "data-raw-dump.json"), mtime, mtime);
-    await writeDumpProvenance(dir, "abc123");
+    await writeDumpProvenance(dir, "abc123", "2.1.24");
     expect(await readDumpProvenance(dir)).toEqual({
       helperFingerprint: "abc123",
       dumpMtimeMs: 1_700_000_000_123,
+      baseVersion: "2.1.24",
+    });
+  });
+
+  it("reads a sidecar written before the base version was recorded", async () => {
+    await writeFile(
+      join(dir, "pyops-dump-provenance.json"),
+      '{"helperFingerprint":"abc123","dumpMtimeMs":5}',
+    );
+    expect(await readDumpProvenance(dir)).toEqual({
+      helperFingerprint: "abc123",
+      dumpMtimeMs: 5,
+      baseVersion: null,
     });
   });
 
@@ -242,6 +266,34 @@ describe("dump provenance sidecar", () => {
     expect(await readDumpProvenance(dir)).toBeNull();
     await writeFile(join(dir, "pyops-dump-provenance.json"), "not json");
     expect(await readDumpProvenance(dir)).toBeNull();
+  });
+});
+
+describe("readBaseVersion", () => {
+  let dir: string;
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "pyops-install-"));
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+  const writeBaseInfo = async (dataDir: string, version: string) => {
+    await mkdir(join(dataDir, "base"), { recursive: true });
+    await writeFile(join(dataDir, "base", "info.json"), JSON.stringify({ name: "base", version }));
+  };
+
+  it("reads base's info.json next to a Linux or Windows binary", async () => {
+    await writeBaseInfo(join(dir, "data"), "2.1.24");
+    expect(await readBaseVersion(join(dir, "bin", "x64", "factorio"))).toBe("2.1.24");
+  });
+
+  it("reads base's info.json inside a macOS app bundle", async () => {
+    await writeBaseInfo(join(dir, "Contents", "data"), "2.0.76");
+    expect(await readBaseVersion(join(dir, "Contents", "MacOS", "factorio"))).toBe("2.0.76");
+  });
+
+  it("is null when no install data is found", async () => {
+    expect(await readBaseVersion(join(dir, "bin", "x64", "factorio"))).toBeNull();
   });
 });
 

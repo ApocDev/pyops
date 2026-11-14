@@ -25,10 +25,10 @@ afterEach(() => {
 });
 
 /** Write a minimal data-raw-dump.json and run the real importer against it. */
-const runImport = (raw: Record<string, unknown>) => {
+const runImport = (raw: Record<string, unknown>, baseVersion?: string) => {
   const dumpPath = join(dumpDir, "data-raw-dump.json");
   writeFileSync(dumpPath, JSON.stringify(raw));
-  importFactorioDump({ dumpPath, dbUrl: fx.file });
+  importFactorioDump({ dumpPath, dbUrl: fx.file, baseVersion });
   return new Database(fx.file, { readonly: true });
 };
 
@@ -1164,25 +1164,54 @@ describe("importFactorioDump — quality prototypes (#265)", () => {
     db.close();
   });
 
-  it("rescales a 2.0 dump's quality values to the 2.1 scale", () => {
-    // Factorio 2.0: no chain_probability, next_probability 0.1, and quality
-    // effects 10× larger (quality module 1 = 0.1, speed modules -0.1)
-    const db = runImport({
-      quality: {
-        normal: { level: 0, next: "uncommon", next_probability: 0.1 },
-        uncommon: { level: 1, next_probability: 0.1 },
+  // Factorio 2.0: no chain_probability, next_probability 0.1, and quality
+  // effects 10× larger (quality module 1 = 0.1, speed modules -0.1)
+  const DUMP_2_0 = {
+    quality: {
+      normal: { level: 0, next: "uncommon", next_probability: 0.1 },
+      uncommon: { level: 1, next_probability: 0.1 },
+    },
+    module: {
+      "quality-module": { category: "quality", effect: { quality: 0.1, speed: -0.05 } },
+      "speed-module": { category: "speed", effect: { speed: 0.2, quality: -0.1 } },
+    },
+    "assembling-machine": {
+      refinery: {
+        crafting_categories: ["crafting"],
+        effect_receiver: { base_effect: { quality: 0.5 } },
       },
-      module: {
-        "quality-module": { category: "quality", effect: { quality: 0.1, speed: -0.05 } },
-        "speed-module": { category: "speed", effect: { speed: 0.2, quality: -0.1 } },
-      },
-      "assembling-machine": {
-        refinery: {
-          crafting_categories: ["crafting"],
-          effect_receiver: { base_effect: { quality: 0.5 } },
+    },
+  };
+  const metaValue = (db: Database.Database, key: string) =>
+    db.prepare(`SELECT value FROM meta WHERE key = ?`).pluck().get(key);
+
+  it("keeps a 2.1 dump on the 2.1 scale even when normal has no chain_probability", () => {
+    // a mod set that drops chain_probability and relies on the default
+    const db = runImport(
+      {
+        quality: {
+          normal: { level: 0, next: "uncommon", next_probability: 1 },
+          uncommon: { level: 1, next_probability: 1 },
         },
+        module: { "quality-module": { category: "quality", effect: { quality: 0.01 } } },
       },
-    });
+      "2.1.24",
+    );
+    expect(
+      all(db, `SELECT name, next_probability, chain_probability FROM qualities ORDER BY level`),
+    ).toEqual([
+      { name: "normal", next_probability: 1, chain_probability: 0.1 },
+      { name: "uncommon", next_probability: 1, chain_probability: 0.1 },
+    ]);
+    expect(db.prepare(`SELECT eff_quality FROM modules`).pluck().get()).toBe(0.01);
+    expect(metaValue(db, "quality_effect_step")).toBe("0.0001");
+    expect(metaValue(db, "quality_scale_basis")).toBe("base 2.1.24");
+    expect(metaValue(db, "factorio_version")).toBe("2.1.24");
+    db.close();
+  });
+
+  it("rescales a 2.0 dump's quality values to the 2.1 scale", () => {
+    const db = runImport(DUMP_2_0, "2.0.76");
     expect(
       all(db, `SELECT name, next_probability, chain_probability FROM qualities ORDER BY level`),
     ).toEqual([
@@ -1203,9 +1232,20 @@ describe("importFactorioDump — quality prototypes (#265)", () => {
         .get() as string,
     );
     expect(rx.baseEffect.quality).toBeCloseTo(0.05, 12);
+    expect(metaValue(db, "quality_effect_step")).toBe("0.001");
+    expect(metaValue(db, "quality_scale_basis")).toBe("base 2.0.76");
+    db.close();
+  });
+
+  it("falls back to normal.chain_probability when the base version is unknown", () => {
+    const db = runImport(DUMP_2_0);
     expect(
-      db.prepare(`SELECT value FROM meta WHERE key = 'quality_effect_step'`).pluck().get(),
-    ).toBe("0.001");
+      db.prepare(`SELECT eff_quality FROM modules WHERE name = 'quality-module'`).pluck().get(),
+    ).toBeCloseTo(0.01, 12);
+    expect(metaValue(db, "quality_scale_basis")).toBe(
+      "base version unknown; normal.chain_probability check",
+    );
+    expect(metaValue(db, "factorio_version")).toBe("unknown");
     db.close();
   });
 });
