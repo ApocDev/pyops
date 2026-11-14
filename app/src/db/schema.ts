@@ -383,6 +383,32 @@ export const inserters = sqliteTable("inserters", {
   maxBeltStackSize: integer("max_belt_stack_size").notNull().default(1), // per-inserter belt-stacking cap
 });
 
+/** Logistic robots (`logistic-robot` prototypes) for the bot-count math (#255).
+ * Energy fields are in joules; the force's speed and cargo bonuses are synced
+ * from the game and applied on top. */
+export const logisticRobots = sqliteTable("logistic_robots", {
+  name: text().primaryKey(),
+  display: text(),
+  order: text(),
+  speed: real().notNull(), // tiles/tick before the force speed bonus
+  maxPayloadSize: integer("max_payload_size").notNull().default(1), // items per trip before the cargo bonus
+  maxEnergyJ: real("max_energy_j").notNull().default(0), // battery size
+  energyPerMoveJ: real("energy_per_move_j").notNull().default(0), // per tile flown
+  energyPerTickJ: real("energy_per_tick_j").notNull().default(0), // drain while flying
+  minToCharge: real("min_to_charge").notNull().default(0.2), // battery fraction that sends it to charge
+  maxToCharge: real("max_to_charge").notNull().default(0.95), // battery fraction it charges up to
+});
+
+/** Roboports (`roboport` prototypes): how fast each charging pad refills a
+ * robot, and the coverage radius used to size the charging detour (#255). */
+export const roboports = sqliteTable("roboports", {
+  name: text().primaryKey(),
+  display: text(),
+  order: text(),
+  chargingEnergyW: real("charging_energy_w").notNull().default(0), // per charging pad
+  logisticsRadius: real("logistics_radius").notNull().default(0),
+});
+
 /** Tech effects that raise belt/inserter stack sizes — `belt-stack-size-bonus`,
  * `inserter-stack-size-bonus`, `bulk-inserter-capacity-bonus`. Summed over the
  * in-effect tech set (per the research horizon) to derive the current placed-stack

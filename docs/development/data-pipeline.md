@@ -313,6 +313,14 @@ selection or collision box. The block editor combines those dimensions with whol
 counts, fuel/byproduct access, and active fluid connections to warn when loading access needs
 more physical buildings than production capacity alone.
 
+Logistic robots and roboports feed the bot-count math in `app/src/lib/robots.ts`. A
+robot row stores `speed`, `max_payload_size`, and its battery fields in joules
+(`max_energy`, `energy_per_move`, `energy_per_tick`, `min_to_charge`, `max_to_charge`). A
+roboport row stores `charging_energy` (watts per charging pad) and `logistics_radius`.
+The force's `worker_robots_speed_modifier` and `worker_robots_storage_bonus` arrive with
+`state.research`; they are one live value per force, so they don't follow the planning
+horizon. The trip and charging model is described in that module's header.
+
 Technology tables record belt-stack, inserter-stack, and bulk capacity bonuses. The client
 can then recalculate row logistics and loading fit instantly when the selected tier or
 planning horizon changes, without invoking the block solver. Loading fit checks available

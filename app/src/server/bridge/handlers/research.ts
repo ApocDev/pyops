@@ -3,8 +3,9 @@
  * it as the planning horizon's researched set (the same slot the manual picker
  * fills), so the existing "now"-mode availability uses real unlock state with no
  * extra wiring. It also carries the force's lab speed and productivity bonuses,
- * which size the science block's labs and pack demand. Fire-and-forget: no
- * response needed.
+ * which size the science block's labs and pack demand, and the worker robot
+ * speed and cargo bonuses for the bot counts. Fire-and-forget: no response
+ * needed.
  */
 import type { BridgeRequest, BridgeResponse } from "../protocol.ts";
 import * as q from "../../../db/queries.server.ts";
@@ -18,6 +19,8 @@ export async function handleResearch(req: BridgeRequest): Promise<BridgeResponse
     laboratory_speed_modifier?: unknown;
     laboratory_productivity_bonus?: unknown;
     recipe_productivity_bonuses?: unknown;
+    worker_robots_speed_modifier?: unknown;
+    worker_robots_storage_bonus?: unknown;
   };
   const researched = Array.isArray(payload.researched)
     ? payload.researched.filter((t): t is string => typeof t === "string")
@@ -61,6 +64,15 @@ export async function handleResearch(req: BridgeRequest): Promise<BridgeResponse
     labSpeedBonus: labBonus(payload.laboratory_speed_modifier),
     labProductivityBonus: labBonus(payload.laboratory_productivity_bonus),
   });
+  // Robot bonuses only size the bot counts, never a solve, so they skip the
+  // research change check. An older mod that omits them leaves the stored ones.
+  for (const [field, key] of [
+    ["worker_robots_speed_modifier", "research_worker_robots_speed_bonus"],
+    ["worker_robots_storage_bonus", "research_worker_robots_storage_bonus"],
+  ] as const) {
+    const v = payload[field];
+    if (typeof v === "number" && Number.isFinite(v)) q.metaSet(key, String(v));
+  }
   q.metaSet("research_synced_at", new Date().toISOString());
   q.metaSet("research_synced_count", String(researched.length));
   if (changed) await resolveAllBlocks();

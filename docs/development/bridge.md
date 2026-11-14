@@ -114,7 +114,7 @@ handlers:
 | Type             | Ownership and result                                                                                           |
 | ---------------- | -------------------------------------------------------------------------------------------------------------- |
 | `bridge.ping`    | Registers liveness and returns `bridge.pong` with the app protocol version; also pushes a changed `block.list` |
-| `state.research` | Replaces the researched set, recipe/mining productivity, and lab speed/productivity                            |
+| `state.research` | Replaces the researched set, recipe/mining productivity, lab speed/productivity, and worker robot bonuses      |
 | `state.turd`     | Replaces synchronized TURD selections and refreshes affected solves                                            |
 | `state.built`    | Replaces placed-machine counts used by built-versus-required views                                             |
 | `state.stats`    | Replaces current production and consumption rates                                                              |

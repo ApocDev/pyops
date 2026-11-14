@@ -58,6 +58,7 @@ import type {
   LogisticsContext,
   StackBonuses,
 } from "../lib/logistics.ts";
+import type { RobotBonuses } from "../lib/robots.ts";
 import {
   placedBeltStack,
   beltsForRate,
@@ -3632,6 +3633,21 @@ export function stackBonuses(): StackBonuses {
     else if (r.effect === "bulk-inserter") out.bulkInserter += r.modifier;
   }
   return out;
+}
+
+/** Worker robot speed and cargo bonuses, as last synced from the game by
+ * `state.research` (0 before the first sync). The game reports one live value
+ * per force, so these don't follow the research horizon. */
+export function robotBonuses(): RobotBonuses {
+  const m = metaAll();
+  const num = (v: string | null | undefined) => {
+    const n = Number(v ?? 0);
+    return Number.isFinite(n) ? n : 0;
+  };
+  return {
+    speed: num(m.research_worker_robots_speed_bonus),
+    storage: num(m.research_worker_robots_storage_bonus),
+  };
 }
 
 export type ProductivityBonuses = {

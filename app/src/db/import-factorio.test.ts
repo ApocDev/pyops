@@ -306,6 +306,47 @@ describe("importFactorioDump — inserters (#281)", () => {
   });
 });
 
+describe("importFactorioDump — logistic robots (#255)", () => {
+  it("stores robot speed, cargo and battery in joules, and roboport charge rate", () => {
+    const db = runImport({
+      "logistic-robot": {
+        // py-logistic-robot-mk01's values in the Py dump
+        "py-logistic-robot-mk01": {
+          speed: 0.08,
+          max_payload_size: 3,
+          max_energy: "1.5MJ",
+          energy_per_tick: "0.05kJ",
+          energy_per_move: "4kJ",
+          min_to_charge: 0.2,
+          max_to_charge: 0.95,
+        },
+        "logistic-robot": { speed: 0.05, hidden: true },
+      },
+      roboport: {
+        "py-roboport-mk01": { charging_energy: "350kW", logistics_radius: 30 },
+      },
+    });
+    expect(db.prepare(`SELECT * FROM logistic_robots`).all()).toEqual([
+      {
+        name: "py-logistic-robot-mk01",
+        display: null,
+        order: null,
+        speed: 0.08,
+        max_payload_size: 3,
+        max_energy_j: 1_500_000,
+        energy_per_move_j: 4000,
+        energy_per_tick_j: 50,
+        min_to_charge: 0.2,
+        max_to_charge: 0.95,
+      },
+    ]);
+    expect(
+      db.prepare(`SELECT name, charging_energy_w, logistics_radius FROM roboports`).all(),
+    ).toEqual([{ name: "py-roboport-mk01", charging_energy_w: 350_000, logistics_radius: 30 }]);
+    db.close();
+  });
+});
+
 describe("importFactorioDump — TURD master detection", () => {
   it("infers current planner masters from their sub-tech gate prerequisites", () => {
     const db = runImport({
