@@ -1,0 +1,14 @@
+CHANGELOG.md
+  h_3ea7e994213848 96-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4d648450d0cca730e95a849df917d3b087de2394",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
