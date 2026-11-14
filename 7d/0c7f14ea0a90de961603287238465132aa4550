@@ -1,0 +1,23 @@
+app/src/db/queries.server.ts
+  s_995b207560eeb0::t_74fb28639b3a9b 900-903,905-906,936-937
+app/src/server/block-compute.test.ts
+  s_995b207560eeb0::t_a5b09752171cb3 773-781,804-817
+docs/development/solver.md
+  s_995b207560eeb0::t_7ca113c45d1c8c 351
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7d0c7f14ea0a90de961603287238465132aa4550",
+  "prompts": {},
+  "sessions": {
+    "s_995b207560eeb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cef9ec12-eec2-430e-8ba3-ca49ff9d4875",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
