@@ -185,9 +185,14 @@ counts assume inserters take items off the selected belt; product counts assume 
 items onto it. Dropping onto a belt is slower for large hands, so a row often needs more
 output inserters than input inserters. Hand sizes include the inserter's built-in bonus and
 the stack research in the planning horizon. A crane counts as the upgraded tier that
-research swaps in, so **Crane MK 03** with bulk capacity +3 carries 24 items. These rates
-follow in-game measurements; a fast inserter picking from a belt runs about 10% faster than
-the count assumes.
+research swaps in, so **Crane MK 03** with bulk capacity +3 carries 24 items.
+
+These rates follow in-game measurements. A big hand takes one belt stack per grab, so it
+fills faster on a stacked belt, and a faster belt doesn't always help: a Py stack inserter
+takes 17.2/s off a stacked fast belt but 18.9/s off a stacked transport belt. When the game
+varies, the count takes the slower case. It can ask for a few more input inserters than you
+need, and it is never more than about 3% optimistic. Cranes need the most margin: one whose pickup point sits upstream of
+its body (turned the other way along the belt) runs 10–30% faster than the count assumes.
 
 When **Logistics → Inserters / loaders** is enabled, an amber hammer and a second count can
 appear beneath the solved building count. It is the suggested physical build count: the

@@ -1602,8 +1602,9 @@ describe("logisticsForGood (#126): belts/inserters gated to unlocked tiers", () 
     expect(r.belts[0].saturation).toBeCloseTo(0.75, 3);
     expect(r.inserters.map((i) => i.inserter)).toEqual(["inserter"]); // fast-inserter gated out
     expect(r.inserterBelt).toBe("transport-belt");
-    // hand 1: 1.25/s off the belt and onto it (48-tick cycle) → ceil(22.5 / 1.25)
-    expect(r.inserters[0]).toMatchObject({ fromBelt: 18, toBelt: 18 });
+    // hand 1: 1.25/s onto the belt (48-tick cycle) → ceil(22.5 / 1.25); off the
+    // belt a slow arm pays 2 pickup ticks (50-tick cycle) → ceil(22.5 / 1.2)
+    expect(r.inserters[0]).toMatchObject({ fromBelt: 19, toBelt: 18 });
   });
 
   it("FUTURE mode: tech-unlockable tiers count even though unreached", () => {

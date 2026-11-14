@@ -84,6 +84,25 @@ const craneMk4: InserterProto = {
   baseStackBonus: 77,
   upgradeStackBonuses: [77, 82, 87, 92, 97, 102, 112, 122, 132],
 };
+const craneMk1: InserterProto = {
+  ...craneMk2,
+  name: "crane-mk1",
+  rotationSpeed: 0.02,
+  extensionSpeed: 0.035,
+};
+const craneShortMk1: InserterProto = {
+  ...craneShortMk2,
+  name: "crane-short-mk1",
+  rotationSpeed: 0.02,
+  extensionSpeed: 0.035,
+};
+const longHanded: InserterProto = {
+  ...base,
+  name: "long-handed-inserter",
+  extensionSpeed: 0.05,
+  pickupY: -2,
+  dropY: 2.19921875,
+};
 /** Research in the measurement save: inserter stack +1, bulk +3, belt stack +2. */
 const RESEARCH = { belt: 2, inserter: 1, bulkInserter: 3 };
 
@@ -247,20 +266,70 @@ describe("inserter throughput vs in-game measurements (iron plate, Factorio 2.1)
     expectNear(inserterThroughput(craneMk3, hand(craneMk3)), 65.74, 0.02);
   });
 
-  it("belt to chest, a row's input inserters (#282)", () => {
-    expectNear(inserterThroughput(base, hand(base), fromBelt), 2.5);
-    expectNear(inserterThroughput(bulk, hand(bulk), fromBelt), 9.99);
-    expectNear(inserterThroughput(stack, hand(stack), fromBelt), 19.05);
-    expectNear(inserterThroughput(craneMk3, hand(craneMk3), fromBelt), 36.0, 0.06);
-    // unstacked belts: 4 quick grabs, then one item per 4 ticks (yellow, both
-    // lanes) or about one per 3 ticks (fast and express, hand-limited)
-    expectNear(inserterThroughput(stack, 16, { ...fromBelt, placedStack: 1 }), 10.67, 0.02);
-    const unstacked = (speed: number): InserterBelt => ({ end: "pickup", speed, placedStack: 1 });
-    expectNear(inserterThroughput(stack, 16, unstacked(0.0625)), 11.73, 0.06);
-    expectNear(inserterThroughput(stack, 16, unstacked(0.09375)), 11.73, 0.06);
-    // The fast inserter chases belt items and measures 5.64/s. The model leaves
-    // chasing out, so it stays at the chest-to-chest 5.0/s (11% low, safe side).
-    expect(inserterThroughput(fast, hand(fast), fromBelt)).toBeCloseTo(5, 4);
+  it("belt to chest, a row's input inserters: at most 3% above any measurement (#282, #294)", () => {
+    const Y = 0.03125;
+    const R = 0.0625;
+    const B = 0.09375;
+    // [inserter, belt speed, belt stack, hand, measured items/s, lowest allowed model/measured]
+    const measured: [InserterProto, number, number, number, number, number][] = [
+      // Py stack inserter: the #294 cases, then other grab counts
+      [stack, Y, 3, 16, 18.86, 0.9],
+      [stack, R, 3, 16, 17.15, 0.9],
+      [stack, B, 3, 16, 18.41, 0.9],
+      [stack, Y, 1, 16, 10.62, 0.9],
+      [stack, R, 1, 16, 11.43, 0.9],
+      [stack, B, 1, 16, 12.03, 0.85],
+      [stack, Y, 2, 16, 16.48, 0.9],
+      [stack, B, 2, 16, 17.94, 0.85],
+      [stack, Y, 3, 12, 16.32, 0.85],
+      [stack, R, 1, 6, 6.42, 0.9],
+      [stack, B, 1, 10, 10.71, 0.8],
+      [stack, Y, 1, 2, 3.0, 0.85],
+      // short straight arms
+      [bulk, Y, 1, 4, 8.58, 0.85],
+      [bulk, B, 1, 4, 9.0, 0.8],
+      [bulk, Y, 3, 4, 9.99, 0.95],
+      [bulk, R, 3, 4, 10.0, 0.9],
+      [bulk, B, 1, 3, 6.93, 0.85],
+      [fast, R, 1, 2, 5.0, 0.9],
+      [fast, Y, 3, 2, 5.63, 0.85],
+      [craneShortMk2, R, 1, 6, 10.0, 0.9],
+      // slow arms
+      [base, Y, 3, 2, 2.5, 0.95],
+      [base, B, 1, 2, 2.24, 0.85],
+      [base, R, 1, 1, 1.21, 0.9],
+      [longHanded, B, 3, 2, 2.35, 0.9],
+      [craneShortMk1, B, 3, 4, 4.51, 0.9],
+      // offset (crane) arms
+      [craneMk3, B, 3, 12, 22.5, 0.95],
+      [craneMk3, Y, 3, 24, 35.97, 0.8],
+      [craneMk3, R, 3, 24, 34.86, 0.85],
+      [craneMk3, B, 1, 6, 9.0, 0.95],
+      [craneMk3, Y, 1, 24, 13.92, 0.95],
+      [craneMk3, R, 1, 24, 15.81, 0.85],
+      [craneMk4, Y, 3, 96, 36.85, 0.95],
+      [craneMk4, B, 2, 96, 36.23, 0.75],
+      [craneMk4, R, 1, 20, 12.71, 0.85],
+      [craneMk1, Y, 1, 7, 3.51, 0.9],
+      [craneMk1, Y, 3, 7, 5.77, 0.95],
+      [craneMk1, B, 1, 7, 5.81, 0.55],
+    ];
+    for (const [p, speed, placedStack, handStack, rate, floor] of measured) {
+      const ratio = inserterThroughput(p, handStack, { end: "pickup", speed, placedStack }) / rate;
+      const label = `${p.name} hand ${handStack} on speed ${speed} stack ${placedStack}`;
+      expect(ratio, label).toBeLessThanOrEqual(1.03);
+      expect(ratio, label).toBeGreaterThanOrEqual(floor);
+    }
+  });
+
+  it("belt pickup cost follows grabs, not belt stack size (#294)", () => {
+    // 16 items in 8 grabs off a stack-2 belt cycles like 8 items in 8 grabs off
+    // an unstacked belt (measured 16.48/s and 8.24/s on a transport belt)
+    const stacked = inserterThroughput(stack, 16, { ...fromBelt, placedStack: 2 });
+    expect(stacked).toBeCloseTo(
+      2 * inserterThroughput(stack, 8, { ...fromBelt, placedStack: 1 }),
+      6,
+    );
   });
 
   it("chest to belt, a row's output inserters (#282)", () => {
