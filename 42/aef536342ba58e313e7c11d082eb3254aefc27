@@ -1,0 +1,55 @@
+docs/guide/blocks.md
+  s_f519b8b922b116::t_b70656f6f0e3d2 166-175
+mod/summary.lua
+  s_f519b8b922b116::t_743cc2c8f16b67 237,262
+app/src/components/block/balance-card.tsx
+  s_f519b8b922b116::t_f6083d177a3e59 402,471
+app/src/components/block/goal-card.tsx
+  s_f519b8b922b116::t_5c559172016403 320
+app/src/components/block/logi-tag.tsx
+  s_f519b8b922b116::t_50e5e3492069fb 8-9,15,23,29
+app/src/components/block/recipe-row.tsx
+  s_f519b8b922b116::t_ce694927ee446d 567,630
+app/src/components/logistics-help.tsx
+  s_f519b8b922b116::t_e3b890fbdcd6a3 11-14,29-31
+app/src/components/logistics-menu.tsx
+  s_f519b8b922b116::t_2f3a96091d5112 6-7,102-116,179,188
+app/src/db/import-factorio.test.ts
+  s_f519b8b922b116::t_22f5a323258419 236-260
+app/src/db/import-factorio.ts
+  s_f519b8b922b116::t_4fb655692429e5 612
+app/src/db/queries.server.ts
+  s_f519b8b922b116::t_c06e8ff54ef05f 55,3562-3567,3569-3570,3572-3586,3709-3717,3731-3733,3778-3786,3795-3796,3815
+app/src/db/queries.test.ts
+  s_f519b8b922b116::t_7e9de7a76f8329 31,1604-1606,1618-1631
+app/src/db/schema.ts
+  s_f519b8b922b116::t_3d604660f01fcb 334,365
+app/src/lib/loading-fit.ts
+  s_f519b8b922b116::t_80ad8e15f4922c 126,148
+app/src/lib/logistics.test.ts
+  s_f519b8b922b116::t_082f91cb2ac49c 4,17,44,53,56-88,192-197,199-201,211-278,284-302
+app/src/lib/logistics.ts
+  s_f519b8b922b116::t_d14e37eaa44a8c 9-25,40,42-45,228-231,239-254,257-259,261-287,290-319,323-329,411-413,418,440-444
+app/src/server/agent-tools.server.ts
+  s_f519b8b922b116::t_b6d80db6dfc0cb 1371
+app/src/server/block-compute.server.ts
+  s_f519b8b922b116::t_55b274c06e1d90 1807-1809,1824,1837,1844-1848,1865-1866,1875-1880,1887,1910-1914,1919-1920
+docs/development/data-pipeline.md
+  s_f519b8b922b116::t_153cc3172208d7 273-278
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "42aef536342ba58e313e7c11d082eb3254aefc27",
+  "prompts": {},
+  "sessions": {
+    "s_f519b8b922b116": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e5d04f34-6e47-4ee7-b2c7-92a41e1416f7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
