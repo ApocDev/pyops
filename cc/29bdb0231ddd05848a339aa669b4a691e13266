@@ -1,0 +1,25 @@
+app/src/db/schema.ts
+  s_77b0c3d1e0c9f3::t_efd153cc3b054f 720-722,739-741
+app/src/server/science-bank.ts
+  s_77b0c3d1e0c9f3::t_0eca2c49d45f8a 21-27,44-46,59,62-65,71-73,109,119,122,135
+app/src/server/science-block.server.test.ts
+  s_77b0c3d1e0c9f3::t_782ad457977f92 1,3,107-164
+app/src/server/science-block.server.ts
+  s_77b0c3d1e0c9f3::t_641e027bd210ad 17-18,78-79,217-218,222-247,254,256-265
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cc29bdb0231ddd05848a339aa669b4a691e13266",
+  "prompts": {},
+  "sessions": {
+    "s_77b0c3d1e0c9f3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cf369d21-8408-4f5d-a9f1-b8edd788122c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
