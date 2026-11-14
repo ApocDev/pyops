@@ -274,6 +274,83 @@ describe("computeBlock with quality", () => {
     expect(r.rows[0].rate).toBeCloseTo(2.5, 6);
   });
 
+  it("supersedes a fluid goal a count-pinned range row fully makes", async () => {
+    // every quality column makes the same 10 acid per craft, so one pinned
+    // assembler fixes the fluid output at 1.25 / 1 s × 10 = 12.5/s whatever
+    // mix of qualities it runs
+    const db = new Database(fx.file);
+    db.exec(`
+      INSERT INTO fluids (name, display, default_temperature) VALUES ('acid','Acid',15);
+      INSERT INTO recipes
+        (name, display, kind, category, energy_required, allow_productivity, allow_quality,
+         can_set_quality, enabled, hidden)
+        VALUES ('acid','Acid','real','crafting',1,1,1,1,1,0);
+      INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount)
+        VALUES ('acid',0,'item','iron-plate',1);
+      INSERT INTO recipe_products (recipe, idx, kind, name, amount)
+        VALUES ('acid',0,'fluid','acid',10);
+    `);
+    db.close();
+    const solve = (max: string) =>
+      computeBlock({
+        goals: [{ name: "acid", rate: 13 }],
+        recipes: ["acid"],
+        machines: { acid: "assembling-machine-3" },
+        rowQuality: { acid: { min: "normal", max } },
+        pins: [{ kind: "count" as const, recipe: "acid", count: 1 }],
+      });
+    const note = {
+      item: "acid",
+      goalRate: 13,
+      pinnedCount: 1,
+      actualRate: 12.5,
+      buildingsForGoal: 2,
+    };
+    const normal = await solve("normal");
+    expect(normal.status).toBe("solved");
+    expect(normal.goalSuperseded).toEqual([note]);
+    const range = await solve("rare");
+    expect(range.status).toBe("solved");
+    expect(range.goalSuperseded).toEqual([note]);
+    expect(range.rows[0].rate).toBeCloseTo(1.25, 6);
+  });
+
+  it("reports a share pin at a quality its row can't run at", async () => {
+    // the recycler asks for normal..legendary but plans at normal..rare (the
+    // best unlocked); an epic share pin has nothing to apply to
+    const r = await computeBlock({
+      goals: [{ name: "iron-gear-wheel", rate: 1 }],
+      recipes: ["iron-gear-wheel", "iron-gear-wheel-recycling"],
+      machines: {
+        "iron-gear-wheel": "assembling-machine-3",
+        "iron-gear-wheel-recycling": "recycler",
+      },
+      rowQuality: {
+        "iron-gear-wheel": { min: "normal", max: "legendary" },
+        "iron-gear-wheel-recycling": { min: "normal", max: "legendary" },
+      },
+      made: [],
+      pins: [
+        {
+          kind: "share" as const,
+          recipe: "iron-gear-wheel-recycling",
+          item: "iron-gear-wheel",
+          share: 0.5,
+          quality: "epic",
+        },
+      ],
+    });
+    expect(r.status).toBe("solved");
+    expect(r.ignoredPins).toEqual([
+      {
+        recipe: "iron-gear-wheel-recycling",
+        item: "iron-gear-wheel",
+        quality: "epic",
+        reason: "locked",
+      },
+    ]);
+  });
+
   it("solves a composed sub-block for its goal's quality", async () => {
     // the module's goal is rare gears, so it must run the rare column and hand
     // rare gears to the parent, not size itself for normal ones

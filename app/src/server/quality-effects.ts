@@ -12,6 +12,7 @@ import type { BeaconConfig, BeaconEff, ModuleEff } from "./effects.ts";
 export type QualityBonuses = {
   name: string;
   level: number;
+  defaultMultiplier: number;
   moduleSpeedMultiplier: number;
   moduleProductivityMultiplier: number;
   moduleConsumptionMultiplier: number;
@@ -35,11 +36,14 @@ export type QualityModule = ModuleEff & {
   qualityQualityMultiplier: number;
 };
 
-/** Precision the engine floors a quality-scaled module effect to: whole
- * percent, as YAFC-CE does (`Quality.ApplyModuleBonus`, DataClasses.cs:916:
- * productivity module 1 at uncommon is 4% × 1.3 = 5.2% → 5%). The quality
- * effect uses the import's `quality_effect_step` (0.01% in 2.1). */
-const MODULE_EFFECT_STEP = 0.01;
+/** Precisions the engine floors a quality-scaled module effect to, from the
+ * import: `module` for speed, productivity, consumption and pollution
+ * (`module_effect_step`), `quality` for the quality effect
+ * (`quality_effect_step`). Both are 0.01% in Factorio 2.1, so productivity
+ * module 1 at uncommon is 4% × 1.3 = 5.2%. Before 2.1.7 the module step was
+ * whole percent (5%, as YAFC-CE's `Quality.ApplyModuleBonus` still floors,
+ * DataClasses.cs:916) and the quality step 0.1%. */
+export type EffectSteps = { module: number; quality: number };
 
 /** Floors to a multiple of `step`; the nudge keeps float noise from dropping a
  * whole step (−0.3 × 1.3 is −0.39000000000000001). */
@@ -58,7 +62,7 @@ const floorTo = (v: number, step: number) =>
 export function moduleAtQuality<M extends QualityModule>(
   mod: M,
   quality: QualityBonuses,
-  qualityStep: number,
+  steps: EffectSteps,
 ): M {
   if (quality.name === NORMAL_QUALITY) return mod;
   const scale = (value: number, multiplier: number, weight: number, step: number) => {
@@ -71,31 +75,31 @@ export function moduleAtQuality<M extends QualityModule>(
       mod.effSpeed,
       quality.moduleSpeedMultiplier,
       mod.speedQualityMultiplier,
-      MODULE_EFFECT_STEP,
+      steps.module,
     ),
     effProductivity: scale(
       mod.effProductivity,
       quality.moduleProductivityMultiplier,
       mod.productivityQualityMultiplier,
-      MODULE_EFFECT_STEP,
+      steps.module,
     ),
     effConsumption: scale(
       mod.effConsumption,
       quality.moduleConsumptionMultiplier,
       mod.consumptionQualityMultiplier,
-      MODULE_EFFECT_STEP,
+      steps.module,
     ),
     effPollution: scale(
       mod.effPollution,
       quality.modulePollutionMultiplier,
       mod.pollutionQualityMultiplier,
-      MODULE_EFFECT_STEP,
+      steps.module,
     ),
     effQuality: scale(
       mod.effQuality,
       quality.moduleQualityMultiplier,
       mod.qualityQualityMultiplier,
-      qualityStep,
+      steps.quality,
     ),
   };
 }
@@ -137,17 +141,38 @@ export type QualityMachine = {
   moduleSlotsQualityBonus: Record<string, number> | null;
 };
 
-/** Kinds that are CraftingMachinePrototypes, the only machines whose crafting
- * speed quality scales. The synthesized drills, labs, boilers and generators
- * keep their base values (YAFC-CE excludes drills too, DataClasses.cs:809-810). */
+/** Kinds that are CraftingMachinePrototypes, whose crafting speed quality
+ * scales. */
 const CRAFTING_KINDS = new Set(["assembling-machine", "furnace", "rocket-silo"]);
 
-/** A crafting machine at `quality`: crafting speed scales by the machine's
- * per-quality override or the quality's `crafting_machine_speed_multiplier`;
- * energy usage and module slots change only when the machine opts in
- * (`quality_affects_energy_usage`, `quality_affects_module_slots`). */
+/** The synthesized power machines (`db/synthesize.ts`): boilers and heat
+ * exchangers, generators (steam engines and turbines, burner generators,
+ * solar panels), fuel reactors, and offshore pumps. Their `craftingSpeed` is
+ * their output per building, so quality scales it and their fuel draw by the
+ * quality's `default_multiplier`, as the engine scales their energy, power
+ * output, fluid use and pumping speed (YAFC-CE `Entity.Power`,
+ * DataClasses.cs:608-611). Mining drills and labs aren't scaled: quality
+ * leaves a drill's mining speed and a lab's energy at base, and a lab's
+ * research speed is the science bank's (`lab_research_speed_multiplier`). */
+const POWER_KINDS = new Set(["boiler", "generator", "reactor", "offshore-pump"]);
+
+/** A machine at `quality`. A crafting machine's speed scales by its per-quality
+ * override or the quality's `crafting_machine_speed_multiplier`; its energy
+ * usage and module slots change only when it opts in
+ * (`quality_affects_energy_usage`, `quality_affects_module_slots`). A power
+ * machine's output and energy usage scale by the quality's
+ * `default_multiplier`. */
 export function machineAtQuality<T extends QualityMachine>(machine: T, quality: QualityBonuses): T {
-  if (quality.name === NORMAL_QUALITY || !CRAFTING_KINDS.has(machine.kind)) return machine;
+  if (quality.name === NORMAL_QUALITY) return machine;
+  if (POWER_KINDS.has(machine.kind)) {
+    const m = quality.defaultMultiplier;
+    return {
+      ...machine,
+      craftingSpeed: machine.craftingSpeed == null ? null : machine.craftingSpeed * m,
+      energyUsageW: machine.energyUsageW == null ? null : machine.energyUsageW * m,
+    };
+  }
+  if (!CRAFTING_KINDS.has(machine.kind)) return machine;
   const speed =
     machine.craftingSpeedQualityMultiplier?.[quality.name] ??
     quality.craftingMachineSpeedMultiplier;
@@ -177,7 +202,7 @@ export function qualityEffectLookups<M extends QualityModule, B extends QualityB
   moduleDb: ReadonlyMap<string, M>,
   beaconDb: ReadonlyMap<string, B>,
   bonusesOf: (quality: string | undefined) => QualityBonuses | null,
-  qualityStep: number,
+  steps: EffectSteps,
 ) {
   const modules = new Map<string, ModuleEff>(moduleDb);
   const beacons = new Map<string, BeaconEff>(beaconDb);
@@ -186,7 +211,7 @@ export function qualityEffectLookups<M extends QualityModule, B extends QualityB
     const row = moduleDb.get(name);
     if (!bonuses || !row) return name;
     const key = qualityKey(name, bonuses.name);
-    if (!modules.has(key)) modules.set(key, moduleAtQuality(row, bonuses, qualityStep));
+    if (!modules.has(key)) modules.set(key, moduleAtQuality(row, bonuses, steps));
     return key;
   };
   const beaconAt = (name: string, quality: string | undefined) => {

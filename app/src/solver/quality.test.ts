@@ -183,7 +183,7 @@ describe("expandQualities", () => {
   });
 
   test("keys goals and share pins by quality and spreads a count pin over the row", () => {
-    const { input } = expandQualities(
+    const { input, ignoredPins } = expandQualities(
       {
         goals: [{ name: "iron-gear-wheel", rate: 1, quality: "rare" }],
         recipes: [gear, recycle],
@@ -230,6 +230,39 @@ describe("expandQualities", () => {
         item: "iron-gear-wheel@uncommon",
         share: 0.5,
       },
+    ]);
+    // ...and the block hears about it instead of the pin vanishing
+    expect(ignoredPins).toEqual([
+      { recipe: recycle.name, item: "iron-gear-wheel", quality: "rare", reason: "range" },
+    ]);
+  });
+
+  test("reports a share pin above the best unlocked quality as locked", () => {
+    // the row asked for normal..epic but plans at normal..uncommon, the best
+    // unlocked quality; an epic share pin has no column to consume it
+    const { input, ignoredPins } = expandQualities(
+      {
+        ...noInput,
+        recipes: [gear, recycle],
+        pins: [
+          {
+            kind: "share",
+            recipe: recycle.name,
+            item: "iron-gear-wheel",
+            share: 1,
+            quality: "epic",
+          },
+          { kind: "share", recipe: "gone", item: "iron-gear-wheel", share: 1, quality: "epic" },
+        ],
+      },
+      new Map([[recycle.name, { levels: ["normal", "uncommon"], effect: 0 }]]),
+      ladder,
+      "uncommon",
+    );
+    expect(input.pins).toEqual([]);
+    // a pin whose row left the block is dropped quietly, as without quality
+    expect(ignoredPins).toEqual([
+      { recipe: recycle.name, item: "iron-gear-wheel", quality: "epic", reason: "locked" },
     ]);
   });
 });

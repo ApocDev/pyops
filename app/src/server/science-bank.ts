@@ -26,7 +26,9 @@
  * and nothing else.
  *
  * Quality (#266) therefore changes only the packs consumed. A rare pack carries
- * `tool_durability_multiplier` (1 + level by default) times the research, and a
+ * its quality's `tool_durability_multiplier` (a `tool` pack) or
+ * `science_capacity_multiplier` (a plain-item pack, Factorio 2.1.18+) times the
+ * research, 1 + level by default, and a
  * lab drains every pack at the same speed, so the same research takes the same
  * labs and a third of the rare packs. YAFC-CE counts one quality pack as
  * level + 1 normal ones the same way (ProductionTable.ScienceDecomposition.cs:8-25).

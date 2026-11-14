@@ -17,6 +17,8 @@ export const items = sqliteTable(
   {
     name: text().primaryKey(),
     display: text(), // localized name ("Iron plate")
+    // the item prototype type ("item", "tool", "module", …)
+    type: text(),
     subgroup: text(),
     order: text(),
     stackSize: integer("stack_size"),
@@ -578,6 +580,8 @@ export const qualities = sqliteTable("qualities", {
   name: text().primaryKey(),
   display: text(),
   level: integer().notNull().default(0),
+  // the general bonus multiplier: scales power buildings' output and energy
+  defaultMultiplier: real("default_multiplier").notNull().default(1),
   next: text(), // the next quality up, null at the top of the chain
   // chance of the first step up per 100% quality effect
   nextProbability: real("next_probability").notNull().default(0),
@@ -602,7 +606,10 @@ export const qualities = sqliteTable("qualities", {
   labModuleSlotsBonus: integer("lab_module_slots_bonus").notNull().default(0),
   miningDrillModuleSlotsBonus: integer("mining_drill_module_slots_bonus").notNull().default(0),
   sciencePackDrainMultiplier: real("science_pack_drain_multiplier").notNull().default(1),
+  // research per quality science pack: `tool_durability_multiplier` for a
+  // `tool`-type pack, `science_capacity_multiplier` for a plain item (2.1.18+)
   toolDurabilityMultiplier: real("tool_durability_multiplier").notNull().default(1),
+  scienceCapacityMultiplier: real("science_capacity_multiplier").notNull().default(1),
 });
 
 export const meta = sqliteTable("meta", {

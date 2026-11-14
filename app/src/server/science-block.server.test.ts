@@ -106,17 +106,21 @@ describe("the science block is a singleton", () => {
 });
 
 describe("quality in the science bank (#266)", () => {
-  // Factorio 2.1's quality mod: rare is level 2, so a rare pack lasts
-  // tool_durability 1 + 2 = 3 times as long and a rare lab researches at
-  // default_multiplier 1 + 0.3 × 2 = 1.6; a lab with
-  // uses_quality_drain_modifier drains rare packs at 98/100.
+  // Factorio 2.1's quality mod: rare is level 2, so a rare plain-item pack
+  // (every vanilla pack since 2.1.18) carries science_capacity 1 + 2 = 3 times
+  // the research and a rare lab researches at default_multiplier
+  // 1 + 0.3 × 2 = 1.6; a lab with uses_quality_drain_modifier drains rare packs
+  // at 98/100. Rare's tool_durability_multiplier is a mod's 5 here, so the
+  // `tool` pack (py-science-pack-1) shows which multiplier applies.
   beforeEach(() => {
     const raw = new Database(fx.file);
     const insert = raw.prepare(
       `INSERT INTO qualities (name, level, next, next_probability, chain_probability,
-         lab_research_speed_multiplier, science_pack_drain_multiplier, tool_durability_multiplier)
+         lab_research_speed_multiplier, science_pack_drain_multiplier, tool_durability_multiplier,
+         science_capacity_multiplier)
        VALUES (@name, @level, @next, @next_probability, @chain_probability,
-         @lab_research_speed_multiplier, @science_pack_drain_multiplier, @tool_durability_multiplier)`,
+         @lab_research_speed_multiplier, @science_pack_drain_multiplier, @tool_durability_multiplier,
+         @science_capacity_multiplier)`,
     );
     for (const [name, q] of [
       ["normal", { level: 0, next: "uncommon", next_probability: 1, chain_probability: 0.1 }],
@@ -124,7 +128,15 @@ describe("quality in the science bank (#266)", () => {
         "uncommon",
         { level: 1, next: "rare", next_probability: 1, science_pack_drain_multiplier: 0.99 },
       ],
-      ["rare", { level: 2, next_probability: 1, science_pack_drain_multiplier: 0.98 }],
+      [
+        "rare",
+        {
+          level: 2,
+          next_probability: 1,
+          science_pack_drain_multiplier: 0.98,
+          tool_durability_multiplier: 5,
+        },
+      ],
     ] as const) {
       const row = qualityRow(name, q, null, false);
       insert.run({
@@ -136,8 +148,11 @@ describe("quality in the science bank (#266)", () => {
         lab_research_speed_multiplier: row.lab_research_speed_multiplier,
         science_pack_drain_multiplier: row.science_pack_drain_multiplier,
         tool_durability_multiplier: row.tool_durability_multiplier,
+        science_capacity_multiplier: row.science_capacity_multiplier,
       });
     }
+    raw.exec(`INSERT INTO items (name, type) VALUES
+      ('automation-science-pack','item'),('py-science-pack-1','tool')`);
     raw.prepare(`UPDATE labs SET uses_quality_drain_modifier = 1 WHERE name = 'biolab'`).run();
     raw.close();
   });
@@ -161,6 +176,16 @@ describe("quality in the science bank (#266)", () => {
     expect(rareBiolab.labs).toBeCloseTo(60 / (3 * 1.6), 6);
     expect(rareBiolab.packDemand["automation-science-pack@rare"]).toBeCloseTo(0.98 / 3, 9);
     expect(rareBiolab.qualityCapped).toBeUndefined();
+  });
+
+  it("scales a tool pack by tool durability and an item pack by science capacity", () => {
+    const result = solveScienceBank({
+      lab: "lab",
+      packs: { "automation-science-pack@rare": 1, "py-science-pack-1@rare": 1 },
+      labSecondsPerPack: 60,
+    })!;
+    expect(result.packDemand["automation-science-pack@rare"]).toBeCloseTo(1 / 3, 9);
+    expect(result.packDemand["py-science-pack-1@rare"]).toBeCloseTo(1 / 5, 9);
   });
 
   it("plans a lab quality the research horizon hasn't unlocked at the best unlocked one", () => {
