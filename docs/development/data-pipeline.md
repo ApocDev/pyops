@@ -114,11 +114,20 @@ needs the engine's instance lock.
 Whether reuse is sound depends on two facts the file's timestamp cannot carry. The enabled
 mod set may have changed, in which case the game would now dump different prototypes; this
 reuses the existing mod-drift signal. The dump helper may also have changed, and because the
-helper patches prototypes during the dump, its edits are part of the file's meaning. Each
-sync therefore stamps the dump's modification time and a fingerprint of the helper's sources
-into `meta`, and the reuse check compares both against the current state. The decision is a
-pure function over those readings so it can be tested without a filesystem; a reuse run
-re-stamps the same provenance, since the dump is unchanged and only the reading advanced.
+helper patches prototypes during the dump, its edits are part of the file's meaning.
+
+Every project reads the same dump file, so the helper's fingerprint is stored with the file.
+Right after `--dump-data`, the sync writes `pyops-dump-provenance.json` next to
+`data-raw-dump.json`, holding a fingerprint of the helper's sources and the dump's
+modification time. The reuse check trusts that sidecar only when its time matches the file
+on disk. Without a matching sidecar, as for a dump made before the sidecar existed, it falls
+back to the fingerprint the project stamped into `meta`, but only if that project imported
+this same file. Otherwise the helper is unknown, which warns but does not block reuse.
+
+Each sync also stamps `dump_mtime` and `dump_helper_fingerprint` into the project's `meta`,
+recording which dump it imported. A reuse run stamps the dump's own helper, not the current
+one. The decision is a pure function over these readings, so it can be tested without a
+filesystem.
 
 ### Normalization
 
