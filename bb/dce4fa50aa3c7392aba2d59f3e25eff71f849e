@@ -1,0 +1,31 @@
+app/e2e/mut/temporary-campaign.e2e.ts
+  s_5b66b496e7f554::t_04dc2cccc8abc1 41
+app/e2e/mut/unsourced-import.e2e.ts
+  s_f26e4d372471a0::t_ba7665e9ae8afb 2-3,6-19,21-26,28-30,32-34
+app/e2e/mut/count-pin.e2e.ts
+  s_f26e4d372471a0::t_9a906a7e5c06d0 251
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bbdce4fa50aa3c7392aba2d59f3e25eff71f849e",
+  "prompts": {},
+  "sessions": {
+    "s_5b66b496e7f554": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8f57074c-fedc-4146-9dc6-69aaa2f3cc56",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_f26e4d372471a0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8eae1de1-d281-4237-a68c-0c867634c3b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
