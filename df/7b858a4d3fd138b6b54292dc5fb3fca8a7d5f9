@@ -1,0 +1,31 @@
+app/src/components/block/module-suggestions.test.ts
+  s_5b66b496e7f554::t_9c281b41c221ed 1-47
+app/src/components/block/module-suggestions.ts
+  s_995b207560eeb0::t_bb317526b7ab84 1-43
+app/src/routes/block.$id.tsx
+  s_5b66b496e7f554::t_d71abe5f23ea53 67-71,414-417,424-427,435,445,453
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "df7b858a4d3fd138b6b54292dc5fb3fca8a7d5f9",
+  "prompts": {},
+  "sessions": {
+    "s_5b66b496e7f554": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8f57074c-fedc-4146-9dc6-69aaa2f3cc56",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_995b207560eeb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cef9ec12-eec2-430e-8ba3-ca49ff9d4875",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
