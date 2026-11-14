@@ -297,8 +297,8 @@ describe("modulePickerData availability", () => {
 describe("quality modules (#260)", () => {
   // Factorio 2.1.24 with the quality mod: quality-module {quality 0.01, speed
   // -0.05}, speed-module {speed 0.2, quality -0.01}, and basic-oil-processing
-  // sets allow_quality = false. Quality output isn't modelled, so the planner
-  // never offers a quality module.
+  // sets allow_quality = false. The planner can't show quality output yet
+  // (#267), so it never offers a quality module.
   const seed = () => {
     db.run(sql`
       INSERT INTO recipes (name, kind, category, energy_required, allow_quality) VALUES
