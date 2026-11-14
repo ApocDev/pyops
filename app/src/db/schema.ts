@@ -337,7 +337,7 @@ export const labs = sqliteTable("labs", {
  * For the per-block logistics display (#21): how many belts carry an item in/out
  * of a row, and how many inserters/loaders feed each building at the planned rate.
  * Belt/loader throughput = speed × 480 × placed-stack. Inserter throughput uses
- * the swing model ported from inserter-throughput-lib (see server/logistics.ts);
+ * the swing model ported from inserter-throughput-lib (see lib/logistics.ts);
  * the raw kinematics live here, the math lives in that module. */
 export const belts = sqliteTable("belts", {
   name: text().primaryKey(),
@@ -368,7 +368,7 @@ export const inserters = sqliteTable("inserters", {
   dropX: real("drop_x").notNull(),
   dropY: real("drop_y").notNull(),
   bulk: bool("bulk").notNull().default(false), // bulk inserter → bulk-inserter-capacity bonus applies
-  baseStackBonus: integer("base_stack_bonus").notNull().default(0), // prototype inserter_stack_size_bonus
+  baseStackBonus: integer("base_stack_bonus").notNull().default(0), // prototype stack_size_bonus
   maxBeltStackSize: integer("max_belt_stack_size").notNull().default(1), // per-inserter belt-stacking cap
 });
 

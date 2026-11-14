@@ -281,6 +281,31 @@ describe("importFactorioDump — machine footprints", () => {
   });
 });
 
+describe("importFactorioDump — inserters (#281)", () => {
+  it("stores the prototype's built-in hand bonus from stack_size_bonus", () => {
+    const db = runImport({
+      inserter: {
+        inserter: { rotation_speed: 0.02, extension_speed: 0.035 },
+        "py-stack-inserter": {
+          rotation_speed: 0.0238,
+          extension_speed: 0.1,
+          bulk: true,
+          stack_size_bonus: 12,
+          max_belt_stack_size: 8,
+        },
+      },
+    });
+    const rows = db
+      .prepare(`SELECT name, base_stack_bonus, max_belt_stack_size FROM inserters ORDER BY name`)
+      .all();
+    expect(rows).toEqual([
+      { name: "inserter", base_stack_bonus: 0, max_belt_stack_size: 1 },
+      { name: "py-stack-inserter", base_stack_bonus: 12, max_belt_stack_size: 8 },
+    ]);
+    db.close();
+  });
+});
+
 describe("importFactorioDump — TURD master detection", () => {
   it("infers current planner masters from their sub-tech gate prerequisites", () => {
     const db = runImport({

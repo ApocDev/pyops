@@ -564,6 +564,7 @@ export function RecipeRow({
                     resolved={logi.resolved}
                     rate={c.rate}
                     machineCount={row.machine?.count ?? 0}
+                    direction="input"
                     showBelts={logi.showBelts}
                     showInserters={logi.showInserters}
                     launch={logi.launchInfo(c.name, c.rate)}
@@ -626,6 +627,7 @@ export function RecipeRow({
                       resolved={logi.resolved}
                       rate={c.rate}
                       machineCount={row.machine?.count ?? 0}
+                      direction="output"
                       showBelts={logi.showBelts}
                       showInserters={logi.showInserters}
                       launch={logi.launchInfo(c.name, c.rate)}

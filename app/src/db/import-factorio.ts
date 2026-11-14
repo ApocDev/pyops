@@ -621,7 +621,7 @@ export function importFactorioDump(
         drop_x: vecX(it.insert_position, 0),
         drop_y: vecY(it.insert_position, 1),
         bulk: it.bulk ? 1 : 0,
-        base_stack_bonus: it.inserter_stack_size_bonus ?? 0,
+        base_stack_bonus: it.stack_size_bonus ?? 0,
         max_belt_stack_size: it.max_belt_stack_size ?? 1,
       });
     }

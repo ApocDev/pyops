@@ -234,7 +234,7 @@ local function add_good_cell(parent, good, slot_style, opts)
   num.style.top_margin = -19
   num.style.right_padding = 3
   -- Helmod-style logistics line: belts to carry this item (+ inserters/loaders to
-  -- feed one building, on recipe rows). Only when the logistics toggle is on and
+  -- move it into or out of one building, on recipe rows). Only when the logistics toggle is on and
   -- this good has counts (fluids/electricity carry none).
   local logi = opts and opts.logi
   if logi and good.kind == "item" and (good.belts or good.inserters) then
@@ -259,7 +259,7 @@ local function add_good_cell(parent, good, slot_style, opts)
       lbl.style.font_color = { 0.82, 0.85, 0.90 }
     end
     add_logi_line(logi.belt, good.belts, "Belts to carry this item")
-    add_logi_line(logi.mover, good.inserters, mover_word:gsub("^%l", string.upper) .. " to feed one building")
+    add_logi_line(logi.mover, good.inserters, mover_word:gsub("^%l", string.upper) .. " per building for this item")
   end
   return cell
 end

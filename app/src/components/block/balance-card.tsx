@@ -399,6 +399,7 @@ export function BalanceCard({
                             resolved={logi.resolved}
                             rate={f.rate}
                             machineCount={0}
+                            direction="input"
                             showBelts={logi.showBelts}
                             showInserters={logi.showInserters}
                             launch={logi.launchInfo(f.name, f.rate)}
@@ -467,6 +468,7 @@ export function BalanceCard({
                             resolved={logi.resolved}
                             rate={f.rate}
                             machineCount={0}
+                            direction="output"
                             showBelts={logi.showBelts}
                             showInserters={logi.showInserters}
                             launch={logi.launchInfo(f.name, f.rate)}

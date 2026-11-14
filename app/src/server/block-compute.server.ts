@@ -1816,8 +1816,9 @@ export async function showBlockInGame(id: number) {
   // (they aren't real prototypes, so an in-game icon tag wouldn't resolve).
   const PSEUDO = new Set([HEAT, "pyops-electricity", FLUID_FUEL]);
   // Logistics for the in-game summary's Helmod-style belt/inserter readout: belts
-  // to carry each item, and inserters/loaders to feed one building (recipe rows
-  // only). Sized against the same picks as the web Logistics control.
+  // to carry each item, and inserters/loaders to move it into (ingredients) or
+  // out of (products) one building (recipe rows only). Sized against the same
+  // picks as the web Logistics control.
   const ctx = q.logisticsContext();
   const logi = resolveLogistics(ctx);
   const moverName = logi.moverKind === "loader" ? logi.loader?.name : logi.inserter?.name;
@@ -1832,6 +1833,7 @@ export async function showBlockInGame(id: number) {
   const good = (
     c: { name: string; kind: string; rate: number },
     machineCount: number,
+    direction: "input" | "output",
     note?: "fuel" | "burnt",
   ) => {
     const base: {
@@ -1844,15 +1846,18 @@ export async function showBlockInGame(id: number) {
     } = { name: c.name, kind: c.kind, rate: c.rate };
     if (note) base.note = note;
     if (c.kind !== "item" || !logi.belt) return base;
-    const rl = rowLogistics(logi, c.rate, machineCount);
+    const rl = rowLogistics(logi, c.rate, machineCount, direction);
     if (!rl) return base;
     // belts size the whole flow; inserters are per-building (recipe rows only)
     base.belts = rl.belts;
     if (machineCount > 0) base.inserters = rl.devices;
     return base;
   };
-  const goods = (arr: { name: string; kind: string; rate: number }[], machineCount: number) =>
-    arr.filter((c) => !PSEUDO.has(c.name)).map((c) => good(c, machineCount));
+  const goods = (
+    arr: { name: string; kind: string; rate: number }[],
+    machineCount: number,
+    direction: "input" | "output",
+  ) => arr.filter((c) => !PSEUDO.has(c.name)).map((c) => good(c, machineCount, direction));
 
   // Built-vs-needed per row (the sheet's Built column), from the game's last
   // state.built snapshot. Recipe-blind machines (boilers, generators, …) only
@@ -1869,8 +1874,8 @@ export async function showBlockInGame(id: number) {
     .filter((row) => row.machine && row.machine.count > 0)
     .map((row) => {
       const count = row.machine!.count;
-      const ingredients = goods(row.ingredients, count);
-      const products = goods(row.products, count);
+      const ingredients = goods(row.ingredients, count, "input");
+      const products = goods(row.products, count, "output");
       // Burner machines draw fuel and emit a 1:1 burnt result (coal → ash, cell →
       // depleted cell). Those are real item flows in/out of the building, so — like
       // Helmod — fold the fuel into ingredients and the burnt result into products
@@ -1879,13 +1884,19 @@ export async function showBlockInGame(id: number) {
       // real fluid flows through the block's burn-fluid-* conversion instead.
       if (row.fuel && !row.fuel.pool) {
         ingredients.push(
-          good({ name: row.fuel.name, kind: row.fuel.kind, rate: row.fuel.perSec }, count, "fuel"),
+          good(
+            { name: row.fuel.name, kind: row.fuel.kind, rate: row.fuel.perSec },
+            count,
+            "input",
+            "fuel",
+          ),
         );
         if (row.fuel.burnt) {
           products.push(
             good(
               { name: row.fuel.burnt.name, kind: "item", rate: row.fuel.burnt.perSec },
               count,
+              "output",
               "burnt",
             ),
           );
@@ -1908,14 +1919,17 @@ export async function showBlockInGame(id: number) {
         })),
       };
     });
-  const boundary = (f: { name: string; kind: string; rate: number }) => ({
-    ...good(f, 0), // belts only — boundary flows aren't tied to one building
+  const boundary = (
+    f: { name: string; kind: string; rate: number },
+    direction: "input" | "output",
+  ) => ({
+    ...good(f, 0, direction), // belts only — boundary flows aren't tied to one building
     display: r.display[f.name],
   });
   const outputs = [...goalFlows(input).filter((g) => g.rate > 0), ...r.displayExports]
     .filter((f) => !PSEUDO.has(f.name))
-    .map(boundary);
-  const inputs = r.imports.filter((f) => !PSEUDO.has(f.name)).map(boundary);
+    .map((f) => boundary(f, "output"));
+  const inputs = r.imports.filter((f) => !PSEUDO.has(f.name)).map((f) => boundary(f, "input"));
   const goal = goalFlows(input)[0];
 
   ensureBridge();

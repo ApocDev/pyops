@@ -28,6 +28,7 @@ import {
   listBlocks,
   listGroups,
   logisticsForGood,
+  logisticsOptions,
   machineOptionsForRecipe,
   machineOptionsForRecipes,
   machineSufficiency,
@@ -1600,7 +1601,9 @@ describe("logisticsForGood (#126): belts/inserters gated to unlocked tiers", () 
     expect(r.belts[0].count).toBe(2); // ceil(22.5 / (0.03125*480*1))
     expect(r.belts[0].saturation).toBeCloseTo(0.75, 3);
     expect(r.inserters.map((i) => i.inserter)).toEqual(["inserter"]); // fast-inserter gated out
-    expect(r.inserters[0].count).toBe(19); // ceil(22.5 / 1.2)
+    expect(r.inserterBelt).toBe("transport-belt");
+    // hand 1: 1.25/s off the belt and onto it (48-tick cycle) → ceil(22.5 / 1.25)
+    expect(r.inserters[0]).toMatchObject({ fromBelt: 18, toBelt: 18 });
   });
 
   it("FUTURE mode: tech-unlockable tiers count even though unreached", () => {
@@ -1610,6 +1613,20 @@ describe("logisticsForGood (#126): belts/inserters gated to unlocked tiers", () 
     if (!("kind" in r) || r.kind !== "item") throw new Error("expected item result");
     expect(r.belts.map((b) => b.belt)).toEqual(["transport-belt", "fast-transport-belt"]);
     expect(r.inserters.map((i) => i.inserter)).toEqual(["inserter", "fast-inserter"]);
+  });
+
+  it("folds pycranes upgrade tiers into their base crane", () => {
+    db.run(sql`
+      INSERT INTO inserters
+        (name, display, rotation_speed, extension_speed, pickup_x, pickup_y, drop_x, drop_y, bulk, base_stack_bonus, max_belt_stack_size)
+      VALUES
+        ('crane-mk2','Crane MK 02',0.04,0.1,0.5,-1,-0.30078125,1.19921875,0,5,1),
+        ('crane-mk2u2','Crane MK 02',0.04,0.1,0.5,-1,-0.30078125,1.19921875,0,15,1),
+        ('crane-mk2u1','Crane MK 02',0.04,0.1,0.5,-1,-0.30078125,1.19921875,0,10,1)
+    `);
+    const cranes = logisticsOptions().inserters.filter((i) => i.name.startsWith("crane"));
+    expect(cranes).toHaveLength(1);
+    expect(cranes[0]).toMatchObject({ name: "crane-mk2", upgradeStackBonuses: [5, 10, 15] });
   });
 
   it("a fluid short-circuits to a note, no belt/inserter math", () => {

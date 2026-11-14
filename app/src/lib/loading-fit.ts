@@ -123,7 +123,7 @@ export function loadingFit(args: {
   const slotsAt = (buildings: number) => {
     let itemSlots = 0;
     for (const stream of itemStreams) {
-      const row = rowLogistics(logistics, stream.rate, buildings);
+      const row = rowLogistics(logistics, stream.rate, buildings, stream.direction);
       if (!row || !Number.isFinite(row.devices)) return null;
       itemSlots += Math.max(1, Math.ceil(row.devices - EPS));
     }
@@ -145,7 +145,7 @@ export function loadingFit(args: {
   // baseline check above already passed.
   let high = capacityBuildings;
   for (const stream of itemStreams) {
-    const wholeFlow = rowLogistics(logistics, stream.rate, 1);
+    const wholeFlow = rowLogistics(logistics, stream.rate, 1, stream.direction);
     if (!wholeFlow || !Number.isFinite(wholeFlow.devices)) return null;
     high = Math.max(high, Math.ceil(wholeFlow.devices - EPS));
   }
