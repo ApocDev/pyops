@@ -1,0 +1,61 @@
+app/drizzle/0028_quality-effect-and-allow.sql
+  s_ef35afc8ee14c8::t_2447a1869ce662 1-2
+app/drizzle/meta/0028_snapshot.json
+  s_ef35afc8ee14c8::t_9b66f021102b03 1-3099
+app/drizzle/meta/_journal.json
+  s_ef35afc8ee14c8::t_933cf6715b7019 200-206
+app/src/db/import-factorio.test.ts
+  s_ef35afc8ee14c8::t_34337b5997d4c6 131-157
+app/src/db/import-factorio.ts
+  s_ef35afc8ee14c8::t_c08ef3f8e2dc4b 250,285,355,551
+app/src/db/queries.server.ts
+  s_cb81d8a1fc8684::t_3fbcd1833ff0eb 756-774,794,879-880,885-886,997-999,1007,1016-1020,1026,1032-1033,1036,1040,1090-1091,1150,3316
+app/src/db/queries.test.ts
+  s_ef35afc8ee14c8::t_f8a340de996ec1 38-40,290-338
+app/src/db/schema.ts
+  s_ef35afc8ee14c8::t_e01a3ba8cc6dee 74-76,252-254
+app/src/lib/data-format.ts
+  s_ef35afc8ee14c8::t_c22939b4026d76 9
+app/src/server/effects.test.ts
+  s_ef35afc8ee14c8::t_ad8f49655e07ed 3-9,412-444
+app/src/server/effects.ts
+  s_ef35afc8ee14c8::t_581a5f5db26a45 41-42,90,115
+app/src/server/module-presets.server.ts
+  s_ef35afc8ee14c8::t_c91cea160faa49 50-55,70-77,87,102-105
+app/src/server/module-presets.test.ts
+  s_cb81d8a1fc8684::t_b9a7e7d0344f56 5,26,94-110,314
+docs/development/bridge.md
+  s_ef35afc8ee14c8::t_62a5f31bceb295 120
+docs/development/data-pipeline.md
+  s_ef35afc8ee14c8::t_d350298e5e0395 141-148
+docs/guide/blocks.md
+  s_ef35afc8ee14c8::t_4e5d3d391b4bb6 133-136
+docs/reference/concepts-and-limitations.md
+  s_ef35afc8ee14c8::t_ba64156845e887 102-104
+mod/control.lua
+  s_ef35afc8ee14c8::t_4fd9dd72a30691 378-409,423-424,447,449
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "399078ecac39e1397cae5c12f0f409497eed471c",
+  "prompts": {},
+  "sessions": {
+    "s_cb81d8a1fc8684": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f3930b1-78a8-4393-b4d9-cc4d5d67f44a",
+        "model": "unknown"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    },
+    "s_ef35afc8ee14c8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f9e09839-56c8-49c9-a198-81b8267ddab8",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
