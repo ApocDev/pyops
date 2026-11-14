@@ -4,7 +4,8 @@ import { goto, insertBlock, uniqueName, withDb } from "./helpers";
 /**
  * Large blocks render lazily (#154): when the goals push the recipe grid far
  * below the fold, its rows mount only as the grid nears the viewport, and a
- * focus request from the flow view mounts them and brings its row into view.
+ * focus request from the flow view mounts them and brings its row into view
+ * (#276).
  */
 test("a large block mounts its rows near the viewport and focuses a far row", async ({ page }) => {
   // A mall-shaped block: one goal per recipe, enough goals to push the grid
@@ -52,12 +53,12 @@ test("a large block mounts its rows near the viewport and focuses a far row", as
   await header.scrollIntoViewIfNeeded();
   await expect(rows).toHaveCount(picks.length);
 
-  // On a fresh load (rows never mounted), a flow node for a row well down the
-  // list switches back to the table, mounts the rows and scrolls that row into
-  // view.
+  // On a fresh load (rows never mounted), the flow node for the last row
+  // switches back to the table, mounts the rows and scrolls that row into
+  // view, even as rows above it grow during the scroll.
   await goto(page, `/block/${id}`);
   await page.getByRole("button", { name: "Flow", exact: true }).click();
-  const target = picks[20];
+  const target = picks.at(-1)!;
   await page.locator(`button[title="${target.display} — click to open in the table"]`).click();
   const row = page.locator(`[data-recipe-row="${target.name}"]`);
   await expect(row).toHaveClass(/ring-primary/);

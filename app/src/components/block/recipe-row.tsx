@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useStore } from "@tanstack/react-store";
+import { shallow, useStore } from "@tanstack/react-store";
 import {
   AlertTriangle,
   FlaskConical,
@@ -28,7 +28,7 @@ import { LoadingFitCount } from "./loading-fit-count.tsx";
 import { LogiTag } from "./logi-tag.tsx";
 import { ReactorLayoutChip } from "./reactor-layout-chip.tsx";
 import { RecipeSpoilageIndicator } from "./recipe-spoilage-indicator.tsx";
-import type { ChipTempWarning } from "./temp-warnings.ts";
+import { rowTempWarnings } from "./temp-warnings.ts";
 import type { BlockDocStore } from "./doc-store.ts";
 import type { LogiView, SolveResult } from "./solve-view.ts";
 import { formatPower, num } from "./format.ts";
@@ -55,8 +55,6 @@ export type RowOverlayOpeners = {
   machinePicker: (recipe: string) => void;
   fuelPicker: (recipe: string) => void;
   modulesPicker: (recipe: string) => void;
-  /** apply the row's suggested module fill (the ✨ hint) as its stored picks */
-  applyModuleFill: (recipe: string) => void;
   /** open the Pins dialog for a row (used to edit a cap from the count cell) */
   pinsFor: (recipe: string) => void;
   spoilageFor: (item: string) => void;
@@ -65,8 +63,12 @@ export type RowOverlayOpeners = {
 /** One live recipe row of the grid: name + solved rate, machine/fuel/module
  * cells, and the ingredient/product chips at the solved rates. Click any item
  * to add a producer (ingredient) or consumer (product); right-click opens the
- * good menu; right-click the name for sub-block actions. */
-export function RecipeRow({
+ * good menu; right-click the name for sub-block actions.
+ *
+ * Memoized (#154): a solve or doc edit re-renders only the rows whose props
+ * changed, so every prop must stay reference-stable when its content does
+ * (the editor shares unchanged solve parts and memoizes its callbacks). */
+export const RecipeRow = memo(function RecipeRow({
   doc,
   name,
   row,
@@ -77,7 +79,7 @@ export function RecipeRow({
   error,
   gridClass,
   confirmRemove,
-  onRequestRemove,
+  onArmRemove,
   linkOf,
   producible,
   logi,
@@ -87,6 +89,7 @@ export function RecipeRow({
   moduleHints,
   incidentalSpoilage,
   goodDisplay,
+  recipeDisplay,
 }: {
   doc: BlockDocStore;
   name: string;
@@ -104,41 +107,47 @@ export function RecipeRow({
   gridClass: string;
   /** the click-to-confirm remove is armed on this row */
   confirmRemove: boolean;
-  onRequestRemove: () => void;
+  /** arm the click-to-confirm remove on a row, or disarm it (null) */
+  onArmRemove: (name: string | null) => void;
   linkOf: (name: string) => ItemLink;
   /** imports a recipe could make in-block (drives the dashed craftable ring) */
   producible: ReadonlySet<string>;
   logi: LogiView;
   open: RowOverlayOpeners;
-  /** per-chip fluid-temperature mismatches touching this row (#110 interim) */
-  tempWarnings: { ingredient: Map<string, ChipTempWarning>; product: Map<string, ChipTempWarning> };
-  /** briefly ring + scroll this row into view — set when a flow node targets it (#101) */
+  /** the block's fluid-temperature mismatches (#110 interim); the row picks its own */
+  tempWarnings: SolveResult["tempWarnings"] | undefined;
+  /** briefly ring this row — set when a flow node targets it (#101); the grid scrolls to it */
   highlight?: boolean;
   /** show the ambient ✨ suggestion hint (Settings toggle; apply paths always work) */
   moduleHints?: boolean;
   incidentalSpoilage: readonly { source: string; result: string; rate: number }[];
   goodDisplay?: Readonly<Record<string, string>>;
+  recipeDisplay?: Readonly<Record<string, string>>;
 }) {
   const spoilables = useSpoilables();
   const campaign = useStore(doc.store, (s) => s.campaign);
   // Debounce the suggestion hint (#117): the suggested fill recomputes per
   // solve, so it can flip while a rate is being dragged. The sparkle only
   // appears once the suggestion has held still for a beat — mid-edit churn
-  // hides it instead of blinking it.
+  // hides it instead of blinking it. A suggestion already present when the row
+  // mounts shows at once, so a remounted table doesn't grow under a scroll to a
+  // focused row (#276).
   const suggestionKey = row?.suggestedModules?.join("\u0001") ?? "";
-  const [settledSuggestion, setSettledSuggestion] = useState(false);
+  const [settled, setSettled] = useState(suggestionKey);
   useEffect(() => {
-    setSettledSuggestion(false);
     if (!suggestionKey) return;
-    const t = setTimeout(() => setSettledSuggestion(true), 600);
+    const t = setTimeout(() => setSettled(suggestionKey), 600);
     return () => clearTimeout(t);
   }, [suggestionKey]);
+  const settledSuggestion = !!suggestionKey && settled === suggestionKey;
 
   const rowPin = useStore(doc.store, (s) =>
     s.pins.find((p) => (p.kind === "count" || p.kind === "cap") && p.recipe === name),
   ) as { kind: "count" | "cap"; count: number } | undefined;
-  const edgePins = useStore(doc.store, (s) =>
-    s.pins.filter((p) => (p.kind === "share" || p.kind === "drain") && p.recipe === name),
+  const edgePins = useStore(
+    doc.store,
+    (s) => s.pins.filter((p) => (p.kind === "share" || p.kind === "drain") && p.recipe === name),
+    shallow,
   );
   const shareCount = edgePins.filter((p) => p.kind === "share").length;
   const drainItems = edgePins.flatMap((p) => (p.kind === "drain" ? [p.item] : []));
@@ -151,10 +160,10 @@ export function RecipeRow({
       (product) =>
         product.probability < 1 || Math.abs(product.amountMax - product.amountMin) > 1e-9,
     ) ?? [];
-  const rowRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (highlight) rowRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [highlight]);
+  const warnings = useMemo(
+    () => rowTempWarnings(tempWarnings, goodDisplay, recipeDisplay, name),
+    [tempWarnings, goodDisplay, recipeDisplay, name],
+  );
   const surface = (dragging: boolean) =>
     dragging
       ? "bg-card shadow-lg"
@@ -169,7 +178,6 @@ export function RecipeRow({
     <SortableRow key={name} id={name}>
       {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
         <div
-          ref={rowRef}
           data-recipe-row={name}
           className={`${gridClass} ${OFFSCREEN} relative border-t border-border ${grouped ? "border-l-2 border-l-primary/50" : ""} ${surface(isDragging)} ${highlight ? "ring-2 ring-primary ring-inset" : ""}`}
         >
@@ -276,7 +284,12 @@ export function RecipeRow({
               variant="ghost"
               size={confirmRemove ? "xs" : "icon-xs"}
               className={`shrink-0 hover:text-destructive ${confirmRemove ? "font-semibold text-destructive" : "text-muted-foreground"}`}
-              onClick={onRequestRemove}
+              onClick={() => {
+                if (!confirmRemove) return onArmRemove(name);
+                onArmRemove(null);
+                doc.dropRecipe(name);
+                doc.note(`Remove recipe "${display}"`); // labels the save for the undo stack (#90)
+              }}
               title={confirmRemove ? "Click again to remove" : "Remove"}
             >
               {confirmRemove ? (
@@ -456,7 +469,9 @@ export function RecipeRow({
                 {/* auto-fill hint: a better fill exists — click applies it */}
                 {moduleHints && settledSuggestion && (
                   <button
-                    onClick={() => open.applyModuleFill(name)}
+                    onClick={() =>
+                      row.suggestedModules && doc.applyModuleFills({ [name]: row.suggestedModules })
+                    }
                     title="Better modules available — click to apply the suggested fill (open the modules dialog to preview it)"
                     className="flex items-center px-1 py-1 text-info hover:bg-accent"
                   >
@@ -552,11 +567,11 @@ export function RecipeRow({
                 />
                 {/* fluid-temp mismatch (#110 interim): part of this fluid is made
                     at a temperature this machine can't accept */}
-                {tempWarnings.ingredient.has(c.name) && (
-                  <Tooltip content={tempWarnings.ingredient.get(c.name)!.title}>
+                {warnings.ingredient.has(c.name) && (
+                  <Tooltip content={warnings.ingredient.get(c.name)!.title}>
                     <span className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning">
                       <AlertTriangle className="size-3.5 shrink-0" />
-                      {tempWarnings.ingredient.get(c.name)!.label}
+                      {warnings.ingredient.get(c.name)!.label}
                     </span>
                   </Tooltip>
                 )}
@@ -615,11 +630,11 @@ export function RecipeRow({
                   </div>
                   {/* fluid-temp mismatch (#110 interim): a consumer in this block
                     can't accept this output's temperature */}
-                  {tempWarnings.product.has(c.name) && (
-                    <Tooltip content={tempWarnings.product.get(c.name)!.title}>
+                  {warnings.product.has(c.name) && (
+                    <Tooltip content={warnings.product.get(c.name)!.title}>
                       <span className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning">
                         <AlertTriangle className="size-3.5 shrink-0" />
-                        {tempWarnings.product.get(c.name)!.label}
+                        {warnings.product.get(c.name)!.label}
                       </span>
                     </Tooltip>
                   )}
@@ -642,4 +657,4 @@ export function RecipeRow({
       )}
     </SortableRow>
   );
-}
+});

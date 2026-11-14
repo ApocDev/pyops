@@ -62,3 +62,22 @@ test("editing a goal rate is undoable: named in the nav, reverted in the open ed
   await page.reload();
   await expect(goalRateButton(page)).toHaveText("1");
 });
+
+test("removing a recipe row takes a confirming click and is undoable", async ({ page }) => {
+  await createBlock(page);
+  await addGoal(page, "iron plate", "Iron plate");
+  await page.locator('button[aria-label^="Add a recipe that makes "]').click();
+  const picker = page.getByRole("dialog", { name: /Recipes that make/ });
+  await picker.getByRole("button", { name: /Iron plate/ }).first().click();
+  await expect(picker).toBeHidden();
+  const row = page.locator("[data-recipe-row]");
+  await expect(row).toHaveCount(1);
+  // let the add save on its own, so the removal gets its own undo entry
+  await expectUndoTop(page, /Undo: Add recipe "/);
+
+  // the first click only arms the row; the second removes it
+  await row.getByTitle("Remove", { exact: true }).click();
+  await row.getByTitle("Click again to remove").click();
+  await expect(row).toHaveCount(0);
+  await expectUndoTop(page, /Undo: Remove recipe "/);
+});
