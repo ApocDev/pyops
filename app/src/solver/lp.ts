@@ -38,10 +38,12 @@ export type RecipeDef = {
 /** Per-recipe or per-edge constraint, in solver units (executions/sec — the
  * caller converts building counts via per-building craft rates). */
 export type Pin =
-  /** "always run at exactly this rate" — supply-push (fixed building count) */
-  | { kind: "rate"; recipe: string; rate: number }
+  /** "always run at exactly this rate" — supply-push (fixed building count).
+   * `members` makes it bound the SUM of several recipes' rates (a quality row's
+   * per-quality columns, solver/quality.ts); `recipe` is then its first member. */
+  | { kind: "rate"; recipe: string; rate: number; members?: string[] }
   /** "at most this rate" — a built-capacity ceiling; solver fits inside */
-  | { kind: "cap"; recipe: string; rate: number }
+  | { kind: "cap"; recipe: string; rate: number; members?: string[] }
   /** "this consumer takes `share` of `item`'s production" — base "remaining"
    * applies the share after rate-pinned consumers' fixed intake is subtracted.
    * `ofItems` overrides the production base (used by the temperature expansion:
@@ -233,23 +235,28 @@ export function buildModel(input: LpBlockInput): BlockModel {
 
   const fixedRate = new Map<string, number>();
   for (const p of pins) {
+    if (p.kind !== "rate" && p.kind !== "cap") continue;
+    const cols = (p.members ?? [p.recipe]).flatMap((r) => {
+      const i = idxOf.get(r);
+      return i == null ? [] : [i];
+    });
+    if (!cols.length) continue;
+    const parts = cols.map((i) => term(1, varOf(i)));
     if (p.kind === "rate") {
-      const i = idxOf.get(p.recipe);
-      if (i == null) continue;
-      fixedRate.set(p.recipe, p.rate);
+      // a pin over several columns fixes only their sum, so no one column's
+      // intake is a known constant for a "remaining" share base
+      if (!p.members) fixedRate.set(p.recipe, p.rate);
       constraints.push({
-        id: `pin_${i}`,
-        parts: [term(1, varOf(i))],
+        id: `pin_${cols[0]}`,
+        parts,
         op: "=",
         rhs: p.rate,
         prov: { type: "pin-rate", recipe: p.recipe, rate: p.rate },
       });
-    } else if (p.kind === "cap") {
-      const i = idxOf.get(p.recipe);
-      if (i == null) continue;
+    } else {
       constraints.push({
-        id: `cap_${i}`,
-        parts: [term(1, varOf(i))],
+        id: `cap_${cols[0]}`,
+        parts,
         op: "<=",
         rhs: p.rate,
         prov: { type: "pin-cap", recipe: p.recipe, rate: p.rate },
