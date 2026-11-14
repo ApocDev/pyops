@@ -1,0 +1,23 @@
+app/src/server/dump.server.ts
+  s_f26e4d372471a0::t_bca7b6f5bde62a 535-536,540-541,551-582,584-589,594-595,598-607,609,624,635,638,656-657,846-848,852,884,899,933-936,939,949,956
+app/src/server/dump.test.ts
+  s_f26e4d372471a0::t_dcb5a468c99fdc 1-4,11,13,129-130,134,137,166-204,206,219-247
+docs/development/data-pipeline.md
+  s_f26e4d372471a0::t_c62889596dc01b 117-130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0909142be274b0f919a0e615a57d68f3baa771a4",
+  "prompts": {},
+  "sessions": {
+    "s_f26e4d372471a0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8eae1de1-d281-4237-a68c-0c867634c3b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
