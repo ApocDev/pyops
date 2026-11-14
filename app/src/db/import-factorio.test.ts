@@ -1178,7 +1178,8 @@ describe("importFactorioDump — quality prototypes (#265)", () => {
     "assembling-machine": {
       refinery: {
         crafting_categories: ["crafting"],
-        effect_receiver: { base_effect: { quality: 0.5 } },
+        // base quality 0.5 capped at 0.2 on the 2.0 scale
+        effect_receiver: { base_effect: { quality: 0.5 }, quality_limits: { high: 0.2 } },
       },
     },
   };
@@ -1231,7 +1232,11 @@ describe("importFactorioDump — quality prototypes (#265)", () => {
         .pluck()
         .get() as string,
     );
+    // the cap converts with the effect; the unset low bound keeps its 2.1 default
     expect(rx.baseEffect.quality).toBeCloseTo(0.05, 12);
+    expect(rx.limits.quality.high).toBeCloseTo(0.02, 12);
+    expect(rx.limits.quality.low).toBe(0);
+    expect(rx.limits.speed).toEqual({ low: -0.8, high: 1000 });
     expect(metaValue(db, "quality_effect_step")).toBe("0.001");
     expect(metaValue(db, "quality_scale_basis")).toBe("base 2.0.76");
     db.close();

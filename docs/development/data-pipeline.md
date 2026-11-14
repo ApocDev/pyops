@@ -354,7 +354,8 @@ back to the dump itself: the base game sets `chain_probability` on `normal` from
 a `normal` without it reads as the older scale. A mod set could drop that field, which is why
 the version decides whenever there is one. The `quality_scale_basis` metadata key and the sync
 log record which path decided, and `factorio_version` holds the base version or `unknown`.
-Module quality effects and a receiver's base quality effect are divided by 10. Each
+Module quality effects, a receiver's base quality effect, and the `quality_limits` bounds a
+receiver sets are divided by 10. Unset bounds keep their 2.1 defaults. Each
 quality's `next_probability` is multiplied by 10, and its raw value becomes the chain
 probability, since 2.0 used it for every further step. The engine also floors a module's
 quality-scaled quality effect more coarsely in 2.0. The importer records that precision in
