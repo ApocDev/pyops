@@ -1,0 +1,61 @@
+app/drizzle/0031_quality-power-science.sql
+  s_6342b4edfccf1d::t_849efa9afc1c7b 1-3
+app/drizzle/meta/0031_snapshot.json
+  s_6342b4edfccf1d::t_84ac6f12be9bd6 1-3507
+app/drizzle/meta/_journal.json
+  s_6342b4edfccf1d::t_605b6fa5b284ea 221-227
+app/src/db/import-factorio.test.ts
+  s_6342b4edfccf1d::t_25f476bff2f5d3 1054-1056,1094-1095,1100,1120,1131,1133,1152-1160,1293
+app/src/db/import-factorio.ts
+  s_6342b4edfccf1d::t_f1653f2dee0bc4 284,355,452,793-795,797
+app/src/db/quality-import.test.ts
+  s_6342b4edfccf1d::t_41ada95c46aee3 15,23
+app/src/db/quality-import.ts
+  s_6342b4edfccf1d::t_b4c5635631a4e9 25-28,65,89,109
+app/src/db/queries.server.ts
+  s_6342b4edfccf1d::t_a7644e87df55a3 4717-4718,4736-4740,4745
+app/src/db/schema.ts
+  s_6342b4edfccf1d::t_00781e52e7e78a 20-21,583-584,609-610,612
+app/src/lib/data-format.ts
+  s_6342b4edfccf1d::t_fe1ad6fc821e01 9
+app/src/server/block-compute.server.ts
+  s_6342b4edfccf1d::t_2e0fdd66b7b607 451,836-840,867-873,876-887,898,1903-1905
+app/src/server/block-quality.test.ts
+  s_6342b4edfccf1d::t_df688c1db3e1bc 277-353
+app/src/server/quality-effects.test.ts
+  s_6342b4edfccf1d::t_e6f3e4d884ca05 20,35-36,38-40,71-74,90-116,118-119,184-206,209-210
+app/src/server/quality-effects.ts
+  s_6342b4edfccf1d::t_57f0e7d369c669 15,39-46,65,78,84,90,96,102,144-145,148-164,166-175,205,214
+app/src/server/science-bank.ts
+  s_6342b4edfccf1d::t_8dc363c7641c52 29-31
+app/src/server/science-block.server.test.ts
+  s_6342b4edfccf1d::t_3a20f367a18fa8 109-114,119-120,122-123,131-139,151,154-155,181-190
+app/src/server/science-block.server.ts
+  s_6342b4edfccf1d::t_8276e6ed700888 258,273-281
+app/src/solver/lp.ts
+  s_6342b4edfccf1d::t_2b3daac22d67e7 18-24
+app/src/solver/quality.test.ts
+  s_6342b4edfccf1d::t_755fc4016576e2 186,234-266
+app/src/solver/quality.ts
+  s_6342b4edfccf1d::t_8efd873a07a259 7-11,28-29,154-164,208,247,282-283,300-314,340
+docs/development/data-pipeline.md
+  s_6342b4edfccf1d::t_60e41896250a9d 330-335,340-342,370-372
+docs/development/solver.md
+  s_6342b4edfccf1d::t_32d3b971028657 204-208,249-261,306-310,315-320,343-346
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f3ca0087f48f0982c5b0ba025c4d58cc7cb59e84",
+  "prompts": {},
+  "sessions": {
+    "s_6342b4edfccf1d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "07492d12-4be4-4e7f-a7d6-7036120ae95c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
