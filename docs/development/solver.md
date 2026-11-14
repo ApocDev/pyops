@@ -613,6 +613,7 @@ vp run parity diff /tmp/base.json /tmp/head.json
 ```
 
 `diff` prints each changed block with the changed values, `-` for rows only in the base, and
-`+` for rows only in the head. It exits 1 when anything differs. Columns that are null on
+`+` for rows only in the head. The cache tables allow duplicate rows, so it compares row
+counts too and marks an extra copy with `(×n)`. It exits 1 when anything differs. Columns that are null on
 every row are left out of the snapshot, so a new nullable column does not count as a change.
 Two snapshots of the same code and database are identical, so any difference is real.

@@ -19,22 +19,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-
-type Row = Record<string, string | number>;
-
-type BlockSnapshot = {
-  id: number;
-  name: string;
-  /** The solve couldn't run (missing reference data); the cache is left as-is. */
-  broken: boolean;
-  solveStatus: string | null;
-  electricityW: number | null;
-  pollutionPerMin: number | null;
-  flows: Row[];
-  machines: Row[];
-};
-
-type Snapshot = { commit: string; source: string; blocks: BlockSnapshot[] };
+import { type BlockSnapshot, type Row, type Snapshot, diffSnapshots } from "./parity-diff.ts";
 
 /** A cache row without its block id, with null columns dropped so a column
  * added as nullable (null on every row) doesn't read as a change. */
@@ -154,45 +139,20 @@ async function snapshot(source: string, out: string) {
   }
 }
 
-/** Differences between two blocks' snapshots, one line each. */
-function diffBlock(a: BlockSnapshot, b: BlockSnapshot): string[] {
-  const lines: string[] = [];
-  for (const k of ["name", "broken", "solveStatus", "electricityW", "pollutionPerMin"] as const) {
-    if (a[k] !== b[k]) lines.push(`${k}: ${a[k]} → ${b[k]}`);
-  }
-  for (const k of ["flows", "machines"] as const) {
-    const before = new Set(a[k].map((r) => JSON.stringify(r)));
-    const after = new Set(b[k].map((r) => JSON.stringify(r)));
-    for (const r of before) if (!after.has(r)) lines.push(`${k} - ${r}`);
-    for (const r of after) if (!before.has(r)) lines.push(`${k} + ${r}`);
-  }
-  return lines;
-}
-
 function diff(basePath: string, headPath: string) {
   const read = (p: string) => JSON.parse(readFileSync(p, "utf8")) as Snapshot;
   const base = read(basePath);
   const head = read(headPath);
-  const headById = new Map(head.blocks.map((b) => [b.id, b]));
-  let changed = 0;
-  for (const a of base.blocks) {
-    const b = headById.get(a.id);
-    headById.delete(a.id);
-    const lines = b ? diffBlock(a, b) : ["missing from head"];
-    if (!lines.length) continue;
-    changed++;
-    console.log(`block ${a.id} "${a.name}"`);
-    for (const l of lines) console.log(`  ${l}`);
-  }
-  for (const b of headById.values()) {
-    changed++;
-    console.log(`block ${b.id} "${b.name}"\n  missing from base`);
+  const changed = diffSnapshots(base, head);
+  for (const block of changed) {
+    console.log(`block ${block.id} "${block.name}"`);
+    for (const l of block.lines) console.log(`  ${l}`);
   }
   console.log(
     `${base.commit} → ${head.commit}: ${base.blocks.length} blocks compared, ` +
-      `${changed} with differences`,
+      `${changed.length} with differences`,
   );
-  if (changed) process.exitCode = 1;
+  if (changed.length) process.exitCode = 1;
 }
 
 const [cmd, a, b] = process.argv.slice(2).filter((arg) => arg !== "--");
