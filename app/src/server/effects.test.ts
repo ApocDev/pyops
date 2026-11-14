@@ -323,3 +323,83 @@ describe("computeEffects — machine effect receiver", () => {
     expect(fx.consMult).toBe(1);
   });
 });
+
+// What a receiver accepts (#283). Values are Py dump data; outcomes were
+// measured in game against `entity.effects`.
+describe("computeEffects — receiver allowed effects and module categories", () => {
+  const PY_MODS = new Map<string, ModuleEff>([
+    ["speed-module-3", { effSpeed: 1, effProductivity: 0, effConsumption: 1.5, category: "speed" }],
+    [
+      "efficiency-module-3",
+      { effSpeed: 0, effProductivity: 0, effConsumption: -0.5, category: "efficiency" },
+    ],
+    [
+      "productivity-module-3",
+      { effSpeed: -0.75, effProductivity: 0.3, effConsumption: 2, category: "productivity" },
+    ],
+    [
+      "sap-tree",
+      { effSpeed: 1, effProductivity: 0, effConsumption: 0, effPollution: 1, category: "sap-mk01" },
+    ],
+  ]);
+  const PY_BEACONS = new Map<string, BeaconEff>([
+    [
+      "beacon",
+      { distributionEffectivity: 1.5, moduleSlots: 2, energyUsageW: 480_000, profile: null },
+    ],
+  ]);
+  const beacon = (...modules: string[]) => [{ beacon: "beacon", modules, count: 1 }];
+  const ANY_CATEGORY = ["productivity", "speed", "efficiency", "quality"];
+  const fx = (
+    accepts: { allowedEffects: string[] | null; allowedModuleCategories: string[] | null },
+    modules: string[],
+    beacons: ReturnType<typeof beacon>,
+  ) => computeEffects(true, modules, beacons, PY_MODS, PY_BEACONS, [], undefined, null, accepts);
+
+  it("ignores a speed or efficiency beacon on assembling-machine-2, which allows no effects", () => {
+    const am2 = { allowedEffects: [], allowedModuleCategories: ANY_CATEGORY };
+    for (const mod of ["speed-module-3", "efficiency-module-3"]) {
+      const r = fx(am2, [], beacon(mod, mod));
+      expect(r.speedMult).toBe(1);
+      expect(r.consMult).toBe(1);
+      expect(r.beaconPowerPerMachineW).toBe(480_000); // it still draws power
+    }
+  });
+
+  it("applies the same speed beacon to chemical-plant: speed +3, consumption +4.5", () => {
+    const chem = { allowedEffects: null, allowedModuleCategories: ANY_CATEGORY };
+    const r = fx(chem, [], beacon("speed-module-3", "speed-module-3"));
+    expect(r.speedBonus).toBeCloseTo(3);
+    expect(r.consBonus).toBeCloseTo(4.5);
+  });
+
+  it("ignores a speed beacon on the sap extractor, whose slots take only sap modules", () => {
+    const sap = {
+      allowedEffects: ["consumption", "speed", "pollution", "productivity"],
+      allowedModuleCategories: ["sap-mk01", "sap-mk02", "sap-mk03", "sap-mk04"],
+    };
+    expect(fx(sap, [], beacon("speed-module-3", "speed-module-3")).speedBonus).toBe(0);
+    expect(fx(sap, ["sap-tree"], []).speedBonus).toBe(1); // its own module still works
+  });
+
+  it("applies a module's disallowed harmful effects once its benefits are allowed", () => {
+    // fluid-drill-mk01 allows consumption + productivity, not speed. In game a
+    // de-1.5 beacon with 2 × productivity-module-3 gave productivity +0.9,
+    // consumption +6 and speed -0.8 (the -2.25 clamped at the floor).
+    const drill = {
+      allowedEffects: ["consumption", "productivity"],
+      allowedModuleCategories: null,
+    };
+    const r = fx(drill, [], beacon("productivity-module-3", "productivity-module-3"));
+    expect(r.prodBonus).toBeCloseTo(0.9);
+    expect(r.consBonus).toBeCloseTo(6);
+    expect(r.speedMult).toBeCloseTo(0.2);
+  });
+
+  it("drops a TURD module whose benefit the machine does not allow", () => {
+    const noSpeed = { allowedEffects: ["consumption"], allowedModuleCategories: null };
+    const turd = [{ effSpeed: 0.5, effProductivity: 0, effConsumption: 0 }];
+    const r = computeEffects(true, [], [], PY_MODS, PY_BEACONS, turd, undefined, null, noSpeed);
+    expect(r.speedMult).toBe(1);
+  });
+});

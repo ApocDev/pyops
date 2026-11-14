@@ -49,7 +49,7 @@ import {
   type BeaconConfig,
 } from "./schema.ts";
 import { stripRichText } from "../lib/factorio-text.ts";
-import { computeEffects } from "../server/effects.ts";
+import { computeEffects, effectsAllowed } from "../server/effects.ts";
 import type {
   BeltProto,
   InserterProto,
@@ -740,18 +740,12 @@ export function getBeaconUpkeep(names: string[]): Map<string, BeaconUpkeepRow> {
 
 /** Module eligibility, two independent gates. The *category* gate is per host
  * slots: a Py creature building only takes its creature modules, a beacon has
- * its own category list. The *effect* gate is about who receives the effect —
- * every beneficial effect the module provides must be allowed by the receiver
- * (negative side effects never block insertion). Null lists = no restriction. */
+ * its own category list (null or empty = any). The *effect* gate
+ * (`effectsAllowed`, shared with computeEffects) is about who receives the
+ * effect: every beneficial effect the module provides must be allowed by the
+ * receiver (null = every effect, `[]` = none). */
 function categoryAllowed(m: ModuleRow, cats: string[] | null | undefined): boolean {
   return !cats?.length || cats.includes(m.category ?? "");
-}
-function effectsAllowed(m: ModuleRow, fx: string[] | null | undefined): boolean {
-  if (!fx?.length) return true;
-  if (m.effSpeed > 0 && !fx.includes("speed")) return false;
-  if (m.effProductivity > 0 && !fx.includes("productivity")) return false;
-  if (m.effConsumption < 0 && !fx.includes("consumption")) return false;
-  return true;
 }
 
 /** The HAND-PLACEABLE modules that fit a machine's slots — what you actually put in
@@ -884,6 +878,7 @@ export function computeRecipeScenario(opts: {
       maxProductivity: r.maximumProductivity,
     },
     machine.effectReceiver,
+    machine,
   );
 
   const craftsPerSec = (machine.craftingSpeed * fx.speedMult) / (r.energyRequired || 0.5);

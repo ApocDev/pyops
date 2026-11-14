@@ -17,6 +17,7 @@ import { synthesizePass2 } from "./synthesize.ts";
 import { temperatureFedDrain, type TempFedFluid } from "./fluid-energy.ts";
 import { parseEffectReceiver } from "./effect-receiver.ts";
 import { electricDrainW } from "./electric-drain.ts";
+import { resolveAllowedEffects, type EffectReceiverType } from "./allowed-effects.ts";
 import {
   REFERENCE_DATA_FORMAT_META_KEY,
   REFERENCE_DATA_FORMAT_VERSION,
@@ -103,10 +104,18 @@ function productProbability(c: Component): number {
 }
 /** Lua serializes an empty table as `{}` (object), not `[]`. Coerce to array. */
 const arr = <T = any>(x: unknown): T[] => (Array.isArray(x) ? (x as T[]) : []);
-/** Non-empty string list → JSON text; empty/missing → NULL (= "no restriction"). */
+/** Non-empty string list → JSON text; empty/missing → NULL (= "no restriction").
+ * Not for a machine's or lab's `allowed_effects`, where empty means none
+ * (see allowedEffectsJson). */
 const jsonList = (x: unknown): string | null => {
   const a = arr<string>(x);
   return a.length ? JSON.stringify(a) : null;
+};
+
+/** Resolved `allowed_effects` → JSON text; NULL = every effect, "[]" = none. */
+const allowedEffectsJson = (x: unknown, type: EffectReceiverType): string | null => {
+  const fx = resolveAllowedEffects(x, type);
+  return fx && JSON.stringify(fx);
 };
 
 /** Factorio 2.1 dumps recipe `categories` as a one-element array; 2.0 used the
@@ -487,7 +496,7 @@ export function importFactorioDump(
           energy_source: es.type ?? null,
           drain_w: electricDrainW(kind, es, usage, parseSI),
           pollution_per_min: es.emissions_per_minute?.pollution ?? 0,
-          allowed_effects: jsonList(m.allowed_effects),
+          allowed_effects: allowedEffectsJson(m.allowed_effects, "crafting-machine"),
           allowed_module_categories: jsonList(m.allowed_module_categories),
           // fluid energy sources (#25): burns_fluid ⇒ fuel_value burner (the
           // FluidEnergySource default is false = temperature-fed); a fluid_box
@@ -562,7 +571,7 @@ export function importFactorioDump(
         energy_source: es.type ?? null,
         drain_w: electricDrainW("lab", es, parseSI(l.energy_usage), parseSI),
         pollution_per_min: es.emissions_per_minute?.pollution ?? 0,
-        allowed_effects: jsonList(l.allowed_effects),
+        allowed_effects: allowedEffectsJson(l.allowed_effects, "lab"),
         allowed_module_categories: jsonList(l.allowed_module_categories),
         inputs: jsonList(l.inputs),
         hidden: l.hidden === true || arr<string>(l.flags).includes("hidden") ? 1 : 0,

@@ -29,6 +29,7 @@ import type Database from "better-sqlite3";
 import { temperatureFedDrain, type TempFedDrain } from "./fluid-energy.ts";
 import { parseEffectReceiver } from "./effect-receiver.ts";
 import { electricDrainW } from "./electric-drain.ts";
+import { resolveAllowedEffects } from "./allowed-effects.ts";
 
 export const ELECTRICITY = "pyops-electricity";
 export const HEAT = "pyops-heat";
@@ -206,9 +207,9 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
     /** constant electric drain in W (see electric-drain.ts) */
     drainW?: number | null;
     fuelCategories?: string[];
-    /** Effect kinds the machine accepts. Matters for labs, which take
-     * productivity/consumption/pollution but NOT speed — without it a speed
-     * beacon would look valid on a research row and the game would ignore it. */
+    /** Effect kinds the machine accepts (see resolveAllowedEffects): null =
+     * every effect. Omitted = none, for prototypes that aren't effect receivers
+     * (boilers, generators, pumps, reactors, agricultural towers). */
     allowedEffects?: string[] | null;
     allowedModuleCategories?: string[] | null;
     category: string;
@@ -236,7 +237,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       m.energySource ?? null,
       m.drainW ?? null,
       m.pollutionPerMin ?? 0,
-      m.allowedEffects?.length ? JSON.stringify(m.allowedEffects) : null,
+      m.allowedEffects === null ? null : JSON.stringify(m.allowedEffects ?? []),
       m.allowedModuleCategories?.length ? JSON.stringify(m.allowedModuleCategories) : null,
       m.neighbourBonus ?? null,
       m.burnsFluid ?? null,
@@ -302,6 +303,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
           energySource: d.energy_source?.type ?? null,
           drainW: electricDrainW("mining-drill", d.energy_source, usage, parseSI),
           fuelCategories: arr<string>(d.energy_source?.fuel_categories),
+          allowedEffects: resolveAllowedEffects(d.allowed_effects, "mining-drill"),
           allowedModuleCategories: arr<string>(d.allowed_module_categories),
           category: `mine:${rc}`,
           pollutionPerMin: d.energy_source?.emissions_per_minute?.pollution ?? 0,
@@ -709,6 +711,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
           kind: "rocket-silo",
           speed: s.crafting_speed ?? 1,
           moduleSlots: s.module_slots ?? 0,
+          allowedEffects: resolveAllowedEffects(s.allowed_effects, "crafting-machine"),
           energyUsageW: usage != null ? usage / es.eff : null,
           energySource: s.energy_source?.type ?? null,
           drainW: electricDrainW("rocket-silo", s.energy_source, usage, parseSI),
@@ -790,7 +793,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
         energySource: es.type ?? null,
         drainW: electricDrainW("lab", es, parseSI(lab.energy_usage), parseSI),
         pollutionPerMin: es.emissions_per_minute?.pollution ?? 0,
-        allowedEffects: lab.allowed_effects ?? null,
+        allowedEffects: resolveAllowedEffects(lab.allowed_effects, "lab"),
         allowedModuleCategories: lab.allowed_module_categories ?? null,
         category: RESEARCH_CATEGORY,
         fuelCategories: es.fuel_categories ?? [],

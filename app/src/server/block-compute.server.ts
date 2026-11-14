@@ -458,6 +458,7 @@ export async function computeBlock(rawData: SolveInput) {
           maxProductivity: r.maximumProductivity,
         },
         chosen?.effectReceiver,
+        chosen,
       );
       return [
         r.name,
@@ -1203,9 +1204,12 @@ export async function computeBlock(rawData: SolveInput) {
         // Whether ANY effect can reach this machine. Module slots only govern
         // direct insertion — a beacon reaches a machine with none, which is the
         // only way Pyanodons' lab (zero slots, vatbrain-only) can be modified at
-        // all. An explicitly empty allowed_effects means nothing applies; absent
-        // means unrestricted.
-        effectsAllowed: (chosen.allowedEffects?.length ?? 1) > 0,
+        // all. An empty allowed_effects means nothing applies (the importer
+        // resolves a missing key to its type's default); null means unrestricted.
+        effectsAllowed:
+          (chosen.allowedEffects?.length ?? 1) > 0 &&
+          ((chosen.moduleSlots > 0 && (chosen.effectReceiver?.usesModuleEffects ?? true)) ||
+            (chosen.effectReceiver?.usesBeaconEffects ?? true)),
       },
       fuel,
       modules: machineModules,
@@ -1713,6 +1717,7 @@ export function computeModuleSuggestions(
         maxProductivity: recipe.maximumProductivity,
       },
       chosen.effectReceiver,
+      chosen,
     );
     // recipe rate × craft time = machine-seconds/sec at 1× speed. Divide by
     // the module-less machine speed so beacon/TURD effects remain represented.
