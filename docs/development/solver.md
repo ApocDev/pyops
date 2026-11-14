@@ -239,6 +239,10 @@ A column at quality q eats its item ingredients at exactly q. A consumer at q ne
 q, so there are no ranges, pools, or selectors as there are for temperatures. A burner's
 fuel and burnt result stay normal whatever the row's quality.
 
+A composed sub-block's goals name a (good, quality) like block goals. Its members are the
+rows' quality columns, and its boundary contract keeps quality keys, so the parent links the
+module's output per quality.
+
 A count or capacity pin on a row bounds its total rate across all its columns. Because such a
 pin fixes only the total, it never supersedes a goal on one quality: the goal stays binding,
 and the pinned buildings must make it from that quality's column. A goal is superseded only

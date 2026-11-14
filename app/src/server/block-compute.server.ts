@@ -762,6 +762,11 @@ export async function computeBlock(rawData: SolveInput) {
   // Explicit doc state wins; a legacy doc (no `made`) derives it from its old
   // dispositions via the migration mapping the parity report validated. The
   // derived set is echoed back on the result so the editor persists it.
+  /** An item goal's quality (#266): non-normal only, and fluids have none. */
+  const goalQuality = (goal: Goal) =>
+    goal.quality && goal.quality !== NORMAL_QUALITY && !refs.getFluid(goal.name)
+      ? goal.quality
+      : undefined;
   const requestedGoals = targets.map((t) => {
     const producedTemperatures = fluidTemperatureOptions.get(t.name) ?? [];
     const temperature =
@@ -770,9 +775,7 @@ export async function computeBlock(rawData: SolveInput) {
       producedTemperatures.includes(t.temperature)
         ? t.temperature
         : undefined;
-    // an item goal names its quality (#266); fluids have none
-    const quality =
-      t.quality && t.quality !== NORMAL_QUALITY && !refs.getFluid(t.name) ? t.quality : undefined;
+    const quality = goalQuality(t);
     return {
       name: t.name,
       rate: t.rate,
@@ -932,7 +935,12 @@ export async function computeBlock(rawData: SolveInput) {
       members: Object.entries(data.recipeGroups ?? {})
         .filter(([, gid]) => gid === g.id)
         .flatMap(([r]) => qualityFold.columnsOf(r)),
-      goals: (g.goals ?? []).map((x) => ({ name: x.name, rate: x.rate })),
+      // a module goal names a (good, quality) like a block goal, so it sizes
+      // the member column that makes that quality (#266)
+      goals: (g.goals ?? []).map((x) => ({
+        name: qualityKey(x.name, goalQuality(x)),
+        rate: x.rate,
+      })),
       ...(g.made ? { made: g.made } : {}),
     }));
   const compose = composedGroups.length

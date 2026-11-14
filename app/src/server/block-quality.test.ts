@@ -274,6 +274,44 @@ describe("computeBlock with quality", () => {
     expect(r.rows[0].rate).toBeCloseTo(2.5, 6);
   });
 
+  it("solves a composed sub-block for its goal's quality", async () => {
+    // the module's goal is rare gears, so it must run the rare column and hand
+    // rare gears to the parent, not size itself for normal ones
+    const doc = {
+      goals: [{ name: "iron-gear-wheel", rate: 1, quality: "rare" }],
+      recipes: ["iron-gear-wheel"],
+      machines: { "iron-gear-wheel": "assembling-machine-3" },
+      rowQuality: { "iron-gear-wheel": { min: "normal", max: "rare" } },
+      rowGroups: [
+        {
+          id: 1,
+          name: "Gears",
+          composed: true,
+          goals: [{ name: "iron-gear-wheel", rate: 1, quality: "rare" }],
+        },
+      ],
+      recipeGroups: { "iron-gear-wheel": 1 },
+    };
+    const r = await computeBlock(doc);
+    expect(r.status).toBe("solved");
+    expect(r.unmade ?? []).toEqual([]);
+    const sub = r.subBlocks[0];
+    expect(sub.status).toBe("solved");
+    expect(sub.exports.map((f) => [f.name, +f.rate.toFixed(9)])).toEqual([
+      ["iron-gear-wheel@rare", 1],
+    ]);
+    expect(sub.imports.map((f) => [f.name, +f.rate.toFixed(9)])).toEqual([["iron-plate@rare", 2]]);
+    const row = r.rows[0];
+    expect(row.rate).toBeCloseTo(1, 9);
+    expect(row.qualityRates?.find((q) => q.quality === "rare")?.rate).toBeCloseTo(1, 9);
+
+    const flows = boundaryFlows(goalFlows(doc), r).filter((f) => f.kind === "item");
+    expect(flows.map((f) => [f.role, f.item, "quality" in f ? f.quality : null])).toEqual([
+      ["primary", "iron-gear-wheel", "rare"],
+      ["import", "iron-plate", "rare"],
+    ]);
+  });
+
   it("flags quality modules that can't upgrade anything", async () => {
     // rare is the best unlocked quality, so a rare-only row has nowhere to go
     const r = await computeBlock({
