@@ -1,0 +1,14 @@
+app/src/lib/data-format.ts
+  h_3ea7e994213848 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "487135013011fc661e4c981ec410f12e192f21b3",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
