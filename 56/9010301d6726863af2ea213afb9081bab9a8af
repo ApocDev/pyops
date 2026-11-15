@@ -1,0 +1,16 @@
+.github/workflows/ci.yml
+  h_3ea7e994213848 20-21,24,27
+.github/workflows/release.yml
+  h_3ea7e994213848 157,160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "569010301d6726863af2ea213afb9081bab9a8af",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
