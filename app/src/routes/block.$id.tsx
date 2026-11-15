@@ -58,6 +58,7 @@ import { SpoilRateDialog } from "../components/block/spoil-rate-dialog.tsx";
 import { GoalMenu } from "../components/block/goal-menu.tsx";
 import { RowMenu } from "../components/block/row-menu.tsx";
 import { PinDialog } from "../components/block/pin-dialog.tsx";
+import { QualityDialog } from "../components/block/quality-dialog.tsx";
 import { GoodMenu } from "../components/block/good-menu.tsx";
 import { BlockToolbar } from "../components/block/block-toolbar.tsx";
 import { SnapshotSheet } from "../components/block/snapshot-sheet.tsx";
@@ -73,6 +74,7 @@ import type { RowOverlayOpeners } from "../components/block/recipe-row.tsx";
 import { BlockFlowView } from "../components/block/block-flow-view.tsx";
 import type { LogiView } from "../components/block/solve-view.ts";
 import { usePageEntity } from "../lib/page-context.ts";
+import { useQualityLadder } from "../lib/use-quality-ladder.ts";
 
 export const Route = createFileRoute("/block/$id")({ component: BlockRoute });
 
@@ -147,6 +149,10 @@ function Block({ blockId }: { blockId: number }) {
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; name: string } | null>(null);
   // pin editor (#91): the recipe whose pins are being edited
   const [pinFor, setPinFor] = useState<string | null>(null);
+  // quality editor (#267): the recipe whose quality is being edited; the row
+  // menu offers it only when the project's data has quality
+  const [qualityFor, setQualityFor] = useState<string | null>(null);
+  const hasQuality = useQualityLadder().has;
   // snapshot-history drawer (#85)
   const [historyOpen, setHistoryOpen] = useState(false);
   // recipe table vs. sankey/flow view (#101); `focusRecipe` briefly rings a row
@@ -866,6 +872,7 @@ function Block({ blockId }: { blockId: number }) {
       fuelPicker: setPickFuelFor,
       modulesPicker: setPickModulesFor,
       pinsFor: setPinFor,
+      qualityFor: setQualityFor,
       spoilageFor: setSpoilDialog,
     }),
     [],
@@ -1135,12 +1142,21 @@ function Block({ blockId }: { blockId: number }) {
 
       {/* Recipe-row context menu — sub-block (#7) actions */}
       {pinFor && <PinDialog doc={doc} recipe={pinFor} res={res} onClose={() => setPinFor(null)} />}
+      {qualityFor && (
+        <QualityDialog
+          doc={doc}
+          recipe={qualityFor}
+          res={res}
+          onClose={() => setQualityFor(null)}
+        />
+      )}
       {rowMenu && (
         <RowMenu
           x={rowMenu.x}
           y={rowMenu.y}
           recipe={rowMenu.name}
           onOpenPins={() => setPinFor(rowMenu.name)}
+          onOpenQuality={hasQuality ? () => setQualityFor(rowMenu.name) : undefined}
           display={res?.recipeDisplay?.[rowMenu.name] ?? rowMenu.name}
           groups={rowGroups}
           currentGroup={rowGroups.find((g) => g.id === recipeGroups[rowMenu.name]) ?? null}

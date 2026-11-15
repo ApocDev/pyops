@@ -28,6 +28,7 @@ import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
 import { LoadingFitCount } from "./loading-fit-count.tsx";
 import { LogiTag } from "./logi-tag.tsx";
 import { ReactorLayoutChip } from "./reactor-layout-chip.tsx";
+import { RowQualityPill } from "./row-quality-pill.tsx";
 import { RecipeSpoilageIndicator } from "./recipe-spoilage-indicator.tsx";
 import { rowTempWarnings } from "./temp-warnings.ts";
 import type { BlockDocStore } from "./doc-store.ts";
@@ -58,6 +59,8 @@ export type RowOverlayOpeners = {
   modulesPicker: (recipe: string) => void;
   /** open the Pins dialog for a row (used to edit a cap from the count cell) */
   pinsFor: (recipe: string) => void;
+  /** open the quality editor for a row (#267) */
+  qualityFor: (recipe: string) => void;
   spoilageFor: (item: string) => void;
 };
 
@@ -128,6 +131,7 @@ export const RecipeRow = memo(function RecipeRow({
   countRender(`row:${name}`);
   const spoilables = useSpoilables();
   const campaign = useStore(doc.store, (s) => s.campaign);
+  const rowQuality = useStore(doc.store, (s) => s.rowQuality[name]);
   // Debounce the suggestion hint (#117): the suggested fill recomputes per
   // solve, so it can flip while a rate is being dragged. The sparkle only
   // appears once the suggestion has held still for a beat — mid-edit churn
@@ -251,6 +255,13 @@ export const RecipeRow = memo(function RecipeRow({
                   <RecipeSpoilageIndicator products={row.products} spoilables={spoilables} />
                 </span>
               ) : null}
+              {rowQuality && (
+                <RowQualityPill
+                  setting={rowQuality}
+                  warn={!!(row?.qualityUseless || row?.qualityCapped)}
+                  onOpen={() => open.qualityFor(name)}
+                />
+              )}
               {uncertainProducts.length > 0 && (
                 <Tooltip
                   content={uncertainProducts
@@ -318,6 +329,7 @@ export const RecipeRow = memo(function RecipeRow({
                     <Icon
                       kind="entity"
                       name={row.machine.name}
+                      quality={row.machine.quality}
                       size="md"
                       extraText="Click to change building."
                     />
@@ -461,6 +473,7 @@ export const RecipeRow = memo(function RecipeRow({
                 {/* modules + beacons: configured loadout (or ghost ⊞), click to edit */}
                 <ModulesChip
                   modules={row.modules}
+                  moduleQuality={rowQuality?.modules}
                   beacons={row.beacons}
                   slots={row.machine.moduleSlots ?? 0}
                   effectsAllowed={row.machine.effectsAllowed ?? true}

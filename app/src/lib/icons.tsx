@@ -115,15 +115,29 @@ const ICON_VAR: Record<IconSize, string> = {
   lg: "var(--icon-lg)",
 };
 
-export type IconKind = "item" | "fluid" | "recipe" | "entity" | "technology";
+/** `quality` draws a quality's own sprite (the tier pickers); it has no hover card. */
+export type IconKind = "item" | "fluid" | "recipe" | "entity" | "technology" | "quality";
 
 export type IconProps = {
   kind: IconKind;
+  /** A good's quality rides in its key (`iron-plate@rare`, lib/quality.ts). */
   name: string;
+  /** Quality of a machine or module, which has no quality key (#267). */
+  quality?: string | null;
   size?: IconSize;
   noTitle?: boolean;
   title?: string | null;
 };
+
+/** Splits a quality key (`iron-plate@rare`) into the good and its quality when
+ * the atlas has that quality's sprite. Any other name has no quality. */
+function splitIconQuality(name: string, icons: IconManifest["icons"] | undefined) {
+  const at = name.lastIndexOf("@");
+  const quality = at > 0 ? name.slice(at + 1) : "";
+  return quality && icons?.[`quality/${quality}`]
+    ? { name: name.slice(0, at), quality }
+    : { name, quality: null };
+}
 
 /** The default icon: renders the sprite wrapped in a rich hover card for its
  * `kind` (item/fluid → ItemCard, recipe → RecipeCard, technology → TechCard,
@@ -133,14 +147,17 @@ export type IconProps = {
  * bare `title`/`noTitle` props only apply when `noHover` is set. */
 export function Icon(props: IconProps & { noHover?: boolean; extraText?: React.ReactNode }) {
   const { noHover, extraText, ...rest } = props;
+  const { m } = useContext(IconCtx);
   // pseudo-goods (heat/electricity/fluid fuel) have no prototype/detail to card.
   const noCard =
     rest.name === "pyops-electricity" ||
     rest.name === "pyops-heat" ||
     rest.name === "pyops-fluid-fuel";
-  if (noHover || noCard) return <RawIcon {...rest} />;
+  if (noHover || noCard || rest.kind === "quality") return <RawIcon {...rest} />;
+  // the card describes the good itself; its quality is the icon's badge
+  const card = splitIconQuality(rest.name, m?.icons).name;
   return (
-    <GoodHover kind={rest.kind} name={rest.name} extraText={extraText}>
+    <GoodHover kind={rest.kind} name={card} extraText={extraText}>
       <RawIcon {...rest} noTitle />
     </GoodHover>
   );
@@ -148,8 +165,18 @@ export function Icon(props: IconProps & { noHover?: boolean; extraText?: React.R
 
 /** The bare sprite, no hover card. Used by the hover cards themselves (so a
  * card's own icons don't spawn nested cards) and anywhere `Icon` opts out. */
-export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: IconProps) {
+export function RawIcon({
+  kind,
+  name: rawName,
+  quality: qualityProp,
+  size = "sm",
+  noTitle = false,
+  title,
+}: IconProps) {
   const { m, itemIdx, spoil } = useContext(IconCtx);
+  const split = splitIconQuality(rawName, m?.icons);
+  const name = split.name;
+  const quality = qualityProp ?? split.quality;
   const v = ICON_VAR[size];
   const base: React.CSSProperties = {
     display: "inline-block",
@@ -283,7 +310,9 @@ export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: Ico
             ? (m.icons[`entity/${name}`] ?? itemIdx[name])
             : kind === "technology"
               ? m.icons[`technology/${name}`]
-              : (itemIdx[name] ?? m.icons[`item/${name}`]);
+              : kind === "quality"
+                ? m.icons[`quality/${name}`]
+                : (itemIdx[name] ?? m.icons[`item/${name}`]);
 
   if (!slot) {
     return withSpoil(
@@ -296,17 +325,45 @@ export function RawIcon({ kind, name, size = "sm", noTitle = false, title }: Ico
   // Atlas slice scales with the token: express positions/size in cell-multiples of
   // the CSS var so the sprite tracks whatever --icon-* resolves to.
   const cells = m.atlasSize / m.cell;
-  return withSpoil(
-    withBadge(
-      <span
-        title={noTitle ? undefined : `${title ?? name}${spoilSuffix}`}
-        style={{
-          ...base,
-          backgroundImage: `url(/icons/${m.sheets[slot.s]})`,
-          backgroundPosition: `calc(${v} * ${-slot.x / m.cell}) calc(${v} * ${-slot.y / m.cell})`,
-          backgroundSize: `calc(${v} * ${cells}) calc(${v} * ${cells})`,
-        }}
-      />,
+  const slice = (at: IconSlot, size: string): React.CSSProperties => ({
+    backgroundImage: `url(/icons/${m.sheets[at.s]})`,
+    backgroundPosition: `calc(${size} * ${-at.x / m.cell}) calc(${size} * ${-at.y / m.cell})`,
+    backgroundSize: `calc(${size} * ${cells}) calc(${size} * ${cells})`,
+  });
+  // A quality above normal draws the quality's own sprite in the bottom-left
+  // corner, as the game does (#267). The spoil and research badges sit
+  // bottom-right, so they never overlap it.
+  const qualitySlot = quality && quality !== "normal" ? m.icons[`quality/${quality}`] : undefined;
+  const badgeSize = `calc(${v} * 0.5)`;
+  const withQuality = (el: React.ReactNode) =>
+    qualitySlot ? (
+      <span style={{ ...base, position: "relative" }} data-quality={quality}>
+        {el}
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: "-2px",
+            bottom: "-2px",
+            width: badgeSize,
+            height: badgeSize,
+            filter: "drop-shadow(0 0 1px rgba(0,0,0,0.9))",
+            pointerEvents: "none",
+            ...slice(qualitySlot, badgeSize),
+          }}
+        />
+      </span>
+    ) : (
+      el
+    );
+  return withQuality(
+    withSpoil(
+      withBadge(
+        <span
+          title={noTitle ? undefined : `${title ?? name}${spoilSuffix}`}
+          style={{ ...base, ...slice(slot, v) }}
+        />,
+      ),
     ),
   );
 }

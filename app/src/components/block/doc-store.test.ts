@@ -267,6 +267,22 @@ describe("recipes", () => {
     doc.dropRecipe("coke");
     expect(doc.store.state.reactorLayouts).toEqual({});
   });
+
+  it("setRowQuality keeps only non-normal fields and survives save → load (#267)", () => {
+    const doc = seeded();
+    doc.setRowQuality("iron-plate", { min: "normal", max: "epic", modules: "rare" });
+    expect(doc.store.state.rowQuality).toEqual({ "iron-plate": { max: "epic", modules: "rare" } });
+
+    const doc2 = createBlockDocStore();
+    doc2.hydrate(solveInputOf(doc.store.state), "Iron");
+    expect(doc2.store.state.rowQuality).toEqual({ "iron-plate": { max: "epic", modules: "rare" } });
+
+    doc.setRowQuality("iron-plate", { max: "normal" }); // all normal clears the row
+    expect(solveInputOf(doc.store.state).rowQuality).toBeUndefined();
+    doc.setRowQuality("coke", { machine: "rare" });
+    doc.dropRecipe("coke");
+    expect(doc.store.state.rowQuality).toEqual({});
+  });
 });
 
 describe("made marks, pins & spoil plans", () => {

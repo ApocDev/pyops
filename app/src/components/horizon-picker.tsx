@@ -56,7 +56,7 @@ export function HorizonPicker() {
     mutationFn: (d: SaveArgs) => setResearchHorizonFn({ data: d }),
     onSuccess: () => {
       // availability changed — refresh the horizon and everything derived from it
-      for (const key of ["researchHorizon", "solve", "pick", "machineOpts"]) {
+      for (const key of ["researchHorizon", "solve", "pick", "machineOpts", "qualityLadder"]) {
         void qc.invalidateQueries({ queryKey: [key] });
       }
     },

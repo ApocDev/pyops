@@ -77,11 +77,14 @@ export function ModulesChip({
   effectsAllowed = true,
   effects,
   interference = false,
+  moduleQuality,
   onClick,
 }: {
   modules: string[];
   beacons: BeaconConfig[];
   slots: number;
+  /** quality of the modules in the machine's own slots (#267) */
+  moduleQuality?: string;
   /** Whether any effect can reach this machine at all. */
   effectsAllowed?: boolean;
   effects?: RowEffects;
@@ -127,15 +130,15 @@ export function ModulesChip({
       {interference && <TriangleAlert className="size-4" aria-label="Beacon interference" />}
       {grouped.map(([n, c]) => (
         <span key={n} className="flex items-center">
-          <Icon kind="item" name={n} size="sm" noHover />
+          <Icon kind="item" name={n} quality={moduleQuality} size="sm" noHover />
           {c > 1 && <span className="text-sm">×{c}</span>}
         </span>
       ))}
       {beacons.map((b, i) => (
         <span key={i} className="flex items-center gap-0.5">
-          <Icon kind="entity" name={b.beacon} size="sm" noHover />
+          <Icon kind="entity" name={b.beacon} quality={b.quality} size="sm" noHover />
           {b.modules.map((mn, j) => (
-            <Icon key={j} kind="item" name={mn} size="sm" noHover />
+            <Icon key={j} kind="item" name={mn} quality={b.moduleQuality} size="sm" noHover />
           ))}
         </span>
       ))}
