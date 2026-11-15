@@ -8,7 +8,7 @@ import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { nitro } from "nitro/vite";
 
-import { createReadStream, statSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
 
 const isVpLint = process.env.VP_COMMAND === "lint";
@@ -40,6 +40,20 @@ const allowedHosts: true | string[] =
         ".ngrok.dev",
         ...extraHosts, // custom (e.g. your own cloudflared domain)
       ];
+
+// Build-only: Nitro bundles the server twice. Vite's SSR pass writes each chunk
+// with a source map back to src/; Nitro's second pass reads those chunks but not
+// their maps, so its own maps point at the intermediate files with no mappings.
+// Loading each chunk together with its map lets the bundler chain the two.
+function chainSsrSourcemaps() {
+  return {
+    name: "pyops-chain-ssr-sourcemaps",
+    load(id: string) {
+      if (!/[\\/]vite[\\/]services[\\/]/.test(id) || !existsSync(`${id}.map`)) return null;
+      return { code: readFileSync(id, "utf8"), map: readFileSync(`${id}.map`, "utf8") };
+    },
+  };
+}
 
 // Dev-only: serve /icons/* from app/icon-data (out of public/). vite-plus's
 // nitro-nightly dev static handler corrupts public/ files over 64KB (the atlas
@@ -176,7 +190,11 @@ const config = defineConfig({
           devtools(),
           nitro({
             ...(nitroBuildDir ? { buildDir: nitroBuildDir } : {}),
-            rollupConfig: { external: [/^@sentry\//] },
+            // server source maps ship with the build; the desktop shell starts
+            // node with --enable-source-maps, so stack traces in server.log and
+            // the sync log name src/ files and lines
+            sourcemap: true,
+            rollupConfig: { external: [/^@sentry\//], plugins: [chainSsrSourcemaps()] },
             // highs is CommonJS emscripten glue that reads __dirname and loads
             // highs.wasm from its own directory at runtime — bundling it into an
             // ESM lib breaks both, so ship the whole package under
