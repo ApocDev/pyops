@@ -1,0 +1,54 @@
+AGENTS.md
+  h_3ea7e994213848 9,22-27,81-86
+app/src/gametest.test.ts
+  h_3ea7e994213848 1-266
+app/src/server/block-compute.server.ts
+  h_3ea7e994213848 47,1432-1433,1441
+app/src/server/quality-effects.ts
+  h_3ea7e994213848 194-201
+docs/.vitepress/config.mts
+  h_3ea7e994213848 34
+docs/development/gametest.md
+  h_3ea7e994213848 1-163
+docs/development/index.md
+  h_3ea7e994213848 27-28
+gametest/README.md
+  h_3ea7e994213848 1-12
+gametest/locks/py-quality.json
+  h_3ea7e994213848 1-143
+gametest/locks/py.json
+  h_3ea7e994213848 1-141
+gametest/locks/vanilla-quality.json
+  h_3ea7e994213848 1-9
+gametest/mod/cases.lua
+  h_3ea7e994213848 1-87
+gametest/mod/data-final-fixes.lua
+  h_3ea7e994213848 1-66
+gametest/mod/data.lua
+  h_3ea7e994213848 1-80
+gametest/mod/info.json
+  h_3ea7e994213848 1-10
+gametest/mod/scenarios/engine/control.lua
+  h_3ea7e994213848 1-226
+gametest/results/py-quality.json
+  h_3ea7e994213848 1-2312
+gametest/results/py.json
+  h_3ea7e994213848 1-2198
+gametest/results/vanilla-quality.json
+  h_3ea7e994213848 1-2157
+gametest/run.ts
+  h_3ea7e994213848 1-236
+gametest/suites.json
+  h_3ea7e994213848 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e24fa582fbbed0543efcda7f4c6445571be988bb",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
