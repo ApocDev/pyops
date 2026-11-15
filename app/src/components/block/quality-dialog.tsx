@@ -1,5 +1,11 @@
 import { useStore } from "@tanstack/react-store";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "#/components/ui/dialog.tsx";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "#/components/ui/dialog.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Callout } from "#/components/ui/callout.tsx";
 import { FieldLabel } from "#/components/ui/label.tsx";
@@ -62,7 +68,7 @@ export function QualityDialog({
             Quality — {display}
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 p-3 text-sm">
+        <DialogBody className="text-sm">
           <div className="space-y-2">
             <FieldLabel>Runs at</FieldLabel>
             {row?.qualityFixed && (
@@ -114,12 +120,12 @@ export function QualityDialog({
               plans at {topDisplay}.
             </Callout>
           )}
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => apply({})}>
-              Reset to normal
-            </Button>
-            <Button onClick={onClose}>Done</Button>
-          </div>
+        </DialogBody>
+        <div className="flex shrink-0 justify-end gap-2 border-t border-border p-3">
+          <Button variant="ghost" onClick={() => apply({})}>
+            Reset to normal
+          </Button>
+          <Button onClick={onClose}>Done</Button>
         </div>
       </DialogContent>
     </Dialog>

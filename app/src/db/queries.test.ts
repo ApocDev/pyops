@@ -297,8 +297,8 @@ describe("modulePickerData availability", () => {
 describe("quality modules (#260)", () => {
   // Factorio 2.1.24 with the quality mod: quality-module {quality 0.01, speed
   // -0.05}, speed-module {speed 0.2, quality -0.01}, and basic-oil-processing
-  // sets allow_quality = false. The planner can't show quality output yet
-  // (#267), so it never offers a quality module.
+  // sets allow_quality = false. A project without quality data never offers a
+  // quality module; one with quality offers it everywhere but auto-fill (#267).
   const seed = () => {
     db.run(sql`
       INSERT INTO recipes (name, kind, category, energy_required, allow_quality) VALUES
@@ -324,6 +324,20 @@ describe("quality modules (#260)", () => {
       "speed-module",
     ]);
     expect(names(modulesFittingMachine("quality-assembler"))).toEqual(["speed-module"]);
+  });
+
+  it("offers quality modules in the picker when the data has quality, never to auto-fill", () => {
+    seed();
+    db.run(sql`INSERT INTO meta (key, value) VALUES ('has_quality', '1')`);
+    expect(names(placeableModules())).toEqual(["speed-module"]);
+    expect(names(modulePickerData("iron-gear-wheel", "quality-assembler")!.modules)).toEqual([
+      "quality-module",
+      "speed-module",
+    ]);
+    expect(names(modulesFittingMachine("quality-assembler"))).toEqual([
+      "quality-module",
+      "speed-module",
+    ]);
   });
 
   it("refuses a quality module on a recipe that forbids quality", () => {

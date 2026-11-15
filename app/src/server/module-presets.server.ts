@@ -55,11 +55,13 @@ export type ModuleFacts = ReadonlyMap<
 >;
 
 /** Is this loadout applicable to the machine+recipe the picker data describes?
- * Reasons are user-facing (localized names), for the disabled preset chips. */
+ * Reasons are user-facing (localized names), for the disabled preset chips.
+ * `hasQuality` is whether the project's data has quality (#267). */
 export function presetCompatibility(
   preset: PresetLoadout,
   picker: PickerLike,
   facts: ModuleFacts,
+  hasQuality = false,
 ): PresetCompat {
   const machineName = picker.machine.display ?? picker.machine.name;
   const disp = (n: string) => facts.get(n)?.display ?? n;
@@ -67,11 +69,11 @@ export function presetCompatibility(
     picker.modules.find((m) => m.name === n) ?? picker.beaconModules?.find((m) => m.name === n);
   const prodBlocked = (n: string) =>
     !picker.allowProductivity && (facts.get(n)?.effProductivity ?? 0) > 0;
-  // the picker never offers a quality module until the planner shows quality (#267)
-  const qualityBlocked = (n: string) => (facts.get(n)?.effQuality ?? 0) > 0;
+  // the picker offers a quality module only when the project's data has quality
+  const qualityBlocked = (n: string) => !hasQuality && (facts.get(n)?.effQuality ?? 0) > 0;
   const rejectReason = (n: string, otherwise: string) =>
     qualityBlocked(n)
-      ? `the planner doesn't show quality output yet (${disp(n)})`
+      ? `this project's data has no quality (${disp(n)})`
       : prodBlocked(n)
         ? `this recipe does not accept productivity (${disp(n)})`
         : otherwise;
@@ -137,7 +139,11 @@ export function presetsForRow(recipe: string | null, machine: string) {
     return presets.map((p) => ({ ...p, compat }));
   }
   const facts = factsFor(presets);
-  return presets.map((p) => ({ ...p, compat: presetCompatibility(p, picker, facts) }));
+  const { hasQuality } = q.dataCapabilities();
+  return presets.map((p) => ({
+    ...p,
+    compat: presetCompatibility(p, picker, facts, hasQuality),
+  }));
 }
 
 /** The loadout a NEW row should start with: the first compatible default
@@ -149,8 +155,9 @@ export function defaultPresetLoadout(recipe: string, machine: string): PresetLoa
   const picker = q.modulePickerData(recipe, machine);
   if (!picker) return null;
   const facts = factsFor(defaults);
+  const { hasQuality } = q.dataCapabilities();
   for (const p of defaults) {
-    if (!presetCompatibility(p, picker, facts).ok) continue;
+    if (!presetCompatibility(p, picker, facts, hasQuality).ok) continue;
     const modules = p.modules.slice(0, Math.max(0, picker.machine.moduleSlots));
     if (!modules.length && !p.beacons.length) continue; // nothing would apply
     return { modules, beacons: p.beacons };

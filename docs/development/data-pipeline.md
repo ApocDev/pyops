@@ -148,8 +148,9 @@ The importer converts Factorio's flexible prototype shapes into stable relationa
   [Quality](./solver.md#quality)). A module with a positive quality effect never reaches a
   machine whose `allowed_effects` lacks quality. The pickers and templates offer one only
   when the project has quality (`hasQuality`). Module auto-fill never adds one, because a
-  quality loop is a deliberate plan. Pyanodons has no module with a positive quality
-  effect, so Py projects never see one;
+  quality loop is a deliberate plan, and the assistant's recipe calculator rejects one,
+  because it reports each product as one rate with no quality split. Pyanodons has no
+  module with a positive quality effect, so Py projects never see one;
 - each electric machine's and lab's constant drain (`drain_w`). The dump only has a `drain`
   key when the prototype sets one; otherwise the engine default applies, which is
   `energy_usage / 30` for crafting machines (assembling machines, furnaces, rocket silos) and

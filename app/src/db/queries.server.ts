@@ -890,8 +890,13 @@ export function computeRecipeScenario(opts: {
         name,
         reason: `category '${mod.category}' not accepted (slots take ${JSON.stringify(machine.allowedModuleCategories ?? "any")})`,
       });
-    if (qualityModuleHidden(mod, hasQualityData()))
-      return void rejected.push({ name, reason: "this project's data has no quality" });
+    // the calculator reports each product as one rate, with no quality split,
+    // so a quality module's upgraded output would read as normal
+    if (qualityModuleHidden(mod, false))
+      return void rejected.push({
+        name,
+        reason: "the recipe calculator doesn't split output by quality",
+      });
     if (!effectsAllowed(mod, machine.allowedEffects))
       return void rejected.push({ name, reason: "effect not allowed by this machine" });
     if (mod.effProductivity > 0 && !r.allowProductivity)

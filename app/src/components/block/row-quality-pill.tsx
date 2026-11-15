@@ -5,9 +5,11 @@ import { useQualityLadder } from "../../lib/use-quality-ladder";
 import type { RowQuality } from "../../db/schema";
 
 /** A recipe row's quality range (#267): the lowest and highest quality it runs
- * at. The row renders it only when it has a quality setting; click to open the
- * row's quality editor. Amber when the quality setting does nothing or asks for
- * a quality the horizon hasn't unlocked. */
+ * at. The row renders it only when it has a quality setting, and it stays
+ * hidden when the project's data has no quality (a block imported from a
+ * quality project keeps its setting). Click to open the row's quality editor.
+ * Amber when the quality setting does nothing or asks for a quality the
+ * horizon hasn't unlocked. */
 export function RowQualityPill({
   setting,
   warn,
@@ -17,7 +19,8 @@ export function RowQualityPill({
   warn: boolean;
   onOpen: () => void;
 }) {
-  const { ladder } = useQualityLadder();
+  const { ladder, has } = useQualityLadder();
+  if (!has) return null;
   const lo = setting.min ?? NORMAL_QUALITY;
   const hi = setting.max ?? lo;
   const name = (q: string) => ladder.find((step) => step.name === q)?.display ?? q;
