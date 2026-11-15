@@ -77,7 +77,10 @@ const PRESS_SLOP_PX = 10; // finger drift allowed before a press counts as a scr
  *   swallowed so a tap still opens what it always did, and the next touch
  *   anywhere dismisses the card. Long-press is skipped inside any element marked
  *   `data-context-menu` (one with its own right-click menu): on touch, the
- *   browser's long-press `contextmenu` is the only way to reach that menu. */
+ *   browser's long-press `contextmenu` is the only way to reach that menu.
+ * Mouse hover and keyboard focus skip any element inside the trigger marked
+ * `data-no-hover-card`: a control there (a button with its own tooltip) shows
+ * only its own tooltip, not the card too. */
 export function useHoverCard() {
   const [pos, setPos] = useState<Point | null>(null);
   const [pinned, setPinned] = useState(false); // opened by long-press, outlives the touch
@@ -117,9 +120,17 @@ export function useHoverCard() {
     return () => document.removeEventListener("pointerdown", dismiss, true);
   }, [pinned]);
 
+  /** Whether `el` sits in a `data-no-hover-card` control inside this trigger. */
+  const inControl = (el: EventTarget, trigger: Element) => {
+    const control = el instanceof Element ? el.closest("[data-no-hover-card]") : null;
+    return control != null && trigger.contains(control);
+  };
+  const hoverAt = (e: React.MouseEvent) =>
+    inControl(e.target, e.currentTarget) ? null : { x: e.clientX, y: e.clientY };
+
   const triggerProps = {
-    onMouseEnter: (e: React.MouseEvent) => setPos({ x: e.clientX, y: e.clientY }),
-    onMouseMove: (e: React.MouseEvent) => setPos({ x: e.clientX, y: e.clientY }),
+    onMouseEnter: (e: React.MouseEvent) => setPos(hoverAt(e)),
+    onMouseMove: (e: React.MouseEvent) => setPos(hoverAt(e)),
     onMouseLeave: () => {
       if (pinned) return;
       if (focused.current) setPos(under(focused.current));
@@ -127,7 +138,7 @@ export function useHoverCard() {
     },
     onFocus: (e: React.FocusEvent) => {
       const el = e.target;
-      if (!el.matches(":focus-visible")) return;
+      if (!el.matches(":focus-visible") || inControl(el, e.currentTarget)) return;
       focused.current = el;
       clearTimer();
       timer.current = window.setTimeout(() => setPos(under(el)), FOCUS_DELAY_MS);

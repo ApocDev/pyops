@@ -205,6 +205,7 @@ export const RecipeRow = memo(function RecipeRow({
                 {...attributes}
                 {...listeners}
                 title="Drag to reorder this recipe"
+                data-no-hover-card
                 className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground select-none hover:text-foreground active:cursor-grabbing"
               >
                 <GripVertical className="size-4" />
@@ -265,28 +266,31 @@ export const RecipeRow = memo(function RecipeRow({
                   </span>
                 ) : null}
                 {rowQuality && (
-                  <span className="mt-1 flex items-center gap-1">
+                  <span className="mt-1 flex items-center gap-1" data-no-hover-card>
                     <RowQualityPill
                       setting={rowQuality}
                       warn={!!(row?.qualityUseless || row?.qualityCapped)}
                       onOpen={() => open.qualityFor(name)}
                     />
                     {row?.qualityColumns && onToggleQuality && (
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className="text-muted-foreground"
-                        aria-expanded={qualityOpen}
-                        aria-label={qualityOpen ? "Hide each quality" : "Show each quality"}
-                        title={qualityOpen ? "Hide each quality" : "Show each quality"}
-                        onClick={() => onToggleQuality(name)}
+                      <Tooltip
+                        content={qualityOpen ? "Hide each quality" : "Show each quality"}
+                        label
                       >
-                        {qualityOpen ? (
-                          <ChevronDown className="size-3.5" />
-                        ) : (
-                          <ChevronRight className="size-3.5" />
-                        )}
-                      </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-muted-foreground"
+                          aria-expanded={qualityOpen}
+                          onClick={() => onToggleQuality(name)}
+                        >
+                          {qualityOpen ? (
+                            <ChevronDown className="size-3.5" />
+                          ) : (
+                            <ChevronRight className="size-3.5" />
+                          )}
+                        </Button>
+                      </Tooltip>
                     )}
                   </span>
                 )}
@@ -312,6 +316,7 @@ export const RecipeRow = memo(function RecipeRow({
                 variant="ghost"
                 size="icon-xs"
                 className={off ? "text-muted-foreground/60" : "text-muted-foreground"}
+                data-no-hover-card
                 onClick={() => doc.toggleDisabled(name)}
                 title={
                   off
@@ -324,6 +329,7 @@ export const RecipeRow = memo(function RecipeRow({
               <Button
                 variant="ghost"
                 size={confirmRemove ? "xs" : "icon-xs"}
+                data-no-hover-card
                 className={`shrink-0 hover:text-destructive ${confirmRemove ? "font-semibold text-destructive" : "text-muted-foreground"}`}
                 onClick={() => {
                   if (!confirmRemove) return onArmRemove(name);

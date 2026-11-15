@@ -107,3 +107,21 @@ describe("CursorHover keyboard and touch", () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 });
+
+describe("CursorHover controls", () => {
+  it("skips a data-no-hover-card control inside the trigger", () => {
+    const { getByText, queryByText } = render(
+      <CursorHover card={<div>Recipe card</div>}>
+        <span>Iron gear wheel</span>
+        <button data-no-hover-card>Remove</button>
+      </CursorHover>,
+    );
+    // the control shows its own tooltip, not the card
+    fireEvent.mouseMove(getByText("Remove"), { clientX: 5, clientY: 5 });
+    expect(queryByText("Recipe card")).toBeNull();
+    fireEvent.mouseMove(getByText("Iron gear wheel"), { clientX: 5, clientY: 5 });
+    expect(queryByText("Recipe card")).not.toBeNull();
+    fireEvent.mouseMove(getByText("Remove"), { clientX: 6, clientY: 6 });
+    expect(queryByText("Recipe card")).toBeNull();
+  });
+});
