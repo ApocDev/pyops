@@ -3,9 +3,10 @@
  * data: base's iron gear wheel and assembling machine 3, the quality mod's
  * qualities and quality module 3 (`quality/prototypes/quality.lua`,
  * `item.lua`), and the recycler mod's recycler and generated gear recycling
- * recipe (`recycler/data.lua`, `recycling.lua`). Only uncommon and rare are
- * unlocked: epic and legendary need a pack the research horizon doesn't have,
- * so upgrade chances past rare land on rare.
+ * recipe (`recycler/data.lua`, `recycling.lua`), and Space Age's nutrients,
+ * which spoil into spoilage after 5 minutes (`space-age/prototypes/item.lua`).
+ * Only uncommon and rare are unlocked: epic and legendary need a pack the
+ * research horizon doesn't have, so upgrade chances past rare land on rare.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 import { switchDatabase } from "../db/index.server.ts";
@@ -30,19 +31,24 @@ beforeEach(async () => {
   fx.db.exec(`
     INSERT INTO items (name, display) VALUES
       ('iron-plate','Iron plate'),('iron-gear-wheel','Iron gear wheel'),
-      ('quality-module-3','Quality module 3');
+      ('quality-module-3','Quality module 3'),('spoilage','Spoilage');
+    INSERT INTO items (name, display, stack_size, spoil_result, spoil_ticks) VALUES
+      ('nutrients','Nutrients',100,'spoilage',18000);
     INSERT INTO recipes
       (name, display, kind, category, energy_required, allow_productivity, allow_quality,
        can_set_quality, enabled, hidden)
       VALUES
       ('iron-gear-wheel','Iron gear wheel','real','crafting',0.5,1,1,1,1,0),
-      ('iron-gear-wheel-recycling','Iron gear wheel recycling','real','recycling',0.03125,0,1,1,1,1);
+      ('iron-gear-wheel-recycling','Iron gear wheel recycling','real','recycling',0.03125,0,1,1,1,1),
+      ('spoil-nutrients','Nutrients spoils','spoiling',NULL,300,0,1,0,1,0);
     INSERT INTO recipe_ingredients (recipe, idx, kind, name, amount) VALUES
       ('iron-gear-wheel',0,'item','iron-plate',2),
-      ('iron-gear-wheel-recycling',0,'item','iron-gear-wheel',1);
+      ('iron-gear-wheel-recycling',0,'item','iron-gear-wheel',1),
+      ('spoil-nutrients',0,'item','nutrients',1);
     INSERT INTO recipe_products (recipe, idx, kind, name, amount) VALUES
       ('iron-gear-wheel',0,'item','iron-gear-wheel',1),
-      ('iron-gear-wheel-recycling',0,'item','iron-plate',0.5);
+      ('iron-gear-wheel-recycling',0,'item','iron-plate',0.5),
+      ('spoil-nutrients',0,'item','spoilage',1);
     INSERT INTO crafting_machines
       (name, kind, crafting_speed, module_slots, energy_usage_w, energy_source, allowed_effects)
       VALUES
@@ -64,10 +70,10 @@ beforeEach(async () => {
       ('quality_effect_step','0.0001'),('research_mode','now'),('available_science_packs','[]');
   `);
   const insert = fx.db.prepare(
-    `INSERT INTO qualities (name, display, level, next, next_probability, chain_probability,
-       module_quality_multiplier, crafting_machine_speed_multiplier)
-     VALUES (@name, @display, @level, @next, @next_probability, @chain_probability,
-       @module_quality_multiplier, @crafting_machine_speed_multiplier)`,
+    `INSERT INTO qualities (name, display, level, default_multiplier, next, next_probability,
+       chain_probability, module_quality_multiplier, crafting_machine_speed_multiplier)
+     VALUES (@name, @display, @level, @default_multiplier, @next, @next_probability,
+       @chain_probability, @module_quality_multiplier, @crafting_machine_speed_multiplier)`,
   );
   for (const [name, raw] of QUALITIES) {
     const row = qualityRow(name, raw, name[0].toUpperCase() + name.slice(1), false);
@@ -75,6 +81,7 @@ beforeEach(async () => {
       name: row.name,
       display: row.display,
       level: row.level,
+      default_multiplier: row.default_multiplier,
       next: row.next,
       next_probability: row.next_probability,
       chain_probability: row.chain_probability,
@@ -416,5 +423,23 @@ describe("computeBlock with quality", () => {
     expect(row.qualityUseless).toBe(true);
     expect(row.rate).toBeCloseTo(1, 6);
     expect(row.qualityColumns?.map((c) => [c.quality, c.rate])).toEqual([["rare", row.rate]]);
+  });
+
+  it("keeps an item's quality through spoiling, with a longer spoil time", async () => {
+    const r = await computeBlock({
+      goals: [{ name: "spoilage", rate: 1, quality: "rare" }],
+      recipes: ["spoil-nutrients"],
+      rowQuality: { "spoil-nutrients": { min: "normal", max: "rare" } },
+    });
+    expect(r.status).toBe("solved");
+    const row = r.rows[0];
+    expect("qualityFixed" in row).toBe(false);
+    // rare nutrients rot into rare spoilage one for one, with no upgrade
+    const rare = row.qualityColumns?.find((c) => c.quality === "rare");
+    expect(rare?.ingredients).toEqual([{ name: "nutrients@rare", kind: "item", rate: 1 }]);
+    expect(rare?.products).toEqual([{ name: "spoilage@rare", kind: "item", rate: 1 }]);
+    expect(row.rate).toBeCloseTo(1, 9);
+    // rare spoils in 300 s × 1.6, so 480 rare nutrients sit mid-spoil
+    expect(row.spoil?.buffer).toBeCloseTo(480, 6);
   });
 });

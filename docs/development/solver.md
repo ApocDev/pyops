@@ -227,7 +227,12 @@ The block document names qualities the same way:
 | `made` entries                    | Quality keys: `iron-plate` is normal only, `iron-plate@rare` rare. |
 | drain and share pins: `quality`   | The quality of the pinned item.                                    |
 
-Every field defaults to normal, so a Py document has none of them and reads as before.
+Every field defaults to normal, so a Py document has none of them.
+
+When the data has normal quality alone, as in Py without the `quality` mod, the transform
+always returns its input unchanged. A goal above normal there, as in a block shared from a
+quality project, keeps its quality key. Nothing makes that good, so the block reports the
+goal as unmade, like any goal no row makes. A share pin above normal goes to `ignoredPins`.
 
 ### Range rows
 
@@ -240,6 +245,13 @@ with products already split. The block editor shows these as the row's per-quali
 sub-rows. A recipe whose `can_set_quality` is false, such as a fluid-only recipe or
 a synthetic one, runs at normal only. In a project with quality, its row reports
 `qualityFixed`, so the row's quality editor disables the range.
+
+Spoiling is the one synthetic recipe that runs over a range. An item spoils into its
+`spoil_result` at its own quality, so 100 rare nutrients become 100 rare spoilage. A spoiling
+row has no machine and no quality effect, so nothing upgrades. A better item also spoils
+slower. Its spoil time scales by the quality's `default_multiplier`, which is the default
+for `QualityPrototype::spoil_ticks_multiplier`, so rare nutrients last 300 s × 1.6 = 480 s.
+The row's spoil buffer adds each quality's rate times its own spoil time.
 
 A column at quality q eats its item ingredients at exactly q. A consumer at q needs exactly
 q, so there are no ranges, pools, or selectors as there are for temperatures. A burner's
@@ -360,13 +372,23 @@ accounting. `boundaryFlows` splits it when caching: `block_flows` stores the ite
 A row has one machine quality across its range, so the table's key stays (block, machine,
 recipe). Display names for quality goods read "Iron gear wheel (Rare)".
 
+### Planner UI
+
+The row menu's **Quality…** opens the row's quality editor: its range, machine quality, and
+module quality. The row shows its qualities as a badge, and a range row expands into one
+sub-row per quality from `qualityColumns`. When the data has a quality chain, the module
+picker and module templates offer quality modules.
+
 ### What isn't modelled yet
 
-- The planner UI for quality: range controls, quality pickers, badges, and per-quality
-  factory rollups. Until then module pickers, templates, and auto-fill don't offer quality
-  modules, and factory views add every quality of an item together.
+- Module auto-fill and the recipe calculator never use quality modules. A quality plan is
+  set up by hand.
+- Factory views add every quality of a good together.
 - Quality going down (`previous_probability`), and products' `quality_min`, `quality_max`,
   and `quality_change`. Only Space Age uses the last three.
+- Items' `spoil_quality_change`, and any `spoil_ticks_multiplier` or
+  `quality_affects_spoil_ticks` a mod sets. The import doesn't read them, so spoiling
+  keeps quality and scales spoil time by `default_multiplier`.
 - Cost analysis prices every quality at normal, as YAFC-CE does.
 
 ## Solve outcomes and diagnosis
