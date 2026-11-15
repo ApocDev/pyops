@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import { Tooltip } from "#/components/ui/tooltip.tsx";
 import { RawIcon } from "../../lib/icons";
 import { NORMAL_QUALITY } from "../../lib/quality";
 import { useQualityLadder } from "../../lib/use-quality-ladder";
@@ -26,24 +27,25 @@ export function RowQualityPill({
   const name = (q: string) => ladder.find((step) => step.name === q)?.display ?? q;
   const label = lo === hi ? `Runs at ${name(lo)}` : `Runs at ${name(lo)} to ${name(hi)}`;
   return (
-    // Raw button on purpose: a compact chip inside the dense recipe cell, like
-    // ModulesChip — the Button primitive's h-8 box would break the row density.
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={`${label}. Edit quality`}
-      title={warn ? `${label}. This quality setting needs a look.` : label}
-      className={`flex w-fit items-center gap-1 border px-1.5 py-0.5 text-sm hover:bg-accent ${
-        warn ? "border-warning/60 text-warning" : "border-border text-muted-foreground"
-      }`}
-    >
-      <RawIcon kind="quality" name={lo} size="xs" noTitle />
-      {hi !== lo && (
-        <>
-          <ArrowRight className="size-3" aria-hidden />
-          <RawIcon kind="quality" name={hi} size="xs" noTitle />
-        </>
-      )}
-    </button>
+    <Tooltip content={warn ? `${label}. This quality setting needs a look.` : label}>
+      {/* Raw button on purpose: a compact chip inside the dense recipe cell, like
+        ModulesChip — the Button primitive's h-8 box would break the row density. */}
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`${label}. Edit quality`}
+        className={`flex w-fit items-center gap-1 border px-1.5 py-0.5 text-sm hover:bg-accent ${
+          warn ? "border-warning/60 text-warning" : "border-border text-muted-foreground"
+        }`}
+      >
+        <RawIcon kind="quality" name={lo} size="xs" noTitle />
+        {hi !== lo && (
+          <>
+            <ArrowRight className="size-3" aria-hidden />
+            <RawIcon kind="quality" name={hi} size="xs" noTitle />
+          </>
+        )}
+      </button>
+    </Tooltip>
   );
 }
