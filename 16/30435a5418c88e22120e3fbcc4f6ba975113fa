@@ -1,0 +1,20 @@
+app/src/components/block/recipe-row.tsx
+  h_3ea7e994213848 208,269,276-278,280-293,319,332
+app/src/components/block/row-quality-pill.tsx
+  h_3ea7e994213848 2,30-49
+app/src/lib/hover.test.tsx
+  h_3ea7e994213848 110-127
+app/src/lib/hover.tsx
+  h_3ea7e994213848 80-83,123-130,132-133,141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1630435a5418c88e22120e3fbcc4f6ba975113fa",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
