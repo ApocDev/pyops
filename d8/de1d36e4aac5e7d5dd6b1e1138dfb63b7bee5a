@@ -1,0 +1,24 @@
+AGENTS.md
+  h_3ea7e994213848 56-58
+app/src/server/block-compute.server.ts
+  h_3ea7e994213848 458-464,466-467,588,1432-1435,1442-1447,1449,1496
+app/src/server/block-quality.test.ts
+  h_3ea7e994213848 6-9,34-36,42-43,46-47,50-51,73-76,84,427-444
+app/src/solver/quality.test.ts
+  h_3ea7e994213848 136-150
+app/src/solver/quality.ts
+  h_3ea7e994213848 39-42,225-226,228-229,232-235,242-253,256-259,262,266
+docs/development/solver.md
+  h_3ea7e994213848 230-235,249-255,375-381,384-386,389-391
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d8de1d36e4aac5e7d5dd6b1e1138dfb63b7bee5a",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
