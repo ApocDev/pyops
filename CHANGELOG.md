@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.7.0](https://github.com/ApocDev/pyops/compare/v1.6.0...v1.7.0) (2026-11-15)
+
+
+### Features
+
+* **app:** set a recipe row's quality from its menu ([#323](https://github.com/ApocDev/pyops/issues/323)) ([220bb7a](https://github.com/ApocDev/pyops/commit/220bb7a4555f84647265819db847379f2c27aecc))
+* **app:** show each quality a recipe row runs at ([#326](https://github.com/ApocDev/pyops/issues/326)) ([a3ee984](https://github.com/ApocDev/pyops/commit/a3ee9846a2f0fea52318693ed29f3e6da0d71b04))
+
+
+### Bug Fixes
+
+* **app:** center quality icons drawn on their own ([#327](https://github.com/ApocDev/pyops/issues/327)) ([538b276](https://github.com/ApocDev/pyops/commit/538b27697e26c2dfc9e204482ee7a29670eeabbe))
+* **app:** log server errors with stacks that point at source lines ([#336](https://github.com/ApocDev/pyops/issues/336)) ([ca0bd00](https://github.com/ApocDev/pyops/commit/ca0bd00679d16659b495919cb43c33ec594a2996))
+* **app:** show only a control's own tooltip in the recipe cell ([#328](https://github.com/ApocDev/pyops/issues/328)) ([ffcc129](https://github.com/ApocDev/pyops/commit/ffcc1298e96a588251a2d9dbc86ef2cbeee8f990))
+* **db:** exempt stats-ignored product amounts from productivity ([#329](https://github.com/ApocDev/pyops/issues/329)) ([8a82ee6](https://github.com/ApocDev/pyops/commit/8a82ee6b648350102041c5959a80edd1a2ebfa1f))
+* **solver:** count beacons per type for the profile falloff ([#330](https://github.com/ApocDev/pyops/issues/330)) ([62dd17f](https://github.com/ApocDev/pyops/commit/62dd17f372f628eb9fd4c8f96fa05315731ba6e1))
+* **solver:** keep item quality through spoiling ([#335](https://github.com/ApocDev/pyops/issues/335)) ([cd0a4cb](https://github.com/ApocDev/pyops/commit/cd0a4cb46f237c9aaaffc97f45bb06db7b41e223))
+
 ## [1.6.0](https://github.com/ApocDev/pyops/compare/v1.5.3...v1.6.0) (2026-11-14)
 
 
