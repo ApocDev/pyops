@@ -125,6 +125,8 @@ describe("beaconAtQuality", () => {
     qualityAffectsModuleSlots: boolean;
     distributionEffectivityBonusPerQualityLevel: number;
   } = {
+    name: "beacon",
+    beaconCounter: "same_type",
     distributionEffectivity: 1.5,
     distributionEffectivityBonusPerQualityLevel: 0.2,
     moduleSlots: 2,
@@ -220,7 +222,14 @@ describe("computeEffects quality", () => {
   const beacons = new Map<string, BeaconEff>([
     [
       "beacon",
-      { distributionEffectivity: 1.5, moduleSlots: 2, energyUsageW: 480_000, profile: [1] },
+      {
+        name: "beacon",
+        beaconCounter: "same_type",
+        distributionEffectivity: 1.5,
+        moduleSlots: 2,
+        energyUsageW: 480_000,
+        profile: [1],
+      },
     ],
   ]);
 

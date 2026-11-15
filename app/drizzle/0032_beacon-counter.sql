@@ -1,0 +1,1 @@
+ALTER TABLE `beacons` ADD `beacon_counter` text DEFAULT 'same_type' NOT NULL;

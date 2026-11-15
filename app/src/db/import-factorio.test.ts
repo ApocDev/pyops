@@ -965,6 +965,7 @@ describe("importFactorioDump — Py beacon exports", () => {
         energy_usage: "4MW",
         distribution_effectivity: 0.8,
         allowed_module_categories: ["productivity", "speed"],
+        beacon_counter: "same_type",
       },
     },
     module: {
@@ -1011,6 +1012,17 @@ describe("importFactorioDump — Py beacon exports", () => {
     ).toEqual({ hidden: 0, w: 900_000, slots: 1, de: 1, amc: '["vatbrain"]' });
     expect(db.prepare(`SELECT module, item, per_sec perSec FROM beacon_upkeep`).all()).toEqual([
       { module: "vatbrain-4", item: "brain-cartridge-04", perSec: 0.05 },
+    ]);
+    db.close();
+  });
+
+  it("stores beacon_counter, with the engine default total when unset", () => {
+    const db = runImport(raw);
+    expect(db.prepare(`SELECT name, beacon_counter c FROM beacons ORDER BY name`).all()).toEqual([
+      { name: "beacon-AM2-FM2", c: "same_type" },
+      { name: "hidden-beacon-turd", c: "total" },
+      { name: "hidden-beacon-vatbrain", c: "total" },
+      { name: "vat-brain", c: "total" }, // copied from its carrier
     ]);
     db.close();
   });

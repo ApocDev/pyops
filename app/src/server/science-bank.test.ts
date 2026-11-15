@@ -22,11 +22,25 @@ const MODS = new Map<string, ModuleEff>([
 const BEACONS = new Map<string, BeaconEff>([
   [
     "vat-brain",
-    { distributionEffectivity: 1, moduleSlots: 1, energyUsageW: 900_000, profile: null },
+    {
+      name: "vat-brain",
+      beaconCounter: "total",
+      distributionEffectivity: 1,
+      moduleSlots: 1,
+      energyUsageW: 900_000,
+      profile: null,
+    },
   ],
   [
     "beacon",
-    { distributionEffectivity: 1.5, moduleSlots: 2, energyUsageW: 480_000, profile: null },
+    {
+      name: "beacon",
+      beaconCounter: "same_type",
+      distributionEffectivity: 1.5,
+      moduleSlots: 2,
+      energyUsageW: 480_000,
+      profile: null,
+    },
   ],
 ]);
 

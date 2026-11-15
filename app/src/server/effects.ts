@@ -136,11 +136,19 @@ export function moduleReaches(m: ModuleEff, rx: ModuleReceiver | null | undefine
   if (cats?.length && !cats.includes(m.category ?? "")) return false;
   return effectsAllowed(m, rx.allowedEffects);
 }
+/** BeaconPrototype.beacon_counter: which beacons reaching a machine pick its
+ * `profile` entry. "same_type" counts this prototype only (vanilla and every
+ * Py beacon); "total" counts every beacon (the engine default). */
+export type BeaconCounter = "total" | "same_type";
+
 export type BeaconEff = {
+  /** prototype name; a beacon at a quality keeps it, so qualities count as one type */
+  name: string;
   distributionEffectivity: number | null;
   moduleSlots: number;
   energyUsageW: number | null;
   profile: number[] | null;
+  beaconCounter: BeaconCounter;
   /** interference groups (lib/beacon-interference.ts); absent = none */
   interference?: string[] | null;
 };
@@ -203,13 +211,23 @@ export function computeEffects(
     poll += m.effPollution ?? 0;
     qual += m.effQuality ?? 0;
   }
-  let beaconPowerPerMachineW = 0;
-  for (const cfg of beaconCfgs) {
+  // A beacon's profile entry comes from the beacons its counter sees across
+  // every entry, not from its own entry's count: two entries of one beacon
+  // type are the same physical setup as one entry with both.
+  const reaching = beaconCfgs.flatMap((cfg) => {
     const b = beaconDb.get(cfg.beacon);
-    if (!b || cfg.count <= 0) continue;
+    return b && cfg.count > 0 ? [{ cfg, b }] : [];
+  });
+  const totalBeacons = reaching.reduce((n, { cfg }) => n + cfg.count, 0);
+  const perType = new Map<string, number>();
+  for (const { cfg, b } of reaching) perType.set(b.name, (perType.get(b.name) ?? 0) + cfg.count);
+  let beaconPowerPerMachineW = 0;
+  for (const { cfg, b } of reaching) {
     const inBeacon = sumEffects(cfg.modules.slice(0, b.moduleSlots), moduleDb, accepts);
-    // n same-type beacons: n × effectivity × profile[n] × (modules in one beacon)
-    const falloff = b.profile?.length ? b.profile[Math.min(cfg.count, b.profile.length) - 1] : 1;
+    // n beacons in this entry: n × effectivity × profile[counted] × (modules in one beacon)
+    const counted =
+      b.beaconCounter === "same_type" ? (perType.get(b.name) ?? cfg.count) : totalBeacons;
+    const falloff = b.profile?.length ? b.profile[Math.min(counted, b.profile.length) - 1] : 1;
     const mult = rx.usesBeaconEffects ? (b.distributionEffectivity ?? 1) * falloff * cfg.count : 0;
     speed += inBeacon.speed * mult;
     prod += inBeacon.prod * mult;

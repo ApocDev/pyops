@@ -20,6 +20,8 @@ const BEACONS = new Map<string, BeaconEff>([
   [
     "beacon-AM3-FM2",
     {
+      name: "beacon-AM3-FM2",
+      beaconCounter: "same_type",
       distributionEffectivity: 1.2,
       moduleSlots: 2,
       energyUsageW: 24_000_000,
@@ -108,6 +110,79 @@ describe("computeEffects", () => {
     const fx = computeEffects(true, ["super", "super"], [], mods, BEACONS);
     expect(fx.prodBonus).toBe(3);
     expect(fx.prodMult).toBe(4);
+  });
+});
+
+// The profile entry comes from the beacons the counter sees on the machine, not
+// from one config entry's count (BeaconPrototype.beacon_counter).
+describe("computeEffects — beacon profile counter", () => {
+  const mods = new Map<string, ModuleEff>([
+    [
+      "quality-module-3@rare",
+      { effSpeed: 0, effProductivity: 0, effConsumption: 0, effQuality: 0.04 },
+    ],
+    [
+      "speed-module-3",
+      { effSpeed: 0.5, effProductivity: 0, effConsumption: 0.7, effQuality: -0.025 },
+    ],
+  ]);
+  // vanilla beacon: same_type, de 1.5, profile head {1, 0.7071}
+  const beacon = (name: string, beaconCounter: BeaconEff["beaconCounter"], de = 1.5) => ({
+    name,
+    beaconCounter,
+    distributionEffectivity: de,
+    moduleSlots: 2,
+    energyUsageW: 480_000,
+    profile: [1, 0.7071, 0.5773],
+  });
+  const beacons = new Map<string, BeaconEff>([
+    ["beacon", beacon("beacon", "same_type")],
+    ["beacon@uncommon", beacon("beacon", "same_type", 1.7)],
+    ["other", beacon("other", "same_type")],
+    ["total-a", beacon("total-a", "total")],
+    ["total-b", beacon("total-b", "total")],
+  ]);
+  const speed3 = ["speed-module-3", "speed-module-3"];
+  const fx = (cfgs: { beacon: string; count: number }[]) =>
+    computeEffects(
+      true,
+      Array(4).fill("quality-module-3@rare"),
+      cfgs.map((c) => ({ ...c, modules: speed3 })),
+      mods,
+      beacons,
+    );
+
+  it("gives two beacons of one type the same falloff in one entry or two", () => {
+    const grouped = fx([{ beacon: "beacon", count: 2 }]);
+    const split = fx([
+      { beacon: "beacon", count: 1 },
+      { beacon: "beacon", count: 1 },
+    ]);
+    // 0.16 − 2 beacons × 1.5 × profile[2]=0.7071 × 2 × 0.025
+    expect(grouped.qualityBonus).toBeCloseTo(0.053935, 6);
+    expect(split.qualityBonus).toBeCloseTo(grouped.qualityBonus, 9);
+    expect(split.speedBonus).toBeCloseTo(grouped.speedBonus, 9);
+    // a beacon at another quality is still the same prototype
+    const mixed = fx([
+      { beacon: "beacon", count: 1 },
+      { beacon: "beacon@uncommon", count: 1 },
+    ]);
+    expect(mixed.speedBonus).toBeCloseTo((1.5 + 1.7) * 0.7071 * 1, 6);
+  });
+
+  it("counts other prototypes only under the total counter", () => {
+    // same_type: each prototype sees one beacon, so profile[1] = 1
+    const sameType = fx([
+      { beacon: "beacon", count: 1 },
+      { beacon: "other", count: 1 },
+    ]);
+    expect(sameType.speedBonus).toBeCloseTo(2 * 1.5 * 1 * 1, 6);
+    // total: both see two beacons, so profile[2] = 0.7071
+    const total = fx([
+      { beacon: "total-a", count: 1 },
+      { beacon: "total-b", count: 1 },
+    ]);
+    expect(total.speedBonus).toBeCloseTo(2 * 1.5 * 0.7071 * 1, 6);
   });
 });
 
@@ -351,7 +426,14 @@ describe("computeEffects — receiver allowed effects and module categories", ()
   const PY_BEACONS = new Map<string, BeaconEff>([
     [
       "beacon",
-      { distributionEffectivity: 1.5, moduleSlots: 2, energyUsageW: 480_000, profile: null },
+      {
+        name: "beacon",
+        beaconCounter: "same_type",
+        distributionEffectivity: 1.5,
+        moduleSlots: 2,
+        energyUsageW: 480_000,
+        profile: null,
+      },
     ],
   ]);
   const beacon = (...modules: string[]) => [{ beacon: "beacon", modules, count: 1 }];
