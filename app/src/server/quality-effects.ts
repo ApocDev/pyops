@@ -191,6 +191,14 @@ export function machineAtQuality<T extends QualityMachine>(machine: T, quality: 
   };
 }
 
+/** An item's spoil time at `quality` (null = normal). The engine scales it by
+ * `QualityPrototype::spoil_ticks_multiplier`; the import doesn't read it, so
+ * this uses its default, the quality's `default_multiplier`: a rare item lasts
+ * 1.6×. */
+export function spoilSecondsAt(seconds: number, quality: QualityBonuses | null): number {
+  return seconds * (quality?.defaultMultiplier ?? 1);
+}
+
 /**
  * Module and beacon lookups that understand quality: `moduleAt(name, quality)`
  * returns the key computeEffects should read, adding the scaled module under

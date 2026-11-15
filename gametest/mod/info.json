@@ -1,0 +1,10 @@
+{
+  "name": "pyops-gametest",
+  "version": "0.1.0",
+  "title": "PyOps gametest",
+  "author": "ApocDev",
+  "description": "Test prototypes and the engine scenario for PyOps's in-game tests. Not for play.",
+  "factorio_version": "2.1",
+  "spoiling_required": true,
+  "dependencies": ["base", "? quality", "? recycler", "? space-age", "? pypostprocessing"]
+}

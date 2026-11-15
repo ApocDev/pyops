@@ -1,0 +1,143 @@
+{
+  "factorio": "2.1.24",
+  "builtin": [
+    "base",
+    "quality",
+    "recycler"
+  ],
+  "mods": [
+    {
+      "name": "pyalienlife",
+      "version": "3.1.8",
+      "file": "pyalienlife_3.1.8.zip",
+      "sha1": "d5f82596831f3baaa19277b5604ac77a979f992f",
+      "download": "/download/pyalienlife/6ac53b7d63c7191440b9ede1"
+    },
+    {
+      "name": "pyalienlifegraphics",
+      "version": "3.1.1",
+      "file": "pyalienlifegraphics_3.1.1.zip",
+      "sha1": "1db2be1cfcc16d4f782859f697436cbf0a7bb62b",
+      "download": "/download/pyalienlifegraphics/6ac53dd5b8573804ac1945e0"
+    },
+    {
+      "name": "pyalienlifegraphics2",
+      "version": "3.1.0",
+      "file": "pyalienlifegraphics2_3.1.0.zip",
+      "sha1": "d4944fe17d8c50acab906d390ee4d8bd34a9ff9d",
+      "download": "/download/pyalienlifegraphics2/6a4d78ed2f820cdcd72119b1"
+    },
+    {
+      "name": "pyalienlifegraphics3",
+      "version": "3.1.0",
+      "file": "pyalienlifegraphics3_3.1.0.zip",
+      "sha1": "09b3dc9ddf83f3fb2279570acbfcce6e2819d000",
+      "download": "/download/pyalienlifegraphics3/6a4d78e8a572bd9120a70d5f"
+    },
+    {
+      "name": "pyalternativeenergy",
+      "version": "3.2.11",
+      "file": "pyalternativeenergy_3.2.11.zip",
+      "sha1": "44c9b7168c897d41d720f2e80a7da2785b3c933f",
+      "download": "/download/pyalternativeenergy/6ad2648d004d75eb3d8c8826"
+    },
+    {
+      "name": "pyalternativeenergygraphics",
+      "version": "3.1.1",
+      "file": "pyalternativeenergygraphics_3.1.1.zip",
+      "sha1": "16b66e7e33d850b01aaad8a85e93aeef41be1731",
+      "download": "/download/pyalternativeenergygraphics/6ac53ddc684dda7ecab9c6f9"
+    },
+    {
+      "name": "pycoalprocessing",
+      "version": "3.1.8",
+      "file": "pycoalprocessing_3.1.8.zip",
+      "sha1": "710bf86362d1e6285c51586744d5c82038b59301",
+      "download": "/download/pycoalprocessing/6ad25c7927a90604b6e5753e"
+    },
+    {
+      "name": "pycoalprocessinggraphics",
+      "version": "3.1.1",
+      "file": "pycoalprocessinggraphics_3.1.1.zip",
+      "sha1": "65f5efa10429fc170f7afd94aeb78e7ffc511939",
+      "download": "/download/pycoalprocessinggraphics/6ac53dd1c5265b99695c879b"
+    },
+    {
+      "name": "pyfusionenergy",
+      "version": "3.1.6",
+      "file": "pyfusionenergy_3.1.6.zip",
+      "sha1": "ef09d333bbb749ea558d731fc5ded6faa338584c",
+      "download": "/download/pyfusionenergy/6ad25c764f955867391740f2"
+    },
+    {
+      "name": "pyfusionenergygraphics",
+      "version": "3.1.1",
+      "file": "pyfusionenergygraphics_3.1.1.zip",
+      "sha1": "8e7dbdaf7f027b2460cf8faa094b7544031543be",
+      "download": "/download/pyfusionenergygraphics/6ac53dd020f6a87fe40d5c40"
+    },
+    {
+      "name": "pyhightech",
+      "version": "3.1.5",
+      "file": "pyhightech_3.1.5.zip",
+      "sha1": "cbd6d06bd0255f5d5d4b6d889ba47a23e3a0e195",
+      "download": "/download/pyhightech/6ac53b98684dda7ecab9c6f7"
+    },
+    {
+      "name": "pyhightechgraphics",
+      "version": "3.1.1",
+      "file": "pyhightechgraphics_3.1.1.zip",
+      "sha1": "d263d5239a303e403e2da82cfdd54bab5d98a4f0",
+      "download": "/download/pyhightechgraphics/6ac53dd9b8573804ac1945e1"
+    },
+    {
+      "name": "pyindustry",
+      "version": "3.1.6",
+      "file": "pyindustry_3.1.6.zip",
+      "sha1": "e34e1978a848e4d6514d71749f63b717e8f9cabf",
+      "download": "/download/pyindustry/6ac53b9fc5265b99695c8799"
+    },
+    {
+      "name": "pyindustrygraphics",
+      "version": "3.1.1",
+      "file": "pyindustrygraphics_3.1.1.zip",
+      "sha1": "c31048bdad4af38502de487cf001e3a36c9f72d9",
+      "download": "/download/pyindustrygraphics/6ac53dd6684dda7ecab9c6f8"
+    },
+    {
+      "name": "pypetroleumhandling",
+      "version": "3.1.5",
+      "file": "pypetroleumhandling_3.1.5.zip",
+      "sha1": "788be85527c3dbbd3602ebbf9fccadc390c4a3c1",
+      "download": "/download/pypetroleumhandling/6ae45eaa0503db23e47f83b6"
+    },
+    {
+      "name": "pypetroleumhandlinggraphics",
+      "version": "3.1.1",
+      "file": "pypetroleumhandlinggraphics_3.1.1.zip",
+      "sha1": "d77e773af233ac5a7702f6db9989966154f4ba71",
+      "download": "/download/pypetroleumhandlinggraphics/6ac53df7684dda7ecab9c6fa"
+    },
+    {
+      "name": "pypostprocessing",
+      "version": "3.1.7",
+      "file": "pypostprocessing_3.1.7.zip",
+      "sha1": "c24f551b570f0c1dc906f4a35e0d8dfba2f6d3ea",
+      "download": "/download/pypostprocessing/6ad97e963fd2096c903369f0"
+    },
+    {
+      "name": "pyrawores",
+      "version": "3.1.4",
+      "file": "pyrawores_3.1.4.zip",
+      "sha1": "97c52262b746e3ed963d0cae7f5c3eb055781538",
+      "download": "/download/pyrawores/6ab2d2dbb7ce337ecb8270ca"
+    },
+    {
+      "name": "pyraworesgraphics",
+      "version": "3.1.1",
+      "file": "pyraworesgraphics_3.1.1.zip",
+      "sha1": "3e3bb04a8e3d145517156e33adbc373a19dea093",
+      "download": "/download/pyraworesgraphics/6ac53de4c5265b99695c879c"
+    }
+  ]
+}

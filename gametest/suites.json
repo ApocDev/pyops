@@ -1,0 +1,5 @@
+{
+  "vanilla-quality": ["quality", "recycler"],
+  "py": ["pyalternativeenergy"],
+  "py-quality": ["pyalternativeenergy", "quality", "recycler"]
+}
