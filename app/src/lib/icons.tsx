@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Flame, FlaskConical, Fuel, Timer, Zap } from "lucide-react";
 import { iconManifestFn, spoilablesFn, type IconManifest, type IconSlot } from "../server/factorio";
@@ -129,6 +129,63 @@ export type IconProps = {
   title?: string | null;
 };
 
+/** How far a sprite's visible pixels sit from the centre of its atlas cell, in
+ * atlas pixels, keyed by sheet and position. The game draws quality icons as
+ * corner badges anchored bottom-left (normal is one dot in the corner), so a
+ * quality icon drawn on its own is shifted by this much to look centred. */
+const spriteOffsets = new Map<string, Promise<{ x: number; y: number }>>();
+
+function measureSpriteOffset(src: string, at: IconSlot, cell: number) {
+  const key = `${src}:${at.x}:${at.y}`;
+  let found = spriteOffsets.get(key);
+  if (!found) {
+    found = new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = cell;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve({ x: 0, y: 0 });
+        ctx.drawImage(img, at.x, at.y, cell, cell, 0, 0, cell, cell);
+        const alpha = ctx.getImageData(0, 0, cell, cell).data;
+        let [left, top, right, bottom] = [cell, cell, -1, -1];
+        for (let y = 0; y < cell; y++)
+          for (let x = 0; x < cell; x++)
+            if (alpha[(y * cell + x) * 4 + 3] > 16) {
+              left = Math.min(left, x);
+              right = Math.max(right, x);
+              top = Math.min(top, y);
+              bottom = Math.max(bottom, y);
+            }
+        resolve(
+          right < 0
+            ? { x: 0, y: 0 }
+            : { x: cell / 2 - (left + right + 1) / 2, y: cell / 2 - (top + bottom + 1) / 2 },
+        );
+      };
+      img.onerror = () => resolve({ x: 0, y: 0 });
+      img.src = src;
+    });
+    spriteOffsets.set(key, found);
+  }
+  return found;
+}
+
+/** The centring offset for a standalone quality icon's sprite, once measured. */
+function useSpriteOffset(at: IconSlot | undefined, m: IconManifest | null | undefined) {
+  const [offset, setOffset] = useState<{ x: number; y: number } | null>(null);
+  const src = at && m ? `/icons/${m.sheets[at.s]}` : null;
+  useEffect(() => {
+    if (!at || !m || !src) return;
+    let live = true;
+    void measureSpriteOffset(src, at, m.cell).then((o) => live && setOffset(o));
+    return () => {
+      live = false;
+    };
+  }, [src, at, m]);
+  return offset;
+}
+
 /** Splits a quality key (`iron-plate@rare`) into the good and its quality when
  * the atlas has that quality's sprite. Any other name has no quality. */
 function splitIconQuality(name: string, icons: IconManifest["icons"] | undefined) {
@@ -175,6 +232,10 @@ export function RawIcon({
 }: IconProps) {
   const { m, itemIdx, spoil } = useContext(IconCtx);
   const split = splitIconQuality(rawName, m?.icons);
+  const centre = useSpriteOffset(
+    kind === "quality" ? m?.icons[`quality/${rawName}`] : undefined,
+    m,
+  );
   const name = split.name;
   const quality = qualityProp ?? split.quality;
   const v = ICON_VAR[size];
@@ -333,6 +394,27 @@ export function RawIcon({
   // A quality above normal draws the quality's own sprite in the bottom-left
   // corner, as the game does (#267). The spoil and research badges sit
   // bottom-right, so they never overlap it.
+  // A quality icon on its own (a tier picker, a range pill) is shifted so its
+  // corner-anchored dots sit centred, clipped so no neighbouring sprite shows.
+  if (kind === "quality") {
+    const shift = (d: number) => `calc(${v} * ${d / m.cell})`;
+    return (
+      <span
+        title={noTitle ? undefined : (title ?? name)}
+        style={{ ...base, position: "relative", overflow: "hidden" }}
+      >
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            transform: centre ? `translate(${shift(centre.x)}, ${shift(centre.y)})` : undefined,
+            ...slice(slot, v),
+          }}
+        />
+      </span>
+    );
+  }
   const qualitySlot = quality && quality !== "normal" ? m.icons[`quality/${quality}`] : undefined;
   const badgeSize = `calc(${v} * 0.5)`;
   const withQuality = (el: React.ReactNode) =>
