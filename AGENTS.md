@@ -6,7 +6,7 @@ planning. See `README.md` for the product pitch and credits.
 
 ## Repository layout
 
-This is a single repo with three cooperating parts:
+This is a single repo with four cooperating parts:
 
 - **`app/`** — the [TanStack Start](https://tanstack.com/start) application, which
   is the whole product: React UI **and** backend (server functions + Nitro routes)
@@ -19,6 +19,12 @@ This is a single repo with three cooperating parts:
 - **`mod/`** — the Factorio mod (`pyops`, Factorio 2.1): in-game panel, UDP link to
   the app, data-dump trigger, Helmod-style production-block view, and the
   request-combinator planner. Pure Lua, no build step.
+- **`gametest/`**: in-game tests. A Node runner (`run.ts`, standard library only)
+  locks each suite's mods from the mod portal and runs the `pyops-gametest` test mod's
+  scenario in headless Factorio, which measures the engine's numbers into
+  `gametest/results/*.json`. `app/src/gametest.test.ts` checks PyOps's math against
+  them, so CI never needs Factorio. Imports nothing from `app/`; the test mod is never
+  part of the shipped `mod/`. See [`docs/development/gametest.md`](docs/development/gametest.md).
 - **`scripts/`** — dev-only helpers (currently `tunnel-dev`, to expose the dev
   server through a tunnel). Not part of the app build.
 
@@ -72,6 +78,12 @@ from inside `app/`:
   `vp check`**, including pre-existing lint in files you touch.
 - `vp test` — run the Vitest suite (e.g. `block.test.ts`, `effects.test.ts`,
   `icons.test.tsx`).
+- `node gametest/run.ts run [suite...]` (from the repo root): run the in-game tests
+  in headless Factorio and rewrite `gametest/results/<suite>.json`; `node
+  gametest/run.ts update [suite...]` re-locks a suite's mods first. A change to
+  productivity, beacon, quality, or spoiling math must keep `src/gametest.test.ts`
+  passing; a change to `gametest/` re-runs the suites and commits the new results
+  with it. Needs Factorio 2.1 with Space Age (`FACTORIO_BIN` overrides the Steam path).
 - `vp run parity snapshot <copy.db> <out.json>` / `vp run parity diff <base.json> <head.json>`
   — the Py parity check: re-solves every block of a project copy and diffs the cached
   solve between two code versions. Any change that must leave Py results alone (every

@@ -24,6 +24,8 @@ For installation and product workflows, use the [user guide](../getting-started/
   MCP surface.
 - [Design system](./design) defines tokens, primitives, page anatomy, responsive behavior,
   and interaction states.
+- [In-game tests](./gametest) runs cases in a headless Factorio to measure the engine's
+  numbers, and checks PyOps's math against them in Vitest.
 - [Desktop app and releases](./desktop) explains the Tauri shell, bundled server, platform
   packaging, release automation, signing, and self-update.
 

@@ -1,0 +1,9 @@
+{
+  "factorio": "2.1.24",
+  "builtin": [
+    "base",
+    "quality",
+    "recycler"
+  ],
+  "mods": []
+}

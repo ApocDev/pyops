@@ -44,7 +44,7 @@ export type DocPin =
   /** this recipe absorbs the item's surplus (net = 0) — byproduct disposal */
   | { kind: "drain"; recipe: string; item: string; quality?: string };
 import { computeEffects, type BeaconConfig } from "./effects";
-import { machineAtQuality, qualityEffectLookups } from "./quality-effects";
+import { machineAtQuality, qualityEffectLookups, spoilSecondsAt } from "./quality-effects";
 import { NORMAL_QUALITY, qualityKey, splitQualityKey } from "../lib/quality";
 import { interferingBeacons } from "../lib/beacon-interference.ts";
 import { recipeDifferencesFor } from "./recipe-differences.server.ts";
@@ -1429,10 +1429,8 @@ export async function computeBlock(rawData: SolveInput) {
     // Spoil-buffer sizing (#19): a spoiling step is passive — items sit in
     // storage until they rot, so the chest space needed is throughput × spoil
     // time (rr.rate items/s enter; each occupies a slot for energyRequired s).
-    // A better item spoils slower, by `QualityPrototype::spoil_ticks_multiplier`.
-    // The import doesn't read it, so this uses its default, the quality's
-    // `default_multiplier`: a rare item lasts 1.6×. `seconds` is the time at the
-    // row's lowest quality; the buffer sums each quality's rate × its own time.
+    // A better item spoils slower (`spoilSecondsAt`). `seconds` is the time at
+    // the row's lowest quality; the buffer sums each quality's rate × its own time.
     const spoilSeconds = def.kind === "spoiling" ? (def.energyRequired ?? 0) : null;
     const spoil =
       spoilSeconds != null
@@ -1440,7 +1438,7 @@ export async function computeBlock(rawData: SolveInput) {
             const input = def.ingredients[0]?.name;
             const stackSize = (input && refs.getItem(input)?.stackSize) || null;
             const secondsAt = (quality: string | null | undefined) =>
-              spoilSeconds * (bonusesOf(quality ?? undefined)?.defaultMultiplier ?? 1);
+              spoilSecondsAt(spoilSeconds, bonusesOf(quality ?? undefined));
             const buffer = (rr.qualityRates ?? [{ quality: null, rate: rr.rate }]).reduce(
               (sum, c) => sum + c.rate * secondsAt(c.quality),
               0,

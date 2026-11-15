@@ -31,6 +31,7 @@ export default defineConfig({
             { text: "Factorio bridge", link: "/development/bridge" },
             { text: "AI assistant", link: "/development/ai-assistant" },
             { text: "Design system", link: "/development/design" },
+            { text: "In-game tests", link: "/development/gametest" },
             { text: "Desktop app and releases", link: "/development/desktop" },
             { text: "Advanced configuration", link: "/development/configuration" },
           ],

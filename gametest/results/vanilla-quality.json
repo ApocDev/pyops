@@ -1,0 +1,2157 @@
+{
+  "cases": [
+    {
+      "case": {
+        "items": [
+          "gametest-spoilable"
+        ],
+        "kind": "spoil",
+        "name": "spoil-ticks"
+      },
+      "ticks": {
+        "gametest-spoilable": {
+          "epic": 34199,
+          "legendary": 45000,
+          "normal": 18000,
+          "rare": 28800,
+          "uncommon": 23399
+        }
+      }
+    },
+    {
+      "case": {
+        "kind": "products",
+        "name": "catalyst-products",
+        "recipes": [
+          "gametest-catalyst",
+          "gametest-catalyst-noprod"
+        ]
+      },
+      "recipes": {
+        "gametest-catalyst": [
+          {
+            "amount": 3,
+            "ignored_by_productivity": 2,
+            "name": "gametest-plate"
+          },
+          {
+            "amount": 3,
+            "ignored_by_productivity": 0,
+            "name": "gametest-widget"
+          },
+          {
+            "amount": 3,
+            "ignored_by_productivity": 0,
+            "name": "gametest-part"
+          }
+        ],
+        "gametest-catalyst-noprod": [
+          {
+            "amount": 3,
+            "ignored_by_productivity": 2,
+            "name": "gametest-plate"
+          },
+          {
+            "amount": 3,
+            "ignored_by_productivity": 0,
+            "name": "gametest-widget"
+          },
+          {
+            "amount": 3,
+            "ignored_by_productivity": 0,
+            "name": "gametest-part"
+          }
+        ]
+      }
+    },
+    {
+      "bonus_progress": 2.7755575615628914e-15,
+      "case": {
+        "crafts": 50,
+        "kind": "craft",
+        "machine": "assembling-machine-3",
+        "modules": [
+          "productivity-module-3",
+          "productivity-module-3",
+          "productivity-module-3",
+          "productivity-module-3"
+        ],
+        "name": "catalyst-modules",
+        "recipe": "gametest-catalyst"
+      },
+      "crafts": 50,
+      "effects": {
+        "consumption": 3.2,
+        "pollution": 0.4,
+        "productivity": 0.4,
+        "quality": 0,
+        "speed": -0.6
+      },
+      "products": {
+        "gametest-part": {
+          "normal": 210
+        },
+        "gametest-plate": {
+          "normal": 170
+        },
+        "gametest-widget": {
+          "normal": 210
+        }
+      }
+    },
+    {
+      "bonus_progress": -1.2490009027033011e-15,
+      "case": {
+        "crafts": 50,
+        "kind": "craft",
+        "machine": "gametest-base-prod-assembler",
+        "name": "catalyst-base-productivity",
+        "recipe": "gametest-catalyst-noprod"
+      },
+      "crafts": 50,
+      "effects": {
+        "consumption": 0,
+        "pollution": 0,
+        "productivity": 0.5,
+        "quality": 0,
+        "speed": 0
+      },
+      "products": {
+        "gametest-part": {
+          "normal": 225
+        },
+        "gametest-plate": {
+          "normal": 175
+        },
+        "gametest-widget": {
+          "normal": 225
+        }
+      }
+    },
+    {
+      "case": {
+        "beacons": [
+          {
+            "count": 4,
+            "modules": [
+              "speed-module-3",
+              "speed-module-3"
+            ],
+            "name": "beacon"
+          }
+        ],
+        "kind": "effects",
+        "machine": "assembling-machine-3",
+        "name": "beacons-one-type"
+      },
+      "effects": {
+        "consumption": 4.2,
+        "pollution": 0,
+        "productivity": 0,
+        "quality": 0,
+        "speed": 3
+      }
+    },
+    {
+      "case": {
+        "beacons": [
+          {
+            "count": 2,
+            "modules": [
+              "speed-module-3",
+              "speed-module-3"
+            ],
+            "name": "beacon"
+          },
+          {
+            "count": 2,
+            "modules": [
+              "speed-module-3",
+              "speed-module-3"
+            ],
+            "name": "gametest-beacon-b"
+          }
+        ],
+        "kind": "effects",
+        "machine": "assembling-machine-3",
+        "name": "beacons-two-types"
+      },
+      "effects": {
+        "consumption": 5.9396,
+        "pollution": 0,
+        "productivity": 0,
+        "quality": 0,
+        "speed": 4.2426
+      }
+    },
+    {
+      "case": {
+        "beacons": [
+          {
+            "count": 2,
+            "modules": [
+              "speed-module-3",
+              "speed-module-3"
+            ],
+            "name": "beacon"
+          },
+          {
+            "count": 2,
+            "modules": [
+              "speed-module-3",
+              "speed-module-3"
+            ],
+            "name": "gametest-beacon-total"
+          }
+        ],
+        "kind": "effects",
+        "machine": "assembling-machine-3",
+        "name": "beacons-total-counter"
+      },
+      "effects": {
+        "consumption": 5.0698,
+        "pollution": 0,
+        "productivity": 0,
+        "quality": 0,
+        "speed": 3.6213
+      }
+    },
+    {
+      "case": {
+        "kind": "effects",
+        "machine": "assembling-machine-3",
+        "modules": [
+          "quality-module-3",
+          "quality-module-3",
+          "quality-module-3",
+          "quality-module-3"
+        ],
+        "name": "quality-modules"
+      },
+      "effects": {
+        "consumption": 0,
+        "pollution": 0,
+        "productivity": 0,
+        "quality": 0.1,
+        "speed": -0.2
+      }
+    },
+    {
+      "case": {
+        "kind": "effects",
+        "machine": "assembling-machine-3",
+        "module_quality": "legendary",
+        "modules": [
+          "quality-module-3",
+          "quality-module-3",
+          "quality-module-3",
+          "quality-module-3"
+        ],
+        "name": "quality-modules-legendary"
+      },
+      "effects": {
+        "consumption": 0,
+        "pollution": 0,
+        "productivity": 0,
+        "quality": 0.25,
+        "speed": -0.2
+      }
+    },
+    {
+      "case": {
+        "beacons": [
+          {
+            "count": 1,
+            "modules": [
+              "speed-module-3",
+              "speed-module-3"
+            ],
+            "name": "beacon",
+            "quality": "rare"
+          }
+        ],
+        "kind": "effects",
+        "machine": "assembling-machine-3",
+        "name": "beacon-rare"
+      },
+      "effects": {
+        "consumption": 2.66,
+        "pollution": 0,
+        "productivity": 0,
+        "quality": 0,
+        "speed": 1.9
+      }
+    },
+    {
+      "bonus_progress": 0,
+      "case": {
+        "crafts": 20000,
+        "kind": "craft",
+        "machine": "assembling-machine-3",
+        "machines": 40,
+        "module_quality": "legendary",
+        "modules": [
+          "quality-module-3",
+          "quality-module-3",
+          "quality-module-3",
+          "quality-module-3"
+        ],
+        "name": "quality-split",
+        "recipe": "gametest-quality-sample"
+      },
+      "crafts": 20000,
+      "effects": {
+        "consumption": 0,
+        "pollution": 0,
+        "productivity": 0,
+        "quality": 0.25,
+        "speed": -0.2
+      },
+      "products": {
+        "gametest-widget": {
+          "epic": 54,
+          "legendary": 2,
+          "normal": 15010,
+          "rare": 464,
+          "uncommon": 4470
+        }
+      }
+    }
+  ],
+  "factorio": "2.1.24",
+  "mods": {
+    "base": "2.1.24",
+    "quality": "2.1.24",
+    "recycler": "2.1.24"
+  },
+  "raw": {
+    "assembling-machine": {
+      "assembling-machine-3": {
+        "alert_icon_shift": [
+          0,
+          -0.375
+        ],
+        "allowed_effects": [
+          "consumption",
+          "speed",
+          "productivity",
+          "pollution",
+          "quality"
+        ],
+        "animation_random_start_frame": true,
+        "circuit_connector": [
+          {
+            "points": {
+              "shadow": {
+                "green": [
+                  1.875,
+                  0.90625
+                ],
+                "red": [
+                  1.875,
+                  0.9375
+                ]
+              },
+              "wire": {
+                "green": [
+                  0.90625,
+                  0.25
+                ],
+                "red": [
+                  0.78125,
+                  0.3125
+                ]
+              }
+            },
+            "sprites": {
+              "blue_led_light_offset": [
+                0,
+                0
+              ],
+              "led_light": {
+                "intensity": 0,
+                "size": 0.9
+              },
+              "red_green_led_light_offset": [
+                0,
+                0
+              ]
+            }
+          },
+          {
+            "points": {
+              "shadow": {
+                "green": [
+                  1.875,
+                  0.90625
+                ],
+                "red": [
+                  1.875,
+                  0.9375
+                ]
+              },
+              "wire": {
+                "green": [
+                  0.90625,
+                  0.25
+                ],
+                "red": [
+                  0.78125,
+                  0.3125
+                ]
+              }
+            },
+            "sprites": {
+              "blue_led_light_offset": [
+                0,
+                0
+              ],
+              "led_light": {
+                "intensity": 0,
+                "size": 0.9
+              },
+              "red_green_led_light_offset": [
+                0,
+                0
+              ]
+            }
+          },
+          {
+            "points": {
+              "shadow": {
+                "green": [
+                  1.875,
+                  0.90625
+                ],
+                "red": [
+                  1.875,
+                  0.9375
+                ]
+              },
+              "wire": {
+                "green": [
+                  0.90625,
+                  0.25
+                ],
+                "red": [
+                  0.78125,
+                  0.3125
+                ]
+              }
+            },
+            "sprites": {
+              "blue_led_light_offset": [
+                0,
+                0
+              ],
+              "led_light": {
+                "intensity": 0,
+                "size": 0.9
+              },
+              "red_green_led_light_offset": [
+                0,
+                0
+              ]
+            }
+          },
+          {
+            "points": {
+              "shadow": {
+                "green": [
+                  1.875,
+                  0.90625
+                ],
+                "red": [
+                  1.875,
+                  0.9375
+                ]
+              },
+              "wire": {
+                "green": [
+                  0.90625,
+                  0.25
+                ],
+                "red": [
+                  0.78125,
+                  0.3125
+                ]
+              }
+            },
+            "sprites": {
+              "blue_led_light_offset": [
+                0,
+                0
+              ],
+              "led_light": {
+                "intensity": 0,
+                "size": 0.9
+              },
+              "red_green_led_light_offset": [
+                0,
+                0
+              ]
+            }
+          }
+        ],
+        "circuit_wire_max_distance": 9,
+        "collision_box": [
+          [
+            -1.2,
+            -1.2
+          ],
+          [
+            1.2,
+            1.2
+          ]
+        ],
+        "corpse": "assembling-machine-3-remnants",
+        "crafting_categories": [
+          "crafting",
+          "advanced-crafting",
+          "crafting-with-fluid"
+        ],
+        "crafting_speed": 1.25,
+        "damaged_trigger_effect": {
+          "damage_type_filters": "fire",
+          "entity_name": "spark-explosion",
+          "offset_deviation": [
+            [
+              -0.5,
+              -0.5
+            ],
+            [
+              0.5,
+              0.5
+            ]
+          ],
+          "offsets": [
+            [
+              0,
+              1
+            ]
+          ],
+          "type": "create-entity"
+        },
+        "drawing_box_vertical_extension": 0.2,
+        "dying_explosion": "assembling-machine-3-explosion",
+        "energy_source": {
+          "emissions_per_minute": {
+            "pollution": 2
+          },
+          "type": "electric",
+          "usage_priority": "secondary-input"
+        },
+        "energy_usage": "375kW",
+        "fast_replaceable_group": "assembling-machine",
+        "flags": [
+          "placeable-neutral",
+          "placeable-player",
+          "player-creation"
+        ],
+        "fluid_boxes": [
+          {
+            "pipe_connections": [
+              {
+                "direction": 0,
+                "flow_direction": "input",
+                "position": [
+                  0,
+                  -1
+                ]
+              }
+            ],
+            "production_type": "input",
+            "secondary_draw_orders": {
+              "north": -1
+            },
+            "volume": 1000
+          },
+          {
+            "pipe_connections": [
+              {
+                "direction": 8,
+                "flow_direction": "output",
+                "position": [
+                  0,
+                  1
+                ]
+              }
+            ],
+            "production_type": "output",
+            "secondary_draw_orders": {
+              "north": -1
+            },
+            "volume": 1000
+          }
+        ],
+        "fluid_boxes_off_when_no_fluid_recipe": true,
+        "graphics_set": {
+          "animation_progress": 0.5
+        },
+        "icon_draw_specification": {
+          "shift": [
+            0,
+            -0.3
+          ]
+        },
+        "impact_category": "metal",
+        "max_health": 400,
+        "minable": {
+          "mining_time": 0.2,
+          "result": "assembling-machine-3"
+        },
+        "module_slots": 4,
+        "name": "assembling-machine-3",
+        "perceived_performance": {
+          "maximum": 4,
+          "minimum": 0.25
+        },
+        "resistances": [
+          {
+            "percent": 70,
+            "type": "fire"
+          }
+        ],
+        "selection_box": [
+          [
+            -1.5,
+            -1.5
+          ],
+          [
+            1.5,
+            1.5
+          ]
+        ],
+        "type": "assembling-machine",
+        "water_reflection": {
+          "orientation_to_variation": false,
+          "rotate": false
+        },
+        "working_sound": {
+          "fade_in_ticks": 4,
+          "fade_out_ticks": 20,
+          "max_sounds_per_prototype": 7,
+          "sound_accents": [
+            {
+              "frame": 15,
+              "sound": {
+                "advanced_volume_control": {
+                  "fades": {
+                    "fade_in": {
+                      "curve_type": "cosine",
+                      "from": {
+                        "control": 0.3,
+                        "volume_percentage": 0
+                      },
+                      "to": {
+                        "control": 1.5,
+                        "volume_percentage": 100
+                      }
+                    }
+                  }
+                },
+                "audible_distance_modifier": 0.5
+              }
+            },
+            {
+              "frame": 47,
+              "sound": {
+                "advanced_volume_control": {
+                  "fades": {
+                    "fade_in": {
+                      "curve_type": "cosine",
+                      "from": {
+                        "control": 0.3,
+                        "volume_percentage": 0
+                      },
+                      "to": {
+                        "control": 1.5,
+                        "volume_percentage": 100
+                      }
+                    }
+                  }
+                },
+                "audible_distance_modifier": 0.5
+              }
+            }
+          ]
+        }
+      },
+      "gametest-base-prod-assembler": {
+        "alert_icon_shift": [
+          0,
+          -0.375
+        ],
+        "allowed_effects": [
+          "consumption",
+          "speed",
+          "productivity",
+          "pollution",
+          "quality"
+        ],
+        "animation_random_start_frame": true,
+        "circuit_connector": [
+          {
+            "points": {
+              "shadow": {
+                "green": [
+                  1.875,
+                  0.90625
+                ],
+                "red": [
+                  1.875,
+                  0.9375
+                ]
+              },
+              "wire": {
+                "green": [
+                  0.90625,
+                  0.25
+                ],
+                "red": [
+                  0.78125,
+                  0.3125
+                ]
+              }
+            },
+            "sprites": {
+              "blue_led_light_offset": [
+                0,
+                0
+              ],
+              "led_light": {
+                "intensity": 0,
+                "size": 0.9
+              },
+              "red_green_led_light_offset": [
+                0,
+                0
+              ]
+            }
+          },
+          {
+            "points": {
+              "shadow": {
+                "green": [
+                  1.875,
+                  0.90625
+                ],
+                "red": [
+                  1.875,
+                  0.9375
+                ]
+              },
+              "wire": {
+                "green": [
+                  0.90625,
+                  0.25
+                ],
+                "red": [
+                  0.78125,
+                  0.3125
+                ]
+              }
+            },
+            "sprites": {
+              "blue_led_light_offset": [
+                0,
+                0
+              ],
+              "led_light": {
+                "intensity": 0,
+                "size": 0.9
+              },
+              "red_green_led_light_offset": [
+                0,
+                0
+              ]
+            }
+          },
+          {
+            "points": {
+              "shadow": {
+                "green": [
+                  1.875,
+                  0.90625
+                ],
+                "red": [
+                  1.875,
+                  0.9375
+                ]
+              },
+              "wire": {
+                "green": [
+                  0.90625,
+                  0.25
+                ],
+                "red": [
+                  0.78125,
+                  0.3125
+                ]
+              }
+            },
+            "sprites": {
+              "blue_led_light_offset": [
+                0,
+                0
+              ],
+              "led_light": {
+                "intensity": 0,
+                "size": 0.9
+              },
+              "red_green_led_light_offset": [
+                0,
+                0
+              ]
+            }
+          },
+          {
+            "points": {
+              "shadow": {
+                "green": [
+                  1.875,
+                  0.90625
+                ],
+                "red": [
+                  1.875,
+                  0.9375
+                ]
+              },
+              "wire": {
+                "green": [
+                  0.90625,
+                  0.25
+                ],
+                "red": [
+                  0.78125,
+                  0.3125
+                ]
+              }
+            },
+            "sprites": {
+              "blue_led_light_offset": [
+                0,
+                0
+              ],
+              "led_light": {
+                "intensity": 0,
+                "size": 0.9
+              },
+              "red_green_led_light_offset": [
+                0,
+                0
+              ]
+            }
+          }
+        ],
+        "circuit_wire_max_distance": 9,
+        "collision_box": [
+          [
+            -1.2,
+            -1.2
+          ],
+          [
+            1.2,
+            1.2
+          ]
+        ],
+        "corpse": "assembling-machine-3-remnants",
+        "crafting_categories": [
+          "crafting",
+          "advanced-crafting",
+          "crafting-with-fluid"
+        ],
+        "crafting_speed": 1.25,
+        "damaged_trigger_effect": {
+          "damage_type_filters": "fire",
+          "entity_name": "spark-explosion",
+          "offset_deviation": [
+            [
+              -0.5,
+              -0.5
+            ],
+            [
+              0.5,
+              0.5
+            ]
+          ],
+          "offsets": [
+            [
+              0,
+              1
+            ]
+          ],
+          "type": "create-entity"
+        },
+        "drawing_box_vertical_extension": 0.2,
+        "dying_explosion": "assembling-machine-3-explosion",
+        "effect_receiver": {
+          "base_effect": {
+            "productivity": 0.5
+          }
+        },
+        "energy_source": {
+          "emissions_per_minute": {
+            "pollution": 2
+          },
+          "type": "electric",
+          "usage_priority": "secondary-input"
+        },
+        "energy_usage": "375kW",
+        "fast_replaceable_group": "assembling-machine",
+        "flags": [
+          "placeable-neutral",
+          "placeable-player",
+          "player-creation"
+        ],
+        "fluid_boxes": [
+          {
+            "pipe_connections": [
+              {
+                "direction": 0,
+                "flow_direction": "input",
+                "position": [
+                  0,
+                  -1
+                ]
+              }
+            ],
+            "production_type": "input",
+            "secondary_draw_orders": {
+              "north": -1
+            },
+            "volume": 1000
+          },
+          {
+            "pipe_connections": [
+              {
+                "direction": 8,
+                "flow_direction": "output",
+                "position": [
+                  0,
+                  1
+                ]
+              }
+            ],
+            "production_type": "output",
+            "secondary_draw_orders": {
+              "north": -1
+            },
+            "volume": 1000
+          }
+        ],
+        "fluid_boxes_off_when_no_fluid_recipe": true,
+        "graphics_set": {
+          "animation_progress": 0.5
+        },
+        "icon_draw_specification": {
+          "shift": [
+            0,
+            -0.3
+          ]
+        },
+        "impact_category": "metal",
+        "max_health": 400,
+        "minable": {
+          "mining_time": 0.2,
+          "result": "assembling-machine-3"
+        },
+        "module_slots": 4,
+        "name": "gametest-base-prod-assembler",
+        "perceived_performance": {
+          "maximum": 4,
+          "minimum": 0.25
+        },
+        "resistances": [
+          {
+            "percent": 70,
+            "type": "fire"
+          }
+        ],
+        "selection_box": [
+          [
+            -1.5,
+            -1.5
+          ],
+          [
+            1.5,
+            1.5
+          ]
+        ],
+        "type": "assembling-machine",
+        "water_reflection": {
+          "orientation_to_variation": false,
+          "rotate": false
+        },
+        "working_sound": {
+          "fade_in_ticks": 4,
+          "fade_out_ticks": 20,
+          "max_sounds_per_prototype": 7,
+          "sound_accents": [
+            {
+              "frame": 15,
+              "sound": {
+                "advanced_volume_control": {
+                  "fades": {
+                    "fade_in": {
+                      "curve_type": "cosine",
+                      "from": {
+                        "control": 0.3,
+                        "volume_percentage": 0
+                      },
+                      "to": {
+                        "control": 1.5,
+                        "volume_percentage": 100
+                      }
+                    }
+                  }
+                },
+                "audible_distance_modifier": 0.5
+              }
+            },
+            {
+              "frame": 47,
+              "sound": {
+                "advanced_volume_control": {
+                  "fades": {
+                    "fade_in": {
+                      "curve_type": "cosine",
+                      "from": {
+                        "control": 0.3,
+                        "volume_percentage": 0
+                      },
+                      "to": {
+                        "control": 1.5,
+                        "volume_percentage": 100
+                      }
+                    }
+                  }
+                },
+                "audible_distance_modifier": 0.5
+              }
+            }
+          ]
+        }
+      }
+    },
+    "beacon": {
+      "beacon": {
+        "allowed_effects": [
+          "consumption",
+          "speed",
+          "pollution"
+        ],
+        "beacon_counter": "same_type",
+        "collision_box": [
+          [
+            -1.2,
+            -1.2
+          ],
+          [
+            1.2,
+            1.2
+          ]
+        ],
+        "corpse": "beacon-remnants",
+        "damaged_trigger_effect": {
+          "damage_type_filters": "fire",
+          "entity_name": "spark-explosion",
+          "offset_deviation": [
+            [
+              -0.5,
+              -0.5
+            ],
+            [
+              0.5,
+              0.5
+            ]
+          ],
+          "offsets": [
+            [
+              0,
+              1
+            ]
+          ],
+          "type": "create-entity"
+        },
+        "distribution_effectivity": 1.5,
+        "distribution_effectivity_bonus_per_quality_level": 0.2,
+        "drawing_box_vertical_extension": 0.7,
+        "dying_explosion": "beacon-explosion",
+        "energy_source": {
+          "type": "electric",
+          "usage_priority": "secondary-input"
+        },
+        "energy_usage": "480kW",
+        "fast_replaceable_group": "beacon",
+        "flags": [
+          "placeable-player",
+          "player-creation"
+        ],
+        "graphics_set": {
+          "animation_list": [
+            {
+              "always_draw": true,
+              "render_layer": "floor-mechanics"
+            },
+            {
+              "always_draw": true,
+              "render_layer": "object"
+            },
+            {
+              "always_draw": false,
+              "apply_tint": true,
+              "render_layer": "object"
+            },
+            {
+              "always_draw": false,
+              "apply_tint": false,
+              "render_layer": "object"
+            }
+          ],
+          "animation_progress": 1,
+          "apply_module_tint": "secondary",
+          "module_icons_suppressed": true,
+          "module_tint_mode": "mix",
+          "module_visualisations": [
+            {
+              "art_style": "vanilla",
+              "slots": [
+                [
+                  {
+                    "has_empty_slot": true,
+                    "render_layer": "lower-object"
+                  },
+                  {
+                    "apply_module_tint": "primary",
+                    "render_layer": "lower-object"
+                  },
+                  {
+                    "apply_module_tint": "secondary",
+                    "render_layer": "lower-object-above-shadow"
+                  },
+                  {
+                    "apply_module_tint": "secondary",
+                    "render_layer": "lower-object-above-shadow"
+                  }
+                ],
+                [
+                  {
+                    "has_empty_slot": true,
+                    "render_layer": "lower-object"
+                  },
+                  {
+                    "apply_module_tint": "primary",
+                    "render_layer": "lower-object"
+                  },
+                  {
+                    "apply_module_tint": "secondary",
+                    "render_layer": "lower-object-above-shadow"
+                  },
+                  {
+                    "apply_module_tint": "secondary",
+                    "render_layer": "lower-object-above-shadow"
+                  }
+                ]
+              ],
+              "tier_offset": 0,
+              "use_for_empty_slots": true
+            }
+          ],
+          "no_modules_tint": [
+            1,
+            0,
+            0
+          ],
+          "random_animation_offset": true
+        },
+        "icons_positioning": [
+          {
+            "inventory_index": 1,
+            "max_icons_per_row": 2,
+            "multi_row_initial_height_modifier": -0.3,
+            "shift": [
+              0,
+              0
+            ]
+          }
+        ],
+        "impact_category": "metal",
+        "max_health": 200,
+        "minable": {
+          "mining_time": 0.2,
+          "result": "beacon"
+        },
+        "module_slots": 2,
+        "name": "beacon",
+        "profile": [
+          1,
+          0.7071,
+          0.5773,
+          0.5,
+          0.44719999999999993,
+          0.4082,
+          0.3779,
+          0.3535,
+          0.3333,
+          0.3162,
+          0.3015,
+          0.2886,
+          0.2773,
+          0.2672,
+          0.2581,
+          0.25,
+          0.2425,
+          0.23569999999999997,
+          0.2294,
+          0.22359999999999997,
+          0.2182,
+          0.2132,
+          0.2085,
+          0.2041,
+          0.2,
+          0.1961,
+          0.1924,
+          0.1889,
+          0.1856,
+          0.1825,
+          0.1796,
+          0.1767,
+          0.174,
+          0.1714,
+          0.169,
+          0.1666,
+          0.1643,
+          0.1622,
+          0.1601,
+          0.1581,
+          0.1561,
+          0.1543,
+          0.1524,
+          0.1507,
+          0.149,
+          0.1474,
+          0.1458,
+          0.1443,
+          0.1428,
+          0.1414,
+          0.14,
+          0.1386,
+          0.1373,
+          0.136,
+          0.1348,
+          0.1336,
+          0.1324,
+          0.1313,
+          0.1301,
+          0.129,
+          0.128,
+          0.127,
+          0.1259,
+          0.125,
+          0.124,
+          0.123,
+          0.12210000000000001,
+          0.1212,
+          0.1203,
+          0.11949999999999998,
+          0.1186,
+          0.11779999999999999,
+          0.11700000000000002,
+          0.1162,
+          0.11539999999999999,
+          0.1147,
+          0.1139,
+          0.1132,
+          0.1125,
+          0.11179999999999998,
+          0.1111,
+          0.11040000000000001,
+          0.10969999999999999,
+          0.1091,
+          0.10840000000000001,
+          0.1078,
+          0.1072,
+          0.1066,
+          0.1059,
+          0.10539999999999998,
+          0.1048,
+          0.1042,
+          0.1036,
+          0.1031,
+          0.1025,
+          0.10200000000000001,
+          0.1015,
+          0.101,
+          0.1005,
+          0.1
+        ],
+        "selection_box": [
+          [
+            -1.5,
+            -1.5
+          ],
+          [
+            1.5,
+            1.5
+          ]
+        ],
+        "supply_area_distance": 3,
+        "type": "beacon",
+        "water_reflection": {
+          "orientation_to_variation": false,
+          "rotate": false
+        },
+        "working_sound": {
+          "max_sounds_per_prototype": 3,
+          "sound": {
+            "audible_distance_modifier": 0.33
+          }
+        }
+      },
+      "gametest-beacon-b": {
+        "allowed_effects": [
+          "consumption",
+          "speed",
+          "pollution"
+        ],
+        "beacon_counter": "same_type",
+        "collision_box": [
+          [
+            -1.2,
+            -1.2
+          ],
+          [
+            1.2,
+            1.2
+          ]
+        ],
+        "corpse": "beacon-remnants",
+        "damaged_trigger_effect": {
+          "damage_type_filters": "fire",
+          "entity_name": "spark-explosion",
+          "offset_deviation": [
+            [
+              -0.5,
+              -0.5
+            ],
+            [
+              0.5,
+              0.5
+            ]
+          ],
+          "offsets": [
+            [
+              0,
+              1
+            ]
+          ],
+          "type": "create-entity"
+        },
+        "distribution_effectivity": 1.5,
+        "distribution_effectivity_bonus_per_quality_level": 0.2,
+        "drawing_box_vertical_extension": 0.7,
+        "dying_explosion": "beacon-explosion",
+        "energy_source": {
+          "type": "electric",
+          "usage_priority": "secondary-input"
+        },
+        "energy_usage": "480kW",
+        "fast_replaceable_group": "beacon",
+        "flags": [
+          "placeable-player",
+          "player-creation"
+        ],
+        "graphics_set": {
+          "animation_list": [
+            {
+              "always_draw": true,
+              "render_layer": "floor-mechanics"
+            },
+            {
+              "always_draw": true,
+              "render_layer": "object"
+            },
+            {
+              "always_draw": false,
+              "apply_tint": true,
+              "render_layer": "object"
+            },
+            {
+              "always_draw": false,
+              "apply_tint": false,
+              "render_layer": "object"
+            }
+          ],
+          "animation_progress": 1,
+          "apply_module_tint": "secondary",
+          "module_icons_suppressed": true,
+          "module_tint_mode": "mix",
+          "module_visualisations": [
+            {
+              "art_style": "vanilla",
+              "slots": [
+                [
+                  {
+                    "has_empty_slot": true,
+                    "render_layer": "lower-object"
+                  },
+                  {
+                    "apply_module_tint": "primary",
+                    "render_layer": "lower-object"
+                  },
+                  {
+                    "apply_module_tint": "secondary",
+                    "render_layer": "lower-object-above-shadow"
+                  },
+                  {
+                    "apply_module_tint": "secondary",
+                    "render_layer": "lower-object-above-shadow"
+                  }
+                ],
+                [
+                  {
+                    "has_empty_slot": true,
+                    "render_layer": "lower-object"
+                  },
+                  {
+                    "apply_module_tint": "primary",
+                    "render_layer": "lower-object"
+                  },
+                  {
+                    "apply_module_tint": "secondary",
+                    "render_layer": "lower-object-above-shadow"
+                  },
+                  {
+                    "apply_module_tint": "secondary",
+                    "render_layer": "lower-object-above-shadow"
+                  }
+                ]
+              ],
+              "tier_offset": 0,
+              "use_for_empty_slots": true
+            }
+          ],
+          "no_modules_tint": [
+            1,
+            0,
+            0
+          ],
+          "random_animation_offset": true
+        },
+        "icons_positioning": [
+          {
+            "inventory_index": 1,
+            "max_icons_per_row": 2,
+            "multi_row_initial_height_modifier": -0.3,
+            "shift": [
+              0,
+              0
+            ]
+          }
+        ],
+        "impact_category": "metal",
+        "max_health": 200,
+        "minable": {
+          "mining_time": 0.2,
+          "result": "beacon"
+        },
+        "module_slots": 2,
+        "name": "gametest-beacon-b",
+        "profile": [
+          1,
+          0.7071,
+          0.5773,
+          0.5,
+          0.44719999999999993,
+          0.4082,
+          0.3779,
+          0.3535,
+          0.3333,
+          0.3162,
+          0.3015,
+          0.2886,
+          0.2773,
+          0.2672,
+          0.2581,
+          0.25,
+          0.2425,
+          0.23569999999999997,
+          0.2294,
+          0.22359999999999997,
+          0.2182,
+          0.2132,
+          0.2085,
+          0.2041,
+          0.2,
+          0.1961,
+          0.1924,
+          0.1889,
+          0.1856,
+          0.1825,
+          0.1796,
+          0.1767,
+          0.174,
+          0.1714,
+          0.169,
+          0.1666,
+          0.1643,
+          0.1622,
+          0.1601,
+          0.1581,
+          0.1561,
+          0.1543,
+          0.1524,
+          0.1507,
+          0.149,
+          0.1474,
+          0.1458,
+          0.1443,
+          0.1428,
+          0.1414,
+          0.14,
+          0.1386,
+          0.1373,
+          0.136,
+          0.1348,
+          0.1336,
+          0.1324,
+          0.1313,
+          0.1301,
+          0.129,
+          0.128,
+          0.127,
+          0.1259,
+          0.125,
+          0.124,
+          0.123,
+          0.12210000000000001,
+          0.1212,
+          0.1203,
+          0.11949999999999998,
+          0.1186,
+          0.11779999999999999,
+          0.11700000000000002,
+          0.1162,
+          0.11539999999999999,
+          0.1147,
+          0.1139,
+          0.1132,
+          0.1125,
+          0.11179999999999998,
+          0.1111,
+          0.11040000000000001,
+          0.10969999999999999,
+          0.1091,
+          0.10840000000000001,
+          0.1078,
+          0.1072,
+          0.1066,
+          0.1059,
+          0.10539999999999998,
+          0.1048,
+          0.1042,
+          0.1036,
+          0.1031,
+          0.1025,
+          0.10200000000000001,
+          0.1015,
+          0.101,
+          0.1005,
+          0.1
+        ],
+        "selection_box": [
+          [
+            -1.5,
+            -1.5
+          ],
+          [
+            1.5,
+            1.5
+          ]
+        ],
+        "supply_area_distance": 3,
+        "type": "beacon",
+        "water_reflection": {
+          "orientation_to_variation": false,
+          "rotate": false
+        },
+        "working_sound": {
+          "max_sounds_per_prototype": 3,
+          "sound": {
+            "audible_distance_modifier": 0.33
+          }
+        }
+      },
+      "gametest-beacon-total": {
+        "allowed_effects": [
+          "consumption",
+          "speed",
+          "pollution"
+        ],
+        "beacon_counter": "total",
+        "collision_box": [
+          [
+            -1.2,
+            -1.2
+          ],
+          [
+            1.2,
+            1.2
+          ]
+        ],
+        "corpse": "beacon-remnants",
+        "damaged_trigger_effect": {
+          "damage_type_filters": "fire",
+          "entity_name": "spark-explosion",
+          "offset_deviation": [
+            [
+              -0.5,
+              -0.5
+            ],
+            [
+              0.5,
+              0.5
+            ]
+          ],
+          "offsets": [
+            [
+              0,
+              1
+            ]
+          ],
+          "type": "create-entity"
+        },
+        "distribution_effectivity": 1.5,
+        "distribution_effectivity_bonus_per_quality_level": 0.2,
+        "drawing_box_vertical_extension": 0.7,
+        "dying_explosion": "beacon-explosion",
+        "energy_source": {
+          "type": "electric",
+          "usage_priority": "secondary-input"
+        },
+        "energy_usage": "480kW",
+        "fast_replaceable_group": "beacon",
+        "flags": [
+          "placeable-player",
+          "player-creation"
+        ],
+        "graphics_set": {
+          "animation_list": [
+            {
+              "always_draw": true,
+              "render_layer": "floor-mechanics"
+            },
+            {
+              "always_draw": true,
+              "render_layer": "object"
+            },
+            {
+              "always_draw": false,
+              "apply_tint": true,
+              "render_layer": "object"
+            },
+            {
+              "always_draw": false,
+              "apply_tint": false,
+              "render_layer": "object"
+            }
+          ],
+          "animation_progress": 1,
+          "apply_module_tint": "secondary",
+          "module_icons_suppressed": true,
+          "module_tint_mode": "mix",
+          "module_visualisations": [
+            {
+              "art_style": "vanilla",
+              "slots": [
+                [
+                  {
+                    "has_empty_slot": true,
+                    "render_layer": "lower-object"
+                  },
+                  {
+                    "apply_module_tint": "primary",
+                    "render_layer": "lower-object"
+                  },
+                  {
+                    "apply_module_tint": "secondary",
+                    "render_layer": "lower-object-above-shadow"
+                  },
+                  {
+                    "apply_module_tint": "secondary",
+                    "render_layer": "lower-object-above-shadow"
+                  }
+                ],
+                [
+                  {
+                    "has_empty_slot": true,
+                    "render_layer": "lower-object"
+                  },
+                  {
+                    "apply_module_tint": "primary",
+                    "render_layer": "lower-object"
+                  },
+                  {
+                    "apply_module_tint": "secondary",
+                    "render_layer": "lower-object-above-shadow"
+                  },
+                  {
+                    "apply_module_tint": "secondary",
+                    "render_layer": "lower-object-above-shadow"
+                  }
+                ]
+              ],
+              "tier_offset": 0,
+              "use_for_empty_slots": true
+            }
+          ],
+          "no_modules_tint": [
+            1,
+            0,
+            0
+          ],
+          "random_animation_offset": true
+        },
+        "icons_positioning": [
+          {
+            "inventory_index": 1,
+            "max_icons_per_row": 2,
+            "multi_row_initial_height_modifier": -0.3,
+            "shift": [
+              0,
+              0
+            ]
+          }
+        ],
+        "impact_category": "metal",
+        "max_health": 200,
+        "minable": {
+          "mining_time": 0.2,
+          "result": "beacon"
+        },
+        "module_slots": 2,
+        "name": "gametest-beacon-total",
+        "profile": [
+          1,
+          0.7071,
+          0.5773,
+          0.5,
+          0.44719999999999993,
+          0.4082,
+          0.3779,
+          0.3535,
+          0.3333,
+          0.3162,
+          0.3015,
+          0.2886,
+          0.2773,
+          0.2672,
+          0.2581,
+          0.25,
+          0.2425,
+          0.23569999999999997,
+          0.2294,
+          0.22359999999999997,
+          0.2182,
+          0.2132,
+          0.2085,
+          0.2041,
+          0.2,
+          0.1961,
+          0.1924,
+          0.1889,
+          0.1856,
+          0.1825,
+          0.1796,
+          0.1767,
+          0.174,
+          0.1714,
+          0.169,
+          0.1666,
+          0.1643,
+          0.1622,
+          0.1601,
+          0.1581,
+          0.1561,
+          0.1543,
+          0.1524,
+          0.1507,
+          0.149,
+          0.1474,
+          0.1458,
+          0.1443,
+          0.1428,
+          0.1414,
+          0.14,
+          0.1386,
+          0.1373,
+          0.136,
+          0.1348,
+          0.1336,
+          0.1324,
+          0.1313,
+          0.1301,
+          0.129,
+          0.128,
+          0.127,
+          0.1259,
+          0.125,
+          0.124,
+          0.123,
+          0.12210000000000001,
+          0.1212,
+          0.1203,
+          0.11949999999999998,
+          0.1186,
+          0.11779999999999999,
+          0.11700000000000002,
+          0.1162,
+          0.11539999999999999,
+          0.1147,
+          0.1139,
+          0.1132,
+          0.1125,
+          0.11179999999999998,
+          0.1111,
+          0.11040000000000001,
+          0.10969999999999999,
+          0.1091,
+          0.10840000000000001,
+          0.1078,
+          0.1072,
+          0.1066,
+          0.1059,
+          0.10539999999999998,
+          0.1048,
+          0.1042,
+          0.1036,
+          0.1031,
+          0.1025,
+          0.10200000000000001,
+          0.1015,
+          0.101,
+          0.1005,
+          0.1
+        ],
+        "selection_box": [
+          [
+            -1.5,
+            -1.5
+          ],
+          [
+            1.5,
+            1.5
+          ]
+        ],
+        "supply_area_distance": 3,
+        "type": "beacon",
+        "water_reflection": {
+          "orientation_to_variation": false,
+          "rotate": false
+        },
+        "working_sound": {
+          "max_sounds_per_prototype": 3,
+          "sound": {
+            "audible_distance_modifier": 0.33
+          }
+        }
+      }
+    },
+    "item": {
+      "gametest-spoilable": {
+        "icon_size": 64,
+        "name": "gametest-spoilable",
+        "spoil_result": "gametest-plate",
+        "spoil_ticks": 18000,
+        "stack_size": 100,
+        "subgroup": "intermediate-product",
+        "type": "item"
+      }
+    },
+    "module": {
+      "productivity-module-3": {
+        "category": "productivity",
+        "color_hint": {
+          "text": "P"
+        },
+        "effect": {
+          "consumption": 0.8,
+          "pollution": 0.1,
+          "productivity": 0.1,
+          "speed": -0.15
+        },
+        "localised_description": [
+          "item-description.productivity-module"
+        ],
+        "name": "productivity-module-3",
+        "order": "c[productivity]-c[productivity-module-3]",
+        "stack_size": 50,
+        "subgroup": "module",
+        "tier": 3,
+        "type": "module",
+        "weight": 20000
+      },
+      "quality-module-3": {
+        "category": "quality",
+        "color_hint": {
+          "text": "Q"
+        },
+        "effect": {
+          "quality": 0.025,
+          "speed": -0.05
+        },
+        "localised_description": [
+          "item-description.quality-module"
+        ],
+        "name": "quality-module-3",
+        "order": "d[quality]-c[quality-module-3]",
+        "stack_size": 50,
+        "subgroup": "module",
+        "tier": 3,
+        "type": "module",
+        "weight": 20000
+      },
+      "speed-module-3": {
+        "art_style": "vanilla",
+        "beacon_tint": {
+          "primary": [
+            0.441,
+            0.714,
+            1,
+            1
+          ],
+          "secondary": [
+            0.388,
+            0.976,
+            1,
+            1
+          ]
+        },
+        "category": "speed",
+        "color_hint": {
+          "text": "S"
+        },
+        "effect": {
+          "consumption": 0.7,
+          "quality": -0.025,
+          "speed": 0.5
+        },
+        "localised_description": [
+          "item-description.speed-module"
+        ],
+        "name": "speed-module-3",
+        "order": "a[speed]-c[speed-module-3]",
+        "requires_beacon_alt_mode": false,
+        "stack_size": 50,
+        "subgroup": "module",
+        "tier": 3,
+        "type": "module",
+        "weight": 20000
+      }
+    },
+    "quality": {
+      "epic": {
+        "beacon_power_usage_multiplier": 0.5,
+        "cargo_wagon_inventory_size_multiplier": 1.75,
+        "chain_probability": 0.1,
+        "color": [
+          137,
+          0,
+          178
+        ],
+        "level": 3,
+        "locomotive_power_multiplier": 1.6,
+        "mining_drill_resource_drain_multiplier": 0.5,
+        "name": "epic",
+        "next": "legendary",
+        "next_probability": 1,
+        "order": "d",
+        "rolling_stock_max_speed_multiplier": 1.09,
+        "science_pack_drain_multiplier": 0.97,
+        "subgroup": "qualities",
+        "type": "quality"
+      },
+      "legendary": {
+        "beacon_power_usage_multiplier": 0.16666666666666666,
+        "cargo_wagon_inventory_size_multiplier": 2.5,
+        "color": [
+          178,
+          104,
+          0
+        ],
+        "level": 5,
+        "locomotive_power_multiplier": 2,
+        "mining_drill_resource_drain_multiplier": 0.16666666666666666,
+        "name": "legendary",
+        "order": "e",
+        "rolling_stock_max_speed_multiplier": 1.15,
+        "science_pack_drain_multiplier": 0.95,
+        "subgroup": "qualities",
+        "type": "quality"
+      },
+      "normal": {
+        "chain_probability": 0.1,
+        "color": {
+          "b": 178.5,
+          "g": 178.5,
+          "r": 178.5
+        },
+        "draw_sprite_by_default": false,
+        "hidden": false,
+        "level": 0,
+        "name": "normal",
+        "next": "uncommon",
+        "next_probability": 1,
+        "order": "a",
+        "subgroup": "qualities",
+        "type": "quality"
+      },
+      "quality-unknown": {
+        "color": [
+          1,
+          1,
+          1
+        ],
+        "hidden": true,
+        "level": 0,
+        "name": "quality-unknown",
+        "order": "z",
+        "type": "quality"
+      },
+      "rare": {
+        "beacon_power_usage_multiplier": 0.6666666666666666,
+        "cargo_wagon_inventory_size_multiplier": 1.5,
+        "chain_probability": 0.1,
+        "color": [
+          25,
+          104,
+          178
+        ],
+        "level": 2,
+        "locomotive_power_multiplier": 1.4,
+        "mining_drill_resource_drain_multiplier": 0.6666666666666666,
+        "name": "rare",
+        "next": "epic",
+        "next_probability": 1,
+        "order": "c",
+        "rolling_stock_max_speed_multiplier": 1.06,
+        "science_pack_drain_multiplier": 0.9800000000000001,
+        "subgroup": "qualities",
+        "type": "quality"
+      },
+      "uncommon": {
+        "beacon_power_usage_multiplier": 0.8333333333333334,
+        "cargo_wagon_inventory_size_multiplier": 1.25,
+        "chain_probability": 0.1,
+        "color": [
+          43,
+          165,
+          61
+        ],
+        "level": 1,
+        "locomotive_power_multiplier": 1.2,
+        "mining_drill_resource_drain_multiplier": 0.8333333333333334,
+        "name": "uncommon",
+        "next": "rare",
+        "next_probability": 1,
+        "order": "b",
+        "rolling_stock_max_speed_multiplier": 1.03,
+        "science_pack_drain_multiplier": 0.99,
+        "subgroup": "qualities",
+        "type": "quality"
+      }
+    },
+    "recipe": {
+      "gametest-catalyst": {
+        "allow_productivity": true,
+        "enabled": true,
+        "energy_required": 0.05,
+        "ingredients": [
+          {
+            "amount": 1,
+            "name": "gametest-plate",
+            "type": "item"
+          }
+        ],
+        "name": "gametest-catalyst",
+        "results": [
+          {
+            "amount": 3,
+            "ignored_by_stats": 2,
+            "name": "gametest-plate",
+            "type": "item"
+          },
+          {
+            "amount": 3,
+            "ignored_by_productivity": 0,
+            "ignored_by_stats": 2,
+            "name": "gametest-widget",
+            "type": "item"
+          },
+          {
+            "amount": 3,
+            "name": "gametest-part",
+            "type": "item"
+          }
+        ],
+        "type": "recipe"
+      },
+      "gametest-catalyst-noprod": {
+        "allow_productivity": false,
+        "enabled": true,
+        "energy_required": 0.05,
+        "ingredients": [
+          {
+            "amount": 1,
+            "name": "gametest-plate",
+            "type": "item"
+          }
+        ],
+        "name": "gametest-catalyst-noprod",
+        "results": [
+          {
+            "amount": 3,
+            "ignored_by_stats": 2,
+            "name": "gametest-plate",
+            "type": "item"
+          },
+          {
+            "amount": 3,
+            "ignored_by_productivity": 0,
+            "ignored_by_stats": 2,
+            "name": "gametest-widget",
+            "type": "item"
+          },
+          {
+            "amount": 3,
+            "name": "gametest-part",
+            "type": "item"
+          }
+        ],
+        "type": "recipe"
+      },
+      "gametest-quality-sample": {
+        "enabled": true,
+        "energy_required": 0.05,
+        "ingredients": [
+          {
+            "amount": 1,
+            "name": "gametest-plate",
+            "type": "item"
+          }
+        ],
+        "name": "gametest-quality-sample",
+        "results": [
+          {
+            "amount": 1,
+            "name": "gametest-widget",
+            "type": "item"
+          }
+        ],
+        "type": "recipe"
+      }
+    }
+  },
+  "suite": "vanilla-quality"
+}
