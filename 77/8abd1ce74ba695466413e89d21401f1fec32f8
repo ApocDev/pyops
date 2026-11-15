@@ -1,0 +1,38 @@
+app/drizzle/0032_beacon-counter.sql
+  h_3ea7e994213848 1
+app/drizzle/meta/0032_snapshot.json
+  h_3ea7e994213848 1-3515
+app/drizzle/meta/_journal.json
+  h_3ea7e994213848 228-234
+app/src/db/import-factorio.test.ts
+  h_3ea7e994213848 934,985-995
+app/src/db/import-factorio.ts
+  h_3ea7e994213848 314,618-619
+app/src/db/schema.ts
+  h_3ea7e994213848 309-310,329-335
+app/src/db/synthesize.ts
+  h_3ea7e994213848 134,861,864-870,898
+app/src/lib/data-format.ts
+  h_3ea7e994213848 9
+app/src/server/effects.test.ts
+  h_3ea7e994213848 23-24,116-188,429-436
+app/src/server/effects.ts
+  h_3ea7e994213848 139-143,145-146,151,214-217,219-225,227-230
+app/src/server/quality-effects.test.ts
+  h_3ea7e994213848 128-129,225-232
+app/src/server/science-bank.test.ts
+  h_3ea7e994213848 25-32,36-43
+docs/development/solver.md
+  h_3ea7e994213848 494-503
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "778abd1ce74ba695466413e89d21401f1fec32f8",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
