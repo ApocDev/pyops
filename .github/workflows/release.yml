@@ -154,8 +154,10 @@ jobs:
       # vite-plus toolchain + app deps (same as ci.yml).
       - uses: voidzero-dev/setup-vp@v1
         with:
+          working-directory: app
           node-version: "24"
           cache: true
+          run-install: false
       - name: Install app dependencies
         working-directory: app
         run: vp install
