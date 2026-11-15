@@ -1,0 +1,24 @@
+app/src-tauri/src/lib.rs
+  h_3ea7e994213848 259-262
+app/src/routeTree.gen.ts
+  h_3ea7e994213848 492,497
+app/src/server/dump.server.ts
+  h_3ea7e994213848 1022-1024
+app/src/start.ts
+  h_3ea7e994213848 1-17
+app/vite.config.ts
+  h_3ea7e994213848 11,44-57,193-197
+docs/development/desktop.md
+  h_3ea7e994213848 85-91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d06293e7313929975ee238f61c319b443f41170d",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
