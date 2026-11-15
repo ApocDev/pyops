@@ -1,0 +1,14 @@
+app/e2e/mut/quality-row.e2e.ts
+  h_3ea7e994213848 21-23,26-28,36-37,41,44,79-83,91,95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fbfb21059bd486e63d40d8df32a13966d4d5463e",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
