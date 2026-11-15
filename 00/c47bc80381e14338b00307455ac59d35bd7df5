@@ -1,0 +1,54 @@
+app/e2e/mut/quality-row.e2e.ts
+  h_3ea7e994213848 1-89
+app/src/components/block/doc-store.test.ts
+  h_3ea7e994213848 270-285
+app/src/components/block/doc-store.ts
+  h_3ea7e994213848 17-23,31,80-81,109,139,198,580,625-638
+app/src/components/block/quality-dialog.tsx
+  h_3ea7e994213848 1-169
+app/src/components/block/recipe-row.tsx
+  h_3ea7e994213848 31,62-63,134,258-264,332,476
+app/src/components/block/row-menu.tsx
+  h_3ea7e994213848 1,20,36-37,53-57
+app/src/components/block/row-quality-pill.tsx
+  h_3ea7e994213848 1-46
+app/src/components/block/snapshot-diff.tsx
+  h_3ea7e994213848 7,11,35-49,215-222
+app/src/components/horizon-picker.tsx
+  h_3ea7e994213848 59
+app/src/db/queries.server.ts
+  h_3ea7e994213848 769-773,798,808,893-894,1011-1013,1016,1023,1065-1066,1108,5745-5767
+app/src/lib/block-diff.ts
+  h_3ea7e994213848 4,13,31-32,127-131
+app/src/lib/block-doc.ts
+  h_3ea7e994213848 23,36,53,108-109
+app/src/lib/icons.tsx
+  h_3ea7e994213848 118-119,123,125-126,132-141,150,156-158,160,168-175,177-179,313-315,328-366
+app/src/lib/modules-modal.tsx
+  h_3ea7e994213848 80,86-87,133,139,141
+app/src/lib/use-quality-ladder.ts
+  h_3ea7e994213848 1-18
+app/src/routes/block.$id.tsx
+  h_3ea7e994213848 61,77,152-155,875,1145-1152,1159
+app/src/server/block-compute.server.ts
+  h_3ea7e994213848 1454-1456
+app/src/server/factorio.ts
+  h_3ea7e994213848 83-88
+docs/development/data-pipeline.md
+  h_3ea7e994213848 149-152
+docs/development/solver.md
+  h_3ea7e994213848 239-240
+docs/guide/blocks.md
+  h_3ea7e994213848 135-136,148-172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "00c47bc80381e14338b00307455ac59d35bd7df5",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
