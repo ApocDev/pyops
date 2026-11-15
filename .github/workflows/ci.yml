@@ -17,10 +17,14 @@ jobs:
         working-directory: app
     steps:
       - uses: actions/checkout@v4
+      # run-install off: the action's own install would run at the repo root,
+      # which has no package.json. The app's install runs next, from app/.
       - uses: voidzero-dev/setup-vp@v1
         with:
+          working-directory: app
           node-version: "24"
           cache: true
+          run-install: false
       - run: vp install
       - run: vp check
       - run: vp test run # single run (not watch); the protocol guard also checks mod/control.lua
