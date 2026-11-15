@@ -14,7 +14,13 @@
  * the solve result and all reference data stay in TanStack Query.
  */
 import { Store } from "@tanstack/store";
-import type { CampaignConfidence, Goal, RateUnit, TemporaryCampaign } from "../../db/schema";
+import type {
+  CampaignConfidence,
+  Goal,
+  RateUnit,
+  RowQuality,
+  TemporaryCampaign,
+} from "../../db/schema";
 import type { Disposition } from "../../solver/migrate";
 import type { BeaconConfig } from "../../server/effects";
 import type { ReactorLayout } from "../../lib/reactor";
@@ -22,6 +28,7 @@ import type { DocPin, SolveInput } from "../../server/block-compute.server.ts";
 import { normalizeBlockData, STOCK_WINDOW_DEFAULT, type RawBlockData } from "../../lib/goals";
 import { CAMPAIGN_DURATION_DEFAULT, campaignGoalRate } from "../../lib/campaign";
 import { mergeActionLabel } from "../../lib/undo-names";
+import { NORMAL_QUALITY } from "../../lib/quality";
 import {
   joinGroup,
   leaveGroup,
@@ -70,6 +77,8 @@ export type BlockDocState = {
   beacons: Record<string, BeaconConfig[]>;
   /** reactor rows' assumed x×y farm (#94) — absent = 1×1, no neighbour bonus */
   reactorLayouts: Record<string, ReactorLayout>;
+  /** per-row quality range and machine/module quality (#267) — absent = normal */
+  rowQuality: Record<string, RowQuality>;
   blockName: string;
 };
 
@@ -97,6 +106,7 @@ const EMPTY: BlockDocState = {
   modules: {},
   beacons: {},
   reactorLayouts: {},
+  rowQuality: {},
   blockName: "",
 };
 
@@ -126,6 +136,7 @@ export function solveInputOf(s: BlockDocState): SolveInput {
     ...(Object.keys(s.fuels).length ? { fuels: s.fuels } : {}),
     ...(Object.keys(s.fluidTemperatures).length ? { fluidTemperatures: s.fluidTemperatures } : {}),
     ...(Object.keys(s.reactorLayouts).length ? { reactorLayouts: s.reactorLayouts } : {}),
+    ...(Object.keys(s.rowQuality).length ? { rowQuality: s.rowQuality } : {}),
     // module entries are kept even when EMPTY: an explicit [] means "no modules"
     // and suppresses auto-fill for that row ("reset to auto" deletes the key)
     ...(Object.keys(s.modules).length ? { modules: s.modules } : {}),
@@ -184,6 +195,7 @@ export function createBlockDocStore() {
       modules: d.modules ?? {},
       beacons: (d.beacons ?? {}) as Record<string, BeaconConfig[]>,
       reactorLayouts: d.reactorLayouts ?? {},
+      rowQuality: d.rowQuality ?? {},
       blockName: name,
     }));
   };
@@ -565,6 +577,7 @@ export function createBlockDocStore() {
           modules: withoutKey(s.modules, name),
           beacons: withoutKey(s.beacons, name),
           reactorLayouts: withoutKey(s.reactorLayouts, name),
+          rowQuality: withoutKey(s.rowQuality, name),
           // a removed recipe takes its pins with it — nothing dangles (#91)
           pins: s.pins.filter((p) => p.recipe !== name),
           recipeGroups,
@@ -609,6 +622,20 @@ export function createBlockDocStore() {
             ? withoutKey(s.reactorLayouts, recipe)
             : { ...s.reactorLayouts, [recipe]: layout },
       })),
+    /** A row's quality settings (#267). Fields at normal are dropped, and a row
+     * left with none clears its key, so the stored doc only carries real
+     * quality choices. */
+    setRowQuality: (recipe: string, quality: RowQuality) =>
+      edit((s) => {
+        const kept = Object.fromEntries(
+          Object.entries(quality).filter(([, v]) => v != null && v !== NORMAL_QUALITY),
+        ) as RowQuality;
+        return {
+          rowQuality: Object.keys(kept).length
+            ? { ...s.rowQuality, [recipe]: kept }
+            : withoutKey(s.rowQuality, recipe),
+        };
+      }),
     setModules: (recipe: string, modules: string[], beacons: BeaconConfig[]) =>
       edit((s) => ({
         modules: { ...s.modules, [recipe]: modules },

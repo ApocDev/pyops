@@ -4,10 +4,11 @@
  * scale-plan drawer. Presentational — the sheet fetches the diff (computed by
  * lib/block-diff via snapshotDiffFn, display names resolved server-side).
  */
-import type { Goal, TemporaryCampaign } from "../../db/schema.ts";
+import type { Goal, RowQuality, TemporaryCampaign } from "../../db/schema.ts";
 import type { BlockDiff } from "../../lib/block-diff";
 import { Icon } from "../../lib/icons";
 import { fmtReactorLayout } from "../../lib/reactor";
+import { useQualityLadder } from "../../lib/use-quality-ladder";
 
 type Refs = Record<string, { kind: "item" | "fluid" | "recipe" | "technology"; display: string }>;
 
@@ -31,6 +32,21 @@ export function SnapshotDiffView({
   nameChange: { from: string; to: string } | null;
 }) {
   const display = (n: string) => refs[n]?.display ?? n;
+  const { ladder } = useQualityLadder();
+  const qualityName = (q: string | undefined) =>
+    ladder.find((step) => step.name === (q ?? "normal"))?.display ?? q ?? "normal";
+  const qualityLabel = (q: RowQuality | null) => {
+    if (!q) return "normal";
+    const lo = qualityName(q.min);
+    const hi = qualityName(q.max ?? q.min);
+    return [
+      lo === hi ? lo : `${lo}–${hi}`,
+      q.machine && `machine ${qualityName(q.machine)}`,
+      q.modules && `modules ${qualityName(q.modules)}`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  };
   const NameChip = ({ name, recipe }: { name: string; recipe?: boolean }) => {
     const r = (recipe ? recipeRefs : refs)[name];
     return (
@@ -193,6 +209,14 @@ export function SnapshotDiffView({
                     left={<span className="text-muted-foreground">Beacons</span>}
                     right={
                       <FromTo from={beaconLabel(p.beacons.from)} to={beaconLabel(p.beacons.to)} />
+                    }
+                  />
+                )}
+                {p.quality && (
+                  <Row
+                    left={<span className="text-muted-foreground">Quality</span>}
+                    right={
+                      <FromTo from={qualityLabel(p.quality.from)} to={qualityLabel(p.quality.to)} />
                     }
                   />
                 )}

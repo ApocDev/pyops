@@ -12,6 +12,8 @@ vi.mock("../db/queries.server.ts", () => ({
   listModulePresets: vi.fn(),
   modulePickerData: vi.fn(),
   moduleInfo: vi.fn(),
+  // Py data: no quality chain
+  dataCapabilities: () => ({ hasTurd: true, hasQuality: false }),
 }));
 const q = await import("../db/queries.server.ts");
 const mockPresets = vi.mocked(q.listModulePresets);
@@ -91,9 +93,9 @@ describe("presetCompatibility", () => {
     expect(res.ok).toBe(false);
   });
 
-  it("says a quality module is refused until the planner shows quality", () => {
-    // quality-module (Factorio 2.1.24: quality 0.01, speed -0.05) is never in the
-    // picker's accepted set, whatever the machine allows
+  it("says a quality module is refused in a project without quality", () => {
+    // quality-module (Factorio 2.1.24: quality 0.01, speed -0.05) is in the
+    // picker's accepted set only when the project's data has quality
     const assembler = picker({ name: "assembler", display: "Assembler", moduleSlots: 4 }, [
       "speed-module",
     ]);
@@ -104,7 +106,7 @@ describe("presetCompatibility", () => {
     const res = presetCompatibility({ modules: ["quality-module"], beacons: [] }, assembler, facts);
     expect(res).toEqual({
       ok: false,
-      reason: "the planner doesn't show quality output yet (Quality module)",
+      reason: "this project's data has no quality (Quality module)",
     });
   });
 

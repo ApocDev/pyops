@@ -766,12 +766,11 @@ function categoryAllowed(m: ModuleRow, cats: string[] | null | undefined): boole
   return !cats?.length || cats.includes(m.category ?? "");
 }
 
-/** The solver splits a quality module's output across qualities (#266), but
- * the planner can't show quality goods, goals or row ranges until #267. Until
- * then planners don't offer a quality module. No Py module has a positive
- * quality effect except Editor Extensions' (excluded). */
-function qualityModuleHidden(m: ModuleRow): boolean {
-  return m.effQuality > 0;
+/** A quality module only makes sense in a project whose data has a quality
+ * chain, so planners offer one only there. No Py module has a positive quality
+ * effect except Editor Extensions' (excluded). */
+function qualityModuleHidden(m: ModuleRow, hasQuality: boolean): boolean {
+  return m.effQuality > 0 && !hasQuality;
 }
 
 /** The recipe-side effect gates: productivity and quality modules only go where
@@ -796,6 +795,7 @@ function recipeAllowsModule(
 export function modulesFittingMachine(machineName: string) {
   const m = db.select().from(craftingMachines).where(eq(craftingMachines.name, machineName)).get();
   if (!m) return [];
+  const hasQuality = hasQualityData();
   return db
     .select()
     .from(modules)
@@ -805,7 +805,7 @@ export function modulesFittingMachine(machineName: string) {
     .filter(
       (mod) =>
         !isExcluded(mod.name, mod.category) &&
-        !qualityModuleHidden(mod) &&
+        !qualityModuleHidden(mod, hasQuality) &&
         categoryAllowed(mod, m.allowedModuleCategories) &&
         effectsAllowed(mod, m.allowedEffects),
     )
@@ -890,8 +890,13 @@ export function computeRecipeScenario(opts: {
         name,
         reason: `category '${mod.category}' not accepted (slots take ${JSON.stringify(machine.allowedModuleCategories ?? "any")})`,
       });
-    if (qualityModuleHidden(mod))
-      return void rejected.push({ name, reason: "the planner doesn't show quality output yet" });
+    // the calculator reports each product as one rate, with no quality split,
+    // so a quality module's upgraded output would read as normal
+    if (qualityModuleHidden(mod, false))
+      return void rejected.push({
+        name,
+        reason: "the recipe calculator doesn't split output by quality",
+      });
     if (!effectsAllowed(mod, machine.allowedEffects))
       return void rejected.push({ name, reason: "effect not allowed by this machine" });
     if (mod.effProductivity > 0 && !r.allowProductivity)
@@ -1008,17 +1013,19 @@ export function computeRecipeScenario(opts: {
 
 /** Every hand-placeable module, one table scan. Hidden modules are TURD
  * internals — game-inserted, never hand-placed — and EE/user-excluded modules
- * and quality modules are not planner-usable. block-compute fetches this once
+ * are not planner-usable. Quality modules join only with `withQuality`: the
+ * pickers pass it in a project with quality, while module auto-fill never does,
+ * since a quality loop is a deliberate plan. block-compute fetches this once
  * per solve and filters per row, instead of paying modulePickerData's
  * full-table rescan for every recipe. */
-export function placeableModules() {
+export function placeableModules(withQuality = false) {
   return db
     .select()
     .from(modules)
     .where(eq(modules.hidden, false))
     .orderBy(modules.category, modules.tier, modules.name)
     .all()
-    .filter((mod) => !isExcluded(mod.name, mod.category) && !qualityModuleHidden(mod));
+    .filter((mod) => !isExcluded(mod.name, mod.category) && !qualityModuleHidden(mod, withQuality));
 }
 
 /** The picker's placement rules for one (machine, recipe) pair, as a reusable
@@ -1060,7 +1067,8 @@ export function modulePickerData(recipeName: string | null, machineName: string)
   const m = db.select().from(craftingMachines).where(eq(craftingMachines.name, machineName)).get();
   if (!r || !m) return null;
 
-  const visibleModules = placeableModules();
+  const hasQuality = hasQualityData();
+  const visibleModules = placeableModules(hasQuality);
   const allBeacons = db.select().from(beacons).orderBy(beacons.name).all();
   const visibleBeacons = allBeacons.filter((b) => !b.hidden);
   // A hidden beacon is normally an implementation detail and never offered. The
@@ -1102,7 +1110,7 @@ export function modulePickerData(recipeName: string | null, machineName: string)
             machineCategories.has(mod.category) &&
             !visibleCategories.has(mod.category) &&
             !isExcluded(mod.name, mod.category) &&
-            !qualityModuleHidden(mod),
+            !qualityModuleHidden(mod, hasQuality),
         )
     : [];
   const allModules = [...visibleModules, ...soleModules];
@@ -5739,12 +5747,29 @@ export function dataCapabilities(): { hasTurd: boolean; hasQuality: boolean } {
       .where(eq(technologies.isTurd, true))
       .get() as { n: number }
   ).n;
-  const quality = db
-    .select({ v: meta.value })
-    .from(meta)
-    .where(eq(meta.key, "has_quality"))
-    .get()?.v;
-  return { hasTurd: turd > 0, hasQuality: quality === "1" };
+  return { hasTurd: turd > 0, hasQuality: hasQualityData() };
+}
+
+/** Whether the loaded dataset has a quality chain: the `has_quality` meta key
+ * the importer records from the dump's `quality.normal.next`. */
+function hasQualityData(): boolean {
+  return (
+    db.select({ v: meta.value }).from(meta).where(eq(meta.key, "has_quality")).get()?.v === "1"
+  );
+}
+
+/** The quality chain for the planner's quality controls (#267): each quality
+ * in chain order with its display name, and the best one the research horizon
+ * unlocks. A project without quality has the chain `normal` alone. */
+export function qualityLadderView() {
+  const { ladder, byName, top } = createBlockSolveContext([]).qualities();
+  return {
+    ladder: ladder.map((step) => ({
+      name: step.name,
+      display: byName.get(step.name)?.display ?? step.name,
+    })),
+    top,
+  };
 }
 
 /** Row counts — useful for a health check / "is the db loaded" probe. */

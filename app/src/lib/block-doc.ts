@@ -20,7 +20,7 @@ function pruneRecord<V>(
 }
 
 /** Return a copy of the doc with `recipes` as the new complete recipe list.
- * Per-recipe config (machines, fuels, modules, beacons, reactor layouts, pins,
+ * Per-recipe config (machines, fuels, modules, beacons, reactor layouts, quality, pins,
  * disabled flags, sub-block membership) survives for recipes that stay and is
  * dropped for recipes that leave; empty maps/arrays are dropped entirely so the
  * doc stays lean. Goals and `made` marks are untouched — they're the user's
@@ -33,6 +33,7 @@ export function withRecipeSet<T extends Partial<BlockData>>(doc: T, recipes: str
   next.modules = pruneRecord(doc.modules, keep);
   next.beacons = pruneRecord(doc.beacons, keep);
   next.reactorLayouts = pruneRecord(doc.reactorLayouts, keep);
+  next.rowQuality = pruneRecord(doc.rowQuality, keep);
   next.recipeGroups = pruneRecord(doc.recipeGroups, keep);
   const disabled = (doc.disabledRecipes ?? []).filter((r) => keep.has(r));
   next.disabledRecipes = disabled.length ? disabled : undefined;
@@ -49,6 +50,7 @@ export function withRecipeSet<T extends Partial<BlockData>>(doc: T, recipes: str
     "modules",
     "beacons",
     "reactorLayouts",
+    "rowQuality",
     "recipeGroups",
     "disabledRecipes",
     "pins",
@@ -103,6 +105,8 @@ export function extractRecipeToBlockDocs<T extends Partial<BlockData>>(
     extracted.beacons = { [recipe]: beacons.map((b) => ({ ...b, modules: [...b.modules] })) };
   const reactorLayout = pickRecipeValue(doc.reactorLayouts, recipe);
   if (reactorLayout) extracted.reactorLayouts = { [recipe]: { ...reactorLayout } };
+  const rowQuality = pickRecipeValue(doc.rowQuality, recipe);
+  if (rowQuality) extracted.rowQuality = { [recipe]: { ...rowQuality } };
   const pins = (doc.pins ?? []).filter((p) => p.recipe === recipe);
   if (pins.length) extracted.pins = pins.map((p) => ({ ...p }));
   return { source, extracted };

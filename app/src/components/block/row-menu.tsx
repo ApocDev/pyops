@@ -1,4 +1,4 @@
-import { Layers, Pin, SplitSquareHorizontal, X } from "lucide-react";
+import { Gem, Layers, Pin, SplitSquareHorizontal, X } from "lucide-react";
 import { ContextMenu, ContextMenuItem } from "#/components/context-menu.tsx";
 import { Icon } from "../../lib/icons";
 import type { RowGroup } from "../../lib/row-groups";
@@ -17,6 +17,7 @@ export function RowMenu({
   onLeaveGroup,
   onExtractToBlock,
   onOpenPins,
+  onOpenQuality,
   onClose,
 }: {
   x: number;
@@ -32,6 +33,8 @@ export function RowMenu({
   onExtractToBlock: () => void;
   /** open the pin editor (#91): fixed/cap counts, input shares */
   onOpenPins: () => void;
+  /** open the quality editor (#267); absent when the project has no quality */
+  onOpenQuality?: () => void;
   onClose: () => void;
 }) {
   const act = (fn: () => void) => () => {
@@ -47,6 +50,11 @@ export function RowMenu({
       <ContextMenuItem onClick={act(onOpenPins)}>
         <Pin className="size-3.5" /> Pins — count / cap / route…
       </ContextMenuItem>
+      {onOpenQuality && (
+        <ContextMenuItem onClick={act(onOpenQuality)}>
+          <Gem className="size-3.5" /> Quality…
+        </ContextMenuItem>
+      )}
       <ContextMenuItem onClick={act(onExtractToBlock)}>
         <SplitSquareHorizontal className="size-3.5" /> Extract into new block
       </ContextMenuItem>

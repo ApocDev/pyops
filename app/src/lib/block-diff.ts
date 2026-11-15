@@ -1,7 +1,7 @@
 /**
  * Block-doc diff (#85): what changed between two block definitions — goals
  * added/removed/re-rated, recipes added/removed/toggled, per-recipe pick changes
- * (machine/fuel/modules/beacons), disposition and spoil-plan changes, and the
+ * (machine/fuel/modules/beacons/quality), disposition and spoil-plan changes, and the
  * robot trip distance override. Pure — no
  * db, no React — so the snapshot drawer and its tests share one implementation.
  *
@@ -10,7 +10,7 @@
  * Direction is `from` (the snapshot) → `to` (the current doc): "what changed
  * since this snapshot". Restoring the snapshot reverts exactly these changes.
  */
-import type { BeaconConfig, BlockData, Goal } from "../db/schema.ts";
+import type { BeaconConfig, BlockData, Goal, RowQuality } from "../db/schema.ts";
 
 export type GoalChange = { name: string; from: Goal; to: Goal };
 
@@ -28,6 +28,8 @@ export type PickChange = {
     from: { x: number; y: number } | null;
     to: { x: number; y: number } | null;
   };
+  /** quality range and machine/module quality (#267); null = all normal */
+  quality?: { from: RowQuality | null; to: RowQuality | null };
 };
 
 export type ValueChange<T> = { name: string; from: T | null; to: T | null };
@@ -122,7 +124,11 @@ export function diffBlockDocs(from: BlockData, to: BlockData): BlockDiff {
     const rlTo = to.reactorLayouts?.[r] ?? null;
     if (rlFrom?.x !== rlTo?.x || rlFrom?.y !== rlTo?.y)
       p.reactorLayout = { from: rlFrom, to: rlTo };
-    if (p.machine || p.fuel || p.modules || p.beacons || p.reactorLayout) picks.push(p);
+    const qFrom = from.rowQuality?.[r] ?? null;
+    const qTo = to.rowQuality?.[r] ?? null;
+    if (JSON.stringify(qFrom) !== JSON.stringify(qTo)) p.quality = { from: qFrom, to: qTo };
+    if (p.machine || p.fuel || p.modules || p.beacons || p.reactorLayout || p.quality)
+      picks.push(p);
   }
 
   const diffMap = <T>(a: Record<string, T> = {}, b: Record<string, T> = {}): ValueChange<T>[] => {

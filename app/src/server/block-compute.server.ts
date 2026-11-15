@@ -1451,6 +1451,9 @@ export async function computeBlock(rawData: SolveInput) {
       // the doc asked for a quality the research horizon hasn't unlocked; the
       // row plans at the best unlocked one instead
       ...(qualityCapped ? { qualityCapped: true } : {}),
+      // the recipe can't set quality, so the row runs at normal whatever its
+      // range says (its products can still upgrade)
+      ...(qualityCtx.ladder.length > 1 && !def.canSetQuality ? { qualityFixed: true } : {}),
       spoil,
       reactor,
       machine: chosen && {

@@ -80,6 +80,12 @@ export const dataCapabilitiesFn = createServerFn({ method: "GET" }).handler(asyn
   q.dataCapabilities(),
 );
 
+/** The quality chain with display names, and the best quality the research
+ * horizon unlocks, for the planner's quality controls (#267). */
+export const qualityLadderFn = createServerFn({ method: "GET" }).handler(async () =>
+  q.qualityLadderView(),
+);
+
 export const searchItemsFn = createServerFn({ method: "GET" })
   .validator((query: string) => query)
   .handler(async ({ data }) => q.searchItems(data, 100));

@@ -236,7 +236,8 @@ gives each quality in the range its own LP column: `recipe` at normal and `recip
 above it. The LP picks each column's rate, and the result folds the columns back onto the
 row. The row reports one rate and one machine count, plus `qualityRates` with each
 quality's share. A recipe whose `can_set_quality` is false, such as a fluid-only recipe or
-a synthetic one, runs at normal only.
+a synthetic one, runs at normal only. In a project with quality, its row reports
+`qualityFixed`, so the row's quality editor disables the range.
 
 A column at quality q eats its item ingredients at exactly q. A consumer at q needs exactly
 q, so there are no ranges, pools, or selectors as there are for temperatures. A burner's
