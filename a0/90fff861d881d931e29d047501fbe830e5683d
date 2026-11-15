@@ -1,0 +1,20 @@
+app/src/db/import-factorio.test.ts
+  h_3ea7e994213848 154-187
+app/src/db/import-factorio.ts
+  h_3ea7e994213848 116-126,443
+app/src/lib/data-format.ts
+  h_3ea7e994213848 9
+docs/development/data-pipeline.md
+  h_3ea7e994213848 195-200
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a090fff861d881d931e29d047501fbe830e5683d",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
