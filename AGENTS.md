@@ -53,9 +53,9 @@ dev, a per-OS user-data dir for a packaged build, overridable via `PYOPS_DATA_DI
   `import-factorio.ts` loads the dump; `synthesize.ts` builds pass-2 synthetic
   recipes (mining/boiling/burning/spoiling/planting/rocket-launch, temperature
   variants). Quality prototypes and fields are imported (`quality-import.ts`),
-  and `solver/quality.ts` expands block rows over a quality range (Py has no
-  quality chain, so it is a no-op there). The solver models fluid temperatures
-  too (`solver/temps.ts`).
+  and `solver/quality.ts` expands block rows over a quality range. It is a no-op
+  when the data has normal quality alone, as in Py without the `quality` mod. The
+  solver models fluid temperatures too (`solver/temps.ts`).
 - `lib/`, `components/` — React UI (shadcn/Radix + Tailwind v4).
 
 ## Build & verify (the `app/` toolchain)

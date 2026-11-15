@@ -133,6 +133,21 @@ describe("expandQualities", () => {
     expect(input.recipes).toBe(recipes);
   });
 
+  test("leaves a rare goal unmade on a normal-only ladder", async () => {
+    // a block shared out of a quality project into Py
+    const recipes = [gear];
+    const { input, fold } = expandQualities(
+      { ...noInput, goals: [{ name: "iron-gear-wheel", rate: 1, quality: "rare" }], recipes },
+      new Map([[gear.name, { levels: ["normal"], effect: 0 }]]),
+      ladder.slice(0, 1),
+    );
+    expect(input.recipes).toBe(recipes);
+    expect(fold.rowOf(gear.name)).toEqual({ recipe: gear.name, quality: null });
+    const result = await solveBlockLp(input);
+    expect(result.status).toBe("solved");
+    expect(result.unmade).toEqual(["iron-gear-wheel@rare"]);
+  });
+
   test("gives each level its own column with ingredients at that quality and split products", () => {
     const fuelled: QualityRecipeDef = {
       ...gear,

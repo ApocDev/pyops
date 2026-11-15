@@ -455,9 +455,16 @@ export async function computeBlock(rawData: SolveInput) {
   // unlocked one and reports `qualityCapped`
   const capAtTop = (quality: string | undefined) =>
     capQuality(qualityCtx.ladder, qualityCtx.top, quality);
+  /** Whether a recipe's row can run above normal. Spoiling is synthetic, so it
+   * can't set quality, but an item spoils into its result at its own quality
+   * (`ItemPrototype::spoil_quality_change` defaults to 0): 100 rare nutrients
+   * become 100 rare spoilage. Spoiling has no machine, so its quality effect
+   * is 0 and nothing upgrades. */
+  const runsAtQuality = (r: { kind: string; canSetQuality: boolean }) =>
+    r.canSetQuality || r.kind === "spoiling";
   /** The qualities a row runs at: its range as a slice of the chain. A recipe
-   * that can't set quality (fluid-only ingredients, synthetic recipes) runs at
-   * normal only, though its products can still upgrade. */
+   * that can't set quality (fluid-only ingredients, synthetic recipes other
+   * than spoiling) runs at normal only, though its products can still upgrade. */
   const rowLevels = (setting: RowQuality | undefined, canSetQuality: boolean) => {
     const names = qualityCtx.ladder.map((step) => step.name);
     const lo = names.indexOf(setting?.min ?? NORMAL_QUALITY);
@@ -578,7 +585,7 @@ export async function computeBlock(rawData: SolveInput) {
           beaconInterference,
           turdModules,
           effects,
-          qualityLevels: rowLevels(rowQuality, r.canSetQuality),
+          qualityLevels: rowLevels(rowQuality, runsAtQuality(r)),
           qualityCapped: [
             askedQuality?.min,
             askedQuality?.max,
@@ -1422,15 +1429,24 @@ export async function computeBlock(rawData: SolveInput) {
     // Spoil-buffer sizing (#19): a spoiling step is passive — items sit in
     // storage until they rot, so the chest space needed is throughput × spoil
     // time (rr.rate items/s enter; each occupies a slot for energyRequired s).
+    // A better item spoils slower, by `QualityPrototype::spoil_ticks_multiplier`.
+    // The import doesn't read it, so this uses its default, the quality's
+    // `default_multiplier`: a rare item lasts 1.6×. `seconds` is the time at the
+    // row's lowest quality; the buffer sums each quality's rate × its own time.
     const spoilSeconds = def.kind === "spoiling" ? (def.energyRequired ?? 0) : null;
     const spoil =
       spoilSeconds != null
         ? (() => {
             const input = def.ingredients[0]?.name;
             const stackSize = (input && refs.getItem(input)?.stackSize) || null;
-            const buffer = rr.rate * spoilSeconds;
+            const secondsAt = (quality: string | null | undefined) =>
+              spoilSeconds * (bonusesOf(quality ?? undefined)?.defaultMultiplier ?? 1);
+            const buffer = (rr.qualityRates ?? [{ quality: null, rate: rr.rate }]).reduce(
+              (sum, c) => sum + c.rate * secondsAt(c.quality),
+              0,
+            );
             return {
-              seconds: spoilSeconds,
+              seconds: secondsAt(qualityLevels[0]),
               buffer, // items resident mid-spoil at steady state
               stackSize,
               stacks: stackSize ? buffer / stackSize : null,
@@ -1477,7 +1493,7 @@ export async function computeBlock(rawData: SolveInput) {
       ...(qualityCapped ? { qualityCapped: true } : {}),
       // the recipe can't set quality, so the row runs at normal whatever its
       // range says (its products can still upgrade)
-      ...(qualityCtx.ladder.length > 1 && !def.canSetQuality ? { qualityFixed: true } : {}),
+      ...(qualityCtx.ladder.length > 1 && !runsAtQuality(def) ? { qualityFixed: true } : {}),
       spoil,
       reactor,
       machine: chosen && {

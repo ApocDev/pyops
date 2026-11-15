@@ -36,9 +36,10 @@ import type { TempComponent, TempRecipeDef } from "./temps.ts";
  * Fuel and its burnt result stay normal (`fixedQuality`): the row's fuel choice
  * is separate from the recipe's quality.
  *
- * When no row runs above normal, no row has a positive quality effect that
- * can upgrade anything, and nothing names a non-normal quality, the input is
- * returned unchanged. That is every Py block: Py has no quality chain.
+ * The input comes back unchanged when the ladder is normal alone (Py without
+ * the `quality` mod), or when no row runs above normal, no row has a positive
+ * quality effect that can upgrade anything, and nothing names a non-normal
+ * quality.
  */
 
 /** One quality in chain order, with the chances the split needs. */
@@ -221,30 +222,48 @@ export function expandQualities<G extends Goal>(
     );
   };
   const qualified = (key: string) => splitQualityKey(key, named).quality != null;
+  const aboveNormal = (quality: string | undefined) =>
+    quality != null && quality !== NORMAL_QUALITY;
   const active =
-    input.recipes.some(
+    ladder.length > 1 &&
+    (input.recipes.some(
       (r) => levelsOf(r.name).some((level) => level !== NORMAL_QUALITY) || upgrades(r.name),
     ) ||
-    input.goals.some((g) => g.quality != null && g.quality !== NORMAL_QUALITY) ||
-    input.made.some(qualified) ||
-    input.drains.some(qualified) ||
-    input.pins.some((p) => p.quality != null && p.quality !== NORMAL_QUALITY);
+      input.goals.some((g) => aboveNormal(g.quality)) ||
+      input.made.some(qualified) ||
+      input.drains.some(qualified) ||
+      input.pins.some((p) => aboveNormal(p.quality)));
   const stripGoal = (goal: G): Omit<G, "quality"> => {
     if (!("quality" in goal)) return goal;
     const { quality: _quality, ...rest } = goal;
     return rest;
   };
   if (!active) {
+    // A goal or share pin above normal reaches here only on a normal-only
+    // ladder (a block shared into a project without quality). The goal keeps
+    // its key, so the LP reports it unmade like any goal nothing here makes.
+    // The share pin is reported, as one at a quality its row can't run at is.
+    const ignoredPins: IgnoredPin[] = [];
+    const pins = input.pins.flatMap(({ quality, ...pin }): Pin[] => {
+      if (pin.kind !== "share" || quality == null || quality === NORMAL_QUALITY) return [pin];
+      if (input.recipes.some((r) => r.name === pin.recipe)) {
+        ignoredPins.push({ recipe: pin.recipe, item: pin.item, quality, reason: "range" });
+      }
+      return [];
+    });
     return {
       input: {
-        goals: input.goals.map(stripGoal),
+        goals: input.goals.map((goal) => ({
+          ...stripGoal(goal),
+          name: qualityKey(goal.name, goal.quality),
+        })),
         recipes: input.recipes,
         made: input.made,
-        pins: input.pins.map(({ quality: _quality, ...pin }) => pin as Pin),
+        pins,
         drains: input.drains,
       },
       fold: identityFold,
-      ignoredPins: [],
+      ignoredPins,
     };
   }
 
