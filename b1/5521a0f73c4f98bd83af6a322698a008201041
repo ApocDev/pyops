@@ -1,0 +1,14 @@
+app/src/lib/icons.tsx
+  h_3ea7e994213848 1,132-188,235-238,397-417
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b15521a0f73c4f98bd83af6a322698a008201041",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
