@@ -1,0 +1,14 @@
+app/src/components/block/recipe-grid.tsx
+  h_3ea7e994213848 160-161,285-286,298-305
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9fd4fd4c06ab6e1e9ad55f6819bf20b602c78623",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
