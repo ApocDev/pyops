@@ -157,6 +157,8 @@ export function RecipeGrid({
     [res?.rows],
   );
   const allQualityOpen = qualityRows.length > 0 && qualityRows.every((n) => qualityOpen.has(n));
+  const toggleAllQuality = () => setQualityOpen(allQualityOpen ? new Set() : new Set(qualityRows));
+  const allQualityLabel = allQualityOpen ? "Collapse all" : "Expand all";
 
   // Sub-block fold state is a view preference — localStorage, not the doc, so
   // folding doesn't churn auto-save.
@@ -280,12 +282,8 @@ export function RecipeGrid({
         <span className="flex items-center gap-2">
           Recipe ({recipes.length})
           {qualityRows.length > 0 && (
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={() => setQualityOpen(allQualityOpen ? new Set() : new Set(qualityRows))}
-            >
-              {allQualityOpen ? "Collapse all" : "Expand all"}
+            <Button variant="ghost" size="xs" onClick={toggleAllQuality}>
+              {allQualityLabel}
             </Button>
           )}
         </span>
@@ -297,6 +295,14 @@ export function RecipeGrid({
           Products ↑<InfoHint content="Click a product to add a consumer" />
         </span>
       </div>
+      {/* the column header is hidden on phones, so its quality toggle gets a bar */}
+      {qualityRows.length > 0 && (
+        <div className="flex justify-end border-b border-border px-3 py-1.5 md:hidden">
+          <Button variant="ghost" onClick={toggleAllQuality}>
+            {allQualityLabel} qualities
+          </Button>
+        </div>
+      )}
       {recipes.length === 0 && (
         <div className="px-3 py-2 text-muted-foreground">
           None — pick a recipe for the goal above
