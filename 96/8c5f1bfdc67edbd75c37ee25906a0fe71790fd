@@ -1,0 +1,30 @@
+app/e2e/mut/quality-row.e2e.ts
+  h_3ea7e994213848 8-9,117-124
+app/src/components/block/quality-sub-rows.tsx
+  h_3ea7e994213848 1-72
+app/src/components/block/recipe-grid.tsx
+  h_3ea7e994213848 27,143-160,280-291,369-370
+app/src/components/block/recipe-row.tsx
+  h_3ea7e994213848 6-7,33,100-101,135-137,194-197,199-201,204-219,221,223-235,237-239,241-249,251-264,266-347,351-362,364-382,384-397,399-418,422-428,430-445,449-480,487-497,500-513,515-520,522,524-528,530-539,541-575,577-611,613-616,619,628,635-700,702-709
+app/src/components/block/row-quality-pill.tsx
+  h_3ea7e994213848 36
+app/src/server/block-compute.server.ts
+  h_3ea7e994213848 1253-1273,1462-1466
+app/src/server/block-quality.test.ts
+  h_3ea7e994213848 126-128,130-143,245,265,397,418
+docs/development/solver.md
+  h_3ea7e994213848 237-240
+docs/guide/blocks.md
+  h_3ea7e994213848 163-168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "968c5f1bfdc67edbd75c37ee25906a0fe71790fd",
+  "prompts": {},
+  "humans": {
+    "h_3ea7e994213848": {
+      "author": "ApocDev <apocdev@gmail.com>"
+    }
+  }
+}
