@@ -322,7 +322,7 @@ export function importFactorioDump(
     ),
     moduleLim: db.prepare(`INSERT OR IGNORE INTO module_limitations (module,recipe) VALUES (?,?)`),
     beacon: db.prepare(
-      `INSERT INTO beacons (name,display,distribution_effectivity,module_slots,energy_usage_w,hidden,allowed_effects,allowed_module_categories,profile,quality_affects_module_slots,distribution_effectivity_bonus_per_quality_level) VALUES (@name,@display,@distribution_effectivity,@module_slots,@energy_usage_w,@hidden,@allowed_effects,@allowed_module_categories,@profile,@quality_affects_module_slots,@distribution_effectivity_bonus_per_quality_level)`,
+      `INSERT INTO beacons (name,display,distribution_effectivity,module_slots,energy_usage_w,hidden,allowed_effects,allowed_module_categories,profile,beacon_counter,quality_affects_module_slots,distribution_effectivity_bonus_per_quality_level) VALUES (@name,@display,@distribution_effectivity,@module_slots,@energy_usage_w,@hidden,@allowed_effects,@allowed_module_categories,@profile,@beacon_counter,@quality_affects_module_slots,@distribution_effectivity_bonus_per_quality_level)`,
     ),
     lab: db.prepare(
       `INSERT INTO labs (name,display,researching_speed,module_slots,energy_usage_w,energy_source,drain_w,pollution_per_min,allowed_effects,allowed_module_categories,inputs,hidden,tile_width,tile_height,quality_affects_module_slots,uses_quality_drain_modifier) VALUES (@name,@display,@researching_speed,@module_slots,@energy_usage_w,@energy_source,@drain_w,@pollution_per_min,@allowed_effects,@allowed_module_categories,@inputs,@hidden,@tile_width,@tile_height,@quality_affects_module_slots,@uses_quality_drain_modifier)`,
@@ -617,6 +617,8 @@ export function importFactorioDump(
         allowed_effects: jsonList(b.allowed_effects),
         allowed_module_categories: jsonList(b.allowed_module_categories),
         profile: Array.isArray(b.profile) && b.profile.length ? JSON.stringify(b.profile) : null,
+        // engine default "total" (BeaconPrototype.beacon_counter); vanilla and Py set "same_type"
+        beacon_counter: b.beacon_counter === "same_type" ? "same_type" : "total",
         quality_affects_module_slots: b.quality_affects_module_slots === true ? 1 : 0,
         distribution_effectivity_bonus_per_quality_level:
           b.distribution_effectivity_bonus_per_quality_level ?? 0,

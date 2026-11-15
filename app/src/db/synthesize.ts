@@ -131,7 +131,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       `INSERT OR IGNORE INTO machine_categories (machine,category) VALUES (?,?)`,
     ),
     beacon: db.prepare(
-      `INSERT OR REPLACE INTO beacons (name,display,distribution_effectivity,module_slots,energy_usage_w,hidden,allowed_effects,allowed_module_categories,profile) VALUES (?,?,?,?,?,0,?,?,?)`,
+      `INSERT OR REPLACE INTO beacons (name,display,distribution_effectivity,module_slots,energy_usage_w,hidden,allowed_effects,allowed_module_categories,profile,beacon_counter) VALUES (?,?,?,?,?,0,?,?,?,?)`,
     ),
     beaconUpkeep: db.prepare(
       `INSERT OR REPLACE INTO beacon_upkeep (beacon,module,item,kind,per_sec) VALUES (?,?,?,?,?)`,
@@ -858,10 +858,16 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
       db
         .prepare(
           `SELECT distribution_effectivity de, module_slots slots, allowed_effects ae,
-                  profile FROM beacons WHERE name = ?`,
+                  profile, beacon_counter counter FROM beacons WHERE name = ?`,
         )
         .get(name) as
-        | { de: number | null; slots: number; ae: string | null; profile: string | null }
+        | {
+            de: number | null;
+            slots: number;
+            ae: string | null;
+            profile: string | null;
+            counter: string;
+          }
         | undefined;
     for (const spec of arr<any>(
       (raw as Record<string, any>)["mod-data"]?.["pyops-effect-beacons"]?.data?.beacons,
@@ -889,6 +895,7 @@ export function synthesizePass2(db: Database.Database, raw: Raw, ctx: Ctx): Reco
         carrier.ae,
         JSON.stringify(tierCategories),
         carrier.profile,
+        carrier.counter,
       );
       for (const tier of arr<any>(spec.tiers)) {
         if (!tier?.module || !tier.item) continue;

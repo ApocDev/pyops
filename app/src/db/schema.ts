@@ -306,7 +306,8 @@ export const moduleLimitations = sqliteTable(
 /* Py beacon system: the vanilla beacon entity is hidden; the real choices are
  * (diet-)beacon-AM{1..5}-FM{1..5} variants, each with its own distribution
  * effectivity + power draw and 2 module slots. `profile` is the per-count
- * effectivity falloff (vanilla 1/sqrt(n)).
+ * effectivity falloff (vanilla 1/sqrt(n)), indexed by the beacons
+ * `beacon_counter` counts.
  *
  * `interference` lists the groups a beacon occupies on a machine it reaches. Two
  * beacons sharing a group disable the machine, and so do two copies of one
@@ -325,6 +326,13 @@ export const beacons = sqliteTable("beacons", {
     string[] | null
   >(),
   profile: text({ mode: "json" }).$type<number[] | null>(),
+  // which beacons reaching a machine pick its `profile` entry (BeaconCounter in
+  // server/effects.ts). The import writes the dump's value, or the engine
+  // default "total" when unset; the column default only fills rows imported
+  // before the column existed, with the value vanilla and every Py beacon use.
+  beaconCounter: text("beacon_counter", { enum: ["total", "same_type"] })
+    .notNull()
+    .default("same_type"),
   interference: text({ mode: "json" }).$type<string[] | null>(),
   // BeaconPrototype quality fields: the flag adds the quality's
   // `beacon_module_slots_bonus`; effectivity rises by the bonus per level

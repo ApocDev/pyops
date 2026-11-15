@@ -491,6 +491,16 @@ planning derives bonuses from the allowed technology set. **Now** mode can use e
 and per-recipe values synchronized from the running save or entered through planning
 settings.
 
+Each beacon entry on a row adds `count × distribution_effectivity × falloff` times the
+effects of the modules in one beacon. The falloff is the beacon's `profile` value for the
+number of beacons its `beacon_counter` counts on the machine, across every entry of the row.
+`"same_type"` counts beacons of the same prototype at any quality. `"total"` counts every
+beacon and is the engine default. So two entries of one beacon type, one beacon each, give
+the same result as one entry with two. A beacon without a `profile` uses the implicit `{1}`,
+so its falloff is always 1. The vanilla beacon uses `"same_type"` with a `1/sqrt(n)`
+profile. Every Pyanodons beacon also uses `"same_type"`, but the AM/FM beacons set no
+profile, so adding more of them never weakens each one.
+
 A beacon configuration records both how many beacons affect each machine and how many
 machines each beacon building serves. Real builds share a beacon between neighbouring
 machines, and the two quantities are independent: sharing never changes the effect, because
