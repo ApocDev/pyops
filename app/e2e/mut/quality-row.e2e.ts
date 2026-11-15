@@ -1,3 +1,4 @@
+import type { SQLInputValue } from "node:sqlite";
 import { expect, type Page, test } from "@playwright/test";
 import { goto, insertBlock, uniqueName, withDb } from "./helpers";
 
@@ -16,27 +17,46 @@ const TIERS = [
   { name: "legendary", display: "Legendary", level: 5, next: null },
 ];
 
+type Row = Record<string, SQLInputValue>;
+/** The fixture's own quality rows and `has_quality` key, put back after the
+ * quality tests. The fixture copies the active project, which may already
+ * have quality. */
+let saved: { qualities: Row[]; hasQuality: string | null } | null = null;
+
 /** Give the fixture vanilla's quality chain, as a quality-mod dump would. */
 function seedQualityChain() {
   withDb((db) => {
-    db.exec(
-      "UPDATE qualities SET display = 'Normal', next = 'uncommon', next_probability = 0.1 WHERE name = 'normal'",
+    saved = {
+      qualities: db.prepare("SELECT * FROM qualities").all() as Row[],
+      hasQuality:
+        (db.prepare("SELECT value FROM meta WHERE key = 'has_quality'").get() as Row | undefined)
+          ?.value?.toString() ?? null,
+    };
+    const upsert = db.prepare(
+      "INSERT OR REPLACE INTO qualities (name, display, level, next, next_probability, chain_probability) VALUES (?, ?, ?, ?, ?, ?)",
     );
-    const insert = db.prepare(
-      "INSERT INTO qualities (name, display, level, next, next_probability, chain_probability) VALUES (?, ?, ?, ?, ?, ?)",
-    );
-    for (const t of TIERS) insert.run(t.name, t.display, t.level, t.next, t.next ? 0.1 : 0, 0.1);
-    db.exec("INSERT INTO meta (key, value) VALUES ('has_quality', '1')");
+    upsert.run("normal", "Normal", 0, "uncommon", 0.1, 0.1);
+    for (const t of TIERS) upsert.run(t.name, t.display, t.level, t.next, t.next ? 0.1 : 0, 0.1);
+    db.exec("INSERT OR REPLACE INTO meta (key, value) VALUES ('has_quality', '1')");
   });
 }
 
-function clearQualityChain() {
+function restoreQualityChain() {
+  if (!saved) return;
+  const { qualities, hasQuality } = saved;
   withDb((db) => {
-    db.exec("DELETE FROM qualities WHERE name IN ('uncommon', 'rare', 'epic', 'legendary')");
-    db.exec(
-      "UPDATE qualities SET display = NULL, next = NULL, next_probability = 0 WHERE name = 'normal'",
-    );
-    db.exec("DELETE FROM meta WHERE key = 'has_quality'");
+    db.exec("DELETE FROM qualities");
+    for (const row of qualities) {
+      const cols = Object.keys(row);
+      db.prepare(
+        `INSERT INTO qualities (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`,
+      ).run(...cols.map((c) => row[c]));
+    }
+    if (hasQuality == null) db.exec("DELETE FROM meta WHERE key = 'has_quality'");
+    else
+      db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('has_quality', ?)").run(
+        hasQuality,
+      );
   });
 }
 
@@ -64,7 +84,7 @@ test("a project without quality shows no quality controls", async ({ page }) => 
 
 test.describe("with a quality chain", () => {
   test.beforeAll(seedQualityChain);
-  test.afterAll(clearQualityChain);
+  test.afterAll(restoreQualityChain);
 
   test("set a row's quality range from its menu, and it is saved", async ({ page }) => {
     const id = insertBlock(uniqueName("Quality row"), {
