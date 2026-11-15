@@ -82,6 +82,13 @@ exit code, and the server's own output. Ask a user to attach it before anything 
 Logging must never take the app down: if the file cannot be created, logging is silently
 disabled and startup proceeds.
 
+Errors in the log carry stack traces that name `src/` files and lines. The server build
+ships source maps (`sourcemap: true` in the Nitro config), and the shell starts Node with
+`--enable-source-maps`. Nitro bundles the server twice, so a small plugin in
+`vite.config.ts` hands each first-pass chunk's map to the second pass. Every server
+function that throws is logged with its stack (`src/start.ts`), and a failed data sync
+also puts the stack in the sync dialog's raw log.
+
 Development builds do not write it — the server runs in the developer's terminal.
 
 ### Startup failure page

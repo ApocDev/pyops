@@ -256,7 +256,10 @@ pub fn run() {
                 server_log.line(&format!("data dir: {}", data_dir.display()));
 
                 let spawned = app.shell().sidecar("node").and_then(|cmd| {
-                    cmd.arg(server_entry.to_string_lossy().to_string())
+                    // map stack traces through the server's source maps, so
+                    // server.log names src/ files and lines
+                    cmd.arg("--enable-source-maps")
+                        .arg(server_entry.to_string_lossy().to_string())
                         .env("PORT", PORT.to_string())
                         .env("HOST", "127.0.0.1")
                         // The server watches its piped stdin and exits on EOF, so it

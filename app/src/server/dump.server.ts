@@ -1019,6 +1019,9 @@ export function startDataSync(opts: { icons?: boolean; reuseDump?: boolean } = {
       const raw = e instanceof Error ? e.message : String(e);
       state.error = friendlyDumpError(raw); // surface "game is running" plainly
       state.log.push(`ERROR: ${raw}`); // keep the raw error in the log for debugging
+      // the stack names the file and line that threw (source-mapped in a build)
+      if (e instanceof Error && e.stack) state.log.push(...e.stack.split("\n").slice(1));
+      console.error("data sync failed:", e);
       state.finishedAt = Date.now();
     }
   })();
