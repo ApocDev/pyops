@@ -234,8 +234,10 @@ Every field defaults to normal, so a Py document has none of them and reads as b
 One block row covers a range of qualities with one machine and module setup. The transform
 gives each quality in the range its own LP column: `recipe` at normal and `recipe@rare`
 above it. The LP picks each column's rate, and the result folds the columns back onto the
-row. The row reports one rate and one machine count, plus `qualityRates` with each
-quality's share. A recipe whose `can_set_quality` is false, such as a fluid-only recipe or
+row. The row reports one rate and one machine count, plus `qualityColumns`: each
+quality's run rate, its share of the buildings, and its flows keyed per (good, quality)
+with products already split. The block editor shows these as the row's per-quality
+sub-rows. A recipe whose `can_set_quality` is false, such as a fluid-only recipe or
 a synthetic one, runs at normal only. In a project with quality, its row reports
 `qualityFixed`, so the row's quality editor disables the range.
 

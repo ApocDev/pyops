@@ -5,8 +5,8 @@ import { goto, insertBlock, uniqueName, withDb } from "./helpers";
 /**
  * Row quality (#267): when the project's data has a quality chain, a recipe
  * row's menu offers "Quality…". Its editor sets the qualities the row runs at,
- * the row then shows its range pill, and the setting is saved. A project
- * without quality (the Py fixture as seeded) shows none of it.
+ * the row then shows its range pill and opens into one sub-row per quality,
+ * and the setting is saved. A project without quality shows none of it.
  */
 
 const RECIPE = "iron-gear-wheel";
@@ -114,5 +114,13 @@ test.describe("with a quality chain", () => {
 
     await page.reload();
     await expect(pill).toBeVisible();
+
+    // the row opens into one sub-row per quality it runs at
+    await page.getByRole("button", { name: "Show each quality" }).click();
+    const subRows = page.locator(`[data-recipe-row="${RECIPE}"] ~ [data-quality-row]`);
+    await expect(subRows).toHaveCount(4);
+    await expect(page.locator('[data-quality-row="rare"]')).toContainText("Runs at Rare");
+    await page.getByRole("button", { name: "Hide each quality" }).click();
+    await expect(subRows).toHaveCount(0);
   });
 });

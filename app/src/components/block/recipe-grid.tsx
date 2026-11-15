@@ -24,6 +24,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { Button } from "#/components/ui/button.tsx";
 import { Card } from "#/components/ui/card.tsx";
 import { InfoHint } from "#/components/info-hint.tsx";
 import { useHotkey } from "../../lib/hotkeys";
@@ -138,6 +139,24 @@ export function RecipeGrid({
     allowInInputs: true,
     preventDefault: false,
   });
+
+  // Per-quality sub-rows (#267): the rows showing each quality they run at. A
+  // view choice for this visit only, like a row's hover state.
+  const [qualityOpen, setQualityOpen] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleQuality = useCallback(
+    (name: string) =>
+      setQualityOpen((prev) => {
+        const next = new Set(prev);
+        if (!next.delete(name)) next.add(name);
+        return next;
+      }),
+    [],
+  );
+  const qualityRows = useMemo(
+    () => res?.rows.flatMap((r) => (r.qualityColumns ? [r.recipe] : [])) ?? [],
+    [res?.rows],
+  );
+  const allQualityOpen = qualityRows.length > 0 && qualityRows.every((n) => qualityOpen.has(n));
 
   // Sub-block fold state is a view preference — localStorage, not the doc, so
   // folding doesn't churn auto-save.
@@ -258,7 +277,18 @@ export function RecipeGrid({
   return (
     <Card ref={cardRef} className={focusRecipe ? FOCUSING : undefined}>
       <div className={HEAD}>
-        <span>Recipe ({recipes.length})</span>
+        <span className="flex items-center gap-2">
+          Recipe ({recipes.length})
+          {qualityRows.length > 0 && (
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => setQualityOpen(allQualityOpen ? new Set() : new Set(qualityRows))}
+            >
+              {allQualityOpen ? "Collapse all" : "Expand all"}
+            </Button>
+          )}
+        </span>
         <span>Machines</span>
         <span className="flex items-center gap-1.5">
           Ingredients ↓<InfoHint content="Click an ingredient to add a producer" />
@@ -336,6 +366,8 @@ export function RecipeGrid({
                 recipeDisplay={res?.recipeDisplay}
                 highlight={focusRecipe === name}
                 tempWarnings={res?.tempWarnings}
+                qualityOpen={qualityOpen.has(name)}
+                onToggleQuality={toggleQuality}
               />
             );
           })}

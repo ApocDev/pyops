@@ -33,7 +33,7 @@ export function RowQualityPill({
       onClick={onOpen}
       aria-label={`${label}. Edit quality`}
       title={warn ? `${label}. This quality setting needs a look.` : label}
-      className={`mt-1 flex w-fit items-center gap-1 border px-1.5 py-0.5 text-sm hover:bg-accent ${
+      className={`flex w-fit items-center gap-1 border px-1.5 py-0.5 text-sm hover:bg-accent ${
         warn ? "border-warning/60 text-warning" : "border-border text-muted-foreground"
       }`}
     >

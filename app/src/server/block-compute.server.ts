@@ -1250,6 +1250,27 @@ export async function computeBlock(rawData: SolveInput) {
       effects: fx,
     } = setup.get(rr.recipe)!;
     const speed = (chosen?.craftingSpeed ?? 1) * fx.speedMult;
+    /** One quality column of the row: its run rate, its share of the row's
+     * buildings (every column runs the same recipe on the same machine), and
+     * its flows keyed per (good, quality), with products already split. */
+    const qualityColumn = (c: { quality: string | null; rate: number }, rowCount: number) => {
+      const colDef = columnDefs.get(qualityKey(rr.recipe, c.quality));
+      const flows = (cs: QualityComponent[] | undefined) =>
+        (cs ?? [])
+          .map((x) => ({
+            name: x.name,
+            kind: x.kind,
+            rate: x.amount * (x.probability ?? 1) * c.rate,
+          }))
+          .filter((x) => x.rate > 0);
+      return {
+        quality: c.quality,
+        rate: c.rate,
+        machines: rr.rate > 0 ? (rowCount * c.rate) / rr.rate : 0,
+        ingredients: flows(colDef?.ingredients),
+        products: flows(colDef?.products),
+      };
+    };
     // fractional building requirement (machine-seconds/sec ÷ speed); the UI
     // shows this and the whole-machine build target alongside it
     const count = rr.machines1x / speed;
@@ -1438,8 +1459,11 @@ export async function computeBlock(rawData: SolveInput) {
       // recipe kind (real | burning | …) so machineless rows can say why
       kind: def.kind,
       rate: rr.rate,
-      // each quality's share of the rate, for a row that runs above normal
-      ...(rr.qualityRates ? { qualityRates: rr.qualityRates } : {}),
+      // a row that runs above normal: each quality it runs at, as its own
+      // column, for the editor's per-quality sub-rows (#267)
+      ...(rr.qualityRates
+        ? { qualityColumns: rr.qualityRates.map((c) => qualityColumn(c, count)) }
+        : {}),
       // a quality effect that can't upgrade anything: no item product, or the
       // row only runs at the best unlocked quality (YAFC-CE's UselessQuality,
       // RecipeParameters.cs:170-176)

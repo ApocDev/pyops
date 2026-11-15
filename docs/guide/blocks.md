@@ -160,6 +160,12 @@ The row's range then shows under its rate, such as Normal → Legendary. Select 
 the editor again. A machine or module above normal shows its quality's icon in the
 bottom-left corner, as in the game. **Reset to normal** clears the row's quality.
 
+Select the arrow next to the range to see each quality the row runs at. Each line shows
+how many buildings run at that quality, what they use, and what they make. Their output
+spreads across several qualities. In the game, an assembler runs one recipe quality, so
+these are the counts to build. **Expand all** in the recipe table header opens every
+quality row at once.
+
 The editor warns, and the range turns amber, when:
 
 - the quality effect does nothing, because the recipe's products can't get quality or the
