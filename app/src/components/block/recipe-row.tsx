@@ -3,6 +3,8 @@ import { Link } from "@tanstack/react-router";
 import { shallow, useStore } from "@tanstack/react-store";
 import {
   AlertTriangle,
+  ChevronDown,
+  ChevronRight,
   FlaskConical,
   Flame,
   GripVertical,
@@ -28,6 +30,7 @@ import { ItemChip, type Link as ItemLink } from "./item-chip.tsx";
 import { LoadingFitCount } from "./loading-fit-count.tsx";
 import { LogiTag } from "./logi-tag.tsx";
 import { ReactorLayoutChip } from "./reactor-layout-chip.tsx";
+import { QualitySubRows } from "./quality-sub-rows.tsx";
 import { RowQualityPill } from "./row-quality-pill.tsx";
 import { RecipeSpoilageIndicator } from "./recipe-spoilage-indicator.tsx";
 import { rowTempWarnings } from "./temp-warnings.ts";
@@ -94,6 +97,8 @@ export const RecipeRow = memo(function RecipeRow({
   incidentalSpoilage,
   goodDisplay,
   recipeDisplay,
+  qualityOpen = false,
+  onToggleQuality,
 }: {
   doc: BlockDocStore;
   name: string;
@@ -127,6 +132,9 @@ export const RecipeRow = memo(function RecipeRow({
   incidentalSpoilage: readonly { source: string; result: string; rate: number }[];
   goodDisplay?: Readonly<Record<string, string>>;
   recipeDisplay?: Readonly<Record<string, string>>;
+  /** the row's per-quality sub-rows are open (#267) */
+  qualityOpen?: boolean;
+  onToggleQuality?: (name: string) => void;
 }) {
   countRender(`row:${name}`);
   const spoilables = useSpoilables();
@@ -183,473 +191,432 @@ export const RecipeRow = memo(function RecipeRow({
   return (
     <SortableRow key={name} id={name}>
       {({ setActivatorNodeRef, listeners, attributes, isDragging }) => (
-        <div
-          data-recipe-row={name}
-          className={`${gridClass} ${OFFSCREEN} relative border-t border-border ${grouped ? "border-l-2 border-l-primary/50" : ""} ${surface(isDragging)} ${highlight ? "ring-2 ring-primary ring-inset" : ""}`}
-        >
-          <RecipeHover
-            name={name}
-            className={`flex min-w-0 items-center gap-2 ${grouped ? "pl-2" : ""}`}
+        <>
+          <div
+            data-recipe-row={name}
+            className={`${gridClass} ${OFFSCREEN} relative border-t border-border ${grouped ? "border-l-2 border-l-primary/50" : ""} ${surface(isDragging)} ${highlight ? "ring-2 ring-primary ring-inset" : ""}`}
           >
-            <span
-              ref={setActivatorNodeRef}
-              {...attributes}
-              {...listeners}
-              title="Drag to reorder this recipe"
-              className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground select-none hover:text-foreground active:cursor-grabbing"
-            >
-              <GripVertical className="size-4" />
-            </span>
-            <span
-              data-recipe-row-icon={name}
-              className={off ? "opacity-40" : undefined}
-              data-context-menu
-              onContextMenu={(e) => {
-                e.preventDefault();
-                open.rowMenu(e, name);
-              }}
-            >
-              <Icon kind="recipe" name={name} size="md" noHover />
-            </span>
-            <span
-              className={`min-w-0 flex-1 ${off ? "opacity-60" : ""}`}
-              data-context-menu
-              onContextMenu={(e) => {
-                e.preventDefault();
-                open.rowMenu(e, name);
-              }}
+            <RecipeHover
+              name={name}
+              className={`flex min-w-0 items-center gap-2 ${grouped ? "pl-2" : ""}`}
             >
               <span
-                className={`line-clamp-2 break-words ${off ? "line-through" : ""}`}
-                title={display}
+                ref={setActivatorNodeRef}
+                {...attributes}
+                {...listeners}
+                title="Drag to reorder this recipe"
+                className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground select-none hover:text-foreground active:cursor-grabbing"
               >
-                {display}
+                <GripVertical className="size-4" />
               </span>
-              {differs && (
-                <span className="line-clamp-2 text-sm text-muted-foreground" title={differs}>
-                  {differs}
-                </span>
-              )}
-              {off ? (
-                <Tooltip content="Excluded from the solve">
-                  <span className="text-sm font-semibold text-muted-foreground">Disabled</span>
-                </Tooltip>
-              ) : error ? (
-                <Tooltip content="The block solve failed — edit this row to repair it">
-                  <span className="flex items-center gap-1 text-sm font-semibold text-destructive">
-                    <AlertTriangle className="size-3" /> Solve failed
-                  </span>
-                </Tooltip>
-              ) : idle ? (
-                <Tooltip content="Nothing in this block pulls it">
-                  <span className="text-sm font-semibold text-muted-foreground">Idle</span>
-                </Tooltip>
-              ) : row ? (
-                <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                  {num(row.rate)}/s
-                  {campaign && (
-                    <span className="tabular-nums">
-                      · {num(row.rate * campaign.duration)} crafts total
-                    </span>
-                  )}
-                  <RecipeSpoilageIndicator products={row.products} spoilables={spoilables} />
-                </span>
-              ) : null}
-              {rowQuality && (
-                <RowQualityPill
-                  setting={rowQuality}
-                  warn={!!(row?.qualityUseless || row?.qualityCapped)}
-                  onOpen={() => open.qualityFor(name)}
-                />
-              )}
-              {uncertainProducts.length > 0 && (
-                <Tooltip
-                  content={uncertainProducts
-                    .map(
-                      (product) =>
-                        `${product.display ?? product.name}: ${product.amountMin === product.amountMax ? num(product.amountMin) : `${num(product.amountMin)}–${num(product.amountMax)}`} on success${product.probability < 1 ? ` · ${num(product.probability * 100)}% chance` : ""} · ${num(product.amountExpected)} expected/craft${campaign ? ` · ${num(product.amountExpected * (row?.rate ?? 0) * campaign.duration)} expected total` : ""}`,
-                    )
-                    .join("\n")}
+              <span
+                data-recipe-row-icon={name}
+                className={off ? "opacity-40" : undefined}
+                data-context-menu
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  open.rowMenu(e, name);
+                }}
+              >
+                <Icon kind="recipe" name={name} size="md" noHover />
+              </span>
+              <span
+                className={`min-w-0 flex-1 ${off ? "opacity-60" : ""}`}
+                data-context-menu
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  open.rowMenu(e, name);
+                }}
+              >
+                <span
+                  className={`line-clamp-2 break-words ${off ? "line-through" : ""}`}
+                  title={display}
                 >
-                  <span
-                    aria-label="Variable recipe results"
-                    className="flex cursor-help text-warning"
-                  >
-                    <FlaskConical className="size-3.5" />
-                  </span>
-                </Tooltip>
-              )}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className={off ? "text-muted-foreground/60" : "text-muted-foreground"}
-              onClick={() => doc.toggleDisabled(name)}
-              title={
-                off
-                  ? "Enable — include this recipe in the solve"
-                  : "Disable — keep the recipe but exclude it from the solve"
-              }
-            >
-              <Power className="size-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size={confirmRemove ? "xs" : "icon-xs"}
-              className={`shrink-0 hover:text-destructive ${confirmRemove ? "font-semibold text-destructive" : "text-muted-foreground"}`}
-              onClick={() => {
-                if (!confirmRemove) return onArmRemove(name);
-                onArmRemove(null);
-                doc.dropRecipe(name);
-                doc.note(`Remove recipe "${display}"`); // labels the save for the undo stack (#90)
-              }}
-              title={confirmRemove ? "Click again to remove" : "Remove"}
-            >
-              {confirmRemove ? (
-                <span className="whitespace-nowrap">Remove?</span>
-              ) : (
-                <X className="size-3.5" />
-              )}
-            </Button>
-          </RecipeHover>
-          <div className="flex flex-wrap items-center gap-2">
-            <FieldLabel className="w-full md:hidden">Machines</FieldLabel>
-            {row?.machine ? (
-              <>
-                {/* building cell: icon → picker, count → click-to-fix. The count's
-                    own TINT carries the pin state (info = fixed, warning = capped),
-                    so no separate =N badge. Share routing keeps its % marker (it's
-                    about ingredients, not the building count). */}
-                <span className="flex items-center gap-2 bg-muted/50 px-1.5 py-1 text-sm">
-                  <button
-                    onClick={() => open.machinePicker(name)}
-                    aria-label={`Change ${row.machine.display ?? row.machine.name} building`}
-                    className="flex items-center hover:brightness-125"
-                  >
-                    <Icon
-                      kind="entity"
-                      name={row.machine.name}
-                      quality={row.machine.quality}
-                      size="md"
-                      extraText="Click to change building."
-                    />
-                  </button>
-                  <span className="flex flex-col items-start">
-                    <span className="flex items-center gap-1">
-                      <EditableCount
-                        count={row.machine.count}
-                        pin={rowPin}
-                        onSetCount={(n) => {
-                          doc.setPin({ kind: "count", recipe: name, count: n });
-                          doc.note(`Fix "${display}" at ${n} buildings`);
-                        }}
-                        onClear={() => {
-                          doc.clearPin(name);
-                          doc.note(`Unfix "${display}" building count`);
-                        }}
-                        onOpenPins={() => open.pinsFor(name)}
-                      />
-                      {shareCount > 0 && (
-                        <Tooltip
-                          content={`${shareCount} routed input share${shareCount > 1 ? "s" : ""}; click to manage`}
-                        >
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            aria-label={`Manage ${shareCount} routed input share${shareCount > 1 ? "s" : ""}`}
-                            onClick={() => open.pinsFor(name)}
-                            className="size-5 bg-info/20 text-sm text-info ring-1 ring-info/40 hover:bg-info/30 hover:text-info"
-                          >
-                            %
-                          </Button>
-                        </Tooltip>
-                      )}
-                      {drainItems.length > 0 && (
-                        <Tooltip
-                          content={`Routes all surplus ${drainDisplay} into this recipe; click to manage`}
-                        >
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            aria-label={`Routes all surplus ${drainDisplay}`}
-                            onClick={() => open.pinsFor(name)}
-                            className="size-5 bg-info/20 text-info ring-1 ring-info/40 hover:bg-info/30 hover:text-info"
-                          >
-                            <Route className="size-3.5" />
-                          </Button>
-                        </Tooltip>
-                      )}
-                    </span>
-                    {logi.resolved && logi.showInserters && (
-                      <LoadingFitCount
-                        logistics={logi.resolved}
-                        machine={row.machine}
-                        ingredients={row.ingredients}
-                        products={row.products}
-                        fuel={row.fuel}
-                      />
-                    )}
-                  </span>
+                  {display}
                 </span>
-                {/* electricity, when the machine draws power */}
-                {row.machine.energySource === "electric" && (
-                  <span
-                    title="Electric power draw"
-                    className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-info"
-                  >
-                    <Zap className="size-3.5" /> {formatPower(row.machine.powerW)}
+                {differs && (
+                  <span className="line-clamp-2 text-sm text-muted-foreground" title={differs}>
+                    {differs}
                   </span>
                 )}
-                {row.machine.energySource === "heat" && (
-                  <Tooltip content="Heat draw — must be delivered by a reactor in this block (heat doesn't travel between blocks)">
-                    <span className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-warning">
-                      <Flame className="size-3.5" /> {formatPower(row.machine.powerW)}
+                {off ? (
+                  <Tooltip content="Excluded from the solve">
+                    <span className="text-sm font-semibold text-muted-foreground">Disabled</span>
+                  </Tooltip>
+                ) : error ? (
+                  <Tooltip content="The block solve failed — edit this row to repair it">
+                    <span className="flex items-center gap-1 text-sm font-semibold text-destructive">
+                      <AlertTriangle className="size-3" /> Solve failed
+                    </span>
+                  </Tooltip>
+                ) : idle ? (
+                  <Tooltip content="Nothing in this block pulls it">
+                    <span className="text-sm font-semibold text-muted-foreground">Idle</span>
+                  </Tooltip>
+                ) : row ? (
+                  <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                    {num(row.rate)}/s
+                    {campaign && (
+                      <span className="tabular-nums">
+                        · {num(row.rate * campaign.duration)} crafts total
+                      </span>
+                    )}
+                    <RecipeSpoilageIndicator products={row.products} spoilables={spoilables} />
+                  </span>
+                ) : null}
+                {rowQuality && (
+                  <span className="mt-1 flex items-center gap-1">
+                    <RowQualityPill
+                      setting={rowQuality}
+                      warn={!!(row?.qualityUseless || row?.qualityCapped)}
+                      onOpen={() => open.qualityFor(name)}
+                    />
+                    {row?.qualityColumns && onToggleQuality && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-muted-foreground"
+                        aria-expanded={qualityOpen}
+                        aria-label={qualityOpen ? "Hide each quality" : "Show each quality"}
+                        title={qualityOpen ? "Hide each quality" : "Show each quality"}
+                        onClick={() => onToggleQuality(name)}
+                      >
+                        {qualityOpen ? (
+                          <ChevronDown className="size-3.5" />
+                        ) : (
+                          <ChevronRight className="size-3.5" />
+                        )}
+                      </Button>
+                    )}
+                  </span>
+                )}
+                {uncertainProducts.length > 0 && (
+                  <Tooltip
+                    content={uncertainProducts
+                      .map(
+                        (product) =>
+                          `${product.display ?? product.name}: ${product.amountMin === product.amountMax ? num(product.amountMin) : `${num(product.amountMin)}–${num(product.amountMax)}`} on success${product.probability < 1 ? ` · ${num(product.probability * 100)}% chance` : ""} · ${num(product.amountExpected)} expected/craft${campaign ? ` · ${num(product.amountExpected * (row?.rate ?? 0) * campaign.duration)} expected total` : ""}`,
+                      )
+                      .join("\n")}
+                  >
+                    <span
+                      aria-label="Variable recipe results"
+                      className="flex cursor-help text-warning"
+                    >
+                      <FlaskConical className="size-3.5" />
                     </span>
                   </Tooltip>
                 )}
-                {/* reactor farm layout (#94): neighbour bonus scales heat output */}
-                {row.reactor && (
-                  <ReactorLayoutChip
-                    reactor={row.reactor}
-                    onPick={(l) => doc.setReactorLayout(name, l)}
-                  />
+              </span>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className={off ? "text-muted-foreground/60" : "text-muted-foreground"}
+                onClick={() => doc.toggleDisabled(name)}
+                title={
+                  off
+                    ? "Enable — include this recipe in the solve"
+                    : "Disable — keep the recipe but exclude it from the solve"
+                }
+              >
+                <Power className="size-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size={confirmRemove ? "xs" : "icon-xs"}
+                className={`shrink-0 hover:text-destructive ${confirmRemove ? "font-semibold text-destructive" : "text-muted-foreground"}`}
+                onClick={() => {
+                  if (!confirmRemove) return onArmRemove(name);
+                  onArmRemove(null);
+                  doc.dropRecipe(name);
+                  doc.note(`Remove recipe "${display}"`); // labels the save for the undo stack (#90)
+                }}
+                title={confirmRemove ? "Click again to remove" : "Remove"}
+              >
+                {confirmRemove ? (
+                  <span className="whitespace-nowrap">Remove?</span>
+                ) : (
+                  <X className="size-3.5" />
                 )}
-                {/* fuel: icon + rate; click = fuel picker. The fluid-fuel pool
+              </Button>
+            </RecipeHover>
+            <div className="flex flex-wrap items-center gap-2">
+              <FieldLabel className="w-full md:hidden">Machines</FieldLabel>
+              {row?.machine ? (
+                <>
+                  {/* building cell: icon → picker, count → click-to-fix. The count's
+                    own TINT carries the pin state (info = fixed, warning = capped),
+                    so no separate =N badge. Share routing keeps its % marker (it's
+                    about ingredients, not the building count). */}
+                  <span className="flex items-center gap-2 bg-muted/50 px-1.5 py-1 text-sm">
+                    <button
+                      onClick={() => open.machinePicker(name)}
+                      aria-label={`Change ${row.machine.display ?? row.machine.name} building`}
+                      className="flex items-center hover:brightness-125"
+                    >
+                      <Icon
+                        kind="entity"
+                        name={row.machine.name}
+                        quality={row.machine.quality}
+                        size="md"
+                        extraText="Click to change building."
+                      />
+                    </button>
+                    <span className="flex flex-col items-start">
+                      <span className="flex items-center gap-1">
+                        <EditableCount
+                          count={row.machine.count}
+                          pin={rowPin}
+                          onSetCount={(n) => {
+                            doc.setPin({ kind: "count", recipe: name, count: n });
+                            doc.note(`Fix "${display}" at ${n} buildings`);
+                          }}
+                          onClear={() => {
+                            doc.clearPin(name);
+                            doc.note(`Unfix "${display}" building count`);
+                          }}
+                          onOpenPins={() => open.pinsFor(name)}
+                        />
+                        {shareCount > 0 && (
+                          <Tooltip
+                            content={`${shareCount} routed input share${shareCount > 1 ? "s" : ""}; click to manage`}
+                          >
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              aria-label={`Manage ${shareCount} routed input share${shareCount > 1 ? "s" : ""}`}
+                              onClick={() => open.pinsFor(name)}
+                              className="size-5 bg-info/20 text-sm text-info ring-1 ring-info/40 hover:bg-info/30 hover:text-info"
+                            >
+                              %
+                            </Button>
+                          </Tooltip>
+                        )}
+                        {drainItems.length > 0 && (
+                          <Tooltip
+                            content={`Routes all surplus ${drainDisplay} into this recipe; click to manage`}
+                          >
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              aria-label={`Routes all surplus ${drainDisplay}`}
+                              onClick={() => open.pinsFor(name)}
+                              className="size-5 bg-info/20 text-info ring-1 ring-info/40 hover:bg-info/30 hover:text-info"
+                            >
+                              <Route className="size-3.5" />
+                            </Button>
+                          </Tooltip>
+                        )}
+                      </span>
+                      {logi.resolved && logi.showInserters && (
+                        <LoadingFitCount
+                          logistics={logi.resolved}
+                          machine={row.machine}
+                          ingredients={row.ingredients}
+                          products={row.products}
+                          fuel={row.fuel}
+                        />
+                      )}
+                    </span>
+                  </span>
+                  {/* electricity, when the machine draws power */}
+                  {row.machine.energySource === "electric" && (
+                    <span
+                      title="Electric power draw"
+                      className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-info"
+                    >
+                      <Zap className="size-3.5" /> {formatPower(row.machine.powerW)}
+                    </span>
+                  )}
+                  {row.machine.energySource === "heat" && (
+                    <Tooltip content="Heat draw — must be delivered by a reactor in this block (heat doesn't travel between blocks)">
+                      <span className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-warning">
+                        <Flame className="size-3.5" /> {formatPower(row.machine.powerW)}
+                      </span>
+                    </Tooltip>
+                  )}
+                  {/* reactor farm layout (#94): neighbour bonus scales heat output */}
+                  {row.reactor && (
+                    <ReactorLayoutChip
+                      reactor={row.reactor}
+                      onPick={(l) => doc.setReactorLayout(name, l)}
+                    />
+                  )}
+                  {/* fuel: icon + rate; click = fuel picker. The fluid-fuel pool
                     (#25), a filtered burner's pinned fluid, and a temperature-fed
                     drain (#114) have no per-row pick, so those render as plain
                     (non-clickable) chips. */}
-                {row.fuel &&
-                  (row.fuel.pool || row.fuel.pinned || row.fuel.temperature ? (
-                    <Tooltip
-                      label
-                      content={
-                        row.fuel.pool
-                          ? `Fluid fuel · ${formatPower(row.fuel.perSec * 1e6)} — burns any fuel-valued fluid; add a "Burn …" recipe to choose which`
-                          : row.fuel.temperature
-                            ? `${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s — drained for its heat (temperature), not burned`
-                            : `${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s — this machine only burns ${row.fuel.display ?? row.fuel.name}`
-                      }
-                    >
-                      <span className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-warning">
+                  {row.fuel &&
+                    (row.fuel.pool || row.fuel.pinned || row.fuel.temperature ? (
+                      <Tooltip
+                        label
+                        content={
+                          row.fuel.pool
+                            ? `Fluid fuel · ${formatPower(row.fuel.perSec * 1e6)} — burns any fuel-valued fluid; add a "Burn …" recipe to choose which`
+                            : row.fuel.temperature
+                              ? `${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s — drained for its heat (temperature), not burned`
+                              : `${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s — this machine only burns ${row.fuel.display ?? row.fuel.name}`
+                        }
+                      >
+                        <span className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-warning">
+                          <Icon
+                            kind={row.fuel.kind as "item" | "fluid"}
+                            name={row.fuel.name}
+                            size="md"
+                            noTitle
+                          />
+                          <span className="font-semibold">
+                            {row.fuel.pool
+                              ? formatPower(row.fuel.perSec * 1e6)
+                              : num(row.fuel.perSec)}
+                          </span>
+                        </span>
+                      </Tooltip>
+                    ) : (
+                      <button
+                        onClick={() => open.fuelPicker(name)}
+                        title={`${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s · click to change fuel`}
+                        className={`${cellChip} text-warning`}
+                      >
                         <Icon
                           kind={row.fuel.kind as "item" | "fluid"}
                           name={row.fuel.name}
                           size="md"
                           noTitle
                         />
-                        <span className="font-semibold">
-                          {row.fuel.pool
-                            ? formatPower(row.fuel.perSec * 1e6)
-                            : num(row.fuel.perSec)}
-                        </span>
+                        <span className="font-semibold">{num(row.fuel.perSec)}</span>
+                      </button>
+                    ))}
+                  {/* burnt result (ash, depleted cell): produced 1:1 from burning */}
+                  {row.fuel?.burnt && (
+                    <Tooltip
+                      content={`${row.fuel.burnt.display ?? row.fuel.burnt.name} — produced by burning`}
+                    >
+                      <span className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-muted-foreground">
+                        →<Icon kind="item" name={row.fuel.burnt.name} size="md" noTitle />
+                        <span>{num(row.fuel.burnt.perSec)}</span>
                       </span>
                     </Tooltip>
-                  ) : (
-                    <button
-                      onClick={() => open.fuelPicker(name)}
-                      title={`${row.fuel.display ?? row.fuel.name} · ${num(row.fuel.perSec)}/s · click to change fuel`}
-                      className={`${cellChip} text-warning`}
-                    >
-                      <Icon
-                        kind={row.fuel.kind as "item" | "fluid"}
-                        name={row.fuel.name}
-                        size="md"
-                        noTitle
-                      />
-                      <span className="font-semibold">{num(row.fuel.perSec)}</span>
-                    </button>
-                  ))}
-                {/* burnt result (ash, depleted cell): produced 1:1 from burning */}
-                {row.fuel?.burnt && (
-                  <Tooltip
-                    content={`${row.fuel.burnt.display ?? row.fuel.burnt.name} — produced by burning`}
-                  >
-                    <span className="flex items-center gap-1 bg-muted/50 px-1.5 py-1 text-sm text-muted-foreground">
-                      →<Icon kind="item" name={row.fuel.burnt.name} size="md" noTitle />
-                      <span>{num(row.fuel.burnt.perSec)}</span>
-                    </span>
-                  </Tooltip>
-                )}
-                {/* modules + beacons: configured loadout (or ghost ⊞), click to edit */}
-                <ModulesChip
-                  modules={row.modules}
-                  moduleQuality={rowQuality?.modules}
-                  beacons={row.beacons}
-                  slots={row.machine.moduleSlots ?? 0}
-                  effectsAllowed={row.machine.effectsAllowed ?? true}
-                  effects={row.effects}
-                  interference={row.beaconInterference.length > 0}
-                  onClick={() => open.modulesPicker(name)}
-                />
-                {/* auto-fill hint: a better fill exists — click applies it */}
-                {moduleHints && settledSuggestion && (
-                  <button
-                    onClick={() =>
-                      row.suggestedModules && doc.applyModuleFills({ [name]: row.suggestedModules })
-                    }
-                    title="Better modules available — click to apply the suggested fill (open the modules dialog to preview it)"
-                    className="flex items-center px-1 py-1 text-info hover:bg-accent"
-                  >
-                    <Sparkles className="size-3.5" />
-                  </button>
-                )}
-                {/* TURD: hidden modules the selected upgrades insert (no slot cost) */}
-                {row.turdModules.length > 0 && (
-                  <Tooltip
-                    content={`TURD: ${row.turdModules.map((m) => m.display ?? m.name).join(", ")} — applied by your selected upgrades`}
-                  >
-                    <Link
-                      to="/turd"
-                      className="flex items-center gap-1 bg-primary/15 px-1.5 py-1 text-sm text-primary ring-1 ring-primary/40 hover:brightness-110"
-                    >
-                      <FlaskConical className="size-3.5" />
-                      {row.turdModules.map((m) => (
-                        <Icon key={m.name} kind="item" name={m.name} size="sm" noTitle />
-                      ))}
-                    </Link>
-                  </Tooltip>
-                )}
-              </>
-            ) : row?.spoil ? (
-              // Spoil-buffer sizing (#19): no machine — the "cost" of a
-              // spoiling step is the storage holding items mid-spoil.
-              <Tooltip
-                content={`Spoils in ${fmtSpoilTime(row.spoil.seconds * 60)} — at ${num(row.rate)}/s, ≈${num(row.spoil.buffer)} items sit in storage mid-spoil${row.spoil.stacks != null ? ` (≈${Math.ceil(row.spoil.stacks)} stacks @ ${row.spoil.stackSize}/stack)` : ""}`}
-              >
-                <span className="flex items-center gap-1.5 bg-muted/50 px-1.5 py-1 text-sm text-warning">
-                  <Timer className="size-3.5 shrink-0" />
-                  {fmtSpoilTime(row.spoil.seconds * 60)} · buffer {num(Math.ceil(row.spoil.buffer))}
-                  {row.spoil.stacks != null && (
-                    <span className="text-muted-foreground">
-                      ≈ {num(Math.ceil(row.spoil.stacks))} stack
-                      {Math.ceil(row.spoil.stacks) === 1 ? "" : "s"}
-                    </span>
                   )}
-                </span>
-              </Tooltip>
-            ) : row?.kind === "burning" ? (
-              <Tooltip content="Stands in for this fuel burning in any burner. To link the result to a real boiler or furnace, pick this fuel on that building's row instead.">
-                <span className="text-sm text-muted-foreground">No building</span>
-              </Tooltip>
-            ) : (
-              <span className="text-muted-foreground">—</span>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-3">
-            <FieldLabel className="w-full md:hidden">Ingredients ↓</FieldLabel>
-            {row?.ingredients.map((c) => (
-              <div key={c.name} className="flex flex-col items-start gap-1.5">
-                <ItemChip
-                  name={c.name}
-                  kind={c.kind}
-                  display={c.display}
-                  rate={c.rate}
-                  temp={
-                    c.hasTemperatureVariants && (c.temperatureOptions?.length ?? 0) <= 1
-                      ? c.temp
-                      : null
-                  }
-                  temperatureControl={
-                    c.kind === "fluid" &&
-                    c.hasTemperatureVariants &&
-                    (c.temperatureOptions?.length ?? 0) > 1 &&
-                    c.acceptedTemperature ? (
-                      <FluidTemperaturePicker
-                        recipe={name}
-                        fluid={c.name}
-                        display={c.display ?? c.name}
-                        accepted={c.acceptedTemperature}
-                        selected={c.selectedTemperature ?? null}
-                        favorite={c.favoriteTemperature ?? null}
-                        options={c.temperatureOptions ?? []}
-                        onChange={(temperature) => {
-                          doc.pickFluidTemperature(name, c.name, temperature);
-                          doc.note(
-                            temperature == null
-                              ? `Use ${c.acceptedTemperature} ${c.display ?? c.name}`
-                              : `Use ${temperature}°C ${c.display ?? c.name}`,
-                          );
-                        }}
-                      />
-                    ) : null
-                  }
-                  link={linkOf(c.name)}
-                  craftable={producible.has(c.name)}
-                  onClick={() => open.makeFor(c.name)}
-                  onContext={(e) =>
-                    open.ctxMenu(e, { name: c.name, kind: c.kind, link: linkOf(c.name) })
-                  }
-                />
-                {/* fluid-temp mismatch (#110 interim): part of this fluid is made
-                    at a temperature this machine can't accept */}
-                {warnings.ingredient.has(c.name) && (
-                  <Tooltip content={warnings.ingredient.get(c.name)!.title}>
-                    <span className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning">
-                      <AlertTriangle className="size-3.5 shrink-0" />
-                      {warnings.ingredient.get(c.name)!.label}
-                    </span>
-                  </Tooltip>
-                )}
-                {logi.resolved && c.kind === "item" && (
-                  <LogiTag
-                    resolved={logi.resolved}
-                    rate={c.rate}
-                    machineCount={row.machine?.count ?? 0}
-                    direction="input"
-                    showBelts={logi.showBelts}
-                    showInserters={logi.showInserters}
-                    launch={logi.launchInfo(c.name, c.rate)}
+                  {/* modules + beacons: configured loadout (or ghost ⊞), click to edit */}
+                  <ModulesChip
+                    modules={row.modules}
+                    moduleQuality={rowQuality?.modules}
+                    beacons={row.beacons}
+                    slots={row.machine.moduleSlots ?? 0}
+                    effectsAllowed={row.machine.effectsAllowed ?? true}
+                    effects={row.effects}
+                    interference={row.beaconInterference.length > 0}
+                    onClick={() => open.modulesPicker(name)}
                   />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-3">
-            <FieldLabel className="w-full md:hidden">Products ↑</FieldLabel>
-            {row?.products.map((c, productIndex) => {
-              const incidental = incidentalSpoilage.filter((s) => s.source === c.name);
-              return (
-                <div
-                  key={`${c.name}:${productIndex}`}
-                  className="flex flex-col items-start gap-1.5"
-                >
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <ItemChip
-                      name={c.name}
-                      kind={c.kind}
-                      display={c.display}
-                      rate={c.rate}
-                      rateMin={c.rateMin}
-                      rateMax={c.rateMax}
-                      probability={c.probability}
-                      amountExpected={c.amountExpected}
-                      amountMin={c.amountMin}
-                      amountMax={c.amountMax}
-                      temp={c.temp}
-                      spoilTicks={spoilables[c.name]}
-                      link={linkOf(c.name)}
-                      onClick={() => open.useFor(c.name)}
-                      onContext={(e) =>
-                        open.ctxMenu(e, { name: c.name, kind: c.kind, link: linkOf(c.name) })
+                  {/* auto-fill hint: a better fill exists — click applies it */}
+                  {moduleHints && settledSuggestion && (
+                    <button
+                      onClick={() =>
+                        row.suggestedModules &&
+                        doc.applyModuleFills({ [name]: row.suggestedModules })
                       }
-                    />
-                    {incidental.map((spoil) => (
-                      <IncidentalSpoilageChip
-                        key={`${spoil.source}:${spoil.result}`}
-                        result={spoil.result}
-                        resultDisplay={goodDisplay?.[spoil.result]}
-                        rate={spoil.rate}
-                        onEdit={() => open.spoilageFor(spoil.source)}
-                      />
-                    ))}
-                  </div>
-                  {/* fluid-temp mismatch (#110 interim): a consumer in this block
-                    can't accept this output's temperature */}
-                  {warnings.product.has(c.name) && (
-                    <Tooltip content={warnings.product.get(c.name)!.title}>
+                      title="Better modules available — click to apply the suggested fill (open the modules dialog to preview it)"
+                      className="flex items-center px-1 py-1 text-info hover:bg-accent"
+                    >
+                      <Sparkles className="size-3.5" />
+                    </button>
+                  )}
+                  {/* TURD: hidden modules the selected upgrades insert (no slot cost) */}
+                  {row.turdModules.length > 0 && (
+                    <Tooltip
+                      content={`TURD: ${row.turdModules.map((m) => m.display ?? m.name).join(", ")} — applied by your selected upgrades`}
+                    >
+                      <Link
+                        to="/turd"
+                        className="flex items-center gap-1 bg-primary/15 px-1.5 py-1 text-sm text-primary ring-1 ring-primary/40 hover:brightness-110"
+                      >
+                        <FlaskConical className="size-3.5" />
+                        {row.turdModules.map((m) => (
+                          <Icon key={m.name} kind="item" name={m.name} size="sm" noTitle />
+                        ))}
+                      </Link>
+                    </Tooltip>
+                  )}
+                </>
+              ) : row?.spoil ? (
+                // Spoil-buffer sizing (#19): no machine — the "cost" of a
+                // spoiling step is the storage holding items mid-spoil.
+                <Tooltip
+                  content={`Spoils in ${fmtSpoilTime(row.spoil.seconds * 60)} — at ${num(row.rate)}/s, ≈${num(row.spoil.buffer)} items sit in storage mid-spoil${row.spoil.stacks != null ? ` (≈${Math.ceil(row.spoil.stacks)} stacks @ ${row.spoil.stackSize}/stack)` : ""}`}
+                >
+                  <span className="flex items-center gap-1.5 bg-muted/50 px-1.5 py-1 text-sm text-warning">
+                    <Timer className="size-3.5 shrink-0" />
+                    {fmtSpoilTime(row.spoil.seconds * 60)} · buffer{" "}
+                    {num(Math.ceil(row.spoil.buffer))}
+                    {row.spoil.stacks != null && (
+                      <span className="text-muted-foreground">
+                        ≈ {num(Math.ceil(row.spoil.stacks))} stack
+                        {Math.ceil(row.spoil.stacks) === 1 ? "" : "s"}
+                      </span>
+                    )}
+                  </span>
+                </Tooltip>
+              ) : row?.kind === "burning" ? (
+                <Tooltip content="Stands in for this fuel burning in any burner. To link the result to a real boiler or furnace, pick this fuel on that building's row instead.">
+                  <span className="text-sm text-muted-foreground">No building</span>
+                </Tooltip>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-3">
+              <FieldLabel className="w-full md:hidden">Ingredients ↓</FieldLabel>
+              {row?.ingredients.map((c) => (
+                <div key={c.name} className="flex flex-col items-start gap-1.5">
+                  <ItemChip
+                    name={c.name}
+                    kind={c.kind}
+                    display={c.display}
+                    rate={c.rate}
+                    temp={
+                      c.hasTemperatureVariants && (c.temperatureOptions?.length ?? 0) <= 1
+                        ? c.temp
+                        : null
+                    }
+                    temperatureControl={
+                      c.kind === "fluid" &&
+                      c.hasTemperatureVariants &&
+                      (c.temperatureOptions?.length ?? 0) > 1 &&
+                      c.acceptedTemperature ? (
+                        <FluidTemperaturePicker
+                          recipe={name}
+                          fluid={c.name}
+                          display={c.display ?? c.name}
+                          accepted={c.acceptedTemperature}
+                          selected={c.selectedTemperature ?? null}
+                          favorite={c.favoriteTemperature ?? null}
+                          options={c.temperatureOptions ?? []}
+                          onChange={(temperature) => {
+                            doc.pickFluidTemperature(name, c.name, temperature);
+                            doc.note(
+                              temperature == null
+                                ? `Use ${c.acceptedTemperature} ${c.display ?? c.name}`
+                                : `Use ${temperature}°C ${c.display ?? c.name}`,
+                            );
+                          }}
+                        />
+                      ) : null
+                    }
+                    link={linkOf(c.name)}
+                    craftable={producible.has(c.name)}
+                    onClick={() => open.makeFor(c.name)}
+                    onContext={(e) =>
+                      open.ctxMenu(e, { name: c.name, kind: c.kind, link: linkOf(c.name) })
+                    }
+                  />
+                  {/* fluid-temp mismatch (#110 interim): part of this fluid is made
+                    at a temperature this machine can't accept */}
+                  {warnings.ingredient.has(c.name) && (
+                    <Tooltip content={warnings.ingredient.get(c.name)!.title}>
                       <span className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning">
                         <AlertTriangle className="size-3.5 shrink-0" />
-                        {warnings.product.get(c.name)!.label}
+                        {warnings.ingredient.get(c.name)!.label}
                       </span>
                     </Tooltip>
                   )}
@@ -658,17 +625,88 @@ export const RecipeRow = memo(function RecipeRow({
                       resolved={logi.resolved}
                       rate={c.rate}
                       machineCount={row.machine?.count ?? 0}
-                      direction="output"
+                      direction="input"
                       showBelts={logi.showBelts}
                       showInserters={logi.showInserters}
                       launch={logi.launchInfo(c.name, c.rate)}
                     />
                   )}
                 </div>
-              );
-            })}
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-3">
+              <FieldLabel className="w-full md:hidden">Products ↑</FieldLabel>
+              {row?.products.map((c, productIndex) => {
+                const incidental = incidentalSpoilage.filter((s) => s.source === c.name);
+                return (
+                  <div
+                    key={`${c.name}:${productIndex}`}
+                    className="flex flex-col items-start gap-1.5"
+                  >
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <ItemChip
+                        name={c.name}
+                        kind={c.kind}
+                        display={c.display}
+                        rate={c.rate}
+                        rateMin={c.rateMin}
+                        rateMax={c.rateMax}
+                        probability={c.probability}
+                        amountExpected={c.amountExpected}
+                        amountMin={c.amountMin}
+                        amountMax={c.amountMax}
+                        temp={c.temp}
+                        spoilTicks={spoilables[c.name]}
+                        link={linkOf(c.name)}
+                        onClick={() => open.useFor(c.name)}
+                        onContext={(e) =>
+                          open.ctxMenu(e, { name: c.name, kind: c.kind, link: linkOf(c.name) })
+                        }
+                      />
+                      {incidental.map((spoil) => (
+                        <IncidentalSpoilageChip
+                          key={`${spoil.source}:${spoil.result}`}
+                          result={spoil.result}
+                          resultDisplay={goodDisplay?.[spoil.result]}
+                          rate={spoil.rate}
+                          onEdit={() => open.spoilageFor(spoil.source)}
+                        />
+                      ))}
+                    </div>
+                    {/* fluid-temp mismatch (#110 interim): a consumer in this block
+                    can't accept this output's temperature */}
+                    {warnings.product.has(c.name) && (
+                      <Tooltip content={warnings.product.get(c.name)!.title}>
+                        <span className="flex items-center gap-1 bg-warning/15 px-1.5 py-0.5 text-sm text-warning">
+                          <AlertTriangle className="size-3.5 shrink-0" />
+                          {warnings.product.get(c.name)!.label}
+                        </span>
+                      </Tooltip>
+                    )}
+                    {logi.resolved && c.kind === "item" && (
+                      <LogiTag
+                        resolved={logi.resolved}
+                        rate={c.rate}
+                        machineCount={row.machine?.count ?? 0}
+                        direction="output"
+                        showBelts={logi.showBelts}
+                        showInserters={logi.showInserters}
+                        launch={logi.launchInfo(c.name, c.rate)}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+          {qualityOpen && row?.qualityColumns && (
+            <QualitySubRows
+              columns={row.qualityColumns}
+              machine={row.machine}
+              gridClass={gridClass}
+            />
+          )}
+        </>
       )}
     </SortableRow>
   );

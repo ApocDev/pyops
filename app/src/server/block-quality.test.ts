@@ -123,10 +123,24 @@ describe("computeBlock with quality", () => {
     const g2PerG0 = (0.009 + 0.045 * g1PerG0) / 2;
     const g0 = 1 / (0.01 + 0.1 * g1PerG0 + g2PerG0);
     const gear = r.rows.find((row) => row.recipe === "iron-gear-wheel")!;
-    expect(gear.qualityRates?.map((q) => q.quality)).toEqual([null, "uncommon", "rare"]);
-    expect(gear.qualityRates?.[0].rate).toBeCloseTo(g0, 4);
-    expect(gear.qualityRates?.[2].rate).toBeCloseTo(g2PerG0 * g0, 4);
+    expect(gear.qualityColumns?.map((q) => q.quality)).toEqual([null, "uncommon", "rare"]);
+    expect(gear.qualityColumns?.[0].rate).toBeCloseTo(g0, 4);
+    expect(gear.qualityColumns?.[2].rate).toBeCloseTo(g2PerG0 * g0, 4);
     expect(gear.rate).toBeCloseTo(g0 * (1 + g1PerG0 + g2PerG0), 4);
+
+    // each column eats its own quality and splits its output up the chain
+    // (Q = 0.1; epic and legendary are locked, so their share lands on rare)
+    const [normal, , rare] = gear.qualityColumns!;
+    expect(normal.ingredients).toEqual([
+      { name: "iron-plate", kind: "item", rate: expect.closeTo(2 * g0, 4) },
+    ]);
+    expect(rare.ingredients.map((c) => c.name)).toEqual(["iron-plate@rare"]);
+    const made = Object.fromEntries(normal.products.map((c) => [c.name, c.rate / g0]));
+    expect(made["iron-gear-wheel"]).toBeCloseTo(0.9, 6);
+    expect(made["iron-gear-wheel@uncommon"]).toBeCloseTo(0.09, 6);
+    expect(made["iron-gear-wheel@rare"]).toBeCloseTo(0.01, 6);
+    const machines = gear.qualityColumns!.reduce((sum, c) => sum + c.machines, 0);
+    expect(machines).toBeCloseTo(gear.machine!.count, 9);
     expect(gear.effects.quality).toBeCloseTo(0.1);
     // one machine count per row: 0.5 s per craft at 1.25 × (1 − 4 × 5%) speed
     expect(gear.machine?.count).toBeCloseTo(gear.rate * 0.5, 4);
@@ -228,7 +242,7 @@ describe("computeBlock with quality", () => {
     expect(capped.effects.quality).toBeCloseTo(rare.effects.quality!, 12);
     expect(capped.machine?.craftingSpeed).toBeCloseTo(2, 12); // 1.25 × 1.6
     expect(capped.machine?.quality).toBe("rare");
-    expect(capped.qualityRates?.map((q) => q.quality)).toEqual([null, "uncommon", "rare"]);
+    expect(capped.qualityColumns?.map((q) => q.quality)).toEqual([null, "uncommon", "rare"]);
     expect(capped.rate).toBeCloseTo(rare.rate, 9);
     expect(capped.machine?.count).toBeCloseTo(rare.machine!.count, 9);
   });
@@ -248,7 +262,7 @@ describe("computeBlock with quality", () => {
     expect(r.goalSuperseded).toEqual([]);
     const row = r.rows[0];
     expect(row.rate).toBeCloseTo(2.5, 6);
-    const rare = row.qualityRates?.find((q) => q.quality === "rare")?.rate ?? 0;
+    const rare = row.qualityColumns?.find((q) => q.quality === "rare")?.rate ?? 0;
     expect(rare).toBeGreaterThanOrEqual(0.5 - 1e-6);
   });
 
@@ -380,7 +394,7 @@ describe("computeBlock with quality", () => {
     expect(sub.imports.map((f) => [f.name, +f.rate.toFixed(9)])).toEqual([["iron-plate@rare", 2]]);
     const row = r.rows[0];
     expect(row.rate).toBeCloseTo(1, 9);
-    expect(row.qualityRates?.find((q) => q.quality === "rare")?.rate).toBeCloseTo(1, 9);
+    expect(row.qualityColumns?.find((q) => q.quality === "rare")?.rate).toBeCloseTo(1, 9);
 
     const flows = boundaryFlows(goalFlows(doc), r).filter((f) => f.kind === "item");
     expect(flows.map((f) => [f.role, f.item, "quality" in f ? f.quality : null])).toEqual([
@@ -401,6 +415,6 @@ describe("computeBlock with quality", () => {
     const row = r.rows[0];
     expect(row.qualityUseless).toBe(true);
     expect(row.rate).toBeCloseTo(1, 6);
-    expect(row.qualityRates).toEqual([{ quality: "rare", rate: row.rate }]);
+    expect(row.qualityColumns?.map((c) => [c.quality, c.rate])).toEqual([["rare", row.rate]]);
   });
 });
