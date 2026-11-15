@@ -18,13 +18,14 @@ const TIERS = [
 ];
 
 type Row = Record<string, SQLInputValue>;
-/** The fixture's own quality rows and `has_quality` key, put back after the
- * quality tests. The fixture copies the active project, which may already
- * have quality. */
+/** The fixture's own quality rows and `has_quality` key, put back after each
+ * group of tests. The fixture copies the active project, which may or may not
+ * have quality, so each group sets the chain it needs. */
 let saved: { qualities: Row[]; hasQuality: string | null } | null = null;
 
-/** Give the fixture vanilla's quality chain, as a quality-mod dump would. */
-function seedQualityChain() {
+/** Save the fixture's quality data, then give it vanilla's quality chain (as
+ * a quality-mod dump would) or Py's normal-only chain. */
+function setQualityChain(on: boolean) {
   withDb((db) => {
     saved = {
       qualities: db.prepare("SELECT * FROM qualities").all() as Row[],
@@ -32,12 +33,15 @@ function seedQualityChain() {
         (db.prepare("SELECT value FROM meta WHERE key = 'has_quality'").get() as Row | undefined)
           ?.value?.toString() ?? null,
     };
+    db.exec("DELETE FROM qualities WHERE name NOT IN ('normal', 'quality-unknown')");
+    db.exec("DELETE FROM meta WHERE key = 'has_quality'");
     const upsert = db.prepare(
       "INSERT OR REPLACE INTO qualities (name, display, level, next, next_probability, chain_probability) VALUES (?, ?, ?, ?, ?, ?)",
     );
+    if (!on) return upsert.run("normal", "Normal", 0, null, 0, 0);
     upsert.run("normal", "Normal", 0, "uncommon", 0.1, 0.1);
     for (const t of TIERS) upsert.run(t.name, t.display, t.level, t.next, t.next ? 0.1 : 0, 0.1);
-    db.exec("INSERT OR REPLACE INTO meta (key, value) VALUES ('has_quality', '1')");
+    db.exec("INSERT INTO meta (key, value) VALUES ('has_quality', '1')");
   });
 }
 
@@ -72,7 +76,11 @@ async function openRowMenu(page: Page) {
   await expect(page.getByText("Pins — count / cap / route…")).toBeVisible();
 }
 
-test("a project without quality shows no quality controls", async ({ page }) => {
+test.describe("without a quality chain", () => {
+  test.beforeAll(() => setQualityChain(false));
+  test.afterAll(restoreQualityChain);
+
+  test("a project without quality shows no quality controls", async ({ page }) => {
   const id = insertBlock(uniqueName("No quality"), {
     goals: [{ name: RECIPE, rate: 1 }],
     recipes: [RECIPE],
@@ -80,10 +88,11 @@ test("a project without quality shows no quality controls", async ({ page }) => 
   await goto(page, `/block/${id}`);
   await openRowMenu(page);
   await expect(page.getByText("Quality…")).toHaveCount(0);
+  });
 });
 
 test.describe("with a quality chain", () => {
-  test.beforeAll(seedQualityChain);
+  test.beforeAll(() => setQualityChain(true));
   test.afterAll(restoreQualityChain);
 
   test("set a row's quality range from its menu, and it is saved", async ({ page }) => {
