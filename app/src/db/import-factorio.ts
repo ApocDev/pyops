@@ -113,6 +113,17 @@ function productProbability(c: Component): number {
 /** A product's `extra_count_fraction` (default 0). */
 const extraCount = (c: Component) =>
   typeof c.extra_count_fraction === "number" ? c.extra_count_fraction : 0;
+/** The part of a product that productivity never multiplies. Factorio 2.0 made
+ * it an AMOUNT, not a flag (Kovarex: u-235 out 41 with ignored 40). A product
+ * that leaves it out gets its `ignored_by_stats` (ItemProductPrototype docs, and
+ * measured in 2.1.24), so a catalyst hidden from stats is also kept from
+ * productivity. Tolerate a legacy boolean `true` = all ignored. */
+function ignoredByProductivity(c: Component): number {
+  const ignored = c.ignored_by_productivity ?? c.ignored_by_stats;
+  if (typeof ignored === "number") return ignored;
+  if (ignored !== true) return 0;
+  return c.amount ?? (((c.amount_min as number) ?? 0) + ((c.amount_max as number) ?? 0)) / 2;
+}
 /** Lua serializes an empty table as `{}` (object), not `[]`. Coerce to array. */
 const arr = <T = any>(x: unknown): T[] => (Array.isArray(x) ? (x as T[]) : []);
 /** Non-empty string list → JSON text; empty/missing → NULL (= "no restriction").
@@ -429,16 +440,7 @@ export function importFactorioDump(
             amount_max: c.amount_max == null ? null : (c.amount_max as number) + extraCount(c),
             probability: productProbability(c),
             temperature: (c.temperature as number) ?? null,
-            // Factorio 2.0: an AMOUNT (the catalytic part of the product that
-            // productivity never multiplies), not a flag. Kovarex: u-235 out 41
-            // with ignored 40. Tolerate a legacy boolean `true` = all ignored.
-            ignored_by_productivity:
-              typeof c.ignored_by_productivity === "number"
-                ? c.ignored_by_productivity
-                : c.ignored_by_productivity
-                  ? (c.amount ??
-                    (((c.amount_min as number) ?? 0) + ((c.amount_max as number) ?? 0)) / 2)
-                  : 0,
+            ignored_by_productivity: ignoredByProductivity(c),
           }),
         );
     }

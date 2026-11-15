@@ -192,6 +192,12 @@ probability range. Legacy dumps with a single probability field remain supported
 writes most recycling results this way, and Pyanodons' bhoddos spore breeding mk02 to mk04
 yield 6 spores plus 0.4, 0.3, and 0.75.
 
+A product's `ignored_by_productivity` is the amount of it that productivity never multiplies,
+usually the catalyst the recipe also consumes. When a product leaves the field out, the
+importer stores its `ignored_by_stats` instead, which is the engine's default. Many
+Pyanodons recipes set only `ignored_by_stats`, and Space Age's asteroid crushing sets it on
+the returned chunk. The solver applies this amount only on recipes that allow productivity.
+
 Localized display names come from the locale dumps. When a recipe or machine inherits its
 name from a product or placeable item, the importer uses that localized prototype name as a
 fallback. Internal prototype names remain database keys.

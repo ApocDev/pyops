@@ -151,6 +151,40 @@ describe("importFactorioDump — extra_count_fraction", () => {
   });
 });
 
+describe("importFactorioDump — ignored_by_productivity", () => {
+  it("defaults to the product's ignored_by_stats, as the engine does", () => {
+    // measured in Factorio 2.1.24: a missing key takes ignored_by_stats, an
+    // explicit 0 stays 0
+    const db = runImport({
+      recipe: {
+        catalyst: {
+          allow_productivity: true,
+          results: [
+            { type: "item", name: "stats-only", amount: 3, ignored_by_stats: 2 },
+            {
+              type: "item",
+              name: "explicit",
+              amount: 3,
+              ignored_by_stats: 2,
+              ignored_by_productivity: 0,
+            },
+            { type: "item", name: "plain", amount: 3 },
+          ],
+        },
+      },
+    });
+    const rows = db
+      .prepare(`SELECT name, ignored_by_productivity FROM recipe_products ORDER BY idx`)
+      .all();
+    expect(rows).toEqual([
+      { name: "stats-only", ignored_by_productivity: 2 },
+      { name: "explicit", ignored_by_productivity: 0 },
+      { name: "plain", ignored_by_productivity: 0 },
+    ]);
+    db.close();
+  });
+});
+
 describe("importFactorioDump — data format version", () => {
   it("records the reader version after a successful two-pass import", () => {
     const db = runImport({ recipe: {} });
